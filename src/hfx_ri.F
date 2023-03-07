@@ -43,6 +43,7 @@ MODULE hfx_ri
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_release, &
@@ -80,8 +81,7 @@ MODULE hfx_ri
                                               int_8
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_type,&
-                                              mp_para_env_type
+                                              mp_comm_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -141,8 +141,8 @@ CONTAINS
 
       INTEGER                                            :: handle, n_mem, new_flavor
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -210,11 +210,11 @@ CONTAINS
                                                             unit_nr, unit_nr_dbcsr
       REAL(KIND=dp)                                      :: threshold
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), DIMENSION(1) :: dbcsr_work_1, dbcsr_work_2, t_2c_int_mat, t_2c_op_pot, &
          t_2c_op_pot_sqrt, t_2c_op_pot_sqrt_inv, t_2c_op_RI, t_2c_op_RI_inv
       TYPE(dbt_type), DIMENSION(1)                       :: t_2c_int, t_2c_work
       TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -665,12 +665,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: compression_factor, memory_3c, occ, &
                                                             threshold
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), DIMENSION(1)                     :: t_2c_int_mat, t_2c_op_pot, t_2c_op_RI, &
                                                             t_2c_tmp, t_2c_tmp_2
       TYPE(dbt_type)                                     :: t_3c_2
       TYPE(dbt_type), DIMENSION(1)                       :: t_2c_int, t_2c_work
       TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int_1
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -937,10 +937,10 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_ks_matrix, my_rho_ao
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1135,13 +1135,13 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pdims
       LOGICAL                                            :: do_initialize
       REAL(dp)                                           :: t1, t2
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: ks_dist
       TYPE(dbt_pgrid_type)                               :: pgrid, pgrid_2d
       TYPE(dbt_type)                                     :: ks_t, ks_t_mat, mo_coeff_t, &
                                                             mo_coeff_t_split
       TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int_mo_1, t_3c_int_mo_2
       TYPE(mp_comm_type)                                 :: comm_2d
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1478,9 +1478,9 @@ CONTAINS
       REAL(dp)                                           :: memory_3c, occ, occ_3c, occ_3c_1, &
                                                             occ_3c_2, occ_ks, occ_rho, t1, t2, &
                                                             unused
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbt_type)                                     :: ks_t, ks_tmp, rho_ao_t, rho_ao_tmp, &
                                                             t_3c_1, t_3c_3, tensor_old
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       IF (.NOT. fac > EPSILON(0.0_dp)) RETURN
 
@@ -1724,6 +1724,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: t_3c_der_AO_ind, t_3c_der_RI_ind
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbt_pgrid_type)                               :: pgrid_1, pgrid_2
       TYPE(dbt_type) :: t_2c_RI, t_2c_RI_inv, t_2c_RI_met, t_2c_RI_PQ, t_2c_tmp, t_3c_0, t_3c_1, &
@@ -1734,7 +1735,6 @@ CONTAINS
          t_3c_der_AO, t_3c_der_AO_ctr_1, t_3c_der_RI, t_3c_der_RI_ctr_1, t_3c_der_RI_ctr_2
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: t_3c_der_AO_comp, t_3c_der_RI_comp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
@@ -2420,6 +2420,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: t_3c_der_AO_ind, t_3c_der_RI_ind
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: dbcsr_tmp
       TYPE(dbt_type) :: rho_ao_1, rho_ao_2, t_2c_RI, t_2c_RI_tmp, t_2c_tmp, t_3c_1, t_3c_2, &
          t_3c_3, t_3c_4, t_3c_5, t_3c_ao_ri_ao, t_3c_help_1, t_3c_help_2, t_3c_int, t_3c_int_2, &
@@ -2428,7 +2429,6 @@ CONTAINS
                                                             t_3c_der_AO, t_3c_der_RI
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: t_3c_der_AO_comp, t_3c_der_RI_comp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
@@ -3029,6 +3029,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       REAL(dp)                                           :: compression_factor, memory, occ
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type), DIMENSION(1, 3)                  :: t_2c_der_metric_prv, t_2c_der_RI_prv
       TYPE(dbt_type)                                     :: t_2c_template, t_2c_tmp, t_3c_template
@@ -3040,7 +3041,6 @@ CONTAINS
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(mp_cart_type)                                 :: mp_comm_t3c
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
@@ -3582,6 +3582,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: matrix_s_fm
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dbcsr_type), DIMENSION(1)                     :: matrix_s
@@ -3590,7 +3591,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -3764,6 +3764,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: blk
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: blk_3d
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: ri_2c_inv
       TYPE(dbt_distribution_type)                        :: dist_2d, dist_3d
       TYPE(dbt_iterator_type)                            :: iter
@@ -3775,7 +3776,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_3d_type)                         :: dist_nl3c
       TYPE(mp_cart_type)                                 :: mp_comm_t3c
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

@@ -20,11 +20,11 @@ MODULE bse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_type
+   USE message_passing,                 ONLY: mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE rpa_communication,               ONLY: communicate_buffer
@@ -63,7 +63,7 @@ CONTAINS
       INTEGER                                            :: homo, virtual, num_Z_vectors, max_iter
       REAL(KIND=dp)                                      :: threshold_min_trans
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_subspace_iterations'
 
@@ -138,7 +138,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: M_ji_tmp, RI_vector
       INTEGER                                            :: homo, virtual, num_Z_vectors, &
                                                             local_RI_size
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: i_Z_vector, LLL
 
@@ -192,7 +192,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: homo, virtual, num_Z_vectors, &
                                                             local_RI_size
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_AZ'
 
@@ -382,7 +382,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual, dimen_ia
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mult_B_with_W_and_fill_local_3c_arrays'
 
@@ -480,7 +480,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub, small_size, big_size, dimen_RI
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_and_fill_local_array'
 

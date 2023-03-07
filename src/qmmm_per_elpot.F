@@ -19,6 +19,7 @@ MODULE qmmm_per_elpot
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_set,&
@@ -36,7 +37,6 @@ MODULE qmmm_per_elpot
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
                                               do_ewald_pme,&
@@ -86,7 +86,7 @@ CONTAINS
       TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER       :: potentials
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
       TYPE(cell_type), POINTER                           :: qm_cell_small, mm_cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: compatibility
       TYPE(section_vals_type), POINTER                   :: qmmm_periodic, print_section
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace, maxchrg
@@ -283,7 +283,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Fac(3)
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: qmmm_per_section, print_section
 
       INTEGER                                            :: npts(3)
@@ -337,7 +337,7 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       INTEGER, INTENT(IN)                                :: qmmm_coupl_type
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: qmmm_periodic, print_section
 
       INTEGER                                            :: ewald_type, gmax(3), iw, o_spline, ounit

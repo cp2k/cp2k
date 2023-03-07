@@ -31,6 +31,7 @@ MODULE fft_tools
                                               C_PTR,&
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE fast,                            ONLY: zero_c
    USE fft_lib,                         ONLY: &
         fft_1dm, fft_3d, fft_create_plan_1dm, fft_create_plan_3d, fft_destroy_plan, &
@@ -42,7 +43,6 @@ MODULE fft_tools
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_null,&
                                               mp_comm_type,&
-                                              mp_para_env_type,&
                                               mp_request_type,&
                                               mp_waitall
    USE offload_api,                     ONLY: offload_free_pinned_mem,&
@@ -210,7 +210,7 @@ CONTAINS
 !>      10.2007 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE finalize_fft(para_env, wisdom_file)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
 ! release the FFT scratch pool

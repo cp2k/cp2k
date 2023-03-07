@@ -25,6 +25,7 @@ MODULE mp2_ri_grad_util
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
@@ -34,8 +35,7 @@ MODULE mp2_ri_grad_util
                                               release_group_dist
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_null,&
+   USE message_passing,                 ONLY: mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
@@ -86,7 +86,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: B_ia_Q
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, &
                                                             my_group_L_start, my_group_L_end, &
                                                             my_B_size, my_B_virtual_start
@@ -343,7 +343,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, my_B_size, virtual, &
                                                             my_B_virtual_start, my_ia_start, &
                                                             my_ia_end, my_ia_size, my_group_L_size
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_3d_to_2d'
@@ -418,7 +418,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, my_B_size, virtual, &
                                                             my_B_virtual_start, my_ia_start, &
                                                             my_ia_end, my_ia_size, my_group_L_size
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_3d_to_2d_gamma'
@@ -523,9 +523,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: convert_pos, my_do_release_mat
       REAL(KIND=dp)                                      :: part_col, part_row
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
@@ -921,9 +921,9 @@ CONTAINS
                                                             mepos_2_grid, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: part_col, part_row
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: req_send
 
       CALL timeset(routineN, handle)
@@ -1253,7 +1253,7 @@ CONTAINS
                                  gd_ia, dbcsr_Gamma, mo_coeff_o)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_ia
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dbcsr_Gamma
@@ -1587,7 +1587,7 @@ CONTAINS
    SUBROUTINE prepare_redistribution(para_env, para_env_sub, ngroup, &
                                      group_grid_2_mepos, mepos_2_grid_group, &
                                      pos_info)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: ngroup
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: group_grid_2_mepos, mepos_2_grid_group
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &

@@ -7,6 +7,7 @@
 
 MODULE qs_fb_com_tasks_types
 
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_put_block,&
@@ -15,7 +16,6 @@ MODULE qs_fb_com_tasks_types
                                               int_4,&
                                               int_8
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&
                                               fb_matrix_data_get,&
                                               fb_matrix_data_has_data,&
@@ -474,7 +474,7 @@ CONTAINS
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: tasks_dest_is_me
       CHARACTER, INTENT(IN)                              :: direction
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: tasks_src_is_me
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_transpose_dest_src'
 
@@ -925,7 +925,7 @@ CONTAINS
                                             matrix_storage)
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs_send, atom_pairs_recv
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_storage
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_gather_blks'
@@ -1110,7 +1110,7 @@ CONTAINS
                                                 dbcsr_mat)
       TYPE(fb_matrix_data_obj), INTENT(IN)               :: matrix_storage
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs_send, atom_pairs_recv
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_distribute_blks'

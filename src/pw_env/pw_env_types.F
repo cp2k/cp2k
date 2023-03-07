@@ -12,13 +12,13 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE pw_env_types
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cube_utils,                      ONLY: cube_info_type,&
                                               destroy_cube_info
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                               gridlevel_info_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -177,7 +177,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_env_release(pw_env, para_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL       :: para_env
 
       INTEGER                                            :: i, igrid_level
 

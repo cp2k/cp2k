@@ -52,6 +52,7 @@ MODULE qs_kind_types
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE external_potential_types,        ONLY: &
         all_potential_type, allocate_potential, deallocate_potential, get_potential, &
         gth_potential_type, init_potential, local_potential_type, read_potential, &
@@ -70,7 +71,6 @@ MODULE qs_kind_types
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
                                               ncoset
@@ -1478,7 +1478,7 @@ CONTAINS
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
       TYPE(section_vals_type), POINTER                   :: kind_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, INTENT(IN)                                :: no_fail
       INTEGER, INTENT(IN)                                :: method_id
@@ -2571,7 +2571,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(section_vals_type), POINTER                   :: kind_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_kind_set'

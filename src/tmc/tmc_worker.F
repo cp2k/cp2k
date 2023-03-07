@@ -33,6 +33,7 @@ MODULE tmc_worker
                                               init_cell
    USE cp_external_control,             ONLY: set_external_comm
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
@@ -47,8 +48,7 @@ MODULE tmc_worker
                                               force_env_get_natom
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE particle_list_types,             ONLY: particle_list_type
    USE tmc_analysis,                    ONLY: analysis_init,&
@@ -122,7 +122,7 @@ CONTAINS
                                                             num_dim, work_stat
       INTEGER, DIMENSION(:), POINTER                     :: ana_restart_conf
       LOGICAL                                            :: flag, master
-      TYPE(mp_para_env_type), POINTER                    :: para_env_m_w
+      TYPE(cp_para_env_type), POINTER                    :: para_env_m_w
       TYPE(tree_type), POINTER                           :: conf
 
       master = .FALSE.

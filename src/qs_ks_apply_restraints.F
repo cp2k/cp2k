@@ -14,12 +14,12 @@ MODULE qs_ks_apply_restraints
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: cdft_charge_constraint,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: mulliken_restraint
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -144,7 +144,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL, INTENT(in)                                :: just_energy
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_s
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(KIND=dp)                                      :: mulliken_order_p

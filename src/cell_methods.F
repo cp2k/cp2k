@@ -21,6 +21,7 @@ MODULE cell_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&
                                               parser_search_string
@@ -46,7 +47,6 @@ MODULE cell_methods
                                               dp
    USE mathconstants,                   ONLY: degree
    USE mathlib,                         ONLY: angle
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -78,7 +78,7 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_ref_cell
       TYPE(section_vals_type), OPTIONAL, POINTER         :: cell_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
@@ -260,7 +260,7 @@ CONTAINS
    SUBROUTINE read_cell_from_external_file(cell_section, para_env)
 
       TYPE(section_vals_type), POINTER                   :: cell_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_path_length)                 :: cell_file_name
       INTEGER                                            :: i, idum, j, my_format, n_rep
@@ -361,7 +361,7 @@ CONTAINS
    SUBROUTINE read_cell_cif(cif_file_name, cell, para_env)
       CHARACTER(len=*)                                   :: cif_file_name
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_cif'
 

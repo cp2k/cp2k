@@ -48,6 +48,7 @@ MODULE qs_scf_diagonalization
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, &
         dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
@@ -66,7 +67,6 @@ MODULE qs_scf_diagonalization
                                               kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: prepare_preconditioner,&
                                               restart_preconditioner
@@ -387,9 +387,9 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
@@ -660,10 +660,10 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: work
       TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 

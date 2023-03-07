@@ -31,11 +31,11 @@
 
 MODULE tmc_types
    USE cell_types,                      ONLY: cell_type
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE tmc_move_types,                  ONLY: tmc_move_type
    USE tmc_stati,                       ONLY: task_type_MC
@@ -79,11 +79,11 @@ MODULE tmc_types
       INTEGER                                       :: group_nr
       INTEGER                                       :: ana_on_the_fly
       ! the communicators (para_env)
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_w
-      TYPE(mp_para_env_type), POINTER               :: para_env_sub_group
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_first_w
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_ana
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_only
+      TYPE(cp_para_env_type), POINTER               :: para_env_m_w
+      TYPE(cp_para_env_type), POINTER               :: para_env_sub_group
+      TYPE(cp_para_env_type), POINTER               :: para_env_m_first_w
+      TYPE(cp_para_env_type), POINTER               :: para_env_m_ana
+      TYPE(cp_para_env_type), POINTER               :: para_env_m_only
    END TYPE tmc_comp_set_type
 
    ! struct for TMC global variables
@@ -259,14 +259,14 @@ CONTAINS
          CALL deallocate_tmc_atom_type(tmc_env%params%atoms)
       DEALLOCATE (tmc_env%params)
 
-      CALL mp_para_env_release(tmc_env%tmc_comp_set%para_env_sub_group)
-      CALL mp_para_env_release(tmc_env%tmc_comp_set%para_env_m_w)
+      CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_sub_group)
+      CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_w)
       IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_first_w)) &
-         CALL mp_para_env_release(tmc_env%tmc_comp_set%para_env_m_first_w)
+         CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_first_w)
       IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana)) &
-         CALL mp_para_env_release(tmc_env%tmc_comp_set%para_env_m_ana)
+         CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_ana)
       IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_only)) &
-         CALL mp_para_env_release(tmc_env%tmc_comp_set%para_env_m_only)
+         CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_only)
 
       DEALLOCATE (tmc_env%tmc_comp_set)
 

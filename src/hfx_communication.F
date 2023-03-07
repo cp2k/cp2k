@@ -15,6 +15,7 @@ MODULE hfx_communication
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
@@ -28,8 +29,7 @@ MODULE hfx_communication
                                               hfx_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_type,&
+   USE message_passing,                 ONLY: mp_request_type,&
                                               mp_waitall
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -74,7 +74,7 @@ CONTAINS
                                block_offset, kind_of, basis_parameter, &
                                get_max_vals_spin, rho_beta, antisymmetric)
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(:)                             :: full_density
       TYPE(dbcsr_type), POINTER                          :: rho
       INTEGER, INTENT(IN)                                :: number_of_p_entries
@@ -199,7 +199,7 @@ CONTAINS
                                    block_offset, kind_of, basis_parameter, &
                                    off_diag_fac, diag_fac)
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(:)                             :: full_ks
       TYPE(dbcsr_type), POINTER                          :: ks_matrix
       INTEGER, INTENT(IN)                                :: number_of_p_entries
@@ -305,7 +305,7 @@ CONTAINS
    SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep, &
                                               scaling_factor)
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       INTEGER, INTENT(IN)                                :: irep
@@ -428,7 +428,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: kind_of
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: is_assoc_atomic_block
       INTEGER, INTENT(OUT)                               :: number_of_p_entries
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:, :), POINTER                  :: atomic_block_offset
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: set_offset
       INTEGER, DIMENSION(:), POINTER                     :: block_offset

@@ -30,6 +30,7 @@ MODULE rt_propagation
                                               cp_iterate,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
@@ -50,7 +51,6 @@ MODULE rt_propagation
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE md_environment_types,            ONLY: md_environment_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE qs_core_hamiltonian,             ONLY: qs_matrix_h_allocate_imag_from_real
    USE qs_energy_init,                  ONLY: qs_energies_init
@@ -437,9 +437,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: aux_fit_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (matrix_s, dft_control, blacs_env, para_env, qs_kind_set, aux_fit_fm_struct)

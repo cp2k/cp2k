@@ -27,8 +27,6 @@ MODULE message_passing
       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
       real_8_size, default_string_length
    USE machine, ONLY: m_abort
-   USE mp_perf_env, ONLY: add_perf, &
-                          add_mp_perf_env, rm_mp_perf_env
 
 #include "../base/base_uses.f90"
 
@@ -99,7 +97,6 @@ MODULE message_passing
    MPI_WIN_TYPE, PARAMETER :: mp_win_null_handle = MPI_WIN_NULL
    MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = MPI_FILE_NULL
    MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = MPI_INFO_NULL
-   MPI_DATA_TYPE, PARAMETER :: mp_datatype_null_handle = MPI_DATATYPE_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
    ! Set max allocatable memory by MPI to 2 GiByte
@@ -126,9 +123,8 @@ MODULE message_passing
    MPI_WIN_TYPE, PARAMETER :: mp_win_null_handle = -5
    MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = -6
    MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = -7
-   MPI_DATA_TYPE, PARAMETER :: mp_datatype_null_handle = -8
-   INTEGER, PARAMETER, PUBLIC :: mp_status_size = -9
-   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -10
+   INTEGER, PARAMETER, PUBLIC :: mp_status_size = -8
+   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -9
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = int_8
@@ -158,10 +154,6 @@ MODULE message_passing
    PUBLIC :: mp_info_type
    PUBLIC :: mp_cart_type
 
-   PUBLIC :: mp_para_env_type, mp_para_env_p_type, mp_para_cart_type
-   PUBLIC :: mp_para_env_create, mp_para_env_release, &
-             mp_para_cart_create, mp_para_cart_release
-
    TYPE mp_comm_type
       PRIVATE
       MPI_COMM_TYPE :: handle = mp_comm_null_handle
@@ -181,17 +173,13 @@ MODULE message_passing
       ! Communication routines
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: &
-         mp_sendrecv_i, mp_sendrecv_l, mp_sendrecv_r, mp_sendrecv_d, &
-         mp_sendrecv_c, mp_sendrecv_z, &
          mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
          mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
          mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
          mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
          mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4, &
          mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
-      GENERIC, PUBLIC :: sendrecv => mp_sendrecv_i, mp_sendrecv_l, &
-         mp_sendrecv_r, mp_sendrecv_d, mp_sendrecv_c, mp_sendrecv_z, &
-         mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
+      GENERIC, PUBLIC :: sendrecv => mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4, &
          mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4, &
          mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4, &
          mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4, &
@@ -294,17 +282,11 @@ MODULE message_passing
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_max_i, mp_max_iv, &
          mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
          mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv, mp_max_root_i, mp_max_root_l, &
-         mp_max_root_r, mp_max_root_d, mp_max_root_c, mp_max_root_z, &
-         mp_max_root_im, mp_max_root_lm, mp_max_root_rm, mp_max_root_dm, &
-         mp_max_root_cm, mp_max_root_zm
+         mp_max_z, mp_max_zv
       GENERIC, PUBLIC :: max => mp_max_i, mp_max_iv, &
          mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
          mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv, mp_max_root_i, mp_max_root_l, &
-         mp_max_root_r, mp_max_root_d, mp_max_root_c, mp_max_root_z, &
-         mp_max_root_im, mp_max_root_lm, mp_max_root_rm, mp_max_root_dm, &
-         mp_max_root_cm, mp_max_root_zm
+         mp_max_z, mp_max_zv
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_min_i, mp_min_iv, &
          mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
@@ -314,13 +296,6 @@ MODULE message_passing
          mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
          mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
          mp_min_z, mp_min_zv
-
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: &
-         mp_sum_scatter_iv, mp_sum_scatter_lv, mp_sum_scatter_rv, &
-         mp_sum_scatter_dv, mp_sum_scatter_cv, mp_sum_scatter_zv
-      GENERIC, PUBLIC :: sum_scatter => &
-         mp_sum_scatter_iv, mp_sum_scatter_lv, mp_sum_scatter_rv, &
-         mp_sum_scatter_dv, mp_sum_scatter_cv, mp_sum_scatter_zv
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
       GENERIC, PUBLIC :: prod => mp_prod_r, mp_prod_d, mp_prod_c, mp_prod_z
@@ -568,10 +543,10 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm1), NON_OVERRIDABLE :: rank_compare => mp_rank_compare
 
       PROCEDURE, PUBLIC, PASS(comm2), NON_OVERRIDABLE :: from_dup => mp_comm_dup
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_free
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_free
       GENERIC, PUBLIC :: free => mp_comm_free
 
-      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: mp_comm_init
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init
       GENERIC, PUBLIC :: init => mp_comm_init
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_size => mp_comm_size
@@ -709,69 +684,13 @@ MODULE message_passing
    CONTAINS
       PROCEDURE, PUBLIC, PASS(comm_cart), NON_OVERRIDABLE :: create => mp_cart_create
       PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_sub => mp_cart_sub
+      PROCEDURE, PUBLIC, PASS(comm) :: mp_comm_init => mp_cart_init
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: get_info_cart => mp_cart_get
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: coords => mp_cart_coords
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: rank_cart => mp_cart_rank
    END TYPE
-
-! **************************************************************************************************
-!> \brief stores all the informations relevant to an mpi environment
-!> \param owns_group if it owns the group (and thus should free it when
-!>        this object is deallocated)
-!> \param ref_count the reference count, when it is zero this object gets
-!>        deallocated
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE, EXTENDS(mp_comm_type) :: mp_para_env_type
-      PRIVATE
-      ! We set it to true to have less initialization steps in case we create a new communicator
-      LOGICAL :: owns_group = .TRUE.
-      INTEGER :: ref_count = -1
-   CONTAINS
-      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: retain => mp_para_env_retain
-      PROCEDURE, PUBLIC, PASS(para_env), NON_OVERRIDABLE :: is_valid => mp_para_env_is_valid
-   END TYPE mp_para_env_type
-
-! **************************************************************************************************
-!> \brief represent a pointer to a para env (to build arrays)
-!> \param para_env the pointer to the para_env
-!> \par History
-!>      07.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE mp_para_env_p_type
-      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
-   END TYPE mp_para_env_p_type
-
-! **************************************************************************************************
-!> \brief represent a multidimensional parallel environment
-!> \param mepos_cart the position of the actual processor
-!> \param num_pe_cart number of processors in the group in each dimension
-!> \param source_cart id of a special processor (for example the one for i-o,
-!>        or the master
-!> \param owns_group if it owns the group (and thus should free it when
-!>        this object is deallocated)
-!> \param ref_count the reference count, when it is zero this object gets
-!>        deallocated
-!> \note
-!>      not yet implemented for mpi
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE, EXTENDS(mp_cart_type) :: mp_para_cart_type
-      PRIVATE
-      ! We set it to true to have less initialization steps in case we create a new communicator
-      LOGICAL :: owns_group = .TRUE.
-      INTEGER :: ref_count = -1
-   CONTAINS
-      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: retain => mp_para_cart_retain
-      PROCEDURE, PUBLIC, PASS(cart), NON_OVERRIDABLE :: is_valid => mp_para_cart_is_valid
-   END TYPE mp_para_cart_type
 
    ! Create the constants from the corresponding handles
    TYPE(mp_comm_type), PARAMETER, PUBLIC :: mp_comm_null = mp_comm_type(mp_comm_null_handle)
@@ -799,6 +718,11 @@ MODULE message_passing
    PUBLIC :: mp_world_init, mp_world_finalize
    PUBLIC :: mp_abort
 
+   ! performance gathering
+   PUBLIC :: mp_perf_env_type
+   PUBLIC :: mp_perf_env_retain, mp_perf_env_release
+   PUBLIC :: add_mp_perf_env, rm_mp_perf_env, get_mp_perf_env, describe_mp_perf_env
+
    ! informational / generation of sub comms
    PUBLIC :: mp_dims_create
    PUBLIC :: cp2k_is_parallel
@@ -819,6 +743,9 @@ MODULE message_passing
    PUBLIC :: mp_type_descriptor_type
    PUBLIC :: mp_type_make
    PUBLIC :: mp_type_size
+
+   ! some benchmarking code
+   PUBLIC :: mpi_perf_test
 
    ! vector types
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
@@ -893,39 +820,79 @@ MODULE message_passing
 
 ! Type declarations
    TYPE mp_indexing_meta_type
-      INTEGER, DIMENSION(:), POINTER :: index => NULL(), chunks => NULL()
+      INTEGER, DIMENSION(:), POINTER :: index, chunks
    END TYPE mp_indexing_meta_type
 
    TYPE mp_type_descriptor_type
-      MPI_DATA_TYPE :: type_handle = mp_datatype_null_handle
-      INTEGER :: length = -1
+      MPI_DATA_TYPE :: type_handle
+      INTEGER :: length
 #if defined(__parallel)
-      INTEGER(kind=mpi_address_kind) :: base = -1
+      INTEGER(kind=mpi_address_kind) :: base
 #endif
-      INTEGER(kind=int_4), DIMENSION(:), POINTER :: data_i => NULL()
-      INTEGER(kind=int_8), DIMENSION(:), POINTER :: data_l => NULL()
-      REAL(kind=real_4), DIMENSION(:), POINTER :: data_r => NULL()
-      REAL(kind=real_8), DIMENSION(:), POINTER :: data_d => NULL()
-      COMPLEX(kind=real_4), DIMENSION(:), POINTER :: data_c => NULL()
-      COMPLEX(kind=real_8), DIMENSION(:), POINTER :: data_z => NULL()
-      TYPE(mp_type_descriptor_type), DIMENSION(:), POINTER :: subtype => NULL()
-      INTEGER :: vector_descriptor(2) = -1
-      LOGICAL :: has_indexing = .FALSE.
-      TYPE(mp_indexing_meta_type) :: index_descriptor = mp_indexing_meta_type()
+      INTEGER(kind=int_4), DIMENSION(:), POINTER :: data_i
+      INTEGER(kind=int_8), DIMENSION(:), POINTER :: data_l
+      REAL(kind=real_4), DIMENSION(:), POINTER :: data_r
+      REAL(kind=real_8), DIMENSION(:), POINTER :: data_d
+      COMPLEX(kind=real_4), DIMENSION(:), POINTER :: data_c
+      COMPLEX(kind=real_8), DIMENSION(:), POINTER :: data_z
+      TYPE(mp_type_descriptor_type), DIMENSION(:), POINTER :: subtype
+      INTEGER :: vector_descriptor(2)
+      LOGICAL :: has_indexing
+      TYPE(mp_indexing_meta_type) :: index_descriptor
    END TYPE mp_type_descriptor_type
 
    TYPE mp_file_indexing_meta_type
-      INTEGER, DIMENSION(:), POINTER   :: index => NULL()
+      INTEGER, DIMENSION(:), POINTER   :: index
       INTEGER(kind=file_offset), &
-         DIMENSION(:), POINTER         :: chunks => NULL()
+         DIMENSION(:), POINTER         :: chunks
    END TYPE mp_file_indexing_meta_type
 
    TYPE mp_file_descriptor_type
-      MPI_DATA_TYPE :: type_handle = mp_datatype_null_handle
-      INTEGER                          :: length = -1
+      MPI_DATA_TYPE :: type_handle
+      INTEGER                          :: length
       LOGICAL                          :: has_indexing = .FALSE.
-      TYPE(mp_file_indexing_meta_type) :: index_descriptor = mp_file_indexing_meta_type()
+      TYPE(mp_file_indexing_meta_type) :: index_descriptor
    END TYPE
+
+   ! type internally used to store message passing performance indicators
+! **************************************************************************************************
+   TYPE mp_perf_type
+      CHARACTER(LEN=20) :: name
+      INTEGER :: count
+      REAL(KIND=dp) :: msg_size
+   END TYPE mp_perf_type
+
+   INTEGER, PARAMETER :: MAX_PERF = 28
+
+! **************************************************************************************************
+   TYPE mp_perf_env_type
+      !private
+      INTEGER :: ref_count
+      TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs
+   END TYPE mp_perf_env_type
+
+! **************************************************************************************************
+   TYPE mp_perf_env_p_type
+      TYPE(mp_perf_env_type), POINTER         :: mp_perf_env => Null()
+   END TYPE mp_perf_env_p_type
+
+   ! introduce a stack of mp_perfs, first index is the stack pointer, for convenience is replacing
+   INTEGER, PARAMETER :: max_stack_size = 10
+   INTEGER            :: stack_pointer = 0
+   ! target attribute needed as a hack around ifc 7.1 bug
+   TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), SAVE :: mp_perf_stack
+
+   CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) = &
+                                   (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
+                                     "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
+                                     "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
+                                     "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
+                                     "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
+                                     "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
+                                     "MP_Win_Lock         ", "MP_Win_Create       ", "MP_Win_Free         ", &
+                                     "MP_IBcast           ", "MP_IAllreduce       ", "MP_IScatter         ", &
+                                     "MP_RGet             ", "MP_Isync            ", "MP_Read_All         ", &
+                                     "MP_Write_All        "/)
 
    ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
    INTEGER, PARAMETER :: intlen = BIT_SIZE(0)/8
@@ -1125,6 +1092,213 @@ CONTAINS
       END SUBROUTINE mp_world_finalize
 
 ! all the following routines should work for a given communicator, not MPI_WORLD
+
+! **************************************************************************************************
+!> \brief start and stop the performance indicators
+!>      for every call to start there has to be (exactly) one call to stop
+!> \param perf_env ...
+!> \par History
+!>      2.2004 created [Joost VandeVondele]
+!> \note
+!>      can be used to measure performance of a sub-part of a program.
+!>      timings measured here will not show up in the outer start/stops
+!>      Doesn't need a fresh communicator
+! **************************************************************************************************
+      SUBROUTINE add_mp_perf_env(perf_env)
+         TYPE(mp_perf_env_type), OPTIONAL, POINTER          :: perf_env
+
+         stack_pointer = stack_pointer + 1
+         IF (stack_pointer > max_stack_size) THEN
+            CPABORT("stack_pointer too large : message_passing @ add_mp_perf_env")
+         END IF
+         NULLIFY (mp_perf_stack(stack_pointer)%mp_perf_env)
+         IF (PRESENT(perf_env)) THEN
+            mp_perf_stack(stack_pointer)%mp_perf_env => perf_env
+            IF (ASSOCIATED(perf_env)) CALL mp_perf_env_retain(perf_env)
+         END IF
+         IF (.NOT. ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) THEN
+            CALL mp_perf_env_create(mp_perf_stack(stack_pointer)%mp_perf_env)
+         END IF
+      END SUBROUTINE add_mp_perf_env
+
+! **************************************************************************************************
+!> \brief ...
+!> \param perf_env ...
+! **************************************************************************************************
+      SUBROUTINE mp_perf_env_create(perf_env)
+         TYPE(mp_perf_env_type), OPTIONAL, POINTER          :: perf_env
+
+         INTEGER                                            :: i, stat
+
+         NULLIFY (perf_env)
+         ALLOCATE (perf_env, stat=stat)
+         IF (stat /= 0) THEN
+            CPABORT("allocation failed in mp_perf_env_create")
+         END IF
+         perf_env%ref_count = 1
+         DO i = 1, MAX_PERF
+            perf_env%mp_perfs(i)%name = sname(i)
+            perf_env%mp_perfs(i)%count = 0
+            perf_env%mp_perfs(i)%msg_size = 0.0_dp
+         END DO
+
+      END SUBROUTINE mp_perf_env_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param perf_env ...
+! **************************************************************************************************
+      SUBROUTINE mp_perf_env_release(perf_env)
+         TYPE(mp_perf_env_type), POINTER                    :: perf_env
+
+         IF (ASSOCIATED(perf_env)) THEN
+            IF (perf_env%ref_count < 1) THEN
+               CPABORT("invalid ref_count: message_passing @ mp_perf_env_release")
+            END IF
+            perf_env%ref_count = perf_env%ref_count - 1
+            IF (perf_env%ref_count == 0) THEN
+               DEALLOCATE (perf_env)
+            END IF
+         END IF
+         NULLIFY (perf_env)
+      END SUBROUTINE mp_perf_env_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param perf_env ...
+! **************************************************************************************************
+      SUBROUTINE mp_perf_env_retain(perf_env)
+         TYPE(mp_perf_env_type), POINTER                    :: perf_env
+
+         IF (.NOT. ASSOCIATED(perf_env)) THEN
+            CPABORT("unassociated perf_env: message_passing @ mp_perf_env_retain")
+         END IF
+         IF (perf_env%ref_count < 1) THEN
+            CPABORT("invalid ref_count: message_passing @ mp_perf_env_retain")
+         END IF
+         perf_env%ref_count = perf_env%ref_count + 1
+      END SUBROUTINE mp_perf_env_retain
+
+!.. reports the performance counters for the MPI run
+! **************************************************************************************************
+!> \brief ...
+!> \param perf_env ...
+!> \param iw ...
+! **************************************************************************************************
+      SUBROUTINE mp_perf_env_describe(perf_env, iw)
+         TYPE(mp_perf_env_type), POINTER          :: perf_env
+         INTEGER, INTENT(IN)                      :: iw
+
+#if defined(__parallel)
+         INTEGER                                  :: i
+         REAL(KIND=dp)                            :: vol
+#endif
+
+         IF (.NOT. ASSOCIATED(perf_env)) THEN
+            CPABORT("unassociated perf_env : message_passing @ mp_perf_env_describe")
+         END IF
+         IF (perf_env%ref_count < 1) THEN
+            CPABORT("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe")
+         END IF
+#if defined(__parallel)
+         IF (iw > 0) THEN
+            WRITE (iw, '( /, 1X, 79("-") )')
+            WRITE (iw, '( " -", 77X, "-" )')
+            WRITE (iw, '( " -", 24X, A, 24X, "-" )') ' MESSAGE PASSING PERFORMANCE '
+            WRITE (iw, '( " -", 77X, "-" )')
+            WRITE (iw, '( 1X, 79("-"), / )')
+            WRITE (iw, '( A, A, A )') ' ROUTINE', '             CALLS ', &
+               '     AVE VOLUME [Bytes]'
+            DO i = 1, MAX_PERF
+
+               IF (perf_env%mp_perfs(i)%count > 0) THEN
+                  vol = perf_env%mp_perfs(i)%msg_size/REAL(perf_env%mp_perfs(i)%count, KIND=dp)
+                  IF (vol < 1.0_dp) THEN
+                     WRITE (iw, '(1X,A15,T17,I10)') &
+                        ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count
+                  ELSE
+                     WRITE (iw, '(1X,A15,T17,I10,T40,F11.0)') &
+                        ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count, &
+                        vol
+                  END IF
+               END IF
+
+            END DO
+            WRITE (iw, '( 1X, 79("-"), / )')
+         END IF
+#else
+         MARK_USED(iw)
+#endif
+      END SUBROUTINE mp_perf_env_describe
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE rm_mp_perf_env()
+         IF (stack_pointer < 1) THEN
+            CPABORT("no perf_env in the stack : message_passing @ rm_mp_perf_env")
+         END IF
+         CALL mp_perf_env_release(mp_perf_stack(stack_pointer)%mp_perf_env)
+         stack_pointer = stack_pointer - 1
+      END SUBROUTINE rm_mp_perf_env
+
+! **************************************************************************************************
+!> \brief ...
+!> \return ...
+! **************************************************************************************************
+      FUNCTION get_mp_perf_env() RESULT(res)
+         TYPE(mp_perf_env_type), POINTER                    :: res
+
+         IF (stack_pointer < 1) THEN
+            CPABORT("no perf_env in the stack : message_passing @ get_mp_perf_env")
+         END IF
+         res => mp_perf_stack(stack_pointer)%mp_perf_env
+      END FUNCTION get_mp_perf_env
+
+! **************************************************************************************************
+!> \brief ...
+!> \param scr ...
+! **************************************************************************************************
+      SUBROUTINE describe_mp_perf_env(scr)
+         INTEGER, INTENT(in)                                :: scr
+
+         TYPE(mp_perf_env_type), POINTER                    :: perf_env
+
+         perf_env => get_mp_perf_env()
+         CALL mp_perf_env_describe(perf_env, scr)
+      END SUBROUTINE describe_mp_perf_env
+
+! **************************************************************************************************
+!> \brief adds the performance informations of one call
+!> \param perf_id ...
+!> \param count ...
+!> \param msg_size ...
+!> \author fawzi
+! **************************************************************************************************
+      SUBROUTINE add_perf(perf_id, count, msg_size)
+         INTEGER, INTENT(in)                      :: perf_id
+         INTEGER, INTENT(in), OPTIONAL            :: count
+         INTEGER, INTENT(in), OPTIONAL            :: msg_size
+
+#if defined(__parallel)
+         TYPE(mp_perf_type), POINTER              :: mp_perf
+
+         IF (.NOT. ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) return
+
+         mp_perf => mp_perf_stack(stack_pointer)%mp_perf_env%mp_perfs(perf_id)
+         IF (PRESENT(count)) THEN
+            mp_perf%count = mp_perf%count + count
+         END IF
+         IF (PRESENT(msg_size)) THEN
+            mp_perf%msg_size = mp_perf%msg_size + REAL(msg_size, dp)
+         END IF
+#else
+         MARK_USED(perf_id)
+         MARK_USED(count)
+         MARK_USED(msg_size)
+#endif
+
+      END SUBROUTINE add_perf
 
 ! **************************************************************************************************
 !> \brief globally stops all tasks
@@ -1389,6 +1563,33 @@ CONTAINS
 
       END SUBROUTINE mp_cart_create
 
+      ELEMENTAL IMPURE SUBROUTINE mp_cart_init(comm, owns_group)
+         CLASS(mp_cart_type), INTENT(INOUT) :: comm
+         LOGICAL, INTENT(IN), OPTIONAL :: owns_group
+
+         MARK_USED(owns_group)
+
+         CALL comm%mp_comm_type%init()
+
+         IF (ALLOCATED(comm%periodic)) DEALLOCATE (comm%periodic)
+         IF (ALLOCATED(comm%mepos_cart)) DEALLOCATE (comm%mepos_cart)
+         IF (ALLOCATED(comm%num_pe_cart)) DEALLOCATE (comm%num_pe_cart)
+
+         ASSOCIATE (ndims => comm%ndims)
+
+            ALLOCATE (comm%periodic(ndims), comm%mepos_cart(ndims), &
+                      comm%num_pe_cart(ndims))
+         END ASSOCIATE
+
+         comm%mepos_cart = 0
+         comm%periodic = .FALSE.
+         IF (comm%handle /= mp_comm_null_handle) THEN
+            CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
+                                    comm%periodic)
+         END IF
+
+      END SUBROUTINE
+
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Cart_coords
 !> \param comm ...
@@ -1512,42 +1713,19 @@ CONTAINS
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free'
 
          INTEGER                                            :: handle
-         LOGICAL :: free_comm
 #if defined(__parallel)
          INTEGER :: ierr
 #endif
 
-         free_comm = .TRUE.
-         SELECT TYPE (comm)
-         CLASS IS (mp_para_env_type)
-            free_comm = .FALSE.
-            IF (comm%ref_count <= 0) &
-               CPABORT("para_env%ref_count <= 0")
-            comm%ref_count = comm%ref_count - 1
-            IF (comm%ref_count <= 0) THEN
-               free_comm = comm%owns_group
-            END IF
-         CLASS IS (mp_para_cart_type)
-            free_comm = .FALSE.
-            IF (comm%ref_count <= 0) &
-               CPABORT("para_cart%ref_count <= 0")
-            comm%ref_count = comm%ref_count - 1
-            IF (comm%ref_count <= 0) THEN
-               free_comm = comm%owns_group
-            END IF
-         END SELECT
-
          CALL mp_timeset(routineN, handle)
 
-         IF (free_comm) THEN
 #if defined(__parallel)
-            CALL mpi_comm_free(comm%handle, ierr)
-            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
+         CALL mpi_comm_free(comm%handle, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_free @ mp_comm_free")
 #else
-            comm%handle = mp_comm_null_handle
+         comm%handle = mp_comm_null_handle
 #endif
-            debug_comm_count = debug_comm_count - 1
-         END IF
+         debug_comm_count = debug_comm_count - 1
 
          SELECT TYPE (comm)
          CLASS IS (mp_cart_type)
@@ -1557,52 +1735,6 @@ CONTAINS
          CALL mp_timestop(handle)
 
       END SUBROUTINE mp_comm_free
-
-! **************************************************************************************************
-!> \brief check whether the environment exists
-!> \param para_env ...
-!> \return ...
-! **************************************************************************************************
-      ELEMENTAL LOGICAL FUNCTION mp_para_env_is_valid(para_env)
-         CLASS(mp_para_env_type), INTENT(IN) :: para_env
-
-         mp_para_env_is_valid = para_env%ref_count > 0
-
-      END FUNCTION mp_para_env_is_valid
-
-! **************************************************************************************************
-!> \brief increase the reference counter but ensure that you free it later
-!> \param para_env ...
-! **************************************************************************************************
-      ELEMENTAL SUBROUTINE mp_para_env_retain(para_env)
-         CLASS(mp_para_env_type), INTENT(INOUT) :: para_env
-
-         para_env%ref_count = para_env%ref_count + 1
-
-      END SUBROUTINE mp_para_env_retain
-
-! **************************************************************************************************
-!> \brief check whether the given environment is valid, i.e. existent
-!> \param cart ...
-!> \return ...
-! **************************************************************************************************
-      ELEMENTAL LOGICAL FUNCTION mp_para_cart_is_valid(cart)
-         CLASS(mp_para_cart_type), INTENT(IN) :: cart
-
-         mp_para_cart_is_valid = cart%ref_count > 0
-
-      END FUNCTION mp_para_cart_is_valid
-
-! **************************************************************************************************
-!> \brief increase the reference counter, don't forget to free it later
-!> \param cart ...
-! **************************************************************************************************
-      ELEMENTAL SUBROUTINE mp_para_cart_retain(cart)
-         CLASS(mp_para_cart_type), INTENT(INOUT) :: cart
-
-         cart%ref_count = cart%ref_count + 1
-
-      END SUBROUTINE mp_para_cart_retain
 
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Comm_dup
@@ -1671,115 +1803,16 @@ CONTAINS
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
          LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
+         ! The mp_comm_type does not care about ownership yet, this is just relevant for cp_para_*_type
+         MARK_USED(owns_group)
+
          IF (comm%handle /= mp_comm_null_handle) THEN
             comm%source = 0
             CALL comm%get_size(comm%num_pe)
             CALL comm%get_rank(comm%mepos)
          END IF
 
-         SELECT TYPE (comm)
-         CLASS IS (mp_cart_type)
-            IF (ALLOCATED(comm%periodic)) DEALLOCATE (comm%periodic)
-            IF (ALLOCATED(comm%mepos_cart)) DEALLOCATE (comm%mepos_cart)
-            IF (ALLOCATED(comm%num_pe_cart)) DEALLOCATE (comm%num_pe_cart)
-
-            ASSOCIATE (ndims => comm%ndims)
-
-               ALLOCATE (comm%periodic(ndims), comm%mepos_cart(ndims), &
-                         comm%num_pe_cart(ndims))
-            END ASSOCIATE
-
-            comm%mepos_cart = 0
-            comm%periodic = .FALSE.
-            IF (comm%handle /= mp_comm_null_handle) THEN
-               CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
-                                       comm%periodic)
-            END IF
-         END SELECT
-
-         SELECT TYPE (comm)
-         CLASS IS (mp_para_env_type)
-            IF (PRESENT(owns_group)) comm%owns_group = owns_group
-            comm%ref_count = 1
-         CLASS IS (mp_para_cart_type)
-            IF (PRESENT(owns_group)) comm%owns_group = owns_group
-            comm%ref_count = 1
-         END SELECT
-
       END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief creates a new para environment
-!> \param para_env the new parallel environment
-!> \param group the id of the actual mpi_group
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-      SUBROUTINE mp_para_env_create(para_env, group)
-         TYPE(mp_para_env_type), POINTER        :: para_env
-         CLASS(mp_comm_type), INTENT(in)                     :: group
-
-         IF (ASSOCIATED(para_env)) &
-            CPABORT("The passed para_env must not be associated!")
-         ALLOCATE (para_env)
-         para_env%mp_comm_type = group
-         CALL para_env%init()
-      END SUBROUTINE mp_para_env_create
-
-! **************************************************************************************************
-!> \brief releases the para object (to be called when you don't want anymore
-!>      the shared copy of this object)
-!> \param para_env the new group
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-!> \note
-!>      to avoid circular dependencies cp_log_handling has a private copy
-!>      of this method (see cp_log_handling:my_mp_para_env_release)!
-! **************************************************************************************************
-      SUBROUTINE mp_para_env_release(para_env)
-         TYPE(mp_para_env_type), POINTER                    :: para_env
-
-         IF (ASSOCIATED(para_env)) THEN
-            CALL para_env%free()
-            IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
-         END IF
-         NULLIFY (para_env)
-      END SUBROUTINE mp_para_env_release
-
-! **************************************************************************************************
-!> \brief creates a cart (multidimensional parallel environment)
-!> \param cart the cart environment to create
-!> \param group the mpi communicator
-!> \author fawzi
-! **************************************************************************************************
-      SUBROUTINE mp_para_cart_create(cart, group)
-         TYPE(mp_para_cart_type), POINTER, INTENT(OUT)                   :: cart
-         CLASS(mp_comm_type), INTENT(in)                     :: group
-
-         IF (ASSOCIATED(cart)) &
-            CPABORT("The passed para_cart must not be associated!")
-         ALLOCATE (cart)
-         cart%mp_cart_type = group
-         CALL cart%init()
-
-      END SUBROUTINE mp_para_cart_create
-
-! **************************************************************************************************
-!> \brief releases the given cart
-!> \param cart the cart to release
-!> \author fawzi
-! **************************************************************************************************
-      SUBROUTINE mp_para_cart_release(cart)
-         TYPE(mp_para_cart_type), POINTER                   :: cart
-
-         IF (ASSOCIATED(cart)) THEN
-            CALL cart%free()
-            IF (.NOT. cart%is_valid()) DEALLOCATE (cart)
-         END IF
-         NULLIFY (cart)
-      END SUBROUTINE mp_para_cart_release
 
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Group_translate_ranks
@@ -4093,6 +4126,7 @@ CONTAINS
          MPI_DATA_TYPE, ALLOCATABLE, DIMENSION(:) :: old_types
 
          n = SIZE(subtypes)
+         !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
          type_descriptor%length = 1
 #if defined(__parallel)
          ierr = 0
@@ -4739,6 +4773,400 @@ CONTAINS
 #endif
          CALL mp_timestop(handle)
       END SUBROUTINE mp_win_unlock_all
+
+! **************************************************************************************************
+!> \brief Tests the MPI library
+!> \param comm the relevant, initialized communicator
+!> \param npow number of sizes to test, 10**1 .. 10**npow
+!> \param output_unit where to direct output
+!> \par History
+!>      JGH  6-Feb-2001 : Test and performance code
+!> \author JGH  1-JAN-2001
+!> \note
+!>      quickly adapted benchmark code, will only work on an even number of CPUs.
+! **************************************************************************************************
+      SUBROUTINE mpi_perf_test(comm, npow, output_unit)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+         INTEGER, INTENT(IN)                      :: npow, output_unit
+
+#if defined(__parallel)
+
+         INTEGER :: I, ierr, ierror, itask, itests, J, jtask, left, nbufmax, &
+                    ncount, Ngrid, Nloc, nprocs, Ntot, partner, right, taskid
+         INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+         LOGICAL                                  :: ionode
+         REAL(KIND=dp)                            :: maxdiff, res, res2, res3, t1, &
+                                                     t2, t3, t4, t5
+         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buffer1, buffer2, buffer3, &
+                                                     lgrid, lgrid2, lgrid3
+         REAL(KIND=dp), ALLOCATABLE, &
+            DIMENSION(:, :)                        :: grid, grid2, grid3, &
+                                                      send_timings, send_timings2
+         REAL(KIND=dp), PARAMETER :: threshold = 1.0E-8_dp
+
+         ! set system sizes !
+         ngrid = 10**npow
+
+         taskid = comm%mepos
+         nprocs = comm%num_pe
+         ionode = comm%is_source()
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Running with ", nprocs
+            WRITE (output_unit, *) "running messages with npow = ", npow
+            WRITE (output_unit, *) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
+            IF (MODULO(nprocs, 2) .NE. 0) WRITE (output_unit, *) "Testing only with an even number of tasks"
+         END IF
+
+         IF (MODULO(nprocs, 2) .NE. 0) RETURN
+
+         ! equal loads
+         Nloc = Ngrid/nprocs
+         Ntot = Nprocs*Nloc
+         nbufmax = 10**npow
+         !
+         ALLOCATE (rcount(nprocs))
+         ALLOCATE (scount(nprocs))
+         ALLOCATE (sdispl(nprocs))
+         ALLOCATE (rdispl(nprocs))
+         ALLOCATE (buffer1(nbufmax))
+         ALLOCATE (buffer2(nbufmax))
+         ALLOCATE (buffer3(nbufmax))
+         ALLOCATE (grid(Nloc, Nprocs))
+         ALLOCATE (grid2(Nloc, Nprocs))
+         ALLOCATE (grid3(Nloc, Nprocs))
+         ALLOCATE (lgrid(Nloc))
+         ALLOCATE (lgrid2(Nloc))
+         ALLOCATE (lgrid3(Nloc))
+         ALLOCATE (send_timings(0:nprocs - 1, 0:nprocs - 1))
+         ALLOCATE (send_timings2(0:nprocs - 1, 0:nprocs - 1))
+         buffer1 = 0.0_dp
+         buffer2 = 0.0_dp
+         buffer3 = 0.0_dp
+         ! timings
+         send_timings = 0.0_dp
+         send_timings2 = 0.0_dp
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ some in memory tests                   ---------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Testing in memory copies just 1 CPU "
+            WRITE (output_unit, *) "  could tell something about the motherboard / cache / compiler "
+         END IF
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               buffer2(1:ncount) = buffer1(1:ncount)
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+         CALL MPI_BARRIER(comm%handle, ierror)
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ some in memory tests                   ---------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Testing in memory copies all cpus"
+            WRITE (output_unit, *) "  is the memory bandwidth affected on an SMP machine ?"
+         END IF
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               buffer2(1:ncount) = buffer1(1:ncount)
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+         CALL MPI_BARRIER(comm%handle, ierror)
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ first test point to point communication ---------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Testing truly point to point communication (i with j only)"
+            WRITE (output_unit, *) "  is there some different connection between i j (e.g. shared memory comm)"
+         END IF
+         ncount = 10**npow
+         IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "For messages of ", ncount*8, " bytes"
+         IF (ncount .GT. nbufmax) CPABORT("")
+         DO itask = 0, nprocs - 1
+            DO jtask = itask + 1, nprocs - 1
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               IF (taskid .EQ. itask) THEN
+                  CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, jtask, itask*jtask, comm%handle, ierror)
+               END IF
+               IF (taskid .EQ. jtask) THEN
+                  CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm%handle, MPI_STATUS_IGNORE, ierror)
+               END IF
+               send_timings(itask, jtask) = MPI_WTIME() - t1 + threshold
+            END DO
+         END DO
+         send_timings2(:, :) = send_timings
+         CALL MPI_REDUCE(send_timings2, send_timings, nprocs**2, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            DO itask = 0, nprocs - 1
+               DO jtask = itask + 1, nprocs - 1
+                  WRITE (output_unit, '(I4,I4,F12.4,A)') itask, jtask, ncount*8.0E-6_dp/send_timings(itask, jtask), " MB/s"
+               END DO
+            END DO
+         END IF
+         CALL MPI_BARRIER(comm%handle, ierror)
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ second test point to point communication -------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Testing all nearby point to point communication (0,1)(2,3)..."
+            WRITE (output_unit, *) "    these could / should all be on the same shared memory node "
+         END IF
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               IF (MODULO(taskid, 2) == 0) THEN
+                  CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid + 1, 0, comm%handle, ierror)
+               ELSE
+                  CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid - 1, 0, comm%handle, MPI_STATUS_IGNORE, ierror)
+               END IF
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+         CALL MPI_BARRIER(comm%handle, ierror)
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ third test point to point communication -------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
+            WRITE (output_unit, *) "    these could all be going over the network, and stress it a lot"
+         END IF
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               ! first half with partner
+               IF (taskid .LT. nprocs/2) THEN
+                  CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid + nprocs/2, 0, comm%handle, ierror)
+               ELSE
+                  CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid - nprocs/2, 0, comm%handle, MPI_STATUS_IGNORE, ierror)
+               END IF
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ test root to all broadcast               -------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Testing root to all broadcast "
+            WRITE (output_unit, *) "    using trees at least ? "
+         END IF
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               CALL MPI_BCAST(buffer1, ncount, MPI_DOUBLE_PRECISION, 0, comm%handle, ierror)
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ test parallel sum like behavior                -------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "Test global summation (mpi_allreduce) "
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               CALL MPI_ALLREDUCE(buffer1, buffer2, ncount, MPI_DOUBLE_PRECISION, MPI_SUM, comm%handle, ierr)
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ test all to all communication            -------------------
+         ! -------------------------------------------------------------------------------------------
+         CALL MPI_BARRIER(comm%handle, ierror)
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) "Test all to all communication (mpi_alltoallv)"
+            WRITE (output_unit, *) "    mpi/network getting confused ? "
+         END IF
+         DO i = 1, npow
+            ncount = 10**i
+            t2 = 0.0E0_dp
+            IF (ncount .GT. nbufmax) CPABORT("")
+            scount = ncount/nprocs
+            rcount = ncount/nprocs
+            DO j = 1, nprocs
+               sdispl(j) = (j - 1)*(ncount/nprocs)
+               rdispl(j) = (j - 1)*(ncount/nprocs)
+            END DO
+            DO j = 1, 3**(npow - i)
+               CALL MPI_BARRIER(comm%handle, ierror)
+               t1 = MPI_WTIME()
+               CALL mpi_alltoallv(buffer1, scount, sdispl, MPI_DOUBLE_PRECISION, &
+                                  buffer2, rcount, rdispl, MPI_DOUBLE_PRECISION, comm%handle, ierr)
+               t2 = t2 + MPI_WTIME() - t1 + threshold
+            END DO
+            CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm%handle, ierror)
+            IF (ionode .AND. output_unit > 0) THEN
+               WRITE (output_unit, '(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs, " Bytes ", &
+                  (3**(npow - i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1, " MB/s"
+            END IF
+         END DO
+
+         ! -------------------------------------------------------------------------------------------
+         ! ------------------------------ other stuff                            ---------------------
+         ! -------------------------------------------------------------------------------------------
+         IF (ionode .AND. output_unit > 0) THEN
+            WRITE (output_unit, *) " Clean tests completed "
+            WRITE (output_unit, *) " Testing MPI_REDUCE scatter"
+         END IF
+         rcount = Nloc
+         DO itests = 1, 3
+            IF (ionode .AND. output_unit > 0) &
+               WRITE (output_unit, *) "------------------------------- test ", itests, " ------------------------"
+            ! *** reference ***
+            DO j = 1, Nprocs
+               DO i = 1, Nloc
+                  grid(i, j) = MODULO(i*j*taskid, itests)
+               END DO
+            END DO
+            t1 = MPI_WTIME()
+            CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm%handle, ierr)
+            t2 = MPI_WTIME() - t1 + threshold
+            CALL mpi_allreduce(t2, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
+            IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "MPI_REDUCE_SCATTER    ", res
+            ! *** simple shift ***
+            DO j = 1, Nprocs
+               DO i = 1, Nloc
+                  grid2(i, j) = MODULO(i*j*taskid, itests)
+               END DO
+            END DO
+            left = MODULO(taskid - 1, Nprocs)
+            right = MODULO(taskid + 1, Nprocs)
+            t3 = MPI_WTIME()
+            lgrid2 = 0.0E0_dp
+            DO i = 1, Nprocs
+               lgrid2(:) = lgrid2 + grid(:, MODULO(taskid - i, Nprocs) + 1)
+               IF (i .EQ. nprocs) EXIT
+              CALL MPI_SENDRECV_REPLACE(lgrid2, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm%handle, MPI_STATUS_IGNORE, ierr)
+            END DO
+            t4 = MPI_WTIME() - t3 + threshold
+            CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
+            maxdiff = MAXVAL(ABS(lgrid2 - lgrid))
+            CALL mpi_allreduce(maxdiff, res2, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
+            IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "MPI_SENDRECV_REPLACE  ", res, res2
+            ! *** involved shift ****
+            IF (MODULO(nprocs, 2) /= 0) CPABORT("")
+            DO j = 1, Nprocs
+               DO i = 1, Nloc
+                  grid3(i, j) = MODULO(i*j*taskid, itests)
+               END DO
+            END DO
+            t3 = MPI_WTIME()
+            ! first sum the grid in pairs (0,1),(2,3) should be within an LPAR and fast XXXXXXXXX
+            ! 0 will only need parts 0,2,4,... correctly summed
+            ! 1 will only need parts 1,3,5,... correctly summed
+            ! *** could nicely be generalised ****
+            IF (MODULO(taskid, 2) == 0) THEN
+               partner = taskid + 1
+               DO i = 1, Nprocs, 2 ! sum the full grid with the partner
+                  CALL MPI_SENDRECV(grid3(1, i + 1), nloc, MPI_DOUBLE_PRECISION, partner, 17, &
+                                    lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 19, comm%handle, MPI_STATUS_IGNORE, ierr)
+                  grid3(:, i) = grid3(:, i) + lgrid3(:)
+               END DO
+            ELSE
+               partner = taskid - 1
+               DO i = 1, Nprocs, 2
+                  CALL MPI_SENDRECV(grid3(1, i), nloc, MPI_DOUBLE_PRECISION, partner, 19, &
+                                    lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 17, comm%handle, MPI_STATUS_IGNORE, ierr)
+                  grid3(:, i + 1) = grid3(:, i + 1) + lgrid3(:)
+               END DO
+            END IF
+            t4 = MPI_WTIME() - t3 + threshold
+            ! now send a given buffer from 1 to 3 to 5 .. adding the right part of the data
+            ! since we've summed an lgrid does only need to pass by even or odd tasks
+            left = MODULO(taskid - 2, Nprocs)
+            right = MODULO(taskid + 2, Nprocs)
+            t3 = MPI_WTIME()
+            lgrid3 = 0.0E0_dp
+            DO i = 1, Nprocs, 2
+               lgrid3(:) = lgrid3 + grid3(:, MODULO(taskid - i - 1, Nprocs) + 1)
+               IF (i .EQ. nprocs - 1) EXIT
+              CALL MPI_SENDRECV_REPLACE(lgrid3, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm%handle, MPI_STATUS_IGNORE, ierr)
+            END DO
+            t5 = MPI_WTIME() - t3 + threshold
+            CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
+            CALL mpi_allreduce(t5, res2, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
+            maxdiff = MAXVAL(ABS(lgrid3 - lgrid))
+            CALL mpi_allreduce(maxdiff, res3, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm%handle, ierr)
+       IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "INVOLVED SHIFT        ", res + res2, "(", res, ",", res2, ")", res3
+         END DO
+         DEALLOCATE (rcount)
+         DEALLOCATE (scount)
+         DEALLOCATE (sdispl)
+         DEALLOCATE (rdispl)
+         DEALLOCATE (buffer1)
+         DEALLOCATE (buffer2)
+         DEALLOCATE (buffer3)
+         DEALLOCATE (grid)
+         DEALLOCATE (grid2)
+         DEALLOCATE (grid3)
+         DEALLOCATE (lgrid)
+         DEALLOCATE (lgrid2)
+         DEALLOCATE (lgrid3)
+         DEALLOCATE (send_timings)
+         DEALLOCATE (send_timings2)
+#else
+         MARK_USED(comm)
+         MARK_USED(npow)
+         IF (output_unit > 0) WRITE (output_unit, *) "No MPI tests for a serial program"
+#endif
+      END SUBROUTINE mpi_perf_test
 
 ! **************************************************************************************************
 !> \brief Starts a timer region

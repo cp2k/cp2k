@@ -21,15 +21,15 @@ MODULE swarm_mpi
                                               cp_logger_release,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_any_source,&
-                                              mp_comm_type,&
-                                              mp_para_env_release,&
-                                              mp_para_env_type
+                                              mp_comm_type
    USE swarm_message,                   ONLY: swarm_message_get,&
                                               swarm_message_mpi_bcast,&
                                               swarm_message_mpi_recv,&
@@ -47,9 +47,9 @@ MODULE swarm_mpi
    PUBLIC :: swarm_mpi_send_command, swarm_mpi_recv_command
 
    TYPE swarm_mpi_type
-      TYPE(mp_para_env_type), POINTER          :: world => Null()
-      TYPE(mp_para_env_type), POINTER          :: worker => Null()
-      TYPE(mp_para_env_type), POINTER          :: master => Null()
+      TYPE(cp_para_env_type), POINTER          :: world => Null()
+      TYPE(cp_para_env_type), POINTER          :: worker => Null()
+      TYPE(cp_para_env_type), POINTER          :: master => Null()
       INTEGER, DIMENSION(:), ALLOCATABLE       :: wid2group
       CHARACTER(LEN=default_path_length)       :: master_output_path = ""
    END TYPE swarm_mpi_type
@@ -68,7 +68,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swarm_mpi_init(swarm_mpi, world_para_env, root_section, n_workers, worker_id, iw)
       TYPE(swarm_mpi_type)                               :: swarm_mpi
-      TYPE(mp_para_env_type), POINTER                    :: world_para_env
+      TYPE(cp_para_env_type), POINTER                    :: world_para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: n_workers
       INTEGER, INTENT(OUT)                               :: worker_id
@@ -76,11 +76,11 @@ CONTAINS
 
       INTEGER                                            :: n_groups_created, pe_per_worker, &
                                                             subgroup_rank, subgroup_size
-      TYPE(mp_comm_type)                                 :: subgroup
       LOGICAL                                            :: im_the_master
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution_p
       INTEGER, DIMENSION(0:world_para_env%num_pe-2), &
          TARGET                                          :: group_distribution
+      TYPE(mp_comm_type)                                 :: subgroup
 
 ! ====== Setup of MPI-Groups ======
 
@@ -233,7 +233,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE error_add_new_logger(para_env, output_path, iter_info)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=default_path_length)                 :: output_path
       TYPE(cp_iteration_info_type), OPTIONAL, POINTER    :: iter_info
 
@@ -272,8 +272,8 @@ CONTAINS
       CALL swarm_mpi%world%sync()
       CALL logger_finalize(swarm_mpi, root_section)
 
-      IF (ASSOCIATED(swarm_mpi%worker)) CALL mp_para_env_release(swarm_mpi%worker)
-      IF (ASSOCIATED(swarm_mpi%master)) CALL mp_para_env_release(swarm_mpi%master)
+      IF (ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker)
+      IF (ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master)
       NULLIFY (swarm_mpi%worker, swarm_mpi%master)
       DEALLOCATE (swarm_mpi%wid2group)
    END SUBROUTINE swarm_mpi_finalize

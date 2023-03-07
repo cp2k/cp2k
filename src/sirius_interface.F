@@ -32,6 +32,7 @@ MODULE sirius_interface
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE external_potential_types,        ONLY: gth_potential_type
    USE input_constants,                 ONLY: do_gapw_log
    USE input_cp2k_pwdft,                ONLY: SIRIUS_FUNC_VDWDF,&
@@ -46,7 +47,6 @@ MODULE sirius_interface
                                               dp
    USE mathconstants,                   ONLY: fourpi,&
                                               gamma1
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: massunit
    USE pwdft_environment_types,         ONLY: pwdft_energy_type,&
@@ -152,7 +152,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: my_cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(grid_atom_type), POINTER                      :: atom_grid
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set

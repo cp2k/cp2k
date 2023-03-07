@@ -25,6 +25,7 @@ MODULE integrator_utils
    USE cell_types,                      ONLY: cell_type
    USE constraint,                      ONLY: rattle_roll_control
    USE constraint_util,                 ONLY: pv_constraint
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                               debug_uniaxial_limit,&
@@ -36,8 +37,7 @@ MODULE integrator_utils
    USE kinds,                           ONLY: dp
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: local_fixd_constraint_type,&
                                               molecule_kind_type
    USE molecule_types,                  ONLY: get_molecule,&
@@ -262,7 +262,7 @@ CONTAINS
       TYPE(tmp_variables_type), POINTER                  :: tmp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set, shell_particle_set, &
                                                             core_particle_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
       LOGICAL, INTENT(IN), OPTIONAL                      :: pos, vel, should_deall_vel
 
@@ -333,7 +333,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp)                                      :: dt
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: tmpv
 
       INTEGER                                            :: iparticle, iparticle_kind, &
@@ -733,7 +733,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: iroll
       REAL(KIND=dp), INTENT(IN)                          :: infree
       LOGICAL, INTENT(INOUT)                             :: first
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: u(:, :)
 
       REAL(KIND=dp)                                      :: kin
@@ -1558,7 +1558,7 @@ CONTAINS
       TYPE(tmp_variables_type), POINTER                  :: tmp
       REAL(KIND=dp), INTENT(INOUT)                       :: dt
       TYPE(simpar_type), POINTER                         :: simpar
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set, core_particle_set, &

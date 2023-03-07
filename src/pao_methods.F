@@ -21,6 +21,7 @@ MODULE pao_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
@@ -42,7 +43,6 @@ MODULE pao_methods
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: binomial,&
                                               diamat_all
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pao_ml,                          ONLY: pao_ml_forces
    USE pao_param,                       ONLY: pao_calc_AB,&
                                               pao_param_count
@@ -687,8 +687,8 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(dp)                                           :: delta, delta_max, eps, Gij_num
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_X
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       IF (pao%check_grad_tol < 0.0_dp) RETURN ! no checking
 
@@ -958,7 +958,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, natoms
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: forces
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 

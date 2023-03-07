@@ -30,6 +30,7 @@ MODULE cp2k_debug
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
@@ -49,7 +50,6 @@ MODULE cp2k_debug
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                               write_qs_particle_coordinates
    USE particle_types,                  ONLY: particle_type
@@ -104,10 +104,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: analyt_forces, numer_forces
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: root_section, subsys_section

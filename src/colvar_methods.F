@@ -35,6 +35,7 @@ MODULE colvar_methods
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -80,7 +81,6 @@ MODULE colvar_methods
                                               twopi
    USE mathlib,                         ONLY: vector_product
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mixed_energy_types,              ONLY: mixed_force_type
    USE mixed_environment_utils,         ONLY: get_subsys_map_index
    USE molecule_kind_types,             ONLY: fixd_constraint_type
@@ -123,7 +123,7 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: icol
       TYPE(section_vals_type), POINTER                   :: colvar_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_read'
 
@@ -5803,7 +5803,7 @@ CONTAINS
    SUBROUTINE read_frames(frame_section, para_env, nr_frames, r_ref, n_atoms)
 
       TYPE(section_vals_type), POINTER                   :: frame_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nr_frames
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_ref
       INTEGER, INTENT(OUT)                               :: n_atoms

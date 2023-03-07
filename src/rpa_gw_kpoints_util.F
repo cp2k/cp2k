@@ -42,6 +42,7 @@ MODULE rpa_gw_kpoints_util
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, &
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -66,7 +67,6 @@ MODULE rpa_gw_kpoints_util
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: invmat
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_band_structure,               ONLY: calculate_kpoints_for_bs
@@ -136,7 +136,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, nkp, &
                                                             count_ev_sc_GW
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
          INTENT(IN)                                      :: tau_tj
@@ -356,7 +356,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
       INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp, ikp_local
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: make_chi_pos_definite
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Q_kp_RPA'
@@ -424,7 +424,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp, ikp_local
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_P_to_subgroup'
 
@@ -514,7 +514,7 @@ CONTAINS
    SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, para_env, trace_Qomega, dimen_RI)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
 
@@ -584,7 +584,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(IN)                          :: freq_weight, kp_weight
@@ -997,7 +997,7 @@ CONTAINS
          INTENT(IN)                                      :: tau_tj
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t
       INTEGER, INTENT(IN)                                :: ikp_local
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
@@ -1214,7 +1214,7 @@ CONTAINS
    SUBROUTINE Wc_to_Minv_Wc_Minv(fm_mat_W, fm_matrix_Minv, para_env, dimen_RI, num_integ_points)
       TYPE(cp_fm_type), DIMENSION(:)                     :: fm_mat_W
       TYPE(cp_fm_type), DIMENSION(:, :)                  :: fm_matrix_Minv
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER                                            :: dimen_RI, num_integ_points
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Wc_to_Minv_Wc_Minv'
@@ -1469,8 +1469,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nkp_grid_G, nkp_grid_W
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ev
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kpgeneral
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1595,11 +1595,11 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fm_work
       TYPE(cp_fm_type), POINTER                          :: imos, rmos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_ks_kp, mat_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 

@@ -29,7 +29,7 @@ MODULE hfx_energy_potential
                                  cp_print_key_finished_output, &
                                  cp_print_key_should_output, &
                                  cp_print_key_unit_nr
-   USE message_passing, ONLY: mp_para_env_type
+   USE cp_para_types, ONLY: cp_para_env_type
    USE dbcsr_api, ONLY: dbcsr_copy, &
                         dbcsr_dot, &
                         dbcsr_get_matrix_type, &
@@ -141,7 +141,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: ehfx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(section_vals_type), POINTER                   :: hfx_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: geometry_did_change
       INTEGER                                            :: irep
       LOGICAL, INTENT(IN)                                :: distribute_fock_matrix

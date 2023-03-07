@@ -20,6 +20,7 @@ MODULE timings_report
                                               callgraph_items
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -31,7 +32,6 @@ MODULE timings_report
                                               list_push,&
                                               list_size
    USE list_routinereport,              ONLY: list_routinereport_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE routine_map,                     ONLY: routine_map_get,&
                                               routine_map_haskey
    USE timings,                         ONLY: get_timer_env
@@ -69,7 +69,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: sort_by_self_time
       INTEGER, INTENT(IN)                                :: cost_type
       LOGICAL, INTENT(IN)                                :: report_maxloc
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       TYPE(list_routinereport_type)                      :: reports
       TYPE(routine_report_type), POINTER                 :: r_report
@@ -99,7 +99,7 @@ CONTAINS
    SUBROUTINE collect_reports_from_ranks(reports, cost_type, para_env)
       TYPE(list_routinereport_type), INTENT(INOUT)       :: reports
       INTEGER, INTENT(IN)                                :: cost_type
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=default_string_length)               :: routineN
       INTEGER                                            :: local_routine_id, sending_rank
@@ -222,7 +222,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: sort_by_exclusiv_cost
       INTEGER, INTENT(IN)                                :: cost_type
       LOGICAL, INTENT(IN)                                :: report_maxloc
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=4)                                   :: label
       CHARACTER(LEN=default_string_length)               :: fmt, title

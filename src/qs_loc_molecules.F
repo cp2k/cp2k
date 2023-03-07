@@ -12,10 +12,10 @@ MODULE qs_loc_molecules
    USE cell_types,                      ONLY: pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
@@ -54,9 +54,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: dr(3), mydist(2), ria(3)
       REAL(KIND=dp), POINTER                             :: distance(:), r(:, :)
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), POINTER                       :: particle_set(:)
 
       logger => cp_get_default_logger()

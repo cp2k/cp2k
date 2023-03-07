@@ -22,6 +22,7 @@ MODULE tmc_setup
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_io_unit, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE environment,                     ONLY: cp2k_get_walltime
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env
@@ -38,7 +39,6 @@ MODULE tmc_setup
                                               dp
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE physcon,                         ONLY: au2a => angstrom,&
@@ -97,7 +97,7 @@ CONTAINS
    SUBROUTINE do_tmc(input_declaration, root_section, para_env, globenv)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_tmc'
@@ -347,7 +347,7 @@ CONTAINS
    SUBROUTINE do_analyze_files(input_declaration, root_section, para_env)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_analyze_files'
 
@@ -796,7 +796,7 @@ CONTAINS
    SUBROUTINE tmc_redistributing_cores(tmc_comp_set, para_env, ana_on_the_fly, &
                                        success)
       TYPE(tmc_comp_set_type), POINTER                   :: tmc_comp_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: ana_on_the_fly
       LOGICAL                                            :: success
 

@@ -52,6 +52,8 @@ MODULE mp2_ri_2c
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
@@ -79,8 +81,6 @@ MODULE mp2_ri_2c
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_release,&
-                                              mp_para_env_type,&
                                               mp_request_type
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
@@ -163,7 +163,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: my_Lrows, my_Vrows
@@ -194,9 +194,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
       TYPE(cp_fm_type)                                   :: fm_matrix_L_work, fm_matrix_M_inv_work, &
                                                             fm_matrix_V
+      TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(libint_potential_type)                        :: trunc_coulomb
-      TYPE(mp_para_env_type), POINTER                    :: para_env_L
 
       CALL timeset(routineN, handle)
 
@@ -239,7 +239,7 @@ CONTAINS
             ! GPW overlap matrix
          ELSE
 
-            CALL mp_para_env_release(para_env_L)
+            CALL cp_para_env_release(para_env_L)
             CALL release_group_dist(gd_array)
 
             ALLOCATE (fm_matrix_Minv_L_kpoints(1, 1))
@@ -353,7 +353,7 @@ CONTAINS
       CALL cp_fm_release(fm_matrix_L_work)
       IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
                                                                qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
-      CALL mp_para_env_release(para_env_L)
+      CALL cp_para_env_release(para_env_L)
 
       CALL timestop(handle)
 
@@ -383,7 +383,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
       INTEGER, INTENT(IN)                                :: ngroup, dimen_RI
       INTEGER, INTENT(INOUT)                             :: dimen_RI_red
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       IF (do_svd) THEN
          CALL matrix_root_with_svd(fm_matrix_L, num_small_eigen, cond_num, do_inversion, para_env)
@@ -574,6 +574,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_matrix_S_global
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_2c
@@ -582,7 +583,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_RI
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_RI
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -783,9 +783,9 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
-      TYPE(mp_para_env_type), INTENT(OUT), POINTER       :: para_env_L
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(OUT), POINTER       :: para_env_L
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
@@ -1046,7 +1046,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd'
 
@@ -1178,7 +1178,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: L_local_col
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             dimen_RI
 
@@ -1685,7 +1685,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_L
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(mp_para_env_type), POINTER                    :: para_env_L
+      TYPE(cp_para_env_type), POINTER                    :: para_env_L
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_matrix_L_extern
 
@@ -1742,7 +1742,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_L, rec_L
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_L_internal
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

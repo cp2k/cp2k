@@ -25,6 +25,7 @@ MODULE mao_wfn_analysis
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_dot, &
         dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
@@ -42,7 +43,6 @@ MODULE mao_wfn_analysis
                                               mao_reference_basis
    USE mao_optimizer,                   ONLY: mao_optimize
    USE mathlib,                         ONLY: invmat_symm
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -109,6 +109,7 @@ CONTAINS
                                                             rblkl, rblku, sblk, sblka, sblkb, sblkc
       TYPE(block_type), ALLOCATABLE, DIMENSION(:)        :: rowblock
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, mao_dmat, mao_qmat, mao_smat, &
@@ -120,7 +121,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

@@ -52,6 +52,7 @@ MODULE xas_tdp_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               debug_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type_no_symmetry
@@ -76,8 +77,7 @@ MODULE xas_tdp_methods
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
@@ -1356,9 +1356,9 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: ks_struct, lmo_struct
       TYPE(cp_fm_type)                                   :: evecs, ks_fm, lmo_fm, work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, ks_struct)
 
@@ -1469,10 +1469,10 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct
       TYPE(cp_fm_type)                                   :: eval_mat, work_mat
       TYPE(cp_fm_type), POINTER                          :: gs_coeffs, mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(gto_basis_set_type), POINTER                  :: kind_basis_set, sto_to_gto_basis_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
@@ -1797,8 +1797,8 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: zij_fm_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section, prog_run_info
 
@@ -2042,8 +2042,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: col_struct, mat_struct
       TYPE(cp_fm_type)                                   :: col_work, mat_work
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (dipmat, col_struct, mat_struct, para_env, blacs_env, lr_coeffs)
       NULLIFY (lr_evals, osc_str)
@@ -2157,8 +2157,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: col_struct, mat_struct
       TYPE(cp_fm_type)                                   :: col_work, mat_work
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: quadmat
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (lr_evals, osc_str, lr_coeffs, col_struct, mat_struct, para_env)
       NULLIFY (blacs_env)
@@ -2360,8 +2360,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: col_vect_struct
       TYPE(cp_fm_type)                                   :: work_vect
       TYPE(cp_fm_type), POINTER                          :: gs_coeffs
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -2463,10 +2463,10 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: mo_coeff, work_fm
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -2741,8 +2741,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, lumo_struct
       TYPE(cp_fm_type)                                   :: amatrix, bmatrix, evecs, work_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (matrix_ks, matrix_s, para_env, blacs_env)
       NULLIFY (lumo_struct, fm_struct)
@@ -2841,8 +2841,8 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: scaling
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_prec, work_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (fm_struct, para_env, matrix_s)
 
@@ -3342,9 +3342,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_comm_type)                                 :: group
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (lr_evals, lr_coeffs, para_env, fm_struct, blacs_env, mos)
 

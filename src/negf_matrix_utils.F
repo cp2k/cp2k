@@ -15,12 +15,12 @@ MODULE negf_matrix_utils
                                               cp_fm_get_submatrix,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type,&
                                               mp_request_type
    USE negf_alloc_types,                ONLY: negf_allocatable_rvector
    USE negf_atom_map,                   ONLY: negf_atom_map_type
@@ -194,7 +194,7 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: r2d
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: sm_block
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -497,7 +497,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_contact, matrix_device
       INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list
       TYPE(negf_atom_map_type), DIMENSION(:), INTENT(in) :: atom_map
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_reference_contact_matrix'
 

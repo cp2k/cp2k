@@ -489,6 +489,12 @@ message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 message_passing.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Found type mp_file_descriptor_type without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mp_file_indexing_meta_type without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mp_indexing_meta_type without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mp_perf_env_type without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mp_perf_type without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mp_type_descriptor_type without initializer https://cp2k.org/conv#c016
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)

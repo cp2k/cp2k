@@ -28,6 +28,7 @@ MODULE rpa_communication
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
@@ -36,8 +37,7 @@ MODULE rpa_communication
                                               group_dist_d1_type,&
                                               release_group_dist
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_null,&
+   USE message_passing,                 ONLY: mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall
    USE mp2_ri_grad_util,                ONLY: fm2array,&
@@ -81,8 +81,8 @@ CONTAINS
                                 my_group_L_size)
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: homo, virtual
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
@@ -455,7 +455,7 @@ CONTAINS
    SUBROUTINE communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send, &
                                  req_array, do_indx, do_msg)
 
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: num_entries_rec, num_entries_send
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send

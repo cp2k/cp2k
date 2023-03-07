@@ -25,6 +25,7 @@ MODULE fist_force
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -58,7 +59,6 @@ MODULE fist_force
    USE manybody_eam,                    ONLY: density_nonbond
    USE manybody_potential,              ONLY: energy_manybody,&
                                               force_nonbond_manybody
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE multipole_types,                 ONLY: multipole_type
@@ -137,6 +137,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -147,7 +148,6 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(multipole_type), POINTER                      :: multipoles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
                                                             shell_particle_set

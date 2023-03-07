@@ -17,6 +17,7 @@ MODULE topology_amber
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&
                                               parser_search_string,&
@@ -32,7 +33,6 @@ MODULE topology_amber
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
    USE string_table,                    ONLY: id2str,&
@@ -99,7 +99,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_coordinate_crd(topology, para_env, subsys_section)
       TYPE(topology_parameters_type)                     :: topology
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_crd'
@@ -285,7 +285,7 @@ CONTAINS
    SUBROUTINE read_connectivity_amber(filename, topology, para_env, subsys_section)
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber'
@@ -368,7 +368,7 @@ CONTAINS
 
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
       INTEGER, INTENT(IN)                                :: output_unit
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: do_connectivity, do_forcefield
       TYPE(atom_info_type), OPTIONAL, POINTER            :: atom_info
       TYPE(connectivity_info_type), OPTIONAL, POINTER    :: conn_info

@@ -17,6 +17,7 @@ MODULE manybody_potential
 
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type
@@ -51,7 +52,6 @@ MODULE manybody_potential
                                               setup_tersoff_arrays,&
                                               tersoff_energy,&
                                               tersoff_forces
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
         ea_type, eam_pot_type, gal21_pot_type, gal21_type, gal_pot_type, gal_type, &
         nequip_pot_type, nequip_type, pair_potential_pp_type, pair_potential_single_type, &
@@ -92,7 +92,7 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(cell_type), POINTER                           :: cell
       REAL(dp), INTENT(INOUT)                            :: pot_manybody
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'energy_manybody'

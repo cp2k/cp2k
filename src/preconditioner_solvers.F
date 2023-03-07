@@ -33,6 +33,7 @@ MODULE preconditioner_solvers
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
         dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
@@ -42,7 +43,6 @@ MODULE preconditioner_solvers
                                               ot_precond_solver_update
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"
 
@@ -339,7 +339,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: dbcsr_matrix
       TYPE(cp_fm_type), POINTER                          :: fm_matrix
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transfer_dbcsr_to_fm'

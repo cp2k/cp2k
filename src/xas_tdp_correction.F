@@ -41,6 +41,7 @@ MODULE xas_tdp_correction
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_info, dbcsr_p_type, &
@@ -61,7 +62,6 @@ MODULE xas_tdp_correction
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: complex_diag
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -124,12 +124,12 @@ CONTAINS
                                                             lulu_fock, lulu_work, lumo_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: all_coeffs, homo_coeffs, lumo_coeffs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, fock_matrix, matrix_ks
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ja_X, oI_Y
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: mo_template
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original, xc_section
 
       NULLIFY (xc_fun_empty, xc_fun_original, xc_section, mos, dft_control, dbcsr_work, &
@@ -469,9 +469,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: mo_blk_size
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbt_type)                                     :: aj_Ib, aj_Ib_diff, aj_X, ja_Ik, &
                                                             ja_Ik_diff
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -694,9 +694,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: mo_blk_size
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbt_type)                                     :: aj_Ib, aj_Ib_diff, aj_X(2), ja_Ik, &
                                                             ja_Ik_diff
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -956,11 +956,11 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pdims
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: pblock
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_iterator_type)                            :: iter
       TYPE(dbt_pgrid_type)                               :: t_pgrid
       TYPE(dbt_type)                                     :: pq_X_tmp, work
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (para_env)
 
@@ -1073,13 +1073,13 @@ CONTAINS
                                                             mo_dist_3, ri_blk_size, ri_dist_3
       INTEGER, DIMENSION(:, :), POINTER                  :: mat_pgrid
       TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: mo_blk_size, mo_col_dist, mo_row_dist
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: mat_dist
       TYPE(dbcsr_distribution_type), POINTER             :: std_mat_dist
       TYPE(dbcsr_type)                                   :: dbcsr_mo_coeffs
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_pgrid_type)                               :: t_pgrid
       TYPE(dbt_type)                                     :: jq_X, pq_X, t_mo_coeffs
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (ao_blk_size, ao_col_dist, ao_row_dist, mo_dist_3, ri_blk_size, ri_dist_3, mat_pgrid, &
                para_env, std_mat_dist)
@@ -1279,13 +1279,13 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: mat_pgrid
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pblock
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: std_mat_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pI_Y
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_iterator_type)                            :: iter
       TYPE(dbt_pgrid_type)                               :: t_pgrid
       TYPE(dbt_type)                                     :: t_pI_Y, t_work
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1754,9 +1754,9 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: alpha_gs_coeffs, ao_domo_work, &
                                                             beta_gs_coeffs, domo_domo_work, &
                                                             img_fm, real_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: orb_soc_x, orb_soc_y, orb_soc_z
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (matrix_ks, para_env, blacs_env, ao_domo_struct, domo_domo_struct, &
                doso_doso_struct, orb_soc_x, orb_soc_y, orb_soc_z)

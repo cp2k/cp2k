@@ -15,12 +15,12 @@ MODULE qs_atomic_block
    USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_dot, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
 
@@ -58,7 +58,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspin
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nelectron_spin
       INTEGER, INTENT(IN)                                :: ounit
-      TYPE(mp_para_env_type)                             :: para_env
+      TYPE(cp_para_env_type)                             :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm'
 

@@ -15,6 +15,7 @@ MODULE mp2_ri_gpw
    USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
                                               c_associated
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_init,&
                                               dgemm_counter_start,&
                                               dgemm_counter_stop,&
@@ -35,8 +36,7 @@ MODULE mp2_ri_gpw
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array
@@ -82,7 +82,7 @@ CONTAINS
       TYPE(three_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -1188,7 +1188,7 @@ CONTAINS
                                   my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
                                   integ_group_pos2color_sub, &
                                   sizes_array_orig, ranges_info_array, comm_exchange, comm_rep, num_integ_group)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: sizes_array
       LOGICAL, INTENT(IN)                                :: calc_forces
@@ -1308,7 +1308,7 @@ CONTAINS
                                           ngroup, num_integ_group, &
                                           virtual, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -1469,7 +1469,7 @@ CONTAINS
                                     block_size, ngroup, num_integ_group, &
                                     my_open_shell_ss, calc_forces, buffer_1D)
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
@@ -1608,7 +1608,7 @@ CONTAINS
                                  t_ab, my_local_i_aL, my_local_j_aL, open_ss, Y_i_aP, Y_j_aP, &
                                  local_ba, ispin, jspin, dgemm_counter, buffer_1D)
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -2133,7 +2133,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
       TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub, para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub, para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_virtual_start, my_B_virtual_end
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
@@ -2549,7 +2549,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub, buffer_size, my_group_L_size, &
                                                             B_size_k
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: virtual, B_size_i
 
       INTEGER :: block_size, communication_steps, communication_volume, iib, ij_counter, &

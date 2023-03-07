@@ -13,6 +13,7 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_read
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               empty_initial_variables,&
                                               parser_create,&
@@ -25,7 +26,6 @@ MODULE input_cp2k_read
                                               section_vals_create,&
                                               section_vals_type,&
                                               typo_match_section
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,7 +52,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: file_path
       CHARACTER(len=*), DIMENSION(:, :)                  :: initial_variables
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: res
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_input'

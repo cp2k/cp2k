@@ -16,12 +16,12 @@ MODULE qs_dftb_dispersion
                                               atprop_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               dftb_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: dispersion_d2,&
                                               dispersion_d3,&
                                               dispersion_d3bj,&
                                               dispersion_uff
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                               qs_dftb_pairpot_type
@@ -63,7 +63,7 @@ CONTAINS
    SUBROUTINE calculate_dftb_dispersion(qs_env, para_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -102,7 +102,7 @@ CONTAINS
    SUBROUTINE calculate_dispersion_uff(qs_env, para_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_uff'

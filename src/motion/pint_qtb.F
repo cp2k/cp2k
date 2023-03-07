@@ -18,6 +18,7 @@ MODULE pint_qtb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level,&
                                               silent_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE fft_lib,                         ONLY: fft_1dm,&
                                               fft_create_plan_1dm,&
                                               fft_destroy_plan
@@ -33,7 +34,6 @@ MODULE pint_qtb
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               rng_record_length,&
                                               rng_stream_type,&
@@ -270,8 +270,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: fp1
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fft_plan_type)                                :: plan
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

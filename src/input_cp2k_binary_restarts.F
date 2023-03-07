@@ -22,13 +22,13 @@ MODULE input_cp2k_binary_restarts
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
                                               debug_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE extended_system_types,           ONLY: lnhc_parameters_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom
    USE print_messages,                  ONLY: print_message
@@ -70,7 +70,7 @@ CONTAINS
 
       TYPE(topology_parameters_type)                     :: topology
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
 
@@ -310,7 +310,7 @@ CONTAINS
       LOGICAL                                            :: exit_routine
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rbuf
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -494,7 +494,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: prefix
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
 
@@ -679,7 +679,7 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name
       LOGICAL, INTENT(OUT)                               :: restart
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose'
 

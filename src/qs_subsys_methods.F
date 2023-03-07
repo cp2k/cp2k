@@ -21,6 +21,7 @@ MODULE qs_subsys_methods
                                               cell_create,&
                                               cell_release,&
                                               cell_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -33,7 +34,6 @@ MODULE qs_subsys_methods
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type,&
                                               set_molecule_kind
@@ -70,7 +70,7 @@ CONTAINS
    SUBROUTINE qs_subsys_create(subsys, para_env, root_section, force_env_section, subsys_section, &
                                use_motion_section, cp_subsys, cell, cell_ref, elkind)
       TYPE(qs_subsys_type), INTENT(OUT)                  :: subsys
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section

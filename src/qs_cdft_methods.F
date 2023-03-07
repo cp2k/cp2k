@@ -23,6 +23,7 @@ MODULE qs_cdft_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
@@ -37,7 +38,6 @@ MODULE qs_cdft_methods
                                               section_vals_type
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -642,10 +642,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1159,8 +1159,8 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_type), DIMENSION(:), POINTER               :: charge, rho_r
@@ -1351,8 +1351,8 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -1607,8 +1607,8 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_frag

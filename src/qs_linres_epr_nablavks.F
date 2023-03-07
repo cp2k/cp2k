@@ -22,6 +22,7 @@ MODULE qs_linres_epr_nablavks
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE external_potential_types,        ONLY: all_potential_type,&
@@ -37,7 +38,6 @@ MODULE qs_linres_epr_nablavks
                                               dp
    USE mathconstants,                   ONLY: rootpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -131,12 +131,12 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab

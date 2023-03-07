@@ -45,14 +45,13 @@ MODULE cp_log_handling
                                               cp_iteration_info_release,&
                                               cp_iteration_info_retain,&
                                               cp_iteration_info_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
    USE machine,                         ONLY: default_output_unit,&
                                               m_getpid,&
                                               m_hostnm
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type
    USE string_utilities,                ONLY: compress
    USE timings,                         ONLY: print_stack
 #include "../base/base_uses.f90"
@@ -138,15 +137,15 @@ MODULE cp_log_handling
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_logger_type
-      INTEGER :: ref_count = -1
-      INTEGER :: print_level = -1
-      INTEGER :: default_local_unit_nr = -1
-      INTEGER :: default_global_unit_nr = -1
-      LOGICAL :: close_local_unit_on_dealloc = .FALSE., close_global_unit_on_dealloc = .FALSE.
-      CHARACTER(len=default_string_length)  :: suffix = ""
-      CHARACTER(len=default_path_length)    :: local_filename = "", global_filename = ""
-      TYPE(mp_para_env_type), POINTER       :: para_env => NULL()
-      TYPE(cp_iteration_info_type), POINTER :: iter_info => NULL()
+      INTEGER :: ref_count
+      INTEGER :: print_level
+      INTEGER :: default_local_unit_nr
+      INTEGER :: default_global_unit_nr
+      LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
+      CHARACTER(len=default_string_length)  :: suffix
+      CHARACTER(len=default_path_length)    :: local_filename, global_filename
+      TYPE(cp_para_env_type), POINTER       :: para_env
+      TYPE(cp_iteration_info_type), POINTER :: iter_info
    END TYPE cp_logger_type
 
    TYPE cp_logger_p_type
@@ -283,7 +282,7 @@ CONTAINS
                                local_filename, close_global_unit_on_dealloc, iter_info, &
                                close_local_unit_on_dealloc, suffix, template_logger)
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, INTENT(in), OPTIONAL                      :: print_level, default_global_unit_nr, &
                                                             default_local_unit_nr
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: global_filename, local_filename
@@ -442,7 +441,7 @@ CONTAINS
                logger%close_local_unit_on_dealloc = .FALSE.
                logger%default_local_unit_nr = -1
             END IF
-            CALL mp_para_env_release(logger%para_env)
+            CALL my_cp_para_env_release(logger%para_env)
             CALL cp_iteration_info_release(logger%iter_info)
             DEALLOCATE (logger)
          END IF
@@ -656,6 +655,33 @@ CONTAINS
          res = lggr%default_local_unit_nr
       END IF
    END FUNCTION cp_logger_get_default_unit_nr
+
+! **************************************************************************************************
+!> \brief releases the para object (to be called when you don't want anymore
+!>      the shared copy of this object)
+!> \param para_env the new group
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      local private version to avoid circular dependencies
+!>      (see cp_para_env:cp_para_env_release)!
+! **************************************************************************************************
+   SUBROUTINE my_cp_para_env_release(para_env)
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'my_cp_para_env_release', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(para_env)) THEN
+         IF (.NOT. para_env%is_valid()) THEN
+            CPABORT(routineP//" para_env%ref_count<1")
+         END IF
+         CALL para_env%free()
+         IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
+      END IF
+      NULLIFY (para_env)
+   END SUBROUTINE my_cp_para_env_release
 
 ! **************************************************************************************************
 !> \brief generates a unique filename (ie adding eventual suffixes and

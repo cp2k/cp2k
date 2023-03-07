@@ -18,6 +18,7 @@ MODULE glbopt_master
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE exclusion_types,                 ONLY: exclusion_release,&
                                               exclusion_type
@@ -40,7 +41,6 @@ MODULE glbopt_master
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: deallocate_molecule_kind_set,&
                                               molecule_kind_type
    USE molecule_types,                  ONLY: deallocate_global_constraint,&
@@ -95,7 +95,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE glbopt_master_init(this, para_env, root_section, n_walkers, iw)
       TYPE(glbopt_master_type), INTENT(INOUT)            :: this
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: n_walkers, iw
 
@@ -140,7 +140,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE glbopt_read_particle_set(this, para_env, root_section)
       TYPE(glbopt_master_type), INTENT(INOUT)            :: this
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

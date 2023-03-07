@@ -47,6 +47,7 @@ MODULE qs_tddfpt2_properties
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
@@ -66,7 +67,6 @@ MODULE qs_tddfpt2_properties
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type,&
                                               mp_request_type
    USE molden_utils,                    ONLY: write_mos_molden
    USE moments_utils,                   ONLY: get_reference_point
@@ -684,7 +684,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: S_mos_virt, weights_fm
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type)                              :: send_handler, send_handler2
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_handlers, recv_handlers2
 

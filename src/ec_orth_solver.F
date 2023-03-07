@@ -19,6 +19,7 @@ MODULE ec_orth_solver
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_external_control,             ONLY: external_control
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_dot, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
@@ -41,7 +42,6 @@ MODULE ec_orth_solver
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathlib,                         ONLY: abnormal_value
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -1018,9 +1018,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: chksum
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_b, rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -1133,9 +1133,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: ekin_mol
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_G, matrix_s, rho1_ao, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -1437,9 +1437,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'projector'
 
       INTEGER                                            :: handle, ispin, nspins
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: matrix_q, matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

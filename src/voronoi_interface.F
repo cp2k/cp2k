@@ -39,7 +39,7 @@ MODULE voronoi_interface
    USE cp_files, ONLY: file_exists, close_file, open_file
    USE qs_kind_types, ONLY: get_qs_kind, &
                             qs_kind_type
-   USE message_passing, ONLY: mp_para_env_type
+   USE cp_para_types, ONLY: cp_para_env_type
    USE qs_subsys_types, ONLY: qs_subsys_get, &
                               qs_subsys_type
    USE cp_control_types, ONLY: dft_control_type
@@ -341,7 +341,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       REAL(KIND=dp)                                      :: r
       TYPE(qs_subsys_type), POINTER                      :: subsys

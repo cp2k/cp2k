@@ -16,6 +16,7 @@ MODULE md_util
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -24,7 +25,6 @@ MODULE md_util
                                               dp
    USE md_energies,                     ONLY: md_write_output
    USE md_environment_types,            ONLY: md_environment_type
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -98,7 +98,7 @@ CONTAINS
                                         eigenvalues, &
                                         eigenvectors)
       TYPE(section_vals_type), POINTER                   :: md_section, vib_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(OUT)                               :: dof
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: eigenvectors

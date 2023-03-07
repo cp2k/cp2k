@@ -23,6 +23,7 @@ MODULE rpa_gw_im_time_util
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, &
@@ -40,7 +41,6 @@ MODULE rpa_gw_im_time_util
                                               int_8
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_dims_create,&
-                                              mp_para_env_type,&
                                               mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE particle_methods,                ONLY: get_particle_set
@@ -119,7 +119,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                                             nmo
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN)                                :: do_ic_model
       TYPE(dbt_type)                                     :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
@@ -447,7 +447,7 @@ CONTAINS
    SUBROUTINE reflect_mat_row(mat_reflected, mat_orig, para_env, qs_env, unit_nr, do_alpha)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_reflected
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_orig
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_alpha

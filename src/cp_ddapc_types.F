@@ -21,6 +21,7 @@ MODULE cp_ddapc_types
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_printkey_is_on
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -28,7 +29,6 @@ MODULE cp_ddapc_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_release
@@ -96,7 +96,7 @@ CONTAINS
    SUBROUTINE cp_ddapc_create(cp_para_env, cp_ddapc_env, cp_ddapc_ewald, &
                               particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw2, Vol, &
                               force_env_section)
-      TYPE(mp_para_env_type), POINTER                    :: cp_para_env
+      TYPE(cp_para_env_type), POINTER                    :: cp_para_env
       TYPE(cp_ddapc_type), INTENT(OUT)                   :: cp_ddapc_env
       TYPE(cp_ddapc_ewald_type), POINTER                 :: cp_ddapc_ewald
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -222,7 +222,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: qmmm_decoupl
       TYPE(cell_type), POINTER                           :: qm_cell
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: my_val, npts(3), output_unit
       INTEGER, DIMENSION(:), POINTER                     :: ngrids

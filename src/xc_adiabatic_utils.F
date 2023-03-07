@@ -16,6 +16,7 @@
 MODULE xc_adiabatic_utils
 
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hfx_communication,               ONLY: scale_and_add_fock_to_ks_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
@@ -27,7 +28,6 @@ MODULE xc_adiabatic_utils
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -85,11 +85,11 @@ CONTAINS
       REAL(dp)                                           :: adiabatic_lambda, adiabatic_omega, &
                                                             scale_dDFA, scale_ddW0, scale_dEx1, &
                                                             scale_dEx2, total_energy_xc
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &

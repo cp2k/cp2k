@@ -32,6 +32,7 @@ MODULE population_analyses
                                               cp_fm_get_diag,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
@@ -42,7 +43,6 @@ MODULE population_analyses
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
@@ -94,10 +94,10 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: fm_s_half, fm_work1, fm_work2
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_p, matrixkp_s
       TYPE(dbcsr_type), POINTER                          :: sm_p, sm_s
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -264,10 +264,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: ps
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop, p_block, ps_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_p, sm_ps, sm_s
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho

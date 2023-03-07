@@ -17,6 +17,7 @@ MODULE qs_tddfpt2_fhxc
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
@@ -24,7 +25,6 @@ MODULE qs_tddfpt2_fhxc
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lri_environment_types,           ONLY: lri_kind_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -116,12 +116,12 @@ CONTAINS
       LOGICAL                                            :: gapw, gapw_xc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type)                                   :: work_aux_orb, work_orb_orb
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_xc_munu_sub, rho_ia_ao, &
                                                             rho_ia_ao_aux_fit
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: V_rspace_sub
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &

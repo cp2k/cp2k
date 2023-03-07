@@ -23,12 +23,12 @@ MODULE xray_diffraction
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               ncoset,&
@@ -105,8 +105,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER :: f2sum, f2sum_gather, f4sum, f4sum_gather, fmax, &
          fmax_gather, fmin, fmin_gather, fsum, fsum_gather, gsq, q_shell, q_shell_gather
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool

@@ -21,6 +21,7 @@ MODULE qmmm_gpw_energy
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_spline_utils,                 ONLY: pw_prolongate_s3,&
                                               spline3_nopbc_interp,&
@@ -37,7 +38,6 @@ MODULE qmmm_gpw_energy
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -102,8 +102,8 @@ CONTAINS
       INTEGER                                            :: handle, iw, iw2
       LOGICAL                                            :: mpi_io
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -247,7 +247,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       INTEGER, INTENT(IN)                                :: auxbas_grid, coarser_grid
@@ -376,7 +376,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
       INTEGER, INTENT(IN)                                :: auxbas_grid, coarser_grid
@@ -536,7 +536,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER   :: per_potentials
       TYPE(cell_type), POINTER                           :: mm_cell
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: dOmmOqm
@@ -761,7 +761,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER       :: potentials
       TYPE(cell_type), POINTER                           :: mm_cell
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: dOmmOqm

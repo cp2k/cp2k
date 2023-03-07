@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE qmmm_gaussian_input
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_object,&
                                               parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -23,7 +24,6 @@ MODULE qmmm_gaussian_input
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: rootpi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: bohr
    USE qmmm_gaussian_data,              ONLY: &
         g10_a1, g10_a10, g10_a2, g10_a3, g10_a4, g10_a5, g10_a6, g10_a7, g10_a8, g10_a9, g10_b1, &
@@ -119,7 +119,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_mm_potential(para_env, qmmm_gaussian_fns, &
                                 compatibility, qmmm_section)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: qmmm_gaussian_fns
       LOGICAL, INTENT(IN)                                :: compatibility
       TYPE(section_vals_type), POINTER                   :: qmmm_section

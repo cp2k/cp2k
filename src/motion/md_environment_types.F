@@ -20,6 +20,8 @@ MODULE md_environment_types
    USE barostat_types,                  ONLY: barostat_type,&
                                               release_barostat_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE extended_system_types,           ONLY: npt_info_type
    USE force_env_types,                 ONLY: force_env_release,&
                                               force_env_retain,&
@@ -33,8 +35,6 @@ MODULE md_environment_types
    USE kinds,                           ONLY: dp
    USE md_ener_types,                   ONLY: md_ener_type,&
                                               release_md_ener
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type
    USE reftraj_types,                   ONLY: reftraj_type,&
                                               release_reftraj
    USE simpar_types,                    ONLY: simpar_type
@@ -59,7 +59,7 @@ MODULE md_environment_types
       INTEGER, POINTER                           :: itimes => NULL()
       REAL(KIND=dp), POINTER                     :: used_time => NULL(), t => NULL()
       REAL(KIND=dp), POINTER                     :: constant => NULL()
-      TYPE(mp_para_env_type), POINTER            :: para_env => NULL()
+      TYPE(cp_para_env_type), POINTER            :: para_env => NULL()
       TYPE(cell_type), POINTER                   :: cell => NULL()
       TYPE(force_env_type), POINTER              :: force_env => NULL()
       TYPE(md_ener_type), POINTER                :: md_ener => NULL()
@@ -94,7 +94,7 @@ CONTAINS
    SUBROUTINE md_env_create(md_env, md_section, para_env, force_env)
       TYPE(md_environment_type), INTENT(OUT)             :: md_env
       TYPE(section_vals_type), POINTER                   :: md_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(force_env_type), POINTER                      :: force_env
 
       TYPE(section_vals_type), POINTER                   :: averages_section
@@ -141,7 +141,7 @@ CONTAINS
       TYPE(md_environment_type), INTENT(INOUT)           :: md_env
 
       CALL fe_env_release(md_env%fe_env)
-      CALL mp_para_env_release(md_env%para_env)
+      CALL cp_para_env_release(md_env%para_env)
       DEALLOCATE (md_env%itimes)
       DEALLOCATE (md_env%constant)
       DEALLOCATE (md_env%used_time)
@@ -213,7 +213,7 @@ CONTAINS
       TYPE(simpar_type), OPTIONAL, POINTER               :: simpar
       TYPE(npt_info_type), OPTIONAL, POINTER             :: npt(:, :)
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(reftraj_type), OPTIONAL, POINTER              :: reftraj
       REAL(KIND=dp), OPTIONAL, POINTER                   :: t
       LOGICAL, OPTIONAL                                  :: init, first_time
@@ -309,7 +309,7 @@ CONTAINS
       TYPE(simpar_type), OPTIONAL, POINTER               :: simpar
       TYPE(free_energy_type), OPTIONAL, POINTER          :: fe_env
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL, OPTIONAL                                  :: init, first_time
       TYPE(thermostats_type), OPTIONAL, POINTER          :: thermostats
       TYPE(barostat_type), OPTIONAL, POINTER             :: barostat

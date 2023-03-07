@@ -11,6 +11,7 @@ MODULE optimize_basis_utils
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_object,&
                                               parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -29,7 +30,6 @@ MODULE optimize_basis_utils
                                               dp
    USE machine,                         ONLY: default_output_unit,&
                                               m_getcwd
-   USE message_passing,                 ONLY: mp_para_env_type
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               derived_basis_info,&
                                               flex_basis_type,&
@@ -59,7 +59,7 @@ CONTAINS
    SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_path_length)                 :: main_dir
       INTEGER                                            :: iset, iweight, nrep
@@ -247,7 +247,7 @@ CONTAINS
    SUBROUTINE generate_computation_groups(opt_bas, optbas_section, para_env)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: optbas_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: iadd1, iadd2, icount, igroup, isize, j, &
                                                             ncalc, nproc, nptot
@@ -343,7 +343,7 @@ CONTAINS
       TYPE(basis_optimization_type)                      :: opt_bas
       LOGICAL                                            :: write_it
       CHARACTER(LEN=default_path_length)                 :: output_file
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: ibasis, ikind, unit_nr
 
@@ -413,7 +413,7 @@ CONTAINS
 
    SUBROUTINE generate_derived_basis_sets(opt_bas, para_env)
       TYPE(basis_optimization_type)                      :: opt_bas
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: ibasis, ikind, iref, jbasis, unit_nr
 
@@ -621,7 +621,7 @@ CONTAINS
    SUBROUTINE generate_initial_basis(kind_section, opt_bas, para_env)
       TYPE(section_vals_type), POINTER                   :: kind_section
       TYPE(basis_optimization_type)                      :: opt_bas
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: ikind, variable_counter
       LOGICAL                                            :: explicit
@@ -885,7 +885,7 @@ CONTAINS
       TYPE(flex_basis_type)                              :: flex_basis
       CHARACTER(LEN=default_path_length)                 :: template_basis_file
       CHARACTER(LEN=default_string_length)               :: element, basis_name
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: ikind
 
       INTEGER                                            :: icont, idof, ipgf, irep, iset, nrep
@@ -1027,7 +1027,7 @@ CONTAINS
       TYPE(flex_basis_type)                              :: flex_basis
       CHARACTER(LEN=default_path_length)                 :: template_basis_file
       CHARACTER(LEN=default_string_length)               :: element, basis_name
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2

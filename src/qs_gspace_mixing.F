@@ -9,9 +9,9 @@
 MODULE qs_gspace_mixing
 
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invert_matrix
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -70,7 +70,7 @@ CONTAINS
       INTEGER                                            :: mixing_method
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iter_count
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gspace_mixing'
@@ -289,7 +289,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pulay_mixing'
 
@@ -567,7 +567,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'broyden_mixing'
 
@@ -885,7 +885,7 @@ CONTAINS
 
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing_new'
 
@@ -1194,7 +1194,7 @@ CONTAINS
 
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'multisecant_mixing'
       COMPLEX(KIND=dp), PARAMETER                        :: cmone = (-1.0_dp, 0.0_dp), &

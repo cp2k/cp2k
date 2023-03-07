@@ -23,6 +23,7 @@ MODULE se_core_matrix
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_distribute, dbcsr_get_block_diag, &
         dbcsr_get_block_p, dbcsr_p_type, dbcsr_replicate_all, dbcsr_set, dbcsr_sum_replicated, &
@@ -32,7 +33,6 @@ MODULE se_core_matrix
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -79,7 +79,7 @@ CONTAINS
    SUBROUTINE build_se_core_matrix(qs_env, para_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix'

@@ -45,6 +45,7 @@ MODULE cp2k_shell
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE f77_interface,                   ONLY: &
         calc_energy_force, calc_force, create_force_env, destroy_force_env, get_cell, get_energy, &
         get_force, get_natom, get_pos, get_stress_tensor, set_cell, set_pos
@@ -58,7 +59,6 @@ MODULE cp2k_shell
                                               m_getlog,&
                                               m_getpid,&
                                               m_hostnm
-   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE string_utilities,                ONLY: uppercase
@@ -74,7 +74,7 @@ MODULE cp2k_shell
       REAL(dp)                                           :: pos_fact = 1.0_dp
       REAL(dp)                                           :: e_fact = 1.0_dp
       LOGICAL                                            :: harsh = .FALSE.
-      TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
+      TYPE(cp_para_env_type), POINTER                    :: para_env => Null()
       CHARACTER(LEN=5)                                   :: units = "au"
       INTEGER                                            :: env_id = -1
       INTEGER                                            :: iw

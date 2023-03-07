@@ -19,6 +19,7 @@ MODULE qs_tddfpt2_lri_utils
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
@@ -35,7 +36,6 @@ MODULE qs_tddfpt2_lri_utils
    USE lri_environment_types,           ONLY: lri_environment_type,&
                                               lri_kind_type
    USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
@@ -93,6 +93,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
@@ -100,7 +101,6 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set

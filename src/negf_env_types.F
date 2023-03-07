@@ -19,6 +19,7 @@ MODULE negf_env_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_init_p,&
@@ -37,7 +38,6 @@ MODULE negf_env_types
                                               get_kpoint_info,&
                                               kpoint_env_p_type,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE negf_atom_map,                   ONLY: negf_atom_map_type,&
                                               negf_map_atomic_indices
    USE negf_control_types,              ONLY: negf_control_contact_type,&
@@ -398,11 +398,11 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: matrix_s_ref
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -550,9 +550,9 @@ CONTAINS
       REAL(kind=dp), DIMENSION(2)                        :: r2_origin_cell
       REAL(kind=dp), DIMENSION(3)                        :: direction_vector, origin
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -712,10 +712,10 @@ CONTAINS
                                                             ncontacts, nspins
       LOGICAL                                            :: do_kpoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type)                                 :: hmat
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type)                                      :: v_hartree
@@ -985,11 +985,11 @@ CONTAINS
       LOGICAL                                            :: do_kpoints
       REAL(kind=dp)                                      :: my_homo_energy
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_kp
 
       CALL timeset(routineN, handle)
       my_homo_energy = 0.0_dp

@@ -10,12 +10,12 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE qmmmx_create
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE global_types,                    ONLY: global_environment_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_release,&
                                               section_vals_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qmmm_create,                     ONLY: qmmm_env_create
    USE qmmm_types,                      ONLY: qmmm_env_get,&
                                               qmmm_env_release,&
@@ -52,7 +52,7 @@ CONTAINS
                                force_env_section, subsys_section, use_motion_section)
       TYPE(qmmmx_env_type), INTENT(OUT)                  :: qmmmx_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section

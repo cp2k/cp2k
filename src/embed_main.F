@@ -17,13 +17,13 @@ MODULE embed_main
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE embed_environment,               ONLY: embed_init
    USE embed_types,                     ONLY: embed_env_create,&
                                               embed_env_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -51,7 +51,7 @@ CONTAINS
 
       TYPE(embed_env_type), INTENT(OUT)                  :: embed_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
       INTEGER, INTENT(IN)                                :: n_subforce_eval
       LOGICAL, INTENT(IN)                                :: use_motion_section
@@ -64,7 +64,7 @@ CONTAINS
                                                             unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: group_partition, i_vals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_env_type), POINTER                    :: sub_para_env
+      TYPE(cp_para_env_type), POINTER                    :: sub_para_env
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()

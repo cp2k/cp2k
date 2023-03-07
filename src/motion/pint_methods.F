@@ -41,6 +41,7 @@ MODULE pint_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
@@ -83,8 +84,7 @@ MODULE pint_methods
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_comm_self,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -173,7 +173,7 @@ CONTAINS
       TYPE(pint_env_type), INTENT(OUT)                   :: pint_env
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_create'
 
@@ -789,7 +789,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pint_test(para_env, input, input_declaration)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
 
@@ -851,7 +851,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE do_pint_run(para_env, input, input_declaration, globenv)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(global_environment_type), POINTER             :: globenv

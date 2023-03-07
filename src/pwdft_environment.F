@@ -17,6 +17,7 @@ MODULE pwdft_environment
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_symmetry,                     ONLY: write_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
@@ -26,7 +27,6 @@ MODULE pwdft_environment
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_methods,                ONLY: write_particle_distances,&
@@ -80,7 +80,7 @@ CONTAINS
                          use_motion_section)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 

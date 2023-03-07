@@ -28,6 +28,7 @@ MODULE rpa_grad
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_release, cp_fm_set_all, &
         cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
                                               dgemm_counter_stop,&
                                               dgemm_counter_type
@@ -51,7 +52,6 @@ MODULE rpa_grad
                                               m_memory
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type,&
                                               mp_request_null,&
                                               mp_request_type,&
                                               mp_waitall,&
@@ -465,8 +465,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp_comm_type)                                 :: comm_exchange
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -599,8 +599,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp_comm_type)                                 :: comm_exchange
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1027,7 +1027,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mat_S_3D
       TYPE(cp_1d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_1D
       TYPE(cp_3d_r_cp_type), ALLOCATABLE, DIMENSION(:)   :: buffer_3D
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_requests, send_requests
 
       CALL timeset(routineN, handle)
@@ -1634,7 +1634,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1792,7 +1792,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1942,7 +1942,7 @@ CONTAINS
          size_send_buffer, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -2041,7 +2041,7 @@ CONTAINS
                                 color_sub, do_ri_sos_laplace_mp2, homo, virtual)
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub, para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub, para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(group_dist_d1_type)                           :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
@@ -2267,7 +2267,7 @@ CONTAINS
    SUBROUTINE sos_mp2_grad_finalize(sos_mp2_work_occ, sos_mp2_work_virt, para_env, para_env_sub, homo, virtual, mp2_env)
       TYPE(sos_mp2_grad_work_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: sos_mp2_work_occ, sos_mp2_work_virt
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
@@ -2416,7 +2416,7 @@ CONTAINS
       TYPE(rpa_grad_work_type), INTENT(INOUT)            :: rpa_work
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_work_finalize'
 
@@ -2625,7 +2625,7 @@ CONTAINS
                                                             mpi2blacs_global, mpi2blacs_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer_1D, send_buffer_1D
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: recv_buffer, send_buffer
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(one_dim_int_array), ALLOCATABLE, DIMENSION(:) :: index2recv_col, index2recv_row, &
                                                             index2send_col, index2send_row
 

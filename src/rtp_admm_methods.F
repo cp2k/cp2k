@@ -27,6 +27,7 @@ MODULE rtp_admm_methods
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_get_info, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
@@ -38,7 +39,6 @@ MODULE rtp_admm_methods
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: one,&
                                               zero
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -86,12 +86,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_aux
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: rtp_coeff_aux_fit
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_aux, matrix_p_aux_im, &
                                                             matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -209,7 +209,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -278,7 +278,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp

@@ -38,6 +38,7 @@ MODULE qs_integrate_potential_single
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_type
    USE external_potential_types,        ONLY: get_potential,&
@@ -48,7 +49,6 @@ MODULE qs_integrate_potential_single
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -875,10 +875,10 @@ CONTAINS
                                                             rpgfa, sphi_a, work, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force

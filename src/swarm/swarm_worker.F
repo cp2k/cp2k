@@ -13,6 +13,7 @@ MODULE swarm_worker
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE glbopt_worker,                   ONLY: glbopt_worker_execute,&
                                               glbopt_worker_finalize,&
                                               glbopt_worker_init,&
@@ -22,7 +23,6 @@ MODULE swarm_worker
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length
-   USE message_passing,                 ONLY: mp_para_env_type
    USE swarm_message,                   ONLY: swarm_message_add,&
                                               swarm_message_get,&
                                               swarm_message_haskey,&
@@ -62,7 +62,7 @@ CONTAINS
    SUBROUTINE swarm_worker_init(worker, para_env, input_declaration, root_section, &
                                 input_path, worker_id)
       TYPE(swarm_worker_type), INTENT(INOUT)             :: worker
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path

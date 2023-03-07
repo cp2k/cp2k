@@ -15,6 +15,7 @@
 MODULE wiener_process
 
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -28,7 +29,6 @@ MODULE wiener_process
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               need_per_atom_wiener_process
-   USE message_passing,                 ONLY: mp_para_env_type
    USE metadynamics_types,              ONLY: meta_env_type
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               next_rng_seed,&
@@ -70,10 +70,10 @@ CONTAINS
                                                             nparticle_kind, nparticle_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section, &
                                                             work_section

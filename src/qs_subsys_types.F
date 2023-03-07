@@ -17,6 +17,7 @@ MODULE qs_subsys_types
                                               cell_retain,&
                                               cell_type
    USE colvar_types,                    ONLY: colvar_p_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -24,7 +25,6 @@ MODULE qs_subsys_types
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -146,7 +146,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_kind_set
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(colvar_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: colvar_p
       TYPE(particle_list_type), OPTIONAL, POINTER        :: shell_particles, core_particles

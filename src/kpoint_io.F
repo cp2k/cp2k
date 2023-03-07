@@ -29,13 +29,13 @@ MODULE kpoint_io
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso
    USE particle_types,                  ONLY: particle_type
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
@@ -299,7 +299,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fmwork
       INTEGER, INTENT(IN)                                :: natom
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: id_nr
       TYPE(section_vals_type), POINTER                   :: dft_section
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
@@ -364,7 +364,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fmat
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
 

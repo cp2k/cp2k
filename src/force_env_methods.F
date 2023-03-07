@@ -41,6 +41,7 @@ MODULE force_env_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               cp_results_mp_bcast,&
                                               get_results,&
@@ -93,7 +94,6 @@ MODULE force_env_methods
                                               dp
    USE machine,                         ONLY: m_memory
    USE mathlib,                         ONLY: abnormal_value
-   USE message_passing,                 ONLY: mp_para_env_type
    USE metadynamics_types,              ONLY: meta_env_type
    USE mixed_cdft_methods,              ONLY: mixed_cdft_build_weight,&
                                               mixed_cdft_calculate_coupling,&
@@ -743,7 +743,7 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
@@ -1988,8 +1988,8 @@ CONTAINS
       LOGICAL                                            :: subsys_open_shell
       REAL(KIND=dp)                                      :: cluster_energy
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(opt_dmfet_pot_type)                           :: opt_dmfet
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: dft_section, input, opt_dmfet_section

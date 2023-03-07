@@ -15,6 +15,7 @@
 !>                   - module more lean
 ! **************************************************************************************************
 MODULE cp_result_methods
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: &
         cp_result_clean, cp_result_copy, cp_result_create, cp_result_release, cp_result_type, &
         cp_result_value_copy, cp_result_value_create, cp_result_value_init, &
@@ -22,7 +23,6 @@ MODULE cp_result_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -433,7 +433,7 @@ CONTAINS
    SUBROUTINE cp_results_mp_bcast(results, source, para_env)
       TYPE(cp_result_type), POINTER                      :: results
       INTEGER, INTENT(IN)                                :: source
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: i, nlist
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: size_value, type_in_use

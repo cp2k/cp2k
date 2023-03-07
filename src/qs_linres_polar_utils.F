@@ -36,6 +36,7 @@ MODULE qs_linres_polar_utils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
@@ -49,7 +50,6 @@ MODULE qs_linres_polar_utils
                                               dp
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -291,9 +291,9 @@ CONTAINS
       LOGICAL                                            :: do_raman, run_stopped
       REAL(dp), DIMENSION(:, :), POINTER                 :: polar
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(polar_env_type), POINTER                      :: polar_env
       TYPE(section_vals_type), POINTER                   :: polar_section
 
@@ -389,10 +389,10 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(polar_env_type), POINTER                      :: polar_env
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(section_vals_type), POINTER                   :: lr_section, polar_section

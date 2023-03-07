@@ -11,6 +11,7 @@
 ! **************************************************************************************************
 MODULE gle_system_dynamics
 
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE extended_system_types,           ONLY: map_info_type
    USE gle_system_types,                ONLY: gle_thermo_create,&
@@ -26,8 +27,7 @@ MODULE gle_system_dynamics
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -189,7 +189,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_type), POINTER                       :: molecule(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gle_type), POINTER                            :: gle
       TYPE(section_vals_type), POINTER                   :: gle_section
       TYPE(global_constraint_type), POINTER              :: gci
@@ -330,7 +330,7 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(gle_type), POINTER                            :: gle
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_constraint_type), POINTER              :: gci
 
       INTEGER                                            :: i, imap, j, mal_size, natoms_local, &

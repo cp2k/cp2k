@@ -23,6 +23,7 @@ MODULE qs_tddfpt2_fprint
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE exstates_types,                  ONLY: excited_energy_type
@@ -31,7 +32,6 @@ MODULE qs_tddfpt2_fprint
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_environment_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: evolt
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
@@ -119,9 +119,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: gs_force, ks_force, td_force
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(section_vals_type), POINTER                   :: force_section
@@ -290,10 +290,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gs_forces'
 
       INTEGER                                            :: handle
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_b, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 

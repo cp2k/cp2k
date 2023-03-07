@@ -9,6 +9,7 @@ MODULE qs_fb_filter_matrix_methods
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_finalize,&
@@ -22,7 +23,6 @@ MODULE qs_fb_filter_matrix_methods
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_create,&
                                               fb_atomic_halo_get,&
@@ -104,7 +104,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
       CHARACTER(LEN=*), INTENT(IN)                       :: name
@@ -264,7 +264,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
       CHARACTER(LEN=*), INTENT(IN)                       :: name
@@ -471,7 +471,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
       TYPE(dbcsr_type), POINTER                          :: filter_mat
@@ -972,7 +972,7 @@ CONTAINS
                                             atom_pairs_recv)
       TYPE(dbcsr_type), POINTER                          :: filter_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs'
@@ -1110,7 +1110,7 @@ CONTAINS
                                               atom_pairs_recv)
       TYPE(dbcsr_type), POINTER                          :: filter_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs_2'

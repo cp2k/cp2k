@@ -16,6 +16,7 @@ MODULE optimize_input
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_read_line
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
@@ -39,8 +40,7 @@ MODULE optimize_input
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE physcon,                         ONLY: bohr
@@ -102,7 +102,7 @@ CONTAINS
    SUBROUTINE run_optimize_input(input_declaration, root_section, para_env)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_input'
 
@@ -155,7 +155,7 @@ CONTAINS
       TYPE(oi_env_type)                                  :: oi_env
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'force_matching'
 
@@ -499,7 +499,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_reference_data(oi_env, para_env, force_traj, pos_traj, energy_traj, cell_traj)
       TYPE(oi_env_type)                                  :: oi_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: force_traj, pos_traj
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_traj
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cell_traj

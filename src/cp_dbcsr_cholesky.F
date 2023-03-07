@@ -25,11 +25,11 @@ MODULE cp_dbcsr_cholesky
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               sp
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "base/base_uses.f90"
 
    IMPLICIT NONE
@@ -59,7 +59,7 @@ CONTAINS
    SUBROUTINE cp_dbcsr_cholesky_decompose(matrix, n, para_env, blacs_env)
       TYPE(dbcsr_type)                      :: matrix
       INTEGER, INTENT(in), OPTIONAL            :: n
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER          :: para_env
       TYPE(cp_blacs_env_type), POINTER         :: blacs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_cholesky_decompose'
@@ -141,7 +141,7 @@ CONTAINS
    SUBROUTINE cp_dbcsr_cholesky_invert(matrix, n, para_env, blacs_env, upper_to_full)
       TYPE(dbcsr_type)                           :: matrix
       INTEGER, INTENT(in), OPTIONAL             :: n
-      TYPE(mp_para_env_type), POINTER           :: para_env
+      TYPE(cp_para_env_type), POINTER           :: para_env
       TYPE(cp_blacs_env_type), POINTER          :: blacs_env
       LOGICAL, INTENT(IN)                       :: upper_to_full
 
@@ -234,7 +234,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)           :: op
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: pos
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: transa
-      TYPE(mp_para_env_type), POINTER                :: para_env
+      TYPE(cp_para_env_type), POINTER                :: para_env
       TYPE(cp_blacs_env_type), POINTER               :: blacs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_restore'

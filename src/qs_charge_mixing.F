@@ -8,9 +8,9 @@
 ! **************************************************************************************************
 MODULE qs_charge_mixing
 
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: get_pseudo_inverse_svd
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               gspace_mixing_nr,&
@@ -43,7 +43,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mixing_method
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: iter_count
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'charge_mixing'
@@ -122,7 +122,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       INTEGER, INTENT(IN)                                :: imin, ns
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: ia, ii
 
@@ -151,7 +151,7 @@ CONTAINS
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       INTEGER, INTENT(IN)                                :: inow, nvec, ns
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: i, ia, ii, imin, j, nbuffer, nv
       REAL(KIND=dp)                                      :: alpha, maxw, minw, omega0, rskip, wdf, &

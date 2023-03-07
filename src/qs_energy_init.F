@@ -14,6 +14,7 @@
 MODULE qs_energy_init
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
@@ -33,7 +34,6 @@ MODULE qs_energy_init
    USE lri_environment_methods,         ONLY: build_lri_matrices,&
                                               calculate_lri_integrals
    USE lri_environment_types,           ONLY: lri_environment_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
    USE optimize_embedding_potential,    ONLY: given_embed_pot
@@ -147,10 +147,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init_kg'
 
       INTEGER                                            :: handle, isubset, natom
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: soo_list, soo_list1
 
@@ -250,10 +250,10 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_kpoints
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env

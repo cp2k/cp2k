@@ -22,8 +22,8 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE reference_manager
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length
-   USE message_passing,                 ONLY: mp_para_env_type
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
@@ -100,7 +100,7 @@ CONTAINS
 !>      12.2013 created [Ole Schuett]
 ! **************************************************************************************************
    SUBROUTINE collect_citations_from_ranks(para_env)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: i, t
 

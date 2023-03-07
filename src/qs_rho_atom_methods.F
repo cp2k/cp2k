@@ -14,6 +14,7 @@ MODULE qs_rho_atom_methods
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               gapw_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE kinds,                           ONLY: dp
@@ -26,7 +27,6 @@ MODULE qs_rho_atom_methods
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE paw_basis_types,                 ONLY: get_paw_basis_info
@@ -101,7 +101,7 @@ CONTAINS
    SUBROUTINE calculate_rho_atom(para_env, rho_atom_set, qs_kind, atom_list, &
                                  natom, nspins, tot_rho1_h, tot_rho1_s)
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_list
@@ -425,7 +425,7 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
@@ -756,7 +756,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho_atom'
 
@@ -918,7 +918,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 

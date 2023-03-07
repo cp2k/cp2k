@@ -13,6 +13,7 @@ MODULE qs_gcp_utils
 
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -25,7 +26,6 @@ MODULE qs_gcp_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -169,8 +169,8 @@ CONTAINS
       LOGICAL                                            :: at_end
       REAL(KIND=dp)                                      :: ea
       REAL(KIND=dp), DIMENSION(10)                       :: al, cl
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 

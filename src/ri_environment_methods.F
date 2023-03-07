@@ -24,6 +24,7 @@ MODULE ri_environment_methods
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_create, dbcsr_dot, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -37,8 +38,7 @@ MODULE ri_environment_methods
                                               lri_density_type,&
                                               lri_environment_type,&
                                               lri_kind_type
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -116,12 +116,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: avec, fblk, fout
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dbcsr_type)                                   :: emat
       TYPE(dbcsr_type), POINTER                          :: fmat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -360,7 +360,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(qs_rho_type), INTENT(IN)                      :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_densities'
 
@@ -431,7 +431,7 @@ CONTAINS
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(o3c_container_type), POINTER                  :: o3c
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_tvec_ri'
       INTEGER, PARAMETER                                 :: msweep = 32

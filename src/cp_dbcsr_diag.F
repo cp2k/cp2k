@@ -34,10 +34,10 @@ MODULE cp_dbcsr_diag
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "base/base_uses.f90"
 
    IMPLICIT NONE
@@ -72,7 +72,7 @@ CONTAINS
 
       TYPE(dbcsr_type)                                   :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_dbcsr_syevd'
@@ -131,7 +131,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       INTEGER, INTENT(IN), OPTIONAL                      :: neig
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: work_syevx
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_dbcsr_syevx'
@@ -184,7 +184,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_dbcsr_heevd'
@@ -233,7 +233,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       REAL(dp), INTENT(IN)                               :: exponent, threshold
       INTEGER, INTENT(OUT)                               :: n_dependent
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: verbose
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: eigenvectors

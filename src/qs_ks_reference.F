@@ -16,6 +16,7 @@ MODULE qs_ks_reference
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
                                               init_coulomb_local
@@ -27,7 +28,6 @@ MODULE qs_ks_reference
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -112,8 +112,8 @@ CONTAINS
       REAL(dp)                                           :: eadmm, eovrl, eself
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -316,11 +316,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: eh1c, exc1, exc1_admm
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_aux, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(hartree_local_type), POINTER                  :: hartree_local
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
       TYPE(oce_matrix_type), POINTER                     :: oce

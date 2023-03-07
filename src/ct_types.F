@@ -13,13 +13,13 @@
 ! **************************************************************************************************
 MODULE ct_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_release,&
                                               dbcsr_type
    USE input_constants,                 ONLY: cg_polak_ribiere,&
                                               tensor_orthogonal
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -121,7 +121,7 @@ MODULE ct_types
       ! residuals
       TYPE(dbcsr_type)           :: matrix_res
 
-      TYPE(mp_para_env_type), POINTER  :: para_env => NULL()
+      TYPE(cp_para_env_type), POINTER  :: para_env => NULL()
       TYPE(cp_blacs_env_type), POINTER  :: blacs_env => NULL()
 
    END TYPE
@@ -334,7 +334,7 @@ CONTAINS
                               qq_preconditioner_full, pp_preconditioner_full)
 
       TYPE(ct_step_env_type)                             :: env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       LOGICAL, OPTIONAL                                  :: use_occ_orbs, use_virt_orbs
       INTEGER, OPTIONAL                                  :: tensor_type

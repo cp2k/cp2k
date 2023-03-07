@@ -27,6 +27,7 @@ MODULE qmmm_image_charge
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate
    USE input_constants,                 ONLY: calc_always,&
                                               calc_once,&
@@ -40,7 +41,6 @@ MODULE qmmm_image_charge
                                               dp
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integral_ab,&
@@ -353,8 +353,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_v
@@ -469,8 +469,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, pab
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_v
@@ -705,7 +705,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, iatom_ref, natom
       REAL(KIND=dp), DIMENSION(:), POINTER               :: int_res
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -783,7 +783,7 @@ CONTAINS
       INTEGER                                            :: atom_a, handle, iatom, natom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zeta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ra
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       NULLIFY (para_env)
@@ -822,7 +822,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'integrate_s_mme'
 
@@ -993,7 +993,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, rst_unit
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: print_key, qmmm_section
 
       CALL timeset(routineN, handle)
@@ -1054,7 +1054,7 @@ CONTAINS
       INTEGER                                            :: handle, natom, output_unit, rst_unit
       LOGICAL                                            :: exist
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: qmmm_section
 
       CALL timeset(routineN, handle)

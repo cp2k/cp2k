@@ -11,6 +11,7 @@ MODULE qs_mixing_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
@@ -18,7 +19,6 @@ MODULE qs_mixing_utils
                                               dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
@@ -56,7 +56,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE self_consistency_check(rho_ao, p_delta, para_env, p_out, delta)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao, p_delta
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_out
       REAL(KIND=dp), INTENT(INOUT)                       :: delta
 
@@ -420,7 +420,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mixing_method
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom
 

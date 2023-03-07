@@ -16,6 +16,7 @@ MODULE md_conserved_quantities
                                               get_atomic_kind
    USE barostat_utils,                  ONLY: get_baro_energies
    USE cell_types,                      ONLY: cell_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -35,8 +36,7 @@ MODULE md_conserved_quantities
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               set_md_env
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kelvin
@@ -90,7 +90,7 @@ CONTAINS
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: init
       REAL(KIND=dp), POINTER                             :: constant
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(simpar_type), POINTER                         :: simpar
 
       NULLIFY (itimes, para_env, simpar)
@@ -247,7 +247,7 @@ CONTAINS
    SUBROUTINE get_econs_nve(md_env, md_ener, para_env)
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_shell
@@ -276,7 +276,7 @@ CONTAINS
    SUBROUTINE get_econs_nvt_adiabatic(md_env, md_ener, para_env)
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(thermostat_type), POINTER                     :: thermostat_fast, thermostat_slow
@@ -307,7 +307,7 @@ CONTAINS
    SUBROUTINE get_econs_nvt(md_env, md_ener, para_env)
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_part, &
@@ -339,7 +339,7 @@ CONTAINS
    SUBROUTINE get_econs_npe(md_env, md_ener, para_env)
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: nfree
       TYPE(cell_type), POINTER                           :: box
@@ -378,7 +378,7 @@ CONTAINS
    SUBROUTINE get_econs_npt(md_env, md_ener, para_env)
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: nfree
       TYPE(cell_type), POINTER                           :: box

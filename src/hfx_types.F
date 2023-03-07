@@ -35,6 +35,7 @@ MODULE hfx_types
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               debug_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbt_api,                         ONLY: &
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &
@@ -65,8 +66,7 @@ MODULE hfx_types
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
-   USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_cart_type
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset,&
                                               nso
@@ -569,7 +569,7 @@ CONTAINS
    SUBROUTINE hfx_create(x_data, para_env, hfx_section, atomic_kind_set, qs_kind_set, &
                          particle_set, dft_control, cell, do_exx, nelectron_total)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      TYPE(mp_para_env_type)                             :: para_env
+      TYPE(cp_para_env_type)                             :: para_env
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -997,7 +997,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type)                             :: para_env
+      TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: irep, nelectron_total
       LOGICAL, INTENT(IN)                                :: do_exx
 
@@ -1086,7 +1086,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: orb_basis_type, ri_basis_type
-      TYPE(mp_para_env_type)                             :: para_env
+      TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr, unit_nr_dbcsr, nelectron_total
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
 
@@ -1178,7 +1178,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(mp_para_env_type)                             :: para_env
+      TYPE(cp_para_env_type)                             :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
@@ -1698,7 +1698,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hf_sub_section
       INTEGER, INTENT(OUT), OPTIONAL                     :: storage_id
       INTEGER, INTENT(IN), OPTIONAL                      :: i_thread, n_threads
-      TYPE(mp_para_env_type), OPTIONAL                   :: para_env
+      TYPE(cp_para_env_type), OPTIONAL                   :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: irep
       LOGICAL, INTENT(IN)                                :: skip_disk, skip_in_core_forces
 

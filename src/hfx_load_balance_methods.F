@@ -15,7 +15,7 @@ MODULE hfx_load_balance_methods
    USE cell_types, ONLY: cell_type
    USE cp_files, ONLY: close_file, &
                        open_file
-   USE message_passing, ONLY: mp_para_env_type
+   USE cp_para_types, ONLY: cp_para_env_type
    USE hfx_pair_list_methods, ONLY: build_atomic_pair_list, &
                                     build_pair_list
    USE hfx_types, ONLY: &
@@ -131,7 +131,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps_schwarz
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: max_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(hfx_screen_coeff_type), &
          DIMENSION(:, :, :, :), POINTER                  :: coeffs_set
       TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
@@ -925,7 +925,7 @@ CONTAINS
       REAL(dp)                                           :: pmax_blocks
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(hfx_type), INTENT(IN), POINTER                :: x_data
-      TYPE(mp_para_env_type), INTENT(IN)        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)        :: para_env
       REAL(dp), DIMENSION(:, :), INTENT(IN), POINTER     :: pmax_block
       LOGICAL, INTENT(IN)                                :: do_p_screening
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: map_atom_to_kind_atom
@@ -1235,7 +1235,7 @@ CONTAINS
       REAL(dp)                                           :: pmax_blocks
       TYPE(cell_type), POINTER                           :: cell
       TYPE(hfx_type), POINTER                            :: x_data
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(dp), DIMENSION(:, :), POINTER                 :: pmax_block
       LOGICAL, INTENT(IN)                                :: do_p_screening
       INTEGER, DIMENSION(:), POINTER                     :: map_atom_to_kind_atom
@@ -1482,7 +1482,7 @@ CONTAINS
                                       i_thread, n_threads, eval_type)
 
       TYPE(hfx_type), POINTER                            :: x_data
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_load_balance_type)                        :: load_balance_parameter
       INTEGER, INTENT(IN)                                :: i_thread, n_threads, eval_type
 
@@ -2253,7 +2253,7 @@ CONTAINS
                           atomic_pair_list)
 
       INTEGER, INTENT(IN)                                :: nkind
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER                                            :: natom, block_size, nblock
       TYPE(hfx_block_range_type), DIMENSION(1:nblock)    :: blocks
       TYPE(pair_list_type)                               :: list_ij, list_kl
@@ -2327,7 +2327,7 @@ CONTAINS
    SUBROUTINE collect_load_balance_info(para_env, x_data, iw, n_threads, i_thread, &
                                         eval_type)
 
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_type), POINTER                            :: x_data
       INTEGER, INTENT(IN)                                :: iw, n_threads, i_thread, eval_type
 

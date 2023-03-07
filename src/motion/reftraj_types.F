@@ -14,6 +14,7 @@
 ! **************************************************************************************************
 MODULE reftraj_types
 
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
@@ -21,7 +22,6 @@ MODULE reftraj_types
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -86,7 +86,7 @@ CONTAINS
 
       TYPE(reftraj_type), INTENT(OUT)                    :: reftraj
       TYPE(section_vals_type), POINTER                   :: reftraj_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_path_length)                 :: filename
 

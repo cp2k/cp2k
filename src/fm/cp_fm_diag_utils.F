@@ -27,9 +27,9 @@ MODULE cp_fm_diag_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: gcd
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -60,7 +60,7 @@ MODULE cp_fm_diag_utils
       INTEGER, DIMENSION(:), POINTER           :: group_distribution => NULL(), &
                                                   group_partition => NULL()
       TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new => NULL()
-      TYPE(mp_para_env_type), POINTER          :: para_env_new => NULL()
+      TYPE(cp_para_env_type), POINTER          :: para_env_new => NULL()
    END TYPE cp_fm_redistribute_type
 
    ! Permanent instance of the redistribute type
@@ -277,7 +277,7 @@ CONTAINS
       INTEGER                                  :: fake_descriptor(9), mepos_old, &
                                                   io_unit, ngroups, ncol_block, blksize, nrow_block
       TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER          :: para_env
       TYPE(cp_logger_type), POINTER            :: logger
       TYPE(cp_fm_redistribute_info)          :: rdinfo
 #endif
@@ -464,7 +464,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       REAL(KIND=dp)                            :: fake_local_data(1, 1)
       INTEGER                                  :: fake_descriptor(9), mepos_old, n
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER          :: para_env
 #endif
 
       CALL timeset(routineN, handle)

@@ -45,6 +45,7 @@ MODULE negf_methods
                                               cp_print_key_unit_nr,&
                                               debug_print_level,&
                                               high_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
@@ -69,7 +70,6 @@ MODULE negf_methods
                                               twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_para_env_type
    USE negf_control_types,              ONLY: negf_control_create,&
                                               negf_control_release,&
                                               negf_control_type,&
@@ -388,12 +388,12 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: rho_ao_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env_global
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(green_functions_cache_type)                   :: g_surf_cache
       TYPE(integration_status_type)                      :: stats
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env_global
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -675,12 +675,12 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: rho_ao_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(green_functions_cache_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: g_surf_circular, g_surf_linear
       TYPE(integration_status_type)                      :: stats
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -940,6 +940,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: rho_ao_delta_fm, rho_ao_new_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_initial_kp, matrix_ks_qs_kp, &
                                                             rho_ao_initial_kp, rho_ao_new_kp, &
                                                             rho_ao_qs_kp
@@ -948,7 +949,6 @@ CONTAINS
          DIMENSION(:)                                    :: g_surf_circular, g_surf_linear, &
                                                             g_surf_nonequiv
       TYPE(integration_status_type)                      :: stats
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1407,7 +1407,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: g_ret_imag
       TYPE(cp_fm_type), POINTER                          :: matrix_s
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       npoints = SIZE(omega)
@@ -1884,8 +1884,8 @@ CONTAINS
                                                             v_external
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: g_ret_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(green_functions_cache_type)                   :: g_surf_cache
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -2029,7 +2029,7 @@ CONTAINS
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: zdata, zdata_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: integral_imag
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(simpsonrule_type)                             :: sr_env
 
       CALL timeset(routineN, handle)

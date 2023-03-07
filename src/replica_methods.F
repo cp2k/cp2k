@@ -22,6 +22,8 @@ MODULE replica_methods
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level
+   USE cp_para_types,                   ONLY: cp_para_cart_type,&
+                                              cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_create,&
                                               cp_result_retain
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -44,9 +46,7 @@ MODULE replica_methods
                                               section_vals_write
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_null,&
-                                              mp_para_cart_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_null
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -89,7 +89,7 @@ CONTAINS
    SUBROUTINE rep_env_create(rep_env, para_env, input, input_declaration, nrep, prep, &
                              sync_v, keep_wf_history, row_force)
       TYPE(replica_env_type), POINTER                    :: rep_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
       INTEGER                                            :: nrep, prep
@@ -102,8 +102,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: gridinfo
       INTEGER, DIMENSION(2)                              :: dims, pos
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_cart_type), POINTER                   :: cart
-      TYPE(mp_para_env_type), POINTER                    :: para_env_f, para_env_full, &
+      TYPE(cp_para_cart_type), POINTER                   :: cart
+      TYPE(cp_para_env_type), POINTER                    :: para_env_f, para_env_full, &
                                                             para_env_inter_rep
 
       CPASSERT(.NOT. ASSOCIATED(rep_env))

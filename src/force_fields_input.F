@@ -34,6 +34,7 @@ MODULE force_fields_input
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
@@ -63,7 +64,6 @@ MODULE force_fields_input
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: invert_matrix
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
         b4_type, bm_type, do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, &
         ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
@@ -101,7 +101,7 @@ CONTAINS
    SUBROUTINE read_force_field_section1(ff_section, mm_section, ff_type, para_env)
       TYPE(section_vals_type), POINTER                   :: ff_section, mm_section
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
@@ -616,7 +616,7 @@ CONTAINS
       TYPE(pair_potential_p_type), POINTER               :: nonbonded
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(LEN=default_string_length), &
@@ -1691,7 +1691,7 @@ CONTAINS
       TYPE(pair_potential_p_type), POINTER               :: nonbonded
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(LEN=default_string_length), &
@@ -2226,7 +2226,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_force_field_section(ff_type, para_env, mm_section)
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       TYPE(section_vals_type), POINTER                   :: ff_section
@@ -2244,7 +2244,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_eam_data(eam, para_env, mm_section)
       TYPE(eam_pot_type), POINTER                        :: eam
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_eam_data'
@@ -2347,7 +2347,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_tabpot_data(tab, para_env, mm_section)
       TYPE(tab_pot_type), POINTER                        :: tab
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_tabpot_data'

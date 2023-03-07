@@ -24,6 +24,7 @@ MODULE cp_dbcsr_output
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -34,7 +35,6 @@ MODULE cp_dbcsr_output
                                               int_8
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: symmetrize_matrix
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -79,7 +79,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: blacs_matrix
       INTEGER, INTENT(IN)                                :: before, after
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_col, last_col
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers
@@ -164,7 +164,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: sparse_matrix
       INTEGER, INTENT(IN)                                :: before, after
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_col, last_col
       REAL(dp), INTENT(IN), OPTIONAL                     :: scale
       INTEGER, INTENT(IN)                                :: output_unit
@@ -337,7 +337,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: matrix_name
       INTEGER, INTENT(IN)                                :: before, after
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: first_row, last_row, first_col, &
                                                             last_col, output_unit
       LOGICAL, INTENT(IN)                                :: omit_headers
@@ -501,7 +501,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: matrix_name
       INTEGER, INTENT(IN)                                :: before, after
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: first_row, last_row, first_col, &
                                                             last_col, output_unit
       LOGICAL, INTENT(IN)                                :: omit_headers
@@ -586,7 +586,7 @@ CONTAINS
    SUBROUTINE cp_dbcsr_write_matrix_dist(matrix, output_unit, para_env)
       TYPE(dbcsr_type)                                   :: matrix
       INTEGER, INTENT(IN)                                :: output_unit
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_matrix_dist'
       LOGICAL, PARAMETER                                 :: full_output = .FALSE.

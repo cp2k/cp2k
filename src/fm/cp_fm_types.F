@@ -21,11 +21,11 @@ MODULE cp_fm_types
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type,&
                                               cp_fm_struct_write_info
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp,&
                                               sp
    USE message_passing,                 ONLY: cp2k_is_parallel,&
                                               mp_any_source,&
-                                              mp_para_env_type,&
                                               mp_proc_null,&
                                               mp_request_null,&
                                               mp_request_type,&
@@ -709,7 +709,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: tr_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: full_block
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -822,7 +822,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       IF (PRESENT(name)) name = matrix%name
       IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
@@ -1334,7 +1334,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_copy_general(source, destination, para_env)
       TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_copy_general'
 
@@ -1364,7 +1364,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_start_copy_general(source, destination, para_env, info)
       TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(copy_info_type), INTENT(OUT)                  :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_start_copy_general'
@@ -1949,7 +1949,7 @@ CONTAINS
 
       INTEGER                                  :: handle, j, max_block, &
                                                   ncol_global, nrow_global
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
       INTEGER                                  :: i, i_block, icol_local, &
                                                   in, info, ipcol, &
@@ -2056,7 +2056,7 @@ CONTAINS
       INTEGER                                  :: handle, i, j, max_block, &
                                                   ncol_global, nrow_global, &
                                                   nrow_block
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
       INTEGER                                  :: i_block, icol_local, &
                                                   in, info, ipcol, &
@@ -2181,7 +2181,7 @@ CONTAINS
 
       INTEGER                                  :: handle, j, max_block, &
                                                   ncol_global, nrow_global
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
       INTEGER                                  :: k, n_cols
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuf

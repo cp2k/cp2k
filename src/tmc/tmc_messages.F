@@ -18,11 +18,11 @@
 ! **************************************************************************************************
 MODULE tmc_messages
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_any_source,&
-                                              mp_any_tag,&
-                                              mp_para_env_type
+                                              mp_any_tag
    USE tmc_move_handle,                 ONLY: add_mv_prob
    USE tmc_stati,                       ONLY: &
         TMC_CANCELING_MESSAGE, TMC_CANCELING_RECEIPT, TMC_STATUS_CALCULATING, TMC_STATUS_FAILED, &
@@ -82,7 +82,7 @@ CONTAINS
 !> \author Mandes 01.2013
 ! **************************************************************************************************
    FUNCTION check_if_group_master(para_env) RESULT(master)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: master
 
       CPASSERT(ASSOCIATED(para_env))
@@ -116,7 +116,7 @@ CONTAINS
       INTEGER                                            :: msg_type
       LOGICAL                                            :: send_recv
       INTEGER                                            :: dest
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(tree_type), OPTIONAL, POINTER                 :: elem
       TYPE(elem_array_type), DIMENSION(:), OPTIONAL      :: elem_array
@@ -1561,7 +1561,7 @@ CONTAINS
    SUBROUTINE communicate_atom_types(atoms, source, para_env)
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       INTEGER                                            :: source
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: msg(:)
@@ -1596,7 +1596,7 @@ CONTAINS
 !> \author Mandes 01.2013
 ! **************************************************************************************************
    SUBROUTINE stop_whole_group(para_env, worker_info, tmc_params)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(elem_array_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: worker_info
       TYPE(tmc_param_type), POINTER                      :: tmc_params

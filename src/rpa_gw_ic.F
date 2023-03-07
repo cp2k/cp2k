@@ -11,6 +11,7 @@
 !>      06.2019 Moved from rpa_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_gw_ic
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_type
    USE dbt_api,                         ONLY: &
         dbt_contract, dbt_copy, dbt_copy_matrix_to_tensor, dbt_create, dbt_destroy, dbt_get_block, &
@@ -18,8 +19,7 @@ MODULE rpa_gw_ic
         dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_dims_create,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_dims_create
    USE physcon,                         ONLY: evolt
    USE qs_tensors_types,                ONLY: create_2c_tensor
 #include "./base/base_uses.f90"
@@ -63,7 +63,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, unit_nr
       LOGICAL, INTENT(IN)                                :: print_ic_values
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ic_correction'
@@ -220,7 +220,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t3c_1, t3c_2
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: Delta_Sigma_Neaton
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trace_ic_gw'
 

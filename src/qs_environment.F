@@ -57,6 +57,7 @@ MODULE qs_environment
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE cp_symmetry,                     ONLY: write_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
@@ -118,7 +119,6 @@ MODULE qs_environment
    USE lri_environment_types,           ONLY: lri_environment_type
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
@@ -238,7 +238,7 @@ CONTAINS
                       qmmm, qmmm_env_qm, force_env_section, subsys_section, use_motion_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
@@ -507,7 +507,7 @@ CONTAINS
                              silent)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       LOGICAL, INTENT(in)                                :: use_ref_cell

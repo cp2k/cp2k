@@ -23,12 +23,12 @@ MODULE manybody_siepmann
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type
    USE fist_nonbond_env_types,          ONLY: pos_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                               pair_potential_single_type,&
                                               siepmann_pot_type,&
@@ -834,7 +834,7 @@ CONTAINS
                                      print_h3o, print_o)
       INTEGER, INTENT(INOUT)                             :: nr_ions
       TYPE(section_vals_type), POINTER                   :: mm_section
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL, INTENT(IN)                                :: print_oh, print_h3o, print_o
 
       INTEGER                                            :: iw

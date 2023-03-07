@@ -19,6 +19,7 @@ MODULE topology_psf
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_generate_filename,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&
                                               parser_search_string,&
@@ -36,7 +37,6 @@ MODULE topology_psf
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
    USE string_table,                    ONLY: id2str,&
                                               s2s,&
@@ -79,7 +79,7 @@ CONTAINS
    SUBROUTINE read_topology_psf(filename, topology, para_env, subsys_section, psf_type)
       CHARACTER(LEN=*), INTENT(IN)                       :: filename
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
       INTEGER, INTENT(IN)                                :: psf_type
 

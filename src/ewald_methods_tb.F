@@ -12,6 +12,7 @@
 MODULE ewald_methods_tb
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dgs,                             ONLY: dg_sum_patch,&
                                               dg_sum_patch_force_1d,&
                                               dg_sum_patch_force_3d
@@ -22,8 +23,7 @@ MODULE ewald_methods_tb
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pme_tools,                       ONLY: get_center,&
                                               set_list
@@ -106,9 +106,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(mp_comm_type)                                 :: group
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -446,9 +446,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, dvols, fat(3), fint, vgc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(mp_comm_type)                                 :: group
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool

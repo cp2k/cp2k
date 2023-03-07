@@ -41,6 +41,7 @@ MODULE constraint
    USE constraint_vsite,                ONLY: shake_vsite_ext,&
                                               shake_vsite_int
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_constants,                 ONLY: npt_f_ensemble,&
                                               npt_i_ensemble,&
@@ -50,8 +51,7 @@ MODULE constraint
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -503,7 +503,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: veps
       REAL(KIND=dp), INTENT(OUT)                         :: roll_tol
       INTEGER, INTENT(INOUT)                             :: iroll
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: u
       TYPE(cell_type), POINTER                           :: cell

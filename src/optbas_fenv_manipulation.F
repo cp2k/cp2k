@@ -25,6 +25,7 @@ MODULE optbas_fenv_manipulation
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_output_handling,              ONLY: debug_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -34,7 +35,6 @@ MODULE optbas_fenv_manipulation
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length
-   USE message_passing,                 ONLY: mp_para_env_type
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               flex_basis_type
    USE particle_types,                  ONLY: particle_type
@@ -160,9 +160,9 @@ CONTAINS
       LOGICAL                                            :: natom_mismatch
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -229,7 +229,7 @@ CONTAINS
    SUBROUTINE calculate_overlap_inverse(matrix_s, matrix_s_inv, para_env, context)
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_type), INTENT(OUT)                      :: matrix_s_inv
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
 
       INTEGER                                            :: nao

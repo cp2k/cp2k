@@ -16,6 +16,7 @@ MODULE ewald_pw_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dg_types,                        ONLY: dg_create,&
                                               dg_release,&
@@ -27,8 +28,7 @@ MODULE ewald_pw_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_comm_self,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
@@ -136,7 +136,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, alphasq, cutoff_radius, epsilon, &
                                                             norm
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: pw_big_grid, pw_small_grid
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools

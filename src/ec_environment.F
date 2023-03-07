@@ -25,6 +25,7 @@ MODULE ec_environment
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: &
@@ -41,7 +42,6 @@ MODULE ec_environment
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
    USE orbital_pointers,                ONLY: init_orbital_pointers
@@ -119,9 +119,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_pgf_orb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind

@@ -12,6 +12,7 @@
 MODULE cp_ddapc_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: weight_type_mass,&
                                               weight_type_unit
    USE input_section_types,             ONLY: section_vals_type,&
@@ -25,7 +26,6 @@ MODULE cp_ddapc_methods
                                               twopi
    USE mathlib,                         ONLY: diamat_all,&
                                               invert_matrix
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
    USE pw_types,                        ONLY: pw_type
@@ -623,7 +623,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE ewald_ddapc_pot(cp_para_env, coeff, factor, cell, multipole_section, &
                                         particle_set, M, radii)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: cp_para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: cp_para_env
       TYPE(pw_type), INTENT(IN), POINTER                 :: coeff
       REAL(KIND=dp), INTENT(IN)                          :: factor
       TYPE(cell_type), POINTER                           :: cell

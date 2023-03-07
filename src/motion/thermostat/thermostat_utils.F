@@ -21,6 +21,7 @@ MODULE thermostat_utils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE extended_system_types,           ONLY: lnhc_parameters_type,&
@@ -40,8 +41,7 @@ MODULE thermostat_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
@@ -1378,7 +1378,7 @@ CONTAINS
    SUBROUTINE get_nhc_energies(nhc, nhc_pot, nhc_kin, para_env, array_kin, array_pot)
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       REAL(KIND=dp), INTENT(OUT)                         :: nhc_pot, nhc_kin
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_kin, array_pot
 
       INTEGER                                            :: imap, l, n, number
@@ -1450,7 +1450,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: loc_num, glob_num
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: thermo_energy
       REAL(KIND=dp), INTENT(OUT)                         :: thermostat_kin
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_pot, array_kin
 
       INTEGER                                            :: imap, n, number
@@ -1511,7 +1511,7 @@ CONTAINS
       TYPE(map_info_type), POINTER                       :: map_info
       INTEGER, INTENT(IN)                                :: loc_num, glob_num
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: nkt, dof
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: temp_tot
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_temp
 
@@ -1575,7 +1575,7 @@ CONTAINS
                                       array_pot, array_kin)
       TYPE(thermostat_type), POINTER                     :: thermostat
       REAL(KIND=dp), INTENT(OUT)                         :: thermostat_pot, thermostat_kin
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_pot, array_kin
 
       INTEGER                                            :: i
@@ -1631,7 +1631,7 @@ CONTAINS
    SUBROUTINE get_region_temperatures(thermostat, tot_temperature, para_env, array_temp)
       TYPE(thermostat_type), POINTER                     :: thermostat
       REAL(KIND=dp), INTENT(OUT)                         :: tot_temperature
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: array_temp
 
       INTEGER                                            :: i
@@ -1710,7 +1710,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_thermostats_status(thermostats, para_env, my_pos, my_act, itimes, time)
       TYPE(thermostats_type), POINTER                    :: thermostats
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=default_string_length)               :: my_pos, my_act
       INTEGER, INTENT(IN)                                :: itimes
       REAL(KIND=dp), INTENT(IN)                          :: time
@@ -1743,7 +1743,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_thermostat_status(thermostat, para_env, my_pos, my_act, itimes, time)
       TYPE(thermostat_type), POINTER                     :: thermostat
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=default_string_length)               :: my_pos, my_act
       INTEGER, INTENT(IN)                                :: itimes
       REAL(KIND=dp), INTENT(IN)                          :: time
@@ -1821,7 +1821,7 @@ CONTAINS
    SUBROUTINE communication_thermo_low1(array, number, para_env)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: array
       INTEGER, INTENT(IN)                                :: number
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: i, icheck, ncheck
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work, work2
@@ -1863,7 +1863,7 @@ CONTAINS
    SUBROUTINE communication_thermo_low2(array, number1, number2, para_env)
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: array
       INTEGER, INTENT(IN)                                :: number1, number2
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: i, icheck, j, ncheck
       INTEGER, DIMENSION(:, :), POINTER                  :: work, work2

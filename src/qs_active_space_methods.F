@@ -43,6 +43,7 @@ MODULE qs_active_space_methods
         cp_p_file, cp_print_key_finished_output, cp_print_key_should_output, cp_print_key_unit_nr, &
         debug_print_level, high_print_level, low_print_level, medium_print_level, &
         silent_print_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_csr_create,&
@@ -63,8 +64,7 @@ MODULE qs_active_space_methods
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -215,6 +215,7 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, fm_target_active, &
                                                             fm_target_inactive, fmat, mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_csr_type), POINTER                      :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
       TYPE(dbcsr_type), POINTER                          :: denmat
@@ -222,7 +223,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: pro_basis_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_occ, qs_loc_env_virt
@@ -1756,8 +1756,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -2443,10 +2443,10 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: lamat, vec
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: p_ref
       TYPE(cp_fm_type), POINTER                          :: fm_active, pmat
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_type), POINTER                          :: pinact
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -2649,7 +2649,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_active_density(active_space_env, para_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_path_length)                 :: p_act_filename
       INTEGER                                            :: i1, i2, ispin, l_global, LLL, m1, m2, &

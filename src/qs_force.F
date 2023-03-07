@@ -23,6 +23,7 @@ MODULE qs_force
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set
@@ -40,7 +41,6 @@ MODULE qs_force
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_environment_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_cphf,                        ONLY: update_mp2_forces
    USE mulliken,                        ONLY: mulliken_restraint
    USE particle_types,                  ONLY: particle_type
@@ -136,12 +136,12 @@ CONTAINS
       REAL(dp)                                           :: dummy_real, dummy_real2(2)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_w, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force

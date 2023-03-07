@@ -20,6 +20,7 @@ MODULE xtb_parameters
    USE cp_control_types,                ONLY: xtb_control_type
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -33,7 +34,6 @@ MODULE xtb_parameters
                                               val_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
    USE physcon,                         ONLY: bohr,&
@@ -186,7 +186,7 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: param
       CHARACTER(LEN=2), INTENT(IN)                       :: element_symbol
       CHARACTER(LEN=*), INTENT(IN)                       :: parameter_file_path, parameter_file_name
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=2)                                   :: enam, esym
       CHARACTER(len=default_string_length)               :: aname, filename

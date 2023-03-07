@@ -14,6 +14,7 @@ MODULE manybody_nequip
 
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                               neighbor_kind_pairs_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -24,7 +25,6 @@ MODULE manybody_nequip
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               sp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: nequip_pot_type,&
                                               nequip_type,&
                                               pair_potential_pp_type,&
@@ -213,7 +213,7 @@ CONTAINS
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       REAL(kind=dp)                                      :: pot_nequip
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nequip_energy_store_force_virial'
 

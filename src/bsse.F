@@ -23,6 +23,7 @@ MODULE bsse
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_methods,               ONLY: create_small_subsys
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -40,7 +41,6 @@ MODULE bsse
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_list_types,             ONLY: particle_list_type
    USE qs_energy,                       ONLY: qs_energies
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -237,8 +237,8 @@ CONTAINS
                                                             present_charge, present_multpl
       INTEGER, DIMENSION(:), POINTER                     :: atom_index, atom_list, my_conf, tmplist
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: bsse_section, dft_section, &
                                                             force_env_section, subsys_section

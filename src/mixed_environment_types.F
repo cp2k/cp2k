@@ -18,6 +18,9 @@ MODULE mixed_environment_types
                                               cell_type
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_p_type,&
+                                              cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
@@ -30,9 +33,6 @@ MODULE mixed_environment_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_p_type,&
-                                              mp_para_env_release,&
-                                              mp_para_env_type
    USE mixed_cdft_types,                ONLY: mixed_cdft_type,&
                                               mixed_cdft_type_release
    USE mixed_energy_types,              ONLY: deallocate_mixed_energy,&
@@ -64,14 +64,14 @@ MODULE mixed_environment_types
    TYPE mixed_environment_type
       TYPE(cell_type), POINTER                         :: cell_ref => NULL()
       TYPE(mixed_energy_type), POINTER                 :: mixed_energy => NULL()
-      TYPE(mp_para_env_type), POINTER                  :: para_env => NULL()
+      TYPE(cp_para_env_type), POINTER                  :: para_env => NULL()
       TYPE(cp_subsys_type), POINTER                    :: subsys => NULL()
       TYPE(section_vals_type), POINTER                 :: input => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER             :: energies => NULL()
       ! Parallelization of multiple force_eval
       INTEGER                                          :: ngroups = -1
       INTEGER, DIMENSION(:), POINTER                   :: group_distribution => NULL()
-      TYPE(mp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env => NULL()
+      TYPE(cp_para_env_p_type), DIMENSION(:), POINTER  :: sub_para_env => NULL()
       TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:)             :: val => NULL()
       CHARACTER(LEN=default_string_length), &
@@ -136,8 +136,8 @@ CONTAINS
       TYPE(molecule_type), OPTIONAL, POINTER             :: molecule_set(:)
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       TYPE(mixed_energy_type), OPTIONAL, POINTER         :: mixed_energy
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
-      TYPE(mp_para_env_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sub_para_env
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
@@ -206,7 +206,7 @@ CONTAINS
       TYPE(mixed_energy_type), OPTIONAL, POINTER         :: mixed_energy
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
-      TYPE(mp_para_env_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(cp_para_env_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sub_para_env
       TYPE(mixed_cdft_type), OPTIONAL, POINTER           :: cdft_control
 
@@ -281,7 +281,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mixed_env_create(mixed_env, para_env)
       TYPE(mixed_environment_type), INTENT(OUT)          :: mixed_env
-      TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), TARGET         :: para_env
 
       mixed_env%para_env => para_env
       CALL mixed_env%para_env%retain()
@@ -301,7 +301,7 @@ CONTAINS
       DO i = 1, ngroups
          IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
             CALL cp_logger_release(mixed_env%sub_logger(i)%p)
-            CALL mp_para_env_release(mixed_env%sub_para_env(i)%para_env)
+            CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env)
          END IF
       END DO
       DEALLOCATE (mixed_env%sub_para_env)
@@ -314,7 +314,7 @@ CONTAINS
          DEALLOCATE (mixed_env%val)
       END IF
       CALL cell_release(mixed_env%cell_ref)
-      CALL mp_para_env_release(mixed_env%para_env)
+      CALL cp_para_env_release(mixed_env%para_env)
       CALL deallocate_mixed_energy(mixed_env%mixed_energy)
       CALL cp_subsys_release(mixed_env%subsys)
       CALL section_vals_release(mixed_env%input)

@@ -39,6 +39,7 @@
 ! **************************************************************************************************
 MODULE mc_run
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE force_env_types,                 ONLY: force_env_p_type,&
                                               force_env_release,&
                                               force_env_retain,&
@@ -66,7 +67,6 @@ MODULE mc_run
         mc_input_parameters_check, mc_molecule_info_destroy, mc_molecule_info_type, &
         mc_sim_par_create, mc_sim_par_destroy, mc_simulation_parameters_p_type, read_mc_section, &
         set_mc_par
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE physcon,                         ONLY: angstrom
@@ -115,6 +115,7 @@ CONTAINS
                                                             lterminate
       REAL(dp)                                           :: rcut
       REAL(dp), DIMENSION(:, :), POINTER                 :: empty_coordinates
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(force_env_p_type), DIMENSION(:), POINTER      :: force_env
       TYPE(force_env_type), POINTER                      :: force_env_2
       TYPE(global_environment_type), POINTER             :: globenv_2
@@ -123,7 +124,6 @@ CONTAINS
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       TYPE(mc_simulation_parameters_p_type), &
          DIMENSION(:), POINTER                           :: mc_par
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(rng_stream_type)                              :: rng_stream
       TYPE(section_vals_type), POINTER                   :: force_env_section, mc_section, &
                                                             root_section

@@ -23,6 +23,7 @@ MODULE cp_lbfgs_geo
    USE cp_output_handling,              ONLY: cp_iterate,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
@@ -38,7 +39,6 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
                                               spgr_apply_rotations_coord
@@ -84,8 +84,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(spgr_type), POINTER                           :: spgr
 

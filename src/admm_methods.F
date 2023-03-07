@@ -48,6 +48,7 @@ MODULE admm_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -64,7 +65,6 @@ MODULE admm_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -127,12 +127,12 @@ CONTAINS
       LOGICAL                                            :: gapw, s_mstruct_changed
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_aux
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb, rho_ao, &
                                                             rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -1237,6 +1237,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ener_k(2), ener_x(2), ener_x1(2), &
                                                             gsi_square, trace_tmp, trace_tmp_two
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks, matrix_ks_aux_fit, &
          matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_s, matrix_s_aux_fit, rho_ao, &
@@ -1245,7 +1246,6 @@ CONTAINS
                                                             matrix_ks_aux_fit_admms_tmp, &
                                                             matrix_TtsT
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
 
@@ -1500,11 +1500,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(local_rho_type), POINTER                      :: local_rho_buffer
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, v_rspace_dummy, &
                                                             v_tau_rspace_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -2017,6 +2017,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb, rho_ao, &
                                                             rho_ao_aux
@@ -2024,7 +2025,6 @@ CONTAINS
                                                             matrix_w_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(qs_energy_type), POINTER                      :: energy

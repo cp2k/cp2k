@@ -18,6 +18,7 @@ MODULE cp_ddapc_forces
                                               get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: ddapc_restraint_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: do_ddapc_constraint,&
                                               do_ddapc_restraint,&
                                               weight_type_mass,&
@@ -29,7 +30,6 @@ MODULE cp_ddapc_forces
                                               pi,&
                                               rootpi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_spline_utils,                 ONLY: Eval_d_Interp_Spl3_pbc
    USE pw_types,                        ONLY: pw_type
@@ -97,7 +97,7 @@ CONTAINS
                                                             rcut, rcut2, t1, t2, tol, tol1
       REAL(KIND=dp), DIMENSION(3)                        :: drvec, fvec, gvec, ra, rvec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: d_el, M
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (d_el, M, para_env)
       CALL timeset(routineN, handle)
@@ -253,7 +253,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: uv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chf
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (para_env)
@@ -403,7 +403,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: uv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chf
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (para_env)

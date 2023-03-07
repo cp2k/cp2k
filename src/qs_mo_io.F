@@ -45,6 +45,7 @@ MODULE qs_mo_io
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_binary_write,&
                                               dbcsr_checksum,&
                                               dbcsr_create,&
@@ -58,7 +59,6 @@ MODULE qs_mo_io
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indco,&
                                               nco,&
                                               nso
@@ -495,7 +495,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: id_nr, multiplicity
       TYPE(section_vals_type), POINTER                   :: dft_section
       LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
@@ -582,7 +582,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: id_nr, multiplicity
       TYPE(section_vals_type), POINTER                   :: dft_section
 
@@ -651,7 +651,7 @@ CONTAINS
                                    multiplicity, rt_mos, natom_mismatch)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: natom, rst_unit

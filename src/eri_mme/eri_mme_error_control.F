@@ -15,13 +15,13 @@
 
 MODULE eri_mme_error_control
    USE ao_util,                         ONLY: exp_radius
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE eri_mme_gaussian,                ONLY: get_minimax_coeff_v_gspace,&
                                               hermite_gauss_norm
    USE eri_mme_lattice_summation,       ONLY: pgf_sum_2c_gspace_1d_deltal
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -72,7 +72,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_l, cutoff_r, tol, delta
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff, err_mm, err_c, C_mm
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN)                                :: print_calib
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -209,7 +209,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
       REAL(KIND=dp), INTENT(OUT)                         :: err_mm, err_ctff, C_mm
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       REAL(KIND=dp)                                      :: delta_mm
 
@@ -290,7 +290,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: minimax_aw
       REAL(KIND=dp), INTENT(OUT)                         :: err_ctff, C_mm
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: i_aw, iG, iter, max_iter, nG
       REAL(KIND=dp) :: C, dG, eps_zet, err0, err1, err_c, err_ctff_curr, err_ctff_prev, err_d, G, &
@@ -399,7 +399,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l_max_zet
       REAL(KIND=dp), INTENT(IN)                          :: zet_max, C_mm
       REAL(KIND=dp), INTENT(OUT)                         :: err_c
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: ax, ay, az, G_l, G_u, Gl_first, Gl_last, &
                                                             Gu_first, Gu_last, i_xyz, l, my_p, &

@@ -35,6 +35,7 @@ MODULE mp2_integrals
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
@@ -66,8 +67,7 @@ MODULE mp2_integrals
                                               libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_type,&
-                                              mp_para_env_type
+                                              mp_comm_type
    USE mp2_eri,                         ONLY: mp2_eri_3c_integrate
    USE mp2_eri_gpw,                     ONLY: cleanup_gpw,&
                                               mp2_eri_3c_integrate_gpw,&
@@ -204,7 +204,7 @@ CONTAINS
          DIMENSION(:), INTENT(OUT)                       :: gd_B_virtual
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -905,7 +905,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ngroup, igroup
 
       CLASS(mp_comm_type), INTENT(IN)                    :: mp_comm
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_B_L'
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
@@ -1086,7 +1086,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: size_1, size_2
       CHARACTER(LEN=*), INTENT(IN)                       :: matrix_name_2
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_intermediate_matrices'
 
@@ -1157,7 +1157,7 @@ CONTAINS
    SUBROUTINE ao_to_mo_and_store_B(para_env, mat_munu, intermed_mat, BIb_jb, &
                                    mo_coeff_o, mo_coeff_v, eps_filter, &
                                    my_B_end, my_B_start)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(intermediate_matrix_type), INTENT(INOUT)      :: intermed_mat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
@@ -1225,8 +1225,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nkp_grid, nkp_grid_extra, periodic
       LOGICAL                                            :: do_extrapolate_kpoints
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -1379,7 +1379,7 @@ CONTAINS
    SUBROUTINE grep_my_integrals(para_env_sub, fm_BIb_jb, BIb_jb, max_row_col_local, &
                                 local_col_row_info, &
                                 my_B_virtual_end, my_B_virtual_start)
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local

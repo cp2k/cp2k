@@ -20,6 +20,7 @@ MODULE qmmmx_util
                                               pbc
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
@@ -33,7 +34,6 @@ MODULE qmmmx_util
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -128,10 +128,10 @@ CONTAINS
       REAL(dp), ALLOCATABLE                              :: nearest_dist(:)
       REAL(dp), POINTER                                  :: r_buf(:), r_core(:), r_qm(:)
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fist_neighbor_type), POINTER                  :: nlist
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: force_mixing_section, &

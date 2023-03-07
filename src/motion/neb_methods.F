@@ -31,6 +31,7 @@ MODULE neb_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE f77_interface,                   ONLY: f_env_add_defaults,&
                                               f_env_rm_defaults,&
@@ -47,7 +48,6 @@ MODULE neb_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE neb_io,                          ONLY: dump_neb_info,&
                                               neb_rep_env_map_info,&
                                               read_neb_section
@@ -92,7 +92,7 @@ CONTAINS
    SUBROUTINE neb(input, input_declaration, para_env, globenv)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'neb'

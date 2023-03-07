@@ -24,6 +24,7 @@ MODULE kg_environment
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&
@@ -45,7 +46,6 @@ MODULE kg_environment
                                               int_8
    USE lri_environment_init,            ONLY: lri_env_basis,&
                                               lri_env_init
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -126,9 +126,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: bid
       REAL(KIND=dp)                                      :: load, radb, rmax
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_type), POINTER                  :: lri_aux_basis
       TYPE(integration_grid_type), POINTER               :: ig_full, ig_mol
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(section_vals_type), POINTER                   :: lri_section
 
@@ -317,13 +317,13 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(local_potential_type), POINTER                :: tnadd_potential
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: neighbor_list_section
@@ -555,7 +555,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kg_build_subsets(kg_env, para_env)
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_build_subsets'
 

@@ -24,6 +24,7 @@ MODULE topology_cif
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                               parser_get_object,&
                                               parser_search_string
@@ -39,7 +40,6 @@ MODULE topology_cif
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_para_env_type
    USE string_table,                    ONLY: id2str,&
                                               s2s,&
                                               str2id
@@ -86,7 +86,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_coordinate_cif(topology, para_env, subsys_section)
       TYPE(topology_parameters_type)                     :: topology
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_cif'

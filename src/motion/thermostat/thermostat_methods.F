@@ -22,6 +22,7 @@ MODULE thermostat_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -58,8 +59,7 @@ MODULE thermostat_methods
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -114,7 +114,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: md_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(simpar_type), POINTER                         :: simpar
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: global_section
 
@@ -467,7 +467,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(simpar_type), POINTER                         :: simpar
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: iw
       REAL(KIND=dp)                                      :: kin_energy, pot_energy, tmp

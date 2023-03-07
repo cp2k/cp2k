@@ -26,6 +26,7 @@ MODULE nnp_environment
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_read_line,&
                                               parser_search_string
    USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -44,7 +45,6 @@ MODULE nnp_environment
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
@@ -90,7 +90,7 @@ CONTAINS
                        use_motion_section)
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
       TYPE(section_vals_type), INTENT(IN), POINTER       :: root_section
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(section_vals_type), INTENT(INOUT), POINTER    :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 

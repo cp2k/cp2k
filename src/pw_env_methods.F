@@ -26,6 +26,7 @@ MODULE pw_env_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE cube_utils,                      ONLY: destroy_cube_info,&
                                               init_cube_info,&
@@ -59,7 +60,6 @@ MODULE pw_env_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
                                               NEUMANN_BC,&
@@ -156,7 +156,7 @@ CONTAINS
    SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL, &
+      TYPE(cp_para_env_type), INTENT(IN), OPTIONAL, &
          TARGET                                          :: external_para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_env_rebuild'
@@ -173,8 +173,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff
       TYPE(cell_type), POINTER                           :: cell, cell_ref, my_cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER :: dct_pw_grid, mt_super_ref_grid, old_pw_grid, pw_grid, &
          super_ref_grid, vdw_grid, vdw_ref_grid, xc_super_ref_grid
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
@@ -950,7 +950,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: grid_span
       LOGICAL, INTENT(in)                                :: spherical
       TYPE(cell_type), POINTER                           :: cell_ref
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
       INTEGER, INTENT(IN)                                :: my_ncommensurate
       LOGICAL, INTENT(in)                                :: uf_grid

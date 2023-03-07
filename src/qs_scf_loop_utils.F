@@ -11,6 +11,7 @@ MODULE qs_scf_loop_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
@@ -19,7 +20,6 @@ MODULE qs_scf_loop_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
@@ -450,7 +450,7 @@ CONTAINS
    SUBROUTINE qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
@@ -569,7 +569,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
 
       CHARACTER(len=default_string_length)               :: name
@@ -620,7 +620,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN)                                :: mix_rho
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (para_env)
       CALL get_qs_env(qs_env, para_env=para_env)
@@ -650,8 +650,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
 
       LOGICAL                                            :: do_kpoints
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho

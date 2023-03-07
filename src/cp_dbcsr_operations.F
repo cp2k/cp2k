@@ -43,7 +43,7 @@ MODULE cp_dbcsr_operations
                           cp_fm_release, &
                           cp_fm_to_fm, &
                           cp_fm_type
-   USE message_passing, ONLY: mp_para_env_type
+   USE cp_para_types, ONLY: cp_para_env_type
    USE distribution_2d_types, ONLY: distribution_2d_get, &
                                     distribution_2d_type
    USE kinds, ONLY: dp, default_string_length
@@ -371,7 +371,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix_b
       TYPE(dbcsr_type), INTENT(IN)                    :: matrix_a
       INTEGER, INTENT(IN)                                :: ncol, source_start, target_start
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
       INTEGER                                            :: nfullcols_total, nfullrows_total
@@ -416,7 +416,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid, col_dist_data, row_dist_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(distribution_2d_type), POINTER                :: dist2d_p
       INTEGER, DIMENSION(:), POINTER         :: row_dist, col_dist
 

@@ -32,6 +32,7 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
@@ -52,7 +53,6 @@ MODULE qs_tddfpt2_methods
    USE lri_environment_types,           ONLY: lri_density_release,&
                                               lri_env_release
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: compute_charges
    USE physcon,                         ONLY: evolt
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
@@ -875,8 +875,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: charges
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 

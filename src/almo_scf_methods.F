@@ -24,6 +24,7 @@ MODULE almo_scf_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_frobenius_norm, &
@@ -54,8 +55,7 @@ MODULE almo_scf_methods
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: binomial
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -1637,7 +1637,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: sigma, sigma_inv
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_guess, smear
       INTEGER, INTENT(IN), OPTIONAL                      :: algorithm
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_lanczos
       INTEGER, INTENT(IN), OPTIONAL                      :: max_iter_lanczos, inverse_accelerator

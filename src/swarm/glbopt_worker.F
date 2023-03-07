@@ -10,6 +10,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE glbopt_worker
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type,&
                                               pack_subsys_particles,&
@@ -33,7 +34,6 @@ MODULE glbopt_worker
    USE md_run,                          ONLY: qs_mol_dyn
    USE mdctrl_types,                    ONLY: glbopt_mdctrl_data_type,&
                                               mdctrl_type
-   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom,&
                                               kelvin
    USE swarm_message,                   ONLY: swarm_message_add,&
@@ -86,7 +86,7 @@ CONTAINS
                                  input_path, worker_id, iw)
       TYPE(glbopt_worker_type), INTENT(INOUT)            :: worker
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
       INTEGER, INTENT(in)                                :: worker_id, iw

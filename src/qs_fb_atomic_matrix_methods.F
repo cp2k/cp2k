@@ -7,13 +7,13 @@
 
 MODULE qs_fb_atomic_matrix_methods
 
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_get_stored_coordinates,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_para_env_type
    USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_atom_global2halo,&
                                               fb_atomic_halo_get,&
                                               fb_atomic_halo_has_data,&
@@ -130,7 +130,7 @@ CONTAINS
                                     blk_col_start)
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_matrix
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_row_start, blk_col_start
 
@@ -431,7 +431,7 @@ CONTAINS
                                              atom_pairs_recv)
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs'
@@ -625,7 +625,7 @@ CONTAINS
                                                atom_pairs_recv)
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs_2'

@@ -21,6 +21,8 @@
 MODULE cp_parser_types
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_buffer_types,          ONLY: buffer_type,&
                                               create_buffer_type,&
                                               release_buffer_type
@@ -36,9 +38,7 @@ MODULE cp_parser_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               max_line_length
-   USE message_passing,                 ONLY: mp_comm_self,&
-                                              mp_para_env_release,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE string_utilities,                ONLY: compress
 #include "../base/base_uses.f90"
 
@@ -91,7 +91,7 @@ MODULE cp_parser_types
       CHARACTER(len=default_path_length), DIMENSION(:, :), POINTER :: initial_variables
       TYPE(buffer_type), POINTER                     :: buffer
       TYPE(status_type), POINTER                     :: status
-      TYPE(mp_para_env_type), POINTER                :: para_env
+      TYPE(cp_para_env_type), POINTER                :: para_env
       TYPE(inpp_type), POINTER                       :: inpp
       TYPE(ilist_type), POINTER                      :: ilist
    END TYPE cp_parser_type
@@ -111,7 +111,7 @@ CONTAINS
       IF (parser%input_unit >= 0) THEN
          CALL close_file(unit_number=parser%input_unit)
       END IF
-      CALL mp_para_env_release(parser%para_env)
+      CALL cp_para_env_release(parser%para_env)
       CALL release_inpp_type(parser%inpp)
       CALL release_ilist_type(parser%ilist)
       CALL release_buffer_type(parser%buffer)
@@ -147,7 +147,7 @@ CONTAINS
       TYPE(cp_parser_type), INTENT(OUT)                  :: parser
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_name
       INTEGER, INTENT(in), OPTIONAL                      :: unit_nr
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: end_section_label, separator_chars
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: comment_char, continuation_char, &
                                                             quote_char, section_char

@@ -25,6 +25,7 @@ MODULE xc_pot_saop
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
@@ -40,7 +41,6 @@ MODULE xc_pot_saop
         section_vals_val_get, section_vals_val_set
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -523,6 +523,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: mo_eigenvalues
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: single_mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, orbital_density_matrix, &
                                                             rho_struct_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
@@ -532,7 +533,6 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: molecular_orbitals
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
       TYPE(oce_matrix_type), POINTER                     :: oce

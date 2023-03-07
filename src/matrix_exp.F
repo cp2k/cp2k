@@ -32,12 +32,12 @@ MODULE matrix_exp
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
 #include "./base/base_uses.f90"
 
@@ -703,8 +703,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: conv_norm, prefac, scaleD, scaleN
       TYPE(cp_fm_struct_type), POINTER                   :: mo_struct, newstruct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: V_mats
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp_comm_type)                                 :: col_group
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       para_env => mos_new(1)%matrix_struct%para_env

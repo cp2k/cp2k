@@ -26,7 +26,7 @@ MODULE hfx_derivatives
                                  cp_print_key_finished_output, &
                                  cp_print_key_should_output, &
                                  cp_print_key_unit_nr
-   USE message_passing, ONLY: mp_para_env_type
+   USE cp_para_types, ONLY: cp_para_env_type
    USE dbcsr_api, ONLY: dbcsr_get_matrix_type, &
                         dbcsr_p_type, &
                         dbcsr_type_antisymmetric
@@ -119,7 +119,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_resp
       TYPE(section_vals_type), POINTER                   :: hfx_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: irep
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor

@@ -18,6 +18,7 @@ MODULE qs_band_structure
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: read_float_object
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
@@ -39,7 +40,6 @@ MODULE qs_band_structure
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -120,10 +120,10 @@ CONTAINS
                                                             occupation_numbers, wkp
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: bs_input, kpset
 
       bs_input => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%BAND_STRUCTURE")
@@ -310,9 +310,9 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_ext
 
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_scf_env_type), POINTER                     :: scf_env

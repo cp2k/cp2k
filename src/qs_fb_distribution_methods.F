@@ -12,6 +12,7 @@ MODULE qs_fb_distribution_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&
@@ -20,7 +21,6 @@ MODULE qs_fb_distribution_methods
                                               dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -136,6 +136,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pair_radii
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rcut
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_ks
       TYPE(fb_atomic_halo_obj)                           :: atomic_halo
       TYPE(fb_distribution_element)                      :: element
@@ -143,7 +144,6 @@ CONTAINS
          DIMENSION(:)                                    :: dist
       TYPE(fb_preferred_procs_list), ALLOCATABLE, &
          DIMENSION(:)                                    :: preferred_procs_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 

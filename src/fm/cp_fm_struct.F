@@ -18,10 +18,10 @@ MODULE cp_fm_struct
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -80,14 +80,14 @@ MODULE cp_fm_struct
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_fm_struct_type
-      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
-      TYPE(cp_blacs_env_type), POINTER :: context => NULL()
-      INTEGER, DIMENSION(9) :: descriptor = -1
-      INTEGER :: nrow_block = -1, ncol_block = -1, nrow_global = -1, ncol_global = -1
-      INTEGER, DIMENSION(2) :: first_p_pos = -1
-      INTEGER, DIMENSION(:), POINTER :: row_indices => NULL(), col_indices => NULL(), &
-                                        nrow_locals => NULL(), ncol_locals => NULL()
-      INTEGER :: ref_count = -1, local_leading_dimension = -1
+      TYPE(cp_para_env_type), POINTER :: para_env
+      TYPE(cp_blacs_env_type), POINTER :: context
+      INTEGER, DIMENSION(9) :: descriptor
+      INTEGER :: nrow_block, ncol_block, nrow_global, ncol_global
+      INTEGER, DIMENSION(2) :: first_p_pos
+      INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices, &
+                                        nrow_locals, ncol_locals
+      INTEGER :: ref_count, local_leading_dimension
    END TYPE cp_fm_struct_type
 ! **************************************************************************************************
    TYPE cp_fm_struct_p_type
@@ -124,7 +124,7 @@ CONTAINS
                                   local_leading_dimension, template_fmstruct, square_blocks, force_block)
 
       TYPE(cp_fm_struct_type), POINTER             :: fmstruct
-      TYPE(mp_para_env_type), TARGET, OPTIONAL    :: para_env
+      TYPE(cp_para_env_type), TARGET, OPTIONAL    :: para_env
       INTEGER, INTENT(in), OPTIONAL                :: nrow_global, ncol_global
       INTEGER, INTENT(in), OPTIONAL                :: nrow_block, ncol_block
       INTEGER, INTENT(in), OPTIONAL                :: local_leading_dimension
@@ -324,7 +324,7 @@ CONTAINS
          fmstruct%ref_count = fmstruct%ref_count - 1
          IF (fmstruct%ref_count < 1) THEN
             CALL cp_blacs_env_release(fmstruct%context)
-            CALL mp_para_env_release(fmstruct%para_env)
+            CALL cp_para_env_release(fmstruct%para_env)
             IF (ASSOCIATED(fmstruct%row_indices)) THEN
                DEALLOCATE (fmstruct%row_indices)
             END IF
@@ -405,7 +405,7 @@ CONTAINS
                                col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals, &
                                local_leading_dimension)
       TYPE(cp_fm_struct_type), INTENT(INOUT) :: fmstruct
-      TYPE(mp_para_env_type), POINTER, OPTIONAL :: para_env
+      TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
       TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
       INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
       INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global, &
@@ -539,7 +539,7 @@ CONTAINS
       INTEGER :: n_doubled_items_in_partially_filled_block, ncol_block, ncol_global, newdim_col, &
          newdim_row, nfilled_blocks, nfilled_blocks_remain, nprocs_col, nprocs_row, nrow_block, &
          nrow_global
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL cp_fm_struct_get(struct, nrow_global=nrow_global, &
                             ncol_global=ncol_global, nrow_block=nrow_block, &
