@@ -22,7 +22,7 @@ done
 
 # Setup compiler flags, leading to nice stack traces on crashes but still optimised
 if [ "${with_intel}" != "__DONTUSE__" ]; then
-  CFLAGS="-O2 -fPIC -fp-model precise -funroll-loops -g -qopenmp -qopenmp-simd -traceback"
+  CFLAGS="-O2 -fPIC -fp-model=precise -funroll-loops -g -qopenmp -qopenmp-simd -traceback"
   if [ "${TARGET_CPU}" = "native" ]; then
     CFLAGS="${CFLAGS} -xHost"
   elif [ "${TARGET_CPU}" = "generic" ]; then

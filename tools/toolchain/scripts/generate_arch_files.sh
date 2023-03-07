@@ -35,11 +35,11 @@ LD_arch="IF_MPI(${MPIFC}|${FC})"
 # we always want good line information and backtraces
 if [ "${with_intel}" != "__DONTUSE__" ]; then
   if [ "${TARGET_CPU}" = "native" ]; then
-    BASEFLAGS="-fPIC -fp-model precise -g -qopenmp -qopenmp-simd -traceback -xHost"
+    BASEFLAGS="-fPIC -fp-model=precise -g -qopenmp -qopenmp-simd -traceback -xHost"
   elif [ "${TARGET_CPU}" = "generic" ]; then
-    BASEFLAGS="-fPIC -fp-model precise -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
+    BASEFLAGS="-fPIC -fp-model=precise -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
   else
-    BASEFLAGS="-fPIC -fp-model precise -g -march=${TARGET_CPU} -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
+    BASEFLAGS="-fPIC -fp-model=precise -g -march=${TARGET_CPU} -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
   fi
   OPT_FLAGS="-O2 -funroll-loops"
   LDFLAGS_C="-nofor-main"
@@ -127,8 +127,8 @@ fi
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 else
-  CFLAGS="-cc=${I_MPI_CC} $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
-  FCFLAGS="-fc=${I_MPI_FC} $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -free"
+  CFLAGS="IF_MPI(-cc=${I_MPI_CC}|) $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
+  FCFLAGS="IF_MPI(-fc=${I_MPI_FC}|) $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -free"
 fi
 
 # Linker flags
@@ -144,7 +144,7 @@ LIBS="${CP_LIBS} -lstdc++"
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
 else
-  CXXFLAGS+=" --std=c++14 \$(DFLAGS)"
+  CXXFLAGS=" ${G_CFLAGS} --std=c++14 \$(DFLAGS)"
 fi
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
