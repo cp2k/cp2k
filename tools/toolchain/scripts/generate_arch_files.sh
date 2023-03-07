@@ -91,6 +91,10 @@ if [ "${with_intel}" == "__DONTUSE__" ]; then
   WFLAGS_ERROR=$(allowed_gfortran_flags $WFLAGS_ERROR)
   WFLAGS_WARN=$(allowed_gfortran_flags $WFLAGS_WARN)
   WFLAGS_WARNALL=$(allowed_gfortran_flags $WFLAGS_WARNALL)
+else
+  WFLAGS_ERROR=""
+  WFLAGS_WARN=""
+  WFLAGS_WARNALL=""
 fi
 
 # check if ieee_exeptions module is available for the current version
@@ -114,7 +118,7 @@ if [ "${with_intel}" == "__DONTUSE__" ]; then
   FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
   FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
 else
-  FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(DFLAGS)"
+  FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 fi
 # CFLAGS, special flags for gcc
 
@@ -123,7 +127,7 @@ fi
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 else
-  CFLAGS="-cc=${I_MPI_CC} $G_CFLAGS -std=c11 -Wall -Wextra -Wno-deprecated-declarations \$(DFLAGS)"
+  CFLAGS="-cc=${I_MPI_CC} $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
   FCFLAGS="-fc=${I_MPI_FC} $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -free"
 fi
 
@@ -137,7 +141,11 @@ LDFLAGS="IF_STATIC(${STATIC_FLAGS}|) \$(FCFLAGS) ${CP_LDFLAGS}"
 # add standard libs
 LIBS="${CP_LIBS} -lstdc++"
 
-CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
+if [ "${with_intel}" == "__DONTUSE__" ]; then
+  CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
+else
+  CXXFLAGS+=" --std=c++14 \$(DFLAGS)"
+fi
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
