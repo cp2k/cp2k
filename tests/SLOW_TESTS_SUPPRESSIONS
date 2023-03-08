@@ -53,6 +53,7 @@ QS/regtest-rel/h2o-4.inp
 QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar.inp
 QS/regtest-ps-implicit-1-2/Ar_neumann.inp
 LIBTEST/libbqb/test_01.inp
+LIBTEST/libvori/test_02.inp
 xTB/regtest-1/si_kp.inp
 QS/regtest-tddfpt-3/ch2o_t2.inp
 QS/regtest-kg/H2_MD.inp
@@ -70,5 +71,10 @@ QS/regtest-gapw-ext/H2S-e4.inp
 QS/regtest-rtp-5/si8-smearing-rtp-dens.inp
 QS/regtest-rtp-5/si8-smearing-rtp-dens-pulse-1.inp
 QS/regtest-kp-2/cc2_lri.inp
+QS/regtest-sccs-1/H2O_sccs_td_fft.inp
+QS/regtest-sccs-1/H2O_sccs_td_cd5_fg.inp
+QS/regtest-sccs-3/H2O_sccs_td_cd5_geo_opt.inp
+QS/regtest-sccs-2/H2O_sccs_otdiis_cd5.inp
+QS/regtest-lsroks/ch2o_rs.inp
 
 #EOF
