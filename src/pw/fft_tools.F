@@ -2217,6 +2217,7 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
+      rbuf => fft_scratch%rbuf3
       num_threads = 1
       my_id = 0
 !$OMP PARALLEL DEFAULT(NONE), &
