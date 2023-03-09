@@ -161,9 +161,9 @@ CONTAINS
          CPABORT("The preconditioner is unknown ...")
       END SELECT
 
+      ALLOCATE (eigenvalues_ot(k))
       energy_homo = 0.0_dp
       IF (needs_full_spectrum) THEN
-         ALLOCATE (eigenvalues_ot(k))
          ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
          !                  the case of non-equivalent MOs but also for the derivate
          ! we could already have all eigenvalues e.g. full_all and we could skip this
@@ -226,9 +226,7 @@ CONTAINS
                                    preconditioner_env%para_env, preconditioner_env%ctxt)
       END IF
 
-      IF (needs_full_spectrum) THEN
-         DEALLOCATE (eigenvalues_ot)
-      END IF
+      DEALLOCATE (eigenvalues_ot)
 
       CALL timestop(handle)
 
