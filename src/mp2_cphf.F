@@ -112,7 +112,8 @@ MODULE mp2_cphf
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_type
-   USE qs_mo_types,                     ONLY: mo_set_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
@@ -1316,7 +1317,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_mp2_forces'
 
       INTEGER                                            :: alpha, beta, handle, idir, iounit, &
-                                                            ispin, nspins
+                                                            ispin, nocc, nspins
       INTEGER, DIMENSION(3)                              :: comp
       LOGICAL                                            :: do_exx, do_hfx, use_virial
       REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, ehartree, exc
@@ -1948,8 +1949,9 @@ CONTAINS
 
       ! Finish matrix_w_mp2 with occ-occ block
       DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), homo=nocc, nmo=alpha)
          CALL calculate_whz_matrix(mos(ispin)%mo_coeff, p_env%kpp1(ispin)%matrix, &
-                                   p_env%w1(1)%matrix, 1.0_dp)
+                                   p_env%w1(1)%matrix, 1.0_dp, nocc)
       END DO
 
       IF (debug_forces .AND. use_virial) e_dummy = third_tr(virial%pv_virial)

@@ -3003,7 +3003,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'update_im_time_forces'
 
       INTEGER                                            :: handle, i, idens, ispin, n_rep_hf, nao, &
-                                                            nao_aux, nder, nimages, nspins
+                                                            nao_aux, nder, nimages, nocc, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_exx, do_hfx, do_tau, do_tau_admm, &
                                                             use_virial
@@ -3639,8 +3639,9 @@ CONTAINS
       IF (nspins == 2) focc = 1.0_dp
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), homo=nocc)
          CALL calculate_whz_matrix(mos(ispin)%mo_coeff, matrix_hz(ispin)%matrix, &
-                                   p_env%w1(ispin)%matrix, focc)
+                                   p_env%w1(ispin)%matrix, focc, nocc)
       END DO
       IF (nspins == 2) CALL dbcsr_add(p_env%w1(1)%matrix, p_env%w1(2)%matrix, 1.0_dp, 1.0_dp)
 
