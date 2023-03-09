@@ -558,14 +558,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, matrix_ks, mo_coeff, mos)
 
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
-                      para_env=para_env, matrix_s=matrix_s, mos=mos)
+                      matrix_s=matrix_s, mos=mos)
       nspins = dft_control%nspins
 
       ! Initialize vectors:
@@ -573,11 +572,10 @@ CONTAINS
       ! psi1 : The "perturbed" linear response orbitals
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, homo=nocc)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, homo=nocc)
          NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
-                                  ncol_global=nocc, para_env=para_env, &
-                                  context=mo_coeff%matrix_struct%context)
+         CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                  template_fmstruct=mo_coeff%matrix_struct)
          CALL cp_fm_create(psi0(ispin), fm_struct)
          CALL cp_fm_to_fm(mo_coeff, psi0(ispin), nocc)
          CALL cp_fm_create(psi1(ispin), fm_struct)
@@ -663,7 +661,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -699,7 +696,7 @@ CONTAINS
       CALL p_env_psi0_changed(p_env, qs_env)
       p_env%new_preconditioner = .TRUE.
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env, mos=mos)
+      CALL get_qs_env(qs_env, dft_control=dft_control, mos=mos)
       !
       nspins = dft_control%nspins
 
@@ -708,11 +705,10 @@ CONTAINS
       ! psi1 : The "perturbed" linear response orbitals
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, homo=nocc)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, homo=nocc)
          NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
-                                  ncol_global=nocc, para_env=para_env, &
-                                  context=mo_coeff%matrix_struct%context)
+         CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                  template_fmstruct=mo_coeff%matrix_struct)
          CALL cp_fm_create(psi0(ispin), fm_struct)
          CALL cp_fm_to_fm(mo_coeff, psi0(ispin), nocc)
          CALL cp_fm_create(psi1(ispin), fm_struct)
