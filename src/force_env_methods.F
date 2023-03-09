@@ -154,8 +154,7 @@ MODULE force_env_methods
    USE string_utilities,                ONLY: compress
    USE virial_methods,                  ONLY: write_stress_tensor,&
                                               write_stress_tensor_components
-   USE virial_types,                    ONLY: cp_virial,&
-                                              symmetrize_virial,&
+   USE virial_types,                    ONLY: symmetrize_virial,&
                                               virial_p_type,&
                                               virial_type,&
                                               zero_virial
@@ -939,7 +938,6 @@ CONTAINS
             NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
             NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
             ALLOCATE (virials(iforce_eval)%virial)
-            CALL zero_virial(virials(iforce_eval)%virial)
             CALL cp_result_create(results(iforce_eval)%results)
             IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
             ! From this point on the error is the sub_error
@@ -985,7 +983,7 @@ CONTAINS
                                   virial=loc_virial, results=loc_results)
                energies(iforce_eval) = energy
                glob_natoms(iforce_eval) = natom
-               CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
+               virials(iforce_eval)%virial = loc_virial
                CALL cp_result_copy(loc_results, results(iforce_eval)%results)
             END IF
             ! Deallocate map_index array
@@ -1246,7 +1244,6 @@ CONTAINS
          NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
          NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
          ALLOCATE (virials(iforce_eval)%virial)
-         CALL zero_virial(virials(iforce_eval)%virial)
          CALL cp_result_create(results(iforce_eval)%results)
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! Get all available subsys
@@ -1307,7 +1304,7 @@ CONTAINS
                                virial=loc_virial, results=loc_results)
             energies(iforce_eval) = energy
             glob_natoms(iforce_eval) = natom
-            CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
+            virials(iforce_eval)%virial = loc_virial
             CALL cp_result_copy(loc_results, results(iforce_eval)%results)
          END IF
          ! Deallocate map_index array

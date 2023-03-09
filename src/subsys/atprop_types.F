@@ -29,18 +29,18 @@ MODULE atprop_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE atprop_type
-      LOGICAL                                   :: energy
-      LOGICAL                                   :: stress
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: atener
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: ateb
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: atexc
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: ateself
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: atevdw
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: ategcp
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: atecc
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: ate1c
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: atecoul
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: atstress
+      LOGICAL                                   :: energy = .FALSE.
+      LOGICAL                                   :: stress = .FALSE.
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: atener => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: ateb => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: atexc => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: ateself => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: atevdw => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: ategcp => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: atecc => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: ate1c => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: atecoul => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: atstress => NULL()
    END TYPE atprop_type
 
 CONTAINS
@@ -54,11 +54,6 @@ CONTAINS
 
       CALL atprop_release(atprop_env)
       ALLOCATE (atprop_env)
-      NULLIFY (atprop_env%atener, atprop_env%atstress)
-      NULLIFY (atprop_env%ateb, atprop_env%atevdw, atprop_env%ategcp, atprop_env%atecc, atprop_env%atecoul)
-      NULLIFY (atprop_env%ateself, atprop_env%atexc, atprop_env%ate1c)
-      atprop_env%energy = .FALSE.
-      atprop_env%stress = .FALSE.
 
    END SUBROUTINE atprop_create
 
@@ -68,10 +63,8 @@ CONTAINS
 !> \param natom ...
 ! **************************************************************************************************
    SUBROUTINE atprop_init(atprop_env, natom)
-      TYPE(atprop_type), POINTER                         :: atprop_env
+      TYPE(atprop_type), INTENT(INOUT)                   :: atprop_env
       INTEGER, INTENT(IN)                                :: natom
-
-      CPASSERT(ASSOCIATED(atprop_env))
 
       IF (atprop_env%energy) THEN
          CALL atprop_array_init(atprop_env%atener, natom)
@@ -133,10 +126,10 @@ CONTAINS
 !> \param array_b ...
 ! **************************************************************************************************
    SUBROUTINE atprop_array_add(array_a, array_b)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: array_a, array_b
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: array_a
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: array_b
 
       IF (ASSOCIATED(array_b)) THEN
-         CPASSERT(ASSOCIATED(array_a))
          array_a = array_a + array_b
       END IF
 

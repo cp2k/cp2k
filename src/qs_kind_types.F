@@ -2920,10 +2920,10 @@ CONTAINS
                CALL write_orb_basis_set(tmp_basis, output_unit, "GAPW Soft Basis Set")
             END IF
             ! Potentials
-            CALL write_potential(qs_kind%all_potential, output_unit)
-            CALL write_potential(qs_kind%gth_potential, output_unit)
-            CALL write_potential(qs_kind%sgp_potential, output_unit)
-            CALL write_potential(qs_kind%tnadd_potential, output_unit)
+            IF (ASSOCIATED(qs_kind%all_potential)) CALL write_potential(qs_kind%all_potential, output_unit)
+            IF (ASSOCIATED(qs_kind%gth_potential)) CALL write_potential(qs_kind%gth_potential, output_unit)
+            IF (ASSOCIATED(qs_kind%sgp_potential)) CALL write_potential(qs_kind%sgp_potential, output_unit)
+            IF (ASSOCIATED(qs_kind%tnadd_potential)) CALL write_potential(qs_kind%tnadd_potential, output_unit)
             IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)") &
                   "A DFT+U correction is applied to atoms of this atomic kind:", &

@@ -68,7 +68,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
 
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
@@ -84,7 +84,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (gridlevel_info, rs_descs, pw_pools)
-      CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
       gridlevel_info => pw_env%gridlevel_info
@@ -156,7 +155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE density_rs2pw_basic(pw_env, rs_rho, rho, rho_gspace)
 
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
@@ -172,7 +171,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (gridlevel_info, rs_descs, pw_pools)
-      CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
       gridlevel_info => pw_env%gridlevel_info
@@ -248,7 +246,7 @@ CONTAINS
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_v
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'potential_pw2rs'
 

@@ -42,11 +42,11 @@ MODULE multipole_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE multipole_type
-      LOGICAL, DIMENSION(3)                    :: task
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: dipoles
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: quadrupoles
+      LOGICAL, DIMENSION(3)                    :: task = .FALSE.
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: charges => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: radii => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: dipoles => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: quadrupoles => NULL()
    END TYPE multipole_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'multipole_types'
@@ -65,7 +65,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_multipole_type(multipoles, particle_set, subsys_section, max_multipole)
       TYPE(multipole_type), INTENT(OUT)                  :: multipoles
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
       INTEGER, INTENT(IN)                                :: max_multipole
 
@@ -75,11 +75,6 @@ CONTAINS
       TYPE(fist_potential_type), POINTER                 :: fist_potential
       TYPE(section_vals_type), POINTER                   :: work_section
 
-      multipoles%task = .FALSE.
-      NULLIFY (multipoles%charges)
-      NULLIFY (multipoles%radii)
-      NULLIFY (multipoles%dipoles)
-      NULLIFY (multipoles%quadrupoles)
       SELECT CASE (max_multipole)
       CASE (do_multipole_none)
          ! Do nothing..

@@ -38,9 +38,9 @@ MODULE particle_types
                                                r = 0.0_dp, & ! position
                                                v = 0.0_dp ! velocity
       ! Particle dependent terms for shell-model
-      INTEGER                               :: atom_index = -1, &
-                                               t_region_index = -1, &
-                                               shell_index = -1
+      INTEGER                               :: atom_index = 0, &
+                                               t_region_index = 0, &
+                                               shell_index = 0
    END TYPE particle_type
 
    ! Public data types
@@ -69,22 +69,10 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: nparticle
 
-      INTEGER                                            :: iparticle
-
       IF (ASSOCIATED(particle_set)) THEN
          CALL deallocate_particle_set(particle_set)
       END IF
       ALLOCATE (particle_set(nparticle))
-
-      DO iparticle = 1, nparticle
-         NULLIFY (particle_set(iparticle)%atomic_kind)
-         particle_set(iparticle)%f(:) = 0.0_dp
-         particle_set(iparticle)%r(:) = 0.0_dp
-         particle_set(iparticle)%v(:) = 0.0_dp
-         particle_set(iparticle)%shell_index = 0
-         particle_set(iparticle)%atom_index = 0
-         particle_set(iparticle)%t_region_index = 0
-      END DO
 
    END SUBROUTINE allocate_particle_set
 
@@ -100,10 +88,7 @@ CONTAINS
 
       IF (ASSOCIATED(particle_set)) THEN
          DEALLOCATE (particle_set)
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "The pointer particle_set is not associated and "// &
-                       "cannot be deallocated")
+         NULLIFY (particle_set)
       END IF
 
    END SUBROUTINE deallocate_particle_set
@@ -192,7 +177,7 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION get_particle_pos_or_vel(iatom, particle_set, vector) RESULT(x)
+   PURE FUNCTION get_particle_pos_or_vel(iatom, particle_set, vector) RESULT(x)
 
       INTEGER, INTENT(IN)                                :: iatom
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
@@ -229,7 +214,7 @@ CONTAINS
 !> \note    particle-set is not changed, only the positions or velocities in
 !>          the packed vector are updated
 ! **************************************************************************************************
-   SUBROUTINE update_particle_pos_or_vel(iatom, particle_set, x, vector)
+   PURE SUBROUTINE update_particle_pos_or_vel(iatom, particle_set, x, vector)
 
       INTEGER, INTENT(IN)                                :: iatom
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set

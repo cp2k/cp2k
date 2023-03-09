@@ -69,19 +69,19 @@ MODULE pw_env_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE pw_env_type
-      INTEGER                                     :: ref_count
-      INTEGER                                     :: auxbas_grid
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-      TYPE(pw_pool_type), POINTER                 :: xc_pw_pool
-      TYPE(pw_pool_type), POINTER                 :: vdw_pw_pool
+      INTEGER                                     :: ref_count = -1
+      INTEGER                                     :: auxbas_grid = 0
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools => NULL()
+      TYPE(pw_pool_type), POINTER                 :: xc_pw_pool => NULL()
+      TYPE(pw_pool_type), POINTER                 :: vdw_pw_pool => NULL()
       TYPE(realspace_grid_desc_p_type), &
-         DIMENSION(:), POINTER                    :: rs_descs
+         DIMENSION(:), POINTER                    :: rs_descs => NULL()
       TYPE(realspace_grid_type), &
-         DIMENSION(:), POINTER                    :: rs_grids
-      TYPE(gridlevel_info_type), POINTER          :: gridlevel_info
-      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
-      TYPE(pw_poisson_type), POINTER              :: poisson_env
-      TYPE(section_vals_type), POINTER            :: interp_section
+         DIMENSION(:), POINTER                    :: rs_grids => NULL()
+      TYPE(gridlevel_info_type), POINTER          :: gridlevel_info => NULL()
+      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info => NULL()
+      TYPE(pw_poisson_type), POINTER              :: poisson_env => NULL()
+      TYPE(section_vals_type), POINTER            :: interp_section => NULL()
       ! store current cell, used to rebuild lazily.
       REAL(KIND=dp), DIMENSION(3, 3)          :: cell_hmat = -1.0_dp
    END TYPE pw_env_type
@@ -111,7 +111,7 @@ CONTAINS
    SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info, &
                          auxbas_pw_pool, auxbas_grid, auxbas_rs_desc, auxbas_rs_grid, rs_descs, rs_grids, &
                          xc_pw_pool, vdw_pw_pool, poisson_env, interp_section)
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pw_pools
       TYPE(cube_info_type), DIMENSION(:), OPTIONAL, &
@@ -129,7 +129,6 @@ CONTAINS
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: interp_section
 
-      CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(pw_env%ref_count > 0)
       IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
       IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
@@ -160,9 +159,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_env_retain(pw_env)
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_env_type), INTENT(INOUT)                   :: pw_env
 
-      CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(pw_env%ref_count > 0)
       pw_env%ref_count = pw_env%ref_count + 1
    END SUBROUTINE pw_env_retain

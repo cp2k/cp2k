@@ -43,58 +43,20 @@ MODULE virial_types
                                         pv_nlcc = 0.0_dp, &
                                         pv_gapw = 0.0_dp, &
                                         pv_lrigpw = 0.0_dp
-      LOGICAL                        :: pv_availability, &
-                                        pv_calculate, &
-                                        pv_numer, &
-                                        pv_diagonal
+      LOGICAL                        :: pv_availability = .FALSE., &
+                                        pv_calculate = .FALSE., &
+                                        pv_numer = .FALSE., &
+                                        pv_diagonal = .FALSE.
    END TYPE virial_type
 
    TYPE virial_p_type
-      TYPE(virial_type), POINTER     :: virial
+      TYPE(virial_type), POINTER     :: virial => NULL()
    END TYPE virial_p_type
 
-   PUBLIC :: cp_virial, virial_set, &
+   PUBLIC :: virial_set, &
              symmetrize_virial, zero_virial
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief   copy virial_in into virial_out
-!> \param virial_in ...
-!> \param virial_out ...
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE cp_virial(virial_in, virial_out)
-      TYPE(virial_type), INTENT(IN)                      :: virial_in
-      TYPE(virial_type), INTENT(INOUT)                   :: virial_out
-
-      virial_out%pv_total = virial_in%pv_total
-      virial_out%pv_kinetic = virial_in%pv_kinetic
-      virial_out%pv_virial = virial_in%pv_virial
-      virial_out%pv_xc = virial_in%pv_xc
-      virial_out%pv_fock_4c = virial_in%pv_fock_4c
-      virial_out%pv_constraint = virial_in%pv_constraint
-
-      virial_out%pv_overlap = virial_in%pv_overlap
-      virial_out%pv_ekinetic = virial_in%pv_ekinetic
-      virial_out%pv_ppl = virial_in%pv_ppl
-      virial_out%pv_ppnl = virial_in%pv_ppnl
-      virial_out%pv_ecore_overlap = virial_in%pv_ecore_overlap
-      virial_out%pv_ehartree = virial_in%pv_ehartree
-      virial_out%pv_exc = virial_in%pv_exc
-      virial_out%pv_exx = virial_in%pv_exx
-      virial_out%pv_vdw = virial_in%pv_vdw
-      virial_out%pv_mp2 = virial_in%pv_mp2
-      virial_out%pv_nlcc = virial_in%pv_nlcc
-      virial_out%pv_gapw = virial_in%pv_gapw
-      virial_out%pv_lrigpw = virial_in%pv_lrigpw
-
-      virial_out%pv_availability = virial_in%pv_availability
-      virial_out%pv_calculate = virial_in%pv_calculate
-      virial_out%pv_numer = virial_in%pv_numer
-      virial_out%pv_diagonal = virial_in%pv_diagonal
-
-   END SUBROUTINE cp_virial
 
 ! **************************************************************************************************
 !> \brief   Symmetrize the virial components
