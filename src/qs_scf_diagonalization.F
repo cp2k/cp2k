@@ -1641,7 +1641,8 @@ CONTAINS
                                      scf_env%block_davidson_env(1)%prec_type, &
                                      scf_env%block_davidson_env(1)%solver_type, &
                                      scf_env%block_davidson_env(1)%energy_gap, nspins, &
-                                     convert_to_dbcsr=scf_env%block_davidson_env(1)%use_sparse_mos)
+                                     convert_to_dbcsr=scf_env%block_davidson_env(1)%use_sparse_mos, &
+                                     full_mo_set=.TRUE.)
       END IF
 
       DO ispin = 1, nspins

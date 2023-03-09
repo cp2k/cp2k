@@ -16,7 +16,13 @@ MODULE preconditioner
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
@@ -45,7 +51,8 @@ MODULE preconditioner
                                               qs_environment_type
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+                                              mo_set_type,&
+                                              set_mo_set
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -106,20 +113,22 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner'
 
-      INTEGER                                            :: handle, k, my_solver_type
+      INTEGER                                            :: handle, k, my_solver_type, nao, nhomo
       LOGICAL                                            :: my_convert_precond_to_dbcsr, &
                                                             needs_full_spectrum, needs_homo, &
                                                             use_mo_coeff_b
       REAL(KIND=dp)                                      :: energy_homo
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_ot
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_ot
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: mo_occ
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
 
       CALL timeset(routineN, handle)
 
-      CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
+      CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, homo=nhomo)
       use_mo_coeff_b = mo_set%use_mo_coeff_b
-      CALL cp_fm_get_info(mo_coeff, ncol_global=k)
+      CALL cp_fm_get_info(mo_coeff, ncol_global=k, nrow_global=nao)
 
       ! Starting some matrix mess, check where to store the result in preconditioner_env, fm or dbcsr_matrix
       my_convert_precond_to_dbcsr = .FALSE.
@@ -152,9 +161,9 @@ CONTAINS
          CPABORT("The preconditioner is unknown ...")
       END SELECT
 
+      ALLOCATE (eigenvalues_ot(k))
       energy_homo = 0.0_dp
       IF (needs_full_spectrum) THEN
-         ALLOCATE (eigenvalues_ot(k))
          ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
          !                  the case of non-equivalent MOs but also for the derivate
          ! we could already have all eigenvalues e.g. full_all and we could skip this
@@ -170,7 +179,10 @@ CONTAINS
             CALL calculate_subspace_eigenvalues(mo_coeff, matrix_h, &
                                                 eigenvalues_ot, do_rotation=.FALSE.)
          END IF
-         IF (k > 0) energy_homo = eigenvalues_ot(k)
+         IF (k > 0) THEN
+            CPASSERT(nhomo > 0 .AND. nhomo <= k)
+            energy_homo = eigenvalues_ot(nhomo)
+         END IF
       ELSE
          IF (needs_homo) THEN
             CPABORT("Not yet implemented")
@@ -183,16 +195,24 @@ CONTAINS
       my_solver_type = solver_type
       preconditioner_env%in_use = precon_type
       preconditioner_env%cholesky_use = cholesky_reduce
-!dbg
-!      write(*,*) PRESENT(chol_type)
-!      IF(PRESENT(chol_type))  write(*,*) chol_type, cholesky_reduce
-!      stop
-!dbg
       IF (PRESENT(chol_type)) preconditioner_env%cholesky_use = chol_type
       preconditioner_env%in_use = precon_type
-      CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
-                                      energy_homo, eigenvalues_ot, energy_gap, &
-                                      my_solver_type)
+      IF (nhomo == k) THEN
+         CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
+                                         energy_homo, eigenvalues_ot, energy_gap, my_solver_type)
+      ELSE
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nhomo, &
+                                  context=preconditioner_env%ctxt, &
+                                  para_env=preconditioner_env%para_env)
+         CALL cp_fm_create(mo_occ, fm_struct)
+         CALL cp_fm_to_fm(mo_coeff, mo_occ, nhomo)
+         CALL cp_fm_struct_release(fm_struct)
+         !
+         CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_occ, &
+                                         energy_homo, eigenvalues_ot(1:nhomo), energy_gap, my_solver_type)
+         !
+         CALL cp_fm_release(mo_occ)
+      END IF
 
       CALL solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, matrix_h)
 
@@ -206,9 +226,7 @@ CONTAINS
                                    preconditioner_env%para_env, preconditioner_env%ctxt)
       END IF
 
-      IF (needs_full_spectrum) THEN
-         DEALLOCATE (eigenvalues_ot)
-      END IF
+      DEALLOCATE (eigenvalues_ot)
 
       CALL timestop(handle)
 
@@ -282,14 +300,15 @@ CONTAINS
 !> \param has_unit_metric ...
 !> \param convert_to_dbcsr ...
 !> \param chol_type ...
+!> \param full_mo_set ...
 ! **************************************************************************************************
    SUBROUTINE prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, &
                                      ot_preconditioner, prec_type, solver_type, &
                                      energy_gap, nspins, has_unit_metric, &
-                                     convert_to_dbcsr, chol_type)
+                                     convert_to_dbcsr, chol_type, full_mo_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
       INTEGER, INTENT(IN)                                :: prec_type, solver_type
@@ -297,13 +316,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       LOGICAL, INTENT(IN), OPTIONAL                      :: has_unit_metric, convert_to_dbcsr
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
+      LOGICAL, INTENT(IN), OPTIONAL                      :: full_mo_set
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner'
 
       CHARACTER(LEN=default_string_length)               :: msg
       INTEGER                                            :: handle, icall, ispin, n_loops
+      INTEGER, DIMENSION(5)                              :: nocc, norb
       LOGICAL                                            :: do_co_rotate, my_convert_to_dbcsr, &
-                                                            my_has_unit_metric, use_mo_coeff_b
+                                                            my_full_mo_set, my_has_unit_metric, &
+                                                            use_mo_coeff_b
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic
@@ -317,6 +339,8 @@ CONTAINS
       IF (PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
       my_convert_to_dbcsr = .TRUE.
       IF (PRESENT(convert_to_dbcsr)) my_convert_to_dbcsr = convert_to_dbcsr
+      my_full_mo_set = .FALSE.
+      IF (PRESENT(full_mo_set)) my_full_mo_set = full_mo_set
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -336,6 +360,15 @@ CONTAINS
          matrix_t => kinetic(1)%matrix
       END IF
 
+      ! use full set of MOs or just occupied MOs
+      nocc = 0
+      norb = 0
+      IF (my_full_mo_set) THEN
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos(ispin), homo=nocc(ispin), nmo=norb(ispin))
+            CALL set_mo_set(mo_set=mos(ispin), homo=norb(ispin))
+         END DO
+      END IF
       !determines how often make preconditioner is called, spin dependent methods have to be called twice
       n_loops = 1
       IF (prec_type == ot_precond_full_single_inverse) n_loops = nspins
@@ -398,6 +431,13 @@ CONTAINS
             END IF
          END DO
       END SELECT
+
+      ! reset homo values
+      IF (my_full_mo_set) THEN
+         DO ispin = 1, nspins
+            CALL set_mo_set(mo_set=mos(ispin), homo=nocc(ispin))
+         END DO
+      END IF
 
       CALL timestop(handle)
 

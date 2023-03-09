@@ -368,25 +368,40 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix'
 
-      INTEGER                                            :: handle, ncol, nrow
+      INTEGER                                            :: handle, ncol, nocc, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: ksmat, scrv
 
       CALL timeset(routineN, handle)
 
+!     CALL cp_fm_get_info(matrix=mo_set%mo_coeff, ncol_global=ncol, nrow_global=nrow)
+!     CALL cp_fm_create(scrv, mo_set%mo_coeff%matrix_struct, "scr vectors")
+!     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
+!                              para_env=mo_set%mo_coeff%matrix_struct%para_env, &
+!                              context=mo_set%mo_coeff%matrix_struct%context)
+!     CALL cp_fm_create(ksmat, fm_struct_tmp, name="KS")
+!     CALL cp_fm_struct_release(fm_struct_tmp)
+!     CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mo_set%mo_coeff, scrv, ncol)
+!     CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mo_set%mo_coeff, scrv, 0.0_dp, ksmat)
+!     CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
+!     CALL dbcsr_set(w_matrix, 0.0_dp)
+!     CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=psi1, &
+!                                ncol=mo_set%homo, symmetry_mode=1)
+!     CALL cp_fm_release(scrv)
+!     CALL cp_fm_release(ksmat)
       CALL cp_fm_get_info(matrix=mo_set%mo_coeff, ncol_global=ncol, nrow_global=nrow)
+      nocc = mo_set%homo
       CALL cp_fm_create(scrv, mo_set%mo_coeff%matrix_struct, "scr vectors")
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nocc, ncol_global=nocc, &
                                para_env=mo_set%mo_coeff%matrix_struct%para_env, &
                                context=mo_set%mo_coeff%matrix_struct%context)
       CALL cp_fm_create(ksmat, fm_struct_tmp, name="KS")
       CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mo_set%mo_coeff, scrv, ncol)
-      CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mo_set%mo_coeff, scrv, 0.0_dp, ksmat)
-      CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
+      CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mo_set%mo_coeff, scrv, nocc)
+      CALL parallel_gemm("T", "N", nocc, nocc, nrow, 1.0_dp, mo_set%mo_coeff, scrv, 0.0_dp, ksmat)
+      CALL parallel_gemm("N", "N", nrow, nocc, nocc, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
       CALL dbcsr_set(w_matrix, 0.0_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=psi1, &
-                                 ncol=mo_set%homo, symmetry_mode=1)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=psi1, ncol=nocc, symmetry_mode=1)
       CALL cp_fm_release(scrv)
       CALL cp_fm_release(ksmat)
 
@@ -401,15 +416,17 @@ CONTAINS
 !> \param hzm ...
 !> \param w_matrix sparse matrix
 !> \param focc ...
+!> \param nocc ...
 !> \par History
 !>               adapted from calculate_w_matrix_1
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE calculate_whz_matrix(c0vec, hzm, w_matrix, focc)
+   SUBROUTINE calculate_whz_matrix(c0vec, hzm, w_matrix, focc, nocc)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: c0vec
       TYPE(dbcsr_type), POINTER                          :: hzm, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: focc
+      INTEGER, INTENT(IN)                                :: nocc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_matrix'
 
@@ -424,6 +441,8 @@ CONTAINS
 
       CALL cp_fm_create(hcvec, c0vec%matrix_struct, "hcvec")
       CALL cp_fm_get_info(hcvec, matrix_struct=fm_struct, nrow_global=nao, ncol_global=norb)
+      CPASSERT(nocc <= norb .AND. nocc > 0)
+      norb = nocc
       CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb, &
                                ncol_global=norb, para_env=fm_struct%para_env)
       CALL cp_fm_create(chcmat, fm_struct_mat)

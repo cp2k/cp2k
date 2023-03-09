@@ -199,6 +199,9 @@ CONTAINS
 !> \brief scf loop to optimize the first order wavefunctions (psi1)
 !>      given a perturbation as an operator applied to the ground
 !>      state orbitals (h1_psi0)
+!>      psi1 is defined wrt psi0_order (can be a subset of the occupied space)
+!>      The reference ground state is defined through qs_env (density and ground state MOs)
+!>      psi1 is orthogonal to the occupied orbitals in the ground state MO set (qs_env%mos)
 !> \param p_env ...
 !> \param qs_env ...
 !> \param psi1 ...
@@ -219,8 +222,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'linres_solver'
 
-      INTEGER                                            :: handle, ispin, iter, maxnmo, maxnmo_o, &
-                                                            nao, ncol, nmo, nspins
+      INTEGER                                            :: handle, ispin, iter, maxnmo, nao, ncol, &
+                                                            nmo, nocc, nspins
       LOGICAL                                            :: restart
       REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
@@ -253,25 +256,18 @@ CONTAINS
                       mos=mos)
 
       nspins = dft_control%nspins
-      CALL get_mo_set(mos(1), nao=nao)
+      CALL cp_fm_get_info(psi1(1), nrow_global=nao)
       maxnmo = 0
-      maxnmo_o = 0
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), nmo=ncol)
+         CALL cp_fm_get_info(psi1(ispin), ncol_global=ncol)
          maxnmo = MAX(maxnmo, ncol)
-         CALL cp_fm_get_info(psi0_order(ispin), ncol_global=ncol)
-         maxnmo_o = MAX(maxnmo_o, ncol)
       END DO
       !
       CALL check_p_env_init(p_env, linres_control, nspins)
       !
       ! allocate the vectors
       ALLOCATE (tr_pAp(nspins), tr_rz0(nspins), tr_rz00(nspins), tr_rz1(nspins), &
-                r(nspins), p(nspins), z(nspins), Ap(nspins), mo_coeff_array(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-         mo_coeff_array(ispin) = mo_coeff
-      END DO
+                r(nspins), p(nspins), z(nspins), Ap(nspins))
       !
       DO ispin = 1, nspins
          CALL cp_fm_create(r(ispin), psi1(ispin)%matrix_struct)
@@ -280,11 +276,24 @@ CONTAINS
          CALL cp_fm_create(Ap(ispin), psi1(ispin)%matrix_struct)
       END DO
       !
-      ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
-      ALLOCATE (chc(nspins), Sc(nspins))
+      ! build C0 occupied vectors and S*C0 matrix
+      ALLOCATE (Sc(nspins), mo_coeff_array(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
-         CALL cp_fm_create(Sc(ispin), mo_coeff%matrix_struct)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+         NULLIFY (tmp_fm_struct)
+         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
+                                  ncol_global=nocc, para_env=para_env, &
+                                  context=mo_coeff%matrix_struct%context)
+         CALL cp_fm_create(mo_coeff_array(ispin), tmp_fm_struct)
+         CALL cp_fm_to_fm(mo_coeff, mo_coeff_array(ispin), nocc)
+         CALL cp_fm_create(Sc(ispin), tmp_fm_struct)
+         CALL cp_fm_struct_release(tmp_fm_struct)
+      END DO
+      !
+      ! Allocate C0_order'*H*C0_order
+      ALLOCATE (chc(nspins))
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(psi1(ispin), ncol_global=nmo)
          NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, &
@@ -305,9 +314,8 @@ CONTAINS
          END ASSOCIATE
          !
          ! S * C0
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-         CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, Sc(ispin), ncol)
+         CALL cp_fm_get_info(mo_coeff_array(ispin), ncol_global=ncol)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff_array(ispin), Sc(ispin), ncol)
       END DO
       !
       ! header
@@ -384,7 +392,7 @@ CONTAINS
          CALL cp_fm_trace(r(ispin), z(ispin), tr_rz0(ispin))
       END DO
       IF (SUM(tr_rz0) < 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
-      norm_res = ABS(SUM(tr_rz0))/SQRT(REAL(nspins*nao*maxnmo_o, dp))
+      norm_res = ABS(SUM(tr_rz0))/SQRT(REAL(nspins*nao*maxnmo, dp))
       !
       alpha = 0.0_dp
       restart = .FALSE.
@@ -463,7 +471,6 @@ CONTAINS
             CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc)
             !
             DO ispin = 1, nspins
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
                CALL cp_fm_to_fm(h1_psi0(ispin), r(ispin))
                CALL cp_fm_scale_and_add(-1.0_dp, r(ispin), -1.0_dp, Ap(ispin))
             END DO
@@ -506,7 +513,7 @@ CONTAINS
             CALL cp_fm_trace(r(ispin), z(ispin), tr_rz1(ispin))
          END DO
          IF (SUM(tr_rz1) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
-         norm_res = SUM(tr_rz1)/SQRT(REAL(nspins*nao*maxnmo_o, dp))
+         norm_res = SUM(tr_rz1)/SQRT(REAL(nspins*nao*maxnmo, dp))
          !
          ! beta = tr(r_j+1*z_j+1) / tr(r_j*z_j)
          IF (SUM(tr_rz0) < 1.0e-10_dp) THEN
@@ -539,6 +546,7 @@ CONTAINS
          CALL cp_fm_release(z(ispin))
          CALL cp_fm_release(Ap(ispin))
          !
+         CALL cp_fm_release(mo_coeff_array(ispin))
          CALL cp_fm_release(Sc(ispin))
          CALL cp_fm_release(chc(ispin))
       END DO
@@ -565,7 +573,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, ispin, nc1, nc2, nc3, nc4, nr1, &
+                                                            nr2, nr3, nr4, nspins
       REAL(dp)                                           :: chksum
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -582,6 +591,19 @@ CONTAINS
                       linres_control=linres_control)
 
       nspins = dft_control%nspins
+
+      DO ispin = 1, nspins
+         !c0, v, Av, chc
+         CALL cp_fm_get_info(c0(ispin), ncol_global=nc1, nrow_global=nr1)
+         CALL cp_fm_get_info(v(ispin), ncol_global=nc2, nrow_global=nr2)
+         CALL cp_fm_get_info(Av(ispin), ncol_global=nc3, nrow_global=nr3)
+         CALL cp_fm_get_info(chc(ispin), ncol_global=nc4, nrow_global=nr4)
+         IF (.NOT. (nc1 == nc2 .AND. nr1 == nr2 .AND. nc1 == nc3 .AND. nr1 == nr3 &
+                    .AND. nc4 == nr4 .AND. nc1 <= nc4)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Number of vectors inconsistent or CHC matrix too small")
+         END IF
+      END DO
 
       ! apply the uncoupled operator
       DO ispin = 1, nspins
