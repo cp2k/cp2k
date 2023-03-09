@@ -16,7 +16,7 @@
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 400
+      CUTOFF 250
     &END MGRID
     &QS
       METHOD GAPW
@@ -63,9 +63,9 @@
       PERIODIC NONE
     &END
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+O          0.00000        0.00000        0.11779
+H          0.00000        0.75545       -0.47116
+H          0.00000       -0.75545       -0.47116
     &END COORD
     &TOPOLOGY
      &CENTER_COORDINATES

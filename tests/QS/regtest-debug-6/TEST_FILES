@@ -8,14 +8,14 @@ h2o_check2.inp                                         82      1e-06            
 #
 h2o_dip40.inp                                           0
 h2o_dip41.inp                                           0
-#h2o_dip42.inp                                           0
+h2o_dip42.inp                                           0
 h2o_dip43.inp                                           0
 ch2o_dip44.inp                                          0
-#ch2o_dip45.inp                                          0
+ch2o_dip45.inp                                          0
 h2o_xc_dip40.inp                                        0
 h2o_xc_dip41.inp                                        0
-#h2o_xc_dip42.inp                                        0
+h2o_xc_dip42.inp                                        0
 h2o_xc_dip43.inp                                        0
 ch2o_xc_dip44.inp                                       0
-#ch2o_xc_dip45.inp                                       0
+ch2o_xc_dip45.inp                                       0
 #EOF

@@ -896,8 +896,8 @@ CONTAINS
             ALLOCATE (vxc_h(na, nr, nspins), vxc_s(na, nr, nspins))
             IF (gradient_f) THEN
                ALLOCATE (drho_h(4, na, nr, nspins), drho_s(4, na, nr, nspins), &
-                         drho0_h(3, na, nr, nspins), drho0_s(3, na, nr, nspins), &
-                         drho1_h(3, na, nr, nspins), drho1_s(3, na, nr, nspins))
+                         drho0_h(4, na, nr, nspins), drho0_s(4, na, nr, nspins), &
+                         drho1_h(4, na, nr, nspins), drho1_s(4, na, nr, nspins))
                ALLOCATE (vxg_h(3, na, nr, nspins), vxg_s(3, na, nr, nspins))
             END IF
             IF (tau_f) THEN
