@@ -468,7 +468,7 @@ CONTAINS
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="
                WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") 'DIPOLE : CheckSum  =', SUM(dipole_moment)
-               IF (ANY(ABS(err(1:3)) > 0.1_dp)) THEN
+               IF (ANY(ABS(err(1:3)) > maxerr/10._dp)) THEN
                   message = "A mismatch between analytical and numerical dipoles "// &
                             "has been detected. Check the implementation of the "// &
                             "analytical dipole calculation"

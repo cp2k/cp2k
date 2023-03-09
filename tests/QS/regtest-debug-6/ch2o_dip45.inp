@@ -4,7 +4,7 @@
     &TDDFPT
        KERNEL FULL
        &XC
-         &XC_FUNCTIONAL PBE
+         &XC_FUNCTIONAL PADE
          &END XC_FUNCTIONAL
        &END XC
        NSTATES      1
@@ -16,7 +16,7 @@
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 400
+      CUTOFF 250
     &END MGRID
     &QS
       METHOD GAPW
@@ -43,7 +43,7 @@
       EPS_SCF 1.0E-7
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
     &PRINT
