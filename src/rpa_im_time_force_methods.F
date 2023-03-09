@@ -34,11 +34,13 @@ MODULE rpa_im_time_force_methods
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_update_local_counts
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_clear, dbcsr_complete_redistribute, dbcsr_copy, &
@@ -2092,7 +2094,7 @@ CONTAINS
       REAL(dp)                                           :: focc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos, mo_occ
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_p_work, matrix_p_mp2, &
                                                             matrix_p_mp2_admm, matrix_s, &
@@ -2174,12 +2176,17 @@ CONTAINS
 
       ! Preparing the RHS of the z-vector equation
       CALL prepare_for_response(force_data, qs_env)
-      ALLOCATE (cpmos(nspins))
+      ALLOCATE (cpmos(nspins), mo_occ(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, homo=nocc)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                  template_fmstruct=mo_coeff%matrix_struct)
          CALL cp_fm_create(cpmos(ispin), fm_struct)
          CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
+         CALL cp_fm_create(mo_occ(ispin), fm_struct)
+         CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
+         CALL cp_fm_struct_release(fm_struct)
       END DO
 
       ! in case of EXX, need to add the HF Hamiltonian to the RHS of the Z-vector equation
@@ -2195,7 +2202,7 @@ CONTAINS
       IF (nspins == 1) focc = 4.0_dp
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
-         CALL cp_dbcsr_sm_fm_multiply(force_data%sum_O_tau(ispin)%matrix, mo_coeff, &
+         CALL cp_dbcsr_sm_fm_multiply(force_data%sum_O_tau(ispin)%matrix, mo_occ(ispin), &
                                       cpmos(ispin), nocc, &
                                       alpha=focc, beta=0.0_dp)
       END DO
@@ -2247,8 +2254,9 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL cp_fm_release(cpmos(ispin))
+         CALL cp_fm_release(mo_occ(ispin))
       END DO
-      DEALLOCATE (cpmos)
+      DEALLOCATE (cpmos, mo_occ)
       CALL p_env_release(p_env)
       DEALLOCATE (p_env)
 
