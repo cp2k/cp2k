@@ -32,4 +32,6 @@ N2_t12.inp                                            11      1e-12             
 N2_t13.inp                                            11      1e-12                -19.903137808157719
 # PBE0-ADMM-DEFAULT - PBE w/ Harris basis
 N2_t14.inp                                            11      5e-10                -19.927232210625430
+# PADE - PBE | ADDED_MOS
+N2_t15.inp                                            11      2e-11                -19.920044180327544
 #EOF
