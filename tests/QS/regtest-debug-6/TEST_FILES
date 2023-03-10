@@ -12,10 +12,14 @@ h2o_dip42.inp                                           0
 h2o_dip43.inp                                           0
 ch2o_dip44.inp                                          0
 ch2o_dip45.inp                                          0
+ch2o_dip46.inp                                          0
+ch2o_dip47.inp                                          0
 h2o_xc_dip40.inp                                        0
 h2o_xc_dip41.inp                                        0
 h2o_xc_dip42.inp                                        0
 h2o_xc_dip43.inp                                        0
 ch2o_xc_dip44.inp                                       0
 ch2o_xc_dip45.inp                                       0
+ch2o_xc_dip46.inp                                       0
+ch2o_xc_dip47.inp                                       0
 #EOF
