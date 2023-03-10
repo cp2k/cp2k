@@ -36,7 +36,6 @@ MODULE response_solver
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_init_random,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -179,14 +178,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_calculation'
 
       INTEGER                                            :: handle, homo, ispin, nao, nao_aux, nmo, &
-                                                            nspins, solver_method, unit_nr
+                                                            nocc, nspins, solver_method, unit_nr
       LOGICAL                                            :: should_stop
       REAL(KIND=dp)                                      :: focc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: sv
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cpmos, mo_occ
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux, rho_ao
@@ -347,23 +346,31 @@ CONTAINS
          ! Sign is changed in linres_solver!
          ! Projector Q applied in linres_solver!
          CALL get_qs_env(qs_env, mos=mos)
-         ALLOCATE (cpmos(nspins))
+         ALLOCATE (cpmos(nspins), mo_occ(nspins))
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-            CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                     template_fmstruct=mo_coeff%matrix_struct)
             CALL cp_fm_create(cpmos(ispin), fm_struct)
             CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
+            CALL cp_fm_create(mo_occ(ispin), fm_struct)
+            CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
+            CALL cp_fm_struct_release(fm_struct)
          END DO
 
          focc = 2.0_dp
          IF (nspins == 1) focc = 4.0_dp
          DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
-            CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_coeff, &
-                                         cpmos(ispin), nmo, &
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+            CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_occ(ispin), &
+                                         cpmos(ispin), nocc, &
                                          alpha=focc, beta=0.0_dp)
          END DO
+         DO ispin = 1, nspins
+            CALL cp_fm_release(mo_occ(ispin))
+         END DO
+         DEALLOCATE (mo_occ)
 
          CALL response_equation_new(qs_env, p_env, cpmos, unit_nr)
 
