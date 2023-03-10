@@ -627,7 +627,8 @@ download_pkg_from_cp2k_org() {
   local __filename="$2"
   local __url="https://www.cp2k.org/static/downloads/$__filename"
   # download
-  if ! wget --quiet $__url; then
+  echo "wget ${DOWNLOADER_FLAGS} --quiet $__url"
+  if ! wget ${DOWNLOADER_FLAGS} --quiet $__url; then
     report_error "failed to download $__url"
     return 1
   fi

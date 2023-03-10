@@ -392,7 +392,7 @@ while [ $# -ge 1 ]; do
       export NPROCS_OVERWRITE="${1#-j}"
       ;;
     --no-check-certificate)
-      export DOWNLOADER_FLAGS="-n"
+      export DOWNLOADER_FLAGS="--no-check-certificate"
       ;;
     --install-all)
       # set all package to the default installation status
