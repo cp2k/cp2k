@@ -34,4 +34,8 @@ N2_t14.inp                                            11      1e-12             
 N2_t15.inp                                            11      1e-12                -19.894462675351377
 # HFX-ADMM-DEFAULT - PBE AO solver
 N2_t16.inp                                            11      1e-12                -19.894473078176457
+# LDA - PBE | ADDED_MOS MO solver
+N2_t17.inp                                            11      2e-11                -19.917073388683157
+# LDA - PBE | ADDED_MOS AO solver
+N2_t18.inp                                            11      2e-11                -19.917073435881086
 #EOF
