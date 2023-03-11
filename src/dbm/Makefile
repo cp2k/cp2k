@@ -56,7 +56,7 @@ ALL_OBJECTS := ../offload/offload_library.o \
 ifneq ($(NVCC),)
 LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
-ALL_OBJECTS += dbm_multiply_gpu.o
+ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_gpu_kernel.o
 
 %.o: %.cu $(ALL_HEADERS)
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)

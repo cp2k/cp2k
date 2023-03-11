@@ -73,7 +73,7 @@ static void dbm_dist_1d_free(dbm_dist_1d_t *dist) {
 static inline int imax(int x, int y) { return (x > y ? x : y); }
 
 /*******************************************************************************
- * \brief Private routine for TODO
+ * \brief Private routine for finding the optimal number of shard rows.
  * \author Ole Schuett
  ******************************************************************************/
 static int find_best_nrow_shards(const int nshards, const int nrows,
