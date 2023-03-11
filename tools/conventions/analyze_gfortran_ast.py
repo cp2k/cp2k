@@ -31,7 +31,7 @@ def process_log_file(fhandle: TextIO) -> None:
     module_name = None
 
     cur_sym = cur_proc = cur_derived_type = cur_value = stat_var = stat_stm = None
-    skip_until_DT_END = False
+    skip_until_DT_END = inside_omp_parallel = False
 
     for line in fhandle:
         line = line.strip()
@@ -55,6 +55,7 @@ def process_log_file(fhandle: TextIO) -> None:
                 stat_var = stat_stm = None  # reset
 
         elif line.startswith("procedure name ="):
+            assert not inside_omp_parallel
             cur_proc = line.split("=")[1].strip()
             if not module_name:
                 module_name = cur_proc
@@ -63,9 +64,7 @@ def process_log_file(fhandle: TextIO) -> None:
             # Found new symbole, check default initializers of previous symbole.
             if cur_sym and cur_sym.startswith("__def_init_"):
                 assert cur_derived_type
-                if not cur_value or any(
-                    x in cur_value for x in [" () ", "(() ", " ())"]
-                ):
+                if any(x in (cur_value or "") for x in [" () ", "(() ", " ())"]):
                     msg(f"Found type {cur_derived_type} without initializer", 16)
 
             # Parse new symbole.
@@ -75,6 +74,7 @@ def process_log_file(fhandle: TextIO) -> None:
             match = re_symbol.match(line)
             assert match
             cur_sym = match.group(1)
+
         elif line.startswith("type spec"):
             # Only look for derived types because we want to check their initializers.
             match = re_derived_type.match(line)
@@ -118,8 +118,18 @@ def process_log_file(fhandle: TextIO) -> None:
                 public_symbols.add(module_name + "::" + cur_sym)
 
         elif line.startswith("!$OMP PARALLEL"):
+            assert not inside_omp_parallel
+            inside_omp_parallel = True
             if "DEFAULT(NONE)" not in line:
                 msg(f'OMP PARALLEL without DEFAULT(NONE) found in "{cur_proc}"', 6)
+
+        elif line.startswith("!$OMP END PARALLEL"):
+            assert inside_omp_parallel
+            inside_omp_parallel = False
+
+        elif line.startswith("ASSOCIATE") and inside_omp_parallel:
+            text = f'Found ASSOCIATE statement inside OMP PARALLEL region in procedure "{cur_proc}"'
+            msg(text, 8)
 
         elif line.startswith("CALL"):
             if "NULL()" in line:
@@ -167,10 +177,8 @@ def process_log_file(fhandle: TextIO) -> None:
             for m in re_conv.finditer(line):
                 args = parse_args(line[m.end() :])
                 if not re.match(r"\((kind = )?[48]\)", args[-1]):
-                    msg(
-                        f'Found lossy conversion {m.group(1)} without KIND argument in "{cur_proc}"',
-                        15,
-                    )
+                    text = f'Found lossy conversion {m.group(1)} without KIND argument in "{cur_proc}"'
+                    msg(text, 15)
 
     # check for run-away DT_END search
     assert skip_until_DT_END is False
