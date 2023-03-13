@@ -397,7 +397,6 @@ CONTAINS
                mo_array(ispin)%lfomo, &
                mo_array(ispin)%nelectron
             WRITE (ires) mo_array(ispin)%eigenvalues(1:nmo), &
-               mo_array(ispin)%uniform_occupation, &
                mo_array(ispin)%occupation_numbers(1:nmo)
          END IF
          IF (PRESENT(rt_mos)) THEN
@@ -666,8 +665,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nset_info, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, nshell_info
       INTEGER, DIMENSION(:, :, :), POINTER               :: nso_info, offset_info
-      LOGICAL                                            :: minbas, natom_match, uniform_occ_read, &
-                                                            use_this
+      LOGICAL                                            :: minbas, natom_match, use_this
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_read, occ_read
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer, vecbuffer_read
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -777,9 +775,8 @@ CONTAINS
                             "The number of MOs on the restart unit is greater than the number of "// &
                             "the allocated MOs. The read MO set will be truncated!")
 
-            READ (rst_unit) eig_read(1:nmo_read), uniform_occ_read, occ_read(1:nmo_read)
+            READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
             mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
-            mos(ispin)%uniform_occupation = uniform_occ_read
             mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
             DEALLOCATE (eig_read, occ_read)
 
@@ -804,7 +801,6 @@ CONTAINS
          CALL para_env%bcast(mos(ispin)%lfomo)
          CALL para_env%bcast(mos(ispin)%nelectron)
          CALL para_env%bcast(mos(ispin)%eigenvalues)
-         CALL para_env%bcast(mos(ispin)%uniform_occupation)
          CALL para_env%bcast(mos(ispin)%occupation_numbers)
 
          IF (PRESENT(rt_mos)) THEN

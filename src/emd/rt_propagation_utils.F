@@ -307,6 +307,8 @@ CONTAINS
       CASE (use_restart_wfn)
          CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                        id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
+         CALL set_uniform_occupation_mo_array(mo_array, nspin)
+
          DO ispin = 1, nspin
             CALL calculate_density_matrix(mo_array(ispin), p_rmpv(ispin)%matrix)
          END DO
@@ -378,6 +380,7 @@ CONTAINS
             CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
             CALL read_rt_mos_from_restart(mo_array, mos_old, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                           id_nr, dft_control%multiplicity, dft_section)
+            CALL set_uniform_occupation_mo_array(mo_array, nspin)
             DO ispin = 1, nspin
                CALL calculate_density_matrix(mo_array(ispin), &
                                              p_rmpv(ispin)%matrix)
@@ -386,6 +389,34 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE get_restart_wfn
+
+! **************************************************************************************************
+!> \brief Set mo_array(ispin)%uniform_occupation after a restart
+!> \param mo_array ...
+!> \param nspin ...
+!> \author Guillaume Le Breton (03.23)
+! **************************************************************************************************
+
+   SUBROUTINE set_uniform_occupation_mo_array(mo_array, nspin)
+
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
+      INTEGER                                            :: nspin
+
+      INTEGER                                            :: ispin, mo
+      LOGICAL                                            :: is_uniform
+
+      DO ispin = 1, nspin
+         is_uniform = .TRUE.
+         DO mo = 1, mo_array(ispin)%nmo
+            IF (mo_array(ispin)%occupation_numbers(mo) /= 0.0 .AND. &
+                mo_array(ispin)%occupation_numbers(mo) /= 1.0 .AND. &
+                mo_array(ispin)%occupation_numbers(mo) /= 2.0) &
+               is_uniform = .FALSE.
+         END DO
+         mo_array(ispin)%uniform_occupation = is_uniform
+      END DO
+
+   END SUBROUTINE set_uniform_occupation_mo_array
 
 ! **************************************************************************************************
 !> \brief calculates the density from the complex MOs and passes the density to
