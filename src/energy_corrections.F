@@ -2549,7 +2549,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_energy'
 
       INTEGER                                            :: handle, ispin, nspins
-      REAL(KIND=dp)                                      :: eband, trace
+      REAL(KIND=dp)                                      :: eband, efield, trace
 
       CALL timeset(routineN, handle)
 
@@ -2571,6 +2571,7 @@ CONTAINS
          END DO
          ec_env%eband = eband + ec_env%efield_nuclear
 
+         efield = ec_env%efield_nuclear + ec_env%efield_elec
          ! Add Harris functional "correction" terms
          ec_env%etotal = ec_env%eband + ec_env%ehartree + ec_env%exc - ec_env%vhxc + ec_env%edispersion
          IF (unit_nr > 0) THEN
@@ -2579,6 +2580,9 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc      ", ec_env%exc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Evhxc    ", ec_env%vhxc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
+            IF (ABS(efield) /= 0.0_dp) THEN
+               WRITE (unit_nr, '(T3,A,T56,F25.15)') "Efield   ", efield
+            END IF
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Harris Functional   ", ec_env%etotal
          END IF
 
@@ -2587,13 +2591,17 @@ CONTAINS
          ! Core hamiltonian energy
          CALL calculate_ptrace(ec_env%matrix_h, ec_env%matrix_p, ec_env%ecore, SIZE(ec_env%matrix_p, 1))
 
-         ec_env%etotal = ec_env%ecore + ec_env%ehartree + ec_env%exc + ec_env%edispersion &
-                         + ec_env%efield_elec + ec_env%efield_nuclear
+         ec_env%ecore = ec_env%ecore + ec_env%efield_nuclear
+         ec_env%etotal = ec_env%ecore + ec_env%ehartree + ec_env%exc + ec_env%edispersion
+         efield = ec_env%efield_nuclear + ec_env%efield_elec
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ecore    ", ec_env%ecore
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ehartree ", ec_env%ehartree
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc      ", ec_env%exc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
+            IF (ABS(efield) /= 0.0_dp) THEN
+               WRITE (unit_nr, '(T3,A,T56,F25.15)') "Efield   ", efield
+            END IF
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Energy Functional   ", ec_env%etotal
          END IF
 
@@ -2816,9 +2824,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-!deb
-      WRITE (6, *) "PROPERTIES START"
-!deb
       rlab(1) = "X"
       rlab(2) = "Y"
       rlab(3) = "Z"
@@ -3012,9 +3017,6 @@ CONTAINS
          END IF
 
       END IF
-!deb
-      WRITE (6, *) "PROPERTIES END"
-!deb
 
       CALL timestop(handle)
 

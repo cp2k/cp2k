@@ -29,8 +29,6 @@ MODULE ec_efield_local
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE ec_env_types,                    ONLY: energy_correction_type
-   USE input_constants,                 ONLY: ec_functional_dc,&
-                                              ec_functional_harris
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
@@ -239,25 +237,20 @@ CONTAINS
          END DO
 
          ! Handling of electronic efield energy contribution
-         ! Harris functional: Part of band structure energy T[P_out*F_KS]
-         ! DC-DFT : needs to be added here
-         SELECT CASE (ec_env%energy_functional)
-         CASE (ec_functional_harris)
-         CASE (ec_functional_dc)
-            ! Energy
-            NULLIFY (rho, matrix_p)
-            CALL get_qs_env(qs_env=qs_env, rho=rho)
-            CALL qs_rho_get(rho, rho_ao=matrix_p)
-            DO ispin = 1, SIZE(matrix_p)
-               DO idir = 1, 3
-                  CALL dbcsr_dot(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
-                  ener_field = ener_field + fieldpol(idir)*tmp
-               END DO
+         ! Harris/DC-DFT functional: Part of band structure energy T[P_out*F_KS]
+         ! Callculate here only for reference output
+         ! Energy
+         NULLIFY (rho, matrix_p)
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+         ener_field = 0.0_dp
+         DO ispin = 1, SIZE(matrix_p)
+            DO idir = 1, 3
+               CALL dbcsr_dot(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
+               ener_field = ener_field + fieldpol(idir)*tmp
             END DO
-            ec_env%efield_elec = ener_field
-         CASE DEFAULT
-            CPABORT("unknown energy correction")
-         END SELECT
+         END DO
+         ec_env%efield_elec = ener_field
       END IF
 
       ! forces from the efield contribution

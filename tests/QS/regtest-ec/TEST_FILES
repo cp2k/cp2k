@@ -59,4 +59,6 @@ H2O_KSH_AO_numdiag.inp                                31      1e-05             
 #
 N2_ec-hfx.inp                                         11      1e-10                 -19.8158435718
 N2_ec-hfx-admm.inp                                    11      1e-10                 -19.8434174973
+#
+harris.inp                                             0
 #EOF
