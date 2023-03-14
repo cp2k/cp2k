@@ -4,21 +4,26 @@
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
-#define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
-#define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d
-#define XFFTW_PLAN_GURU_DFT dfftw_plan_guru_dft
-#define XFFTW_EXECUTE_DFT dfftw_execute_dft
-#define XFFTW_DESTROY_PLAN dfftw_destroy_plan
-
 MODULE fftw3_lib
 
-   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
-                                              C_CHAR,&
-                                              C_INT,&
-                                              C_PTR
-   USE cp_files,                        ONLY: get_unit_number
-   USE fft_kinds,                       ONLY: dp
-   USE fft_plan,                        ONLY: fft_plan_type
+   USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
+                            C_CHAR, &
+                            C_INT, &
+                            C_PTR
+#if defined(__FFTW3)
+   USE ISO_C_BINDING, ONLY: C_DOUBLE, &
+                            C_DOUBLE_COMPLEX, &
+                            C_FLOAT, &
+                            C_FLOAT_COMPLEX, &
+                            C_FUNPTR, &
+                            C_INT32_T, &
+                            C_INTPTR_T, &
+                            C_NULL_CHAR, &
+                            C_SIZE_T
+#endif
+   USE cp_files, ONLY: get_unit_number
+   USE fft_kinds, ONLY: dp
+   USE fft_plan, ONLY: fft_plan_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -31,11 +36,7 @@ MODULE fftw3_lib
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
 
 #if defined ( __FFTW3 )
-#include "fftw3.f"
-   INTERFACE
-      SUBROUTINE fftw_cleanup() BIND(C, name="fftw_cleanup")
-      END SUBROUTINE
-   END INTERFACE
+#include "fftw3.f03"
 #endif
 
 CONTAINS
@@ -96,13 +97,16 @@ CONTAINS
 
 #if defined ( __FFTW3 )
       INTEGER                                  :: iunit, istat
+      INTEGER(KIND=C_INT)                      :: isuccess
       ! Write out FFTW3 wisdom to file (if we can)
       ! only the ionode updates the wisdom
       IF (ionode) THEN
          iunit = get_unit_number()
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
          IF (istat == 0) THEN
-            CALL fftw_export_wisdom_to_file(iunit)
+            isuccess = fftw_export_wisdom_to_filename(wisdom_file//C_NULL_CHAR)
+            IF (isuccess == 0) &
+               CPABORT("Error exporting wisdom to file "//wisdom_file)
             CLOSE (iunit)
          END IF
       END IF
@@ -124,7 +128,8 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
 
 #if defined ( __FFTW3 )
-      INTEGER                                  :: istat, isuccess, iunit
+      INTEGER                                  :: istat, iunit
+      INTEGER(KIND=C_INT) :: isuccess
       LOGICAL                                  :: exist
 
 !$    LOGICAL                                  :: mkl_is_safe
@@ -158,7 +163,9 @@ CONTAINS
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="OLD", FORM="FORMATTED", POSITION="REWIND", &
                ACTION="READ", IOSTAT=istat)
          IF (istat == 0) THEN
-            CALL fftw_import_wisdom_from_file(isuccess, iunit)
+            isuccess = fftw_import_wisdom_from_filename(wisdom_file//C_NULL_CHAR)
+            IF (isuccess == 0) &
+               CPABORT("Error importing wisdom from file "//wisdom_file)
             ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
             CLOSE (iunit)
          END IF
@@ -436,20 +443,25 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(C_PTR), INTENT(INOUT)                         :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
                              hm_n(2), hm_istride(2), hm_ostride(2), fft_rank, &
                              fft_direction, fftw_plan_type, hm_rank
       LOGICAL, INTENT(OUT)                               :: valid
 
 #if defined (__FFTW3)
+      TYPE(fftw_iodim) :: dim(2), hm(2)
+      INTEGER :: i
 
-      CALL XFFTW_PLAN_GURU_DFT(plan, fft_rank, &
-                               dim_n, dim_istride, dim_ostride, &
-                               hm_rank, hm_n, hm_istride, hm_ostride, &
-                               zin, zout, &
-                               fft_direction, fftw_plan_type)
+      DO i = 1, 2
+         DIM(i) = fftw_iodim(dim_n(i), dim_istride(i), dim_ostride(i))
+         hm(i) = fftw_iodim(hm_n(i), hm_istride(i), hm_ostride(i))
+      END DO
+
+      plan = fftw_plan_guru_dft(fft_rank, &
+                                dim, hm_rank, hm, &
+                                zin, zout, &
+                                fft_direction, fftw_plan_type)
 
       valid = C_ASSOCIATED(plan)
 
@@ -510,7 +522,7 @@ CONTAINS
                                   zin, zin, &
                                   FFTW_FORWARD, FFTW_ESTIMATE, guru_supported)
       IF (guru_supported) THEN
-         CALL XFFTW_DESTROY_PLAN(test_plan)
+         CALL fftw_destroy_plan(test_plan)
          is_mkl = .FALSE.
       ELSE
          is_mkl = .TRUE.
@@ -687,12 +699,12 @@ CONTAINS
          ! so plan a single 3D FFT which will execute using all the threads
 
          plan%separated_plans = .FALSE.
-!$       CALL XFFTW_PLAN_WITH_NTHREADS(nt)
+!$       CALL fftw_plan_with_nthreads(nt)
 
          IF (plan%fft_in_place) THEN
-            CALL XFFTW_PLAN_DFT_3D(plan%fftw_plan, n1, n2, n3, zin, zin, fft_direction, fftw_plan_type)
+            plan%fftw_plan = fftw_plan_dft_3d(n3, n2, n1, zin, zin, fft_direction, fftw_plan_type)
          ELSE
-            CALL XFFTW_PLAN_DFT_3D(plan%fftw_plan, n1, n2, n3, zin, zout, fft_direction, fftw_plan_type)
+            plan%fftw_plan = fftw_plan_dft_3d(n3, n2, n1, zin, zout, fft_direction, fftw_plan_type)
          END IF
       ELSE
          ALLOCATE (tmp(n1*n2*n3))
@@ -829,8 +841,8 @@ CONTAINS
             i_off = (tid)*(istride*(rows_per_thread)) + 1
             o_off = (tid)*(ostride*(rows_per_thread)) + 1
             IF (rows_per_thread .GT. 0) THEN
-               CALL XFFTW_EXECUTE_DFT(plan, input(i_off), &
-                                      output(o_off))
+               CALL fftw_execute_dft(plan, input(i_off), &
+                                     output(o_off))
             END IF
          ELSE IF ((tid - th_planA) < th_planB) THEN
 
@@ -839,16 +851,16 @@ CONTAINS
             o_off = (th_planA)*ostride*(rows_per_thread) + &
                     (tid - th_planA)*ostride*(rows_per_thread_r) + 1
 
-            CALL XFFTW_EXECUTE_DFT(plan_r, input(i_off), &
-                                   output(o_off))
+            CALL fftw_execute_dft(plan_r, input(i_off), &
+                                  output(o_off))
          END IF
 
       ELSE
          i_off = (tid)*(istride*(rows_per_thread)) + 1
          o_off = (tid)*(ostride*(rows_per_thread)) + 1
 
-         CALL XFFTW_EXECUTE_DFT(plan, input(i_off), &
-                                output(o_off))
+         CALL fftw_execute_dft(plan, input(i_off), &
+                               output(o_off))
 
       END IF
 #else
@@ -904,7 +916,7 @@ CONTAINS
 
       ! Either compute the full 3D FFT using a multithreaded plan
       IF (.NOT. plan%separated_plans) THEN
-         CALL XFFTW_EXECUTE_DFT(plan%fftw_plan, zin, xout)
+         CALL fftw_execute_dft(plan%fftw_plan, zin, xout)
       ELSE
          ! Or use the 3 stage FFT scheme described in fftw3_create_plan_3d
          ALLOCATE (tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
@@ -1068,20 +1080,20 @@ CONTAINS
 
 #if defined ( __FFTW3 )
 !$    IF (plan%need_alt_plan) THEN
-!$       CALL XFFTW_DESTROY_PLAN(plan%alt_fftw_plan)
+!$       CALL fftw_destroy_plan(plan%alt_fftw_plan)
 !$    END IF
 
       IF (.NOT. plan%separated_plans) THEN
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan)
+         CALL fftw_destroy_plan(plan%fftw_plan)
       ELSE
          ! If it is a separated plan then we have to destroy
          ! each dim plan individually
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx)
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny)
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz)
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nx_r)
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_ny_r)
-         CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz_r)
+         CALL fftw_destroy_plan(plan%fftw_plan_nx)
+         CALL fftw_destroy_plan(plan%fftw_plan_ny)
+         CALL fftw_destroy_plan(plan%fftw_plan_nz)
+         CALL fftw_destroy_plan(plan%fftw_plan_nx_r)
+         CALL fftw_destroy_plan(plan%fftw_plan_ny_r)
+         CALL fftw_destroy_plan(plan%fftw_plan_nz_r)
       END IF
 
 #else
@@ -1171,115 +1183,5 @@ CONTAINS
 !$OMP END PARALLEL
 
       END SUBROUTINE fftw31dm
-
-!     Copyright (c) 2003, 2006 Matteo Frigo
-!     Copyright (c) 2003, 2006 Massachusetts Institute of Technology
-!
-!     This program is free software; you can redistribute it and/or modify
-!     it under the terms of the GNU General Public License as published by
-!     the Free Software Foundation; either version 2 of the License, or
-!     (at your option) any later version.
-!
-!     This program is distributed in the hope that it will be useful,
-!     but WITHOUT ANY WARRANTY; without even the implied warranty of
-!     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!     GNU General Public License for more details.
-!
-!     You should have received a copy of the GNU General Public License
-!     along with this program; if not, write to the Free Software
-!     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!
-!     This is an example implementation of Fortran wisdom export/import
-!     to/from a Fortran unit (file), exploiting the generic
-!     dfftw_export_wisdom/dfftw_import_wisdom functions.
-!
-!     We cannot compile this file into the FFTW library itself, lest all
-!     FFTW-calling programs be required to link to the Fortran I/O
-!     libraries.
-!
-!     adapted to become more standard Fortran 90 [2007-10] Joost VandeVondele
-!     and added some namespacing
-!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-! **************************************************************************************************
-!> \brief ...
-!> \param c ...
-!> \param iunit ...
-! **************************************************************************************************
-      SUBROUTINE fftw_write_char(c, iunit) BIND(C, name="fftw_write_char")
-      CHARACTER(KIND=C_CHAR)                             :: c
-      INTEGER(KIND=C_INT)                                :: iunit
-
-         WRITE (iunit, '(a)', ADVANCE="NO") c
-      END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param iunit ...
-! **************************************************************************************************
-      SUBROUTINE fftw_export_wisdom_to_file(iunit)
-         INTEGER                                  :: iunit
-
-#if defined ( __FFTW3 )
-         CALL dfftw_export_wisdom(fftw_write_char, iunit)
-#else
-         MARK_USED(iunit)
-#endif
-      END SUBROUTINE
-
-!     Fortran 77 does not have any portable way to read an arbitrary
-!     file one character at a time [needs to wait for stream IO of F2003].
-!     The best alternative seems to be to
-!     read a whole line into a buffer, since for fftw-exported wisdom we
-!     can bound the line length.  (If the file contains longer lines,
-!     then the lines will be truncated and the wisdom import should
-!     simply fail.)  Ugh (and not thread safe).
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ic ...
-!> \param iunit ...
-! **************************************************************************************************
-      SUBROUTINE fftw_read_char(ic, iunit) BIND(C, name="fftw_read_char")
-      INTEGER(KIND=C_INT)                                :: ic, iunit
-
-      CHARACTER(LEN=256)                                 :: buf
-
-         SAVE buf
-         INTEGER ibuf
-         DATA ibuf/257/
-         SAVE ibuf
-         IF (ibuf .LT. 257) THEN
-            ic = ICHAR(buf(ibuf:ibuf))
-            ibuf = ibuf + 1
-            RETURN
-         END IF
-         READ (iunit, 123, END=666) buf
-         ic = ICHAR(buf(1:1))
-         ibuf = 2
-         RETURN
-666      ic = -1
-         ibuf = 257
-123      FORMAT(a256)
-      END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param isuccess ...
-!> \param iunit ...
-! **************************************************************************************************
-      SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
-      INTEGER                                            :: isuccess, iunit
-
-         isuccess = 0
-#if defined ( __FFTW3 )
-         CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
-#else
-         MARK_USED(iunit)
-#endif
-      END SUBROUTINE
 
    END MODULE
