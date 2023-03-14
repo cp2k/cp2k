@@ -2868,6 +2868,8 @@ CONTAINS
                   do_print = .FALSE.
                CASE ("AUX")
                   bstring = "Auxiliary Basis Set"
+               CASE ("MIN")
+                  bstring = "Minimal Basis Set"
                CASE ("RI_AUX")
                   bstring = "RI Auxiliary Basis Set"
                CASE ("AUX_FIT")
@@ -3076,6 +3078,8 @@ CONTAINS
                      bstring = "GAPW Soft Basis Set"
                   CASE ("AUX")
                      bstring = "Auxiliary Basis Set"
+                  CASE ("MIN")
+                     bstring = "Minimal Basis Set"
                   CASE ("RI_AUX")
                      bstring = "RI Auxiliary Basis Set"
                   CASE ("AUX_FIT")

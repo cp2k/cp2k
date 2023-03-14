@@ -43,7 +43,8 @@ MODULE basis_set_container_types
                                                aux_fit_soft_basis = 114, &
                                                ri_hfx_basis = 115, &
                                                p_lri_aux_basis = 116, &
-                                               aux_opt_basis = 117
+                                               aux_opt_basis = 117, &
+                                               min_basis = 118
 ! **************************************************************************************************
    TYPE basis_set_container_type
       PRIVATE
@@ -97,6 +98,8 @@ CONTAINS
          basis_type_nr = orbital_basis
       CASE ("AUX")
          basis_type_nr = auxiliary_basis
+      CASE ("MIN")
+         basis_type_nr = min_basis
       CASE ("RI_AUX")
          basis_type_nr = ri_aux_basis
       CASE ("RI_HXC")
