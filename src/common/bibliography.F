@@ -89,7 +89,8 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022
+                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
+                            Belleflamme2023
 
 CONTAINS
 
@@ -4788,6 +4789,23 @@ CONTAINS
                          "DI 10.1021/acs.jctc.2c00644", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.2c00644")
+
+      CALL add_reference(key=Belleflamme2023, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Belleflamme, Fabian", &
+                         "   Hehn, Anna", &
+                         "   Iannuzzi, Marcella", &
+                         "   Hutter, Juerg", &
+                         "TI A variational formulation of the Harris functional as a correction", &
+                         "   to approximate Kohn–Sham density functional theory", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2023", &
+                         "VL 158", &
+                         "AR 054111", &
+                         "DI 10.1063/5.0122671", &
+                         "ER"), &
+                         DOI="10.1063/5.0122671")
 
    END SUBROUTINE add_all_references
 

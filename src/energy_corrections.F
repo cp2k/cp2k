@@ -19,6 +19,8 @@ MODULE energy_corrections
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Belleflamme2023,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE core_ppl,                        ONLY: build_core_ppl
@@ -229,6 +231,8 @@ CONTAINS
       ELSE
          unit_nr = -1
       END IF
+
+      CALL cite_reference(Belleflamme2023)
 
       NULLIFY (ec_env)
       CALL get_qs_env(qs_env, ec_env=ec_env)
