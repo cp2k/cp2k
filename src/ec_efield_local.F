@@ -24,7 +24,6 @@ MODULE ec_efield_local
    USE cp_control_types,                ONLY: dft_control_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
-                                              dbcsr_dot,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set
@@ -49,8 +48,6 @@ MODULE ec_efield_local
    USE qs_period_efield_types,          ONLY: efield_berry_type,&
                                               init_efield_matrices,&
                                               set_efield_matrices
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -163,7 +160,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found, trans
-      REAL(dp)                                           :: charge, dab, ener_field, fdir, tmp
+      REAL(dp)                                           :: charge, dab, fdir
       REAL(dp), DIMENSION(3)                             :: ci, fieldpol, ra, rab, rac, rbc, ria
       REAL(dp), DIMENSION(3, 3)                          :: forcea, forceb
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_block_a, p_block_b, pblock, pmat, work
@@ -171,7 +168,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_ks, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -186,9 +183,6 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
-      TYPE(qs_rho_type), POINTER                         :: rho
-
-!
 
       CALL timeset(routineN, handle)
 
@@ -235,22 +229,6 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=fieldpol(idir))
             END DO
          END DO
-
-         ! Handling of electronic efield energy contribution
-         ! Harris/DC-DFT functional: Part of band structure energy T[P_out*F_KS]
-         ! Callculate here only for reference output
-         ! Energy
-         NULLIFY (rho, matrix_p)
-         CALL get_qs_env(qs_env=qs_env, rho=rho)
-         CALL qs_rho_get(rho, rho_ao=matrix_p)
-         ener_field = 0.0_dp
-         DO ispin = 1, SIZE(matrix_p)
-            DO idir = 1, 3
-               CALL dbcsr_dot(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
-               ener_field = ener_field + fieldpol(idir)*tmp
-            END DO
-         END DO
-         ec_env%efield_elec = ener_field
       END IF
 
       ! forces from the efield contribution
