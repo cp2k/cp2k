@@ -2817,7 +2817,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 !deb
-write(6,*) "PROPERTIES START"
+      WRITE (6, *) "PROPERTIES START"
 !deb
       rlab(1) = "X"
       rlab(2) = "Y"
@@ -3013,7 +3013,7 @@ write(6,*) "PROPERTIES START"
 
       END IF
 !deb
-write(6,*) "PROPERTIES END"
+      WRITE (6, *) "PROPERTIES END"
 !deb
 
       CALL timestop(handle)
