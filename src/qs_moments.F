@@ -2695,7 +2695,7 @@ CONTAINS
                END IF
                dd = SQRT(SUM(rmom(2:4, 3)**2))*debye
                WRITE (unit_number, "(T3,A)") "Dipole moment [Debye]"
-               WRITE (unit_number, "(T5,3(A,A,E16.8,1X),T64,A,T71,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,E15.7,1X),T60,A,T68,F13.7)") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye, i=2, 4), "Total=", dd
             CASE (2)
                WRITE (unit_number, "(T3,A)") "Quadrupole moment [Debye*Angstrom]"

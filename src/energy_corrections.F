@@ -2587,8 +2587,8 @@ CONTAINS
          ! Core hamiltonian energy
          CALL calculate_ptrace(ec_env%matrix_h, ec_env%matrix_p, ec_env%ecore, SIZE(ec_env%matrix_p, 1))
 
-         ec_env%etotal = ec_env%ecore + ec_env%ehartree + ec_env%exc + ec_env%edispersion &
-                         + ec_env%efield_elec + ec_env%efield_nuclear
+         ec_env%ecore = ec_env%ecore + ec_env%efield_nuclear
+         ec_env%etotal = ec_env%ecore + ec_env%ehartree + ec_env%exc + ec_env%edispersion
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ecore    ", ec_env%ecore
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ehartree ", ec_env%ehartree
