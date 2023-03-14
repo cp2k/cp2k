@@ -2816,6 +2816,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+!deb
+write(6,*) "PROPERTIES START"
+!deb
       rlab(1) = "X"
       rlab(2) = "Y"
       rlab(3) = "Z"
@@ -3009,6 +3012,9 @@ CONTAINS
          END IF
 
       END IF
+!deb
+write(6,*) "PROPERTIES END"
+!deb
 
       CALL timestop(handle)
 
