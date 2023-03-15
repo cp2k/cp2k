@@ -21,7 +21,7 @@ MODULE fftw3_lib
       C_INTPTR_T, &
       C_LOC, &
       C_NULL_CHAR, &
-      C_SIZE_T
+      C_SIZE_T, C_F_POINTER
 #endif
    USE cp_files, ONLY: get_unit_number
    USE fft_kinds, ONLY: dp
@@ -36,6 +36,7 @@ MODULE fftw3_lib
 
    PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
+   PUBLIC :: fftw_alloc, fftw_dealloc
 
 #if defined ( __FFTW3 )
 #include "fftw3.f03"
