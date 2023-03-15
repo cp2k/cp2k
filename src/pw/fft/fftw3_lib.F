@@ -8,18 +8,20 @@ MODULE fftw3_lib
 
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
                             C_CHAR, &
+                            C_DOUBLE, &
+                            C_DOUBLE_COMPLEX, &
                             C_INT, &
                             C_PTR
 #if defined(__FFTW3)
-   USE ISO_C_BINDING, ONLY: C_DOUBLE, &
-                            C_DOUBLE_COMPLEX, &
-                            C_FLOAT, &
-                            C_FLOAT_COMPLEX, &
-                            C_FUNPTR, &
-                            C_INT32_T, &
-                            C_INTPTR_T, &
-                            C_NULL_CHAR, &
-                            C_SIZE_T
+   USE ISO_C_BINDING, ONLY: &
+      C_FLOAT, &
+      C_FLOAT_COMPLEX, &
+      C_FUNPTR, &
+      C_INT32_T, &
+      C_INTPTR_T, &
+      C_LOC, &
+      C_NULL_CHAR, &
+      C_SIZE_T
 #endif
    USE cp_files, ONLY: get_unit_number
    USE fft_kinds, ONLY: dp
@@ -39,7 +41,52 @@ MODULE fftw3_lib
 #include "fftw3.f03"
 #endif
 
+   INTERFACE fftw_alloc
+      MODULE PROCEDURE :: fftw_alloc_complex_1d
+      MODULE PROCEDURE :: fftw_alloc_complex_2d
+      MODULE PROCEDURE :: fftw_alloc_complex_3d
+   END INTERFACE
+
+   INTERFACE fftw_dealloc
+      MODULE PROCEDURE :: fftw_dealloc_complex_1d
+      MODULE PROCEDURE :: fftw_dealloc_complex_2d
+      MODULE PROCEDURE :: fftw_dealloc_complex_3d
+   END INTERFACE
+
 CONTAINS
+
+   #:set maxdim = 3
+   #:for dim in range(1, maxdim+1)
+! Concatenate the components of the dimensions passed to this function to use it if FFTW3 is not used
+      #:set dim_extended = ", ".join(["n("+str(i)+")" for i in range(1, dim+1)])
+      SUBROUTINE fftw_alloc_complex_${dim}$d(array, n)
+         COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(:${", :"*(dim-1)}$), CONTIGUOUS, POINTER, INTENT(OUT) :: array
+         INTEGER, DIMENSION(${dim}$), INTENT(IN) :: n
+
+#if defined(__FFTW3)
+         TYPE(C_PTR) :: data_ptr
+         data_ptr = fftw_alloc_complex(INT(PRODUCT(n), KIND=C_SIZE_T))
+         CALL C_F_POINTER(data_ptr, array, n)
+#else
+! Just allocate the array
+         ALLOCATE (array(${dim_extended}$))
+#endif
+
+      END SUBROUTINE fftw_alloc_complex_${dim}$d
+
+      SUBROUTINE fftw_dealloc_complex_${dim}$d(array)
+         COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(:${", :"*(dim-1)}$), CONTIGUOUS, POINTER, INTENT(INOUT) :: array
+
+#if defined(__FFTW3)
+         CALL fftw_free(C_LOC(array))
+         NULLIFY (array)
+#else
+! Just deallocate the array
+         DEALLOCATE (array)
+#endif
+
+      END SUBROUTINE fftw_dealloc_complex_${dim}$d
+   #:endfor
 
 #if defined ( __FFTW3 )
 ! **************************************************************************************************
