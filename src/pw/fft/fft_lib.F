@@ -13,14 +13,10 @@ MODULE fft_lib
                                               fftsg_do_cleanup,&
                                               fftsg_do_init,&
                                               fftsg_get_lengths
-   USE fftw3_lib,                       ONLY: fftw31dm,&
-                                              fftw33d,&
-                                              fftw3_create_plan_1dm,&
-                                              fftw3_create_plan_3d,&
-                                              fftw3_destroy_plan,&
-                                              fftw3_do_cleanup,&
-                                              fftw3_do_init,&
-                                              fftw3_get_lengths
+   USE fftw3_lib,                       ONLY: &
+        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
+        fftw3_create_plan_1dm, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
+        fftw3_do_init, fftw3_get_lengths
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -30,6 +26,7 @@ MODULE fft_lib
 
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
    PUBLIC :: fft_create_plan_1dm, fft_1dm, fft_library, fft_3d, fft_destroy_plan
+   PUBLIC :: fft_alloc, fft_dealloc
 
 CONTAINS
 ! **************************************************************************************************

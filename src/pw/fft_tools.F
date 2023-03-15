@@ -33,8 +33,8 @@ MODULE fft_tools
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE fast,                            ONLY: zero_c
    USE fft_lib,                         ONLY: &
-        fft_1dm, fft_3d, fft_create_plan_1dm, fft_create_plan_3d, fft_destroy_plan, &
-        fft_do_cleanup, fft_do_init, fft_get_lengths, fft_library
+        fft_1dm, fft_3d, fft_alloc, fft_create_plan_1dm, fft_create_plan_3d, fft_dealloc, &
+        fft_destroy_plan, fft_do_cleanup, fft_do_init, fft_get_lengths, fft_library
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
@@ -69,59 +69,62 @@ MODULE fft_tools
       INTEGER                              :: lg = 0, mg = 0
       INTEGER                              :: nbx = 0, nbz = 0
       INTEGER                              :: nmray = 0, nyzray = 0
-      TYPE(mp_comm_type)                   :: gs_group
-      TYPE(mp_cart_type)                   :: rs_group
+      TYPE(mp_comm_type)                   :: gs_group = mp_comm_type()
+      TYPE(mp_cart_type)                   :: rs_group = mp_cart_type()
       INTEGER, DIMENSION(2)                :: g_pos = 0, r_pos = 0, r_dim = 0
       INTEGER                              :: numtask = 0
    END TYPE fft_scratch_sizes
 
    TYPE fft_scratch_type
-      INTEGER                              :: fft_scratch_id
-      INTEGER                              :: tf_type
-      LOGICAL                              :: in_use
-      TYPE(mp_comm_type)                   :: group
-      INTEGER, DIMENSION(3)                :: nfft
+      INTEGER                              :: fft_scratch_id = -1
+      INTEGER                              :: tf_type = -1
+      LOGICAL                              :: in_use = .FALSE.
+      TYPE(mp_comm_type)                   :: group = mp_comm_type()
+      INTEGER, DIMENSION(3)                :: nfft = -1
       ! to be used in cube_transpose_* routines
-      TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm
-      INTEGER, DIMENSION(2)                :: dim, pos
+      TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm = mp_cart_type()
+      INTEGER, DIMENSION(2)                :: dim = -1, pos = -1
       ! to be used in fft3d_s
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
-         :: ziptr, zoptr
+         :: ziptr => NULL(), zoptr => NULL()
       ! to be used in fft3d_ps : block distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
-         :: p1buf, p2buf, p3buf, p4buf, p5buf, p6buf, p7buf
+         :: p1buf => NULL(), p2buf => NULL(), p3buf => NULL(), p4buf => NULL(), &
+            p5buf => NULL(), p6buf => NULL(), p7buf => NULL()
       ! to be used in fft3d_ps : plane distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
-         :: r1buf, r2buf
+         :: r1buf => NULL(), r2buf => NULL()
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
-         :: tbuf
+         :: tbuf => NULL()
       ! to be used in fft3d_pb
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
-         :: a1buf, a2buf, a3buf, a4buf, a5buf, a6buf
+         :: a1buf => NULL(), a2buf => NULL(), a3buf => NULL(), &
+            a4buf => NULL(), a5buf => NULL(), a6buf => NULL()
       ! to be used in communication routines
-      INTEGER, DIMENSION(:), POINTER       :: scount, rcount, sdispl, rdispl
-      INTEGER, DIMENSION(:, :), POINTER     :: pgcube
-      INTEGER, DIMENSION(:), POINTER       :: xzcount, yzcount, xzdispl, yzdispl
-      INTEGER                              :: in, mip
-      REAL(KIND=dp)                        :: rsratio
+      INTEGER, DIMENSION(:), POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
+      INTEGER, DIMENSION(:, :), POINTER     :: pgcube => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
+      INTEGER                              :: in = -1, mip = -1
+      REAL(KIND=dp)                        :: rsratio = 0.0_dp
       COMPLEX(KIND=dp), DIMENSION(:), POINTER &
-         :: xzbuf, yzbuf
+         :: xzbuf => NULL(), yzbuf => NULL()
       COMPLEX(KIND=sp), DIMENSION(:), POINTER &
-         :: xzbuf_sgl, yzbuf_sgl
+         :: xzbuf_sgl => NULL(), yzbuf_sgl => NULL()
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
-         :: rbuf1, rbuf2, rbuf3, rbuf4, rbuf5, rbuf6, rr
+         :: rbuf1 => NULL(), rbuf2 => NULL(), rbuf3 => NULL(), rbuf4 => NULL(), &
+            rbuf5 => NULL(), rbuf6 => NULL(), rr => NULL()
       COMPLEX(KIND=sp), DIMENSION(:, :), POINTER &
-         :: ss, tt
-      INTEGER, DIMENSION(:, :), POINTER     :: pgrid
-      INTEGER, DIMENSION(:), POINTER       :: xcor, zcor, pzcoord
-      TYPE(fft_scratch_sizes)              :: sizes
-      TYPE(fft_plan_type), DIMENSION(6)   :: fft_plan
-      INTEGER                              :: last_tick
+         :: ss => NULL(), tt => NULL()
+      INTEGER, DIMENSION(:, :), POINTER     :: pgrid => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: xcor => NULL(), zcor => NULL(), pzcoord => NULL()
+      TYPE(fft_scratch_sizes)              :: sizes = fft_scratch_sizes()
+      TYPE(fft_plan_type), DIMENSION(6)   :: fft_plan = fft_plan_type()
+      INTEGER                              :: last_tick = -1
    END TYPE fft_scratch_type
 
    TYPE fft_scratch_pool_type
-      TYPE(fft_scratch_type), POINTER       :: fft_scratch
-      TYPE(fft_scratch_pool_type), POINTER  :: fft_scratch_next
+      TYPE(fft_scratch_type), POINTER       :: fft_scratch => NULL()
+      TYPE(fft_scratch_pool_type), POINTER  :: fft_scratch_next => NULL()
    END TYPE fft_scratch_pool_type
 
    INTEGER, SAVE                           :: init_fft_pool = 0
@@ -134,6 +137,7 @@ MODULE fft_tools
 
    PRIVATE
    PUBLIC :: init_fft, fft3d, finalize_fft
+   PUBLIC :: fft_alloc, fft_dealloc
    PUBLIC :: fft_radix_operations, fft_fw1d
    PUBLIC :: FWFFT, BWFFT
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
