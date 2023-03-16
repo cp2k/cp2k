@@ -72,8 +72,15 @@ case "${with_intelmpi}" in
     ;;
 esac
 if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
-  I_MPI_CC="icc"
-  I_MPI_FC="ifort"
+  if [ "${intel_classic}" = "yes" ]; then
+    I_MPI_CXX="icpc"
+    I_MPI_CC="icc"
+    I_MPI_FC="ifort"
+  else
+    I_MPI_CXX="icpx"
+    I_MPI_CC="icx"
+    I_MPI_FC="ifort"
+  fi
   INTELMPI_LIBS="-lmpi -lmpicxx"
   echo "I_MPI_CC is ${I_MPI_CC}"
   echo "I_MPI_FC is ${I_MPI_FC}"

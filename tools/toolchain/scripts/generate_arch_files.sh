@@ -127,6 +127,7 @@ fi
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 else
+  CXXFLAGS="IF_MPI(-cxx=${I_MPI_CXX}|) $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
   CFLAGS="IF_MPI(-cc=${I_MPI_CC}|) $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
   FCFLAGS="IF_MPI(-fc=${I_MPI_FC}|) $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -free"
 fi
@@ -144,7 +145,7 @@ LIBS="${CP_LIBS} -lstdc++"
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
 else
-  CXXFLAGS=" ${G_CFLAGS} --std=c++14 \$(DFLAGS)"
+  CXXFLAGS+=" ${G_CFLAGS} --std=c++14 \$(DFLAGS)"
 fi
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
