@@ -805,14 +805,17 @@ PROGRAM dumpdcd
                   IF (.NOT. ALLOCATED(r_pbc)) THEN
                      ALLOCATE (r_pbc(natom_dcd, 3), STAT=istat)
                      IF (istat /= 0) CALL abort_program(routineN, "Allocation of the array r_pbc failed")
+                     r_pbc(:, :) = 0.0_dp
                   END IF
                   IF (.NOT. ALLOCATED(s)) THEN
                      ALLOCATE (s(natom_dcd, 3), STAT=istat)
                      IF (istat /= 0) CALL abort_program(routineN, "Allocation of the array s failed")
+                     s(:, :) = 0.0_dp
                   END IF
                   IF (.NOT. ALLOCATED(s_pbc)) THEN
                      ALLOCATE (s_pbc(natom_dcd, 3), STAT=istat)
                      IF (istat /= 0) CALL abort_program(routineN, "Allocation of the array s_pbc failed")
+                     s_pbc(:, :) = 0.0_dp
                   END IF
                   CALL pbc(r, r_pbc, s, s_pbc, a, b, c, alpha, beta, gamma, debug, info, pbc0, h, hinv)
                   CALL write_out_of_box_atoms(atomic_label, r, s, eps_out_of_box, h)
