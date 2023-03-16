@@ -910,6 +910,7 @@ CONTAINS
 !> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
 !>                           SIZE(evects,2) -- number of excited states to print)
 !> \param evals              TDDFPT eigenvalues
+!> \param ostrength ...
 !> \param gs_mos             molecular orbitals optimised for the ground state
 !> \param matrix_s           overlap matrix
 !> \param print_section      ...
@@ -930,13 +931,13 @@ CONTAINS
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
       INTEGER                                            :: handle, i, ia, icg, iounit, ispin, &
-                                                            istate, j, nao, nmax, nmo, nnto, &
-                                                            nspins, nstates, nlist
+                                                            istate, j, nao, nlist, nmax, nmo, &
+                                                            nnto, nspins, nstates
       INTEGER, DIMENSION(2)                              :: iv
       INTEGER, DIMENSION(2, ntomax)                      :: ia_index
-      INTEGER, DIMENSION(:), POINTER                     :: stride, slist
+      INTEGER, DIMENSION(:), POINTER                     :: slist, stride
       LOGICAL                                            :: append_cube, cube_file, explicit
-      REAL(KIND=dp)                                      :: sume, threshold, os_threshold
+      REAL(KIND=dp)                                      :: os_threshold, sume, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(ntomax)                   :: ia_eval
@@ -969,7 +970,6 @@ CONTAINS
          ELSE
             nlist = 0
          END IF
-
 
          IF (iounit > 0) THEN
             WRITE (iounit, "(1X,A)") "", &

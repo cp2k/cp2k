@@ -293,15 +293,15 @@ with_acml="__SYSTEM__"
 with_openblas="__INSTALL__"
 
 # sirius is activated by default
-with_sirius="__DONTUSE__"
+with_sirius="__INSTALL__"
 with_gsl="__DONTUSE__"
 with_spglib="__INSTALL__"
 with_hdf5="__DONTUSE__"
-with_elpa="__DONTUSE__"
+with_elpa="__INSTALL__"
 with_libvdwxc="__DONTUSE__"
 with_spfft="__DONTUSE__"
 with_spla="__DONTUSE__"
-with_cosma="__DONTUSE__"
+with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 # for MPI, we try to detect system MPI variant
