@@ -1663,7 +1663,7 @@ CONTAINS
 
       CHARACTER(LEN=9)                                   :: mode
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: c_in, c_out
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER      :: c_in, c_out
       INTEGER                                            :: dir, handle, handle2, my_pos, nrays, &
                                                             out_space, out_unit
       INTEGER, DIMENSION(3)                              :: nloc
