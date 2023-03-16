@@ -85,23 +85,23 @@ MODULE fft_tools
       TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm = mp_cart_type()
       INTEGER, DIMENSION(2)                :: dim = -1, pos = -1
       ! to be used in fft3d_s
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
          :: ziptr => NULL(), zoptr => NULL()
       ! to be used in fft3d_ps : block distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER &
          :: p1buf => NULL(), p2buf => NULL(), p3buf => NULL(), p4buf => NULL(), &
             p5buf => NULL(), p6buf => NULL(), p7buf => NULL()
       ! to be used in fft3d_ps : plane distribution
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS &
          :: r1buf => NULL(), r2buf => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER &
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
          :: tbuf => NULL()
       ! to be used in fft3d_pb
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
          :: a1buf => NULL(), a2buf => NULL(), a3buf => NULL(), &
             a4buf => NULL(), a5buf => NULL(), a6buf => NULL()
       ! to be used in communication routines
-      INTEGER, DIMENSION(:), POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
       INTEGER, DIMENSION(:, :), POINTER     :: pgcube => NULL()
       INTEGER, DIMENSION(:), POINTER       :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
       INTEGER                              :: in = -1, mip = -1
@@ -382,8 +382,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_s'
 
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: zoptr
       COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET       :: zdum
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: zoptr
       INTEGER                                            :: handle, ld(3), lo(3), output_unit, sign, &
                                                             stat
       LOGICAL                                            :: fft_in_place, test
@@ -2612,10 +2613,10 @@ CONTAINS
 
       ! deallocate structures
       IF (ASSOCIATED(fft_scratch%ziptr)) THEN
-         DEALLOCATE (fft_scratch%ziptr)
+         CALL fft_dealloc(fft_scratch%ziptr)
       END IF
       IF (ASSOCIATED(fft_scratch%zoptr)) THEN
-         DEALLOCATE (fft_scratch%zoptr)
+         CALL fft_dealloc(fft_scratch%zoptr)
       END IF
       IF (ASSOCIATED(fft_scratch%p1buf)) THEN
          CALL fft_dealloc(fft_scratch%p1buf)
@@ -2660,7 +2661,7 @@ CONTAINS
          dummy_ptr_z => fft_scratch%p7buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         DEALLOCATE (fft_scratch%p7buf)
+         CALL fft_dealloc(fft_scratch%p7buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r1buf)) THEN
@@ -2668,18 +2669,18 @@ CONTAINS
          dummy_ptr_z => fft_scratch%r1buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         DEALLOCATE (fft_scratch%r1buf)
+         CALL fft_dealloc(fft_scratch%r1buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r2buf)) THEN
-         DEALLOCATE (fft_scratch%r2buf)
+         CALL fft_dealloc(fft_scratch%r2buf)
       END IF
       IF (ASSOCIATED(fft_scratch%tbuf)) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          dummy_ptr_z => fft_scratch%tbuf(1, 1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         DEALLOCATE (fft_scratch%tbuf)
+         CALL fft_dealloc(fft_scratch%tbuf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%a1buf)) THEN
@@ -3116,11 +3117,11 @@ CONTAINS
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, (/MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)/))
 #else
-               ALLOCATE (fft_scratch_new%fft_scratch%r1buf(mmax, lmax))
-               ALLOCATE (fft_scratch_new%fft_scratch%tbuf(ny, nz, nx))
+               CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
+               CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
 #endif
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
-               ALLOCATE (fft_scratch_new%fft_scratch%r2buf(lg, mg))
+               CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%ss(mmax, lmax))
@@ -3186,7 +3187,7 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%p4buf, [n(2), mx2*mz2])
                CALL fft_alloc(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
-               ALLOCATE (fft_scratch_new%fft_scratch%p7buf(mg, lg))
+               CALL fft_alloc(fft_scratch_new%fft_scratch%p7buf, [mg, lg])
 #endif
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg))
@@ -3256,8 +3257,8 @@ CONTAINS
 
             CASE (400) ! serial FFT
                np = 0
-               ALLOCATE (fft_scratch_new%fft_scratch%ziptr(n(1), n(2), n(3)))
-               ALLOCATE (fft_scratch_new%fft_scratch%zoptr(n(1), n(2), n(3)))
+               CALL fft_alloc(fft_scratch_new%fft_scratch%ziptr, n)
+               CALL fft_alloc(fft_scratch_new%fft_scratch%zoptr, n)
 
                !in place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, .TRUE., FWFFT, n, &
