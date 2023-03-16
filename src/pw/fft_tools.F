@@ -76,9 +76,9 @@ MODULE fft_tools
    END TYPE fft_scratch_sizes
 
    TYPE fft_scratch_type
-      INTEGER                              :: fft_scratch_id = -1
+      INTEGER                              :: fft_scratch_id = 0
       INTEGER                              :: tf_type = -1
-      LOGICAL                              :: in_use = .FALSE.
+      LOGICAL                              :: in_use = .TRUE.
       TYPE(mp_comm_type)                   :: group = mp_comm_type()
       INTEGER, DIMENSION(3)                :: nfft = -1
       ! to be used in cube_transpose_* routines
@@ -102,21 +102,21 @@ MODULE fft_tools
             a4buf => NULL(), a5buf => NULL(), a6buf => NULL()
       ! to be used in communication routines
       INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
-      INTEGER, DIMENSION(:, :), POINTER     :: pgcube => NULL()
-      INTEGER, DIMENSION(:), POINTER       :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
-      INTEGER                              :: in = -1, mip = -1
-      REAL(KIND=dp)                        :: rsratio = 0.0_dp
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER &
+      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER     :: pgcube => NULL()
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
+      INTEGER                              :: in = 0, mip = -1
+      REAL(KIND=dp)                        :: rsratio = 1.0_dp
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS &
          :: xzbuf => NULL(), yzbuf => NULL()
-      COMPLEX(KIND=sp), DIMENSION(:), POINTER &
+      COMPLEX(KIND=sp), DIMENSION(:), POINTER, CONTIGUOUS &
          :: xzbuf_sgl => NULL(), yzbuf_sgl => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER &
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS &
          :: rbuf1 => NULL(), rbuf2 => NULL(), rbuf3 => NULL(), rbuf4 => NULL(), &
             rbuf5 => NULL(), rbuf6 => NULL(), rr => NULL()
       COMPLEX(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS &
          :: ss => NULL(), tt => NULL()
-      INTEGER, DIMENSION(:, :), POINTER     :: pgrid => NULL()
-      INTEGER, DIMENSION(:), POINTER       :: xcor => NULL(), zcor => NULL(), pzcoord => NULL()
+      INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS     :: pgrid => NULL()
+      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS       :: xcor => NULL(), zcor => NULL(), pzcoord => NULL()
       TYPE(fft_scratch_sizes)              :: sizes = fft_scratch_sizes()
       TYPE(fft_plan_type), DIMENSION(6)   :: fft_plan = fft_plan_type()
       INTEGER                              :: last_tick = -1
@@ -372,9 +372,9 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
@@ -500,22 +500,27 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(IN)                  :: n
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: cin
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: gin
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: gin
       TYPE(mp_comm_type), INTENT(IN)                     :: gs_group
       TYPE(mp_cart_type), INTENT(IN)                     :: rs_group
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nyzray
-      INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nyzray
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:, :), &
+         INTENT(IN)                                      :: bo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_ps'
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: pbuf, qbuf, rbuf, sbuf
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: pbuf, qbuf, rbuf, sbuf
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: tbuf
       INTEGER :: g_pos, handle, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, mz2, n1, n2, &
          nmax, numtask, numtask_g, numtask_r, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, &
          sign, stat
@@ -947,18 +952,21 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: gin
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: gin
       TYPE(mp_cart_type), INTENT(IN)                     :: group
-      INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN)        :: bo
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:, :), &
+         INTENT(IN)                                      :: bo
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_pb'
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: abuf, bbuf
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: abuf, bbuf
       INTEGER                                            :: handle, lg(2), lz(3), mcx2, mcy3, mcz1, &
                                                             mcz2, mx1, mx2, mx3, my1, my2, my3, &
                                                             my_pos, mz1, mz2, mz3, output_unit, &
@@ -1377,13 +1385,15 @@ CONTAINS
          INTENT(IN)                                      :: sb
       TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, INTENT(IN)                                :: my_pos
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nray
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: bo
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: tb
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'x_to_yz'
 
@@ -1393,7 +1403,7 @@ CONTAINS
          POINTER                                         :: ss, tt
       INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, mpr, &
                                                             nm, np, nr, nx
-      INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 
@@ -1490,13 +1500,14 @@ CONTAINS
          INTENT(IN)                                      :: tb
       TYPE(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, INTENT(IN)                                :: my_pos
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nray
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
       INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: sb
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'yz_to_x'
 
@@ -1607,12 +1618,12 @@ CONTAINS
       CLASS(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nray
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: p2p
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: nray
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), CONTIGUOUS   :: tb
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(INOUT)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'yz_to_xz'
 
@@ -1623,7 +1634,7 @@ CONTAINS
                                                             npz, nx, nz, rs_pos
       INTEGER, DIMENSION(:), POINTER, CONTIGUOUS                     :: pzcoord, rcount, rdispl, scount, sdispl, &
                                                                         xcor, zcor
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER                  :: pgrid
 
       CALL timeset(routineN, handle)
 
@@ -1817,12 +1828,12 @@ CONTAINS
       CLASS(mp_comm_type), INTENT(IN)                     :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: p2p
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, DIMENSION(0:), INTENT(IN)                 :: nray
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: p2p
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: nray
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), CONTIGUOUS   :: tb
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(INOUT)              :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xz_to_yz'
 
@@ -1833,7 +1844,7 @@ CONTAINS
                                                             npz, nx, nz
       INTEGER, DIMENSION(:), POINTER, CONTIGUOUS                     :: pzcoord, rcount, rdispl, scount, sdispl, &
                                                                         xcor, zcor
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER                  :: pgrid
 
       CALL timeset(routineN, handle)
 
@@ -2007,10 +2018,11 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: boin, boout
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(OUT)                                     :: sout
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_1'
 
@@ -2019,8 +2031,8 @@ CONTAINS
       INTEGER                                            :: handle, ip, ipl, ir, is, ixy, iz, mip, &
                                                             mz, np, nx, ny, nz
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
       INTEGER, DIMENSION(2)                              :: dim, pos
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
 
       CALL timeset(routineN, handle)
 
@@ -2096,10 +2108,11 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: boin, boout
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(OUT)                                     :: sout
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_2'
 
@@ -2108,8 +2121,8 @@ CONTAINS
       INTEGER                                            :: handle, ip, ipl, ir, ixy, iz, mip, mz, &
                                                             np, nx, ny, nz
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
       INTEGER, DIMENSION(2)                              :: dim, pos
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(mp_comm_type)                                 :: sub_group
 
       CALL timeset(routineN, handle)
@@ -2185,10 +2198,11 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: boin, boout
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(OUT)                                     :: sout
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_3'
 
@@ -2198,8 +2212,8 @@ CONTAINS
                                                             mip, my, my_id, np, num_threads, nx, &
                                                             ny, nz, ub
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
       INTEGER, DIMENSION(2)                              :: dim, pos
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(mp_comm_type)                                 :: sub_group
 
       CALL timeset(routineN, handle)
@@ -2289,10 +2303,11 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: boin, boout
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(OUT)                                     :: sout
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_4'
 
@@ -2302,8 +2317,8 @@ CONTAINS
                                                             my, my_id, np, num_threads, nx, ny, &
                                                             nz, ub
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
       INTEGER, DIMENSION(2)                              :: dim, pos
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(mp_comm_type)                                 :: sub_group
 
       CALL timeset(routineN, handle)
@@ -2392,9 +2407,9 @@ CONTAINS
          INTENT(IN)                                      :: cin
 
       CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), CONTIGUOUS     :: sout
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_5'
 
@@ -2487,9 +2502,9 @@ CONTAINS
          INTENT(IN)                                      :: cin
 
       CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), CONTIGUOUS     :: sout
-      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_6'
 
@@ -2567,54 +2582,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_fft_scratch_pool()
 
-      INTEGER                                            :: i
-
       CALL release_fft_scratch_pool()
 
       ! Allocate first scratch and mark it as used
       ALLOCATE (fft_scratch_first)
       ALLOCATE (fft_scratch_first%fft_scratch)
-      NULLIFY (fft_scratch_first%fft_scratch_next)
-      fft_scratch_first%fft_scratch%fft_scratch_id = 0
-      fft_scratch_first%fft_scratch%in_use = .TRUE.
-      NULLIFY (fft_scratch_first%fft_scratch%ziptr)
-      NULLIFY (fft_scratch_first%fft_scratch%zoptr)
-      NULLIFY (fft_scratch_first%fft_scratch%p1buf)
-      NULLIFY (fft_scratch_first%fft_scratch%p2buf)
-      NULLIFY (fft_scratch_first%fft_scratch%p3buf)
-      NULLIFY (fft_scratch_first%fft_scratch%p4buf)
-      NULLIFY (fft_scratch_first%fft_scratch%p5buf)
-      NULLIFY (fft_scratch_first%fft_scratch%p6buf)
-      NULLIFY (fft_scratch_first%fft_scratch%p7buf)
-      NULLIFY (fft_scratch_first%fft_scratch%r1buf)
-      NULLIFY (fft_scratch_first%fft_scratch%r2buf)
-      NULLIFY (fft_scratch_first%fft_scratch%tbuf)
-      NULLIFY (fft_scratch_first%fft_scratch%a1buf)
-      NULLIFY (fft_scratch_first%fft_scratch%a2buf)
-      NULLIFY (fft_scratch_first%fft_scratch%a3buf)
-      NULLIFY (fft_scratch_first%fft_scratch%a4buf)
-      NULLIFY (fft_scratch_first%fft_scratch%a5buf)
-      NULLIFY (fft_scratch_first%fft_scratch%a6buf)
-      NULLIFY (fft_scratch_first%fft_scratch%scount, fft_scratch_first%fft_scratch%rcount, &
-               fft_scratch_first%fft_scratch%sdispl, fft_scratch_first%fft_scratch%rdispl)
-      NULLIFY (fft_scratch_first%fft_scratch%rr, &
-               fft_scratch_first%fft_scratch%ss, fft_scratch_first%fft_scratch%tt)
-      NULLIFY (fft_scratch_first%fft_scratch%xzbuf, fft_scratch_first%fft_scratch%yzbuf, &
-               fft_scratch_first%fft_scratch%xzbuf_sgl, fft_scratch_first%fft_scratch%yzbuf_sgl)
-      NULLIFY (fft_scratch_first%fft_scratch%pgrid)
-      NULLIFY (fft_scratch_first%fft_scratch%pgcube)
-      NULLIFY (fft_scratch_first%fft_scratch%xcor, fft_scratch_first%fft_scratch%zcor)
-      NULLIFY (fft_scratch_first%fft_scratch%pzcoord)
-      NULLIFY (fft_scratch_first%fft_scratch%xzcount, fft_scratch_first%fft_scratch%yzcount, &
-               fft_scratch_first%fft_scratch%xzdispl, fft_scratch_first%fft_scratch%yzdispl)
-      NULLIFY (fft_scratch_first%fft_scratch%rbuf1, fft_scratch_first%fft_scratch%rbuf2, &
-               fft_scratch_first%fft_scratch%rbuf3, fft_scratch_first%fft_scratch%rbuf4)
-      NULLIFY (fft_scratch_first%fft_scratch%rbuf5, fft_scratch_first%fft_scratch%rbuf6)
-      fft_scratch_first%fft_scratch%in = 0
-      fft_scratch_first%fft_scratch%rsratio = 1._dp
-      DO i = 1, 6
-         fft_scratch_first%fft_scratch%fft_plan(i)%valid = .FALSE.
-      END DO
       ! this is a very special scratch, it seems, we always keep it 'most - recent' so we will never delete it
       fft_scratch_first%fft_scratch%last_tick = HUGE(fft_scratch_first%fft_scratch%last_tick)
 
@@ -2973,44 +2945,6 @@ CONTAINS
             ! Generate a new scratch set
             ALLOCATE (fft_scratch_new)
             ALLOCATE (fft_scratch_new%fft_scratch)
-            NULLIFY (fft_scratch_new%fft_scratch%ziptr)
-            NULLIFY (fft_scratch_new%fft_scratch%zoptr)
-            NULLIFY (fft_scratch_new%fft_scratch%p1buf)
-            NULLIFY (fft_scratch_new%fft_scratch%p2buf)
-            NULLIFY (fft_scratch_new%fft_scratch%p3buf)
-            NULLIFY (fft_scratch_new%fft_scratch%p4buf)
-            NULLIFY (fft_scratch_new%fft_scratch%p5buf)
-            NULLIFY (fft_scratch_new%fft_scratch%p6buf)
-            NULLIFY (fft_scratch_new%fft_scratch%p7buf)
-            NULLIFY (fft_scratch_new%fft_scratch%r1buf)
-            NULLIFY (fft_scratch_new%fft_scratch%r2buf)
-            NULLIFY (fft_scratch_new%fft_scratch%tbuf)
-            NULLIFY (fft_scratch_new%fft_scratch%a1buf)
-            NULLIFY (fft_scratch_new%fft_scratch%a2buf)
-            NULLIFY (fft_scratch_new%fft_scratch%a3buf)
-            NULLIFY (fft_scratch_new%fft_scratch%a4buf)
-            NULLIFY (fft_scratch_new%fft_scratch%a5buf)
-            NULLIFY (fft_scratch_new%fft_scratch%a6buf)
-            NULLIFY (fft_scratch_new%fft_scratch%scount, fft_scratch_new%fft_scratch%rcount, &
-                     fft_scratch_new%fft_scratch%sdispl, fft_scratch_new%fft_scratch%rdispl)
-            NULLIFY (fft_scratch_new%fft_scratch%rr, &
-                     fft_scratch_new%fft_scratch%ss, fft_scratch_new%fft_scratch%tt)
-            NULLIFY (fft_scratch_new%fft_scratch%xzbuf, fft_scratch_new%fft_scratch%yzbuf, &
-                     fft_scratch_new%fft_scratch%xzbuf_sgl, fft_scratch_new%fft_scratch%yzbuf_sgl)
-            NULLIFY (fft_scratch_new%fft_scratch%pgcube)
-            NULLIFY (fft_scratch_new%fft_scratch%pgrid)
-            NULLIFY (fft_scratch_new%fft_scratch%xcor, fft_scratch_new%fft_scratch%zcor)
-            NULLIFY (fft_scratch_new%fft_scratch%pzcoord)
-            NULLIFY (fft_scratch_new%fft_scratch%xzcount, fft_scratch_new%fft_scratch%yzcount)
-            NULLIFY (fft_scratch_new%fft_scratch%xzdispl, fft_scratch_new%fft_scratch%yzdispl)
-            NULLIFY (fft_scratch_new%fft_scratch%rbuf1, fft_scratch_new%fft_scratch%rbuf2, &
-                     fft_scratch_new%fft_scratch%rbuf3, fft_scratch_new%fft_scratch%rbuf4)
-            NULLIFY (fft_scratch_new%fft_scratch%rbuf5, fft_scratch_new%fft_scratch%rbuf6)
-            fft_scratch_new%fft_scratch%in = 0
-            fft_scratch_new%fft_scratch%rsratio = 1._dp
-            DO i = 1, 6
-               fft_scratch_new%fft_scratch%fft_plan(i)%valid = .FALSE.
-            END DO
 
             IF (tf_type .NE. 400) THEN
                fft_scratch_new%fft_scratch%sizes = fft_sizes
@@ -3227,8 +3161,6 @@ CONTAINS
                          fft_scratch_new%fft_scratch%yzcount(0:np - 1))
                ALLOCATE (fft_scratch_new%fft_scratch%xzdispl(0:np - 1), &
                          fft_scratch_new%fft_scratch%yzdispl(0:np - 1))
-               fft_scratch_new%fft_scratch%in = 0
-               fft_scratch_new%fft_scratch%rsratio = 1._dp
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
                dim = fft_sizes%rs_group%num_pe_cart
