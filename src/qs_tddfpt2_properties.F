@@ -910,16 +910,17 @@ CONTAINS
 !> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
 !>                           SIZE(evects,2) -- number of excited states to print)
 !> \param evals              TDDFPT eigenvalues
+!> \param ostrength ...
 !> \param gs_mos             molecular orbitals optimised for the ground state
 !> \param matrix_s           overlap matrix
 !> \param print_section      ...
 !> \par History
 !>    * 06.2019 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s, print_section)
+   SUBROUTINE tddfpt_print_nto_analysis(qs_env, evects, evals, ostrength, gs_mos, matrix_s, print_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
-      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals, ostrength
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
@@ -930,13 +931,13 @@ CONTAINS
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
       INTEGER                                            :: handle, i, ia, icg, iounit, ispin, &
-                                                            istate, j, nao, nmax, nmo, nnto, &
-                                                            nspins, nstates
+                                                            istate, j, nao, nlist, nmax, nmo, &
+                                                            nnto, nspins, nstates
       INTEGER, DIMENSION(2)                              :: iv
       INTEGER, DIMENSION(2, ntomax)                      :: ia_index
-      INTEGER, DIMENSION(:), POINTER                     :: stride
-      LOGICAL                                            :: append_cube, cube_file
-      REAL(KIND=dp)                                      :: sume, threshold
+      INTEGER, DIMENSION(:), POINTER                     :: slist, stride
+      LOGICAL                                            :: append_cube, cube_file, explicit
+      REAL(KIND=dp)                                      :: os_threshold, sume, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(ntomax)                   :: ia_eval
@@ -960,6 +961,16 @@ CONTAINS
          CALL cite_reference(Martin2003)
 
          CALL section_vals_val_get(print_section, "NTO_ANALYSIS%THRESHOLD", r_val=threshold)
+         CALL section_vals_val_get(print_section, "NTO_ANALYSIS%INTENSITY_THRESHOLD", r_val=os_threshold)
+         CALL section_vals_val_get(print_section, "NTO_ANALYSIS%STATE_LIST", EXPLICIT=explicit)
+
+         IF (explicit) THEN
+            CALL section_vals_val_get(print_section, "NTO_ANALYSIS%STATE_LIST", i_vals=slist)
+            nlist = SIZE(slist)
+         ELSE
+            nlist = 0
+         END IF
+
          IF (iounit > 0) THEN
             WRITE (iounit, "(1X,A)") "", &
                "-------------------------------------------------------------------------------", &
@@ -972,8 +983,22 @@ CONTAINS
          CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
 
          DO istate = 1, nstates
+            IF (os_threshold > ostrength(istate)) THEN
+               IF (iounit > 0) THEN
+                  WRITE (iounit, "(1X,A,I6)") "  Skipping state ", istate
+               END IF
+               CYCLE
+            END IF
+            IF (nlist > 0) THEN
+               IF (.NOT. ANY(slist == istate)) THEN
+                  IF (iounit > 0) THEN
+                     WRITE (iounit, "(1X,A,I6)") "  Skipping state ", istate
+                  END IF
+                  CYCLE
+               END IF
+            END IF
             IF (iounit > 0) THEN
-               WRITE (iounit, "(1X,A,I3,T30,F10.5,A)") "  STATE NR. ", istate, evals(istate)*evolt, " eV"
+               WRITE (iounit, "(1X,A,I6,T30,F10.5,A)") "  STATE NR. ", istate, evals(istate)*evolt, " eV"
             END IF
             nmax = 0
             DO ispin = 1, nspins

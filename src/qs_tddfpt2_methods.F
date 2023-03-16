@@ -463,7 +463,7 @@ CONTAINS
                                 dipole_op_mos_occ, tddfpt_control%dipole_form)
       CALL tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                             min_amplitude=tddfpt_control%min_excitation_amplitude)
-      CALL tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s(1)%matrix, &
+      CALL tddfpt_print_nto_analysis(qs_env, evects, evals, ostrength, gs_mos, matrix_s(1)%matrix, &
                                      tddfpt_print_section)
 
       IF (tddfpt_control%do_lrigpw) THEN
