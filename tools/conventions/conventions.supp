@@ -233,6 +233,10 @@ farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" http
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
 farming_types.F: Found type farming_env_type without initializer https://cp2k.org/conv#c016
 farming_types.F: Found type job_type without initializer https://cp2k.org/conv#c016
+fftw3_lib.F: 'dim_istride' is used uninitialized [-Wuninitialized]
+fftw3_lib.F: 'dim_n' is used uninitialized [-Wuninitialized]
+fftw3_lib.F: 'dim_ostride' is used uninitialized [-Wuninitialized]
+fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'in' and INTENT(OUT) argument 'out' at (1)
 fft_plan.F: Found type fft_plan_type without initializer https://cp2k.org/conv#c016
 fft_tools.F: Found type fft_scratch_pool_type without initializer https://cp2k.org/conv#c016
 fft_tools.F: Found type fft_scratch_type without initializer https://cp2k.org/conv#c016
