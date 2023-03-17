@@ -20,6 +20,7 @@ Pimd/regtest-1/water-in-helium-restart.inp
 Pimd/regtest-2/water-micro-helium.inp
 Pimd/regtest-2/water-micro-helium-therminit.inp
 QMMM/SE/regtest-force-mixing/Lysozyme_small_NVT.inp
+QS/regtest-gpw-1/Li2-0-SCF-PBE.inp
 QS/regtest-admm-qps/O2-triplett-ADMMP-debug_forces.inp
 QS/regtest-almo-2/ion-pair.inp
 QS/regtest-almo-trustr/FHchain-dogleg.inp
@@ -66,6 +67,7 @@ QS/regtest-xastdp/CH3-PBE-uks.inp
 QS/regtest-p-efield/HF-field-debug.inp
 QS/regtest-admm-qps/H2O-ADMMQ_debug_forces.inp
 QS/regtest-ps-implicit-1-1/Ar_mixed_cuboidal.inp
+QS/regtest-ps-implicit-1-1/Ar_mixed_cylindrical.inp
 QS/regtest-embed/H2O_H2_pbe_FAB.inp
 QS/regtest-gapw-ext/H2S-e4.inp
 QS/regtest-rtp-5/si8-smearing-rtp-dens.inp
