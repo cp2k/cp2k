@@ -18,11 +18,11 @@ MODULE input_cp2k_dft
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
         Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
         Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, Heinzmann1976, &
-        Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, &
-        Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, &
-        Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Shigeta2001, Stewart1982, &
-        Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, &
-        VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017
+        Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Knizia2013, &
+        Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, &
+        Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Shigeta2001, &
+        Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, VandeVondele2003, &
+        VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -1778,6 +1778,75 @@ CONTAINS
       CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "MINBAS_MOLDEN", &
                                        description="Write the minimal basis in Molden file format, for visualisation.", &
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MINBAS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! IAO (Intrinsic atomic orbital) analysis
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "IAO_ANALYSIS", &
+                                       description="Controls the printing of the IAO (intrinsic atomic orbital) analysis", &
+                                       print_level=debug_print_level, filename="__STD_OUT__", &
+                                       common_iter_levels=1, &
+                                       citations=(/Knizia2013/))
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          description="Threshold for matrix elements in IAO determination.", &
+                          usage="EPS_FILTER reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-8_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
+                          description="Threshold for matrix inversion eigenvalues.", &
+                          usage="EPS_SVD reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_OCC", &
+                          description="Threshold in occupation for vectors included.", &
+                          usage="EPS_OCC reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_BASIS", &
+                          description="Print out IAO reference basis.", &
+                          usage="PRINT_BASIS {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMIC_CHARGES", &
+                          description="Calculate atomic charges from IAO.", &
+                          usage="ATOMIC_CHARGES {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="BOND_ORDER", &
+                          description="Calculate Mayer Bond Orders.", &
+                          usage="BOND_ORDER {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "IAO_MOLDEN", &
+                                       description="Write the IAO basis in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="IAOBAS")
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &

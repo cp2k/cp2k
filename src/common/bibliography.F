@@ -90,7 +90,7 @@ MODULE bibliography
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023
+                            Belleflamme2023, Knizia2013
 
 CONTAINS
 
@@ -4806,6 +4806,21 @@ CONTAINS
                          "DI 10.1063/5.0122671", &
                          "ER"), &
                          DOI="10.1063/5.0122671")
+
+      CALL add_reference(key=Knizia2013, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Knizia Gerald", &
+                         "TI Intrinsic Atomic Orbitals: An Unbiased Bridge between Quantum", &
+                         "   Theory and Chemical Concepts", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "PY 2013", &
+                         "VL 9", &
+                         "BP 4834", &
+                         "EP 4843", &
+                         "DI 10.1021/ct400687b", &
+                         "ER"), &
+                         DOI="10.1021/ct400687b")
 
    END SUBROUTINE add_all_references
 

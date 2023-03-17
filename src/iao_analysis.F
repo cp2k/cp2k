@@ -13,55 +13,35 @@
 ! **************************************************************************************************
 MODULE iao_analysis
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE basis_set_container_types,       ONLY: add_basis_set_to_container,&
-                                              basis_set_container_type,&
-                                              get_basis_from_container,&
-                                              remove_basis_from_container,&
-                                              remove_basis_set_container
-   USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
-                                              create_gto_from_sto_basis,&
-                                              deallocate_sto_basis_set,&
-                                              get_gto_basis_set,&
-                                              gto_basis_set_type,&
-                                              gto_basis_set_p_type,&
-                                              init_orb_basis_set,&
-                                              set_sto_basis_set,&
-                                              srules,&
-                                              sto_basis_set_type
+   USE basis_set_container_types,       ONLY: add_basis_set_to_container
+   USE basis_set_types,                 ONLY: &
+        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_sto_basis_set, &
+        get_gto_basis_set, gto_basis_set_p_type, gto_basis_set_type, init_orb_basis_set, &
+        set_sto_basis_set, srules, sto_basis_set_type
    USE bibliography,                    ONLY: Knizia2013,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply,&
-                                              copy_fm_to_dbcsr,&
-                                              copy_dbcsr_to_fm
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert
+                                              dbcsr_deallocate_matrix_set
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
+                                              cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
-        cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type, cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
-                                              dbcsr_distribution_type,&
-                                              dbcsr_iterator_blocks_left,&
-                                              dbcsr_iterator_next_block,&
-                                              dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop,&
-                                              dbcsr_iterator_type,&
-                                              dbcsr_multiply,&
+   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
-                                              dbcsr_create,&
-                                              dbcsr_release,&
-                                              dbcsr_get_info,&
                                               dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
@@ -71,9 +51,6 @@ MODULE iao_analysis
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_type,&
-                                              mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
@@ -95,10 +72,10 @@ MODULE iao_analysis
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_env_type
-   USE qs_mo_types,                     ONLY: mo_set_type, get_mo_set
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_methods,                   ONLY: make_basis_lowdin
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
@@ -131,29 +108,31 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_wfn_analysis'
 
-      CHARACTER(LEN=default_string_length)               :: bname
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: handle, ikind, ispin, nimages, nkind, &
-                                                            nspin, z, nsgf, nref, norb
+      CHARACTER(LEN=default_string_length)               :: bname
+      INTEGER                                            :: handle, i, ikind, ispin, nimages, nkind, &
+                                                            norb, nref, nsgf, nspin, nvec, z
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL                                            :: do_bondorder, explicit, do_charges, do_printbas
-      REAL(KIND=dp)                                      :: eps_filter, eps_svd, zval
+      LOGICAL                                            :: do_bondorder, do_charges, do_printbas, &
+                                                            explicit, uniform_occupation
+      REAL(KIND=dp)                                      :: eps_filter, eps_occ, eps_svd, zval
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: p_ref_orb, p_orb_ref
+      TYPE(cp_fm_type)                                   :: p_orb_ref, p_ref_orb
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cvec, iao_coef
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: iao_coef
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(dbcsr_type), POINTER                          :: smat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sref, sro 
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sref, sro
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
-      TYPE(gto_basis_set_type), POINTER                  :: refbasis, orbbasis
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: ref_basis_set_list, orb_basis_set_list
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: srr_list, sro_list
+      TYPE(dbcsr_type), POINTER                          :: smat
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: orb_basis_set_list, ref_basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: orbbasis, refbasis
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sro_list, srr_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       ! only do IAO analysis if explicitly requested
       CALL section_vals_get(input_section, explicit=explicit)
@@ -184,6 +163,7 @@ CONTAINS
       ! input options
       CALL section_vals_val_get(input_section, "EPS_FILTER", r_val=eps_filter)
       CALL section_vals_val_get(input_section, "EPS_SVD", r_val=eps_svd)
+      CALL section_vals_val_get(input_section, "EPS_OCC", r_val=eps_occ)
       CALL section_vals_val_get(input_section, "ATOMIC_CHARGES", l_val=do_charges)
       CALL section_vals_val_get(input_section, "BOND_ORDER", l_val=do_bondorder)
       CALL section_vals_val_get(input_section, "PRINT_BASIS", l_val=do_printbas)
@@ -203,9 +183,9 @@ CONTAINS
             CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
          END IF
          IF (unit_nr > 0) THEN
-            CALL get_gto_basis_set(refbasis,name=bname,nsgf=nsgf)
-            WRITE (unit_nr, '(T2,A,A,T14,A,I4,T40,A,A24)') "Kind: ",element_symbol,"NBasFun: ",nsgf,&
-                "Reference Basis: ",ADJUSTL(TRIM(bname))
+            CALL get_gto_basis_set(refbasis, name=bname, nsgf=nsgf)
+            WRITE (unit_nr, '(T2,A,A,T14,A,I4,T40,A,A24)') "Kind: ", element_symbol, "NBasFun: ", nsgf, &
+               "Reference Basis: ", ADJUSTL(TRIM(bname))
          END IF
       END DO
 
@@ -215,10 +195,10 @@ CONTAINS
       !
       ALLOCATE (ref_basis_set_list(nkind), orb_basis_set_list(nkind))
       DO ikind = 1, nkind
-         qs_kind => qs_kind_set(ikind)                   
+         qs_kind => qs_kind_set(ikind)
          NULLIFY (ref_basis_set_list(ikind)%gto_basis_set)
          NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
-         NULLIFY (refbasis, orbbasis)              
+         NULLIFY (refbasis, orbbasis)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=orbbasis, basis_type="ORB")
          IF (ASSOCIATED(orbbasis)) orb_basis_set_list(ikind)%gto_basis_set => orbbasis
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
@@ -229,9 +209,9 @@ CONTAINS
       NULLIFY (srr_list, sro_list)
       CALL setup_neighbor_list(srr_list, ref_basis_set_list, qs_env=qs_env)
       CALL setup_neighbor_list(sro_list, ref_basis_set_list, orb_basis_set_list, qs_env=qs_env)
-   
+
       ! Srr and Sro overlap matrices
-      NULLIFY (sref, sro)        
+      NULLIFY (sref, sro)
       CALL get_qs_env(qs_env, ks_env=ks_env)
       CALL build_overlap_matrix_simple(ks_env, sref, &
                                        ref_basis_set_list, ref_basis_set_list, srr_list)
@@ -254,9 +234,34 @@ CONTAINS
                           p_orb_ref, p_ref_orb, eps_svd, eps_filter)
 
       ! generate IAOs
-      ALLOCATE (iao_coef(nspin))
+      ALLOCATE (iao_coef(nspin), cvec(nspin))
       DO ispin = 1, nspin
-!        CALL intrinsic_ao_calc(smat, p_orb_ref, p_ref_orb, cvec, avec)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=norb, uniform_occupation=uniform_occupation, &
+                         occupation_numbers=occupation_numbers)
+         IF (uniform_occupation) THEN
+            nvec = norb
+         ELSE
+            nvec = 0
+            DO i = 1, norb
+               IF (occupation_numbers(i) > eps_occ) THEN
+                  nvec = i
+               ELSE
+                  EXIT
+               END IF
+            END DO
+         END IF
+         IF (nvec > 0) THEN
+            CALL cp_fm_struct_create(fm_struct, ncol_global=nvec, template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(cvec(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+            CALL cp_fm_to_fm(mo_coeff, cvec(ispin), nvec)
+            !
+            CALL cp_fm_struct_create(fm_struct, ncol_global=nref, template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(iao_coef(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+            !
+            CALL intrinsic_ao_calc(smat, p_orb_ref, p_ref_orb, cvec(ispin), iao_coef(ispin))
+         END IF
       END DO
 !        ! Mulliken population
 !        IF (unit_nr > 0) THEN
@@ -333,8 +338,9 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL cp_fm_release(iao_coef(ispin))
+         CALL cp_fm_release(cvec(ispin))
       END DO
-      DEALLOCATE (iao_coef)
+      DEALLOCATE (iao_coef, cvec)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(/,T2,A)') &
@@ -347,10 +353,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes projector matrices for ref to orb basis and reverse
+!> \param smat ...
+!> \param sref ...
+!> \param s_r_o ...
+!> \param p_o_r ...
+!> \param p_r_o ...
+!> \param eps_svd ...
+!> \param eps_filter ...
 ! **************************************************************************************************
    SUBROUTINE iao_projectors(smat, sref, s_r_o, p_o_r, p_r_o, eps_svd, eps_filter)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: smat, sref
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: s_r_o
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: smat, sref, s_r_o
       TYPE(cp_fm_type), INTENT(INOUT)                    :: p_o_r, p_r_o
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd, eps_filter
 
@@ -358,11 +370,12 @@ CONTAINS
 
       INTEGER                                            :: handle, norb, nref
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_sro, fm_s, fm_inv
+      TYPE(cp_fm_type)                                   :: fm_inv, fm_s, fm_sro
 
       MARK_USED(eps_filter)
 
       CALL timeset(routineN, handle)
+
       CALL cp_fm_get_info(p_r_o, nrow_global=nref, ncol_global=norb)
       CALL cp_fm_create(fm_sro, p_r_o%matrix_struct)
       CALL copy_dbcsr_to_fm(s_r_o, fm_sro)
@@ -374,7 +387,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL copy_dbcsr_to_fm(smat, fm_s)
       CALL cp_fm_invert(fm_s, fm_inv, eps_svd=eps_svd)
-      CALL parallel_gemm('N', 'T', norb, norb, nref, 1.0_dp, fm_inv, fm_sro, 0.0_dp, p_o_r)
+      CALL parallel_gemm('N', 'T', norb, nref, norb, 1.0_dp, fm_inv, fm_sro, 0.0_dp, p_o_r)
       CALL cp_fm_release(fm_s)
       CALL cp_fm_release(fm_inv)
 
@@ -385,7 +398,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL copy_dbcsr_to_fm(sref, fm_s)
       CALL cp_fm_invert(fm_s, fm_inv, eps_svd=eps_svd)
-      CALL parallel_gemm('N', 'N', nref, nref, norb, 1.0_dp, fm_inv, fm_sro, 0.0_dp, p_r_o)
+      CALL parallel_gemm('N', 'N', nref, norb, nref, 1.0_dp, fm_inv, fm_sro, 0.0_dp, p_r_o)
       CALL cp_fm_release(fm_s)
       CALL cp_fm_release(fm_inv)
 
@@ -397,17 +410,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes intrinsic orbitals for a given MO vector set
+!> \param smat ...
+!> \param p_o_r ...
+!> \param p_r_o ...
+!> \param cvec ...
+!> \param avec ...
 ! **************************************************************************************************
    SUBROUTINE intrinsic_ao_calc(smat, p_o_r, p_r_o, cvec, avec)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: smat
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: p_r_o, p_o_r
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: cvec, avec
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: p_o_r, p_r_o, cvec, avec
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'intrinsic_ao_calc'
 
-      INTEGER                                            :: handle, norb, nao, nref
+      INTEGER                                            :: handle, nao, norb, nref
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: sc, sct, pc, vec1, ctvec
+      TYPE(cp_fm_type)                                   :: ctvec, pc, sc, sct, vec1
 
       CALL timeset(routineN, handle)
 
@@ -421,9 +438,9 @@ CONTAINS
       CALL cp_fm_create(pc, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       ! CT = orth(Por.Pro.C)
-      CALL parallel_gemm('N', 'N', nref, nao, norb, 1.0_dp, p_r_o, cvec, 0.0_dp, pc)
+      CALL parallel_gemm('N', 'N', nref, norb, nao, 1.0_dp, p_r_o, cvec, 0.0_dp, pc)
       CALL cp_fm_create(ctvec, cvec%matrix_struct)
-      CALL parallel_gemm('N', 'N', nao, nref, norb, 1.0_dp, p_o_r, pc, 0.0_dp, ctvec)
+      CALL parallel_gemm('N', 'N', nao, norb, nref, 1.0_dp, p_o_r, pc, 0.0_dp, ctvec)
       CALL cp_fm_release(pc)
       CALL make_basis_lowdin(ctvec, norb, smat)
       ! S*C and S*CT
@@ -436,22 +453,22 @@ CONTAINS
       CALL cp_fm_create(pc, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       ! V1 = (CT*SCT(T))Por
-      CALL parallel_gemm('T', 'N', norb, nao, nref, 1.0_dp, sct, p_r_o, 0.0_dp, pc)
+      CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sct, p_o_r, 0.0_dp, pc)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nref, &
                                template_fmstruct=cvec%matrix_struct)
-      CALL cp_fm_create(vec1, cvec%matrix_struct)
+      CALL cp_fm_create(vec1, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
-      CALL parallel_gemm('N', 'N', nao, norb, nref, 1.0_dp, ctvec, pc, 0.0_dp, vec1)
+      CALL parallel_gemm('N', 'N', nao, nref, norb, 1.0_dp, ctvec, pc, 0.0_dp, vec1)
       ! A = C*SC(T)*V1
-      CALL parallel_gemm('T', 'N', norb, nao, nref, 1.0_dp, sc, vec1, 0.0_dp, pc)
-      CALL parallel_gemm('N', 'N', nao, norb, nref, 1.0_dp, cvec, pc, 0.0_dp, avec)
+      CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sc, vec1, 0.0_dp, pc)
+      CALL parallel_gemm('N', 'N', nao, nref, norb, 1.0_dp, cvec, pc, 0.0_dp, avec)
       ! V1 = Por - V1
-      CALL cp_fm_scale_and_add(-1.0_dp, vec1, 1.0_dp, p_r_o)
+      CALL cp_fm_scale_and_add(-1.0_dp, vec1, 1.0_dp, p_o_r)
       ! A = A + V1
       CALL cp_fm_scale_and_add(1.0_dp, avec, 1.0_dp, vec1)
       ! A = A - C*SC(T)*V1
-      CALL parallel_gemm('T', 'N', norb, nao, nref, 1.0_dp, sc, vec1, 0.0_dp, pc)
-      CALL parallel_gemm('N', 'N', nao, norb, nref, -1.0_dp, cvec, pc, 1.0_dp, avec)
+      CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sc, vec1, 0.0_dp, pc)
+      CALL parallel_gemm('N', 'N', nao, nref, norb, -1.0_dp, cvec, pc, 1.0_dp, avec)
 
       ! clean up
       CALL cp_fm_release(pc)
@@ -563,9 +580,7 @@ CONTAINS
 !> \brief Creates a minimal basis set based on Slater rules
 !> \param min_basis_set ...
 !> \param zval ...
-!> \param ishell ...
-!> \param nshell ...
-!> \param lnam ...
+!> \param econf ...
 !> \par History
 !>      03.2023 created [JGH]
 ! **************************************************************************************************
@@ -574,16 +589,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: zval
       INTEGER, DIMENSION(0:3)                            :: econf
 
-      CHARACTER(LEN=default_string_length)               :: bname
+      CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = (/"S", "P", "D", "F"/)
+
       CHARACTER(len=6)                                   :: str
       CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
-      INTEGER, DIMENSION(:), POINTER                     :: lq, nq
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
-
-      INTEGER                                            :: i, l, nss, iss, n, nn
+      CHARACTER(LEN=default_string_length)               :: bname
+      INTEGER                                            :: i, iss, l, n, nn, nss
       INTEGER, DIMENSION(0:3)                            :: nae, npe
       INTEGER, DIMENSION(4, 7)                           :: ne
-      CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = (/"S","P","D","F"/)
+      INTEGER, DIMENSION(:), POINTER                     :: lq, nq
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
       CPASSERT(.NOT. ASSOCIATED(min_basis_set))
@@ -591,7 +606,7 @@ CONTAINS
 
       ! electronic configuration
       ne = 0
-      DO l = 1, 4 
+      DO l = 1, 4
          nn = 2*(l - 1) + 1
          DO i = l, 7
             ne(l, i) = ptable(zval)%e_conv(l - 1) - 2*nn*(i - l)
@@ -602,25 +617,25 @@ CONTAINS
       ! STO definition
       nae = 0
       npe = 0
-      DO l=0,3
-         nn = 2*(2*l+1)
+      DO l = 0, 3
+         nn = 2*(2*l + 1)
          nae(l) = ptable(zval)%e_conv(l)/nn
-         IF(MOD(ptable(zval)%e_conv(l),nn) /= 0) nae(l) = nae(l)+1
+         IF (MOD(ptable(zval)%e_conv(l), nn) /= 0) nae(l) = nae(l) + 1
          npe(l) = econf(l)/nn
-         IF(MOD(econf(l),nn) /= 0) npe(l) = npe(l)+1
+         IF (MOD(econf(l), nn) /= 0) npe(l) = npe(l) + 1
       END DO
-      CPASSERT(ALL(nae-npe >= 0))
+      CPASSERT(ALL(nae - npe >= 0))
       nss = SUM(npe)
-      ALLOCATE(sym(nss), lq(nss), nq(nss), zet(nss))
+      ALLOCATE (sym(nss), lq(nss), nq(nss), zet(nss))
       iss = 0
-      DO l=0,3
-         DO i=1,npe(l)
+      DO l = 0, 3
+         DO i = 1, npe(l)
             iss = iss + 1
             lq(iss) = l
             n = nae(l) - npe(l) + l
             nq(iss) = n + i
             str = "      "
-            WRITE(str(5:5),FMT='(I1)') nq(iss)
+            WRITE (str(5:5), FMT='(I1)') nq(iss)
             str(6:6) = lnam(l)
             sym(iss) = str
             zet(iss) = srules(zval, ne, nq(iss), lq(iss))
@@ -636,7 +651,7 @@ CONTAINS
       CALL init_orb_basis_set(min_basis_set)
       CALL deallocate_sto_basis_set(sto_basis_set)
 
-      DEALLOCATE(sym, lq, nq, zet)
+      DEALLOCATE (sym, lq, nq, zet)
 
    END SUBROUTINE create_min_basis
 
