@@ -151,7 +151,7 @@ The --with-PKG options follow the rules:
   --with-intel            Use the Intel compiler to compile CP2K.
                           Default = system
   --with-intel-classic    Use the classic Intel compiler to compile CP2K.
-                          Default = yes
+                          Default = no
   --with-cmake            Cmake utilities
                           Default = install
   --with-openmpi          OpenMPI, important if you want a parallel version of CP2K.
@@ -340,7 +340,7 @@ enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
-export intel_classic="yes"
+export intel_classic="no"
 export GPUVER="no"
 export MPICH_DEVICE="ch3"
 export TARGET_CPU="native"
