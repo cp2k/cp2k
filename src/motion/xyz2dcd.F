@@ -462,14 +462,17 @@ PROGRAM xyz2dcd
             IF (.NOT. ALLOCATED(r_pbc)) THEN
                ALLOCATE (r_pbc(natom, 3), STAT=istat)
                IF (istat /= 0) CALL abort_program(routineN, "Allocation of the array r_pbc failed")
+               r_pbc(:, :) = 0.0_dp
             END IF
             IF (.NOT. ALLOCATED(s)) THEN
                ALLOCATE (s(natom, 3), STAT=istat)
                IF (istat /= 0) CALL abort_program(routineN, "Allocation of the array s failed")
+               s(:, :) = 0.0_dp
             END IF
             IF (.NOT. ALLOCATED(s_pbc)) THEN
                ALLOCATE (s_pbc(natom, 3), STAT=istat)
                IF (istat /= 0) CALL abort_program(routineN, "Allocation of the array s_pbc failed")
+               s_pbc(:, :) = 0.0_dp
             END IF
             CALL pbc(r, r_pbc, s, s_pbc, h, hinv, debug, info, pbc0)
             CALL write_out_of_box_atoms(atomic_label, r, s, eps_out_of_box, h)
