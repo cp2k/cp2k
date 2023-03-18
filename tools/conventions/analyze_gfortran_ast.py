@@ -64,7 +64,9 @@ def process_log_file(fhandle: TextIO) -> None:
             # Found new symbole, check default initializers of previous symbole.
             if cur_sym and cur_sym.startswith("__def_init_"):
                 assert cur_derived_type
-                if any(x in (cur_value or "") for x in [" () ", "(() ", " ())"]):
+                initializer = cur_value or ""
+                is_incomplete = any(x in initializer for x in [" () ", "(() ", " ())"])
+                if not initializer or is_incomplete:
                     msg(f"Found type {cur_derived_type} without initializer", 16)
 
             # Parse new symbole.
