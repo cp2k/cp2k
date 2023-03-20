@@ -2,7 +2,7 @@
 #
 # CP2K (Intel/MKL x86_64) arch file for Linux clusters
 #
-# Tested with: Intel 20.4/21.4/22.2 , Intel MPI, Intel MKL,
+# Tested with: Intel 22.2 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.1.0, ELPA 2022.11.001,
 #              PLUMED 2.8.1, SPGLIB 1.16.2, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.2
@@ -12,7 +12,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (09.03.2023)
+# Author: Matthias Krack (20.03.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -27,7 +27,7 @@
       module add ${1}; \
       module list; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-intelmpi --with-mkl --with-sirius=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-intelmpi --with-mkl --with-sirius=no --with-libtorch=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -326,6 +326,7 @@ FCFLAGS        := $(CFLAGS)
 FCFLAGS        += -diag-disable=8291
 FCFLAGS        += -diag-disable=8293
 FCFLAGS        += -fpp
+FCFLAGS        += -fpscomp logicals
 FCFLAGS        += -free
 FCFLAGS        += -std08
 
