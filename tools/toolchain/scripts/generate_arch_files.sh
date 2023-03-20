@@ -129,7 +129,7 @@ if [ "${with_intel}" == "__DONTUSE__" ]; then
 else
   CXXFLAGS="IF_MPI(-cxx=${I_MPI_CXX}|) $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
   CFLAGS="IF_MPI(-cc=${I_MPI_CC}|) $G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
-  FCFLAGS="IF_MPI(-fc=${I_MPI_FC}|) $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -free"
+  FCFLAGS="IF_MPI(-fc=${I_MPI_FC}|) $FCFLAGS -diag-disable=8291 -diag-disable=8293 -fpp -fpscomp logicals -free"
 fi
 
 # Linker flags
