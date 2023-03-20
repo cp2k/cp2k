@@ -23,9 +23,9 @@ MODULE force_env_methods
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_create,&
                                               cell_release,&
+                                              cell_sym_triclinic,&
                                               cell_type,&
                                               init_cell,&
-                                              cell_sym_triclinic,&
                                               real_to_scaled,&
                                               scaled_to_real
    USE constraint_fxd,                  ONLY: fix_atom_control

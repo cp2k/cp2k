@@ -36,7 +36,9 @@ MODULE qs_localization_methods
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace,&
-                                              cp_fm_transpose
+                                              cp_fm_transpose,&
+                                              cp_fm_triangular_multiply
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
@@ -59,7 +61,6 @@ MODULE qs_localization_methods
                                               get_nsquare_norder
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE qs_mo_methods,                   ONLY: make_basis_simple
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -752,7 +753,7 @@ CONTAINS
             !WRITE (*, *) "RANDOM INITIAL GUESS FOR C"
             CALL cp_fm_create(tmp_fm, c_tilde%matrix_struct)
             CALL cp_fm_init_random(tmp_fm, nextra)
-            CALL make_basis_simple(tmp_fm, nextra)
+            CALL ortho_vectors(tmp_fm)
             c_tilde%local_data = tmp_fm%local_data
             CALL cp_fm_release(tmp_fm)
             ALLOCATE (tmp_cmat(northo, nextra))
@@ -800,7 +801,7 @@ CONTAINS
             CALL cp_fm_struct_release(tmp_fm_struct)
             CALL cp_fm_set_submatrix(tmp_fm, tmp_mat_1)
             DEALLOCATE (tmp_mat_1)
-            CALL make_basis_simple(tmp_fm, nextra)
+            CALL ortho_vectors(tmp_fm)
             CALL cp_fm_to_cfm(msourcer=tmp_fm, mtarget=c_tilde)
             CALL cp_fm_release(tmp_fm)
             ! initialize U
@@ -820,7 +821,7 @@ CONTAINS
                DEALLOCATE (tmp_cmat)
                CALL cp_fm_create(tmp_fm, U%matrix_struct)
                tmp_fm%local_data = REAL(U%local_data, KIND=dp)
-               CALL make_basis_simple(tmp_fm, nstate)
+               CALL ortho_vectors(tmp_fm)
                CALL cp_fm_to_cfm(msourcer=tmp_fm, mtarget=U)
                CALL cp_fm_release(tmp_fm)
                CALL cp_cfm_to_fm(U, matrix_U)
@@ -898,7 +899,7 @@ CONTAINS
                ! orthonormalize c_tilde
                CALL cp_fm_create(tmp_fm, c_tilde%matrix_struct)
                tmp_fm%local_data = REAL(c_tilde%local_data, KIND=dp)
-               CALL make_basis_simple(tmp_fm, nextra)
+               CALL ortho_vectors(tmp_fm)
                CALL cp_fm_to_cfm(msourcer=tmp_fm, mtarget=c_tilde)
                CALL cp_fm_release(tmp_fm)
 
@@ -1212,6 +1213,43 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE jacobi_cg_edf_ls
+
+! **************************************************************************************************
+!> \brief ...
+!> \param vmatrix ...
+! **************************************************************************************************
+   SUBROUTINE ortho_vectors(vmatrix)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ortho_vectors'
+
+      INTEGER                                            :: handle, n, ncol
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type)                                   :: overlap_vv
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (fm_struct_tmp)
+
+      CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
+                               para_env=vmatrix%matrix_struct%para_env, &
+                               context=vmatrix%matrix_struct%context)
+      CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL parallel_gemm('T', 'N', ncol, ncol, n, 1.0_dp, vmatrix, vmatrix, 0.0_dp, overlap_vv)
+      CALL cp_fm_cholesky_decompose(overlap_vv)
+      CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
+
+      CALL cp_fm_release(overlap_vv)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ortho_vectors
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param istate ...

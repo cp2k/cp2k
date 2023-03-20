@@ -12,6 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE iao_analysis
+   USE atomic_charges,                  ONLY: print_atomic_charges
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: &
@@ -23,9 +24,11 @@ MODULE iao_analysis
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_invert,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -40,9 +43,10 @@ MODULE iao_analysis
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -51,6 +55,7 @@ MODULE iao_analysis
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
@@ -70,9 +75,11 @@ MODULE iao_analysis
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_mo_methods,                   ONLY: make_basis_lowdin
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
@@ -110,19 +117,23 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: handle, i, ikind, ispin, nimages, nkind, &
-                                                            norb, nref, nsgf, nspin, nvec, z
+      INTEGER                                            :: handle, i, ikind, ispin, nao, natom, &
+                                                            nimages, nkind, norb, nref, nsgf, &
+                                                            nspin, nvec, z
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL                                            :: do_bondorder, do_charges, do_printbas, &
-                                                            explicit, uniform_occupation
-      REAL(KIND=dp)                                      :: eps_filter, eps_occ, eps_svd, zval
+      LOGICAL                                            :: do_bondorbitals, do_charges, &
+                                                            do_printbas, explicit, &
+                                                            uniform_occupation
+      REAL(KIND=dp)                                      :: eps_filter, eps_occ, eps_svd, trace, zval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: p_orb_ref, p_ref_orb
+      TYPE(cp_fm_type)                                   :: ciao, p_orb_ref, p_ref_orb, smo
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cvec, iao_coef
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sref, sro
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type)                                   :: dmat
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: orb_basis_set_list, ref_basis_set_list
@@ -130,6 +141,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sro_list, srr_list
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -165,7 +177,7 @@ CONTAINS
       CALL section_vals_val_get(input_section, "EPS_SVD", r_val=eps_svd)
       CALL section_vals_val_get(input_section, "EPS_OCC", r_val=eps_occ)
       CALL section_vals_val_get(input_section, "ATOMIC_CHARGES", l_val=do_charges)
-      CALL section_vals_val_get(input_section, "BOND_ORDER", l_val=do_bondorder)
+      CALL section_vals_val_get(input_section, "BOND_ORBITALS", l_val=do_bondorbitals)
       CALL section_vals_val_get(input_section, "PRINT_BASIS", l_val=do_printbas)
 
       ! check for or generate reference basis
@@ -180,6 +192,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(refbasis)) THEN
             ! generate a minimal basis set
             CALL create_min_basis(refbasis, z, econf)
+            CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
             CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
          END IF
          IF (unit_nr > 0) THEN
@@ -263,22 +276,47 @@ CONTAINS
             CALL intrinsic_ao_calc(smat, p_orb_ref, p_ref_orb, cvec(ispin), iao_coef(ispin))
          END IF
       END DO
-!        ! Mulliken population
-!        IF (unit_nr > 0) THEN
-!           WRITE (unit_nr, '(/,T2,A)') 'Mulliken Population Analysis '
-!        END IF
-!        ALLOCATE (mcharge(natom, nspin))
-!        DO ispin = 1, nspin
-!           CALL dbcsr_dot(pqmat(ispin)%matrix, sqmat(ispin)%matrix, trace)
-!           IF (unit_nr > 0) THEN
-!              WRITE (unit_nr, '(T2,A,I2,T66,F15.4)') 'Number of Electrons: Trace(PS) Spin ', ispin, trace
-!           END IF
-!           CALL mulliken_charges(pqmat(ispin)%matrix, sqmat(ispin)%matrix, para_env, mcharge(:, ispin))
-!        END DO
-!        CALL print_atomic_charges(particle_set, qs_kind_set, unit_nr, "Minimal Basis Mulliken Charges", &
-!                                  electronic_charges=mcharge)
-!        ! Mayer bond orders
-!        IF (do_bondorder) THEN
+      !
+      IF (do_charges) THEN
+         ! population analysis
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(/,T2,A)') 'Intrinsic AO Population Analysis '
+         END IF
+         CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, natom=natom)
+         CALL get_ks_env(ks_env=ks_env, particle_set=particle_set)
+         ALLOCATE (mcharge(natom, nspin))
+         CALL dbcsr_get_info(sref(1)%matrix, nfullrows_total=nref)
+         DO ispin = 1, nspin
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb, &
+                            uniform_occupation=uniform_occupation, &
+                            occupation_numbers=occupation_numbers)
+            CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(ciao, fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+            ! A(T)*S*C
+            CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
+            CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao)
+            ! diagonal block matrix
+            CALL dbcsr_create(dmat, template=sref(1)%matrix)
+            CALL dbcsr_reserve_diag_blocks(dmat)
+            !
+            CALL calculate_dmat(ciao, dmat, occupation_numbers, uniform_occupation)
+            CALL dbcsr_trace(dmat, trace)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A,I2,T66,F15.4)') 'Number of Electrons: Trace(Piao) Spin ', ispin, trace
+            END IF
+            CALL iao_charges(dmat, mcharge(:, ispin))
+            CALL dbcsr_release(dmat)
+            CALL cp_fm_release(smo)
+            CALL cp_fm_release(ciao)
+         END DO
+         CALL print_atomic_charges(particle_set, qs_kind_set, unit_nr, "Intrinsic Atomic Orbital Charges", &
+                                   electronic_charges=mcharge)
+         DEALLOCATE (mcharge)
+      END IF
+      ! Intrinsic bond orbitals
+      IF (do_bondorbitals) THEN
 !           ALLOCATE (border(natom, natom))
 !           border = 0.0_dp
 !           CALL dbcsr_create(psmat, name="PS", template=sqmat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -297,8 +335,9 @@ CONTAINS
 !           CALL dbcsr_release(spmat)
 !           CALL print_bond_orders(particle_set, unit_nr, border)
 !           DEALLOCATE (border)
-!        END IF
+      END IF
 
+      IF (do_printbas) THEN
 !        ! for printing purposes we now copy the QUAMBOs into MO format
 !        ALLOCATE (mbas(nspin))
 !        DO ispin = 1, nspin
@@ -324,6 +363,7 @@ CONTAINS
 !           CALL deallocate_mo_set(mbas(ispin))
 !        END DO
 !        DEALLOCATE (mbas)
+      END IF
 
       ! Deallocate the neighbor list structure
       CALL release_neighbor_list_sets(srr_list)
@@ -469,6 +509,8 @@ CONTAINS
       ! A = A - C*SC(T)*V1
       CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sc, vec1, 0.0_dp, pc)
       CALL parallel_gemm('N', 'N', nao, nref, norb, -1.0_dp, cvec, pc, 1.0_dp, avec)
+      ! A = orth(A)
+      CALL make_basis_lowdin(avec, nref, smat)
 
       ! clean up
       CALL cp_fm_release(pc)
@@ -480,6 +522,87 @@ CONTAINS
 
    END SUBROUTINE intrinsic_ao_calc
 
+! **************************************************************************************************
+!> \brief Calculate the density matrix from fm vectors
+!> \param cvec ...
+!> \param density_matrix ...
+!> \param occupation ...
+!> \param uniform_occupation ...
+! **************************************************************************************************
+   SUBROUTINE calculate_dmat(cvec, density_matrix, occupation, uniform_occupation)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: cvec
+      TYPE(dbcsr_type)                                   :: density_matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      LOGICAL, INTENT(IN)                                :: uniform_occupation
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dmat'
+
+      INTEGER                                            :: handle, ncol
+      REAL(KIND=dp)                                      :: alpha
+      TYPE(cp_fm_type)                                   :: fm_tmp
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_set(density_matrix, 0.0_dp)
+
+      CALL cp_fm_get_info(cvec, ncol_global=ncol)
+      IF (.NOT. uniform_occupation) THEN
+         CALL cp_fm_create(fm_tmp, cvec%matrix_struct)
+         CALL cp_fm_to_fm(cvec, fm_tmp)
+         CALL cp_fm_column_scale(fm_tmp, occupation(1:ncol))
+         alpha = 1.0_dp
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix, &
+                                    matrix_v=cvec, matrix_g=fm_tmp, &
+                                    ncol=ncol, alpha=alpha)
+         CALL cp_fm_release(fm_tmp)
+      ELSE
+         alpha = occupation(1)
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix, &
+                                    matrix_v=cvec, ncol=ncol, alpha=alpha)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_dmat
+
+! **************************************************************************************************
+!> \brief compute the atomic charges (orthogonal basis)
+!> \param p_matrix ...
+!> \param charges ...
+! **************************************************************************************************
+   SUBROUTINE iao_charges(p_matrix, charges)
+      TYPE(dbcsr_type)                                   :: p_matrix
+      REAL(KIND=dp), DIMENSION(:)                        :: charges
+
+      INTEGER                                            :: blk, group_handle, i, iblock_col, &
+                                                            iblock_row
+      REAL(kind=dp)                                      :: trace
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(mp_comm_type)                                 :: group
+
+      charges = 0.0_dp
+
+      CALL dbcsr_iterator_start(iter, p_matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         NULLIFY (p_block)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
+         CPASSERT(iblock_row == iblock_col)
+         trace = 0.0_dp
+         DO i = 1, SIZE(p_block, 1)
+            trace = trace + p_block(i, i)
+         END DO
+         charges(iblock_row) = trace
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL dbcsr_get_info(p_matrix, group=group_handle)
+      CALL group%set_handle(group_handle)
+
+      CALL group%sum(charges)
+
+   END SUBROUTINE iao_charges
 ! **************************************************************************************************
 !> \brief Computes and prints the Cube Files for the intrinsic atomic orbitals
 !> \param qs_env ...

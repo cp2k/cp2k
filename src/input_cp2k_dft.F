@@ -1836,9 +1836,9 @@ CONTAINS
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="BOND_ORDER", &
-                          description="Calculate Mayer Bond Orders.", &
-                          usage="BOND_ORDER {logical}", repeats=.FALSE., n_var=1, &
+      CALL keyword_create(keyword, __LOCATION__, name="BOND_ORBITALS", &
+                          description="Calculate Intrinsic Bond Orbitals.", &
+                          usage="BOND_ORBITALS {logical}", repeats=.FALSE., n_var=1, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1847,6 +1847,29 @@ CONTAINS
       CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "IAO_MOLDEN", &
                                        description="Write the IAO basis in Molden file format, for visualisation.", &
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, filename="IAOBAS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "BAO_MOLDEN", &
+                                       description="Write the IBO orbitals in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="IBOBAS")
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &

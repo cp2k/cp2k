@@ -38,7 +38,7 @@ MODULE qs_loc_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_maxabsval, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -72,7 +72,8 @@ MODULE qs_loc_methods
                                               dp,&
                                               sp
    USE machine,                         ONLY: m_flush
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE motion_utils,                    ONLY: get_output_format
@@ -103,12 +104,12 @@ MODULE qs_loc_methods
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
                                               qs_loc_env_type
-   USE qs_loc_utils,                    ONLY: jacobi_rotation_pipek
    USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
                                               crazy_rotations,&
                                               direct_mini,&
                                               jacobi_cg_edf_ls,&
                                               jacobi_rotations,&
+                                              rotate_orbitals,&
                                               scdm_qrfact,&
                                               zij_matrix
    USE qs_matrix_pools,                 ONLY: mpools_get
@@ -132,7 +133,7 @@ MODULE qs_loc_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
 ! *** Public ***
-   PUBLIC ::  qs_loc_driver, qs_print_cubes, centers_spreads_berry, centers_second_moments_loc, &
+   PUBLIC :: qs_loc_driver, qs_print_cubes, centers_spreads_berry, centers_second_moments_loc, &
              centers_second_moments_berry
 
 CONTAINS
@@ -431,6 +432,217 @@ CONTAINS
 
    END SUBROUTINE optimize_loc_pipek
 
+! **************************************************************************************************
+!> \brief 2by2 rotation for the pipek operator
+!>       in this case the z_ij numbers are reals
+!> \param zij_fm_set ...
+!> \param vectors ...
+!> \param sweeps ...
+!> \par History
+!>       05-2005 created
+!> \author MI
+! **************************************************************************************************
+   SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
+
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      INTEGER                                            :: sweeps
+
+      INTEGER                                            :: iatom, istate, jstate, natom, nstate
+      REAL(KIND=dp)                                      :: aij, bij, ct, mii, mij, mjj, ratio, st, &
+                                                            theta, tolerance
+      TYPE(cp_fm_type)                                   :: rmat
+
+      CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix_struct)
+      CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
+
+      CALL cp_fm_get_info(rmat, nrow_global=nstate)
+      tolerance = 1.0e10_dp
+      sweeps = 0
+      natom = SIZE(zij_fm_set, 1)
+      ! do jacobi sweeps until converged
+      DO WHILE (tolerance >= 1.0e-4_dp)
+         sweeps = sweeps + 1
+         DO istate = 1, nstate
+            DO jstate = istate + 1, nstate
+               aij = 0.0_dp
+               bij = 0.0_dp
+               DO iatom = 1, natom
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, mii)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, jstate, mij)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), jstate, jstate, mjj)
+                  aij = aij + mij*(mii - mjj)
+                  bij = bij + mij*mij - 0.25_dp*(mii - mjj)*(mii - mjj)
+
+               END DO
+               IF (ABS(bij) > 1.E-10_dp) THEN
+                  ratio = -aij/bij
+                  theta = 0.25_dp*ATAN(ratio)
+               ELSE
+                  bij = 0.0_dp
+                  theta = 0.0_dp
+               END IF
+               ! Check max or min
+               ! To minimize the spread
+               IF (theta > pi*0.5_dp) THEN
+                  theta = theta - pi*0.25_dp
+               ELSE IF (theta < -pi*0.5_dp) THEN
+                  theta = theta + pi*0.25_dp
+               END IF
+
+               ct = COS(theta)
+               st = SIN(theta)
+
+               CALL rotate_rmat_real(istate, jstate, st, ct, rmat)
+
+               CALL rotate_zij_real(istate, jstate, st, ct, zij_fm_set)
+            END DO
+         END DO
+         CALL check_tolerance_real(zij_fm_set, tolerance)
+      END DO
+
+      CALL rotate_orbitals(rmat, vectors)
+      CALL cp_fm_release(rmat)
+
+   END SUBROUTINE jacobi_rotation_pipek
+
+! **************************************************************************************************
+!> \brief ...
+!> \param istate ...
+!> \param jstate ...
+!> \param st ...
+!> \param ct ...
+!> \param rmat ...
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! **************************************************************************************************
+   SUBROUTINE rotate_rmat_real(istate, jstate, st, ct, rmat)
+
+      INTEGER, INTENT(IN)                      :: istate, jstate
+      REAL(dp), INTENT(IN)                     :: st, ct
+      TYPE(cp_fm_type), INTENT(IN)             :: rmat
+
+      INTEGER                                  :: nstate
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9)                    :: desc
+#endif
+
+      CALL cp_fm_get_info(rmat, nrow_global=nstate)
+#if defined(__SCALAPACK)
+      desc(:) = rmat%matrix_struct%descriptor(:)
+      CALL pzrot(nstate, rmat%local_data(1, 1), 1, istate, desc, 1, &
+                 rmat%local_data(1, 1), 1, jstate, desc, 1, ct, st)
+#else
+      CALL drot(nstate, rmat%local_data(1, istate), 1, &
+                rmat%local_data(1, jstate), 1, ct, st)
+#endif
+
+   END SUBROUTINE rotate_rmat_real
+
+! **************************************************************************************************
+!> \brief ...
+!> \param istate ...
+!> \param jstate ...
+!> \param st ...
+!> \param ct ...
+!> \param zij ...
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! **************************************************************************************************
+   SUBROUTINE rotate_zij_real(istate, jstate, st, ct, zij)
+
+      INTEGER, INTENT(IN)                      :: istate, jstate
+      REAL(dp), INTENT(IN)                     :: st, ct
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN) :: zij
+
+      INTEGER                                  :: iatom, natom, nstate
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9)                    :: desc
+#else
+      INTEGER                                  :: stride
+#endif
+
+      CALL cp_fm_get_info(zij(1, 1), nrow_global=nstate)
+
+      natom = SIZE(zij, 1)
+      DO iatom = 1, natom
+#if defined(__SCALAPACK)
+         desc(:) = zij(iatom, 1)%matrix_struct%descriptor(:)
+         CALL pzrot(nstate, zij(iatom, 1)%local_data(1, 1), &
+                    1, istate, desc, 1, zij(iatom, 1)%local_data(1, 1), &
+                    1, jstate, desc, nstate, ct, st)
+         CALL pzrot(nstate, zij(iatom, 1)%local_data(1, 1), &
+                    istate, 1, desc, 1, zij(iatom, 1)%local_data(1, 1), &
+                    jstate, 1, desc, nstate, ct, st)
+#else
+         CALL drot(nstate, zij(iatom, 1)%local_data(1, istate), &
+                   1, zij(iatom, 1)%local_data(1, jstate), 1, ct, st)
+         stride = SIZE(zij(iatom, 1)%local_data, 1)
+         CALL drot(nstate, zij(iatom, 1)%local_data(istate, 1), &
+                   stride, zij(iatom, 1)%local_data(jstate, 1), stride, ct, st)
+#endif
+      END DO
+
+   END SUBROUTINE rotate_zij_real
+
+! **************************************************************************************************
+!> \brief ...
+!> \param zij_fm_set ...
+!> \param tolerance ...
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! **************************************************************************************************
+   SUBROUTINE check_tolerance_real(zij_fm_set, tolerance)
+
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      REAL(dp), INTENT(OUT)                              :: tolerance
+
+      INTEGER                                            :: iatom, istate, jstate, natom, &
+                                                            ncol_local, nrow_global, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(dp)                                           :: grad_ij, zii, zij, zjj
+      REAL(dp), DIMENSION(:, :), POINTER                 :: diag
+      TYPE(cp_fm_type)                                   :: force
+
+      NULLIFY (diag, col_indices, row_indices)
+      natom = SIZE(zij_fm_set, 1)
+      CALL cp_fm_get_info(zij_fm_set(1, 1), nrow_local=nrow_local, &
+                          ncol_local=ncol_local, nrow_global=nrow_global, &
+                          row_indices=row_indices, col_indices=col_indices)
+      ALLOCATE (diag(nrow_global, natom))
+
+      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix_struct)
+      CALL cp_fm_set_all(force, 0._dp)
+
+      DO iatom = 1, natom
+         DO istate = 1, nrow_global
+            CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, diag(istate, iatom))
+         END DO
+      END DO
+
+      DO istate = 1, nrow_local
+         DO jstate = 1, ncol_local
+            grad_ij = 0.0_dp
+            DO iatom = 1, natom
+               zii = diag(istate, iatom)
+               zjj = diag(jstate, iatom)
+               zij = zij_fm_set(iatom, 1)%local_data(istate, jstate)
+               grad_ij = grad_ij + 4.0_dp*zij*(zjj - zii)
+            END DO
+            force%local_data(istate, jstate) = grad_ij
+         END DO
+      END DO
+
+      DEALLOCATE (diag)
+
+      CALL cp_fm_maxabsval(force, tolerance)
+
+      CALL cp_fm_release(force)
+
+   END SUBROUTINE check_tolerance_real
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_loc_env ...
