@@ -79,7 +79,7 @@ if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
   else
     I_MPI_CXX="icpx"
     I_MPI_CC="icx"
-    I_MPI_FC="ifort"
+    I_MPI_FC="ifx"
   fi
   INTELMPI_LIBS="-lmpi -lmpicxx"
   echo "I_MPI_CXX is ${I_MPI_CXX}"
