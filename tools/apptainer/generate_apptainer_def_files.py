@@ -80,9 +80,7 @@ def main() -> None:
 
     if ncores > os.cpu_count():
         print(
-            "WARNING: More CPU cores requested for build than available ({ncores:d} > {maxcores:d})".format(
-                ncores=ncores, maxcores=os.cpu_count()
-            )
+            f"WARNING: More CPU cores requested for build than available ({ncores} > {os.cpu_count()})"
         )
 
     for release in cp2k_release_list:
@@ -134,7 +132,7 @@ def main() -> None:
 # ------------------------------------------------------------------------------
 
 
-def check_ncores(value):
+def check_ncores(value: str) -> int:
     ivalue = int(value)
     if ivalue < 1:
         raise argparse.ArgumentTypeError("%s is an invalid number of CPU cores" % value)
