@@ -62,7 +62,7 @@ Task: sample_tasks/collocate_ortho_density_l2200.task                     Batche
 
 ## Unit Test
 
-The `grid_collocate_unittest.x` binary runs the .task files from the
+The `grid_unittest.x` binary runs the .task files from the
 [sample_tasks](./sample_tasks/) directory - with and without batching.
 Beware that this is merely a smoke test.
 The cp2k regtest suite provides much more thorough testing.
@@ -70,13 +70,35 @@ The cp2k regtest suite provides much more thorough testing.
 ```shell
 $ cd cp2k/src/grid
 $ make
-$ ./grid_collocate_unittest.x
-Usage: grid_base_ref_unittest.x <cp2k-root-dir>
+$ ./grid_unittest.x
+Usage: grid_unittest.x <cp2k-root-dir>
 
-$ ./grid_collocate_unittest.x ../../
-Task: ../../src/grid/sample_tasks/collocate_ortho_density_l0000.task      Batched: no    Cycles: 1.000000e+00   Max value: 3.505772e+00   Max diff: 0.000000e+00   Time: 3.927400e-05 sec
-Task: ../../src/grid/sample_tasks/collocate_ortho_density_l0000.task      Batched: yes   Cycles: 1.000000e+00   Max value: 3.505772e+00   Max diff: 0.000000e+00   Time: 1.112822e-03 sec
+$ ./grid_unittest.x ../../
+Task: ../../src/grid/sample_tasks/ortho_density_l0000.task      Integrate PGF-Ref   Cycles: 1.000000e+00   Max value: 1.181734e+03   Max rel diff: 2.231548e-18   Time: 1.307470e-04 sec
+Task: ../../src/grid/sample_tasks/ortho_density_l0000.task      Integrate Batched   Cycles: 1.000000e+00   Max value: 1.181734e+03   Max rel diff: 2.231548e-18   Time: 3.350100e-03 sec
 ...
-Task: ../../src/grid/sample_tasks/collocate_ortho_non_periodic.task       Batched: yes   Cycles: 1.000000e+00   Max value: 4.483815e-01   Max diff: 0.000000e+00   Time: 1.882868e-02 sec
+Task: ../../src/grid/sample_tasks/general_overflow.task         Collocate PGF-Ref   Cycles: 1.000000e+00   Max value: 7.584822e+00   Max rel diff: 5.513005e-14   Time: 2.138600e-04 sec
+Task: ../../src/grid/sample_tasks/general_overflow.task         Collocate Batched   Cycles: 1.000000e+00   Max value: 7.584822e+00   Max rel diff: 5.513005e-14   Time: 2.427680e-03 sec
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                GRID STATISTICS                              -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ LP    KERNEL             BACKEND                              COUNT     PERCENT
+ 0     collocate general  REF                                      8      16.67%
+ 3     integrate general  REF                                      8      16.67%
+ 3     collocate ortho    REF                                      6      12.50%
+ 6     integrate ortho    REF                                      6      12.50%
+ 2     collocate ortho    REF                                      4       8.33%
+ 5     integrate ortho    REF                                      4       8.33%
+ 0     collocate ortho    REF                                      2       4.17%
+ 6     collocate ortho    REF                                      2       4.17%
+ 3     integrate ortho    REF                                      2       4.17%
+ 9     integrate ortho    REF                                      2       4.17%
+ 2     collocate general  REF                                      2       4.17%
+ 5     integrate general  REF                                      2       4.17%
+ -------------------------------------------------------------------------------
+
 All tests have passed :-)
 ```
