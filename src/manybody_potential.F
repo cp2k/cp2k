@@ -26,6 +26,10 @@ MODULE manybody_potential
                                               pos_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE manybody_allegro,                ONLY: allegro_add_force_virial,&
+                                              allegro_energy_store_force_virial,&
+                                              destroy_allegro_arrays,&
+                                              setup_allegro_arrays
    USE manybody_eam,                    ONLY: get_force_eam
    USE manybody_gal,                    ONLY: destroy_gal_arrays,&
                                               gal_energy,&
@@ -53,9 +57,10 @@ MODULE manybody_potential
                                               tersoff_forces
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        ea_type, eam_pot_type, gal21_pot_type, gal21_type, gal_pot_type, gal_type, &
-        nequip_pot_type, nequip_type, pair_potential_pp_type, pair_potential_single_type, &
-        quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, tersoff_type
+        allegro_pot_type, allegro_type, ea_type, eam_pot_type, gal21_pot_type, gal21_type, &
+        gal_pot_type, gal_type, nequip_pot_type, nequip_type, pair_potential_pp_type, &
+        pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
+        tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -100,15 +105,18 @@ CONTAINS
       INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, ilist, indexa, &
          ipair, iparticle, iparticle_local, istart, iunique, jkind, junique, mpair, nkinds, &
          nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_o, nr_oh, nunique
-      INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
+      INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, unique_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_gal, any_gal21, any_nequip, &
-                                                            any_quip, any_siepmann, any_tersoff
-      REAL(KIND=dp)                                      :: drij, embed, pot_loc, pot_nequip, &
-                                                            pot_quip, qr, rab2_max, rij(3)
+      LOGICAL                                            :: any_allegro, any_gal, any_gal21, &
+                                                            any_nequip, any_quip, any_siepmann, &
+                                                            any_tersoff
+      REAL(KIND=dp)                                      :: drij, embed, pot_allegro, pot_loc, &
+                                                            pot_nequip, pot_quip, qr, rab2_max, &
+                                                            rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
+      TYPE(allegro_pot_type), POINTER                    :: allegro
       TYPE(eam_pot_type), POINTER                        :: eam
       TYPE(eam_type), DIMENSION(:), POINTER              :: eam_data
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
@@ -129,6 +137,7 @@ CONTAINS
       any_gal21 = .FALSE.
       any_quip = .FALSE.
       any_nequip = .FALSE.
+      any_allegro = .FALSE.
       CALL timeset(routineN, handle)
       CALL fist_nonbond_env_get(fist_nonbond_env, r_last_update_pbc=r_last_update_pbc, &
                                 potparm=potparm, eam_data=eam_data)
@@ -173,6 +182,7 @@ CONTAINS
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
             any_quip = any_quip .OR. ANY(pot%type == quip_type)
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
+            any_allegro = any_allegro .OR. ANY(pot%type == allegro_type)
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
             any_gal21 = any_gal21 .OR. ANY(pot%type == gal21_type)
@@ -194,6 +204,17 @@ CONTAINS
                                                fist_nonbond_env, para_env)
          pot_manybody = pot_manybody + pot_nequip
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
+      END IF
+      ! ALLEGRO
+      IF (any_allegro) THEN
+         NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a, unique_list_a)
+         CALL setup_allegro_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, &
+                                   unique_list_a, cell)
+         CALL allegro_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
+                                                allegro, glob_loc_list_a, r_last_update_pbc, pot_allegro, &
+                                                fist_nonbond_env, unique_list_a)
+         pot_manybody = pot_manybody + pot_allegro
+         CALL destroy_allegro_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, unique_list_a)
       END IF
       ! TERSOFF
       IF (any_tersoff) THEN
@@ -555,8 +576,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eam_kinds_index
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_gal, any_gal21, any_nequip, &
-                                                            any_quip, any_siepmann, any_tersoff
+      LOGICAL                                            :: any_allegro, any_gal, any_gal21, &
+                                                            any_nequip, any_quip, any_siepmann, &
+                                                            any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -576,6 +598,7 @@ CONTAINS
       any_tersoff = .FALSE.
       any_quip = .FALSE.
       any_nequip = .FALSE.
+      any_allegro = .FALSE.
       any_siepmann = .FALSE.
       any_gal = .FALSE.
       any_gal21 = .FALSE.
@@ -634,6 +657,7 @@ CONTAINS
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
             any_gal21 = any_gal21 .OR. ANY(pot%type == gal21_type)
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
+            any_allegro = any_allegro .OR. ANY(pot%type == allegro_type)
             i = eam_kinds_index(ikind, jkind)
             IF (i == -1) CYCLE
             ! EAM
@@ -1004,6 +1028,11 @@ CONTAINS
       ! NEQUIP
       IF (any_nequip) THEN
          CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+      END IF
+
+      ! ALLEGRO
+      IF (any_allegro) THEN
+         CALL allegro_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       IF (use_virial) THEN

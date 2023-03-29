@@ -90,7 +90,7 @@ MODULE bibliography
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023, Knizia2013
+                            Belleflamme2023, Knizia2013, Musaelian2023
 
 CONTAINS
 
@@ -224,7 +224,7 @@ CONTAINS
                          "SO Nature Communications", &
                          "PY 2022", &
                          "VL 13", &
-                         "IS 1", &
+                         "AR 2453", &
                          "ER"), &
                          DOI="10.1038/s41467-022-29939-5")
 
@@ -4821,6 +4821,24 @@ CONTAINS
                          "DI 10.1021/ct400687b", &
                          "ER"), &
                          DOI="10.1021/ct400687b")
+
+      CALL add_reference(key=Musaelian2023, ISI_record=s2a( &
+                         "PT J", &
+                         "   Musaelian, A", &
+                         "   Batzner, S", &
+                         "   Johansson, A", &
+                         "   Sun, L", &
+                         "   Owen, CJ", &
+                         "   Kornbluth, M", &
+                         "   Kozinsky, B", &
+                         "TI Learning local equivariant representations for large-scale", &
+                         "    atomistic dynamice", &
+                         "SO Nature Communications", &
+                         "PY 2023", &
+                         "VL 14", &
+                         "AR 579", &
+                         "ER"), &
+                         DOI="10.1038/s41467-023-36329-y")
 
    END SUBROUTINE add_all_references
 

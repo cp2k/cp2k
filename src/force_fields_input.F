@@ -65,11 +65,12 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        b4_type, bm_type, do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, &
-        ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
-        lj_charmm_type, nequip_pot_type, nequip_type, no_potential_single_allocation, &
-        pair_potential_p_type, pair_potential_reallocate, potential_single_allocation, quip_type, &
-        siepmann_type, tab_pot_type, tab_type, tersoff_type, wl_type
+        allegro_pot_type, allegro_type, b4_type, bm_type, do_potential_single_allocation, ea_type, &
+        eam_pot_type, ft_pot_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, &
+        ip_type, ipbv_pot_type, lj_charmm_type, nequip_pot_type, nequip_type, &
+        no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
+        potential_single_allocation, quip_type, siepmann_type, tab_pot_type, tab_type, &
+        tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -105,9 +106,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
-      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngal21, ngd, ngp, &
-         nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, ntersoff, ntors, &
-         ntot, nubs, nwl
+      INTEGER :: nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngal21, &
+         ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, ntersoff, &
+         ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -296,10 +297,22 @@ CONTAINS
             CALL read_nequip_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
 
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "allegro")
+         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nallegro)
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
+                nquip + nnequip
+         IF (explicit) THEN
+            ! avoid repeating the allegro section for each pair
+            CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
+            nallegro = nallegro - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nallegro, allegro=.TRUE.)
+            CALL read_allegro_section(inp_info%nonbonded, tmp_section2, ntot)
+         END IF
+
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "TABPOT")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ntab)
          ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-                nquip + nnequip
+                nquip + nnequip + nallegro
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntab, tab=.TRUE.)
             CALL read_tabpot_section(inp_info%nonbonded, tmp_section2, ntot, para_env, mm_section)
@@ -736,6 +749,54 @@ CONTAINS
       END DO
 
    END SUBROUTINE read_nequip_section
+
+! **************************************************************************************************
+!> \brief Reads the ALLEGRO section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
+!> \author teo
+! **************************************************************************************************
+   SUBROUTINE read_allegro_section(nonbonded, section, start)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+
+      CHARACTER(LEN=default_string_length)               :: allegro_file_name, unit_cell, &
+                                                            unit_coords, unit_energy, unit_forces
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: isec, jsec, n_items
+
+      n_items = 1
+      isec = 1
+      n_items = isec*n_items
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+      CALL section_vals_val_get(section, "PARM_FILE_NAME", c_val=allegro_file_name)
+      CALL section_vals_val_get(section, "UNIT_COORDS", c_val=unit_coords)
+      CALL section_vals_val_get(section, "UNIT_ENERGY", c_val=unit_energy)
+      CALL section_vals_val_get(section, "UNIT_FORCES", c_val=unit_forces)
+      CALL section_vals_val_get(section, "UNIT_CELL", c_val=unit_cell)
+
+      DO isec = 1, SIZE(atm_names)
+         DO jsec = isec, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = allegro_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
+            nonbonded%pot(start + n_items)%pot%set(1)%allegro%allegro_file_name = discover_file(allegro_file_name)
+            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_coords = unit_coords
+            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_forces = unit_forces
+            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_energy = unit_energy
+            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_cell = unit_cell
+            CALL read_allegro_data(nonbonded%pot(start + n_items)%pot%set(1)%allegro)
+            nonbonded%pot(start + n_items)%pot%rcutsq = nonbonded%pot(start + n_items)%pot%set(1)%allegro%rcutsq
+            n_items = n_items + 1
+         END DO
+      END DO
+
+   END SUBROUTINE read_allegro_section
 
 ! **************************************************************************************************
 !> \brief Reads the LJ section
@@ -2337,6 +2398,37 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE read_nequip_data
+
+! **************************************************************************************************
+!> \brief reads ALLEGRO potential from .pth file
+!> \param allegro ...
+! **************************************************************************************************
+   SUBROUTINE read_allegro_data(allegro)
+      TYPE(allegro_pot_type), POINTER                    :: allegro
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_allegro_data'
+
+      CHARACTER(LEN=default_path_length)                 :: cutoff_str
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      allegro%allegro_version = torch_model_read_metadata(allegro%allegro_file_name, "nequip_version")
+      cutoff_str = torch_model_read_metadata(allegro%allegro_file_name, "r_max")
+      READ (cutoff_str, *) allegro%rcutsq
+      allegro%rcutsq = cp_unit_to_cp2k(allegro%rcutsq, allegro%unit_coords)
+      allegro%rcutsq = allegro%rcutsq*allegro%rcutsq
+      allegro%unit_coords_val = 1.0_dp
+      allegro%unit_coords_val = cp_unit_to_cp2k(allegro%unit_coords_val, allegro%unit_coords)
+      allegro%unit_forces_val = 1.0_dp
+      allegro%unit_forces_val = cp_unit_to_cp2k(allegro%unit_forces_val, allegro%unit_forces)
+      allegro%unit_energy_val = 1.0_dp
+      allegro%unit_energy_val = cp_unit_to_cp2k(allegro%unit_energy_val, allegro%unit_energy)
+      allegro%unit_cell_val = 1.0_dp
+      allegro%unit_cell_val = cp_unit_to_cp2k(allegro%unit_cell_val, allegro%unit_cell)
+
+      CALL timestop(handle)
+   END SUBROUTINE read_allegro_data
 
 ! **************************************************************************************************
 !> \brief reads TABPOT potential from file
