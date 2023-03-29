@@ -21,7 +21,8 @@ MODULE iao_analysis
         set_sto_basis_set, srules, sto_basis_set_type
    USE bibliography,                    ONLY: Knizia2013,&
                                               cite_reference
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -34,8 +35,10 @@ MODULE iao_analysis
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -44,9 +47,9 @@ MODULE iao_analysis
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type
+        dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -55,7 +58,9 @@ MODULE iao_analysis
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_comm_type
+   USE molden_utils,                    ONLY: write_mos_molden
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
@@ -80,9 +85,17 @@ MODULE iao_analysis
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
+   USE qs_loc_methods,                  ONLY: jacobi_rotation_pipek
+   USE qs_loc_utils,                    ONLY: compute_berry_operator
+   USE qs_localization_methods,         ONLY: initialize_weights
    USE qs_mo_methods,                   ONLY: make_basis_lowdin
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              get_mo_set,&
+                                              init_mo_set,&
+                                              mo_set_type,&
+                                              set_mo_set
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
@@ -117,19 +130,25 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: handle, i, ikind, ispin, nao, natom, &
-                                                            nimages, nkind, norb, nref, nsgf, &
-                                                            nspin, nvec, z
+      INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
+                                                            lb, nao, natom, ne, nimages, nkind, &
+                                                            norb, nref, nsgf, nspin, nvec, sweeps, &
+                                                            ub, z
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
+      INTEGER, DIMENSION(0:3)                            :: elcon
+      INTEGER, DIMENSION(2)                              :: nocc
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL                                            :: do_bondorbitals, do_charges, &
-                                                            do_printbas, explicit, &
-                                                            uniform_occupation
-      REAL(KIND=dp)                                      :: eps_filter, eps_occ, eps_svd, trace, zval
+      LOGICAL :: cubes_iao, cubes_ibo, do_bondorbitals, do_center, do_charges, do_oce, explicit, &
+         molden_iao, molden_ibo, pos_periodic, uniform_occupation
+      REAL(KIND=dp)                                      :: eps_occ, eps_svd, trace, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: ciao, p_orb_ref, p_ref_orb, smo
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: cvec, iao_coef
+      TYPE(cp_fm_type)                                   :: p_orb_ref, p_ref_orb, smo
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: c_loc_orb, ciao, cloc, cvec, iao_coef
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: zij_atom
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sref, sro
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
@@ -138,6 +157,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: orb_basis_set_list, ref_basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: orbbasis, refbasis
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mo_iao, mo_loc
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sro_list, srr_list
@@ -145,6 +165,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(section_vals_type), POINTER                   :: iao_cubes_section, iao_molden_section, &
+                                                            ibo_cc_section, ibo_cubes_section, &
+                                                            ibo_molden_section, subsection
 
       ! only do IAO analysis if explicitly requested
       CALL section_vals_get(input_section, explicit=explicit)
@@ -173,12 +196,36 @@ CONTAINS
       CALL cite_reference(Knizia2013)
 
       ! input options
-      CALL section_vals_val_get(input_section, "EPS_FILTER", r_val=eps_filter)
       CALL section_vals_val_get(input_section, "EPS_SVD", r_val=eps_svd)
       CALL section_vals_val_get(input_section, "EPS_OCC", r_val=eps_occ)
       CALL section_vals_val_get(input_section, "ATOMIC_CHARGES", l_val=do_charges)
-      CALL section_vals_val_get(input_section, "BOND_ORBITALS", l_val=do_bondorbitals)
-      CALL section_vals_val_get(input_section, "PRINT_BASIS", l_val=do_printbas)
+      iao_molden_section => section_vals_get_subs_vals(input_section, "IAO_MOLDEN")
+      CALL section_vals_get(iao_molden_section, explicit=molden_iao)
+      iao_cubes_section => section_vals_get_subs_vals(input_section, "IAO_CUBES")
+      CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
+      subsection => section_vals_get_subs_vals(input_section, "ONE_CENTER_EXPANSION")
+      CALL section_vals_get(subsection, explicit=do_oce)
+      subsection => section_vals_get_subs_vals(input_section, "BOND_ORBITALS")
+      CALL section_vals_get(subsection, explicit=do_bondorbitals)
+      IF (do_bondorbitals) THEN
+         subsection => section_vals_get_subs_vals(input_section, "BOND_ORBITALS")
+         ibo_molden_section => section_vals_get_subs_vals(subsection, "IBO_MOLDEN")
+         CALL section_vals_get(ibo_molden_section, explicit=molden_ibo)
+         ibo_cubes_section => section_vals_get_subs_vals(subsection, "IBO_CUBES")
+         CALL section_vals_get(ibo_cubes_section, explicit=cubes_ibo)
+         ibo_cc_section => section_vals_get_subs_vals(subsection, "CHARGE_CENTER")
+         CALL section_vals_get(ibo_cc_section, explicit=do_center)
+         IF (do_center) THEN
+            CALL get_qs_env(qs_env, cell=cell)
+            CALL section_vals_val_get(ibo_cc_section, "POSITION_OPERATOR_BERRY", &
+                                      l_val=pos_periodic, explicit=explicit)
+            IF (.NOT. explicit) THEN
+               ! set default according to cell periodicity
+               pos_periodic = .TRUE.
+               IF (ALL(cell%perd == 0)) pos_periodic = .FALSE.
+            END IF
+         END IF
+      END IF
 
       ! check for or generate reference basis
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
@@ -191,7 +238,12 @@ CONTAINS
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
          IF (.NOT. ASSOCIATED(refbasis)) THEN
             ! generate a minimal basis set
-            CALL create_min_basis(refbasis, z, econf)
+            elcon = 0
+            lb = LBOUND(econf, 1)
+            ub = UBOUND(econf, 1)
+            ne = ub - lb
+            elcon(0:ne) = econf(lb:ub)
+            CALL create_min_basis(refbasis, z, elcon)
             CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
             CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
          END IF
@@ -235,19 +287,21 @@ CONTAINS
       CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
       CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=nref, nfullcols_total=norb)
       !
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=nref, &
                                ncol_global=norb, para_env=mo_coeff%matrix_struct%para_env)
       CALL cp_fm_create(p_ref_orb, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=norb, &
                                ncol_global=nref, para_env=mo_coeff%matrix_struct%para_env)
       CALL cp_fm_create(p_orb_ref, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
       !
-      CALL iao_projectors(smat, sref(1)%matrix, sro(1)%matrix, &
-                          p_orb_ref, p_ref_orb, eps_svd, eps_filter)
+      CALL iao_projectors(smat, sref(1)%matrix, sro(1)%matrix, p_orb_ref, p_ref_orb, eps_svd)
 
-      ! generate IAOs
-      ALLOCATE (iao_coef(nspin), cvec(nspin))
+      ! occupied orbitals
+      nocc(1:2) = 0
       DO ispin = 1, nspin
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=norb, uniform_occupation=uniform_occupation, &
                          occupation_numbers=occupation_numbers)
@@ -263,18 +317,42 @@ CONTAINS
                END IF
             END DO
          END IF
+         nocc(ispin) = nvec
+      END DO
+      ! generate IAOs
+      ALLOCATE (iao_coef(nspin), cvec(nspin))
+      DO ispin = 1, nspin
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         nvec = nocc(ispin)
          IF (nvec > 0) THEN
+            NULLIFY (fm_struct)
             CALL cp_fm_struct_create(fm_struct, ncol_global=nvec, template_fmstruct=mo_coeff%matrix_struct)
             CALL cp_fm_create(cvec(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
             CALL cp_fm_to_fm(mo_coeff, cvec(ispin), nvec)
             !
+            NULLIFY (fm_struct)
             CALL cp_fm_struct_create(fm_struct, ncol_global=nref, template_fmstruct=mo_coeff%matrix_struct)
             CALL cp_fm_create(iao_coef(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
             !
             CALL intrinsic_ao_calc(smat, p_orb_ref, p_ref_orb, cvec(ispin), iao_coef(ispin))
          END IF
+      END DO
+      !
+      ! MOs in IAO basis
+      ALLOCATE (ciao(nspin))
+      DO ispin = 1, nspin
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
+         CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
+         CALL cp_fm_create(ciao(ispin), fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+         ! CIAO = A(T)*S*C
+         CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
+         CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
+         CALL cp_fm_release(smo)
       END DO
       !
       IF (do_charges) THEN
@@ -287,82 +365,179 @@ CONTAINS
          ALLOCATE (mcharge(natom, nspin))
          CALL dbcsr_get_info(sref(1)%matrix, nfullrows_total=nref)
          DO ispin = 1, nspin
-            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb, &
+            CALL get_mo_set(mos(ispin), &
                             uniform_occupation=uniform_occupation, &
                             occupation_numbers=occupation_numbers)
-            CALL cp_fm_create(smo, mo_coeff%matrix_struct)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
-            CALL cp_fm_create(ciao, fm_struct)
-            CALL cp_fm_struct_release(fm_struct)
-            ! A(T)*S*C
-            CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
-            CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao)
             ! diagonal block matrix
             CALL dbcsr_create(dmat, template=sref(1)%matrix)
             CALL dbcsr_reserve_diag_blocks(dmat)
             !
-            CALL calculate_dmat(ciao, dmat, occupation_numbers, uniform_occupation)
+            CALL calculate_dmat(ciao(ispin), dmat, occupation_numbers, uniform_occupation)
             CALL dbcsr_trace(dmat, trace)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,I2,T66,F15.4)') 'Number of Electrons: Trace(Piao) Spin ', ispin, trace
             END IF
             CALL iao_charges(dmat, mcharge(:, ispin))
             CALL dbcsr_release(dmat)
-            CALL cp_fm_release(smo)
-            CALL cp_fm_release(ciao)
          END DO
          CALL print_atomic_charges(particle_set, qs_kind_set, unit_nr, "Intrinsic Atomic Orbital Charges", &
                                    electronic_charges=mcharge)
          DEALLOCATE (mcharge)
       END IF
+      !
+      IF (do_oce) THEN
+         ! One Center Expansion of IAOs
+      END IF
+      !
+      IF (molden_iao) THEN
+         ! Print basis functions: molden file
+         CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+         CALL get_ks_env(ks_env=ks_env, particle_set=particle_set)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A)') '  Write IAO in MOLDEN Format'
+         END IF
+         CALL get_mo_set(mos(1), nao=nao)
+         ALLOCATE (mo_iao(nspin))
+         DO ispin = 1, nspin
+            CALL allocate_mo_set(mo_iao(ispin), nao, nref, nref, 0.0_dp, 1.0_dp, 0.0_dp)
+            CALL init_mo_set(mo_iao(ispin), fm_ref=iao_coef(ispin), name="iao_set")
+            CALL cp_fm_to_fm(iao_coef(ispin), mo_iao(ispin)%mo_coeff)
+            CALL set_mo_set(mo_iao(ispin), homo=nref)
+            mo_iao(ispin)%occupation_numbers = 1.0_dp
+         END DO
+         ! Print IAO basis functions: molden format
+         CALL write_mos_molden(mo_iao, qs_kind_set, particle_set, iao_molden_section)
+         DO ispin = 1, nspin
+            CALL deallocate_mo_set(mo_iao(ispin))
+         END DO
+         DEALLOCATE (mo_iao)
+      END IF
+      IF (cubes_iao) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A)') '  Write IAO as CUBE Files'
+         END IF
+         ! Print basis functions: cube file
+         CALL print_iao_cubes(qs_env, iao_cubes_section, iao_coef, ref_basis_set_list)
+      END IF
+      !
       ! Intrinsic bond orbitals
       IF (do_bondorbitals) THEN
-!           ALLOCATE (border(natom, natom))
-!           border = 0.0_dp
-!           CALL dbcsr_create(psmat, name="PS", template=sqmat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-!           CALL dbcsr_create(spmat, name="SP", template=sqmat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-!           filter_eps = 1.e-6_dp
-!           DO ispin = 1, nspin
-!              CALL dbcsr_multiply("N", "N", 1.0_dp, pqmat(ispin)%matrix, sqmat(ispin)%matrix, 0.0_dp, psmat, &
-!                                  filter_eps=filter_eps)
-!              CALL dbcsr_multiply("N", "N", 1.0_dp, sqmat(ispin)%matrix, pqmat(ispin)%matrix, 0.0_dp, spmat, &
-!                                  filter_eps=filter_eps)
-!              CALL compute_bond_order(psmat, spmat, border)
-!           END DO
-!           CALL para_env%sum(border)
-!           border = border*REAL(nspin, KIND=dp)
-!           CALL dbcsr_release(psmat)
-!           CALL dbcsr_release(spmat)
-!           CALL print_bond_orders(particle_set, unit_nr, border)
-!           DEALLOCATE (border)
-      END IF
-
-      IF (do_printbas) THEN
-!        ! for printing purposes we now copy the QUAMBOs into MO format
-!        ALLOCATE (mbas(nspin))
-!        DO ispin = 1, nspin
-!           CALL allocate_mo_set(mbas(ispin), nao, nmao, nmao, 0.0_dp, 1.0_dp, 0.0_dp)
-!           CALL set_mo_set(mbas(ispin), homo=nmao)
-!           ALLOCATE (mbas(ispin)%eigenvalues(nmao))
-!           mbas(ispin)%eigenvalues = 0.0_dp
-!           ALLOCATE (mbas(ispin)%occupation_numbers(nmao))
-!           mbas(ispin)%occupation_numbers = 1.0_dp
-!           CALL cp_fm_create(mbas(ispin)%mo_coeff, fm_struct_a)
-!           CALL copy_dbcsr_to_fm(quambo(ispin)%matrix, mbas(ispin)%mo_coeff)
-!        END DO
-
-!        ! Print basis functions: cube files
-!        DO ispin = 1, nspin
-!           CALL get_mo_set(mbas(ispin), mo_coeff=fm_mos)
-!           CALL post_minbas_cubes(qs_env, input_section, fm_mos, ispin)
-!        END DO
-!        ! Print basis functions: molden format
-!        molden_section => section_vals_get_subs_vals(input_section, "MINBAS_MOLDEN")
-!        CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section)
-!        DO ispin = 1, nspin
-!           CALL deallocate_mo_set(mbas(ispin))
-!        END DO
-!        DEALLOCATE (mbas)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(/,T2,A)') 'Intrinsic Bond Orbital Generation'
+         END IF
+         ! localize occupied orbitals
+         CALL get_mo_set(mos(1), nao=nao)
+         ALLOCATE (cloc(nspin), c_loc_orb(nspin))
+         DO ispin = 1, nspin
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, ncol_global=nocc(ispin), &
+                                     template_fmstruct=ciao(ispin)%matrix_struct)
+            CALL cp_fm_create(cloc(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+            CALL cp_fm_to_fm(ciao(ispin), cloc(ispin), ncol=nocc(ispin))
+         END DO
+         CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, natom=natom)
+         ALLOCATE (first_sgf(natom), last_sgf(natom), nsgfat(natom))
+         CALL get_ks_env(ks_env=ks_env, particle_set=particle_set)
+         CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf, &
+                               nsgf=nsgfat, basis=ref_basis_set_list)
+         DO ispin = 1, nspin
+            nvec = nocc(ispin)
+            IF (nvec > 0) THEN
+               ALLOCATE (zij_atom(natom, 1))
+               NULLIFY (fm_struct)
+               CALL cp_fm_struct_create(fm_struct, nrow_global=nvec, ncol_global=nvec, &
+                                        template_fmstruct=p_ref_orb%matrix_struct)
+               DO iatom = 1, natom
+                  CALL cp_fm_create(zij_atom(iatom, 1), fm_struct)
+                  isgf = first_sgf(iatom)
+                  CALL parallel_gemm('T', 'N', nvec, nvec, nsgfat(iatom), 1.0_dp, cloc(ispin), cloc(ispin), &
+                                     0.0_dp, zij_atom(iatom, 1), &
+                                     a_first_col=1, a_first_row=isgf, b_first_col=1, b_first_row=isgf)
+               END DO
+               CALL cp_fm_struct_release(fm_struct)
+               !
+               CALL jacobi_rotation_pipek(zij_atom, cloc(ispin), sweeps)
+               !
+               DO iatom = 1, natom
+                  CALL cp_fm_release(zij_atom(iatom, 1))
+               END DO
+               DEALLOCATE (zij_atom)
+               NULLIFY (fm_struct)
+               CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
+                                        template_fmstruct=cloc(ispin)%matrix_struct)
+               CALL cp_fm_create(c_loc_orb(ispin), fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
+               CALL parallel_gemm('N', 'N', nao, nvec, nref, 1.0_dp, iao_coef(ispin), cloc(ispin), &
+                                  0.0_dp, c_loc_orb(ispin))
+            END IF
+         END DO
+         DEALLOCATE (first_sgf, last_sgf, nsgfat)
+         DO ispin = 1, nspin
+            CALL cp_fm_release(cloc(ispin))
+         END DO
+         DEALLOCATE (cloc)
+         !
+         IF (do_center) THEN
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A)') '  Calculate Localized Orbital Centers and Spread'
+               IF (pos_periodic) THEN
+                  WRITE (unit_nr, '(T2,A)') '    Use Berry Phase Position Operator'
+               ELSE
+                  WRITE (unit_nr, '(T2,A)') '    Use Local Position Operator'
+               END IF
+            END IF
+            nvec = MAXVAL(nocc)
+            ! x  y  z  m2(1)  m2(2)
+            ALLOCATE (moments(5, nvec, nspin))
+            moments = 0.0_dp
+            IF (pos_periodic) THEN
+               CALL center_spread_berry(qs_env, c_loc_orb, moments)
+            ELSE
+               CALL center_spread_loc(qs_env, c_loc_orb, moments)
+            END IF
+            !
+            CALL print_center_spread(moments, nocc, ibo_cc_section)
+            !
+            DEALLOCATE (moments)
+         END IF
+         !
+         IF (molden_ibo) THEN
+            CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+            CALL get_ks_env(ks_env=ks_env, particle_set=particle_set)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A)') '  Write IBO in MOLDEN Format'
+            END IF
+            CALL get_mo_set(mos(1), nao=nao)
+            ALLOCATE (mo_loc(nspin))
+            DO ispin = 1, nspin
+               nvec = nocc(ispin)
+               CALL allocate_mo_set(mo_loc(ispin), nao, nvec, nvec, 0.0_dp, 1.0_dp, 0.0_dp)
+               CALL init_mo_set(mo_loc(ispin), fm_ref=c_loc_orb(ispin), name="ibo_orb")
+               CALL cp_fm_to_fm(c_loc_orb(ispin), mo_loc(ispin)%mo_coeff)
+               CALL set_mo_set(mo_loc(ispin), homo=nvec)
+               mo_loc(ispin)%occupation_numbers = 1.0_dp
+            END DO
+            ! Print IBO functions: molden format
+            CALL write_mos_molden(mo_loc, qs_kind_set, particle_set, ibo_molden_section)
+            DO ispin = 1, nspin
+               CALL deallocate_mo_set(mo_loc(ispin))
+            END DO
+            DEALLOCATE (mo_loc)
+         END IF
+         !
+         IF (cubes_ibo) THEN
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A)') '  Write IBO on CUBE files'
+            END IF
+            ! Print localized orbital functions: cube file
+            CALL print_ibo_cubes(qs_env, ibo_cubes_section, c_loc_orb)
+         END IF
+         !
+         DO ispin = 1, nspin
+            CALL cp_fm_release(c_loc_orb(ispin))
+         END DO
+         DEALLOCATE (c_loc_orb)
       END IF
 
       ! Deallocate the neighbor list structure
@@ -379,11 +554,12 @@ CONTAINS
       DO ispin = 1, nspin
          CALL cp_fm_release(iao_coef(ispin))
          CALL cp_fm_release(cvec(ispin))
+         CALL cp_fm_release(ciao(ispin))
       END DO
-      DEALLOCATE (iao_coef, cvec)
+      DEALLOCATE (iao_coef, cvec, ciao)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(/,T2,A)') &
+         WRITE (unit_nr, '(T2,A)') &
             '!----------------------------END OF IAO ANALYSIS------------------------------!'
       END IF
 
@@ -399,12 +575,11 @@ CONTAINS
 !> \param p_o_r ...
 !> \param p_r_o ...
 !> \param eps_svd ...
-!> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE iao_projectors(smat, sref, s_r_o, p_o_r, p_r_o, eps_svd, eps_filter)
+   SUBROUTINE iao_projectors(smat, sref, s_r_o, p_o_r, p_r_o, eps_svd)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: smat, sref, s_r_o
       TYPE(cp_fm_type), INTENT(INOUT)                    :: p_o_r, p_r_o
-      REAL(KIND=dp), INTENT(IN)                          :: eps_svd, eps_filter
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_projectors'
 
@@ -412,14 +587,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_inv, fm_s, fm_sro
 
-      MARK_USED(eps_filter)
-
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(p_r_o, nrow_global=nref, ncol_global=norb)
       CALL cp_fm_create(fm_sro, p_r_o%matrix_struct)
       CALL copy_dbcsr_to_fm(s_r_o, fm_sro)
 
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, nrow_global=norb, ncol_global=norb, &
                                template_fmstruct=p_r_o%matrix_struct)
       CALL cp_fm_create(fm_s, fm_struct, name="smat")
@@ -431,6 +605,7 @@ CONTAINS
       CALL cp_fm_release(fm_s)
       CALL cp_fm_release(fm_inv)
 
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nref, ncol_global=nref, &
                                template_fmstruct=p_r_o%matrix_struct)
       CALL cp_fm_create(fm_s, fm_struct, name="sref")
@@ -473,6 +648,7 @@ CONTAINS
       ! basis set sizes
       CALL cp_fm_get_info(p_r_o, nrow_global=nref, ncol_global=nao)
       ! temp array
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nref, ncol_global=norb, &
                                template_fmstruct=cvec%matrix_struct)
       CALL cp_fm_create(pc, fm_struct)
@@ -494,6 +670,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       ! V1 = (CT*SCT(T))Por
       CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sct, p_o_r, 0.0_dp, pc)
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nref, &
                                template_fmstruct=cvec%matrix_struct)
       CALL cp_fm_create(vec1, fm_struct)
@@ -517,6 +694,7 @@ CONTAINS
       CALL cp_fm_release(vec1)
       CALL cp_fm_release(sc)
       CALL cp_fm_release(sct)
+      CALL cp_fm_release(ctvec)
 
       CALL timestop(handle)
 
@@ -603,23 +781,25 @@ CONTAINS
       CALL group%sum(charges)
 
    END SUBROUTINE iao_charges
+
 ! **************************************************************************************************
 !> \brief Computes and prints the Cube Files for the intrinsic atomic orbitals
 !> \param qs_env ...
 !> \param print_section ...
-!> \param iao_coeff ...
-!> \param ispin ...
+!> \param iao_coef ...
+!> \param basis_set_list ...
 ! **************************************************************************************************
-   SUBROUTINE print_iao_cubes(qs_env, print_section, iao_coeff, ispin)
+   SUBROUTINE print_iao_cubes(qs_env, print_section, iao_coef, basis_set_list)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: print_section
-      TYPE(cp_fm_type), INTENT(IN)                       :: iao_coeff
-      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: iao_coef
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
 
       CHARACTER(LEN=default_path_length)                 :: filename, title
-      INTEGER                                            :: i, i_rep, ivec, iw, j, n_rep, natom
-      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes, first_bas, ilist, stride
-      LOGICAL                                            :: explicit, mpi_io
+      INTEGER                                            :: i, i_rep, ispin, ivec, iw, j, n_rep, &
+                                                            nat, natom, norb, nspins, nstart
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list, blk_sizes, first_bas, stride
+      LOGICAL                                            :: mpi_io
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -631,14 +811,10 @@ CONTAINS
       TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: iao_section
-
-      iao_section => section_vals_get_subs_vals(print_section, "IAO_CUBE")
-      CALL section_vals_get(iao_section, explicit=explicit)
-      IF (.NOT. explicit) RETURN
 
       logger => cp_get_default_logger()
-      stride => section_get_ivals(print_section, "IAO_CUBE%STRIDE")
+      stride => section_get_ivals(print_section, "STRIDE")
+      CALL section_vals_val_get(print_section, "ATOM_LIST", n_rep_val=n_rep)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       subsys=subsys, cell=cell, particle_set=particle_set, pw_env=pw_env, dft_control=dft_control)
@@ -646,7 +822,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, natom=natom)
       ALLOCATE (blk_sizes(natom), first_bas(0:natom))
-      CALL get_particle_set(particle_set, qs_kind_set, nmao=blk_sizes)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=blk_sizes, basis=basis_set_list)
       first_bas(0) = 0
       DO i = 1, natom
          first_bas(i) = first_bas(i - 1) + blk_sizes(i)
@@ -656,48 +832,157 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-      ! loop over list of atoms
-      CALL section_vals_val_get(iao_section, "ATOM_LIST", n_rep_val=n_rep)
-      IF (n_rep == 0) THEN
-         DO i = 1, natom
-            DO ivec = first_bas(i - 1) + 1, first_bas(i)
-               WRITE (filename, '(a4,I5.5,a1,I1.1)') "IAO_", ivec, "_", ispin
-               WRITE (title, *) "Intrinsic Atomic Orbitals ", ivec, " atom ", i, " spin ", ispin
-               mpi_io = .TRUE.
-               iw = cp_print_key_unit_nr(logger, print_section, "IAO_CUBE", extension=".cube", &
-                                         middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
-                                         mpi_io=mpi_io)
-               CALL calculate_wavefunction(iao_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                           cell, dft_control, particle_set, pw_env)
-               CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
-               CALL cp_print_key_finished_output(iw, logger, print_section, "IAO_CUBE", mpi_io=mpi_io)
-            END DO
-         END DO
-      ELSE
-         DO i_rep = 1, n_rep
-            CALL section_vals_val_get(iao_section, "ATOM_LIST", i_rep_val=i_rep, i_vals=ilist)
-            DO i = 1, SIZE(ilist, 1)
-               j = ilist(i)
+      nspins = SIZE(iao_coef)
+      nstart = MIN(1, n_rep)
+
+      DO ispin = 1, nspins
+         DO i_rep = nstart, n_rep
+            CALL cp_fm_get_info(iao_coef(ispin), ncol_global=norb)
+            IF (i_rep == 0) THEN
+               nat = natom
+            ELSE
+               CALL section_vals_val_get(print_section, "ATOM_LIST", i_rep_val=i_rep, i_vals=atom_list)
+               nat = SIZE(atom_list)
+            END IF
+            DO i = 1, nat
+               IF (i_rep == 0) THEN
+                  j = i
+               ELSE
+                  j = atom_list(i)
+               END IF
+               CPASSERT(j >= 1 .AND. j <= natom)
                DO ivec = first_bas(j - 1) + 1, first_bas(j)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "IAO_", ivec, "_", ispin
                   WRITE (title, *) "Intrinsic Atomic Orbitals ", ivec, " atom ", j, " spin ", ispin
                   mpi_io = .TRUE.
-                  iw = cp_print_key_unit_nr(logger, print_section, "IAO_CUBE", extension=".cube", &
+                  iw = cp_print_key_unit_nr(logger, print_section, "", extension=".cube", &
                                             middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                             mpi_io=mpi_io)
-                  CALL calculate_wavefunction(iao_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                  CALL calculate_wavefunction(iao_coef(ispin), ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
                                               cell, dft_control, particle_set, pw_env)
                   CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
-                  CALL cp_print_key_finished_output(iw, logger, print_section, "IAO_CUBE", mpi_io=mpi_io)
+                  CALL cp_print_key_finished_output(iw, logger, print_section, "", mpi_io=mpi_io)
                END DO
             END DO
          END DO
-      END IF
+      END DO
       DEALLOCATE (blk_sizes, first_bas)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
 
    END SUBROUTINE print_iao_cubes
+
+! **************************************************************************************************
+!> \brief Computes and prints the Cube Files for the intrinsic bond orbitals
+!> \param qs_env ...
+!> \param print_section ...
+!> \param ibo_coef ...
+! **************************************************************************************************
+   SUBROUTINE print_ibo_cubes(qs_env, print_section, ibo_coef)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: ibo_coef
+
+      CHARACTER(LEN=default_path_length)                 :: filename, title
+      INTEGER                                            :: i, i_rep, ispin, iw, j, n_rep, norb, &
+                                                            nspins, nstart, nstate
+      INTEGER, DIMENSION(:), POINTER                     :: state_list, stride
+      LOGICAL                                            :: mpi_io
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      CPASSERT(ASSOCIATED(print_section))
+
+      logger => cp_get_default_logger()
+      stride => section_get_ivals(print_section, "STRIDE")
+      CALL section_vals_val_get(print_section, "STATE_LIST", n_rep_val=n_rep)
+
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      subsys=subsys, cell=cell, particle_set=particle_set, pw_env=pw_env, dft_control=dft_control)
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+
+      nspins = SIZE(ibo_coef)
+      nstart = MIN(1, n_rep)
+
+      DO ispin = 1, nspins
+         DO i_rep = nstart, n_rep
+            CALL cp_fm_get_info(ibo_coef(ispin), ncol_global=norb)
+            IF (i_rep == 0) THEN
+               nstate = norb
+            ELSE
+               CALL section_vals_val_get(print_section, "STATE_LIST", i_rep_val=i_rep, i_vals=state_list)
+               nstate = SIZE(state_list)
+            END IF
+            DO i = 1, nstate
+               IF (i_rep == 0) THEN
+                  j = i
+               ELSE
+                  j = state_list(i)
+               END IF
+               CPASSERT(j >= 1 .AND. j <= norb)
+               WRITE (filename, '(a4,I5.5,a1,I1.1)') "IBO_", j, "_", ispin
+               WRITE (title, *) "Intrinsic Atomic Orbitals ", j, " spin ", ispin
+               mpi_io = .TRUE.
+               iw = cp_print_key_unit_nr(logger, print_section, "", extension=".cube", &
+                                         middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
+                                         mpi_io=mpi_io)
+               CALL calculate_wavefunction(ibo_coef(ispin), j, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                           cell, dft_control, particle_set, pw_env)
+               CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(iw, logger, print_section, "", mpi_io=mpi_io)
+            END DO
+         END DO
+      END DO
+
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+
+   END SUBROUTINE print_ibo_cubes
+
+! **************************************************************************************************
+!> \brief prints charge center and spreads for all orbitals
+!> \param moments ...
+!> \param nocc ...
+!> \param print_section ...
+! **************************************************************************************************
+   SUBROUTINE print_center_spread(moments, nocc, print_section)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: moments
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc
+      TYPE(section_vals_type), POINTER                   :: print_section
+
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: is, ispin, iw, nspin
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      nspin = SIZE(moments, 3)
+
+      WRITE (filename, '(A18,I1.1)') "IBO_CENTERS_SPREAD"
+      iw = cp_print_key_unit_nr(logger, print_section, "", extension=".csp", &
+                                middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
+      DO ispin = 1, nspin
+         WRITE (iw, "(A,i1)") "Intrinsic Bond Orbitals: Centers and Spread for Spin ", ispin
+         WRITE (iw, "(A7,T30,A6,T68,A7)") "State", "Center", "Spreads"
+         DO is = 1, nocc(ispin)
+            WRITE (iw, "(i7,3F15.8,8X,2F10.5)") is, moments(1:5, is, ispin)
+         END DO
+      END DO
+      CALL cp_print_key_finished_output(iw, logger, print_section, "")
+
+   END SUBROUTINE print_center_spread
 
 ! **************************************************************************************************
 !> \brief Creates a minimal basis set based on Slater rules
@@ -777,5 +1062,202 @@ CONTAINS
       DEALLOCATE (sym, lq, nq, zet)
 
    END SUBROUTINE create_min_basis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param c_loc_orb ...
+!> \param moments ...
+! **************************************************************************************************
+   SUBROUTINE center_spread_loc(qs_env, c_loc_orb, moments)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c_loc_orb
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: moments
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'center_spread_loc'
+
+      INTEGER                                            :: handle, i, iop, iorb, ispin, nao, norb, &
+                                                            nspin
+      INTEGER, DIMENSION(6)                              :: list = (/1, 2, 3, 4, 7, 9/)
+      REAL(KIND=dp)                                      :: xmii
+      REAL(KIND=dp), DIMENSION(3)                        :: rpoint
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: ccmat, ocvec
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: omat, smat
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
+      smat => matrix_s(1, 1)%matrix
+      rpoint = 0.0_dp
+      nspin = SIZE(c_loc_orb)
+      moments = 0.0_dp
+
+      ALLOCATE (dipmat(9))
+      DO i = 1, 9
+         ALLOCATE (dipmat(i)%matrix)
+         CALL dbcsr_copy(dipmat(i)%matrix, smat)
+         CALL dbcsr_set(dipmat(i)%matrix, 0.0_dp)
+      END DO
+
+      CALL build_local_moment_matrix(qs_env, dipmat, 2, rpoint)
+
+      DO ispin = 1, nspin
+         CALL cp_fm_get_info(c_loc_orb(ispin), nrow_global=nao, ncol_global=norb)
+         CALL cp_fm_create(ocvec, c_loc_orb(ispin)%matrix_struct)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=norb, ncol_global=norb, &
+                                  template_fmstruct=c_loc_orb(ispin)%matrix_struct)
+         CALL cp_fm_create(ccmat, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+         DO i = 1, 6
+            iop = list(i)
+            omat => dipmat(iop)%matrix
+            CALL cp_dbcsr_sm_fm_multiply(omat, c_loc_orb(ispin), ocvec, ncol=norb)
+            CALL parallel_gemm('T', 'N', norb, norb, nao, 1.0_dp, c_loc_orb(ispin), ocvec, &
+                               0.0_dp, ccmat)
+            DO iorb = 1, norb
+               CALL cp_fm_get_element(ccmat, iorb, iorb, xmii)
+               IF (iop <= 3) THEN
+                  moments(iop, iorb, ispin) = moments(iop, iorb, ispin) + xmii
+                  moments(4, iorb, ispin) = moments(4, iorb, ispin) - xmii**2
+               ELSE
+                  moments(4, iorb, ispin) = moments(4, iorb, ispin) + xmii
+               END IF
+            END DO
+         END DO
+         CALL cp_fm_release(ocvec)
+         CALL cp_fm_release(ccmat)
+      END DO
+
+      DO i = 1, 9
+         CALL dbcsr_release(dipmat(i)%matrix)
+         DEALLOCATE (dipmat(i)%matrix)
+      END DO
+      DEALLOCATE (dipmat)
+
+      CALL get_qs_env(qs_env=qs_env, cell=cell)
+      DO ispin = 1, nspin
+         DO iorb = 1, norb
+            moments(1:3, iorb, ispin) = pbc(moments(1:3, iorb, ispin), cell)
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE center_spread_loc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param c_loc_orb ...
+!> \param moments ...
+! **************************************************************************************************
+   SUBROUTINE center_spread_berry(qs_env, c_loc_orb, moments)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c_loc_orb
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: moments
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'center_spread_berry'
+
+      COMPLEX(KIND=dp)                                   :: z
+      INTEGER                                            :: dim_op, handle, i, idir, ispin, istate, &
+                                                            j, jdir, nao, norb, nspin
+      REAL(dp), DIMENSION(3)                             :: c, cpbc
+      REAL(dp), DIMENSION(6)                             :: weights
+      REAL(KIND=dp)                                      :: imagpart, realpart, spread_i, spread_ii
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: opvec
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: zij
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell)
+
+      IF (cell%orthorhombic) THEN
+         dim_op = 3
+      ELSE
+         dim_op = 6
+      END IF
+      ALLOCATE (op_sm_set(2, dim_op))
+      DO i = 1, dim_op
+         DO j = 1, 2
+            NULLIFY (op_sm_set(j, i)%matrix)
+            ALLOCATE (op_sm_set(j, i)%matrix)
+            CALL dbcsr_copy(op_sm_set(j, i)%matrix, matrix_s(1)%matrix)
+            CALL dbcsr_set(op_sm_set(j, i)%matrix, 0.0_dp)
+         END DO
+      END DO
+      CALL initialize_weights(cell, weights)
+
+      CALL compute_berry_operator(qs_env, cell, op_sm_set, dim_op)
+
+      nspin = SIZE(c_loc_orb, 1)
+      DO ispin = 1, nspin
+         CALL cp_fm_get_info(c_loc_orb(ispin), nrow_global=nao, ncol_global=norb)
+         CALL cp_fm_create(opvec, c_loc_orb(ispin)%matrix_struct)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=norb, ncol_global=norb, &
+                                  template_fmstruct=c_loc_orb(ispin)%matrix_struct)
+         ALLOCATE (zij(2, dim_op))
+
+         ! Compute zij here
+         DO i = 1, dim_op
+            DO j = 1, 2
+               CALL cp_fm_create(zij(j, i), fm_struct)
+               CALL cp_fm_set_all(zij(j, i), 0.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, c_loc_orb(ispin), opvec, ncol=norb)
+               CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, c_loc_orb(ispin), opvec, 0.0_dp, zij(j, i))
+            END DO
+         END DO
+
+         CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_release(opvec)
+
+         DO istate = 1, norb
+            c = 0.0_dp
+            spread_i = 0.0_dp
+            spread_ii = 0.0_dp
+            DO jdir = 1, dim_op
+               CALL cp_fm_get_element(zij(1, jdir), istate, istate, realpart)
+               CALL cp_fm_get_element(zij(2, jdir), istate, istate, imagpart)
+               z = CMPLX(realpart, imagpart, dp)
+               spread_i = spread_i - weights(jdir)* &
+                          LOG(realpart*realpart + imagpart*imagpart)/twopi/twopi
+               spread_ii = spread_ii + weights(jdir)* &
+                           (1.0_dp - (realpart*realpart + imagpart*imagpart))/twopi/twopi
+               IF (jdir < 4) THEN
+                  DO idir = 1, 3
+                     c(idir) = c(idir) + &
+                               (cell%hmat(idir, jdir)/twopi)*AIMAG(LOG(z))
+                  END DO
+               END IF
+            END DO
+            cpbc = pbc(c, cell)
+            moments(1:3, istate, ispin) = cpbc(1:3)
+            moments(4, istate, ispin) = spread_i
+            moments(5, istate, ispin) = spread_ii
+         END DO
+
+         DO i = 1, dim_op
+            DO j = 1, 2
+               CALL cp_fm_release(zij(j, i))
+            END DO
+         END DO
+         DEALLOCATE (zij)
+
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE center_spread_berry
+
+! **************************************************************************************************
 
 END MODULE iao_analysis

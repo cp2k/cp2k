@@ -134,7 +134,7 @@ MODULE qs_loc_methods
 
 ! *** Public ***
    PUBLIC :: qs_loc_driver, qs_print_cubes, centers_spreads_berry, centers_second_moments_loc, &
-             centers_second_moments_berry
+             centers_second_moments_berry, jacobi_rotation_pipek
 
 CONTAINS
 
