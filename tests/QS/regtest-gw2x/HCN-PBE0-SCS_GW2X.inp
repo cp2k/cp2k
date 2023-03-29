@@ -19,7 +19,7 @@
     &END QS
 
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL
          &PBE
             SCALE_X 0.75
          &END PBE
@@ -48,7 +48,7 @@
       &END GW2X
 
       &KERNEL
-         &XC_FUNCTIONAL PBE
+         &XC_FUNCTIONAL
             &PBE
                SCALE_X 0.75
             &END PBE

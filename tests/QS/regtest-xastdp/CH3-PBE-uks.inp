@@ -43,11 +43,7 @@
 
       &KERNEL
          RI_RADIUS 3.0
-         &XC_FUNCTIONAL
-            &GGA_X_PBE
-            &END GGA_X_PBE
-            &GGA_C_PBE
-            &END GGA_C_PBE
+         &XC_FUNCTIONAL PBE
          &END XC_FUNCTIONAL
       &END KERNEL
 
