@@ -37,7 +37,7 @@
     &END SCF
 
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL
          &PBE
             SCALE_X 0.55
          &END PBE
@@ -64,7 +64,7 @@
       &END GW2X
 
       &KERNEL
-         &XC_FUNCTIONAL PBE
+         &XC_FUNCTIONAL
             &PBE
                SCALE_X 0.55
             &END PBE
