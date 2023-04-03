@@ -1,0 +1,82 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME BASIS_MINBAS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.E-12
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      SCF_GUESS ATOMIC
+    &END
+    &XC
+       &XC_FUNCTIONAL PADE
+       &END
+    &END XC
+    &PRINT
+       &IAO_ANALYSIS
+           EPS_SVD 0.0
+           EPS_OCC 0.0
+           ATOMIC_CHARGES
+            &IAO_MOLDEN
+            &END IAO_MOLDEN
+            &IAO_CUBES 
+               ATOM_LIST 1 2 3 4
+            &END IAO_CUBES 
+            &ONE_CENTER_EXPANSION
+               LMAX 5
+            &END ONE_CENTER_EXPANSION
+            &BOND_ORBITALS
+               &CHARGE_CENTER
+                  POSITION_OPERATOR_BERRY  F
+               &END CHARGE_CENTER
+               &IBO_MOLDEN
+               &END IBO_MOLDEN
+               &IBO_CUBES
+                   STRIDE 3 3 3
+                   STATE_LIST 1
+               &END IBO_CUBES
+            &END BOND_ORBITALS
+       &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+  O         0.094933   -0.000368    0.895642
+  C        -0.031077   -0.000121   -0.307326
+  H        -0.090437    0.947608   -0.895642
+  H        -0.094933   -0.947608   -0.895562
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET MIN min-pbe
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET MIN min-pbe
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT IAO
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL

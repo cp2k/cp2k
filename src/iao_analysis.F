@@ -446,7 +446,7 @@ CONTAINS
          ! One Center Expansion of IAOs
          CALL get_qs_env(qs_env=qs_env, natom=natom)
          ALLOCATE (oce_atom(natom, nspin))
-         CALL iao_oce_expansion(qs_env, smat_kind, sxo, iao_coef, oce_atom)
+         CALL iao_oce_expansion(qs_env, oce_basis_set_list, smat_kind, sxo, iao_coef, oce_atom, unit_nr)
          !
          DEALLOCATE (oce_basis_set_list)
          CALL release_neighbor_list_sets(sxo_list)
@@ -1381,31 +1381,40 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param oce_basis_set_list ...
 !> \param smat_kind ...
 !> \param sxo ...
 !> \param iao_coef ...
 !> \param oce_atom ...
+!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE iao_oce_expansion(qs_env, smat_kind, sxo, iao_coef, oce_atom)
+   SUBROUTINE iao_oce_expansion(qs_env, oce_basis_set_list, smat_kind, sxo, iao_coef, oce_atom, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: oce_basis_set_list
       TYPE(cp_2d_r_p_type), DIMENSION(:)                 :: smat_kind
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: sxo
       TYPE(cp_fm_type), DIMENSION(:)                     :: iao_coef
       TYPE(cp_2d_r_p_type), DIMENSION(:, :)              :: oce_atom
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_oce_expansion'
 
-      INTEGER                                            :: handle, i, iatom, ikind, ispin, m, n, &
-                                                            natom, nkind, noce, ns, nspin
-      INTEGER, DIMENSION(:), POINTER                     :: iao_blk_sizes, oce_blk_sizes, &
+      INTEGER                                            :: handle, i, i1, i2, iao, iatom, ikind, &
+                                                            iset, ishell, ispin, l, m, maxl, n, &
+                                                            natom, nkind, noce, ns, nset, nsgf, &
+                                                            nspin, para_group_handle
+      INTEGER, DIMENSION(:), POINTER                     :: iao_blk_sizes, nshell, oce_blk_sizes, &
                                                             orb_blk_sizes
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, lval
       LOGICAL                                            :: found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat, vec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev, vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat, filter, oce_comp, prol, vec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ablock
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: sinv_kind
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type)                                   :: iao_vec, sx_vec
+      TYPE(gto_basis_set_type), POINTER                  :: oce_basis
+      TYPE(mp_comm_type)                                 :: para_type
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1440,8 +1449,12 @@ CONTAINS
          sinv_kind(ikind)%array = smat_kind(ikind)%array
          CALL invmat_symm(sinv_kind(ikind)%array)
       END DO
+      CALL dbcsr_get_info(iao_vec, group=para_group_handle)
+      CALL para_type%set_handle(para_group_handle)
 
       nspin = SIZE(iao_coef, 1)
+      ALLOCATE (oce_comp(natom, nspin))
+      oce_comp = 0.0_dp
       DO ispin = 1, nspin
          CALL copy_fm_to_dbcsr(iao_coef(ispin), iao_vec)
          CALL dbcsr_multiply("N", "N", 1.0_dp, sxo(1)%matrix, iao_vec, 0.0_dp, sx_vec, &
@@ -1458,6 +1471,7 @@ CONTAINS
                amat(1:n, 1:m) = MATMUL(smat_kind(ikind)%array(1:n, 1:n), ablock(1:n, 1:m))
                bmat(1:m, 1:m) = MATMUL(TRANSPOSE(ablock(1:n, 1:m)), amat(1:n, 1:m))
                CALL jacobi(bmat, ev, vec)
+               oce_comp(iatom, ispin) = SUM(ev(1:m))/REAL(m, KIND=dp)
                DO i = 1, m
                   ev(i) = 1._dp/SQRT(ev(i))
                   bmat(1:m, i) = vec(1:m, i)*ev(i)
@@ -1480,6 +1494,44 @@ CONTAINS
          END DO
       END DO
 
+      CALL para_type%sum(oce_comp)
+      IF (unit_nr > 0) THEN
+         DO iatom = 1, natom
+            WRITE (unit_nr, "(T4,A,I6,T30,A,2F12.4)") "Atom:", iatom, " Completeness: ", oce_comp(iatom, 1:nspin)
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+            oce_basis => oce_basis_set_list(ikind)%gto_basis_set
+            CALL get_gto_basis_set(oce_basis, nset=nset, nshell=nshell, nsgf=nsgf, maxl=maxl, &
+                                   l=lval, first_sgf=first_sgf, last_sgf=last_sgf)
+            ALLOCATE (filter(nsgf, 0:maxl), vector(nsgf), prol(0:maxl, nspin))
+            filter = 0.0_dp
+            DO iset = 1, nset
+               DO ishell = 1, nshell(iset)
+                  l = lval(ishell, iset)
+                  i1 = first_sgf(ishell, iset)
+                  i2 = last_sgf(ishell, iset)
+                  filter(i1:i2, l) = 1.0_dp
+               END DO
+            END DO
+            !
+            n = SIZE(oce_atom(iatom, 1)%array, 1)
+            m = SIZE(oce_atom(iatom, 1)%array, 2)
+            CPASSERT(n == nsgf)
+            DO iao = 1, m
+               prol = 0.0_dp
+               DO ispin = 1, nspin
+                  DO l = 0, maxl
+                     vector(1:n) = oce_atom(iatom, ispin)%array(1:n, iao)*filter(1:n, l)
+                     prol(l, ispin) = SUM(MATMUL(smat_kind(ikind)%array(1:n, 1:n), vector(1:n))*vector(1:n))
+                  END DO
+               END DO
+               WRITE (unit_nr, "(T4,I3,T15,A,T39,(6F7.4))") iao, " l-contributions:", (SUM(prol(l, :)), l=0, maxl)
+            END DO
+            DEALLOCATE (filter, vector, prol)
+         END DO
+         WRITE (unit_nr, *)
+      END IF
+
+      DEALLOCATE (oce_comp)
       DO ikind = 1, nkind
          DEALLOCATE (sinv_kind(ikind)%array)
       END DO
