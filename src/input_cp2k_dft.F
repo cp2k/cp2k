@@ -1885,14 +1885,15 @@ CONTAINS
                           usage="LMAX 2", n_var=1, default_i_val=3, type_of_var=integer_t)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="LEBEDEV_GRID", &
-                          description="Angular grid size used in expansion.", &
-                          usage="LEBEDEV_GRID 50", n_var=1, default_i_val=50, type_of_var=integer_t)
+      CALL keyword_create(keyword, __LOCATION__, name="NBAS", &
+                          description="Max number of basis functions used in the expansion."// &
+                          " Default is determined by the orbital basis set.", &
+                          usage="NBAS 10", n_var=1, default_i_val=-1, type_of_var=integer_t)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="RADIAL_GRID", &
-                          description="Radial grid size used in expansion.", &
-                          usage="RADIAL_GRID 100", n_var=1, default_i_val=50, type_of_var=integer_t)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Append the OCE basis files when it already exists", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, sub_print_key)

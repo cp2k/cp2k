@@ -12,8 +12,13 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE iao_analysis
+   USE ai_contraction,                  ONLY: block_add,&
+                                              contraction
+   USE ai_overlap,                      ONLY: overlap_ab
    USE atomic_charges,                  ONLY: print_atomic_charges
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE auto_basis,                      ONLY: create_oce_basis
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: &
         allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_sto_basis_set, &
@@ -23,8 +28,10 @@ MODULE iao_analysis
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_deallocate_matrix_set
@@ -47,9 +54,11 @@ MODULE iao_analysis
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type
+        dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -59,8 +68,11 @@ MODULE iao_analysis
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: twopi
+   USE mathlib,                         ONLY: invmat_symm,&
+                                              jacobi
    USE message_passing,                 ONLY: mp_comm_type
    USE molden_utils,                    ONLY: write_mos_molden
+   USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
@@ -130,37 +142,38 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
-                                                            lb, nao, natom, ne, nimages, nkind, &
-                                                            norb, nref, nsgf, nspin, nvec, sweeps, &
-                                                            ub, z
+      INTEGER :: handle, i, iatom, ikind, isgf, ispin, lb, lmax_oce, mao, nao, natom, nbas_oce, &
+         ne, nimages, nkind, norb, nref, nsgf, nspin, nvec, sweeps, ub, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(2)                              :: nocc
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL :: cubes_iao, cubes_ibo, do_bondorbitals, do_center, do_charges, do_oce, explicit, &
-         molden_iao, molden_ibo, pos_periodic, uniform_occupation
+      LOGICAL :: append_oce, cubes_iao, cubes_ibo, do_bondorbitals, do_center, do_charges, do_oce, &
+         explicit, molden_iao, molden_ibo, pos_periodic, uniform_occupation
       REAL(KIND=dp)                                      :: eps_occ, eps_svd, trace, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: smat_kind
+      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: oce_atom
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: p_orb_ref, p_ref_orb, smo
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: c_loc_orb, ciao, cloc, cvec, iao_coef
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: zij_atom
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sref, sro
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sref, sro, sxo
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type)                                   :: dmat
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: orb_basis_set_list, ref_basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: orbbasis, refbasis
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: oce_basis_set_list, orb_basis_set_list, &
+                                                            ref_basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: ocebasis, orbbasis, refbasis
       TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mo_iao, mo_loc
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sro_list, srr_list
+         POINTER                                         :: sro_list, srr_list, sxo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -205,6 +218,12 @@ CONTAINS
       CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
       subsection => section_vals_get_subs_vals(input_section, "ONE_CENTER_EXPANSION")
       CALL section_vals_get(subsection, explicit=do_oce)
+      IF (do_oce) THEN
+         subsection => section_vals_get_subs_vals(input_section, "ONE_CENTER_EXPANSION")
+         CALL section_vals_val_get(subsection, "LMAX", i_val=lmax_oce)
+         CALL section_vals_val_get(subsection, "NBAS", i_val=nbas_oce)
+         CALL section_vals_val_get(subsection, "APPEND", l_val=append_oce)
+      END IF
       subsection => section_vals_get_subs_vals(input_section, "BOND_ORBITALS")
       CALL section_vals_get(subsection, explicit=do_bondorbitals)
       IF (do_bondorbitals) THEN
@@ -237,13 +256,14 @@ CONTAINS
          NULLIFY (refbasis)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
          IF (.NOT. ASSOCIATED(refbasis)) THEN
+            CALL get_qs_kind(qs_kind=qs_kind, mao=mao)
             ! generate a minimal basis set
             elcon = 0
             lb = LBOUND(econf, 1)
             ub = UBOUND(econf, 1)
             ne = ub - lb
             elcon(0:ne) = econf(lb:ub)
-            CALL create_min_basis(refbasis, z, elcon)
+            CALL create_min_basis(refbasis, z, elcon, mao)
             CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
             CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
          END IF
@@ -386,7 +406,61 @@ CONTAINS
       END IF
       !
       IF (do_oce) THEN
+         ! generate OCE basis
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A)') "IAO One-Center Expansion: OCE Basis Set"
+         END IF
+         ALLOCATE (oce_basis_set_list(nkind))
+         DO ikind = 1, nkind
+            orbbasis => orb_basis_set_list(ikind)%gto_basis_set
+            CPASSERT(ASSOCIATED(orbbasis))
+            NULLIFY (ocebasis)
+            CALL create_oce_basis(ocebasis, orbbasis, lmax_oce, nbas_oce)
+            CALL init_orb_basis_set(ocebasis)
+            CALL init_interaction_radii_orb_basis(ocebasis, dft_control%qs_control%eps_pgf_orb)
+            oce_basis_set_list(ikind)%gto_basis_set => ocebasis
+            IF (unit_nr > 0) THEN
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind, zeff=zval, element_symbol=element_symbol)
+               CALL get_gto_basis_set(ocebasis, name=bname, nsgf=nsgf)
+               WRITE (unit_nr, '(T2,A,A,T14,A,I4,T40,A,A30)') "Kind: ", element_symbol, "NBasFun: ", nsgf, &
+                  "OCE Basis: ", ADJUSTL(TRIM(bname))
+            END IF
+         END DO
+         IF (unit_nr > 0) WRITE (unit_nr, *)
+         ! OCE basis overlap
+         ALLOCATE (smat_kind(nkind))
+         DO ikind = 1, nkind
+            ocebasis => oce_basis_set_list(ikind)%gto_basis_set
+            CALL get_gto_basis_set(gto_basis_set=ocebasis, nsgf=nsgf)
+            ALLOCATE (smat_kind(ikind)%array(nsgf, nsgf))
+         END DO
+         CALL oce_overlap_matrix(smat_kind, oce_basis_set_list)
+         ! overlap between IAO OCE basis and orbital basis
+         NULLIFY (sxo_list)
+         CALL setup_neighbor_list(sxo_list, oce_basis_set_list, orb_basis_set_list, qs_env=qs_env)
+         CALL get_qs_env(qs_env, ks_env=ks_env)
+         CALL build_overlap_matrix_simple(ks_env, sxo, &
+                                          oce_basis_set_list, orb_basis_set_list, sxo_list)
+         !
          ! One Center Expansion of IAOs
+         CALL get_qs_env(qs_env=qs_env, natom=natom)
+         ALLOCATE (oce_atom(natom, nspin))
+         CALL iao_oce_expansion(qs_env, smat_kind, sxo, iao_coef, oce_atom)
+         !
+         DEALLOCATE (oce_basis_set_list)
+         CALL release_neighbor_list_sets(sxo_list)
+         IF (ASSOCIATED(sxo)) CALL dbcsr_deallocate_matrix_set(sxo)
+         DO ikind = 1, nkind
+            DEALLOCATE (smat_kind(ikind)%array)
+         END DO
+         DEALLOCATE (smat_kind)
+         DO ispin = 1, nspin
+            DO iatom = 1, natom
+               DEALLOCATE (oce_atom(iatom, ispin)%array)
+            END DO
+         END DO
+         DEALLOCATE (oce_atom)
       END IF
       !
       IF (molden_iao) THEN
@@ -989,21 +1063,23 @@ CONTAINS
 !> \param min_basis_set ...
 !> \param zval ...
 !> \param econf ...
+!> \param mao ...
 !> \par History
 !>      03.2023 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE create_min_basis(min_basis_set, zval, econf)
+   SUBROUTINE create_min_basis(min_basis_set, zval, econf, mao)
       TYPE(gto_basis_set_type), POINTER                  :: min_basis_set
       INTEGER, INTENT(IN)                                :: zval
       INTEGER, DIMENSION(0:3)                            :: econf
+      INTEGER, INTENT(IN)                                :: mao
 
       CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = (/"S", "P", "D", "F"/)
 
       CHARACTER(len=6)                                   :: str
       CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: i, iss, l, n, nn, nss
-      INTEGER, DIMENSION(0:3)                            :: nae, npe
+      INTEGER                                            :: i, iss, l, n, nmao, nn, nss
+      INTEGER, DIMENSION(0:3)                            :: nae, nco, npe
       INTEGER, DIMENSION(4, 7)                           :: ne
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
@@ -1033,6 +1109,50 @@ CONTAINS
          IF (MOD(econf(l), nn) /= 0) npe(l) = npe(l) + 1
       END DO
       CPASSERT(ALL(nae - npe >= 0))
+      nco = nae - npe
+      ! MAO count
+      nmao = 0
+      DO l = 0, 3
+         nmao = nmao + npe(l)*(2*l + 1)
+      END DO
+
+      IF (mao > nmao) THEN
+         nmao = mao - nmao
+         SELECT CASE (nmao)
+         CASE (1)
+            npe(0) = npe(0) + 1
+         CASE (2)
+            npe(0) = npe(0) + 2
+         CASE (3)
+         CASE (4)
+            npe(0) = npe(0) + 1
+            npe(1) = npe(1) + 1
+         CASE (5)
+            IF (npe(2) == 0) THEN
+               npe(2) = npe(2) + 1
+            ELSE
+               npe(0) = npe(0) + 2
+               npe(1) = npe(1) + 1
+            END IF
+         CASE (6)
+            npe(0) = npe(0) + 1
+            npe(2) = npe(2) + 1
+         CASE (7)
+            npe(0) = npe(0) + 2
+            npe(2) = npe(2) + 1
+         CASE (8)
+            npe(0) = npe(0) + 3
+            npe(2) = npe(2) + 1
+         CASE (9)
+            npe(0) = npe(0) + 1
+            npe(1) = npe(1) + 1
+            npe(2) = npe(2) + 1
+         CASE DEFAULT
+            CPABORT("Default setting of minimal basis failed")
+         END SELECT
+         CALL cp_warn(__LOCATION__, "Reference basis has been adjusted according to MAO value.")
+      END IF
+
       nss = SUM(npe)
       ALLOCATE (sym(nss), lq(nss), nq(nss), zet(nss))
       iss = 0
@@ -1040,7 +1160,7 @@ CONTAINS
          DO i = 1, npe(l)
             iss = iss + 1
             lq(iss) = l
-            n = nae(l) - npe(l) + l
+            n = nco(l) + l
             nq(iss) = n + i
             str = "      "
             WRITE (str(5:5), FMT='(I1)') nq(iss)
@@ -1257,6 +1377,204 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE center_spread_berry
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param smat_kind ...
+!> \param sxo ...
+!> \param iao_coef ...
+!> \param oce_atom ...
+! **************************************************************************************************
+   SUBROUTINE iao_oce_expansion(qs_env, smat_kind, sxo, iao_coef, oce_atom)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_2d_r_p_type), DIMENSION(:)                 :: smat_kind
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: sxo
+      TYPE(cp_fm_type), DIMENSION(:)                     :: iao_coef
+      TYPE(cp_2d_r_p_type), DIMENSION(:, :)              :: oce_atom
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_oce_expansion'
+
+      INTEGER                                            :: handle, i, iatom, ikind, ispin, m, n, &
+                                                            natom, nkind, noce, ns, nspin
+      INTEGER, DIMENSION(:), POINTER                     :: iao_blk_sizes, oce_blk_sizes, &
+                                                            orb_blk_sizes
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat, vec
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ablock
+      TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: sinv_kind
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
+      TYPE(dbcsr_type)                                   :: iao_vec, sx_vec
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      ! basis sets: block sizes
+      CALL dbcsr_get_info(sxo(1)%matrix, row_blk_size=oce_blk_sizes, col_blk_size=orb_blk_sizes, &
+                          distribution=dbcsr_dist)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, natom=natom)
+      CALL get_ks_env(ks_env=ks_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
+      ALLOCATE (iao_blk_sizes(natom))
+      DO iatom = 1, natom
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns, basis_type="MIN")
+         iao_blk_sizes(iatom) = ns
+      END DO
+
+      CALL dbcsr_create(iao_vec, name="IAO_VEC", dist=dbcsr_dist, &
+                        matrix_type=dbcsr_type_no_symmetry, row_blk_size=orb_blk_sizes, &
+                        col_blk_size=iao_blk_sizes, nze=0)
+      CALL dbcsr_create(sx_vec, name="SX_VEC", dist=dbcsr_dist, &
+                        matrix_type=dbcsr_type_no_symmetry, row_blk_size=oce_blk_sizes, &
+                        col_blk_size=iao_blk_sizes, nze=0)
+      CALL dbcsr_reserve_diag_blocks(matrix=sx_vec)
+
+      nkind = SIZE(smat_kind)
+      ALLOCATE (sinv_kind(nkind))
+      DO ikind = 1, nkind
+         noce = SIZE(smat_kind(ikind)%array, 1)
+         ALLOCATE (sinv_kind(ikind)%array(noce, noce))
+         sinv_kind(ikind)%array = smat_kind(ikind)%array
+         CALL invmat_symm(sinv_kind(ikind)%array)
+      END DO
+
+      nspin = SIZE(iao_coef, 1)
+      DO ispin = 1, nspin
+         CALL copy_fm_to_dbcsr(iao_coef(ispin), iao_vec)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, sxo(1)%matrix, iao_vec, 0.0_dp, sx_vec, &
+                             retain_sparsity=.TRUE.)
+         DO iatom = 1, natom
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+            CALL dbcsr_get_block_p(matrix=sx_vec, &
+                                   row=iatom, col=iatom, BLOCK=ablock, found=found)
+            IF (found) THEN
+               n = SIZE(ablock, 1)
+               m = SIZE(ablock, 2)
+               ablock = MATMUL(sinv_kind(ikind)%array, ablock)
+               ALLOCATE (amat(n, m), bmat(m, m), ev(m), vec(m, m))
+               amat(1:n, 1:m) = MATMUL(smat_kind(ikind)%array(1:n, 1:n), ablock(1:n, 1:m))
+               bmat(1:m, 1:m) = MATMUL(TRANSPOSE(ablock(1:n, 1:m)), amat(1:n, 1:m))
+               CALL jacobi(bmat, ev, vec)
+               DO i = 1, m
+                  ev(i) = 1._dp/SQRT(ev(i))
+                  bmat(1:m, i) = vec(1:m, i)*ev(i)
+               END DO
+               bmat(1:m, 1:m) = MATMUL(bmat(1:m, 1:m), TRANSPOSE(vec(1:m, 1:m)))
+               ablock(1:n, 1:m) = MATMUL(ablock(1:n, 1:m), bmat(1:m, 1:m))
+               DEALLOCATE (amat, bmat, ev, vec)
+            END IF
+         END DO
+         CALL dbcsr_replicate_all(sx_vec)
+         DO iatom = 1, natom
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+            CALL dbcsr_get_block_p(matrix=sx_vec, &
+                                   row=iatom, col=iatom, BLOCK=ablock, found=found)
+            CPASSERT(found)
+            n = SIZE(ablock, 1)
+            m = SIZE(ablock, 2)
+            ALLOCATE (oce_atom(iatom, ispin)%array(n, m))
+            oce_atom(iatom, ispin)%array = ablock
+         END DO
+      END DO
+
+      DO ikind = 1, nkind
+         DEALLOCATE (sinv_kind(ikind)%array)
+      END DO
+      DEALLOCATE (sinv_kind)
+      DEALLOCATE (iao_blk_sizes)
+      CALL dbcsr_release(iao_vec)
+      CALL dbcsr_release(sx_vec)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE iao_oce_expansion
+
+! **************************************************************************************************
+!> \brief ...
+!> \param smat_kind ...
+!> \param basis_set_list ...
+! **************************************************************************************************
+   SUBROUTINE oce_overlap_matrix(smat_kind, basis_set_list)
+      TYPE(cp_2d_r_p_type), DIMENSION(:)                 :: smat_kind
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'oce_overlap_matrix'
+
+      INTEGER                                            :: handle, ikind, iset, jset, ldsab, m1, &
+                                                            m2, n1, n2, ncoa, ncob, nkind, nseta, &
+                                                            sgfa, sgfb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: oint, owork
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, scon_a, smat, zeta
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+
+      CALL timeset(routineN, handle)
+
+      rab(1:3) = 0.0_dp
+
+      nkind = SIZE(smat_kind)
+      ldsab = 0
+      DO ikind = 1, nkind
+         basis_set => basis_set_list(ikind)%gto_basis_set
+         CPASSERT(ASSOCIATED(basis_set))
+         CALL get_gto_basis_set(gto_basis_set=basis_set, maxco=m1, nsgf=m2)
+         ldsab = MAX(m1, m2, ldsab)
+      END DO
+
+      ALLOCATE (oint(ldsab, ldsab), owork(ldsab, ldsab))
+
+      DO ikind = 1, nkind
+         basis_set => basis_set_list(ikind)%gto_basis_set
+         CPASSERT(ASSOCIATED(basis_set))
+         smat => smat_kind(ikind)%array
+         smat = 0.0_dp
+         ! basis ikind
+         first_sgfa => basis_set%first_sgf
+         la_max => basis_set%lmax
+         la_min => basis_set%lmin
+         npgfa => basis_set%npgf
+         nseta = basis_set%nset
+         nsgfa => basis_set%nsgf_set
+         rpgfa => basis_set%pgf_radius
+         scon_a => basis_set%scon
+         zeta => basis_set%zet
+
+         DO iset = 1, nseta
+
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
+            sgfa = first_sgfa(1, iset)
+
+            DO jset = 1, nseta
+
+               ncob = npgfa(jset)*ncoset(la_max(jset))
+               n2 = npgfa(jset)*(ncoset(la_max(jset)) - ncoset(la_min(jset) - 1))
+               sgfb = first_sgfa(1, jset)
+
+               ! calculate integrals and derivatives
+               CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                               la_max(jset), la_min(jset), npgfa(jset), rpgfa(:, jset), zeta(:, jset), &
+                               rab, sab=oint(:, :))
+               ! Contraction
+               CALL contraction(oint(:, :), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                cb=scon_a(:, sgfb:), nb=n2, mb=nsgfa(jset), fscale=1.0_dp, trans=.FALSE.)
+               CALL block_add("IN", owork, nsgfa(iset), nsgfa(jset), smat, &
+                              sgfa, sgfb, trans=.FALSE.)
+
+            END DO
+         END DO
+
+      END DO
+      DEALLOCATE (oint, owork)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE oce_overlap_matrix
 
 ! **************************************************************************************************
 

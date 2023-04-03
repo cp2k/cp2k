@@ -40,7 +40,8 @@ MODULE auto_basis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'auto_basis'
 
-   PUBLIC :: create_ri_aux_basis_set, create_aux_fit_basis_set, create_lri_aux_basis_set
+   PUBLIC :: create_ri_aux_basis_set, create_aux_fit_basis_set, create_lri_aux_basis_set, &
+             create_oce_basis
 
 CONTAINS
 
@@ -566,6 +567,67 @@ CONTAINS
       END IF
 
    END SUBROUTINE create_aux_fit_basis_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param oce_basis ...
+!> \param orb_basis ...
+!> \param lmax_oce ...
+!> \param nbas_oce ...
+! **************************************************************************************************
+   SUBROUTINE create_oce_basis(oce_basis, orb_basis, lmax_oce, nbas_oce)
+      TYPE(gto_basis_set_type), POINTER                  :: oce_basis, orb_basis
+      INTEGER, INTENT(IN)                                :: lmax_oce, nbas_oce
+
+      CHARACTER(LEN=default_string_length)               :: bsname
+      INTEGER                                            :: i, l, lmax, lx, nset, nx
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lmin, lset, npgf
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nl
+      INTEGER, DIMENSION(:), POINTER                     :: npgf_orb
+      REAL(KIND=dp)                                      :: cval, x, z0, z1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet
+      REAL(KIND=dp), DIMENSION(0:9)                      :: zeff, zmax, zmin
+
+      CALL get_basis_keyfigures(orb_basis, lmax, zmin, zmax, zeff)
+      IF (nbas_oce < 1) THEN
+         CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nset, npgf=npgf_orb)
+         nx = SUM(npgf_orb(1:nset))
+      ELSE
+         nx = 0
+      END IF
+      nset = MAX(nbas_oce, nx)
+      lx = MAX(lmax_oce, lmax)
+      !
+      bsname = "OCE-"//TRIM(orb_basis%name)
+      ALLOCATE (lmin(nset), lset(nset), nl(0:9, nset), npgf(nset), zet(1, nset))
+      lmin = 0
+      lset = 0
+      nl = 1
+      npgf = 1
+      zet = 0.0_dp
+      !
+      z0 = MINVAL(zmin(0:lmax))
+      z1 = MAXVAL(zmax(0:lmax))
+      x = 1.0_dp/REAL(nset - 1, KIND=dp)
+      cval = (z1/z0)**x
+      zet(1, nset) = z0
+      DO i = nset - 1, 1, -1
+         zet(1, i) = zet(1, i + 1)*cval
+      END DO
+      DO i = 1, nset
+         x = zet(1, i)
+         DO l = 1, lmax
+            z1 = 1.05_dp*zmax(l)
+            IF (x < z1) lset(i) = l
+         END DO
+         IF (lset(i) == lmax) lset(i) = lx
+      END DO
+      !
+      CALL create_aux_basis(oce_basis, bsname, nset, lmin, lset, nl, npgf, zet)
+      !
+      DEALLOCATE (lmin, lset, nl, npgf, zet)
+
+   END SUBROUTINE create_oce_basis
 ! **************************************************************************************************
 !> \brief ...
 !> \param basis_set ...
