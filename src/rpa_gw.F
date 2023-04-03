@@ -1505,30 +1505,30 @@ CONTAINS
          IF (nkp_self_energy > 1 .AND. unit_nr > 0) THEN
             IF (my_open_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F43.3)') 'Alpha SCF valence band maximum (eV)', E_VBM_SCF*evolt
-               WRITE (unit_nr, '(T3,A,F40.3)') 'Alpha SCF conduction band minimum (eV)', E_CBM_SCF*evolt
-               WRITE (unit_nr, '(T3,A,F56.3)') 'Alpha SCF bandgap (eV)', (E_CBM_SCF - E_VBM_SCF)*evolt
+               WRITE (unit_nr, '(T3,A,F43.4)') 'Alpha SCF valence band maximum (eV)', E_VBM_SCF*evolt
+               WRITE (unit_nr, '(T3,A,F40.4)') 'Alpha SCF conduction band minimum (eV)', E_CBM_SCF*evolt
+               WRITE (unit_nr, '(T3,A,F56.4)') 'Alpha SCF bandgap (eV)', (E_CBM_SCF - E_VBM_SCF)*evolt
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F44.3)') 'Beta SCF valence band maximum (eV)', E_VBM_SCF_beta*evolt
-               WRITE (unit_nr, '(T3,A,F41.3)') 'Beta SCF conduction band minimum (eV)', E_CBM_SCF_beta*evolt
-               WRITE (unit_nr, '(T3,A,F57.3)') 'Beta SCF bandgap (eV)', (E_CBM_SCF_beta - E_VBM_SCF_beta)*evolt
+               WRITE (unit_nr, '(T3,A,F44.4)') 'Beta SCF valence band maximum (eV)', E_VBM_SCF_beta*evolt
+               WRITE (unit_nr, '(T3,A,F41.4)') 'Beta SCF conduction band minimum (eV)', E_CBM_SCF_beta*evolt
+               WRITE (unit_nr, '(T3,A,F57.4)') 'Beta SCF bandgap (eV)', (E_CBM_SCF_beta - E_VBM_SCF_beta)*evolt
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F44.3)') 'Alpha GW valence band maximum (eV)', E_VBM_GW*evolt
-               WRITE (unit_nr, '(T3,A,F41.3)') 'Alpha GW conduction band minimum (eV)', E_CBM_GW*evolt
-               WRITE (unit_nr, '(T3,A,F57.3)') 'Alpha GW bandgap (eV)', (E_CBM_GW - E_VBM_GW)*evolt
+               WRITE (unit_nr, '(T3,A,F44.4)') 'Alpha GW valence band maximum (eV)', E_VBM_GW*evolt
+               WRITE (unit_nr, '(T3,A,F41.4)') 'Alpha GW conduction band minimum (eV)', E_CBM_GW*evolt
+               WRITE (unit_nr, '(T3,A,F57.4)') 'Alpha GW bandgap (eV)', (E_CBM_GW - E_VBM_GW)*evolt
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F45.3)') 'Beta GW valence band maximum (eV)', E_VBM_GW_beta*evolt
-               WRITE (unit_nr, '(T3,A,F42.3)') 'Beta GW conduction band minimum (eV)', E_CBM_GW_beta*evolt
-               WRITE (unit_nr, '(T3,A,F58.3)') 'Beta GW bandgap (eV)', (E_CBM_GW_beta - E_VBM_GW_beta)*evolt
+               WRITE (unit_nr, '(T3,A,F45.4)') 'Beta GW valence band maximum (eV)', E_VBM_GW_beta*evolt
+               WRITE (unit_nr, '(T3,A,F42.4)') 'Beta GW conduction band minimum (eV)', E_CBM_GW_beta*evolt
+               WRITE (unit_nr, '(T3,A,F58.4)') 'Beta GW bandgap (eV)', (E_CBM_GW_beta - E_VBM_GW_beta)*evolt
             ELSE
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F49.3)') 'SCF valence band maximum (eV)', E_VBM_SCF*evolt
-               WRITE (unit_nr, '(T3,A,F46.3)') 'SCF conduction band minimum (eV)', E_CBM_SCF*evolt
-               WRITE (unit_nr, '(T3,A,F62.3)') 'SCF bandgap (eV)', (E_CBM_SCF - E_VBM_SCF)*evolt
+               WRITE (unit_nr, '(T3,A,F49.4)') 'SCF valence band maximum (eV)', E_VBM_SCF*evolt
+               WRITE (unit_nr, '(T3,A,F46.4)') 'SCF conduction band minimum (eV)', E_CBM_SCF*evolt
+               WRITE (unit_nr, '(T3,A,F62.4)') 'SCF bandgap (eV)', (E_CBM_SCF - E_VBM_SCF)*evolt
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F50.3)') 'GW valence band maximum (eV)', E_VBM_GW*evolt
-               WRITE (unit_nr, '(T3,A,F47.3)') 'GW conduction band minimum (eV)', E_CBM_GW*evolt
-               WRITE (unit_nr, '(T3,A,F63.3)') 'GW bandgap (eV)', (E_CBM_GW - E_VBM_GW)*evolt
+               WRITE (unit_nr, '(T3,A,F50.4)') 'GW valence band maximum (eV)', E_VBM_GW*evolt
+               WRITE (unit_nr, '(T3,A,F47.4)') 'GW conduction band minimum (eV)', E_CBM_GW*evolt
+               WRITE (unit_nr, '(T3,A,F63.4)') 'GW bandgap (eV)', (E_CBM_GW - E_VBM_GW)*evolt
             END IF
          END IF
 
@@ -4364,7 +4364,7 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
-               WRITE (unit_nr, '(T3,I4,3A,5F13.3)') &
+               WRITE (unit_nr, '(T3,I4,3A,5F13.4)') &
                   n_level_gw_ref, ' ( ', occ_virt, ') ', &
                   Eigenval_last(n_level_gw_ref)*evolt, &
                   vec_gw_energ(n_level_gw)*evolt, &
@@ -4372,7 +4372,7 @@ CONTAINS
                   z_value(n_level_gw), &
                   Eigenval(n_level_gw_ref)*evolt
             ELSE
-               WRITE (unit_nr, '(T3,I4,3A,4F16.3)') &
+               WRITE (unit_nr, '(T3,I4,3A,4F16.4)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')  ', &
                   Eigenval_last(n_level_gw_ref)*evolt, &
                   vec_gw_energ(n_level_gw)*evolt, &
@@ -4402,24 +4402,24 @@ CONTAINS
          IF (do_kpoints) THEN
             IF (do_closed_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F42.3)') 'GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F42.4)') 'GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F36.3)') 'Alpha GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F36.4)') 'Alpha GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
             ELSE IF (do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F37.3)') 'Beta GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F37.4)') 'Beta GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
             END IF
          ELSE
             IF (do_closed_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.3)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F57.4)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F51.3)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F51.4)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
             ELSE IF (do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F52.3)') 'Beta GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F52.4)') 'Beta GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
             END IF
          END IF
       END IF
