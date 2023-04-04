@@ -101,7 +101,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale_and_add'
 
-      INTEGER                                            :: handle, size_a
+      INTEGER                                            :: handle, size_a, size_b
       REAL(KIND=dp)                                      :: my_beta
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
       REAL(KIND=sp), DIMENSION(:, :), POINTER            :: a_sp, b_sp
@@ -151,6 +151,13 @@ CONTAINS
 
             b => matrix_b%local_data
             b_sp => matrix_b%local_data_sp
+            IF (matrix_b%use_sp) THEN
+               size_b = SIZE(b_sp, 1)*SIZE(b_sp, 2)
+            ELSE
+               size_b = SIZE(b, 1)*SIZE(b, 2)
+            END IF
+            IF (size_a /= size_b) &
+               CPABORT("Matrixes must have same locale sizes")
 
             IF (matrix_a%use_sp .AND. matrix_b%use_sp) THEN
                CALL saxpy(size_a, REAL(my_beta, sp), b_sp, 1, a_sp, 1)

@@ -784,7 +784,7 @@ CONTAINS
          CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rho_tot_gspace)
       END IF
 
-      IF (ABS(rhotot) > 1.e-08_dp) THEN
+      IF (ABS(rhotot) > 1.e-05_dp) THEN
          logger => cp_get_default_logger()
          IF (logger%para_env%is_source()) THEN
             iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)

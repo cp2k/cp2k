@@ -36,8 +36,8 @@ MODULE iao_analysis
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_invert,&
-                                              cp_fm_scale_and_add
+                                              cp_fm_geadd,&
+                                              cp_fm_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -759,9 +759,9 @@ CONTAINS
       CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sc, vec1, 0.0_dp, pc)
       CALL parallel_gemm('N', 'N', nao, nref, norb, 1.0_dp, cvec, pc, 0.0_dp, avec)
       ! V1 = Por - V1
-      CALL cp_fm_scale_and_add(-1.0_dp, vec1, 1.0_dp, p_o_r)
+      CALL cp_fm_geadd(1.0_dp, 'N', p_o_r, -1.0_dp, vec1)
       ! A = A + V1
-      CALL cp_fm_scale_and_add(1.0_dp, avec, 1.0_dp, vec1)
+      CALL cp_fm_geadd(1.0_dp, 'N', vec1, 1.0_dp, avec)
       ! A = A - C*SC(T)*V1
       CALL parallel_gemm('T', 'N', norb, nref, nao, 1.0_dp, sc, vec1, 0.0_dp, pc)
       CALL parallel_gemm('N', 'N', nao, nref, norb, -1.0_dp, cvec, pc, 1.0_dp, avec)
@@ -1200,10 +1200,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: moments
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'center_spread_loc'
+      INTEGER, DIMENSION(6), PARAMETER                   :: list = (/1, 2, 3, 4, 7, 9/)
 
       INTEGER                                            :: handle, i, iop, iorb, ispin, nao, norb, &
                                                             nspin
-      INTEGER, DIMENSION(6)                              :: list = (/1, 2, 3, 4, 7, 9/)
       REAL(KIND=dp)                                      :: xmii
       REAL(KIND=dp), DIMENSION(3)                        :: rpoint
       TYPE(cell_type), POINTER                           :: cell
