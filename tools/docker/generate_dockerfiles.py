@@ -407,9 +407,6 @@ def install_cp2k_cmake() -> str:
     return rf"""
 
 COPY ./tools/build_utils/fypp /bin/fypp
-# temporary solution we build dbcsr without using the cloned repo. It will eventually be moved inside the toolchain
-COPY ./tools/docker/scripts/install_dbcsr.sh ./scripts/
-RUN  ./scripts/install_dbcsr.sh && rm -rf ./build
 
 # Install CP2K using CMake.
 
@@ -423,9 +420,10 @@ WORKDIR ./build
 RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
-    cmake -Werror=dev -DCP2K_USE_VORI=ON -DCP2K_USE_COSMA=NO -DCP2K_USE_LIBXSMM=ON -DCP2K_BLAS_VENDOR=OpenBLAS -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=ON -DCP2K_USE_LIBXC=ON -DCP2K_USE_LIBTORCH=OFF .. |& tee ./cmake.log && \
+    cmake -Werror=dev -DCP2K_USE_VORI=ON -DCP2K_USE_COSMA=NO -DCP2K_BLAS_VENDOR=OpenBLAS -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=ON -DCP2K_USE_LIBXC=ON -DCP2K_USE_LIBTORCH=OFF -DCP2K_ENABLE_CONSISTENCY_CHECKS=ON -DCP2K_BUILD_DBCSR=ON -DCP2K_ENABLE_REGTESTS=ON .. |& tee ./cmake.log && \
     ! grep -A5 'CMake Warning' ./cmake.log && \
     make -j"
+WORKDIR /opt/cp2k
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting

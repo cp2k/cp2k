@@ -27,7 +27,7 @@ if(CP2K_BLAS_FOUND)
     set(CP2K_LAPACK_FOUND TRUE)
     get_target_property(CP2K_LAPACK_INCLUDE_DIRS CP2K::BLAS::blas
                         INTERFACE_INCLUDE_DIRECTORIES)
-    get_target_property(CP2K_LAPACK_LIBRARIES CP2K::BLAS::blas
+    get_target_property(CP2K_LAPACK_LINK_LIBRARIES CP2K::BLAS::blas
                         INTERFACE_LINK_LIBRARIES)
   else()
     # we might get lucky to find a pkgconfig package for lapack (fedora provides
@@ -38,7 +38,7 @@ if(CP2K_BLAS_FOUND)
 
     if(NOT CP2K_LAPACK_FOUND)
       find_library(
-        CP2K_LAPACK_LIBRARIES
+        CP2K_LAPACK_LINK_LIBRARIES
         NAMES "lapack" "lapack64"
         PATH_SUFFIXES "openblas" "openblas64" "openblas-pthread"
                       "openblas-openmp" "lib" "lib64"
@@ -48,14 +48,15 @@ if(CP2K_BLAS_FOUND)
 endif()
 
 # check if found
-find_package_handle_standard_args(Lapack REQUIRED_VARS CP2K_LAPACK_LIBRARIES)
+find_package_handle_standard_args(Lapack
+                                  REQUIRED_VARS CP2K_LAPACK_LINK_LIBRARIES)
 
 if(NOT TARGET CP2K::LAPACK::lapack)
   add_library(CP2K::LAPACK::lapack INTERFACE IMPORTED)
   add_library(CP2K::LAPACK::LAPACK ALIAS CP2K::LAPACK::lapack)
 endif()
 set_property(TARGET CP2K::LAPACK::lapack PROPERTY INTERFACE_LINK_LIBRARIES
-                                                  ${CP2K_LAPACK_LIBRARIES})
+                                                  ${CP2K_LAPACK_LINK_LIBRARIES})
 if(CP2K_LAPACK_INCLUDE_DIRS)
   set_property(
     TARGET CP2K::LAPACK::lapack PROPERTY INTERFACE_INCLUDE_DIRECTORIES

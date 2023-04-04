@@ -15,21 +15,25 @@ find_program(
   DOC "path to the genhtml executable (required to generate HTML coverage reports)"
 )
 
-add_custom_target(
-  cov-info
-  COMMAND
-    "${LCOV_EXE}" --directory "${CMAKE_BINARY_DIR}" --base-dir
-    "${CMAKE_SOURCE_DIR}" --no-external --capture --output-file coverage.info
-  COMMAND "${LCOV_EXE}" --list coverage.info
-  VERBATIM
-  BYPRODUCTS coverage.info
-  COMMENT "Generate coverage.info using lcov")
+if(NOT TARGET cov-info)
+  add_custom_target(
+    cov-info
+    COMMAND
+      "${LCOV_EXE}" --directory "${CMAKE_BINARY_DIR}" --base-dir
+      "${CMAKE_SOURCE_DIR}" --no-external --capture --output-file coverage.info
+    COMMAND "${LCOV_EXE}" --list coverage.info
+    VERBATIM
+    BYPRODUCTS coverage.info
+    COMMENT "Generate coverage.info using lcov")
+endif()
 
-add_custom_target(
-  cov-genhtml
-  COMMAND "${GENHTML_EXE}" coverage.info --output-directory cov-html
-  COMMENT
-    "Generate a HTML-based coverage report using lcov in ${CMAKE_BINARY_DIR}/cov-html"
-  VERBATIM) # Note: this directory will not be cleaned by `cmake --build .. --
-            # clean`
-add_dependencies(cov-genhtml cov-info)
+if(NOT TARGET cpv-genhtml)
+  add_custom_target(
+    cov-genhtml
+    COMMAND "${GENHTML_EXE}" coverage.info --output-directory cov-html
+    COMMENT
+      "Generate a HTML-based coverage report using lcov in ${CMAKE_BINARY_DIR}/cov-html"
+    VERBATIM) # Note: this directory will not be cleaned by `cmake --build .. --
+              # clean`
+  add_dependencies(cov-genhtml cov-info)
+endif()
