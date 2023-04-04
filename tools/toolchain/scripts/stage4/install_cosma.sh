@@ -6,8 +6,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.6.2"
-cosma_sha256="2debb5123cc35aeebc5fd2f8a46cfd6356d1e27618c9bb57129ecd09aa400940"
+cosma_ver="2.6.5"
+cosma_sha256="10d9b7ecc1ce44ec5b9e0c0bf89278a63029912ec3ea99661be8576b553ececf"
+costa_ver="2.2"
+costa_sha256="3e7333f012af76ec3508276ea90800313f6136504667021fe229e710bf6acdc7"
+tiled_mm_ver="2.2"
+tiled_mm_sha256="6d0b49c9588ece744166822fd44a7bc5bec3dc666b836de8bf4bf1a7bb675aac"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -35,16 +40,17 @@ case "$with_cosma" in
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}
       tar -xzf COSMA-v${cosma_ver}.tar.gz
-      cd cosma
+      [ -d Tiled-MM-${tiled_mm_ver} ] && rm -rf Tiled-MM-${tiled_mm_ver}
+      tar -xzf Tiled-MM-v${tiled_mm_ver}.tar.gz
+      [ -d COSTA-${costa_ver} ] && rm -rf COSTA-${costa_ver}
+      tar -xzf COSTA-v${costa_ver}.tar.gz
 
-      # Build CPU version.
-      [ -d build-cpu ] && rm -rf "build-cpu"
-      mkdir build-cpu
-      cd build-cpu
       case "$MATH_MODE" in
         mkl)
           cosma_blas="MKL"
@@ -59,6 +65,90 @@ case "$with_cosma" in
           cosma_sl="CUSTOM"
           ;;
       esac
+
+      cd "COSTA-2.2"
+      [ -d build-cpu ] && rm -Rf build-cpu
+      mkdir build-cpu && cd build-cpu
+      cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+        -DBUILD_SHARED_LIBS=NO \
+        -DCOSTA_BLAS=${cosma_blas} \
+        -DCOTMA_SCALAPACK=${cosma_sl} \
+        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      cd ..
+
+      if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+        [ -d build-cuda ] && rm -Rf build-cuda
+        mkdir build-cuda && cd build-cuda
+        cmake \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DBUILD_SHARED_LIBS=NO \
+          -DCOSTA_BLAS=${cosma_blas} \
+          -DCOTMA_SCALAPACK=${cosma_sl} \
+          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        cd ..
+      fi
+
+      if [ "$ENABLE_HIP" = "__TRUE__" ]; then
+        [ -d build-hip ] && rm -Rf build-hip
+        mkdir build-hip && cd build-hip
+        cmake \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DBUILD_SHARED_LIBS=NO \
+          -DCOSTA_BLAS=${cosma_blas} \
+          -DCOTMA_SCALAPACK=${cosma_sl} \
+          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        cd ..
+      fi
+      cd ..
+
+      cd Tiled-MM-2.2
+      if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+        mkdir build-cuda && cd build-cuda
+        cmake \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DBUILD_SHARED_LIBS=NO \
+          -DTILEDMM_GPU_BACKEND=CUDA \
+          -DTILEDMM_WITH_EXAMPLES=OFF \
+          -DTILEDMM_WITH_TESTS=OFF \
+          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        cd ..
+      fi
+
+      if [ "$ENABLE_HIP" = "__TRUE__" ]; then
+        mkdir build-hip && cd build-hip
+        cmake \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DBUILD_SHARED_LIBS=NO \
+          -DTILEDMM_GPU_BACKEND=ROCM \
+          -DTILEDMM_WITH_EXAMPLES=OFF \
+          -DTILEDMM_WITH_TESTS=OFF \
+          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        cd ..
+      fi
+      cd ..
+
+      cd COSMA-2.6.5 && mkdir build-cpu && cd build-cpu
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
@@ -99,11 +189,11 @@ case "$with_cosma" in
 
       # Build HIP version.
       if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
-        [ -d build-cuda ] && rm -rf "build-cuda"
-        mkdir build-cuda
-        cd build-cuda
+        [ -d build-hip ] && rm -rf "build-hip"
+        mkdir build-hip
+        cd build-hip
         cmake \
-          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
@@ -129,7 +219,7 @@ case "$with_cosma" in
     COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath,'${COSMA_LIBDIR}'"
     COSMA_CUDA_LIBDIR="${pkg_install_dir}-cuda/lib"
     COSMA_CUDA_LDFLAGS="-L'${COSMA_CUDA_LIBDIR}' -Wl,-rpath,'${COSMA_CUDA_LIBDIR}'"
-    COSMA_HIP_LIBDIR="${pkg_install_dir}-cuda/lib"
+    COSMA_HIP_LIBDIR="${pkg_install_dir}-hip/lib"
     COSMA_HIP_LDFLAGS="-L'${COSMA_HIP_LIBDIR}' -Wl,-rpath,'${COSMA_HIP_LIBDIR}'"
     ;;
   __SYSTEM__)
