@@ -21,9 +21,9 @@ MODULE iao_analysis
    USE auto_basis,                      ONLY: create_oce_basis
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: &
-        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_sto_basis_set, &
-        get_gto_basis_set, gto_basis_set_p_type, gto_basis_set_type, init_orb_basis_set, &
-        set_sto_basis_set, srules, sto_basis_set_type
+        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_gto_basis_set, &
+        deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_p_type, gto_basis_set_type, &
+        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
    USE bibliography,                    ONLY: Knizia2013,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
@@ -437,7 +437,7 @@ CONTAINS
          END DO
          CALL oce_overlap_matrix(smat_kind, oce_basis_set_list)
          ! overlap between IAO OCE basis and orbital basis
-         NULLIFY (sxo_list)
+         NULLIFY (sxo, sxo_list)
          CALL setup_neighbor_list(sxo_list, oce_basis_set_list, orb_basis_set_list, qs_env=qs_env)
          CALL get_qs_env(qs_env, ks_env=ks_env)
          CALL build_overlap_matrix_simple(ks_env, sxo, &
@@ -448,7 +448,12 @@ CONTAINS
          ALLOCATE (oce_atom(natom, nspin))
          CALL iao_oce_expansion(qs_env, oce_basis_set_list, smat_kind, sxo, iao_coef, oce_atom, unit_nr)
          !
+         DO ikind = 1, nkind
+            ocebasis => oce_basis_set_list(ikind)%gto_basis_set
+            CALL deallocate_gto_basis_set(ocebasis)
+         END DO
          DEALLOCATE (oce_basis_set_list)
+         !
          CALL release_neighbor_list_sets(sxo_list)
          IF (ASSOCIATED(sxo)) CALL dbcsr_deallocate_matrix_set(sxo)
          DO ikind = 1, nkind
