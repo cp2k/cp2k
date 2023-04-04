@@ -42,7 +42,7 @@ endif()
 if (@@CP2K_USE_CUDA@)
   find_package(CUDAToolkit REQUIRED)
 endif()
-if(@CP2K_USE_ELPA)
+if(@CP2K_USE_ELPA@)
   find_package(Elpa REQUIRED)
 endif()
 

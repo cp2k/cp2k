@@ -18,7 +18,7 @@ cp2k_set_default_paths(PLUMED "Plumed")
 # First try with pkg
 if(PKG_CONFIG_FOUND)
   # plumed has a pkg-config module
-  pkg_search_modules(CP2K_PLUMED IMPORTED_TARGET GLOBAL plumed plumedInternals)
+  pkg_search_module(CP2K_PLUMED IMPORTED_TARGET GLOBAL plumed plumedInternals)
 endif()
 
 if(NOT ${CP2K_PLUMED_FOUND})

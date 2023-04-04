@@ -32,9 +32,8 @@ set(__BLAS_VENDOR_LIST ${CP2K_BLAS_VENDOR_LIST})
 list(REMOVE_ITEM __BLAS_VENDOR_LIST "auto")
 list(REMOVE_ITEM __BLAS_VENDOR_LIST "CUSTOM")
 
-set(CP2K_BLAS_VENDOR
-    "auto"
-    CACHE STRING "Blas library for computations on host")
+# set(CP2K_BLAS_VENDOR "auto" CACHE STRING "Blas library for computations on
+# host")
 set_property(CACHE CP2K_BLAS_VENDOR PROPERTY STRINGS ${CP2K_BLAS_VENDOR_LIST})
 
 if(NOT ${CP2K_BLAS_VENDOR} IN_LIST CP2K_BLAS_VENDOR_LIST)

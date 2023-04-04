@@ -19,6 +19,12 @@ if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_LIBXSMMEXT IMPORTED_TARGET GLOBAL libxsmmext)
   pkg_check_modules(CP2K_LIBXSMMF IMPORTED_TARGET GLOBAL libxsmmf)
   pkg_check_modules(CP2K_LIBXSMMNOBLAS IMPORTED_TARGET GLOBAL libxsmmnoblas)
+
+  # i need to do it twice because of dbcsr build option
+  pkg_check_modules(LIBXSMM QUIET IMPORTED_TARGET GLOBAL libxsmm)
+  pkg_check_modules(LIBXSMMEXT QUIET IMPORTED_TARGET GLOBAL libxsmmext)
+  pkg_check_modules(LIBXSMMF QUIET IMPORTED_TARGET GLOBAL libxsmmf)
+  pkg_check_modules(LIBXSMMNOBLAS QUIET IMPORTED_TARGET GLOBAL libxsmmnoblas)
 endif()
 
 if(NOT CP2K_LIBXSMM_FOUND)
