@@ -295,8 +295,8 @@ EOF
     cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_sirius"
-export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include/sirius|IF_HIP(${pkg_install_dir}-hip/include/sirius|-I${pkg_install_dir}/include/sirius))"
-export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include/sirius|IF_HIP(${pkg_install_dir}-hip/include/sirius|-I${pkg_install_dir}/include/sirius))"
+export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include/sirius|IF_HIP(-I${pkg_install_dir}-hip/include/sirius|-I${pkg_install_dir}/include/sirius))"
+export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include/sirius|IF_HIP(-I${pkg_install_dir}-hip/include/sirius|-I${pkg_install_dir}/include/sirius))"
 export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
 export SIRIUS_CUDA_LDFLAGS="${SIRIUS_CUDA_LDFLAGS}"
 export SIRIUS_HIP_LDFLAGS="${SIRIUS_HIP_LDFLAGS}"
