@@ -298,7 +298,7 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      TYPE(dbcsr_type)                                   :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_lowdin'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp

@@ -65,6 +65,7 @@ MODULE qs_scf_post_gpw
                                               hirshfeld_type,&
                                               release_hirshfeld_type,&
                                               set_hirshfeld_info
+   USE iao_analysis,                    ONLY: iao_wfn_analysis
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_lumo, do_loc_mixed, ot_precond_full_all, radius_covalent, &
         radius_user, ref_charge_atomic, ref_charge_mulliken
@@ -2652,6 +2653,14 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MINBAS_ANALYSIS", extension=".mao", log_filename=.FALSE.)
          CALL minbas_analysis(qs_env, print_key, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MINBAS_ANALYSIS")
+      END IF
+
+      ! IAO analysis
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%IAO_ANALYSIS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IAO_ANALYSIS", extension=".iao", log_filename=.FALSE.)
+         CALL iao_wfn_analysis(qs_env, print_key, unit_nr)
+         CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%IAO_ANALYSIS")
       END IF
 
       ! Print the density in the RI-HFX basis

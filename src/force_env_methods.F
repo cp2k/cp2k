@@ -23,6 +23,7 @@ MODULE force_env_methods
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_create,&
                                               cell_release,&
+                                              cell_sym_triclinic,&
                                               cell_type,&
                                               init_cell,&
                                               real_to_scaled,&
@@ -544,7 +545,7 @@ CONTAINS
       REAL(kind=dp), PARAMETER                           :: default_dx = 0.001_dp
 
       INTEGER                                            :: i, ip, iq, j, k, natom, ncore, nshell, &
-                                                            output_unit
+                                                            output_unit, symmetry_id
       REAL(KIND=dp)                                      :: dx_w
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: s
@@ -608,6 +609,10 @@ CONTAINS
          END DO
       END IF
       CALL force_env_get(force_env, cell=cell)
+      ! Save cell symmetry (distorted cell has no symmetry)
+      symmetry_id = cell%symmetry_id
+      cell%symmetry_id = cell_sym_triclinic
+      !
       CALL cell_create(cell_local)
       CALL cell_clone(cell, cell_local)
       ! First change box
@@ -662,6 +667,8 @@ CONTAINS
       END DO
 
       ! Reset positions and rebuild original environment
+      cell%symmetry_id = symmetry_id
+      CALL init_cell(cell)
       DO i = 1, natom
          particles%els(i)%r = ref_pos_atom(i, :)
       END DO

@@ -5,18 +5,18 @@
        KERNEL FULL
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-6
     &END TDDFPT
   &END PROPERTIES
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 250
+      CUTOFF 200
     &END MGRID
     &QS
       METHOD GAPW_XC
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.E-10
     &END QS
     &EFIELD
     &END
@@ -33,10 +33,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  20
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  20
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
@@ -69,7 +69,7 @@
      &END
     &END
     &KIND H
-      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET DZV-GTH-PADE
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND C

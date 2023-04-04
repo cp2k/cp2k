@@ -18,11 +18,11 @@ MODULE input_cp2k_dft
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
         Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
         Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, Heinzmann1976, &
-        Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, &
-        Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, &
-        Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Shigeta2001, Stewart1982, &
-        Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, &
-        VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017
+        Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Knizia2013, &
+        Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, &
+        Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Shigeta2001, &
+        Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, VandeVondele2003, &
+        VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -1799,6 +1799,183 @@ CONTAINS
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
+
+      ! IAO (Intrinsic atomic orbital) analysis
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "IAO_ANALYSIS", &
+                                       description="Controls the printing of the IAO (intrinsic atomic orbital) analysis", &
+                                       print_level=debug_print_level, filename="__STD_OUT__", &
+                                       common_iter_levels=1, &
+                                       citations=(/Knizia2013/))
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
+                          description="Threshold for matrix inversion eigenvalues.", &
+                          usage="EPS_SVD reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_OCC", &
+                          description="Threshold in occupation for vectors included.", &
+                          usage="EPS_OCC reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMIC_CHARGES", &
+                          description="Calculate atomic charges from IAO.", &
+                          usage="ATOMIC_CHARGES {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      ! IAO_MOLDEN
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "IAO_MOLDEN", &
+                                       description="Write the IAO basis in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="IAOBAS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+      ! IAO_CUBES
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "IAO_CUBES", &
+                                       description="Controls the printing of the IAO basis "// &
+                                       "as *.cube files.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
+                          description="Indices of the atoms to be included in basis CUBE file printing. ", &
+                          usage="ATOM_LIST {integer}  {integer} ..  {integer} ", &
+                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+      ! One Center Expansion of IAO
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "ONE_CENTER_EXPANSION", &
+                                       description="Calculates single center expansion of IAOs ", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="LMAX", &
+                          description="Maximum l quantum number used in the expansion.", &
+                          usage="LMAX 2", n_var=1, default_i_val=3, type_of_var=integer_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NBAS", &
+                          description="Max number of basis functions used in the expansion."// &
+                          " Default is determined by the orbital basis set.", &
+                          usage="NBAS 10", n_var=1, default_i_val=-1, type_of_var=integer_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Append the OCE basis files when it already exists", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+      ! Intrinsic Bond orbitals
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "BOND_ORBITALS", &
+                                       description="Calculate intrinsic bond orbitals using "// &
+                                       "localized MOs in IAO basis.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       add_last=add_last_numeric, filename="")
+      ! CHARGE CENTER AND SPREAD
+      NULLIFY (subsection)
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "CHARGE_CENTER", &
+                                       description="Calculation and printing of centers and spreads "// &
+                                       " of localized orbitals.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="POSITION_OPERATOR_BERRY", &
+                          description="Use Berry phase position operator.", &
+                          usage="POSITION_OPERATOR_BERRY T", n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(sub_print_key, subsection)
+      CALL section_release(subsection)
+      ! IBO_MOLDEN
+      NULLIFY (subsection)
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "IBO_MOLDEN", &
+                                       description="Write the IBO orbitals in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="IBOBAS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(sub_print_key, subsection)
+      CALL section_release(subsection)
+      ! IAO_CUBES
+      NULLIFY (subsection)
+      CALL cp_print_key_section_create(subsection, __LOCATION__, "IBO_CUBES", &
+                                       description="Controls the printing of the IBO orbitals "// &
+                                       "as *.cube files.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="STATE_LIST", &
+                          description="Indices of the orbitals to be included in IBO CUBE file printing. ", &
+                          usage="STATE_LIST {integer}  {integer} ..  {integer} ", &
+                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(sub_print_key, subsection)
+      CALL section_release(subsection)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+      ! END OF IAO_ANALYSIS SECTION
 
       !DOS from density matrix
       CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY_WINDOWS", &

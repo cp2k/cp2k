@@ -115,12 +115,11 @@ CONTAINS
 
       INTEGER                                            :: handle, i
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield, efieldref
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, efield=efieldref)
+      CALL get_qs_env(qs_env=qs_env, efield=efieldref)
       efield => ec_env%efield
       CALL init_efield_matrices(efield)
       matrix_s => ec_env%matrix_s(:, 1)
