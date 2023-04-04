@@ -66,11 +66,11 @@ case "$with_sirius" in
     require_env LIBVDWXC_CFLAGS
     require_env LIBVDWXC_LIBS
     require_env LIBVDWXC_LDFLAGS
-    require_env SPFFT_ROOT
+    require_env SPFFT_ROOT_PREFIXED
     require_env SPFFT_CFLAGS
     require_env SPFFT_LDFLAGS
     require_env SPFFT_LIBS
-    require_env SPLA_ROOT
+    require_env SPLA_ROOT_PREFIXED
     require_env SPLA_CFLAGS
     require_env SPLA_LDFLAGS
     require_env SPLA_LIBS
@@ -133,21 +133,18 @@ case "$with_sirius" in
         fi
       fi
       if [ -n "${HDF5_LIBS}" ]; then
-        CMAKE_PREFIX_PATH="${HDF5_ROOT} ${CMAKE_PREFIX_PATH}"
+        CMAKE_PREFIX_PATH="${HDF5_ROOT}:${CMAKE_PREFIX_PATH}"
       fi
-      if [ -n "${LIBVDWXC_LIBS}" ]; then
-        CMAKE_PREFIX_PATH="${LIBVDWXC_ROOT} ${CMAKE_PREFIX_PATH}"
-        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=ON ${EXTRA_CMAKE_FLAGS}"
-      else
-        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=OFF ${EXTRA_CMAKE_FLAGS}"
-      fi
+      #      if [ -n "${LIBVDWXC_LIBS}" ]; then
+      #        CMAKE_PREFIX_PATH="${LIBVDWXC_ROOT}:${CMAKE_PREFIX_PATH}"
+      #        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=ON ${EXTRA_CMAKE_FLAGS}"
+      #      else
+      #        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=OFF ${EXTRA_CMAKE_FLAGS}"
+      #      fi
       if [ -n "${MKL_LIBS}" ]; then
         EXTRA_CMAKE_FLAGS="-DUSE_MKL=ON -DMKL_DEF_LIBRARY=${MKLROOT}/lib/intel64 -DUSE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
       fi
-      SpFFT_DIR="${SpFFT_ROOT}/lib/cmake/SpFFT"
-      SpLA_DIR="${SpLA_ROOT}/lib/cmake/SPLA"
-      COSTA_DIR="${COSMA_ROOT}/lib/cmake/costa"
-      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}" cmake \
+      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SPFFT_ROOT_PREFXIED}:${SPLA_ROOT_PREFIXED}:${COSTA_ROOT}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
@@ -162,12 +159,7 @@ case "$with_sirius" in
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
 
       make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-
-      install -d "${pkg_install_dir}/include" >> install.log 2>&1
-      install -d "${pkg_install_dir}/lib" >> install.log 2>&1
-      cp -R ../src/* "${pkg_install_dir}/include" >> install.log 2>&1
-      install -m 644 src/*.a "${pkg_install_dir}/lib" >> install.log 2>&1
-      install -m 644 src/mod_files/*.mod "${pkg_install_dir}/include" >> install.log 2>&1
+      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
 
       # now do we have cuda as well
@@ -176,8 +168,8 @@ case "$with_sirius" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
-        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}" cmake \
-          -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SPFFT_ROOT_PREFIXED}-cuda:${SPLA_ROOT_PREFIXED}-cuda:${COSTA_ROOT}-cuda" cmake \
+          -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda \
           -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
@@ -192,15 +184,40 @@ case "$with_sirius" in
           ${EXTRA_CMAKE_FLAGS} .. \
           >> cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        install -d ${pkg_install_dir}/lib/cuda
-        install -d ${pkg_install_dir}/include/cuda
-        install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-        install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include/cuda >> install.log 2>&1
-        SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
+        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}-cuda/lib' -Wl,-rpath,'${pkg_install_dir}-cuda/lib'"
         cd ..
       fi
-      SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/cuda'"
+
+      if [ "$ENABLE_HIP" = "__TRUE__" ]; then
+        [ -d build-hip ] && rm -rf "build-hip"
+        mkdir build-hip
+        cd build-hip
+        export HIP_PLATFORM='amd'
+        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SPFFT_ROOT_PREFIXED}-hip:${SPLA_ROOT_PREFIXED}-hip:${COSTA_ROOT}-hip" cmake \
+          -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-hip \
+          -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
+          -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
+          -DUSE_ROCM=ON \
+          -DUSE_ELPA=OFF \
+          -DUSE_MEMORY_POOL=OFF \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_CXX_COMPILER="${MPICXX}" \
+          -DCMAKE_C_COMPILER="${MPICC}" \
+          -DCMAKE_Fortran_COMPILER="${MPIFC}" \
+          ${EXTRA_CMAKE_FLAGS} .. \
+          >> cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        cd ..
+      fi
+
+      SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
+      SIRIUS_CUDA_CFLAGS="-I'${pkg_install_dir}-cuda/include'"
+      SIRIUS_HIP_CFLAGS="-I'${pkg_install_dir}-hip/include'"
       SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+      SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}-cuda/lib' -Wl,-rpath,'${pkg_install_dir}-cuda/lib'"
+      SIRIUS_HIP_LDFLAGS="-L'${pkg_install_dir}-hip/lib' -Wl,-rpath,'${pkg_install_dir}-hip/lib'"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     ;;
@@ -256,17 +273,21 @@ case "$with_sirius" in
 esac
 if [ "$with_sirius" != "__DONTUSE__" ]; then
   SIRIUS_LIBS="-lsirius IF_CUDA(-lcusolver|)"
-  SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
+  SIRIUS_CUDA_LDFLAGS="${SIRIUS_CUDA_LDFLAGS}"
+  SIRIUS_HIP_LDFLAGS="${SIRIUS_HIP_LDFLAGS}"
   SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
   SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
   if [ "$with_sirius" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_sirius"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib/cuda"
+prepend_path LD_LIBRARY_PATH "$pkg_install_dir-cuda/lib"
+prepend_path LD_LIBRARY_PATH "$pkg_install_dir-hip/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib/cuda"
+prepend_path LD_RUN_PATH "$pkg_install_dir-cuda/lib"
+prepend_path LD_RUN_PATH "$pkg_install_dir-hip/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib/cuda"
+prepend_path LIBRARY_PATH "$pkg_install_dir-cuda/lib"
+prepend_path LIBRARY_PATH "$pkg_install_dir-hip/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
@@ -274,17 +295,31 @@ EOF
     cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_sirius"
-export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
-export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_dir}/include)"
+export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include/sirius|IF_HIP(${pkg_install_dir}-hip/include/sirius|-I${pkg_install_dir}/include/sirius))"
+export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}-cuda/include/sirius|IF_HIP(${pkg_install_dir}-hip/include/sirius|-I${pkg_install_dir}/include/sirius))"
 export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
+export SIRIUS_CUDA_LDFLAGS="${SIRIUS_CUDA_LDFLAGS}"
+export SIRIUS_HIP_LDFLAGS="${SIRIUS_HIP_LDFLAGS}"
 export SIRIUS_LIBS="${SIRIUS_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI("-D__SIRIUS"|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)"
+export SIRIUS_ROOT="IF_HIP("${pkg_install_dir}-hip"|IF_CUDA("${pkg_install_dir}-cuda"|${pkg_install_dir}))"
 export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
 EOF
 
+  if [ "$ENABLE_HIP" = "__TRUE__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_sirius"
+export CP_LDFLAGS="\${CP_LDFLAGS} IF_HIP(${SIRIUS_HIP_LDFLAGS}|${SIRIUS_LDFLAGS})"
+EOF
+  elif [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_sirius"
+export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${SIRIUS_CUDA_LDFLAGS}|${SIRIUS_LDFLAGS})"
+EOF
+  else
+    cat << EOF >> "${BUILDDIR}/setup_sirius"
+export CP_LDFLAGS="\${CP_LDFLAGS} ${SIRIUS_LDFLAGS}"
+EOF
+  fi
   cat << EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to SIRIUS
 leak:cublasXtDeviceSelect
