@@ -473,7 +473,6 @@ CONTAINS
                   CALL cp_fm_get_element(zij_fm_set(iatom, 1), jstate, jstate, mjj)
                   aij = aij + mij*(mii - mjj)
                   bij = bij + mij*mij - 0.25_dp*(mii - mjj)*(mii - mjj)
-
                END DO
                IF (ABS(bij) > 1.E-10_dp) THEN
                   ratio = -aij/bij
@@ -525,14 +524,19 @@ CONTAINS
 
       INTEGER                                  :: nstate
 #if defined(__SCALAPACK)
+      INTEGER                                  :: lwork, info
       INTEGER, DIMENSION(9)                    :: desc
+      REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
 #endif
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
 #if defined(__SCALAPACK)
+      lwork = 2*nstate + 1
+      ALLOCATE (work(lwork))
       desc(:) = rmat%matrix_struct%descriptor(:)
-      CALL pzrot(nstate, rmat%local_data(1, 1), 1, istate, desc, 1, &
-                 rmat%local_data(1, 1), 1, jstate, desc, 1, ct, st)
+      CALL pdrot(nstate, rmat%local_data(1, 1), 1, istate, desc, 1, &
+                 rmat%local_data(1, 1), 1, jstate, desc, 1, ct, st, work, lwork, info)
+      DEALLOCATE (work)
 #else
       CALL drot(nstate, rmat%local_data(1, istate), 1, &
                 rmat%local_data(1, jstate), 1, ct, st)
@@ -559,23 +563,27 @@ CONTAINS
 
       INTEGER                                  :: iatom, natom, nstate
 #if defined(__SCALAPACK)
+      INTEGER                                  :: lwork, info
       INTEGER, DIMENSION(9)                    :: desc
+      REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
 #else
       INTEGER                                  :: stride
 #endif
 
-      CALL cp_fm_get_info(zij(1, 1), nrow_global=nstate)
-
       natom = SIZE(zij, 1)
       DO iatom = 1, natom
+         CALL cp_fm_get_info(zij(iatom, 1), nrow_global=nstate)
 #if defined(__SCALAPACK)
+         lwork = 2*nstate + 1
+         ALLOCATE (work(lwork))
          desc(:) = zij(iatom, 1)%matrix_struct%descriptor(:)
-         CALL pzrot(nstate, zij(iatom, 1)%local_data(1, 1), &
+         CALL pdrot(nstate, zij(iatom, 1)%local_data(1, 1), &
                     1, istate, desc, 1, zij(iatom, 1)%local_data(1, 1), &
-                    1, jstate, desc, nstate, ct, st)
-         CALL pzrot(nstate, zij(iatom, 1)%local_data(1, 1), &
-                    istate, 1, desc, 1, zij(iatom, 1)%local_data(1, 1), &
-                    jstate, 1, desc, nstate, ct, st)
+                    1, jstate, desc, 1, ct, st, work, lwork, info)
+         CALL pdrot(nstate, zij(iatom, 1)%local_data(1, 1), &
+                    istate, 1, desc, nstate, zij(iatom, 1)%local_data(1, 1), &
+                    jstate, 1, desc, nstate, ct, st, work, lwork, info)
+         DEALLOCATE (work)
 #else
          CALL drot(nstate, zij(iatom, 1)%local_data(1, istate), &
                    1, zij(iatom, 1)%local_data(1, jstate), 1, ct, st)
@@ -607,15 +615,15 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: diag
       TYPE(cp_fm_type)                                   :: force
 
+      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix_struct)
+      CALL cp_fm_set_all(force, 0._dp)
+
       NULLIFY (diag, col_indices, row_indices)
       natom = SIZE(zij_fm_set, 1)
       CALL cp_fm_get_info(zij_fm_set(1, 1), nrow_local=nrow_local, &
                           ncol_local=ncol_local, nrow_global=nrow_global, &
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, natom))
-
-      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix_struct)
-      CALL cp_fm_set_all(force, 0._dp)
 
       DO iatom = 1, natom
          DO istate = 1, nrow_global
@@ -627,8 +635,8 @@ CONTAINS
          DO jstate = 1, ncol_local
             grad_ij = 0.0_dp
             DO iatom = 1, natom
-               zii = diag(istate, iatom)
-               zjj = diag(jstate, iatom)
+               zii = diag(row_indices(istate), iatom)
+               zjj = diag(col_indices(jstate), iatom)
                zij = zij_fm_set(iatom, 1)%local_data(istate, jstate)
                grad_ij = grad_ij + 4.0_dp*zij*(zjj - zii)
             END DO
@@ -639,7 +647,6 @@ CONTAINS
       DEALLOCATE (diag)
 
       CALL cp_fm_maxabsval(force, tolerance)
-
       CALL cp_fm_release(force)
 
    END SUBROUTINE check_tolerance_real

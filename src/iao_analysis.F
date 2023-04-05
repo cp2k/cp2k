@@ -1052,13 +1052,15 @@ CONTAINS
       WRITE (filename, '(A18,I1.1)') "IBO_CENTERS_SPREAD"
       iw = cp_print_key_unit_nr(logger, print_section, "", extension=".csp", &
                                 middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
-      DO ispin = 1, nspin
-         WRITE (iw, "(A,i1)") "Intrinsic Bond Orbitals: Centers and Spread for Spin ", ispin
-         WRITE (iw, "(A7,T30,A6,T68,A7)") "State", "Center", "Spreads"
-         DO is = 1, nocc(ispin)
-            WRITE (iw, "(i7,3F15.8,8X,2F10.5)") is, moments(1:5, is, ispin)
+      IF (iw > 0) THEN
+         DO ispin = 1, nspin
+            WRITE (iw, "(A,i1)") "Intrinsic Bond Orbitals: Centers and Spread for Spin ", ispin
+            WRITE (iw, "(A7,T30,A6,T68,A7)") "State", "Center", "Spreads"
+            DO is = 1, nocc(ispin)
+               WRITE (iw, "(i7,3F15.8,8X,2F10.5)") is, moments(1:5, is, ispin)
+            END DO
          END DO
-      END DO
+      END IF
       CALL cp_print_key_finished_output(iw, logger, print_section, "")
 
    END SUBROUTINE print_center_spread
