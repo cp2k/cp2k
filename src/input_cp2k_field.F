@@ -162,6 +162,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="VEC_POT_INITIAL", &
+                          description="Initial value of the vector "// &
+                          "potential (for velocity gauge). This input is "// &
+                          "made especially for restarting RTP calculation. "// &
+                          "Unit is atomic unit. "// &
+                          "Note that if several field sections are defined, only the first one will be used.", &
+                          usage="vec_pot_initial  1.0E-2 0.0 0.0", &
+                          repeats=.FALSE., &
+                          n_var=3, type_of_var=real_t, &
+                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_constant_env_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

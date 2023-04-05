@@ -375,7 +375,7 @@ CONTAINS
             used_time = time_iter_stop - time_iter_start
             time_iter_start = time_iter_stop
             CALL rt_prop_output(qs_env, real_time_propagation, delta_iter=rtp%delta_iter, used_time=used_time)
-            CALL rt_write_input_restart(force_env=force_env)
+            CALL rt_write_input_restart(force_env=force_env, qs_env=qs_env)
             IF (should_stop) EXIT
          ELSE
             EXIT
@@ -395,16 +395,22 @@ CONTAINS
 !> \brief overwrites some values in the input file such that the .restart
 !>        file will contain the appropriate information
 !> \param md_env ...
+!> \param qs_env ...
 !> \param force_env ...
 !> \author Florian Schiffmann (02.09)
 ! **************************************************************************************************
 
-   SUBROUTINE rt_write_input_restart(md_env, force_env)
+   SUBROUTINE rt_write_input_restart(md_env, qs_env, force_env)
       TYPE(md_environment_type), OPTIONAL, POINTER       :: md_env
+      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(force_env_type), POINTER                      :: force_env
 
-      TYPE(section_vals_type), POINTER                   :: motion_section, root_section, rt_section
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_vals
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: efield_section, motion_section, &
+                                                            root_section, rt_section
 
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
       root_section => force_env%root_section
       motion_section => section_vals_get_subs_vals(root_section, "MOTION")
       rt_section => section_vals_get_subs_vals(root_section, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")
@@ -412,6 +418,16 @@ CONTAINS
       ! coming from RTP
       IF (.NOT. PRESENT(md_env)) THEN
          CALL section_vals_val_set(motion_section, "MD%STEP_START_VAL", i_val=force_env%qs_env%sim_step)
+      END IF
+
+      IF (dft_control%apply_vector_potential) THEN
+         efield_section => section_vals_get_subs_vals(root_section, "FORCE_EVAL%DFT%EFIELD")
+         NULLIFY (tmp_vals)
+         ALLOCATE (tmp_vals(3))
+         tmp_vals = dft_control%efield_fields(1)%efield%vec_pot_initial
+         CALL section_vals_val_set(efield_section, "VEC_POT_INITIAL", &
+                                   r_vals_ptr=tmp_vals, &
+                                   i_rep_section=1)
       END IF
 
       CALL write_restart(md_env=md_env, root_section=root_section)
