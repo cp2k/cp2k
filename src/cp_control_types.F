@@ -201,6 +201,8 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: strength
       REAL(KIND=dp)                        :: phase_offset
       REAL(KIND=dp)                        :: wavelength
+      REAL(KIND=dp), DIMENSION(:), &
+         ALLOCATABLE                       :: vec_pot_initial
    END TYPE efield_type
 
    TYPE efield_p_type
@@ -948,9 +950,10 @@ CONTAINS
                IF (ASSOCIATED(efield_fields(i)%efield%envelop_i_vars)) THEN
                   DEALLOCATE (efield_fields(i)%efield%envelop_i_vars)
                END IF
-               IF (ASSOCIATED(efield_fields(i)%efield%polarisation)) THEN
+               IF (ASSOCIATED(efield_fields(i)%efield%polarisation)) &
                   DEALLOCATE (efield_fields(i)%efield%polarisation)
-               END IF
+               IF (ALLOCATED(efield_fields(i)%efield%vec_pot_initial)) &
+                  DEALLOCATE (efield_fields(i)%efield%vec_pot_initial)
                DEALLOCATE (efield_fields(i)%efield)
             END IF
          END DO

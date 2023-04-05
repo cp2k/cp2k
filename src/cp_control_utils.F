@@ -410,7 +410,8 @@ CONTAINS
                dft_control%apply_efield_field = .TRUE.
             ELSE
                dft_control%apply_vector_potential = .TRUE.
-               dft_control%rtp_control%vec_pot = 0.0_dp
+               ! Use this input value of vector potential to (re)start RTP
+               dft_control%rtp_control%vec_pot = dft_control%efield_fields(1)%efield%vec_pot_initial
             END IF
          ELSE
             dft_control%apply_efield = .TRUE.
@@ -2167,6 +2168,10 @@ CONTAINS
                                    i_val=efield%envelop_id)
          CALL section_vals_val_get(efield_section, "WAVELENGTH", i_rep_section=i, &
                                    r_val=efield%wavelength)
+         CALL section_vals_val_get(efield_section, "VEC_POT_INITIAL", i_rep_section=i, &
+                                   r_vals=tmp_vals)
+
+         ALLOCATE (efield%vec_pot_initial, source=TRANSFER(tmp_vals, efield%vec_pot_initial))
 
          IF (efield%envelop_id == constant_env) THEN
             ALLOCATE (efield%envelop_i_vars(2))
