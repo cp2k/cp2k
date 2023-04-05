@@ -57,7 +57,7 @@ With SLURM, `srun` is usually the proper way to launch a production run in batch
 
 ## Building your own CP2K container with apptainer
 
-Each Apptainer definition file in this folder provides a usage description which is the command to build `sif` file, e.g.
+Each Apptainer definition file in this folder provides a usage description which is the command to build the corresponding `sif` file, e.g.
 ```
 apptainer build -B $PWD:/mnt cp2k-2023.1_mpich_generic_psmp.sif 2023.1_mpich_generic_psmp.def | tee cp2k-2023.1_mpich_generic_psmp.log
 ```
