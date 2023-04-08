@@ -37,98 +37,114 @@ MODULE dbt_tas_global
       dbt_tas_rowcol_data, &
       dbt_tas_default_distvec
 
-   ! abstract type for distribution vectors along one dimension
+! **************************************************************************************************
+!> \brief abstract type for distribution vectors along one dimension
+!> \var nprowcol number of process rows / columns
+!> \var nmrowcol number of matrix rows / columns
+!> \var dist     map matrix rows/cols to distribution rows/cols
+!> \var rowcols  map distribution rows/cols to matrix rows/cols
+! **************************************************************************************************
    TYPE, ABSTRACT :: dbt_tas_distribution
-      ! number of process rows / columns:
-      INTEGER :: nprowcol
-      ! number of matrix rows / columns:
-      INTEGER(KIND=int_8) :: nmrowcol
+      INTEGER                           :: nprowcol = -1
+      INTEGER(KIND=int_8)               :: nmrowcol = -1
    CONTAINS
-      ! map matrix rows/cols to distribution rows/cols:
-      PROCEDURE(rowcol_dist), deferred :: dist
-      ! map distribution rows/cols to matrix rows/cols:
+      PROCEDURE(rowcol_dist), deferred  :: dist
       PROCEDURE(dist_rowcols), deferred :: rowcols
    END TYPE
 
-   ! type for cyclic (round robin) distribution:
-   ! - may not be load balanced for arbitrary block sizes
-   ! - memory efficient for large dimensions
+! **************************************************************************************************
+!> \brief type for cyclic (round robin) distribution:
+!>        - may not be load balanced for arbitrary block sizes
+!>        - memory efficient for large dimensions
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_distribution) :: dbt_tas_dist_cyclic
-      INTEGER :: split_size
+      INTEGER   :: split_size = -1
    CONTAINS
       PROCEDURE :: dist => cyclic_dist
       PROCEDURE :: rowcols => cyclic_rowcols
    END TYPE
 
-   ! type for arbitrary distributions
-   ! - stored as an array
-   ! - not memory efficient for large dimensions
+! **************************************************************************************************
+!> \brief type for arbitrary distributions
+!>        - stored as an array
+!>        - not memory efficient for large dimensions
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_distribution) :: dbt_tas_dist_arb
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist_vec
    CONTAINS
-      PROCEDURE :: dist => arb_dist
-      PROCEDURE :: rowcols => arb_rowcols
+      PROCEDURE                          :: dist => arb_dist
+      PROCEDURE                          :: rowcols => arb_rowcols
    END TYPE
 
-   ! type for replicated distribution
-   ! - a submatrix distribution replicated on all process groups
-   ! - memory efficient for large dimensions
+! **************************************************************************************************
+!> \brief type for replicated distribution
+!>        - a submatrix distribution replicated on all process groups
+!>        - memory efficient for large dimensions
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_distribution) :: dbt_tas_dist_repl
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist_vec
-      INTEGER :: nmrowcol_local
-      INTEGER :: n_repl
-      INTEGER :: dist_size
+      INTEGER                           :: nmrowcol_local = -1
+      INTEGER                           :: n_repl = -1
+      INTEGER                           :: dist_size = -1
    CONTAINS
-      PROCEDURE :: dist => repl_dist
-      PROCEDURE :: rowcols => repl_rowcols
+      PROCEDURE                         :: dist => repl_dist
+      PROCEDURE                         :: rowcols => repl_rowcols
    END TYPE
 
-   ! abstract type for integer data (e.g. block sizes) along one dimension
+! **************************************************************************************************
+!> \brief abstract type for integer data (e.g. block sizes) along one dimension
+!> \var nmrowcol     number of matrix rows / columns (blocks)
+!> \var nfullrowcol  number of matrix rows / columns (elements)
+!> \var data         integer data for each block row / col
+! **************************************************************************************************
    TYPE, ABSTRACT :: dbt_tas_rowcol_data
-      ! number of matrix rows / columns (blocks):
-      INTEGER(KIND=int_8) :: nmrowcol
-      ! number of matrix rows / columns (elements):
-      INTEGER(KIND=int_8) :: nfullrowcol
+      INTEGER(KIND=int_8)              :: nmrowcol = -1
+      INTEGER(KIND=int_8)              :: nfullrowcol = -1
    CONTAINS
-      ! integer data for each block row / col
       PROCEDURE(rowcol_data), deferred :: DATA
    END TYPE
 
-   ! type for arbitrary block sizes
-   ! - stored as an array
-   ! - not memory efficient for large dimensions
+! **************************************************************************************************
+!> \brief type for arbitrary block sizes
+!>        - stored as an array
+!>        - not memory efficient for large dimensions
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_rowcol_data) :: dbt_tas_blk_size_arb
       INTEGER, DIMENSION(:), ALLOCATABLE :: blk_size_vec
    CONTAINS
-      PROCEDURE :: DATA => blk_size_arb
+      PROCEDURE                          :: DATA => blk_size_arb
    END TYPE
 
-   ! type for replicated block sizes
-   ! - submatrix block sizes replicated on all process groups
-   ! - memory efficient for large dimensions
+! **************************************************************************************************
+!> \brief type for replicated block sizes
+!>        - submatrix block sizes replicated on all process groups
+!>        - memory efficient for large dimensions
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_rowcol_data) :: dbt_tas_blk_size_repl
       INTEGER, DIMENSION(:), ALLOCATABLE :: blk_size_vec
-      INTEGER :: nmrowcol_local
+      INTEGER                            :: nmrowcol_local = -1
    CONTAINS
-      PROCEDURE :: DATA => blk_size_repl
+      PROCEDURE                          :: DATA => blk_size_repl
    END TYPE
 
-   ! type for blocks of size one
-   ! - memory efficient for large dimensions
+! **************************************************************************************************
+!> \brief type for blocks of size one
+!>        - memory efficient for large dimensions
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_rowcol_data) :: dbt_tas_blk_size_one
    CONTAINS
       PROCEDURE :: DATA => blk_size_one
    END TYPE
 
    ABSTRACT INTERFACE
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief map matrix rows/cols to distribution rows/cols
 !> \param t ...
 !> \param rowcol ...
 !> \return ...
 ! **************************************************************************************************
       FUNCTION rowcol_dist(t, rowcol)
-         !! map matrix rows/cols to distribution rows/cols:
          IMPORT :: dbt_tas_distribution, int_8
          CLASS(dbt_tas_distribution), INTENT(IN) :: t
          INTEGER(KIND=int_8), INTENT(IN) :: rowcol
@@ -136,13 +152,12 @@ MODULE dbt_tas_global
       END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief map distribution rows/cols to matrix rows/cols
 !> \param t ...
 !> \param dist ...
 !> \return ...
 ! **************************************************************************************************
       FUNCTION dist_rowcols(t, dist)
-         !! map distribution rows/cols to matrix rows/cols:
          IMPORT :: dbt_tas_distribution, int_8
          CLASS(dbt_tas_distribution), INTENT(IN) :: t
          INTEGER, INTENT(IN) :: dist
@@ -150,13 +165,12 @@ MODULE dbt_tas_global
       END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief integer data for each block row / col
 !> \param t ...
 !> \param rowcol ...
 !> \return ...
 ! **************************************************************************************************
       FUNCTION rowcol_data(t, rowcol)
-         !! integer data for each block row / col
          IMPORT :: dbt_tas_rowcol_data, int_8
          CLASS(dbt_tas_rowcol_data), INTENT(IN) :: t
          INTEGER(KIND=int_8), INTENT(IN) :: rowcol

@@ -98,67 +98,71 @@ MODULE dbt_types
    TYPE dbt_pgrid_type
       TYPE(nd_to_2d_mapping)                  :: nd_index_grid
       TYPE(mp_cart_type)                      :: mp_comm_2d
-      TYPE(dbt_tas_split_info), ALLOCATABLE :: tas_split_info
-      INTEGER                                 :: nproc
+      TYPE(dbt_tas_split_info), ALLOCATABLE   :: tas_split_info
+      INTEGER                                 :: nproc = -1
    END TYPE
 
    TYPE dbt_contraction_storage
-      REAL(dp) :: nsplit_avg
-      INTEGER :: ibatch
+      REAL(dp)         :: nsplit_avg = 0.0_dp
+      INTEGER          :: ibatch = -1
       TYPE(array_list) :: batch_ranges
-      LOGICAL :: static
+      LOGICAL          :: static = .FALSE.
    END TYPE
 
    TYPE dbt_type
-      TYPE(dbt_tas_type), POINTER        :: matrix_rep => NULL()
-      TYPE(nd_to_2d_mapping)               :: nd_index_blk
-      TYPE(nd_to_2d_mapping)               :: nd_index
-      TYPE(array_list)                     :: blk_sizes
-      TYPE(array_list)                     :: blk_offsets
-      TYPE(array_list)                     :: nd_dist
-      TYPE(dbt_pgrid_type)             :: pgrid
-      TYPE(array_list)                     :: blks_local
-      INTEGER, DIMENSION(:), ALLOCATABLE   :: nblks_local
-      INTEGER, DIMENSION(:), ALLOCATABLE   :: nfull_local
-      LOGICAL                              :: valid = .FALSE.
-      LOGICAL                              :: owns_matrix = .FALSE.
-      CHARACTER(LEN=default_string_length) :: name
+      TYPE(dbt_tas_type), POINTER                :: matrix_rep => NULL()
+      TYPE(nd_to_2d_mapping)                     :: nd_index_blk
+      TYPE(nd_to_2d_mapping)                     :: nd_index
+      TYPE(array_list)                           :: blk_sizes
+      TYPE(array_list)                           :: blk_offsets
+      TYPE(array_list)                           :: nd_dist
+      TYPE(dbt_pgrid_type)                       :: pgrid
+      TYPE(array_list)                           :: blks_local
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: nblks_local
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: nfull_local
+      LOGICAL                                    :: valid = .FALSE.
+      LOGICAL                                    :: owns_matrix = .FALSE.
+      CHARACTER(LEN=default_string_length)       :: name = ""
       ! lightweight reference counting for communicators:
-      INTEGER, POINTER                     :: refcount => NULL()
+      INTEGER, POINTER                           :: refcount => NULL()
       TYPE(dbt_contraction_storage), ALLOCATABLE :: contraction_storage
    END TYPE dbt_type
 
    TYPE dbt_distribution_type
       TYPE(dbt_tas_distribution_type) :: dist
-      TYPE(dbt_pgrid_type)      :: pgrid
-      TYPE(array_list)              :: nd_dist
+      TYPE(dbt_pgrid_type)            :: pgrid
+      TYPE(array_list)                :: nd_dist
       ! lightweight reference counting for communicators:
-      INTEGER, POINTER :: refcount => NULL()
+      INTEGER, POINTER                :: refcount => NULL()
    END TYPE
 
-   ! tas matrix distribution function object for one matrix index
+! **************************************************************************************************
+!> \brief tas matrix distribution function object for one matrix index
+!> \var dims tensor     dimensions only for this matrix dimension
+!> \var dims_grid       grid dimensions only for this matrix dimension
+!> \var nd_dist         dist only for tensor dimensions belonging to this matrix dimension
+!> \var tas_dist_t map  matrix index to process grid
+!> \var tas_rowcols_t   map process grid to matrix index
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_distribution) :: dbt_tas_dist_t
-      ! tensor dimensions only for this matrix dimension:
       INTEGER, DIMENSION(:), ALLOCATABLE :: dims
-      ! grid dimensions only for this matrix dimension:
       INTEGER, DIMENSION(:), ALLOCATABLE :: dims_grid
-      ! dist only for tensor dimensions belonging to this matrix dimension:
-      TYPE(array_list)       :: nd_dist
+      TYPE(array_list)                   :: nd_dist
    CONTAINS
-      ! map matrix index to process grid:
-      PROCEDURE :: dist => tas_dist_t
-      ! map process grid to matrix index:
-      PROCEDURE :: rowcols => tas_rowcols_t
+      PROCEDURE                          :: dist => tas_dist_t
+      PROCEDURE                          :: rowcols => tas_rowcols_t
    END TYPE
 
-   ! block size object for one matrix index
+! **************************************************************************************************
+!> \brief  block size object for one matrix index
+!> \var dims tensor dimensions only for this matrix dimension
+!> \var blk_size block size only for this matrix dimension
+! **************************************************************************************************
    TYPE, EXTENDS(dbt_tas_rowcol_data) :: dbt_tas_blk_size_t
-      ! tensor dimensions only for this matrix dimension:
       INTEGER, DIMENSION(:), ALLOCATABLE :: dims
-      ! block size only for this matrix dimension:
-      TYPE(array_list) :: blk_size
+      TYPE(array_list)                   :: blk_size
    CONTAINS
-      PROCEDURE :: data => tas_blk_size_t
+      PROCEDURE                          :: data => tas_blk_size_t
    END TYPE
 
    INTERFACE dbt_create
