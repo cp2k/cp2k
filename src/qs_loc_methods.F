@@ -30,7 +30,9 @@ MODULE qs_loc_methods
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_schur_product
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_rot_cols,&
+                                              cp_fm_rot_rows,&
+                                              cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -492,9 +494,12 @@ CONTAINS
                ct = COS(theta)
                st = SIN(theta)
 
-               CALL rotate_rmat_real(istate, jstate, st, ct, rmat)
+               CALL cp_fm_rot_cols(rmat, istate, jstate, ct, st)
 
-               CALL rotate_zij_real(istate, jstate, st, ct, zij_fm_set)
+               DO iatom = 1, natom
+                  CALL cp_fm_rot_cols(zij_fm_set(iatom, 1), istate, jstate, ct, st)
+                  CALL cp_fm_rot_rows(zij_fm_set(iatom, 1), istate, jstate, ct, st)
+               END DO
             END DO
          END DO
          CALL check_tolerance_real(zij_fm_set, tolerance)
@@ -504,96 +509,6 @@ CONTAINS
       CALL cp_fm_release(rmat)
 
    END SUBROUTINE jacobi_rotation_pipek
-
-! **************************************************************************************************
-!> \brief ...
-!> \param istate ...
-!> \param jstate ...
-!> \param st ...
-!> \param ct ...
-!> \param rmat ...
-!> \par History
-!>      04.2005 created [MI]
-!> \author MI
-! **************************************************************************************************
-   SUBROUTINE rotate_rmat_real(istate, jstate, st, ct, rmat)
-
-      INTEGER, INTENT(IN)                      :: istate, jstate
-      REAL(dp), INTENT(IN)                     :: st, ct
-      TYPE(cp_fm_type), INTENT(IN)             :: rmat
-
-      INTEGER                                  :: nstate
-#if defined(__SCALAPACK)
-      INTEGER                                  :: lwork, info
-      INTEGER, DIMENSION(9)                    :: desc
-      REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
-#endif
-
-      CALL cp_fm_get_info(rmat, nrow_global=nstate)
-#if defined(__SCALAPACK)
-      lwork = 2*nstate + 1
-      ALLOCATE (work(lwork))
-      desc(:) = rmat%matrix_struct%descriptor(:)
-      CALL pdrot(nstate, rmat%local_data(1, 1), 1, istate, desc, 1, &
-                 rmat%local_data(1, 1), 1, jstate, desc, 1, ct, st, work, lwork, info)
-      DEALLOCATE (work)
-#else
-      CALL drot(nstate, rmat%local_data(1, istate), 1, &
-                rmat%local_data(1, jstate), 1, ct, st)
-#endif
-
-   END SUBROUTINE rotate_rmat_real
-
-! **************************************************************************************************
-!> \brief ...
-!> \param istate ...
-!> \param jstate ...
-!> \param st ...
-!> \param ct ...
-!> \param zij ...
-!> \par History
-!>      04.2005 created [MI]
-!> \author MI
-! **************************************************************************************************
-   SUBROUTINE rotate_zij_real(istate, jstate, st, ct, zij)
-
-      INTEGER, INTENT(IN)                      :: istate, jstate
-      REAL(dp), INTENT(IN)                     :: st, ct
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN) :: zij
-
-      INTEGER                                  :: iatom, natom, nstate
-#if defined(__SCALAPACK)
-      INTEGER                                  :: lwork, info
-      INTEGER, DIMENSION(9)                    :: desc
-      REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
-#else
-      INTEGER                                  :: stride
-#endif
-
-      natom = SIZE(zij, 1)
-      DO iatom = 1, natom
-         CALL cp_fm_get_info(zij(iatom, 1), nrow_global=nstate)
-#if defined(__SCALAPACK)
-         lwork = 2*nstate + 1
-         ALLOCATE (work(lwork))
-         desc(:) = zij(iatom, 1)%matrix_struct%descriptor(:)
-         CALL pdrot(nstate, zij(iatom, 1)%local_data(1, 1), &
-                    1, istate, desc, 1, zij(iatom, 1)%local_data(1, 1), &
-                    1, jstate, desc, 1, ct, st, work, lwork, info)
-         CALL pdrot(nstate, zij(iatom, 1)%local_data(1, 1), &
-                    istate, 1, desc, nstate, zij(iatom, 1)%local_data(1, 1), &
-                    jstate, 1, desc, nstate, ct, st, work, lwork, info)
-         DEALLOCATE (work)
-#else
-         CALL drot(nstate, zij(iatom, 1)%local_data(1, istate), &
-                   1, zij(iatom, 1)%local_data(1, jstate), 1, ct, st)
-         stride = SIZE(zij(iatom, 1)%local_data, 1)
-         CALL drot(nstate, zij(iatom, 1)%local_data(istate, 1), &
-                   stride, zij(iatom, 1)%local_data(jstate, 1), stride, ct, st)
-#endif
-      END DO
-
-   END SUBROUTINE rotate_zij_real
 
 ! **************************************************************************************************
 !> \brief ...
