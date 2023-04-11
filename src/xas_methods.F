@@ -86,8 +86,8 @@ MODULE xas_methods
                                               set_qs_env
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
-                                              qs_print_cubes
+   USE qs_loc_main,                     ONLY: qs_loc_driver
+   USE qs_loc_methods,                  ONLY: qs_print_cubes
    USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
                                               qs_loc_env_create,&
                                               qs_loc_env_type

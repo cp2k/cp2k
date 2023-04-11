@@ -31,9 +31,9 @@ MODULE qs_loc_states
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_loc_main,                     ONLY: qs_loc_driver
    USE qs_loc_methods,                  ONLY: centers_second_moments_berry,&
-                                              centers_second_moments_loc,&
-                                              qs_loc_driver
+                                              centers_second_moments_loc
    USE qs_loc_molecules,                ONLY: wfc_to_molecule
    USE qs_loc_types,                    ONLY: qs_loc_env_type
    USE qs_mo_types,                     ONLY: mo_set_type

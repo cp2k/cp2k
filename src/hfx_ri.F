@@ -91,7 +91,7 @@ MODULE hfx_ri
    USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_loc_methods,                  ONLY: qs_loc_driver
+   USE qs_loc_main,                     ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               qs_loc_env_create,&
                                               qs_loc_env_release

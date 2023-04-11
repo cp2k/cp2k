@@ -71,7 +71,7 @@ MODULE xas_tp_scf
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
-   USE qs_loc_methods,                  ONLY: qs_loc_driver
+   USE qs_loc_main,                     ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
                                               qs_loc_env_type

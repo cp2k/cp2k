@@ -67,7 +67,7 @@ MODULE qs_linres_methods
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_linres_kernel,                ONLY: apply_op_2
    USE qs_linres_types,                 ONLY: linres_control_type
-   USE qs_loc_methods,                  ONLY: qs_loc_driver
+   USE qs_loc_main,                     ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_type,&
                                               qs_loc_env_create,&

@@ -92,8 +92,8 @@ MODULE xas_tdp_methods
    USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_loc_main,                     ONLY: qs_loc_driver
    USE qs_loc_methods,                  ONLY: centers_spreads_berry,&
-                                              qs_loc_driver,&
                                               qs_print_cubes
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_create,&
