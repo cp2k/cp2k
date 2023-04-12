@@ -115,7 +115,9 @@ MODULE qs_scf
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
    USE qs_diis,                         ONLY: qs_diis_b_clear,&
-                                              qs_diis_b_create
+                                              qs_diis_b_clear_kp,&
+                                              qs_diis_b_create,&
+                                              qs_diis_b_create_kp
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -645,17 +647,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
 
       INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
-      LOGICAL                                            :: do_rotation, has_unit_metric, is_full_all
+      LOGICAL                                            :: do_kpoints, do_rotation, &
+                                                            has_unit_metric, is_full_all
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (scf_control, matrix_s, matrix_ks, dft_control, mos, mo_coeff)
+      NULLIFY (scf_control, matrix_s, matrix_ks, dft_control, mos, mo_coeff, kpoints)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
@@ -663,6 +667,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       scf_control=scf_control, &
                       dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
+                      kpoints=kpoints, &
                       mos=mos)
 
       ! if using mo_coeff_b then copy to fm
@@ -697,11 +703,19 @@ CONTAINS
 
       CASE (general_diag_method_nr, special_diag_method_nr, block_krylov_diag_method_nr)
          IF (.NOT. scf_env%skip_diis) THEN
-            IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-               ALLOCATE (scf_env%scf_diis_buffer)
-               CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
+            IF (do_kpoints) THEN
+               IF (.NOT. ASSOCIATED(kpoints%scf_diis_buffer)) THEN
+                  ALLOCATE (kpoints%scf_diis_buffer)
+                  CALL qs_diis_b_create_kp(kpoints%scf_diis_buffer, nbuffer=scf_control%max_diis)
+               END IF
+               CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
+            ELSE
+               IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+                  ALLOCATE (scf_env%scf_diis_buffer)
+                  CALL qs_diis_b_create(scf_env%scf_diis_buffer, nbuffer=scf_control%max_diis)
+               END IF
+               CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
             END IF
-            CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
          END IF
 
       CASE (ot_diag_method_nr)

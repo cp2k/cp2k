@@ -302,6 +302,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: has_unit_metric
+      REAL(dp)                                           :: diis_error
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -325,18 +326,23 @@ CONTAINS
                        cp_to_string(scf_env%method))
       CASE (general_diag_method_nr)
          ! Diagonlization in non orthonormal case
-         diis_step = .FALSE.
-         IF (scf_env%mixing_method == 0) THEN
-            scf_env%iter_method = "NoMix/Diag."
-         ELSE IF (scf_env%mixing_method == 1) THEN
-            scf_env%iter_param = scf_env%p_mix_alpha
-            scf_env%iter_method = "P_Mix/Diag."
-         ELSEIF (scf_env%mixing_method > 1) THEN
-            scf_env%iter_param = scf_env%mixing_store%alpha
-            scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
-         END IF
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE.)
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+                                 diis_step, diis_error, qs_env)
+         IF (diis_step) THEN
+            scf_env%iter_param = diis_error
+            scf_env%iter_method = "DIIS/Diag."
+         ELSE
+            IF (scf_env%mixing_method == 0) THEN
+               scf_env%iter_method = "NoMix/Diag."
+            ELSE IF (scf_env%mixing_method == 1) THEN
+               scf_env%iter_param = scf_env%p_mix_alpha
+               scf_env%iter_method = "P_Mix/Diag."
+            ELSEIF (scf_env%mixing_method > 1) THEN
+               scf_env%iter_param = scf_env%mixing_store%alpha
+               scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
+            END IF
+         END IF
       CASE (special_diag_method_nr)
          CALL get_qs_env(qs_env=qs_env, has_unit_metric=has_unit_metric)
          CPASSERT(has_unit_metric)

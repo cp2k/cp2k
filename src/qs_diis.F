@@ -15,11 +15,21 @@
 !>      - Changed to BLACS matrix usage (08.06.2001,MK)
 !>      - rewritten to include LSD (1st attempt) (01.2003, Joost VandeVondele)
 !>      - DIIS for ROKS (05.04.06,MK)
+!>      - DIIS for k-points (04.2023, Augustin Bussy)
 !> \author Matthias Krack (28.06.2000)
 ! **************************************************************************************************
 MODULE qs_diis
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_trace
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_symm,&
                                               cp_fm_trace
@@ -27,6 +37,7 @@ MODULE qs_diis
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_maxabsval,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -42,10 +53,12 @@ MODULE qs_diis
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathlib,                         ONLY: diamat_all
+   USE mathlib,                         ONLY: complex_diag,&
+                                              diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_diis_types,                   ONLY: qs_diis_buffer_type,&
+                                              qs_diis_buffer_type_kp,&
                                               qs_diis_buffer_type_sparse
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -68,6 +81,11 @@ MODULE qs_diis
    PUBLIC :: qs_diis_b_clear_sparse, &
              qs_diis_b_create_sparse, &
              qs_diis_b_step_4lscf
+   PUBLIC :: qs_diis_b_clear_kp, &
+             qs_diis_b_create_kp, &
+             qs_diis_b_step_kp, &
+             qs_diis_b_calc_err_kp, &
+             qs_diis_b_info_kp
 
 CONTAINS
 
@@ -94,7 +112,7 @@ CONTAINS
 
       NULLIFY (diis_buffer%b_matrix)
       NULLIFY (diis_buffer%error)
-      NULLIFY (diis_buffer%parameter)
+      NULLIFY (diis_buffer%param)
       diis_buffer%nbuffer = nbuffer
       diis_buffer%ncall = 0
 
@@ -153,13 +171,13 @@ CONTAINS
          END DO
       END IF
 
-      IF (.NOT. ASSOCIATED(diis_buffer%parameter)) THEN
-         ALLOCATE (diis_buffer%parameter(nbuffer, nspin))
+      IF (.NOT. ASSOCIATED(diis_buffer%param)) THEN
+         ALLOCATE (diis_buffer%param(nbuffer, nspin))
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
-               CALL cp_fm_create(diis_buffer%parameter(ibuffer, ispin), &
-                                 name="qs_diis_b%parameter("// &
+               CALL cp_fm_create(diis_buffer%param(ibuffer, ispin), &
+                                 name="qs_diis_b%param("// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
                                  matrix_struct=matrix_struct)
@@ -289,7 +307,7 @@ CONTAINS
                          maxocc=maxocc)
 
          new_errors => diis_buffer%error(ib, ispin)
-         parameters => diis_buffer%parameter(ib, ispin)
+         parameters => diis_buffer%param(ib, ispin)
 
          ! Copy the Kohn-Sham matrix K to the DIIS buffer
 
@@ -463,7 +481,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL cp_fm_set_all(kc(ispin), 0.0_dp)
             DO jb = 1, nb
-               parameters => diis_buffer%parameter(jb, ispin)
+               parameters => diis_buffer%param(jb, ispin)
                CALL cp_fm_scale_and_add(1.0_dp, kc(ispin), -ev(jb), parameters)
             END DO
          END DO
@@ -475,7 +493,7 @@ CONTAINS
       ELSE
 
          DO ispin = 1, nspin
-            parameters => diis_buffer%parameter(ib, ispin)
+            parameters => diis_buffer%param(ib, ispin)
             CALL cp_fm_to_fm(parameters, kc(ispin))
          END DO
 
@@ -589,7 +607,7 @@ CONTAINS
       DO ispin = 1, nspin ! ------ Loop-ispin----START
 
          new_errors => diis_buffer%error(ib, ispin)%matrix
-         parameters => diis_buffer%parameter(ib, ispin)%matrix
+         parameters => diis_buffer%param(ib, ispin)%matrix
          ! Copy the Kohn-Sham matrix K to the DIIS buffer
          CALL dbcsr_copy(parameters, & ! out
                          matrix_ks(ispin)%matrix) ! in
@@ -707,7 +725,7 @@ CONTAINS
                CALL dbcsr_set(matrix_ks(ispin)%matrix, & ! reset matrix
                               0.0_dp)
                DO jb = 1, nb
-                  parameters => diis_buffer%parameter(jb, ispin)%matrix
+                  parameters => diis_buffer%param(jb, ispin)%matrix
                   CALL dbcsr_add(matrix_ks(ispin)%matrix, parameters, &
                                  1.0_dp, -ev(jb))
                END DO ! end-loop-jb
@@ -720,7 +738,7 @@ CONTAINS
 
       ELSE
          DO ispin = 1, nspin
-            parameters => diis_buffer%parameter(ib, ispin)%matrix
+            parameters => diis_buffer%param(ib, ispin)%matrix
             CALL dbcsr_copy(parameters, & ! out
                             matrix_ks(ispin)%matrix) ! in
          END DO ! end-loop-ispin
@@ -778,13 +796,13 @@ CONTAINS
          END DO
       END IF
 
-      IF (.NOT. ASSOCIATED(diis_buffer%parameter)) THEN
-         ALLOCATE (diis_buffer%parameter(nbuffer, nspin))
+      IF (.NOT. ASSOCIATED(diis_buffer%param)) THEN
+         ALLOCATE (diis_buffer%param(nbuffer, nspin))
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
-               ALLOCATE (diis_buffer%parameter(ibuffer, ispin)%matrix)
-               CALL dbcsr_create(diis_buffer%parameter(ibuffer, ispin)%matrix, &
+               ALLOCATE (diis_buffer%param(ibuffer, ispin)%matrix)
+               CALL dbcsr_create(diis_buffer%param(ibuffer, ispin)%matrix, &
                                  template=ls_scf_env%matrix_ks(1), &
                                  matrix_type='N')
             END DO
@@ -832,10 +850,423 @@ CONTAINS
 
       NULLIFY (diis_buffer%b_matrix)
       NULLIFY (diis_buffer%error)
-      NULLIFY (diis_buffer%parameter)
+      NULLIFY (diis_buffer%param)
       diis_buffer%nbuffer = nbuffer
       diis_buffer%ncall = 0
 
    END SUBROUTINE qs_diis_b_create_sparse
 
+! **************************************************************************************************
+!> \brief Allocates an SCF DIIS buffer for k-points
+!> \param diis_buffer the buffer to create
+!> \param nbuffer ...
+! **************************************************************************************************
+   SUBROUTINE qs_diis_b_create_kp(diis_buffer, nbuffer)
+
+      TYPE(qs_diis_buffer_type_kp), INTENT(OUT)          :: diis_buffer
+      INTEGER, INTENT(in)                                :: nbuffer
+
+      NULLIFY (diis_buffer%b_matrix)
+      NULLIFY (diis_buffer%error)
+      NULLIFY (diis_buffer%param)
+      NULLIFY (diis_buffer%smat)
+      diis_buffer%nbuffer = nbuffer
+      diis_buffer%ncall = 0
+
+   END SUBROUTINE qs_diis_b_create_kp
+
+! **************************************************************************************************
+!> \brief Allocate and initialize a DIIS buffer for nao*nao parameter
+!>      variables and with a buffer size of nbuffer, in the k-point case
+!> \param diis_buffer the buffer to initialize
+!> \param matrix_struct the structure for the matrix of the buffer note: this is in the kp subgroup
+!> \param nspin ...
+!> \param nkp ...
+!> \param scf_section ...
+! **************************************************************************************************
+   SUBROUTINE qs_diis_b_check_i_alloc_kp(diis_buffer, matrix_struct, nspin, nkp, scf_section)
+
+      TYPE(qs_diis_buffer_type_kp), INTENT(INOUT)        :: diis_buffer
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      INTEGER, INTENT(IN)                                :: nspin, nkp
+      TYPE(section_vals_type), POINTER                   :: scf_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc_kp'
+
+      INTEGER                                            :: handle, ibuffer, ikp, ispin, nbuffer, &
+                                                            output_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+! -------------------------------------------------------------------------
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+
+      nbuffer = diis_buffer%nbuffer
+
+      IF (.NOT. ASSOCIATED(diis_buffer%error)) THEN
+         ALLOCATE (diis_buffer%error(nbuffer, nspin, nkp))
+
+         DO ikp = 1, nkp
+            DO ispin = 1, nspin
+               DO ibuffer = 1, nbuffer
+                  CALL cp_cfm_create(diis_buffer%error(ibuffer, ispin, ikp), &
+                                     name="qs_diis_b%error("// &
+                                     TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
+                                     TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
+                                     matrix_struct=matrix_struct)
+               END DO
+            END DO
+         END DO
+      END IF
+
+      IF (.NOT. ASSOCIATED(diis_buffer%param)) THEN
+         ALLOCATE (diis_buffer%param(nbuffer, nspin, nkp))
+
+         DO ikp = 1, nkp
+            DO ispin = 1, nspin
+               DO ibuffer = 1, nbuffer
+                  CALL cp_cfm_create(diis_buffer%param(ibuffer, ispin, ikp), &
+                                     name="qs_diis_b%param("// &
+                                     TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
+                                     TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
+                                     matrix_struct=matrix_struct)
+               END DO
+            END DO
+         END DO
+      END IF
+
+      IF (.NOT. ASSOCIATED(diis_buffer%smat)) THEN
+         ALLOCATE (diis_buffer%smat(nkp))
+         DO ikp = 1, nkp
+            CALL cp_cfm_create(diis_buffer%smat(ikp), &
+                               name="kp_cfm_smat("// &
+                               TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
+                               TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
+                               matrix_struct=matrix_struct)
+         END DO
+      END IF
+
+      IF (.NOT. ASSOCIATED(diis_buffer%b_matrix)) THEN
+         ALLOCATE (diis_buffer%b_matrix(nbuffer + 1, nbuffer + 1))
+         diis_buffer%b_matrix = 0.0_dp
+         output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DIIS_INFO", &
+                                            extension=".scfLog")
+         IF (output_unit > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T9,A)") &
+               "DIIS | The SCF DIIS buffer was allocated and initialized"
+         END IF
+         CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                           "PRINT%DIIS_INFO")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_diis_b_check_i_alloc_kp
+
+! **************************************************************************************************
+!> \brief clears the buffer
+!> \param diis_buffer the buffer to clear
+! **************************************************************************************************
+   PURE SUBROUTINE qs_diis_b_clear_kp(diis_buffer)
+
+      TYPE(qs_diis_buffer_type_kp), INTENT(INOUT)        :: diis_buffer
+
+      diis_buffer%ncall = 0
+
+   END SUBROUTINE qs_diis_b_clear_kp
+
+! **************************************************************************************************
+!> \brief Update info about the current buffer step ib and the current number of buffers nb
+!> \param diis_buffer ...
+!> \param ib ...
+!> \param nb ...
+! **************************************************************************************************
+   SUBROUTINE qs_diis_b_info_kp(diis_buffer, ib, nb)
+      TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
+      INTEGER, INTENT(OUT)                               :: ib, nb
+
+      ib = MODULO(diis_buffer%ncall, diis_buffer%nbuffer) + 1
+      diis_buffer%ncall = diis_buffer%ncall + 1
+      nb = MIN(diis_buffer%ncall, diis_buffer%nbuffer)
+
+   END SUBROUTINE qs_diis_b_info_kp
+
+! **************************************************************************************************
+!> \brief Calculate and store the error for a given k-point
+!> \param diis_buffer ...
+!> \param ib ...
+!> \param mos ...
+!> \param kc ...
+!> \param sc ...
+!> \param ispin ...
+!> \param ikp ...
+!> \param nkp_local ...
+!> \param scf_section ...
+!> \note We assume that we always have an overlap matrix and complex matrices
+!> TODO: do we need to pass the kp weight for the back Fourier transform?
+! **************************************************************************************************
+   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, nkp_local, scf_section)
+      TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
+      INTEGER, INTENT(IN)                                :: ib
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: kc, sc
+      INTEGER, INTENT(IN)                                :: ispin, ikp, nkp_local
+      TYPE(section_vals_type), POINTER                   :: scf_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_calc_err_kp'
+
+      INTEGER                                            :: handle, homo, nao, nmo, nspin
+      REAL(dp)                                           :: maxocc
+      TYPE(cp_cfm_type)                                  :: cmos
+      TYPE(cp_cfm_type), POINTER                         :: new_errors, parameters, smat
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type), POINTER                          :: imos, rmos
+
+      NULLIFY (matrix_struct, imos, rmos, parameters, new_errors, smat)
+
+      CALL timeset(routineN, handle)
+
+      !Calculate the error for this given k-point, store the KS matrix as well as the ovlp matrix
+      !All of this happens within the kp subgroups
+
+      ! Quick return, if no DIIS is requested
+      IF (diis_buffer%nbuffer < 1) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      nspin = SIZE(mos, 2)
+
+      CALL cp_cfm_get_info(kc, matrix_struct=matrix_struct)
+      CALL qs_diis_b_check_i_alloc_kp(diis_buffer, &
+                                      matrix_struct=matrix_struct, &
+                                      nspin=nspin, nkp=nkp_local, &
+                                      scf_section=scf_section)
+
+      !We calculate: e(ikp) = F(ikp)*P(ikp)*S(ikp) - S(ikp)*P(ikp)*F(ikp)
+      CALL get_mo_set(mos(1, ispin), nao=nao, nmo=nmo, homo=homo, mo_coeff=rmos, maxocc=maxocc)
+      CALL get_mo_set(mos(2, ispin), mo_coeff=imos)
+      NULLIFY (matrix_struct)
+      CALL cp_fm_get_info(rmos, matrix_struct=matrix_struct)
+      CALL cp_cfm_create(cmos, matrix_struct)
+      CALL cp_fm_to_cfm(rmos, imos, cmos)
+
+      new_errors => diis_buffer%error(ib, ispin, ikp)
+      parameters => diis_buffer%param(ib, ispin, ikp)
+      smat => diis_buffer%smat(ikp)
+
+      !copy the KS and overlap matrices to the DIIS buffer
+      CALL cp_cfm_to_cfm(kc, parameters)
+      CALL cp_cfm_to_cfm(sc, smat)
+
+      ! KC <- K*C
+      CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc)
+      ! SC <- S*C
+      CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc)
+
+      ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
+      CALL parallel_gemm("N", "T", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
+      CALL parallel_gemm("N", "T", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
+
+      !clean-up
+      CALL cp_cfm_release(cmos)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_diis_b_calc_err_kp
+
+! **************************************************************************************************
+!> \brief Update the SCF DIIS buffer, and if appropriate does a diis step, for k-points
+!> \param diis_buffer ...
+!> \param coeffs ...
+!> \param ib ...
+!> \param nb ...
+!> \param delta ...
+!> \param error_max ...
+!> \param diis_step ...
+!> \param eps_diis ...
+!> \param nspin ...
+!> \param nkp ...
+!> \param nkp_local ...
+!> \param nmixing ...
+!> \param scf_section ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE qs_diis_b_step_kp(diis_buffer, coeffs, ib, nb, delta, error_max, diis_step, eps_diis, &
+                                nspin, nkp, nkp_local, nmixing, scf_section, para_env)
+
+      TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: coeffs
+      INTEGER, INTENT(IN)                                :: ib, nb
+      REAL(KIND=dp), INTENT(IN)                          :: delta
+      REAL(KIND=dp), INTENT(OUT)                         :: error_max
+      LOGICAL, INTENT(OUT)                               :: diis_step
+      REAL(KIND=dp), INTENT(IN)                          :: eps_diis
+      INTEGER, INTENT(IN)                                :: nspin, nkp, nkp_local
+      INTEGER, INTENT(IN), OPTIONAL                      :: nmixing
+      TYPE(section_vals_type), POINTER                   :: scf_section
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_diis_b_step_kp'
+      REAL(KIND=dp), PARAMETER :: eigenvalue_threshold = 1.0E-12_dp
+
+      CHARACTER(LEN=2*default_string_length)             :: message
+      COMPLEX(KIND=dp)                                   :: tmp
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: a, b
+      INTEGER                                            :: handle, ikp, ispin, jb, my_nmixing, nb1, &
+                                                            output_unit
+      LOGICAL                                            :: eigenvectors_discarded
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
+      TYPE(cp_cfm_type)                                  :: old_errors
+      TYPE(cp_cfm_type), POINTER                         :: new_errors
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type)                                   :: ierr, rerr
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      NULLIFY (matrix_struct, new_errors, logger)
+
+      CALL timeset(routineN, handle)
+
+      diis_step = .FALSE.
+
+      my_nmixing = 2
+      IF (PRESENT(nmixing)) my_nmixing = nmixing
+
+      logger => cp_get_default_logger()
+
+      ! Quick return, if no DIIS is requested
+      IF (diis_buffer%nbuffer < 1) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ! Check, if a DIIS step is appropriate
+      diis_step = ((diis_buffer%ncall >= my_nmixing) .AND. (delta < eps_diis))
+
+      ! Calculate the DIIS buffer, and update it if max_error < eps_diis
+      CALL cp_cfm_get_info(diis_buffer%error(ib, 1, 1), matrix_struct=matrix_struct)
+      CALL cp_fm_create(ierr, matrix_struct)
+      CALL cp_fm_create(rerr, matrix_struct)
+      CALL cp_cfm_create(old_errors, matrix_struct)
+      ALLOCATE (b(nb, nb))
+      b = 0.0_dp
+      DO jb = 1, nb
+         DO ikp = 1, nkp_local
+            DO ispin = 1, nspin
+               new_errors => diis_buffer%error(ib, ispin, ikp)
+               CALL cp_cfm_to_fm(diis_buffer%error(jb, ispin, ikp), rerr, ierr)
+               CALL cp_fm_scale(-1.0_dp, ierr)
+               CALL cp_fm_to_cfm(rerr, ierr, old_errors)
+               CALL cp_cfm_trace(old_errors, new_errors, tmp)
+               b(jb, ib) = b(jb, ib) + 1.0_dp/REAL(nkp, dp)*tmp
+            END DO
+         END DO
+         b(ib, jb) = CONJG(b(jb, ib))
+      END DO
+      CALL cp_fm_release(ierr)
+      CALL cp_fm_release(rerr)
+      CALL cp_cfm_release(old_errors)
+      CALL para_env%sum(b)
+
+      error_max = SQRT(REAL(b(ib, ib))**2 + AIMAG(b(ib, ib))**2)
+
+      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DIIS_INFO", &
+                                         extension=".scfLog")
+      IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T9,A,I4,/,(T9,A,ES12.3))") &
+            "DIIS | Current SCF DIIS buffer size:         ", nb, &
+            "DIIS | Maximum SCF DIIS error at last step:  ", error_max, &
+            "DIIS | Current SCF convergence:              ", delta, &
+            "DIIS | Threshold value for a DIIS step:      ", eps_diis
+         IF (error_max < eps_diis) THEN
+            WRITE (UNIT=output_unit, FMT="(T9,A)") &
+               "DIIS | => The SCF DIIS buffer will be updated"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T9,A)") &
+               "DIIS | => No update of the SCF DIIS buffer"
+         END IF
+         IF (diis_step .AND. (error_max < eps_diis)) THEN
+            WRITE (UNIT=output_unit, FMT="(T9,A,/)") &
+               "DIIS | => A SCF DIIS step will be performed"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T9,A,/)") &
+               "DIIS | => No SCF DIIS step will be performed"
+         END IF
+      END IF
+
+      ! Update the SCF DIIS buffer
+      IF (error_max < eps_diis) THEN
+         DO jb = 1, nb
+            diis_buffer%b_matrix(ib, jb) = b(ib, jb)
+            diis_buffer%b_matrix(jb, ib) = b(jb, ib)
+         END DO
+      ELSE
+
+         diis_step = .FALSE.
+      END IF
+      DEALLOCATE (b)
+
+      ! Perform DIIS step
+      IF (diis_step) THEN
+
+         nb1 = nb + 1
+
+         ALLOCATE (a(nb1, nb1))
+         ALLOCATE (b(nb1, nb1))
+         ALLOCATE (ev(nb1))
+
+         ! Set up the linear DIIS equation system
+         b(1:nb, 1:nb) = diis_buffer%b_matrix(1:nb, 1:nb)
+
+         b(1:nb, nb1) = -1.0_dp
+         b(nb1, 1:nb) = -1.0_dp
+         b(nb1, nb1) = 0.0_dp
+
+         ! Solve the linear DIIS equation system
+         ev(1:nb1) = 0.0_dp !eigenvalues
+         a(1:nb1, 1:nb1) = 0.0_dp !eigenvectors
+         CALL complex_diag(b(1:nb1, 1:nb1), a(1:nb1, 1:nb1), ev(1:nb1))
+         b(1:nb1, 1:nb1) = a(1:nb1, 1:nb1)
+
+         eigenvectors_discarded = .FALSE.
+
+         DO jb = 1, nb1
+            IF (ABS(ev(jb)) < eigenvalue_threshold) THEN
+               IF (output_unit > 0) THEN
+                  IF (.NOT. eigenvectors_discarded) THEN
+                     WRITE (UNIT=output_unit, FMT="(T9,A)") &
+                        "DIIS | Checking eigenvalues of the DIIS error matrix"
+                  END IF
+                  WRITE (UNIT=message, FMT="(T9,A,I6,A,ES10.1,A,ES10.1)") &
+                     "DIIS | Eigenvalue ", jb, " = ", ev(jb), " is smaller than "// &
+                     "threshold ", eigenvalue_threshold
+                  CALL compress(message)
+                  WRITE (UNIT=output_unit, FMT="(T9,A)") TRIM(message)
+                  eigenvectors_discarded = .TRUE.
+               END IF
+               a(1:nb1, jb) = 0.0_dp
+            ELSE
+               a(1:nb1, jb) = a(1:nb1, jb)/ev(jb)
+            END IF
+         END DO
+
+         IF ((output_unit > 0) .AND. eigenvectors_discarded) THEN
+            WRITE (UNIT=output_unit, FMT="(T9,A,/)") &
+               "DIIS | The corresponding eigenvectors were discarded"
+         END IF
+
+         coeffs(1:nb) = -MATMUL(a(1:nb, 1:nb1), CONJG(b(nb1, 1:nb1)))
+      ELSE
+
+         coeffs(:) = 0.0_dp
+         coeffs(ib) = 1.0_dp
+      END IF
+
+      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                        "PRINT%DIIS_INFO")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_diis_b_step_kp
 END MODULE qs_diis
