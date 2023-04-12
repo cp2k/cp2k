@@ -309,6 +309,7 @@ CONTAINS
          OPTIONAL                                        :: kpgeneral
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_ext
 
+      LOGICAL                                            :: diis_step
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -331,7 +332,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
                       scf_env=scf_env, scf_control=scf_control)
-      CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE.)
+      CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
 
    END SUBROUTINE calculate_kp_orbitals
 

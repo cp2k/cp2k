@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 AdeThyvdW.inp                              1    1.0E-12             -58.89501875071196
 ice.inp                                    1    1.0E-10             -46.30708081122568
-ice2.inp                                   1    1.0E-10             -46.30708080861037
+ice2.inp                                   1    1.0E-10             -46.30708081091197
 Ru_geo.inp                                 1    1.0E-10              -7.01245481257972
 ef_stress1.inp                             0
 ef_stress2.inp                             0

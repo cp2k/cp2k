@@ -12,6 +12,8 @@
 !> \author Matthias Krack
 ! **************************************************************************************************
 MODULE qs_diis_types
+   USE cp_cfm_types,                    ONLY: cp_cfm_release,&
+                                              cp_cfm_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
@@ -28,7 +30,9 @@ MODULE qs_diis_types
    PUBLIC :: qs_diis_buffer_type
    PUBLIC :: qs_diis_b_release
    PUBLIC :: qs_diis_buffer_type_sparse, &
-             qs_diis_b_release_sparse
+             qs_diis_b_release_sparse, &
+             qs_diis_buffer_type_kp, &
+             qs_diis_b_release_kp
 
 ! **************************************************************************************************
 !> \brief keeps a buffer with the previous values of s,p,k
@@ -38,7 +42,7 @@ MODULE qs_diis_types
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type
       INTEGER                                          :: nbuffer, ncall
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: error, PARAMETER
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: error, param
       REAL(KIND=dp), DIMENSION(:, :), POINTER                :: b_matrix
    END TYPE qs_diis_buffer_type
 
@@ -62,13 +66,31 @@ MODULE qs_diis_types
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type_sparse
       INTEGER                                          :: nbuffer, ncall
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, PARAMETER
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, param
       REAL(KIND=dp), DIMENSION(:, :), POINTER         :: b_matrix
    END TYPE qs_diis_buffer_type_sparse
 
    TYPE qs_diis_buffer_p_type_sparse
       TYPE(qs_diis_buffer_type_sparse), POINTER       :: diis_buffer
    END TYPE qs_diis_buffer_p_type_sparse
+
+! **************************************************************************************************
+!> \brief build arrau of pointers to diis buffers in the k-point (complex full matrices) case
+!> \note we keep the overlap matrix and 1 parameter matrix per k-point, in the corresponding kp subgroup
+!> \par History
+!>      04.2023 created
+!> \author Augustin Bussy
+! **************************************************************************************************
+   TYPE qs_diis_buffer_type_kp
+      INTEGER                                          :: nbuffer, ncall
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER         :: smat
+      TYPE(cp_cfm_type), DIMENSION(:, :, :), POINTER   :: param, error
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER       :: b_matrix
+   END TYPE qs_diis_buffer_type_kp
+
+   TYPE qs_diis_buffer_p_type_kp
+      TYPE(qs_diis_buffer_type_kp), POINTER            :: diis_buffer
+   END TYPE qs_diis_buffer_p_type_kp
 
 CONTAINS
 
@@ -95,13 +117,13 @@ CONTAINS
          END DO
          DEALLOCATE (diis_buffer%error)
       END IF
-      IF (ASSOCIATED(diis_buffer%parameter)) THEN
-         DO j = 1, SIZE(diis_buffer%parameter, 2)
-            DO i = 1, SIZE(diis_buffer%parameter, 1)
-               CALL cp_fm_release(diis_buffer%parameter(i, j))
+      IF (ASSOCIATED(diis_buffer%param)) THEN
+         DO j = 1, SIZE(diis_buffer%param, 2)
+            DO i = 1, SIZE(diis_buffer%param, 1)
+               CALL cp_fm_release(diis_buffer%param(i, j))
             END DO
          END DO
-         DEALLOCATE (diis_buffer%parameter)
+         DEALLOCATE (diis_buffer%param)
       END IF
    END SUBROUTINE qs_diis_b_release
 
@@ -130,15 +152,54 @@ CONTAINS
          END DO
          DEALLOCATE (diis_buffer%error)
       END IF
-      IF (ASSOCIATED(diis_buffer%parameter)) THEN
-         DO j = 1, SIZE(diis_buffer%parameter, 2)
-            DO i = 1, SIZE(diis_buffer%parameter, 1)
-               CALL dbcsr_release(diis_buffer%parameter(i, j)%matrix)
-               DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
+      IF (ASSOCIATED(diis_buffer%param)) THEN
+         DO j = 1, SIZE(diis_buffer%param, 2)
+            DO i = 1, SIZE(diis_buffer%param, 1)
+               CALL dbcsr_release(diis_buffer%param(i, j)%matrix)
+               DEALLOCATE (diis_buffer%param(i, j)%matrix)
             END DO
          END DO
-         DEALLOCATE (diis_buffer%parameter)
+         DEALLOCATE (diis_buffer%param)
       END IF
    END SUBROUTINE qs_diis_b_release_sparse
 
+! **************************************************************************************************
+!> \brief releases the given diis KP buffer
+!> \param diis_buffer the buffer to release
+! **************************************************************************************************
+   SUBROUTINE qs_diis_b_release_kp(diis_buffer)
+      TYPE(qs_diis_buffer_type_kp), INTENT(INOUT)        :: diis_buffer
+
+      INTEGER                                            :: i, j, k
+
+      IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
+         DEALLOCATE (diis_buffer%b_matrix)
+      END IF
+      IF (ASSOCIATED(diis_buffer%smat)) THEN
+         DO i = 1, SIZE(diis_buffer%smat)
+            CALL cp_cfm_release(diis_buffer%smat(i))
+         END DO
+         DEALLOCATE (diis_buffer%smat)
+      END IF
+      IF (ASSOCIATED(diis_buffer%error)) THEN
+         DO k = 1, SIZE(diis_buffer%error, 3)
+            DO j = 1, SIZE(diis_buffer%error, 2)
+               DO i = 1, SIZE(diis_buffer%error, 1)
+                  CALL cp_cfm_release(diis_buffer%error(i, j, k))
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (diis_buffer%error)
+      END IF
+      IF (ASSOCIATED(diis_buffer%param)) THEN
+         DO k = 1, SIZE(diis_buffer%param, 3)
+            DO j = 1, SIZE(diis_buffer%param, 2)
+               DO i = 1, SIZE(diis_buffer%param, 1)
+                  CALL cp_cfm_release(diis_buffer%param(i, j, k))
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (diis_buffer%param)
+      END IF
+   END SUBROUTINE qs_diis_b_release_kp
 END MODULE qs_diis_types
