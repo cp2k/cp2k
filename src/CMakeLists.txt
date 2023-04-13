@@ -295,6 +295,7 @@ list(
   manybody_eam.F
   manybody_gal21.F
   manybody_gal.F
+  manybody_allegro.F
   manybody_nequip.F
   manybody_potential.F
   manybody_quip.F

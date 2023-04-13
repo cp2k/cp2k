@@ -39,7 +39,8 @@ MODULE fist_neighbor_list_control
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pair_potential_types,            ONLY: gal21_type,&
+   USE pair_potential_types,            ONLY: allegro_type,&
+                                              gal21_type,&
                                               gal_type,&
                                               nequip_type,&
                                               pair_potential_pp_type,&
@@ -229,6 +230,9 @@ CONTAINS
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == nequip_type)) THEN
+                     full_nl(ikind, jkind) = .TRUE.
+                  END IF
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == allegro_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   full_nl(jkind, ikind) = full_nl(ikind, jkind)
