@@ -102,18 +102,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
-      CHARACTER(LEN=default_string_length)               :: my_pos
-      INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istate, j, jstate, l_spin, lb, &
-         loc_method, n_rep, nao, ncubes, ndummy, nextra, ngextra, nguess, nmo, nmosub, norextra, &
-         s_spin, ub
+      INTEGER :: dim_op, handle, i, imo, imoloc, ispin, j, l_spin, lb, loc_method, nao, ndummy, &
+         nextra, ngextra, nguess, nmo, nmosub, norextra, s_spin, ub
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      INTEGER, DIMENSION(:), POINTER                     :: bounds, list, list_cubes
-      LOGICAL                                            :: append_cube, do_ortho, has_unit_metric, &
-                                                            list_cubes_setup, my_guess_atomic, &
-                                                            my_guess_wan
+      LOGICAL                                            :: do_ortho, has_unit_metric, &
+                                                            my_guess_atomic, my_guess_wan
       LOGICAL, SAVE                                      :: first_time = .TRUE.
       REAL(dp), DIMENSION(6)                             :: weights
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: centers, tmp_mat, vecbuffer
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tmp_mat, vecbuffer
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
@@ -132,10 +128,9 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: print_key
 
       CALL timeset(routineN, handle)
-      NULLIFY (para_env, mos, dft_control, list_cubes)
+      NULLIFY (para_env, mos, dft_control)
       NULLIFY (cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
       qs_loc_env%first_time = first_time
       qs_loc_env%target_time = qs_env%target_time
@@ -146,8 +141,7 @@ CONTAINS
                           moloc_coeff=moloc_coeff, op_sm_set=op_sm_set, op_fm_set=op_fm_set, cell=cell, &
                           weights=weights, dim_op=dim_op)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
-                      para_env=para_env, mos=mos)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env, mos=mos)
 
       s_spin = 1
       l_spin = dft_control%nspins
@@ -363,6 +357,11 @@ CONTAINS
 
          END SELECT
 
+      END DO
+
+      DO ispin = s_spin, l_spin
+
+         CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
          ! give back the localized orbitals
          IF (.NOT. PRESENT(ext_mo_coeff)) THEN
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
@@ -404,80 +403,7 @@ CONTAINS
 
          ! Write cube files if required
          IF (localized_wfn_control%print_cubes) THEN
-            list_cubes_setup = .FALSE.
-            NULLIFY (bounds, list, list_cubes)
-
-            ! Provides boundaries of MOs
-            CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LU_BOUNDS", &
-                                      i_vals=bounds)
-            ncubes = bounds(2) - bounds(1) + 1
-            IF (ncubes > 0) THEN
-               list_cubes_setup = .TRUE.
-               ALLOCATE (list_cubes(ncubes))
-               DO ir = 1, ncubes
-                  list_cubes(ir) = bounds(1) + (ir - 1)
-               END DO
-            END IF
-
-            ! Provides the list of MOs
-            CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LIST", &
-                                      n_rep_val=n_rep)
-            IF (.NOT. list_cubes_setup) THEN
-               ncubes = 0
-               DO ir = 1, n_rep
-                  CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LIST", &
-                                            i_rep_val=ir, i_vals=list)
-                  IF (ASSOCIATED(list)) THEN
-                     CALL reallocate(list_cubes, 1, ncubes + SIZE(list))
-                     DO i = 1, SIZE(list)
-                        list_cubes(i + ncubes) = list(i)
-                     END DO
-                     ncubes = ncubes + SIZE(list)
-                  END IF
-               END DO
-               IF (ncubes > 0) list_cubes_setup = .TRUE.
-            END IF
-
-            ! Full list of Mos
-            IF (.NOT. list_cubes_setup) THEN
-               list_cubes_setup = .TRUE.
-               ncubes = localized_wfn_control%nloc_states(1)
-               IF (ncubes > 0) THEN
-                  ALLOCATE (list_cubes(ncubes))
-               END IF
-               DO i = 1, ncubes
-                  list_cubes(i) = i
-               END DO
-            END IF
-
-            ncubes = SIZE(list_cubes)
-            ncubes = MIN(ncubes, nmo)
-            ALLOCATE (centers(6, ncubes))
-            DO i = 1, ncubes
-               istate = list_cubes(i)
-               DO j = 1, localized_wfn_control%nloc_states(ispin)
-                  jstate = localized_wfn_control%loc_states(j, ispin)
-                  IF (istate == jstate) THEN
-                     centers(1:6, i) = localized_wfn_control%centers_set(ispin)%array(1:6, j)
-                     EXIT
-                  END IF
-               END DO
-            END DO ! ncubes
-
-            ! Real call for dumping the cube files
-            print_key => section_vals_get_subs_vals(print_loc_section, "WANNIER_CUBES")
-            append_cube = section_get_lval(print_loc_section, "WANNIER_CUBES%APPEND")
-            my_pos = "REWIND"
-            IF (append_cube) THEN
-               my_pos = "APPEND"
-            END IF
-
-            CALL qs_print_cubes(qs_env, moloc_coeff(ispin), ncubes, list_cubes, centers, &
-                                print_key, "loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)), &
-                                ispin=ispin, file_position=my_pos)
-
-            DEALLOCATE (centers)
-            DEALLOCATE (list_cubes)
+            CALL loc_print(qs_env, qs_loc_env, moloc_coeff, ispin, print_loc_section)
          END IF
       END DO ! ispin
       IF (my_guess_atomic) CALL dbcsr_deallocate_matrix_set(p_rmpv)
@@ -486,5 +412,110 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_loc_driver
+
+! **************************************************************************************************
+!> \brief printing of Cube files of localized orbitals
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param moloc_coeff ...
+!> \param ispin ...
+!> \param print_loc_section ...
+! **************************************************************************************************
+   SUBROUTINE loc_print(qs_env, qs_loc_env, moloc_coeff, ispin, print_loc_section)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
+      INTEGER, INTENT(IN), OPTIONAL                      :: ispin
+      TYPE(section_vals_type), POINTER                   :: print_loc_section
+
+      CHARACTER(LEN=default_string_length)               :: my_pos
+      INTEGER                                            :: i, ir, istate, j, jstate, n_rep, ncubes, &
+                                                            nmo
+      INTEGER, DIMENSION(:), POINTER                     :: bounds, list, list_cubes
+      LOGICAL                                            :: append_cube, list_cubes_setup
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: centers
+      TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
+      TYPE(section_vals_type), POINTER                   :: print_key
+
+      list_cubes_setup = .FALSE.
+      NULLIFY (bounds, list, list_cubes)
+
+      CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
+                          localized_wfn_control=localized_wfn_control)
+
+      ! Provides boundaries of MOs
+      CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LU_BOUNDS", &
+                                i_vals=bounds)
+      ncubes = bounds(2) - bounds(1) + 1
+      IF (ncubes > 0) THEN
+         list_cubes_setup = .TRUE.
+         ALLOCATE (list_cubes(ncubes))
+         DO ir = 1, ncubes
+            list_cubes(ir) = bounds(1) + (ir - 1)
+         END DO
+      END IF
+
+      ! Provides the list of MOs
+      CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LIST", &
+                                n_rep_val=n_rep)
+      IF (.NOT. list_cubes_setup) THEN
+         ncubes = 0
+         DO ir = 1, n_rep
+            CALL section_vals_val_get(print_loc_section, "WANNIER_CUBES%CUBES_LIST", &
+                                      i_rep_val=ir, i_vals=list)
+            IF (ASSOCIATED(list)) THEN
+               CALL reallocate(list_cubes, 1, ncubes + SIZE(list))
+               DO i = 1, SIZE(list)
+                  list_cubes(i + ncubes) = list(i)
+               END DO
+               ncubes = ncubes + SIZE(list)
+            END IF
+         END DO
+         IF (ncubes > 0) list_cubes_setup = .TRUE.
+      END IF
+
+      ! Full list of Mos
+      IF (.NOT. list_cubes_setup) THEN
+         list_cubes_setup = .TRUE.
+         ncubes = localized_wfn_control%nloc_states(1)
+         IF (ncubes > 0) THEN
+            ALLOCATE (list_cubes(ncubes))
+         END IF
+         DO i = 1, ncubes
+            list_cubes(i) = i
+         END DO
+      END IF
+
+      ncubes = SIZE(list_cubes)
+      ncubes = MIN(ncubes, nmo)
+      ALLOCATE (centers(6, ncubes))
+      DO i = 1, ncubes
+         istate = list_cubes(i)
+         DO j = 1, localized_wfn_control%nloc_states(ispin)
+            jstate = localized_wfn_control%loc_states(j, ispin)
+            IF (istate == jstate) THEN
+               centers(1:6, i) = localized_wfn_control%centers_set(ispin)%array(1:6, j)
+               EXIT
+            END IF
+         END DO
+      END DO ! ncubes
+
+      ! Real call for dumping the cube files
+      print_key => section_vals_get_subs_vals(print_loc_section, "WANNIER_CUBES")
+      append_cube = section_get_lval(print_loc_section, "WANNIER_CUBES%APPEND")
+      my_pos = "REWIND"
+      IF (append_cube) THEN
+         my_pos = "APPEND"
+      END IF
+
+      CALL qs_print_cubes(qs_env, moloc_coeff(ispin), ncubes, list_cubes, centers, &
+                          print_key, "loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)), &
+                          ispin=ispin, file_position=my_pos)
+
+      DEALLOCATE (centers)
+      DEALLOCATE (list_cubes)
+
+   END SUBROUTINE loc_print
 
 END MODULE qs_loc_main

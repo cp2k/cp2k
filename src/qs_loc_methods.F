@@ -205,8 +205,10 @@ CONTAINS
       start_time = qs_loc_env%start_time
       do_jacobi_refinement = qs_loc_env%localized_wfn_control%jacobi_refinement
       my_do_mixed = qs_loc_env%localized_wfn_control%do_mixed
+
       CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
                                  ispin, print_loc_section, only_initial_out=.TRUE.)
+
       SELECT CASE (method)
       CASE (do_loc_jacobi)
          CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
@@ -291,6 +293,7 @@ CONTAINS
 
       CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
                                  ispin, print_loc_section)
+
       CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
 
       CALL timestop(handle)

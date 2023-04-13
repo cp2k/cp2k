@@ -23,7 +23,6 @@ MODULE input_cp2k_hfx
         do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
         do_potential_truncated, ehrenfest, gaussian, hfx_ri_do_2c_cholesky, hfx_ri_do_2c_diag, &
         hfx_ri_do_2c_iter
-   USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -654,10 +653,6 @@ CONTAINS
                           default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
-      CALL create_localize_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Section of possible print options in the RI-HFX code.", &

@@ -12,12 +12,15 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_active_space_methods
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
-   USE basis_set_types,                 ONLY: &
-        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_gto_basis_set, &
-        deallocate_sto_basis_set, gto_basis_set_type, init_orb_basis_set, set_sto_basis_set, &
-        srules, sto_basis_set_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
+                                              create_gto_from_sto_basis,&
+                                              deallocate_sto_basis_set,&
+                                              gto_basis_set_type,&
+                                              init_orb_basis_set,&
+                                              set_sto_basis_set,&
+                                              srules,&
+                                              sto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -35,7 +38,6 @@ MODULE qs_active_space_methods
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_init_random, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -111,13 +113,6 @@ MODULE qs_active_space_methods
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
-   USE qs_loc_main,                     ONLY: qs_loc_driver
-   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                              qs_loc_env_release,&
-                                              qs_loc_env_type
-   USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
-                                              qs_loc_env_init,&
-                                              qs_loc_init
    USE qs_mo_io,                        ONLY: write_mo_set_to_output_unit
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
@@ -194,7 +189,7 @@ CONTAINS
       INTEGER :: eri_method, eri_operator, eri_print, handle, i, iatom, ishell, isp, ispin, iw, j, &
          jm, l, m, max_orb_ind, mselect, n1, n2, nao, natom, ncol, nel, nelec_active, &
          nelec_inactive, nelec_inactive_alpha, nelec_inactive_beta, nelec_total, nmo, nn1, nn2, &
-         nrow_global, nspins, nvirt, zval
+         nrow_global, nspins, nvirt
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: active_orbitals
       INTEGER, DIMENSION(2)                              :: nactive_orb, nepol, ninactive_orb
       INTEGER, DIMENSION(5)                              :: nshell
@@ -207,25 +202,20 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virt
       TYPE(active_space_type), POINTER                   :: active_space_env
-      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: fm_dummy, mo_virt
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, fm_target_active, &
                                                             fm_target_inactive, fmat, mo_coeff
       TYPE(dbcsr_csr_type), POINTER                      :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: pro_basis_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
-      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_occ, qs_loc_env_virt
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: as_input, loc_print, loc_section, &
@@ -815,57 +805,6 @@ CONTAINS
          loc_section => section_vals_get_subs_vals(as_input, "LOCALIZE")
          CPASSERT(ASSOCIATED(loc_section))
          loc_print => section_vals_get_subs_vals(as_input, "LOCALIZE%PRINT")
-         ALLOCATE (mos_localized(nspins))
-         CALL get_qs_env(qs_env, mos=mos)
-         DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-            CALL cp_fm_create(mos_localized(ispin), mo_coeff%matrix_struct)
-            CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin))
-         END DO
-         ! occupied states
-         NULLIFY (qs_loc_env_occ)
-         ALLOCATE (qs_loc_env_occ)
-         CALL qs_loc_env_create(qs_loc_env_occ)
-         CALL qs_loc_control_init(qs_loc_env_occ, loc_section, do_homo=.TRUE.)
-         CALL qs_loc_init(qs_env, qs_loc_env_occ, loc_section, &
-                          mos_localized=mos_localized, do_homo=.TRUE.)
-         DO ispin = 1, nspins
-            CALL qs_loc_driver(qs_env, qs_loc_env_occ, loc_print, myspin=ispin, &
-                               ext_mo_coeff=mos_localized(ispin))
-         END DO
-         ! virtual states
-         NULLIFY (qs_loc_env_virt)
-         ALLOCATE (qs_loc_env_virt)
-         CALL qs_loc_env_create(qs_loc_env_virt)
-         CALL qs_loc_control_init(qs_loc_env_virt, loc_section, do_homo=.FALSE.)
-         CALL qs_loc_init(qs_env, qs_loc_env_virt, loc_section, &
-                          mos_localized=mos_localized, do_homo=.FALSE.)
-         CALL qs_loc_env_init(qs_loc_env_virt, qs_loc_env_virt%localized_wfn_control, qs_env, &
-                              loc_coeff=mos_localized)
-         DO ispin = 1, nspins
-            CALL qs_loc_driver(qs_env, qs_loc_env_virt, loc_print, myspin=ispin, &
-                               ext_mo_coeff=mos_localized(ispin))
-         END DO
-         !
-         ! get definition of subspace
-         ! iatom, ishell, nshell, lnam
-         CPASSERT(iatom > 0)
-         CPASSERT(ishell > 0)
-         CALL get_qs_env(qs_env, particle_set=particle_set)
-         atomic_kind => particle_set(iatom)%atomic_kind
-         CALL get_atomic_kind(atomic_kind=atomic_kind, z=zval)
-         NULLIFY (pro_basis_set)
-         CALL create_pro_basis(pro_basis_set, zval, ishell, nshell, lnam)
-         !
-         CALL deallocate_gto_basis_set(pro_basis_set)
-         !
-         CPABORT("not yet available")
-         !
-         CALL qs_loc_env_release(qs_loc_env_occ)
-         DEALLOCATE (qs_loc_env_occ)
-         CALL qs_loc_env_release(qs_loc_env_virt)
-         DEALLOCATE (qs_loc_env_virt)
-         CALL cp_fm_vect_dealloc(mos_localized)
          !
          CPABORT("not yet available")
          !
