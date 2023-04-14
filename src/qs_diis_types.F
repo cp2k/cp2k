@@ -41,9 +41,11 @@ MODULE qs_diis_types
 !> \author Matthias Krack
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type
-      INTEGER                                          :: nbuffer, ncall
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: error, param
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                :: b_matrix
+      INTEGER                                          :: nbuffer = -1
+      INTEGER                                          :: ncall = -1
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: error => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: param => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: b_matrix => NULL()
    END TYPE qs_diis_buffer_type
 
 ! **************************************************************************************************
@@ -54,7 +56,7 @@ MODULE qs_diis_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_diis_buffer_p_type
-      TYPE(qs_diis_buffer_type), POINTER :: diis_buffer
+      TYPE(qs_diis_buffer_type), POINTER :: diis_buffer => NULL()
    END TYPE qs_diis_buffer_p_type
 
 ! **************************************************************************************************
@@ -65,13 +67,15 @@ MODULE qs_diis_types
 !> \author fwaq
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type_sparse
-      INTEGER                                          :: nbuffer, ncall
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, param
-      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: b_matrix
+      INTEGER                                          :: nbuffer = -1
+      INTEGER                                          :: ncall = -1
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: error => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: param => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: b_matrix => NULL()
    END TYPE qs_diis_buffer_type_sparse
 
    TYPE qs_diis_buffer_p_type_sparse
-      TYPE(qs_diis_buffer_type_sparse), POINTER       :: diis_buffer
+      TYPE(qs_diis_buffer_type_sparse), POINTER        :: diis_buffer => NULL()
    END TYPE qs_diis_buffer_p_type_sparse
 
 ! **************************************************************************************************
@@ -82,14 +86,16 @@ MODULE qs_diis_types
 !> \author Augustin Bussy
 ! **************************************************************************************************
    TYPE qs_diis_buffer_type_kp
-      INTEGER                                          :: nbuffer, ncall
-      TYPE(cp_cfm_type), DIMENSION(:), POINTER         :: smat
-      TYPE(cp_cfm_type), DIMENSION(:, :, :), POINTER   :: param, error
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER       :: b_matrix
+      INTEGER                                          :: nbuffer = -1
+      INTEGER                                          :: ncall = -1
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER         :: smat => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:, :, :), POINTER   :: param => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:, :, :), POINTER   :: error => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER       :: b_matrix => NULL()
    END TYPE qs_diis_buffer_type_kp
 
    TYPE qs_diis_buffer_p_type_kp
-      TYPE(qs_diis_buffer_type_kp), POINTER            :: diis_buffer
+      TYPE(qs_diis_buffer_type_kp), POINTER            :: diis_buffer => NULL()
    END TYPE qs_diis_buffer_p_type_kp
 
 CONTAINS
