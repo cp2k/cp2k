@@ -40,54 +40,64 @@ MODULE fist_nonbond_env_types
 
 ! **************************************************************************************************
    TYPE pos_type
-      REAL(KIND=dp) :: r(3)
+      REAL(KIND=dp) :: r(3) = 0.0_dp
    END TYPE
 
    TYPE eam_type
-      REAL(KIND=dp) :: f_embed, rho
+      REAL(KIND=dp) :: f_embed = 0.0_dp
+      REAL(KIND=dp) :: rho = 0.0_dp
    END TYPE
 
    TYPE quip_data_type
-      INTEGER, POINTER :: use_indices(:)
-      REAL(KIND=dp), POINTER :: force(:, :)
-      REAL(KIND=dp) :: virial(3, 3)
+      INTEGER, POINTER        :: use_indices(:) => NULL()
+      REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
+      REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
    END TYPE
 
    TYPE nequip_data_type
-      INTEGER, POINTER :: use_indices(:)
-      REAL(KIND=dp), POINTER :: force(:, :)
-      REAL(KIND=dp) :: virial(3, 3)
-      TYPE(torch_model_type) :: model
+      INTEGER, POINTER        :: use_indices(:) => NULL()
+      REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
+      REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
+      TYPE(torch_model_type)  :: model
    END TYPE
 
    TYPE allegro_data_type
-      INTEGER, POINTER :: use_indices(:)
-      REAL(KIND=dp), POINTER :: force(:, :)
-      REAL(KIND=dp) :: virial(3, 3)
-      TYPE(torch_model_type) :: model
+      INTEGER, POINTER        :: use_indices(:) => NULL()
+      REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
+      REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
+      TYPE(torch_model_type)  :: model
    END TYPE
 
 ! **************************************************************************************************
    TYPE fist_nonbond_env_type
-      INTEGER :: natom_types
-      INTEGER :: counter, last_update, num_update
-      LOGICAL :: do_nonbonded, shift_cutoff
-      CHARACTER(len=default_string_length)   :: unit_type
-      REAL(KIND=dp)                              :: lup, aup, ei_scale14, &
-                                                    vdw_scale14
-      REAL(KIND=dp)                              :: long_range_correction
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rlist_cut, rlist_lowsq, ij_kind_full_fac
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: charges
-      TYPE(fist_neighbor_type), POINTER           :: nonbonded
-      TYPE(pair_potential_pp_type), POINTER       :: potparm14, potparm
-      TYPE(cell_type), POINTER                    :: cell_last_update
-      TYPE(pos_type), DIMENSION(:), POINTER       :: r_last_update, r_last_update_pbc
-      TYPE(pos_type), DIMENSION(:), POINTER       :: rshell_last_update_pbc
-      TYPE(pos_type), DIMENSION(:), POINTER       :: rcore_last_update_pbc
-      TYPE(eam_type), DIMENSION(:), POINTER       :: eam_data
-      TYPE(quip_data_type), POINTER               :: quip_data
-      TYPE(nequip_data_type), POINTER             :: nequip_data
-      TYPE(allegro_data_type), POINTER             :: allegro_data
+      INTEGER                                    :: natom_types = -1
+      INTEGER                                    :: counter = -1
+      INTEGER                                    :: last_update = -1
+      INTEGER                                    :: num_update = -1
+      LOGICAL                                    :: do_nonbonded = .FALSE.
+      LOGICAL                                    :: shift_cutoff = .FALSE.
+      CHARACTER(len=default_string_length)       :: unit_type = ""
+      REAL(KIND=dp)                              :: lup = 0.0_dp
+      REAL(KIND=dp)                              :: aup = 0.0_dp
+      REAL(KIND=dp)                              :: ei_scale14 = 0.0_dp
+      REAL(KIND=dp)                              :: vdw_scale14 = 0.0_dp
+      REAL(KIND=dp)                              :: long_range_correction = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: rlist_cut => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: rlist_lowsq => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: ij_kind_full_fac => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: charges => NULL()
+      TYPE(fist_neighbor_type), POINTER          :: nonbonded => NULL()
+      TYPE(pair_potential_pp_type), POINTER      :: potparm14 => NULL()
+      TYPE(pair_potential_pp_type), POINTER      :: potparm => NULL()
+      TYPE(cell_type), POINTER                   :: cell_last_update => NULL()
+      TYPE(pos_type), DIMENSION(:), POINTER      :: r_last_update => NULL()
+      TYPE(pos_type), DIMENSION(:), POINTER      :: r_last_update_pbc => NULL()
+      TYPE(pos_type), DIMENSION(:), POINTER      :: rshell_last_update_pbc => NULL()
+      TYPE(pos_type), DIMENSION(:), POINTER      :: rcore_last_update_pbc => NULL()
+      TYPE(eam_type), DIMENSION(:), POINTER      :: eam_data => NULL()
+      TYPE(quip_data_type), POINTER              :: quip_data => NULL()
+      TYPE(nequip_data_type), POINTER            :: nequip_data => NULL()
+      TYPE(allegro_data_type), POINTER           :: allegro_data => NULL()
    END TYPE fist_nonbond_env_type
 
 CONTAINS
