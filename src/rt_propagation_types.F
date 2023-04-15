@@ -35,7 +35,6 @@ MODULE rt_propagation_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
@@ -483,13 +482,13 @@ CONTAINS
 
       IF (ASSOCIATED(rtp%mos)) THEN
          IF (ASSOCIATED(rtp%mos%old)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%old)
+            CALL cp_fm_release(rtp%mos%old)
          IF (ASSOCIATED(rtp%mos%new)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%new)
+            CALL cp_fm_release(rtp%mos%new)
          IF (ASSOCIATED(rtp%mos%next)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%next)
+            CALL cp_fm_release(rtp%mos%next)
          IF (ASSOCIATED(rtp%mos%admm)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%admm)
+            CALL cp_fm_release(rtp%mos%admm)
          CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
          DEALLOCATE (rtp%mos)
       END IF

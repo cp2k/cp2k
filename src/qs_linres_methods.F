@@ -30,7 +30,6 @@ MODULE qs_linres_methods
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -174,7 +173,7 @@ CONTAINS
 
       CALL loc_write_restart(qs_loc_env, loc_print_section, mos, &
                              mos_localized, do_homo=.TRUE.)
-      CALL cp_fm_vect_dealloc(mos_localized)
+      CALL cp_fm_release(mos_localized)
 
       ! Write Centers and Spreads on std out
       IF (iounit > 0) THEN

@@ -18,9 +18,9 @@ MODULE rt_make_propagators
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
@@ -250,7 +250,7 @@ CONTAINS
 !    DO i=1,SIZE(propagator_matrix)
 !         CALL copy_fm_to_dbcsr(propagator_matrix_fm(i), propagator_matrix(i)%matrix)
 !    END DO
-      CALL cp_fm_vect_dealloc(propagator_matrix_fm)
+      CALL cp_fm_release(propagator_matrix_fm)
 
       CALL timestop(handle)
 
@@ -385,8 +385,8 @@ CONTAINS
          CALL copy_fm_to_dbcsr(propagator_fm(i), propagator(i)%matrix)
          CALL copy_fm_to_dbcsr(propagator_matrix_fm(i), propagator_matrix(i)%matrix)
       END DO
-      CALL cp_fm_vect_dealloc(propagator_fm)
-      CALL cp_fm_vect_dealloc(propagator_matrix_fm)
+      CALL cp_fm_release(propagator_fm)
+      CALL cp_fm_release(propagator_matrix_fm)
 
    END SUBROUTINE compute_exponential
 

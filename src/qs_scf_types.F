@@ -15,7 +15,6 @@ MODULE qs_scf_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -238,7 +237,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_vect_dealloc(scf_env%scf_work1)
+      CALL cp_fm_release(scf_env%scf_work1)
       IF (ASSOCIATED(scf_env%scf_work2)) THEN
          CALL cp_fm_release(scf_env%scf_work2)
          DEALLOCATE (scf_env%scf_work2)

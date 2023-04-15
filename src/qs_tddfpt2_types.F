@@ -25,7 +25,6 @@ MODULE qs_tddfpt2_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: &
         dbcsr_complete_redistribute, dbcsr_create, dbcsr_deallocate_matrix, &
         dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, &
@@ -780,7 +779,7 @@ CONTAINS
          NULLIFY (work_matrices%gamma_exchange)
       END IF
       IF (ASSOCIATED(work_matrices%ctransformed)) THEN
-         CALL cp_fm_vect_dealloc(work_matrices%ctransformed)
+         CALL cp_fm_release(work_matrices%ctransformed)
          NULLIFY (work_matrices%ctransformed)
       END IF
       CALL dbcsr_release_p(work_matrices%shalf)

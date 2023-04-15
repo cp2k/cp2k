@@ -35,7 +35,6 @@ MODULE rt_propagation_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
@@ -262,7 +261,7 @@ CONTAINS
       IF (rtp%linear_scaling) THEN
          CALL dbcsr_deallocate_matrix_set(delta_P)
       ELSE
-         CALL cp_fm_vect_dealloc(delta_mos)
+         CALL cp_fm_release(delta_mos)
       END IF
 
       CALL timestop(handle)

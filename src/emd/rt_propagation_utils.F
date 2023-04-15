@@ -25,7 +25,6 @@ MODULE rt_propagation_utils
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -607,7 +606,7 @@ CONTAINS
                                     alpha=2.0_dp*alpha, &
                                     symmetry_mode=-1)
       END DO
-      CALL cp_fm_vect_dealloc(mos_occ)
+      CALL cp_fm_release(mos_occ)
 
    END SUBROUTINE calculate_P_imaginary
 
