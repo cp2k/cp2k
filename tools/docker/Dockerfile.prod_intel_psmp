@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.prod_intel_psmp ../../
 #
 
-FROM intel/oneapi-hpckit:2023.0.0-devel-ubuntu22.04
+FROM intel/oneapi-hpckit:2023.1.0-devel-ubuntu22.04
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain

@@ -491,7 +491,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 # ======================================================================================
 def toolchain_intel() -> str:
     return rf"""
-FROM intel/oneapi-hpckit:2023.0.0-devel-ubuntu22.04
+FROM intel/oneapi-hpckit:2023.1.0-devel-ubuntu22.04
 
 """ + install_toolchain(
         base_image="ubuntu",
