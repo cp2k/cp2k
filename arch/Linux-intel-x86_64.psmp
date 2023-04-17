@@ -5,14 +5,14 @@
 # Tested with: Intel 22.2 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.1.0, ELPA 2022.11.001,
 #              PLUMED 2.8.1, SPGLIB 1.16.2, LIBVORI 220621,
-#              GSL 2.7, COSMA 2.6.2
+#              GSL 2.7, COSMA 2.6.5
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (20.03.2023)
+# Author: Matthias Krack (17.04.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -46,7 +46,7 @@
 DO_CHECKS      := no
 SHARED         := no
 TARGET_CPU     := native
-USE_COSMA      := 2.6.2
+USE_COSMA      := 2.6.5
 USE_ELPA       := 2022.11.001
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
