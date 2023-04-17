@@ -575,6 +575,7 @@ list(
   qs_local_properties.F
   qs_local_rho_types.F
   qs_loc_dipole.F
+  qs_loc_main.F
   qs_loc_methods.F
   qs_loc_molecules.F
   qs_loc_states.F
