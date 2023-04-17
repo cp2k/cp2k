@@ -17,6 +17,7 @@ COPY ./exts ./exts
 COPY ./data ./data
 COPY ./tools ./tools
 COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
 COPY ./Makefile .
 RUN bash -c "if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi"
 

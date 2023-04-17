@@ -13,6 +13,8 @@ apt-get install -qq --no-install-recommends \
   python3-setuptools \
   python3-dev \
   build-essential \
+  gfortran \
+  cmake \
   golang \
   unzip \
   wget
