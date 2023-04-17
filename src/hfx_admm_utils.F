@@ -270,10 +270,6 @@ CONTAINS
          CPABORT("GAPW ADMM not implemented for MCWEENY or NONE_DM purification.")
       END IF
 
-      IF (admm_env%do_gapw .AND. qs_env%run_rtp) THEN
-         CPABORT("GAPW ADMM not implemented for real-time propagation.")
-      END IF
-
       IF (dft_control%do_admm_dm .AND. .NOT. ASSOCIATED(admm_env%admm_dm)) THEN
          CALL admm_dm_create(admm_env%admm_dm, dft_control%admm_control, nspins=dft_control%nspins, natoms=natoms)
       END IF
