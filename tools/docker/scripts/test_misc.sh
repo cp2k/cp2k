@@ -54,7 +54,7 @@ run_test mypy --strict ./tools/conventions/analyze_gfortran_ast.py
 # done
 
 echo ""
-echo "Summary: Python tests passed"
+echo "Summary: Miscellaneous tests passed"
 echo "Status: OK"
 
 #EOF

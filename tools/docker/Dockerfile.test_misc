@@ -1,14 +1,14 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_python ../../
+# Usage: docker build -f ./Dockerfile.test_misc ../../
 #
 
 FROM ubuntu:22.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k
-COPY ./tools/docker/scripts/install_python.sh .
-RUN ./install_python.sh
+COPY ./tools/docker/scripts/install_misc.sh .
+RUN ./install_misc.sh
 
 # Install sources.
 ARG GIT_COMMIT_SHA
@@ -20,9 +20,9 @@ COPY ./cmake ./cmake
 COPY ./Makefile .
 RUN bash -c "if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi"
 
-# Run test for python.
-COPY ./tools/docker/scripts/test_python.sh .
-RUN ./test_python.sh 2>&1 | tee report.log
+# Run test for misc.
+COPY ./tools/docker/scripts/test_misc.sh .
+RUN ./test_misc.sh 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'

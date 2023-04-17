@@ -115,7 +115,7 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
             f.write(toolchain_full() + test_3rd_party(name))
 
-    for name in "python", "doxygen":
+    for name in "misc", "doxygen":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
             f.write(test_without_build(name))
 
