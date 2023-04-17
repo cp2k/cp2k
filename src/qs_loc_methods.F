@@ -27,7 +27,9 @@ MODULE qs_loc_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_schur_product
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_rot_cols,&
+                                              cp_fm_rot_rows,&
+                                              cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
