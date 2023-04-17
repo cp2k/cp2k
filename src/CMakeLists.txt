@@ -266,6 +266,7 @@ list(
   input_restart_force_eval.F
   input_restart_rng.F
   integration_grid_types.F
+  iao_analysis.F
   ipi_driver.F
   iterate_matrix.F
   kg_correction.F
