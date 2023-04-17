@@ -33,8 +33,7 @@ MODULE hfx_types
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr,&
-                                              debug_print_level
+                                              cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbt_api,                         ONLY: &
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &
@@ -51,8 +50,7 @@ MODULE hfx_types
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_val_get,&
-                                              section_vals_val_set
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -76,7 +74,6 @@ MODULE hfx_types
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_loc_types,                    ONLY: qs_loc_env_type
    USE qs_tensors_types,                ONLY: &
         create_2c_tensor, create_3c_tensor, create_tensor_batches, default_block_size, &
         distribution_3d_create, distribution_3d_destroy, distribution_3d_type, pgf_block_sizes, &
@@ -391,11 +388,6 @@ MODULE hfx_types
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
       TYPE(distribution_3d_type) :: dist_3d
       TYPE(dbt_distribution_type) :: dist
-
-      ! MO localization
-      TYPE(qs_loc_env_type), POINTER                 :: qs_loc_env => NULL()
-      TYPE(section_vals_type), POINTER                   :: loc_subsection => NULL(), print_loc_subsection => NULL()
-      LOGICAL                                            :: do_loc
 
       ! block sizes for RI and AO tensor dimensions (split)
       INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split, &
@@ -1095,7 +1087,6 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit
       REAL(dp)                                           :: eps_storage_scaling
-      TYPE(section_vals_type), POINTER                   :: prog_run_info
 
       CALL timeset(routineN, handle)
 
@@ -1150,14 +1141,6 @@ CONTAINS
       ri_data%unit_nr = unit_nr
       ri_data%dbcsr_nflop = 0
       ri_data%dbcsr_time = 0.0_dp
-
-      ri_data%loc_subsection => section_vals_get_subs_vals(ri_section, "LOCALIZE")
-      ri_data%print_loc_subsection => section_vals_get_subs_vals(ri_data%loc_subsection, "PRINT")
-      prog_run_info => section_vals_get_subs_vals(ri_data%print_loc_subsection, "PROGRAM_RUN_INFO")
-      CALL section_vals_val_set(prog_run_info, keyword_name="_SECTION_PARAMETERS_", &
-                                i_val=debug_print_level) !keep output clean
-
-      CALL section_vals_val_get(ri_data%loc_subsection, "_SECTION_PARAMETERS_", l_val=ri_data%do_loc)
 
       CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env)
 
@@ -2604,14 +2587,6 @@ CONTAINS
          CASE (ri_pmat)
             WRITE (UNIT=iw, FMT="(T3, A, T78, A)") &
                "HFX_RI_INFO| RI flavor: ", "RHO"
-         END SELECT
-         SELECT CASE (ri_data%do_loc)
-         CASE (.TRUE.)
-            WRITE (UNIT=iw, FMT="(T3, A, T80, A)") &
-               "HFX_RI_INFO| Localized MOs: ", "T"
-         CASE (.FALSE.)
-            WRITE (UNIT=iw, FMT="(T3, A, T80, A)") &
-               "HFX_RI_INFO| Localized MOs: ", "F"
          END SELECT
          SELECT CASE (ri_data%t2c_method)
          CASE (hfx_ri_do_2c_iter)

@@ -34,7 +34,6 @@ MODULE hfx_ri
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -91,12 +90,6 @@ MODULE hfx_ri
    USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_loc_methods,                  ONLY: qs_loc_driver
-   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
-                                              qs_loc_env_create,&
-                                              qs_loc_env_release
-   USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
-                                              qs_loc_init
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
@@ -934,8 +927,6 @@ CONTAINS
       LOGICAL                                            :: is_antisymmetric
       REAL(dp)                                           :: etmp, fac
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_ks_matrix, my_rho_ao
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
@@ -988,58 +979,20 @@ CONTAINS
          CPASSERT(PRESENT(mos))
          CALL timeset(routineN//"_MO", handle2)
 
-         IF (ri_data%do_loc) THEN
-            ALLOCATE (homo_localized(nspins))
-         END IF
          DO ispin = 1, nspins
             NULLIFY (mo_coeff_b_tmp)
             CPASSERT(mos(ispin)%uniform_occupation)
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, mo_coeff_b=mo_coeff_b_tmp)
 
-            IF (.NOT. ri_data%do_loc) THEN
-               IF (.NOT. mos(ispin)%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
-               CALL dbcsr_copy(mo_coeff_b(ispin), mo_coeff_b_tmp)
-            ELSE
-               IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
-               CALL dbcsr_create(mo_coeff_b(ispin), template=mo_coeff_b_tmp)
-            END IF
-
-            IF (ri_data%do_loc) THEN
-               CALL cp_fm_create(homo_localized(ispin), mo_coeff%matrix_struct)
-               CALL cp_fm_to_fm(mo_coeff, homo_localized(ispin))
-            END IF
+            IF (.NOT. mos(ispin)%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
+            CALL dbcsr_copy(mo_coeff_b(ispin), mo_coeff_b_tmp)
          END DO
 
-         IF (ri_data%do_loc) THEN
-            ALLOCATE (ri_data%qs_loc_env)
-            CALL qs_loc_env_create(ri_data%qs_loc_env)
-            CALL qs_loc_control_init(ri_data%qs_loc_env, ri_data%loc_subsection, do_homo=.TRUE.)
-            CALL qs_loc_init(qs_env, ri_data%qs_loc_env, ri_data%loc_subsection, homo_localized)
-            DO ispin = 1, nspins
-               CALL qs_loc_driver(qs_env, ri_data%qs_loc_env, ri_data%print_loc_subsection, ispin, &
-                                  ext_mo_coeff=homo_localized(ispin))
-            END DO
-            CALL get_qs_loc_env(qs_loc_env=ri_data%qs_loc_env, moloc_coeff=moloc_coeff)
-
-            DO ispin = 1, nspins
-               CALL cp_fm_release(homo_localized(ispin))
-            END DO
-
-            DEALLOCATE (homo_localized)
-         END IF
-
          DO ispin = 1, nspins
-            IF (ri_data%do_loc) THEN
-               CALL copy_fm_to_dbcsr(moloc_coeff(ispin), mo_coeff_b(ispin))
-            END IF
             CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mos(ispin)%maxocc))
             homo(ispin) = mos(ispin)%homo
          END DO
 
-         IF (ri_data%do_loc) THEN
-            CALL qs_loc_env_release(ri_data%qs_loc_env)
-            DEALLOCATE (ri_data%qs_loc_env)
-         END IF
          CALL timestop(handle2)
 
          CALL hfx_ri_update_ks_mo(qs_env, ri_data, my_ks_matrix, mo_coeff_b, homo, &
@@ -2914,8 +2867,6 @@ CONTAINS
       INTEGER                                            :: handle, ispin
       INTEGER, DIMENSION(2)                              :: homo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
@@ -2925,59 +2876,19 @@ CONTAINS
       SELECT CASE (ri_data%flavor)
       CASE (ri_mo)
 
-         IF (ri_data%do_loc) THEN
-            ALLOCATE (homo_localized(nspins))
-         END IF
          DO ispin = 1, nspins
             NULLIFY (mo_coeff_b_tmp)
             CPASSERT(mos(ispin)%uniform_occupation)
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, mo_coeff_b=mo_coeff_b_tmp)
 
-            IF (.NOT. ri_data%do_loc) THEN
-               IF (.NOT. mos(ispin)%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
-               CALL dbcsr_copy(mo_coeff_b(ispin), mo_coeff_b_tmp)
-            ELSE
-               IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
-               CALL dbcsr_create(mo_coeff_b(ispin), template=mo_coeff_b_tmp)
-            END IF
-
-            IF (ri_data%do_loc) THEN
-               CALL cp_fm_create(homo_localized(ispin), mo_coeff%matrix_struct)
-               CALL cp_fm_to_fm(mo_coeff, homo_localized(ispin))
-            END IF
+            IF (.NOT. mos(ispin)%use_mo_coeff_b) CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b_tmp)
+            CALL dbcsr_copy(mo_coeff_b(ispin), mo_coeff_b_tmp)
          END DO
 
-         IF (ri_data%do_loc) THEN
-            ALLOCATE (ri_data%qs_loc_env)
-            CALL qs_loc_env_create(ri_data%qs_loc_env)
-            CALL qs_loc_control_init(ri_data%qs_loc_env, ri_data%loc_subsection, do_homo=.TRUE.)
-            CALL qs_loc_init(qs_env, ri_data%qs_loc_env, ri_data%loc_subsection, homo_localized)
-            DO ispin = 1, nspins
-               CALL qs_loc_driver(qs_env, ri_data%qs_loc_env, ri_data%print_loc_subsection, ispin, &
-                                  ext_mo_coeff=homo_localized(ispin))
-            END DO
-            CALL get_qs_loc_env(qs_loc_env=ri_data%qs_loc_env, moloc_coeff=moloc_coeff)
-
-            DO ispin = 1, nspins
-               CALL cp_fm_release(homo_localized(ispin))
-            END DO
-
-            DEALLOCATE (homo_localized)
-
-         END IF
-
          DO ispin = 1, nspins
-            IF (ri_data%do_loc) THEN
-               CALL copy_fm_to_dbcsr(moloc_coeff(ispin), mo_coeff_b(ispin))
-            END IF
             CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mos(ispin)%maxocc))
             homo(ispin) = mos(ispin)%homo
          END DO
-
-         IF (ri_data%do_loc) THEN
-            CALL qs_loc_env_release(ri_data%qs_loc_env)
-            DEALLOCATE (ri_data%qs_loc_env)
-         END IF
 
          CALL hfx_ri_forces_mo(qs_env, ri_data, nspins, hf_fraction, mo_coeff_b, use_virial)
 
