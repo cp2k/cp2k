@@ -277,7 +277,10 @@ CONTAINS
          END IF
 !        closed shell or ROKS => myspin=1
          IF (xas_tdp_control%do_uks) THEN
-            CALL qs_loc_driver(qs_env, xas_tdp_env%qs_loc_env, xas_tdp_control%print_loc_subsection)
+            DO ispin = 1, dft_control%nspins
+               CALL qs_loc_driver(qs_env, xas_tdp_env%qs_loc_env, &
+                                  xas_tdp_control%print_loc_subsection, myspin=ispin)
+            END DO
          ELSE
             CALL qs_loc_driver(qs_env, xas_tdp_env%qs_loc_env, &
                                xas_tdp_control%print_loc_subsection, myspin=1)

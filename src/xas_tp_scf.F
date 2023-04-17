@@ -483,7 +483,7 @@ CONTAINS
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") " Eigenstates are derived "// &
                "from the MOs optimized by OT. Follows localization of the core states"// &
-               " to identify the excited orital. "
+               " to identify the excited orbital. "
          END IF
 
          CALL get_xas_env(xas_env=xas_env, &

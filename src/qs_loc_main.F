@@ -89,45 +89,34 @@ CONTAINS
 !> \param ext_mo_coeff ...
 !> \par History
 !>      04.2005 created [MI]
+!>      04.2023 refactored [JGH]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE qs_loc_driver(qs_env, qs_loc_env, print_loc_section, myspin, &
-                            ext_mo_coeff)
+   SUBROUTINE qs_loc_driver(qs_env, qs_loc_env, print_loc_section, myspin, ext_mo_coeff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section
-      INTEGER, INTENT(IN), OPTIONAL                      :: myspin
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: ext_mo_coeff
+      INTEGER, INTENT(IN)                                :: myspin
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: ext_mo_coeff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
-      INTEGER :: dim_op, handle, i, imo, imoloc, ispin, j, l_spin, lb, loc_method, nao, ndummy, &
-         nextra, ngextra, nguess, nmo, nmosub, norextra, s_spin, ub
-      INTEGER, DIMENSION(2)                              :: nelectron_spin
-      LOGICAL                                            :: do_ortho, has_unit_metric, &
-                                                            my_guess_atomic, my_guess_wan
+      INTEGER                                            :: dim_op, handle, i, imo, imoloc, j, lb, &
+                                                            loc_method, nao, nmo, nmosub, ub
       LOGICAL, SAVE                                      :: first_time = .TRUE.
       REAL(dp), DIMENSION(6)                             :: weights
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tmp_mat, vecbuffer
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type)                                   :: mos_guess, tmp_fm, tmp_fm_1, vectors_2
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: op_fm_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, op_sm_set
-      TYPE(dbcsr_type), POINTER                          :: refmatrix, tmatrix
+      TYPE(cp_fm_type), POINTER                          :: locorb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
       NULLIFY (para_env, mos, dft_control)
@@ -143,12 +132,162 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env, mos=mos)
 
-      s_spin = 1
-      l_spin = dft_control%nspins
-      IF (PRESENT(myspin)) THEN
-         s_spin = myspin
-         l_spin = myspin
+      NULLIFY (locorb)
+      IF (PRESENT(ext_mo_coeff)) THEN
+         locorb => ext_mo_coeff
+      ELSE
+         CALL get_mo_set(mo_set=mos(myspin), mo_coeff=locorb)
       END IF
+
+      CALL get_mo_set(mo_set=mos(myspin), nao=nao, nmo=nmo)
+      loc_method = localized_wfn_control%localization_method
+
+      nmosub = localized_wfn_control%nloc_states(myspin)
+      IF (localized_wfn_control%operator_type == op_loc_berry) THEN
+         ! Here we allocate op_fm_set with the RIGHT size for uks
+         NULLIFY (tmp_fm_struct)
+         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmosub, &
+                                  ncol_global=nmosub, para_env=para_env, &
+                                  context=locorb%matrix_struct%context)
+         !
+         ALLOCATE (op_fm_set(2, dim_op))
+         DO i = 1, dim_op
+            DO j = 1, SIZE(op_fm_set, 1)
+               CALL cp_fm_create(op_fm_set(j, i), tmp_fm_struct)
+               CALL cp_fm_get_info(op_fm_set(j, i), nrow_global=nmosub)
+               CPASSERT(nmo >= nmosub)
+               CALL cp_fm_set_all(op_fm_set(j, i), 0.0_dp)
+            END DO
+         END DO
+         CALL cp_fm_struct_release(tmp_fm_struct)
+      END IF
+
+      IF (localized_wfn_control%do_mixed) THEN
+         CALL loc_mixed_method(qs_env, qs_loc_env, print_loc_section, myspin, op_fm_set)
+      ELSE
+         SELECT CASE (localized_wfn_control%operator_type)
+         CASE (op_loc_berry)
+            CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
+                                    op_fm_set, para_env, cell, weights, myspin, print_loc_section)
+         CASE (op_loc_boys)
+            CPABORT("Boys localization not implemented")
+         CASE (op_loc_pipek)
+            CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(myspin), &
+                                    op_fm_set, myspin, print_loc_section)
+         END SELECT
+      END IF
+
+      ! Here we dealloctate op_fm_set
+      IF (localized_wfn_control%operator_type == op_loc_berry) THEN
+         IF (ASSOCIATED(op_fm_set)) THEN
+            DO i = 1, dim_op
+               DO j = 1, SIZE(op_fm_set, 1)
+                  CALL cp_fm_release(op_fm_set(j, i))
+               END DO
+            END DO
+            DEALLOCATE (op_fm_set)
+         END IF
+      END IF
+
+      ! give back the localized orbitals
+      CALL get_mo_set(mo_set=mos(myspin), nao=nao)
+      lb = localized_wfn_control%lu_bound_states(1, myspin)
+      ub = localized_wfn_control%lu_bound_states(2, myspin)
+
+      IF (localized_wfn_control%set_of_states == state_loc_list) THEN
+         ALLOCATE (vecbuffer(1, nao))
+         nmosub = SIZE(localized_wfn_control%loc_states, 1)
+         imoloc = 0
+         DO i = lb, ub
+            ! Get the index in the subset
+            imoloc = imoloc + 1
+            ! Get the index in the full set
+            imo = localized_wfn_control%loc_states(i, myspin)
+
+            CALL cp_fm_get_submatrix(moloc_coeff(myspin), vecbuffer, 1, imoloc, &
+                                     nao, 1, transpose=.TRUE.)
+            CALL cp_fm_set_submatrix(locorb, vecbuffer, 1, imo, nao, 1, transpose=.TRUE.)
+         END DO
+         DEALLOCATE (vecbuffer)
+
+      ELSE
+         nmosub = localized_wfn_control%nloc_states(myspin)
+         CALL cp_fm_to_fm(moloc_coeff(myspin), locorb, nmosub, 1, lb)
+      END IF
+
+      ! Write cube files if required
+      IF (localized_wfn_control%print_cubes) THEN
+         CALL loc_print(qs_env, qs_loc_env, moloc_coeff, myspin, print_loc_section)
+      END IF
+      first_time = .FALSE.
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_loc_driver
+
+! **************************************************************************************************
+!> \brief set up the calculation of localized orbitals
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param print_loc_section ...
+!> \param myspin ...
+!> \param op_fm_set ...
+!> \par History
+!>      04.2023 refactored [JGH]
+!> \author MI
+! **************************************************************************************************
+   SUBROUTINE loc_mixed_method(qs_env, qs_loc_env, print_loc_section, myspin, op_fm_set)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
+      TYPE(section_vals_type), POINTER                   :: print_loc_section
+      INTEGER, INTENT(IN)                                :: myspin
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: op_fm_set
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'loc_mixed_method'
+
+      INTEGER                                            :: dim_op, handle, jspin, loc_method, nao, &
+                                                            ndummy, nextra, ngextra, nguess, nmo, &
+                                                            nmosub, norextra
+      INTEGER, DIMENSION(2)                              :: nelectron_spin
+      LOGICAL                                            :: do_ortho, has_unit_metric, &
+                                                            my_guess_atomic, my_guess_wan
+      REAL(dp), DIMENSION(6)                             :: weights
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tmp_mat
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type)                                   :: mos_guess, tmp_fm, tmp_fm_1, vectors_2
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, op_sm_set
+      TYPE(dbcsr_type), POINTER                          :: refmatrix, tmatrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (moloc_coeff, op_sm_set)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env, mos=mos)
+      CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
+                          localized_wfn_control=localized_wfn_control, &
+                          moloc_coeff=moloc_coeff, op_sm_set=op_sm_set, cell=cell, &
+                          weights=weights, dim_op=dim_op)
+
+      CALL get_mo_set(mo_set=mos(myspin), nao=nao, nmo=nmo)
+      loc_method = localized_wfn_control%localization_method
+      nmosub = localized_wfn_control%nloc_states(myspin)
+
+      CPASSERT(localized_wfn_control%operator_type == op_loc_berry)
+      CPASSERT(localized_wfn_control%do_mixed)
+
       my_guess_atomic = .FALSE.
       ! SGh-wan: if atomic guess and do_mixed and nextra > 0
       ! read CPO_GUESS; CASE ATOMIC / RESTART / RANDOM (0/1/2)
@@ -176,9 +315,9 @@ CONTAINS
             refmatrix => matrix_s_kp(1, 1)%matrix
             ! create p_rmpv
             CALL dbcsr_allocate_matrix_set(p_rmpv, dft_control%nspins)
-            DO ispin = 1, dft_control%nspins
-               ALLOCATE (p_rmpv(ispin)%matrix)
-               tmatrix => p_rmpv(ispin)%matrix
+            DO jspin = 1, dft_control%nspins
+               ALLOCATE (p_rmpv(jspin)%matrix)
+               tmatrix => p_rmpv(jspin)%matrix
                CALL dbcsr_create(matrix=tmatrix, template=refmatrix, &
                                  matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
@@ -191,227 +330,116 @@ CONTAINS
             my_guess_wan = .TRUE.
          CASE (do_loc_cpo_random)
             my_guess_atomic = .FALSE.
-
          END SELECT
 
-      END IF
+         norextra = nmo - nmosub
+         CALL get_mo_set(mo_set=mos(myspin), mo_coeff=mo_coeff)
+         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
+                                  ncol_global=norextra, para_env=para_env, context=mo_coeff%matrix_struct%context)
+         CALL cp_fm_create(vectors_2, tmp_fm_struct)
+         CALL cp_fm_struct_release(tmp_fm_struct)
+         ALLOCATE (tmp_mat(nao, norextra))
+         CALL cp_fm_get_submatrix(mo_coeff, tmp_mat, 1, nmosub + 1)
+         CALL cp_fm_set_submatrix(vectors_2, tmp_mat)
+         DEALLOCATE (tmp_mat)
 
-      DO ispin = s_spin, l_spin
+         ! if guess "atomic" generate MOs based on atomic densities and
+         ! pass on to optimize_loc_berry
+         IF (my_guess_atomic .OR. my_guess_wan) THEN
 
-         CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
-         loc_method = localized_wfn_control%localization_method
+            SELECT CASE (localized_wfn_control%coeff_po_guess_mo_space)
 
-         SELECT CASE (localized_wfn_control%operator_type)
+            CASE (do_loc_cpo_space_wan)
+               ndummy = nmosub
+            CASE (do_loc_cpo_space_nmo)
+               ndummy = nmo
+               do_ortho = .FALSE.
 
-         CASE (op_loc_berry)
-            ! Here we allocate op_fm_set with the RIGHT size for uks
-            NULLIFY (tmp_fm_struct, mo_coeff)
-            nmosub = localized_wfn_control%nloc_states(ispin)
-            IF (PRESENT(ext_mo_coeff)) THEN
-               CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmosub, &
-                                        ncol_global=nmosub, para_env=para_env, context=ext_mo_coeff%matrix_struct%context)
-            ELSE
-               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-               CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmosub, &
-                                        ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
-            END IF
-            !
-            ALLOCATE (op_fm_set(2, dim_op))
-            DO i = 1, dim_op
-               DO j = 1, SIZE(op_fm_set, 1)
-                  CALL cp_fm_create(op_fm_set(j, i), tmp_fm_struct)
-                  CALL cp_fm_get_info(op_fm_set(j, i), nrow_global=nmosub)
-                  CPASSERT(nmo >= nmosub)
-                  CALL cp_fm_set_all(op_fm_set(j, i), 0.0_dp)
-               END DO
-            END DO
-            CALL cp_fm_struct_release(tmp_fm_struct)
+            END SELECT
 
-            IF (localized_wfn_control%do_mixed) THEN
-               IF (nextra > 0) THEN
-                  norextra = nmo - nmosub
-                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+            CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
+                                     ncol_global=ndummy, para_env=para_env, &
+                                     context=mo_coeff%matrix_struct%context)
+            CALL cp_fm_create(mos_guess, tmp_fm_struct)
+            CALL cp_fm_set_all(mos_guess, 0.0_dp)
+
+            IF (my_guess_atomic) THEN
+               CALL cp_fm_create(tmp_fm, tmp_fm_struct)
+               CALL cp_fm_create(tmp_fm_1, tmp_fm_struct)
+               CALL cp_fm_set_all(tmp_fm, 0.0_dp)
+               CALL cp_fm_set_all(tmp_fm_1, 0.0_dp)
+               CALL cp_fm_init_random(tmp_fm, ndummy)
+               IF (has_unit_metric) THEN
+                  CALL cp_fm_to_fm(tmp_fm, tmp_fm_1)
+               ELSE
+                  ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+                  CALL cp_dbcsr_sm_fm_multiply(refmatrix, tmp_fm, tmp_fm_1, ndummy)
+               END IF
+               CALL cp_dbcsr_sm_fm_multiply(p_rmpv(myspin)%matrix, tmp_fm_1, mos_guess, ndummy)
+               CALL cp_fm_release(tmp_fm)
+               CALL cp_fm_release(tmp_fm_1)
+               CALL cp_fm_struct_release(tmp_fm_struct)
+            ELSEIF (my_guess_wan) THEN
+               nguess = localized_wfn_control%nguess(myspin)
+               ALLOCATE (tmp_mat(nao, nguess))
+               CALL cp_fm_get_submatrix(moloc_coeff(myspin), tmp_mat, 1, 1, nao, nguess)
+               CALL cp_fm_set_submatrix(mos_guess, tmp_mat, 1, 1, nao, nguess)
+               DEALLOCATE (tmp_mat)
+               ngextra = nmosub - nguess
+               !WRITE(*,*) 'nguess, ngextra = ', nguess, ngextra
+               CALL cp_fm_struct_release(tmp_fm_struct)
+               IF (ngextra > 0) THEN
                   CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
-                                           ncol_global=norextra, para_env=para_env, context=mo_coeff%matrix_struct%context)
-                  CALL cp_fm_create(vectors_2, tmp_fm_struct)
-                  CALL cp_fm_struct_release(tmp_fm_struct)
-                  ALLOCATE (tmp_mat(nao, norextra))
-                  CALL cp_fm_get_submatrix(mo_coeff, tmp_mat, 1, nmosub + 1)
-                  CALL cp_fm_set_submatrix(vectors_2, tmp_mat)
+                                           ncol_global=ngextra, para_env=para_env, &
+                                           context=mo_coeff%matrix_struct%context)
+                  CALL cp_fm_create(tmp_fm, tmp_fm_struct)
+                  CALL cp_fm_init_random(tmp_fm, ngextra)
+                  ALLOCATE (tmp_mat(nao, ngextra))
+                  CALL cp_fm_get_submatrix(tmp_fm, tmp_mat, 1, 1, nao, ngextra)
+                  CALL cp_fm_set_submatrix(mos_guess, tmp_mat, 1, nguess + 1, nao, ngextra)
                   DEALLOCATE (tmp_mat)
+                  CALL cp_fm_release(tmp_fm)
+                  CALL cp_fm_struct_release(tmp_fm_struct)
+               ELSE
+                  do_ortho = .FALSE.
+               END IF
+               ALLOCATE (tmp_mat(nao, nmosub))
+               CALL cp_fm_get_submatrix(mo_coeff, tmp_mat, 1, 1, nao, nmosub)
+               CALL cp_fm_set_submatrix(moloc_coeff(myspin), tmp_mat)
+               DEALLOCATE (tmp_mat)
+            END IF
 
-                  ! if guess "atomic" generate MOs based on atomic densities and
-                  ! pass on to optimize_loc_berry
-                  IF (my_guess_atomic .OR. my_guess_wan) THEN
-
-                     SELECT CASE (localized_wfn_control%coeff_po_guess_mo_space)
-
-                     CASE (do_loc_cpo_space_wan)
-                        ndummy = nmosub
-                     CASE (do_loc_cpo_space_nmo)
-                        ndummy = nmo
-                        do_ortho = .FALSE.
-
-                     END SELECT
-
-                     CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
-                                              ncol_global=ndummy, para_env=para_env, &
-                                              context=mo_coeff%matrix_struct%context)
-                     CALL cp_fm_create(mos_guess, tmp_fm_struct)
-                     CALL cp_fm_set_all(mos_guess, 0.0_dp)
-
-                     IF (my_guess_atomic) THEN
-                        CALL cp_fm_create(tmp_fm, tmp_fm_struct)
-                        CALL cp_fm_create(tmp_fm_1, tmp_fm_struct)
-                        CALL cp_fm_set_all(tmp_fm, 0.0_dp)
-                        CALL cp_fm_set_all(tmp_fm_1, 0.0_dp)
-                        CALL cp_fm_init_random(tmp_fm, ndummy)
-                        IF (has_unit_metric) THEN
-                           CALL cp_fm_to_fm(tmp_fm, tmp_fm_1)
-                        ELSE
-                           ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-                           CALL cp_dbcsr_sm_fm_multiply(refmatrix, tmp_fm, tmp_fm_1, ndummy)
-                        END IF
-                        CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, tmp_fm_1, mos_guess, ndummy)
-                        CALL cp_fm_release(tmp_fm)
-                        CALL cp_fm_release(tmp_fm_1)
-                        CALL cp_fm_struct_release(tmp_fm_struct)
-                     ELSEIF (my_guess_wan) THEN
-                        nguess = localized_wfn_control%nguess(ispin)
-                        ALLOCATE (tmp_mat(nao, nguess))
-                        CALL cp_fm_get_submatrix(moloc_coeff(ispin), tmp_mat, 1, 1, nao, nguess)
-                        CALL cp_fm_set_submatrix(mos_guess, tmp_mat, 1, 1, nao, nguess)
-                        DEALLOCATE (tmp_mat)
-                        ngextra = nmosub - nguess
-                        !WRITE(*,*) 'nguess, ngextra = ', nguess, ngextra
-                        CALL cp_fm_struct_release(tmp_fm_struct)
-                        IF (ngextra > 0) THEN
-                           CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
-                                                    ncol_global=ngextra, para_env=para_env, &
-                                                    context=mo_coeff%matrix_struct%context)
-                           CALL cp_fm_create(tmp_fm, tmp_fm_struct)
-                           CALL cp_fm_init_random(tmp_fm, ngextra)
-                           ALLOCATE (tmp_mat(nao, ngextra))
-                           CALL cp_fm_get_submatrix(tmp_fm, tmp_mat, 1, 1, nao, ngextra)
-                           CALL cp_fm_set_submatrix(mos_guess, tmp_mat, 1, nguess + 1, nao, ngextra)
-                           DEALLOCATE (tmp_mat)
-                           CALL cp_fm_release(tmp_fm)
-                           CALL cp_fm_struct_release(tmp_fm_struct)
-                        ELSE
-                           do_ortho = .FALSE.
-                        END IF
-                        ALLOCATE (tmp_mat(nao, nmosub))
-                        CALL cp_fm_get_submatrix(mo_coeff, tmp_mat, 1, 1, nao, nmosub)
-                        CALL cp_fm_set_submatrix(moloc_coeff(ispin), tmp_mat)
-                        DEALLOCATE (tmp_mat)
-                     END IF
-
-                     IF (do_ortho) THEN
-                        IF ((my_guess_atomic) .OR. (my_guess_wan)) THEN
-                           !! and ortho the result
-                           IF (has_unit_metric) THEN
-                              CALL make_basis_simple(mos_guess, ndummy)
-                           ELSE
-                              CALL make_basis_sm(mos_guess, ndummy, refmatrix)
-                           END IF
-                        END IF
-                     END IF
-
-                     CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
-                                             op_fm_set, para_env, cell, weights, ispin, print_loc_section, &
-                                             nextra=nextra, nmo=nmo, vectors_2=vectors_2, &
-                                             guess_mos=mos_guess)
-                     CALL cp_fm_release(mos_guess)
+            IF (do_ortho) THEN
+               IF ((my_guess_atomic) .OR. (my_guess_wan)) THEN
+                        !! and ortho the result
+                  IF (has_unit_metric) THEN
+                     CALL make_basis_simple(mos_guess, ndummy)
                   ELSE
-                     CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
-                                             op_fm_set, para_env, cell, weights, ispin, print_loc_section, &
-                                             nextra=nextra, nmo=nmo, vectors_2=vectors_2)
+                     CALL make_basis_sm(mos_guess, ndummy, refmatrix)
                   END IF
-                  CALL cp_fm_release(vectors_2)
-               ELSE
-                  CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
-                                          op_fm_set, para_env, cell, weights, ispin, print_loc_section, nextra=0)
                END IF
-            ELSE
-               CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin), op_sm_set, &
-                                       op_fm_set, para_env, cell, weights, ispin, print_loc_section)
             END IF
 
-            ! Here we dealloctate op_fm_set
-            IF (ASSOCIATED(op_fm_set)) THEN
-               DO i = 1, dim_op
-                  DO j = 1, SIZE(op_fm_set, 1)
-                     CALL cp_fm_release(op_fm_set(j, i))
-                  END DO
-               END DO
-               DEALLOCATE (op_fm_set)
-            END IF
-
-         CASE (op_loc_boys)
-            CPABORT("Boys localization not implemented")
-
-         CASE (op_loc_pipek)
-
-            CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin), &
-                                    op_fm_set, ispin, print_loc_section)
-
-         END SELECT
-
-      END DO
-
-      DO ispin = s_spin, l_spin
-
-         CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=nmo)
-         ! give back the localized orbitals
-         IF (.NOT. PRESENT(ext_mo_coeff)) THEN
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         END IF
-
-         lb = localized_wfn_control%lu_bound_states(1, ispin)
-         ub = localized_wfn_control%lu_bound_states(2, ispin)
-
-         IF (localized_wfn_control%set_of_states == state_loc_list) THEN
-            ALLOCATE (vecbuffer(1, nao))
-            nmosub = SIZE(localized_wfn_control%loc_states, 1)
-            imoloc = 0
-            DO i = lb, ub
-               ! Get the index in the subset
-               imoloc = imoloc + 1
-               ! Get the index in the full set
-               imo = localized_wfn_control%loc_states(i, ispin)
-
-               CALL cp_fm_get_submatrix(moloc_coeff(ispin), vecbuffer, 1, imoloc, &
-                                        nao, 1, transpose=.TRUE.)
-               IF (PRESENT(ext_mo_coeff)) THEN
-                  CALL cp_fm_set_submatrix(ext_mo_coeff, vecbuffer, 1, imo, &
-                                           nao, 1, transpose=.TRUE.)
-               ELSE
-                  CALL cp_fm_set_submatrix(mo_coeff, vecbuffer, 1, imo, &
-                                           nao, 1, transpose=.TRUE.)
-               END IF
-            END DO
-            DEALLOCATE (vecbuffer)
-
+            CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
+                                    op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
+                                    nextra=nextra, nmo=nmo, vectors_2=vectors_2, &
+                                    guess_mos=mos_guess)
+            CALL cp_fm_release(mos_guess)
          ELSE
-            nmosub = localized_wfn_control%nloc_states(ispin)
-            IF (PRESENT(ext_mo_coeff)) THEN
-               CALL cp_fm_to_fm(moloc_coeff(ispin), ext_mo_coeff, nmosub, 1, lb)
-            ELSE
-               CALL cp_fm_to_fm(moloc_coeff(ispin), mo_coeff, nmosub, 1, lb)
-            END IF
+            CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
+                                    op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
+                                    nextra=nextra, nmo=nmo, vectors_2=vectors_2)
          END IF
-
-         ! Write cube files if required
-         IF (localized_wfn_control%print_cubes) THEN
-            CALL loc_print(qs_env, qs_loc_env, moloc_coeff, ispin, print_loc_section)
-         END IF
-      END DO ! ispin
-      IF (my_guess_atomic) CALL dbcsr_deallocate_matrix_set(p_rmpv)
-      first_time = .FALSE.
+         CALL cp_fm_release(vectors_2)
+         IF (my_guess_atomic) CALL dbcsr_deallocate_matrix_set(p_rmpv)
+      ELSE
+         CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
+                                 op_fm_set, para_env, cell, weights, myspin, print_loc_section, nextra=0)
+      END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE qs_loc_driver
+   END SUBROUTINE loc_mixed_method
 
 ! **************************************************************************************************
 !> \brief printing of Cube files of localized orbitals

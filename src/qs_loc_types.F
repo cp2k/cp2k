@@ -78,25 +78,25 @@ MODULE qs_loc_types
 !> \author MI
 ! **************************************************************************************************
    TYPE qs_loc_env_type
-      LOGICAL :: molecular_states, do_localize, first_time
-      LOGICAL :: wannier_states
+      LOGICAL                                     :: do_localize, first_time
+      LOGICAL                                     :: molecular_states
+      LOGICAL                                     :: wannier_states
       CHARACTER(LEN=default_string_length)        :: tag_mo
-      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(mp_para_env_type), POINTER             :: para_env
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                                :: moloc_coeff
+         POINTER                                  :: moloc_coeff
       TYPE(cp_fm_type), DIMENSION(:, :), &
-         POINTER                                :: op_fm_set
+         POINTER                                  :: op_fm_set
       TYPE(distribution_1d_type), POINTER         :: local_molecules
-      TYPE(cell_type), POINTER                 :: cell
+      TYPE(cell_type), POINTER                    :: cell
       TYPE(localized_wfn_control_type), &
-         POINTER                                :: localized_wfn_control
+         POINTER                                  :: localized_wfn_control
       TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+         POINTER                                  :: particle_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
-         POINTER                                :: op_sm_set
-
-      REAL(KIND=dp)                            :: start_time, target_time
-      REAL(KIND=dp)                            :: weights(6)
+         POINTER                                  :: op_sm_set
+      REAL(KIND=dp)                               :: start_time, target_time
+      REAL(KIND=dp)                               :: weights(6)
       INTEGER                                     :: dim_op
    END TYPE qs_loc_env_type
 
@@ -125,7 +125,7 @@ MODULE qs_loc_types
       INTEGER                              :: operator_type
       INTEGER, DIMENSION(2)                :: nloc_states, nguess
       INTEGER                              :: set_of_states
-      INTEGER, DIMENSION(2, 2)              :: lu_bound_states
+      INTEGER, DIMENSION(2, 2)             :: lu_bound_states
       INTEGER                              :: max_iter
       INTEGER                              :: out_each
       INTEGER                              :: nextra
@@ -143,7 +143,7 @@ MODULE qs_loc_types
       LOGICAL                              :: do_mixed, do_cg_po
       LOGICAL                              :: loc_restart
       LOGICAL                              :: use_history
-      INTEGER, POINTER, DIMENSION(:, :)       :: loc_states
+      INTEGER, POINTER, DIMENSION(:, :)    :: loc_states
       TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
    END TYPE localized_wfn_control_type
 
