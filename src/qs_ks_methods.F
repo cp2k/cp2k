@@ -775,6 +775,7 @@ CONTAINS
 
          IF (dft_control%do_admm) THEN
             !Single atom contribution to the AUX matrices
+            !Note: also update ks_aux_fit matrix in case of rtp
             CALL admm_update_ks_atom(qs_env, calculate_forces)
          END IF
       END IF
