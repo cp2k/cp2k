@@ -2379,8 +2379,16 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: cutoff_str
       INTEGER                                            :: handle
+      LOGICAL                                            :: found
 
       CALL timeset(routineN, handle)
+
+      INQUIRE (FILE=nequip%nequip_file_name, EXIST=found)
+      IF (.NOT. found) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Nequip model file <"//TRIM(nequip%nequip_file_name)// &
+                       "> not found.")
+      END IF
 
       nequip%nequip_version = torch_model_read_metadata(nequip%nequip_file_name, "nequip_version")
       cutoff_str = torch_model_read_metadata(nequip%nequip_file_name, "r_max")
@@ -2410,8 +2418,16 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: cutoff_str
       INTEGER                                            :: handle
+      LOGICAL                                            :: found
 
       CALL timeset(routineN, handle)
+
+      INQUIRE (FILE=allegro%allegro_file_name, EXIST=found)
+      IF (.NOT. found) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Allegro model file <"//TRIM(allegro%allegro_file_name)// &
+                       "> not found.")
+      END IF
 
       allegro%allegro_version = torch_model_read_metadata(allegro%allegro_file_name, "nequip_version")
       cutoff_str = torch_model_read_metadata(allegro%allegro_file_name, "r_max")

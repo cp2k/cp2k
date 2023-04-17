@@ -4823,6 +4823,7 @@ CONTAINS
                          DOI="10.1021/ct400687b")
 
       CALL add_reference(key=Musaelian2023, ISI_record=s2a( &
+                         "TY JOUR", &
                          "PT J", &
                          "   Musaelian, A", &
                          "   Batzner, S", &
