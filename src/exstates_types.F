@@ -74,22 +74,10 @@ CONTAINS
    SUBROUTINE exstate_release(ex_env)
       TYPE(excited_energy_type), POINTER                 :: ex_env
 
-      INTEGER                                            :: is
-
       IF (ASSOCIATED(ex_env)) THEN
 
-         IF (ASSOCIATED(ex_env%evect)) THEN
-            DO is = 1, SIZE(ex_env%evect)
-               CALL cp_fm_release(ex_env%evect(is))
-            END DO
-            DEALLOCATE (ex_env%evect)
-         END IF
-         IF (ASSOCIATED(ex_env%cpmos)) THEN
-            DO is = 1, SIZE(ex_env%cpmos)
-               CALL cp_fm_release(ex_env%cpmos(is))
-            END DO
-            DEALLOCATE (ex_env%cpmos)
-         END IF
+         CALL cp_fm_release(ex_env%evect)
+         CALL cp_fm_release(ex_env%cpmos)
          !
          CALL exstate_matrix_release(ex_env)
          !

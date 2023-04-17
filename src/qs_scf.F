@@ -894,17 +894,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scf_env_cleanup'
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
       ! Release SCF work storage
-      IF (ASSOCIATED(scf_env%scf_work1)) THEN
-         DO ispin = 1, SIZE(scf_env%scf_work1)
-            CALL cp_fm_release(scf_env%scf_work1(ispin))
-         END DO
-         DEALLOCATE (scf_env%scf_work1)
-      END IF
+      CALL cp_fm_release(scf_env%scf_work1)
+
       IF (ASSOCIATED(scf_env%scf_work2)) THEN
          CALL cp_fm_release(scf_env%scf_work2)
          DEALLOCATE (scf_env%scf_work2)

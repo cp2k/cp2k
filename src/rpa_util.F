@@ -574,12 +574,7 @@ CONTAINS
       END DO
 
       ! Release old matrix
-      DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
-      DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
-         CALL cp_fm_release(fm_matrix_Minv_L_kpoints(ikp, j_size))
-      END DO
-      END DO
-      DEALLOCATE (fm_matrix_Minv_L_kpoints)
+      CALL cp_fm_release(fm_matrix_Minv_L_kpoints)
       ! Release buffer
       CALL cp_fm_release(fm_mat_L_transposed)
 
@@ -1173,29 +1168,12 @@ CONTAINS
       CALL cp_fm_release(fm_mo_coeff_occ_scaled)
       CALL cp_fm_release(fm_mo_coeff_virt_scaled)
 
-      IF (ALLOCATED(fm_mat_Minv_L_kpoints)) THEN
-         DO i_size = 1, SIZE(fm_mat_Minv_L_kpoints, 1)
-            DO j_size = 1, SIZE(fm_mat_Minv_L_kpoints, 2)
-               CALL cp_fm_release(fm_mat_Minv_L_kpoints(i_size, j_size))
-            END DO
-         END DO
-         DEALLOCATE (fm_mat_Minv_L_kpoints)
-      END IF
-
-      IF (ALLOCATED(fm_mat_L_kpoints)) THEN
-         DO i_size = 1, SIZE(fm_mat_L_kpoints, 1)
-            DO j_size = 1, SIZE(fm_mat_L_kpoints, 2)
-               CALL cp_fm_release(fm_mat_L_kpoints(i_size, j_size))
-            END DO
-         END DO
-         DEALLOCATE (fm_mat_L_kpoints)
-      END IF
+      CALL cp_fm_release(fm_mat_Minv_L_kpoints)
+      CALL cp_fm_release(fm_mat_L_kpoints)
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
-         CALL cp_fm_release(fm_matrix_Minv_Vtrunc_Minv(1, 1))
-         DEALLOCATE (fm_matrix_Minv_Vtrunc_Minv)
-         CALL cp_fm_release(fm_matrix_Minv(1, 1))
-         DEALLOCATE (fm_matrix_Minv)
+         CALL cp_fm_release(fm_matrix_Minv_Vtrunc_Minv)
+         CALL cp_fm_release(fm_matrix_Minv)
       END IF
 
       CALL cp_fm_release(fm_mat_work)

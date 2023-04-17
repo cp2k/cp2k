@@ -402,12 +402,9 @@ CONTAINS
 
       ! release fm stuff
       CALL cp_fm_release(fm_G_mu_nu)
-      DO ispin = 1, nspins
-         CALL cp_fm_release(L_jb(ispin))
-         CALL cp_fm_release(mo_coeff_o(ispin))
-         CALL cp_fm_release(mo_coeff_v(ispin))
-      END DO
-      DEALLOCATE (L_jb, mo_coeff_o, mo_coeff_v)
+      CALL cp_fm_release(L_jb)
+      CALL cp_fm_release(mo_coeff_o)
+      CALL cp_fm_release(mo_coeff_v)
 
       DO ispin = 1, nspins
          ! update the MP2-MO density matrix with the occ-virt block
@@ -415,13 +412,12 @@ CONTAINS
                                  nrow=homo(ispin), ncol=virtual(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=homo(ispin) + 1)
-         CALL cp_fm_release(P_ia(ispin))
          ! transpose P_MO matrix (easy way to symmetrize)
          CALL cp_fm_set_all(fm_back, 0.0_dp)
          ! P_mo now is ready
          CALL cp_fm_upper_to_full(matrix=P_mo(ispin), work=fm_back)
       END DO
-      DEALLOCATE (P_ia)
+      CALL cp_fm_release(P_ia)
 
       ! do the final update to the energy weighted matrix W_MO
       DO ispin = 1, nspins
@@ -471,10 +467,9 @@ CONTAINS
       DO ispin = 1, nspins
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                             mo_coeff(ispin), W_mo(ispin), 0.0_dp, fm_back)
-         CALL cp_fm_release(W_mo(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin), dimen, 1.0_dp, .TRUE., 1)
       END DO
-      DEALLOCATE (W_mo)
+      CALL cp_fm_release(W_mo)
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
 
@@ -483,13 +478,12 @@ CONTAINS
 
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                             mo_coeff(ispin), P_mo(ispin), 0.0_dp, fm_back)
-         CALL cp_fm_release(P_mo(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin), dimen, 1.0_dp, .TRUE.)
 
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
       END DO
+      CALL cp_fm_release(P_mo)
       CALL cp_fm_release(fm_back)
-      DEALLOCATE (P_mo)
 
       CALL p_env_update_rho(p_env, qs_env)
 
@@ -748,10 +742,7 @@ CONTAINS
          CPABORT("Unknown solver")
       END SELECT
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(precond(ispin))
-      END DO
-      DEALLOCATE (precond)
+      CALL cp_fm_release(precond)
 
       CALL timestop(handle)
 
@@ -990,16 +981,10 @@ CONTAINS
          DEALLOCATE (xi_b)
          DEALLOCATE (xi_Axi)
 
-         DO ispin = 1, nspins
-            CALL cp_fm_release(b_i(ispin))
-            CALL cp_fm_release(residual(ispin))
-
-            DO iiter = 1, cycle_counter
-               CALL cp_fm_release(Ax(ispin, iiter))
-               CALL cp_fm_release(xn(ispin, iiter))
-            END DO
-         END DO
-         DEALLOCATE (b_i, residual, Ax, xn, fm_struct_tmp)
+         CALL cp_fm_release(b_i)
+         CALL cp_fm_release(residual)
+         CALL cp_fm_release(Ax)
+         CALL cp_fm_release(xn)
 
       ELSE
          IF (unit_nr > 0) THEN
@@ -1275,13 +1260,11 @@ CONTAINS
          END IF
       END IF
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(residual(ispin))
-         CALL cp_fm_release(diff_search_vector(ispin))
-         CALL cp_fm_release(search_vector(ispin))
-         CALL cp_fm_release(A_dot_search_vector(ispin))
-      END DO
-      DEALLOCATE (residual, diff_search_vector, search_vector, A_dot_search_vector, fm_struct_tmp)
+      DEALLOCATE (fm_struct_tmp)
+      CALL cp_fm_release(residual)
+      CALL cp_fm_release(diff_search_vector)
+      CALL cp_fm_release(search_vector)
+      CALL cp_fm_release(A_dot_search_vector)
 
       CALL timestop(handle)
 

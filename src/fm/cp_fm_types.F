@@ -306,7 +306,7 @@ CONTAINS
 
       IF (ASSOCIATED(matrices)) THEN
          DO i = 1, SIZE(matrices, 1)
-            DO j = 1, SIZE(matrices, 1)
+            DO j = 1, SIZE(matrices, 2)
                CALL cp_fm_release(matrices(i, j))
             END DO
          END DO

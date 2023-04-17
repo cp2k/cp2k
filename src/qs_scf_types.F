@@ -199,7 +199,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change'
 
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -209,12 +209,7 @@ CONTAINS
       IF (ASSOCIATED(scf_env%p_delta)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
       END IF
-      IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
-         DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
-            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i))
-         END DO
-         DEALLOCATE (scf_env%mom_ref_mo_coeff)
-      END IF
+      CALL cp_fm_release(scf_env%mom_ref_mo_coeff)
 
       CALL timestop(handle)
 
@@ -337,24 +332,9 @@ CONTAINS
       IF (ASSOCIATED(scf_env%floating_basis%gradient)) THEN
          DEALLOCATE (scf_env%floating_basis%gradient)
       END IF
-      IF (ASSOCIATED(scf_env%mom_ref_mo_coeff)) THEN
-         DO i = 1, SIZE(scf_env%mom_ref_mo_coeff)
-            CALL cp_fm_release(scf_env%mom_ref_mo_coeff(i))
-         END DO
-         DEALLOCATE (scf_env%mom_ref_mo_coeff)
-      END IF
-      IF (ASSOCIATED(scf_env%mom_overlap)) THEN
-         DO i = 1, SIZE(scf_env%mom_overlap)
-            CALL cp_fm_release(scf_env%mom_overlap(i))
-         END DO
-         DEALLOCATE (scf_env%mom_overlap)
-      END IF
-      IF (ASSOCIATED(scf_env%mom_s_mo_coeff)) THEN
-         DO i = 1, SIZE(scf_env%mom_s_mo_coeff)
-            CALL cp_fm_release(scf_env%mom_s_mo_coeff(i))
-         END DO
-         DEALLOCATE (scf_env%mom_s_mo_coeff)
-      END IF
+      CALL cp_fm_release(scf_env%mom_ref_mo_coeff)
+      CALL cp_fm_release(scf_env%mom_overlap)
+      CALL cp_fm_release(scf_env%mom_s_mo_coeff)
 
       CALL timestop(handle)
 
@@ -411,36 +391,17 @@ CONTAINS
    SUBROUTINE krylov_space_release(krylov_space)
       TYPE(krylov_space_type), POINTER                   :: krylov_space
 
-      INTEGER                                            :: i
-
       IF (ASSOCIATED(krylov_space)) THEN
 
          DEALLOCATE (krylov_space%c_eval)
          DEALLOCATE (krylov_space%t_eval)
 
-         DO i = 1, SIZE(krylov_space%v_mat)
-            CALL cp_fm_release(krylov_space%v_mat(i))
-         END DO
-         DEALLOCATE (krylov_space%v_mat)
+         CALL cp_fm_release(krylov_space%v_mat)
+         CALL cp_fm_release(krylov_space%mo_conv)
+         CALL cp_fm_release(krylov_space%mo_refine)
+         CALL cp_fm_release(krylov_space%chc_mat)
+         CALL cp_fm_release(krylov_space%c_vec)
 
-         DO i = 1, SIZE(krylov_space%mo_conv)
-            CALL cp_fm_release(krylov_space%mo_conv(i))
-         END DO
-         DEALLOCATE (krylov_space%mo_conv)
-
-         DO i = 1, SIZE(krylov_space%mo_refine)
-            CALL cp_fm_release(krylov_space%mo_refine(i))
-         END DO
-         DEALLOCATE (krylov_space%mo_refine)
-
-         DO i = 1, SIZE(krylov_space%chc_mat)
-            CALL cp_fm_release(krylov_space%chc_mat(i))
-         END DO
-         DEALLOCATE (krylov_space%chc_mat)
-         DO i = 1, SIZE(krylov_space%c_vec)
-            CALL cp_fm_release(krylov_space%c_vec(i))
-         END DO
-         DEALLOCATE (krylov_space%c_vec)
          IF (ASSOCIATED(krylov_space%tmp_mat)) THEN
             CALL cp_fm_release(krylov_space%tmp_mat)
             DEALLOCATE (krylov_space%tmp_mat)
@@ -537,8 +498,6 @@ CONTAINS
    SUBROUTINE diag_subspace_env_release(subspace_env)
       TYPE(subspace_env_type), POINTER                   :: subspace_env
 
-      INTEGER                                            :: i
-
       IF (ASSOCIATED(subspace_env)) THEN
 
          IF (ASSOCIATED(subspace_env%p_matrix_store)) THEN
@@ -546,18 +505,9 @@ CONTAINS
             CPASSERT(.TRUE.)
             CALL dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store)
          END IF
-         DO i = 1, SIZE(subspace_env%chc_mat)
-            CALL cp_fm_release(subspace_env%chc_mat(i))
-         END DO
-         DEALLOCATE (subspace_env%chc_mat)
-         DO i = 1, SIZE(subspace_env%c_vec)
-            CALL cp_fm_release(subspace_env%c_vec(i))
-         END DO
-         DEALLOCATE (subspace_env%c_vec)
-         DO i = 1, SIZE(subspace_env%c0)
-            CALL cp_fm_release(subspace_env%c0(i))
-         END DO
-         DEALLOCATE (subspace_env%c0)
+         CALL cp_fm_release(subspace_env%chc_mat)
+         CALL cp_fm_release(subspace_env%c_vec)
+         CALL cp_fm_release(subspace_env%c0)
 
          IF (ASSOCIATED(subspace_env%mixing_store)) THEN
             CALL mixing_storage_release(subspace_env%mixing_store)

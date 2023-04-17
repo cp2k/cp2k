@@ -153,7 +153,7 @@ CONTAINS
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
 
-      INTEGER                                            :: i, j, k
+      INTEGER                                            :: i, j
 
 ! Routine name for debug purposes
 
@@ -183,14 +183,7 @@ CONTAINS
                   END DO
                   DEALLOCATE (ec%block(i)%mo)
                END IF
-               IF (ASSOCIATED(ec%block(i)%hab)) THEN
-                  DO j = 1, SIZE(ec%block(i)%hab, 1)
-                     DO k = 1, SIZE(ec%block(i)%hab, 2)
-                        CALL cp_fm_release(matrix=ec%block(i)%hab(j, k))
-                     END DO
-                  END DO
-                  DEALLOCATE (ec%block(i)%hab)
-               END IF
+               CALL cp_fm_release(ec%block(i)%hab)
             END DO
 
             DEALLOCATE (ec%block)
@@ -988,10 +981,7 @@ CONTAINS
          END DO
 
          ! Clean memory
-         DO j = 1, n_spins
-            CALL cp_fm_release(matrix=mat_w(j))
-         END DO
-         DEALLOCATE (mat_w)
+         CALL cp_fm_release(mat_w)
 
       END IF
 

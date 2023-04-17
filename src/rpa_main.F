@@ -633,22 +633,13 @@ CONTAINS
       IF (num_integ_group > 1) CALL mp_para_env_release(para_env_RPA)
 
       IF (.NOT. do_im_time) THEN
-         DO ispin = 1, SIZE(fm_mat_Q_gemm)
-            CALL cp_fm_release(fm_mat_Q_gemm(ispin))
-            CALL cp_fm_release(fm_mat_S(ispin))
-         END DO
-         DEALLOCATE (fm_mat_Q_gemm, fm_mat_S)
+         CALL cp_fm_release(fm_mat_Q_gemm)
+         CALL cp_fm_release(fm_mat_S)
       END IF
-      DO ispin = 1, SIZE(fm_mat_Q)
-         CALL cp_fm_release(fm_mat_Q(ispin))
-      END DO
-      DEALLOCATE (fm_mat_Q)
+      CALL cp_fm_release(fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
-         DO ispin = 1, SIZE(fm_mat_S_gw)
-            CALL cp_fm_release(fm_mat_S_gw(ispin))
-         END DO
-         DEALLOCATE (fm_mat_S_gw)
+         CALL cp_fm_release(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw(1))
       END IF
 
