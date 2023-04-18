@@ -1216,7 +1216,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'negf_env_release'
 
-      INTEGER                                            :: handle, icontact, ispin, nspins
+      INTEGER                                            :: handle, icontact
 
       CALL timeset(routineN, handle)
 
@@ -1229,23 +1229,10 @@ CONTAINS
       END IF
 
       ! h_s
-      IF (ALLOCATED(negf_env%h_s)) THEN
-         DO ispin = SIZE(negf_env%h_s), 1, -1
-            CALL cp_fm_release(negf_env%h_s(ispin))
-         END DO
-         DEALLOCATE (negf_env%h_s)
-      END IF
+      CALL cp_fm_release(negf_env%h_s)
 
       ! h_sc
-      IF (ALLOCATED(negf_env%h_sc)) THEN
-         nspins = SIZE(negf_env%h_sc, 1)
-         DO icontact = SIZE(negf_env%h_sc, 2), 1, -1
-            DO ispin = nspins, 1, -1
-               CALL cp_fm_release(negf_env%h_sc(ispin, icontact))
-            END DO
-         END DO
-         DEALLOCATE (negf_env%h_sc)
-      END IF
+      CALL cp_fm_release(negf_env%h_sc)
 
       ! s_s
       IF (ASSOCIATED(negf_env%s_s)) THEN
@@ -1255,12 +1242,7 @@ CONTAINS
       END IF
 
       ! s_sc
-      IF (ALLOCATED(negf_env%s_sc)) THEN
-         DO icontact = SIZE(negf_env%s_sc), 1, -1
-            CALL cp_fm_release(negf_env%s_sc(icontact))
-         END DO
-         DEALLOCATE (negf_env%s_sc)
-      END IF
+      CALL cp_fm_release(negf_env%s_sc)
 
       ! v_hartree_s
       IF (ASSOCIATED(negf_env%v_hartree_s)) THEN
@@ -1287,41 +1269,21 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_contact_release'
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
       ! h_00
-      IF (ALLOCATED(contact_env%h_00)) THEN
-         DO ispin = SIZE(contact_env%h_00), 1, -1
-            CALL cp_fm_release(contact_env%h_00(ispin))
-         END DO
-         DEALLOCATE (contact_env%h_00)
-      END IF
+      CALL cp_fm_release(contact_env%h_00)
 
       ! h_01
-      IF (ALLOCATED(contact_env%h_01)) THEN
-         DO ispin = SIZE(contact_env%h_01), 1, -1
-            CALL cp_fm_release(contact_env%h_01(ispin))
-         END DO
-         DEALLOCATE (contact_env%h_01)
-      END IF
+      CALL cp_fm_release(contact_env%h_01)
 
       ! rho_00
-      IF (ALLOCATED(contact_env%rho_00)) THEN
-         DO ispin = SIZE(contact_env%rho_00), 1, -1
-            CALL cp_fm_release(contact_env%rho_00(ispin))
-         END DO
-         DEALLOCATE (contact_env%rho_00)
-      END IF
+      CALL cp_fm_release(contact_env%rho_00)
 
       ! rho_01
-      IF (ALLOCATED(contact_env%rho_01)) THEN
-         DO ispin = SIZE(contact_env%rho_01), 1, -1
-            CALL cp_fm_release(contact_env%rho_01(ispin))
-         END DO
-         DEALLOCATE (contact_env%rho_01)
-      END IF
+      CALL cp_fm_release(contact_env%rho_01)
 
       ! s_00
       IF (ASSOCIATED(contact_env%s_00)) THEN

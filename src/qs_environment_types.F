@@ -1369,12 +1369,9 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%mo_derivs)
       END IF
-      IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
-         DO I = 1, SIZE(qs_env%mo_loc_history)
-            CALL cp_fm_release(qs_env%mo_loc_history(I))
-         END DO
-         DEALLOCATE (qs_env%mo_loc_history)
-      END IF
+
+      CALL cp_fm_release(qs_env%mo_loc_history)
+
       IF (ASSOCIATED(qs_env%rtp)) THEN
          CALL rt_prop_release(qs_env%rtp)
          DEALLOCATE (qs_env%rtp)
@@ -1591,12 +1588,9 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%mo_derivs)
       END IF
-      IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
-         DO I = 1, SIZE(qs_env%mo_loc_history)
-            CALL cp_fm_release(qs_env%mo_loc_history(I))
-         END DO
-         DEALLOCATE (qs_env%mo_loc_history)
-      END IF
+
+      CALL cp_fm_release(qs_env%mo_loc_history)
+
       IF (ASSOCIATED(qs_env%rtp)) THEN
          CALL rt_prop_release(qs_env%rtp)
          DEALLOCATE (qs_env%rtp)

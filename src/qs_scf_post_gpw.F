@@ -793,10 +793,9 @@ CONTAINS
             IF (nlumo_stm > 0) THEN
                DO ispin = 1, dft_control%nspins
                   DEALLOCATE (unoccupied_evals_stm(ispin)%array)
-                  CALL cp_fm_release(unoccupied_orbs_stm(ispin))
                END DO
                DEALLOCATE (unoccupied_evals_stm)
-               DEALLOCATE (unoccupied_orbs_stm)
+               CALL cp_fm_release(unoccupied_orbs_stm)
             END IF
          END IF
       END IF

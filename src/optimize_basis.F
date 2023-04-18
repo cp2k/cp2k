@@ -223,9 +223,9 @@ CONTAINS
       DO icalc = SIZE(opt_bas%comp_group(mp_id)%member_list), 1, -1
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          CALL destroy_force_env(f_env_id(icalc), stat)
-         CALL cp_fm_release(matrix_s_inv(icalc))
       END DO
-      DEALLOCATE (f_env_id); DEALLOCATE (tot_time); DEALLOCATE (matrix_S_inv)
+      DEALLOCATE (f_env_id); DEALLOCATE (tot_time)
+      CALL cp_fm_release(matrix_s_inv)
       CALL mp_para_env_release(para_env)
       CALL timestop(handle)
 

@@ -1180,9 +1180,8 @@ CONTAINS
                               //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
             CALL cp_fm_to_fm(dft_control%qs_control%cdft_control%mo_coeff(ispin), &
                              mo_coeff_tmp(iforce_eval, ispin))
-            CALL cp_fm_release(dft_control%qs_control%cdft_control%mo_coeff(ispin))
          END DO
-         DEALLOCATE (dft_control%qs_control%cdft_control%mo_coeff)
+         CALL cp_fm_release(dft_control%qs_control%cdft_control%mo_coeff)
          ! Matrix representation(s) of the weight function(s) (dbcsr -> fm)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_wmat, ncol_global=ncol_wmat, context=blacs_env, &
                                   para_env=force_env%sub_force_env(iforce_eval)%force_env%para_env, &
