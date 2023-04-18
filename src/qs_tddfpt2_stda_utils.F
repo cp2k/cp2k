@@ -412,8 +412,8 @@ CONTAINS
                          "Overlap matrix exhibits linear dependencies. At least some "// &
                          "eigenvalues have been quenched.")
          CALL copy_fm_to_dbcsr(fm_s_half, sm_h)
-         CALL cp_fm_release(matrix=fm_s_half)
-         CALL cp_fm_release(matrix=fm_work1)
+         CALL cp_fm_release(fm_s_half)
+         CALL cp_fm_release(fm_work1)
          IF (iounit > 0) WRITE (iounit, *)
       END IF
 
@@ -429,7 +429,7 @@ CONTAINS
       CALL cp_fm_create(matrix=fm_work1, matrix_struct=work%S_eigenvectors%matrix_struct, name="TMP MATRIX")
       CALL copy_dbcsr_to_fm(sm_s, fm_work1)
       CALL choose_eigv_solver(fm_work1, work%S_eigenvectors, work%S_eigenvalues)
-      CALL cp_fm_release(matrix=fm_work1)
+      CALL cp_fm_release(fm_work1)
       !
       ALLOCATE (slam(nsgf, 1))
       DO i = 1, nsgf
@@ -733,10 +733,7 @@ CONTAINS
          DEALLOCATE (tv)
       END DO
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(matrix=xtransformed(ispin))
-      END DO
-      DEALLOCATE (xtransformed)
+      CALL cp_fm_release(xtransformed)
       DEALLOCATE (tcharge, gtcharge)
       DEALLOCATE (first_sgf, last_sgf)
 

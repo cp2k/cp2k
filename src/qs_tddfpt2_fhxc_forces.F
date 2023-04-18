@@ -1578,10 +1578,7 @@ CONTAINS
          DEALLOCATE (tv)
       END DO
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(matrix=xtransformed(ispin))
-      END DO
-      DEALLOCATE (xtransformed)
+      CALL cp_fm_release(xtransformed)
       DEALLOCATE (tcharge, gtcharge)
       DEALLOCATE (first_sgf, last_sgf)
 

@@ -662,7 +662,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_work_matrices'
 
-      INTEGER                                            :: handle, ispin, istate
+      INTEGER                                            :: handle, ispin
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       CALL timeset(routineN, handle)
@@ -752,21 +752,11 @@ CONTAINS
          NULLIFY (work_matrices%rho_ao_orb_fm_sub)
       END IF
 
-      IF (ALLOCATED(work_matrices%evects_sub)) THEN
-         DO istate = SIZE(work_matrices%evects_sub, 2), 1, -1
-            DO ispin = SIZE(work_matrices%evects_sub, 1), 1, -1
-               CALL cp_fm_release(work_matrices%Aop_evects_sub(ispin, istate))
-               CALL cp_fm_release(work_matrices%evects_sub(ispin, istate))
-            END DO
-         END DO
-         DEALLOCATE (work_matrices%Aop_evects_sub, work_matrices%evects_sub)
-      END IF
+      CALL cp_fm_release(work_matrices%Aop_evects_sub)
+      CALL cp_fm_release(work_matrices%evects_sub)
 
-      DO ispin = SIZE(work_matrices%fm_pool_ao_mo_occ), 1, -1
-         CALL cp_fm_release(work_matrices%S_C0(ispin))
-         CALL cp_fm_release(work_matrices%S_C0_C0T(ispin))
-      END DO
-      DEALLOCATE (work_matrices%S_C0, work_matrices%S_C0_C0T)
+      CALL cp_fm_release(work_matrices%S_C0)
+      CALL cp_fm_release(work_matrices%S_C0_C0T)
 
       DO ispin = SIZE(work_matrices%fm_pool_ao_mo_occ), 1, -1
          CALL fm_pool_release(work_matrices%fm_pool_ao_mo_occ(ispin)%pool)
