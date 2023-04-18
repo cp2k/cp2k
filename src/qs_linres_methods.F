@@ -539,17 +539,16 @@ CONTAINS
       !
       !
       ! clean up
-      DO ispin = 1, nspins
-         CALL cp_fm_release(r(ispin))
-         CALL cp_fm_release(p(ispin))
-         CALL cp_fm_release(z(ispin))
-         CALL cp_fm_release(Ap(ispin))
-         !
-         CALL cp_fm_release(mo_coeff_array(ispin))
-         CALL cp_fm_release(Sc(ispin))
-         CALL cp_fm_release(chc(ispin))
-      END DO
-      DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
+      CALL cp_fm_release(r)
+      CALL cp_fm_release(p)
+      CALL cp_fm_release(z)
+      CALL cp_fm_release(Ap)
+      !
+      CALL cp_fm_release(mo_coeff_array)
+      CALL cp_fm_release(Sc)
+      CALL cp_fm_release(chc)
+      !
+      DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1)
       !
       CALL timestop(handle)
       !

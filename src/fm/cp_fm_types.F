@@ -90,10 +90,12 @@ MODULE cp_fm_types
       MODULE PROCEDURE cp_fm_release_aa0, &
          cp_fm_release_aa1, &
          cp_fm_release_aa2, &
+         cp_fm_release_aa3, &
          cp_fm_release_ap1, &
          cp_fm_release_ap2, &
          cp_fm_release_pa1, &
          cp_fm_release_pa2, &
+         cp_fm_release_pa3, &
          cp_fm_release_pp1, &
          cp_fm_release_pp2
    END INTERFACE
@@ -281,6 +283,27 @@ CONTAINS
 !> \brief ...
 !> \param matrices ...
 ! **************************************************************************************************
+   SUBROUTINE cp_fm_release_aa3(matrices)
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: matrices
+
+      INTEGER                                            :: i, j, k
+
+      IF (ALLOCATED(matrices)) THEN
+         DO i = 1, SIZE(matrices, 1)
+            DO j = 1, SIZE(matrices, 2)
+               DO k = 1, SIZE(matrices, 3)
+                  CALL cp_fm_release(matrices(i, j, k))
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (matrices)
+      END IF
+   END SUBROUTINE cp_fm_release_aa3
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrices ...
+! **************************************************************************************************
    SUBROUTINE cp_fm_release_pa1(matrices)
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: matrices
 
@@ -314,6 +337,28 @@ CONTAINS
          NULLIFY (matrices)
       END IF
    END SUBROUTINE cp_fm_release_pa2
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrices ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_release_pa3(matrices)
+      TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER      :: matrices
+
+      INTEGER                                            :: i, j, k
+
+      IF (ASSOCIATED(matrices)) THEN
+         DO i = 1, SIZE(matrices, 1)
+            DO j = 1, SIZE(matrices, 2)
+               DO k = 1, SIZE(matrices, 3)
+                  CALL cp_fm_release(matrices(i, j, k))
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (matrices)
+         NULLIFY (matrices)
+      END IF
+   END SUBROUTINE cp_fm_release_pa3
 
 ! **************************************************************************************************
 !> \brief ...

@@ -549,20 +549,14 @@ CONTAINS
    SUBROUTINE rtp_history_release(rtp)
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i
 
       IF (ASSOCIATED(rtp%history%rho_history)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%history%rho_history)
       END IF
 
-      IF (ASSOCIATED(rtp%history%mo_history)) THEN
-         DO i = 1, SIZE(rtp%history%mo_history, 1)
-            DO j = 1, SIZE(rtp%history%mo_history, 2)
-               CALL cp_fm_release(rtp%history%mo_history(i, j))
-            END DO
-         END DO
-         DEALLOCATE (rtp%history%mo_history)
-      END IF
+      CALL cp_fm_release(rtp%history%mo_history)
+
       IF (ASSOCIATED(rtp%history%s_history)) THEN
          DO i = 1, SIZE(rtp%history%s_history)
             IF (ASSOCIATED(rtp%history%s_history(i)%matrix)) &

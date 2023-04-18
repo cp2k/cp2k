@@ -329,7 +329,7 @@ CONTAINS
 
       TYPE(xas_environment_type), INTENT(INOUT)          :: xas_env
 
-      INTEGER                                            :: i, ik, j
+      INTEGER                                            :: ik
 
       DEALLOCATE (xas_env%state_of_atom, xas_env%atom_of_state)
       DEALLOCATE (xas_env%nexc_states)
@@ -346,14 +346,8 @@ CONTAINS
       END IF
       CALL fm_pools_give_back_fm_vect(xas_env%ao_mo_fm_pools, &
                                       xas_env%groundstate_coeff)
-      IF (ASSOCIATED(xas_env%dip_fm_set)) THEN
-         DO i = 1, SIZE(xas_env%dip_fm_set, 2)
-            DO j = 1, SIZE(xas_env%dip_fm_set, 1)
-               CALL cp_fm_release(xas_env%dip_fm_set(j, i))
-            END DO
-         END DO
-         DEALLOCATE (xas_env%dip_fm_set)
-      END IF
+
+      CALL cp_fm_release(xas_env%dip_fm_set)
 
       IF (ASSOCIATED(xas_env%excvec_coeff)) THEN
          CALL cp_fm_release(xas_env%excvec_coeff)

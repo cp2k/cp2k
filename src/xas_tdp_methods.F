@@ -1870,12 +1870,7 @@ CONTAINS
 !  Clean-up
       CALL cp_fm_release(opvec)
       CALL cp_fm_struct_release(tmp_fm_struct)
-      DO i = 1, dim_op
-         DO j = 1, 2
-            CALL cp_fm_release(zij_fm_set(j, i))
-         END DO
-      END DO
-      DEALLOCATE (zij_fm_set)
+      CALL cp_fm_release(zij_fm_set)
 
 !  Make sure we leave with the correct do_loc value
       qs_loc_env%do_localize = xas_tdp_control%do_loc

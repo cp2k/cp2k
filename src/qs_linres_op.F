@@ -817,23 +817,17 @@ CONTAINS
             CALL cp_cfm_release(eigrmat(ispin))
             DO i = 1, 3
                CALL cp_cfm_release(inv_mat(i, ispin))
-               CALL cp_fm_release(inv_work(1, i, ispin))
-               CALL cp_fm_release(inv_work(2, i, ispin))
             END DO
-            CALL cp_fm_release(opvec(1, ispin))
-            CALL cp_fm_release(opvec(2, ispin))
-            CALL cp_fm_release(op_fm_set(2, ispin))
-            CALL cp_fm_release(op_fm_set(1, ispin))
          END DO
+         DEALLOCATE (inv_work)
+         DEALLOCATE (eigrmat)
+
+         CALL cp_fm_release(inv_work)
+         CALL cp_fm_release(opvec)
+         CALL cp_fm_release(op_fm_set)
 
          CALL dbcsr_deallocate_matrix(cosmat)
          CALL dbcsr_deallocate_matrix(sinmat)
-
-         DEALLOCATE (inv_work)
-         DEALLOCATE (opvec)
-         DEALLOCATE (op_fm_set)
-         DEALLOCATE (eigrmat)
-         DEALLOCATE (inv_mat)
 
       END IF ! do_raman
 

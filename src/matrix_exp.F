@@ -950,13 +950,10 @@ CONTAINS
          CPWARN("ARNOLDI method did not converge")
       !deallocate all work matrices
 
-      DO i = 1, SIZE(V_mats)
-         CALL cp_fm_release(V_mats(i))
-      END DO
+      CALL cp_fm_release(V_mats)
       CALL cp_fm_struct_release(newstruct)
       CALL col_group%free()
 
-      DEALLOCATE (V_mats)
       DEALLOCATE (H_approx)
       DEALLOCATE (H_approx_save)
       DEALLOCATE (results)

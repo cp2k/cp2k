@@ -3150,10 +3150,8 @@ CONTAINS
       CALL cp_cfm_release(work1_cfm)
       CALL cp_cfm_release(work2_cfm)
       CALL cp_cfm_release(quad_cfm)
-      DO i = 1, 6
-         CALL cp_fm_release(amew_quad(i))
-      END DO
-      DEALLOCATE (amew_quad, transquad, trace)
+      CALL cp_fm_release(amew_quad)
+      DEALLOCATE (transquad, trace)
 
       CALL timestop(handle)
 

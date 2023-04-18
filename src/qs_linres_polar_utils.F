@@ -495,11 +495,10 @@ CONTAINS
       CALL set_polar_env(polar_env, run_stopped=should_stop)
 
       ! Clean up
-      DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin))
-         CALL cp_fm_release(h1_psi0(ispin))
-      END DO
-      DEALLOCATE (psi1, h1_psi0, psi0_order)
+      CALL cp_fm_release(psi1)
+      CALL cp_fm_release(h1_psi0)
+
+      DEALLOCATE (psi0_order)
 
       CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
