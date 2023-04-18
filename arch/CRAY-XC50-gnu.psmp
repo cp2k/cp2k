@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (17.04.2023)
+# Author: Matthias Krack (18.04.2023)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -270,7 +270,6 @@ ifneq ($(USE_COSMA),)
    DFLAGS         += -D__COSMA
    LIBS           += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
    LIBS           += $(COSMA_LIB)/libcosma.a
-   LIBS           += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
    LIBS           += $(COSMA_LIB)/libcosta.a
    LIBS           += $(COSMA_LIB)/libTiled-MM.a
 endif
