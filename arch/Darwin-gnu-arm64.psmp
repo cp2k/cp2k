@@ -11,7 +11,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (17.04.2023)
+# Author: Matthias Krack (18.04.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -232,11 +232,10 @@ ifneq ($(USE_COSMA),)
    CFLAGS         += -I$(COSMA_INC)
    DFLAGS         += -D__COSMA
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath,$(COSMA_LIB) -L$(COSMA_LIB) -lcosma_prefixed_pxgemm -lcosma -lcosta_prefixed_scalapack -lcosta
+      LIBS           += -Wl,-rpath,$(COSMA_LIB) -L$(COSMA_LIB) -lcosma_prefixed_pxgemm -lcosma -lcosta
    else
       LIBS           += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
       LIBS           += $(COSMA_LIB)/libcosma.a
-      LIBS           += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
       LIBS           += $(COSMA_LIB)/libcosta.a
    endif
 endif
