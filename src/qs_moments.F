@@ -2086,15 +2086,11 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(cosmat)
       CALL dbcsr_deallocate_matrix(sinmat)
 
+      CALL cp_fm_release(opvec)
+      CALL cp_fm_release(op_fm_set)
       DO ispin = 1, dft_control%nspins
-         CALL cp_fm_release(opvec(ispin))
          CALL cp_cfm_release(eigrmat(ispin))
-         DO i = 1, SIZE(op_fm_set, 1)
-            CALL cp_fm_release(op_fm_set(i, ispin))
-         END DO
       END DO
-      DEALLOCATE (op_fm_set)
-      DEALLOCATE (opvec)
       DEALLOCATE (eigrmat)
 
       CALL timestop(handle)
