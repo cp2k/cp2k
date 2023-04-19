@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (18.04.2023)
+# Author: Matthias Krack (19.04.2023)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -51,12 +51,15 @@
    source ${PWD}/tools/toolchain/install/setup; \
    printf "done\n"; \
    echo "Check the output above for error messages and consistency!"; \
+   echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
    echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
    echo "or build CP2K as a library with"; \
    echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} libcp2k"; \
+   echo; \
    return
 
 # Set options
