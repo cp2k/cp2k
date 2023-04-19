@@ -66,7 +66,7 @@ case "$with_cosma" in
           ;;
       esac
 
-      cd "COSTA-2.2"
+      cd "COSTA-${costa_ver}"
       [ -d build-cpu ] && rm -Rf build-cpu
       mkdir build-cpu && cd build-cpu
       cmake \
@@ -114,7 +114,7 @@ case "$with_cosma" in
       fi
       cd ..
 
-      cd Tiled-MM-2.2
+      cd Tiled-MM-${tiled_mm_ver}
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
         mkdir build-cuda && cd build-cuda
         cmake \
@@ -148,7 +148,7 @@ case "$with_cosma" in
       fi
       cd ..
 
-      cd COSMA-2.6.5 && mkdir build-cpu && cd build-cpu
+      cd COSMA-${cosma_ver} && mkdir build-cpu && cd build-cpu
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
