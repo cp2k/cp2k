@@ -2234,6 +2234,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: rtp_section
 
       INTEGER, DIMENSION(:), POINTER                     :: tmp
+      LOGICAL                                            :: is_present
+      TYPE(section_vals_type), POINTER                   :: proj_mo_section
 
       ALLOCATE (dft_control%rtp_control)
       CALL section_vals_val_get(rtp_section, "MAX_ITER", &
@@ -2277,6 +2279,19 @@ CONTAINS
       dft_control%rtp_control%delta_pulse_direction = tmp
       CALL section_vals_val_get(rtp_section, "SC_CHECK_START", &
                                 i_val=dft_control%rtp_control%sc_check_start)
+      proj_mo_section => section_vals_get_subs_vals(rtp_section, "PRINT%PROJECTION_MO")
+      CALL section_vals_get(proj_mo_section, explicit=is_present)
+      IF (is_present) THEN
+         IF (dft_control%rtp_control%linear_scaling) &
+            CALL cp_abort(__LOCATION__, &
+                          "You have defined a time dependent projection of mos, but "// &
+                          " only the density matrix is propagated (DENSITY_PROPAGATION "// &
+                          ".TRUE.). Please either use MO-based real time DFT or do not "// &
+                          "define any PRINT%PROJECTION_MO section")
+         dft_control%rtp_control%is_proj_mo = .TRUE.
+      ELSE
+         dft_control%rtp_control%is_proj_mo = .FALSE.
+      END IF
 
    END SUBROUTINE read_rtp_section
 

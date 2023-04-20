@@ -248,6 +248,7 @@ list(
   input_cp2k_negf.F
   input_cp2k_nnp.F
   input_cp2k_poisson.F
+  input_cp2k_projection_rtp.F
   input_cp2k_properties_dft.F
   input_cp2k_pwdft.F
   input_cp2k_qmmm.F
@@ -926,6 +927,7 @@ list(
   emd/rt_delta_pulse.F
   emd/rt_hfx_utils.F
   emd/rt_make_propagators.F
+  emd/rt_projection_mo_utils.F
   emd/rt_propagation_methods.F
   emd/rt_propagation_output.F
   emd/rt_propagation_utils.F

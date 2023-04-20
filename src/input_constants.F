@@ -921,6 +921,9 @@ MODULE input_constants
                                                ramp_env = 3, &
                                                custom_env = 4
 
+   INTEGER, PARAMETER, PUBLIC               :: proj_mo_ref_scf = 1, &
+                                               proj_mo_ref_xas_tdp = 2
+
    ! how to solve polarizable force fields
    INTEGER, PARAMETER, PUBLIC               :: do_fist_pol_none = 1, &
                                                do_fist_pol_sc = 2, &

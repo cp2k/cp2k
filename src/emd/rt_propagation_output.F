@@ -83,6 +83,7 @@ MODULE rt_propagation_output
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE rt_projection_mo_utils,          ONLY: compute_and_write_proj_mo
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
    USE rt_propagation_utils,            ONLY: calculate_P_imaginary,&
@@ -115,7 +116,8 @@ CONTAINS
       INTEGER, INTENT(in)                                :: run_type
       REAL(dp), INTENT(in), OPTIONAL                     :: delta_iter, used_time
 
-      INTEGER                                            :: n_electrons, nspin, output_unit, spin
+      INTEGER                                            :: n_electrons, n_proj, nspin, output_unit, &
+                                                            spin
       REAL(dp)                                           :: orthonormality, tot_rho_r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -243,6 +245,12 @@ CONTAINS
                      CALL rt_current(qs_env, P_im(spin)%matrix, dft_section, spin, nspin)
                   END DO
                   CALL dbcsr_deallocate_matrix_set(P_im)
+               END IF
+               IF (dft_control%rtp_control%is_proj_mo) THEN
+                  DO n_proj = 1, SIZE(dft_control%rtp_control%proj_mo_list)
+                     CALL compute_and_write_proj_mo(qs_env, mos_new, &
+                                                    dft_control%rtp_control%proj_mo_list(n_proj)%proj_mo, n_proj)
+                  END DO
                END IF
             END IF
             CALL write_rt_mos_to_restart(qs_env%mos, mos_new, particle_set, &
@@ -860,6 +868,10 @@ CONTAINS
          WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
             (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
       END IF
+
+      CALL cp_print_key_finished_output(unit_nr, logger, dft_section, &
+                                        "REAL_TIME_PROPAGATION%PRINT%FIELD")
+
    END SUBROUTINE print_field_applied
 
 END MODULE rt_propagation_output

@@ -120,6 +120,7 @@ MODULE input_cp2k_dft
    USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
                                               create_neighbor_lists_section
    USE input_cp2k_poisson,              ONLY: create_poisson_section
+   USE input_cp2k_projection_rtp,       ONLY: create_projection_rtp_section
    USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
    USE input_cp2k_tb,                   ONLY: create_dftb_control_section,&
                                               create_xtb_control_section
@@ -8666,6 +8667,10 @@ CONTAINS
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
                                        filename="applied_field")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+
+      CALL create_projection_rtp_section(print_key)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 

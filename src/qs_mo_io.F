@@ -90,6 +90,7 @@ MODULE qs_mo_io
              write_mo_set_to_output_unit, &
              write_mo_set_to_restart, &
              read_mo_set_from_restart, &
+             read_mos_restart_low, &
              write_mo_set_low
 
 CONTAINS
