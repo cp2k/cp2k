@@ -1085,12 +1085,8 @@ CONTAINS
       nspins = active_space_env%nspins
 
       ! Kohn-Sham / Fock operator
-      IF (ASSOCIATED(active_space_env%ks_sub)) THEN
-         DO is = 1, SIZE(active_space_env%ks_sub)
-            CALL cp_fm_release(active_space_env%ks_sub(is))
-         END DO
-         DEALLOCATE (active_space_env%ks_sub)
-      END IF
+      CALL cp_fm_release(active_space_env%ks_sub)
+
       CALL get_qs_env(qs_env, matrix_ks_kp=ks_matrix)
       IF (SIZE(ks_matrix, 2) > 1) THEN
          CPABORT("No k-points allowed at this point")
@@ -1102,12 +1098,8 @@ CONTAINS
       END DO
 
       ! Vxc matrix
-      IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
-         DO is = 1, SIZE(active_space_env%vxc_sub)
-            CALL cp_fm_release(active_space_env%vxc_sub(is))
-         END DO
-         DEALLOCATE (active_space_env%vxc_sub)
-      END IF
+      CALL cp_fm_release(active_space_env%vxc_sub)
+
       NULLIFY (matrix_vxc)
       CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
       IF (ASSOCIATED(matrix_vxc)) THEN
@@ -1119,12 +1111,8 @@ CONTAINS
       END IF
 
       ! Core Hamiltonian
-      IF (ASSOCIATED(active_space_env%h_sub)) THEN
-         DO is = 1, SIZE(active_space_env%h_sub)
-            CALL cp_fm_release(active_space_env%h_sub(is))
-         END DO
-         DEALLOCATE (active_space_env%h_sub)
-      END IF
+      CALL cp_fm_release(active_space_env%h_sub)
+
       NULLIFY (h_matrix)
       CALL get_qs_env(qs_env=qs_env, matrix_h_kp=h_matrix)
       IF (SIZE(h_matrix, 2) > 1) THEN
@@ -2024,12 +2012,7 @@ CONTAINS
          !
          active_space_env%energy_inactive = esub
          !
-         IF (ASSOCIATED(active_space_env%fock_sub)) THEN
-            DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(is))
-            END DO
-            DEALLOCATE (active_space_env%fock_sub)
-         END IF
+         CALL cp_fm_release(active_space_env%fock_sub)
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)
@@ -2078,12 +2061,7 @@ CONTAINS
          !
          active_space_env%energy_inactive = esub
          !
-         IF (ASSOCIATED(active_space_env%fock_sub)) THEN
-            DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(is))
-            END DO
-            DEALLOCATE (active_space_env%fock_sub)
-         END IF
+         CALL cp_fm_release(active_space_env%fock_sub)
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)

@@ -192,7 +192,7 @@ CONTAINS
 
       TYPE(qs_loc_env_type), INTENT(INOUT)               :: qs_loc_env
 
-      INTEGER                                            :: i, ii, j
+      INTEGER                                            :: i, j
 
       IF (ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell)
       IF (ASSOCIATED(qs_loc_env%local_molecules)) &
@@ -203,22 +203,8 @@ CONTAINS
       IF (ASSOCIATED(qs_loc_env%para_env)) CALL mp_para_env_release(qs_loc_env%para_env)
       IF (ASSOCIATED(qs_loc_env%particle_set)) NULLIFY (qs_loc_env%particle_set)
 
-      IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
-         DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
-            ii = LBOUND(qs_loc_env%moloc_coeff, 1) + i - 1
-            CALL cp_fm_release(qs_loc_env%moloc_coeff(ii))
-         END DO
-         DEALLOCATE (qs_loc_env%moloc_coeff)
-      END IF
-
-      IF (ASSOCIATED(qs_loc_env%op_fm_set)) THEN
-         DO i = 1, SIZE(qs_loc_env%op_fm_set, 2)
-            DO j = 1, SIZE(qs_loc_env%op_fm_set, 1)
-               CALL cp_fm_release(qs_loc_env%op_fm_set(j, i))
-            END DO
-         END DO
-         DEALLOCATE (qs_loc_env%op_fm_set)
-      END IF
+      CALL cp_fm_release(qs_loc_env%moloc_coeff)
+      CALL cp_fm_release(qs_loc_env%op_fm_set)
 
       IF (ASSOCIATED(qs_loc_env%op_sm_set)) THEN
          DO i = 1, SIZE(qs_loc_env%op_sm_set, 2)
@@ -388,8 +374,6 @@ CONTAINS
       REAL(dp), DIMENSION(6), OPTIONAL                   :: weights
       INTEGER, OPTIONAL                                  :: dim_op
 
-      INTEGER                                            :: i
-
       IF (PRESENT(cell)) THEN
          CALL cell_retain(cell)
          CALL cell_release(qs_loc_env%cell)
@@ -415,12 +399,7 @@ CONTAINS
       END IF
       IF (PRESENT(particle_set)) qs_loc_env%particle_set => particle_set
       IF (PRESENT(moloc_coeff)) THEN
-         IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
-            DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
-               CALL cp_fm_release(qs_loc_env%moloc_coeff(i))
-            END DO
-            DEALLOCATE (qs_loc_env%moloc_coeff)
-         END IF
+         CALL cp_fm_release(qs_loc_env%moloc_coeff)
          qs_loc_env%moloc_coeff => moloc_coeff
       END IF
       IF (PRESENT(op_sm_set)) THEN

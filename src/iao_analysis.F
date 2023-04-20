@@ -507,10 +507,7 @@ CONTAINS
                !
                CALL jacobi_rotation_pipek(zij_atom, cloc(ispin), sweeps)
                !
-               DO iatom = 1, natom
-                  CALL cp_fm_release(zij_atom(iatom, 1))
-               END DO
-               DEALLOCATE (zij_atom)
+               CALL cp_fm_release(zij_atom)
                NULLIFY (fm_struct)
                CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
                                         template_fmstruct=cloc(ispin)%matrix_struct)
@@ -521,10 +518,7 @@ CONTAINS
             END IF
          END DO
          DEALLOCATE (first_sgf, last_sgf, nsgfat)
-         DO ispin = 1, nspin
-            CALL cp_fm_release(cloc(ispin))
-         END DO
-         DEALLOCATE (cloc)
+         CALL cp_fm_release(cloc)
          !
          IF (iao_env%do_center) THEN
             IF (unit_nr > 0) THEN
@@ -582,10 +576,7 @@ CONTAINS
             CALL print_ibo_cubes(qs_env, ibo_cubes_section, c_loc_orb)
          END IF
          !
-         DO ispin = 1, nspin
-            CALL cp_fm_release(c_loc_orb(ispin))
-         END DO
-         DEALLOCATE (c_loc_orb)
+         CALL cp_fm_release(c_loc_orb)
       END IF
 
       ! Deallocate the neighbor list structure
@@ -599,12 +590,9 @@ CONTAINS
       CALL cp_fm_release(p_ref_orb)
       CALL cp_fm_release(p_orb_ref)
 
-      DO ispin = 1, nspin
-         CALL cp_fm_release(iao_coef(ispin))
-         CALL cp_fm_release(cvec(ispin))
-         CALL cp_fm_release(ciao(ispin))
-      END DO
-      DEALLOCATE (iao_coef, cvec, ciao)
+      CALL cp_fm_release(iao_coef)
+      CALL cp_fm_release(cvec)
+      CALL cp_fm_release(ciao)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') &
@@ -1341,12 +1329,7 @@ CONTAINS
             moments(5, istate, ispin) = spread_ii
          END DO
 
-         DO i = 1, dim_op
-            DO j = 1, 2
-               CALL cp_fm_release(zij(j, i))
-            END DO
-         END DO
-         DEALLOCATE (zij)
+         CALL cp_fm_release(zij)
 
       END DO
 
