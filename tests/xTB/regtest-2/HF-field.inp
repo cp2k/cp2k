@@ -21,6 +21,7 @@
          MINIMIZER        DIIS
          LINESEARCH       3PNT
          PRECONDITIONER   FULL_S_INVERSE
+         STEPSIZE         0.1
       &END OT
     &END SCF
     &POISSON
