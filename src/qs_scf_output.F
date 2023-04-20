@@ -715,6 +715,9 @@ CONTAINS
             IF (energy%gcp /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "gCP energy:                                    ", energy%gcp
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
             IF (gapw) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "GAPW| Exc from hard and soft atomic rho1:      ", exc1_energy, &

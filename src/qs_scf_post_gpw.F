@@ -66,6 +66,8 @@ MODULE qs_scf_post_gpw
                                               release_hirshfeld_type,&
                                               set_hirshfeld_info
    USE iao_analysis,                    ONLY: iao_wfn_analysis
+   USE iao_types,                       ONLY: iao_env_type,&
+                                              iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_lumo, do_loc_mixed, ot_precond_full_all, radius_covalent, &
         radius_user, ref_charge_atomic, ref_charge_mulliken
@@ -1908,6 +1910,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_rmpv, matrix_vxc, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
+      TYPE(iao_env_type)                                 :: iao_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2659,7 +2662,10 @@ CONTAINS
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%IAO_ANALYSIS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IAO_ANALYSIS", extension=".iao", log_filename=.FALSE.)
-         CALL iao_wfn_analysis(qs_env, print_key, unit_nr)
+         CALL iao_read_input(iao_env, print_key, cell)
+         IF (iao_env%do_iao) THEN
+            CALL iao_wfn_analysis(qs_env, iao_env, unit_nr)
+         END IF
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%IAO_ANALYSIS")
       END IF
 
