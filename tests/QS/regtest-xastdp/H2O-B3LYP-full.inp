@@ -51,6 +51,9 @@
       &END KERNEL
 
       &PRINT
+         &RESTART_WFN
+           EXCITED_STATE_INDEX 1
+         &END RESTART_WFN
          &RESTART
          &END RESTART
       &END PRINT

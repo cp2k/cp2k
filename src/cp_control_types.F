@@ -38,7 +38,24 @@ MODULE cp_control_types
       INTEGER, DIMENSION(2)                :: distribution_layout
       INTEGER                              :: blocked
    END TYPE pw_grid_option
+! **************************************************************************************************
+! \brief parameters for EMD/RTP calculations involving MO projections
+! **************************************************************************************************
+   TYPE proj_mo_type
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: ref_mo_index
+      INTEGER                                    :: ref_mo_spin = 1
+      LOGICAL                                    :: sum_on_all_ref = .FALSE.
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: td_mo_index
+      INTEGER                                    :: td_mo_spin = 1
+      LOGICAL                                    :: sum_on_all_td = .FALSE.
+      CHARACTER(LEN=default_path_length)         :: ref_mo_file_name = ""
+      TYPE(cp_fm_type), DIMENSION(:), &
+         ALLOCATABLE                       :: mo_ref
+   END TYPE proj_mo_type
 
+   TYPE proj_mo_p_type
+      TYPE(proj_mo_type), POINTER                :: proj_mo => NULL()
+   END TYPE proj_mo_p_type
 ! **************************************************************************************************
 ! \brief Control parameters for REAL_TIME_PROPAGATION calculations
 ! **************************************************************************************************
@@ -68,6 +85,9 @@ MODULE cp_control_types
       LOGICAL                              :: velocity_gauge
       REAL(KIND=dp), DIMENSION(3)          :: vec_pot
       LOGICAL                              :: nl_gauge_transform
+      LOGICAL                              :: is_proj_mo
+      TYPE(proj_mo_p_type), DIMENSION(:), &
+         POINTER                :: proj_mo_list => NULL()
    END TYPE rtp_control_type
 ! **************************************************************************************************
 ! \brief Control parameters for DFTB calculations
@@ -598,6 +618,7 @@ MODULE cp_control_types
              gapw_control_type, &
              tddfpt_control_type, &
              tddfpt2_control_type, &
+             proj_mo_type, &
              efield_type, &
              mulliken_restraint_type, &
              ddapc_restraint_type, &
@@ -775,6 +796,7 @@ CONTAINS
          DEALLOCATE (dft_control%period_efield)
       END IF
       IF (ASSOCIATED(dft_control%rtp_control)) THEN
+         CALL proj_mo_list_release(dft_control%rtp_control%proj_mo_list)
          DEALLOCATE (dft_control%rtp_control)
       END IF
 
@@ -923,6 +945,35 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt2_control_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param proj_mo_list ...
+! **************************************************************************************************
+   SUBROUTINE proj_mo_list_release(proj_mo_list)
+      TYPE(proj_mo_p_type), DIMENSION(:), POINTER        :: proj_mo_list
+
+      INTEGER                                            :: i, mo_ref_nbr
+
+      IF (ASSOCIATED(proj_mo_list)) THEN
+         DO i = 1, SIZE(proj_mo_list)
+            IF (ASSOCIATED(proj_mo_list(i)%proj_mo)) THEN
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%ref_mo_index)) &
+                  DEALLOCATE (proj_mo_list(i)%proj_mo%ref_mo_index)
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%mo_ref)) THEN
+                  DO mo_ref_nbr = 1, SIZE(proj_mo_list(i)%proj_mo%mo_ref)
+                     CALL cp_fm_release(proj_mo_list(i)%proj_mo%mo_ref(mo_ref_nbr))
+                  END DO
+                  DEALLOCATE (proj_mo_list(i)%proj_mo%mo_ref)
+               END IF
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_index)) &
+                  DEALLOCATE (proj_mo_list(i)%proj_mo%td_mo_index)
+               DEALLOCATE (proj_mo_list(i)%proj_mo)
+            END IF
+         END DO
+         DEALLOCATE (proj_mo_list)
+      END IF
+   END SUBROUTINE proj_mo_list_release
 
 ! **************************************************************************************************
 !> \brief ...
