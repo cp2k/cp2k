@@ -82,19 +82,19 @@ MODULE qs_loc_types
       LOGICAL                                     :: molecular_states
       LOGICAL                                     :: wannier_states
       CHARACTER(LEN=default_string_length)        :: tag_mo
-      TYPE(mp_para_env_type), POINTER             :: para_env
+      TYPE(mp_para_env_type), POINTER             :: para_env => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                                  :: moloc_coeff
+         POINTER                                  :: moloc_coeff => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), &
-         POINTER                                  :: op_fm_set
-      TYPE(distribution_1d_type), POINTER         :: local_molecules
-      TYPE(cell_type), POINTER                    :: cell
+         POINTER                                  :: op_fm_set => NULL()
+      TYPE(distribution_1d_type), POINTER         :: local_molecules => NULL()
+      TYPE(cell_type), POINTER                    :: cell => NULL()
       TYPE(localized_wfn_control_type), &
-         POINTER                                  :: localized_wfn_control
+         POINTER                                  :: localized_wfn_control => NULL()
       TYPE(particle_type), DIMENSION(:), &
-         POINTER                                  :: particle_set
+         POINTER                                  :: particle_set => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
-         POINTER                                  :: op_sm_set
+         POINTER                                  :: op_sm_set => NULL()
       REAL(KIND=dp)                               :: start_time, target_time
       REAL(KIND=dp)                               :: weights(6)
       INTEGER                                     :: dim_op
@@ -143,7 +143,7 @@ MODULE qs_loc_types
       LOGICAL                              :: do_mixed, do_cg_po
       LOGICAL                              :: loc_restart
       LOGICAL                              :: use_history
-      INTEGER, POINTER, DIMENSION(:, :)    :: loc_states
+      INTEGER, POINTER, DIMENSION(:, :)    :: loc_states => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
    END TYPE localized_wfn_control_type
 
@@ -192,7 +192,7 @@ CONTAINS
 
       TYPE(qs_loc_env_type), INTENT(INOUT)               :: qs_loc_env
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i, ii, j
 
       IF (ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell)
       IF (ASSOCIATED(qs_loc_env%local_molecules)) &
@@ -203,7 +203,14 @@ CONTAINS
       IF (ASSOCIATED(qs_loc_env%para_env)) CALL mp_para_env_release(qs_loc_env%para_env)
       IF (ASSOCIATED(qs_loc_env%particle_set)) NULLIFY (qs_loc_env%particle_set)
 
-      CALL cp_fm_release(qs_loc_env%moloc_coeff)
+      IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
+         DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
+            ii = LBOUND(qs_loc_env%moloc_coeff, 1) + i - 1
+            CALL cp_fm_release(qs_loc_env%moloc_coeff(ii))
+         END DO
+         DEALLOCATE (qs_loc_env%moloc_coeff)
+      END IF
+
       CALL cp_fm_release(qs_loc_env%op_fm_set)
 
       IF (ASSOCIATED(qs_loc_env%op_sm_set)) THEN
