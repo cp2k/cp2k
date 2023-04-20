@@ -59,9 +59,8 @@ MODULE iao_analysis
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type, &
         dbcsr_type_no_symmetry
+   USE iao_types,                       ONLY: iao_env_type
    USE input_section_types,             ONLY: section_get_ivals,&
-                                              section_vals_get,&
-                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
@@ -130,31 +129,33 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param input_section ...
+!> \param iao_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE iao_wfn_analysis(qs_env, input_section, unit_nr)
+   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(section_vals_type), POINTER                   :: input_section
+      TYPE(iao_env_type), INTENT(IN)                     :: iao_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_wfn_analysis'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER :: handle, i, iatom, ikind, isgf, ispin, lb, lmax_oce, mao, nao, natom, nbas_oce, &
-         ne, nimages, nkind, norb, nref, nsgf, nspin, nvec, sweeps, ub, z
+      INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
+                                                            lb, mao, nao, natom, ne, nimages, &
+                                                            nkind, norb, nref, nsgf, nspin, nvec, &
+                                                            sweeps, ub, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(2)                              :: nocc
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL :: append_oce, cubes_iao, cubes_ibo, do_bondorbitals, do_center, do_charges, do_oce, &
-         explicit, molden_iao, molden_ibo, pos_periodic, uniform_occupation
-      REAL(KIND=dp)                                      :: eps_occ, eps_svd, trace, zval
+      LOGICAL                                            :: cubes_iao, cubes_ibo, do_bondorbitals, &
+                                                            molden_iao, molden_ibo, &
+                                                            uniform_occupation
+      REAL(KIND=dp)                                      :: trace, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: smat_kind
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: oce_atom
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -180,11 +181,10 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: iao_cubes_section, iao_molden_section, &
                                                             ibo_cc_section, ibo_cubes_section, &
-                                                            ibo_molden_section, subsection
+                                                            ibo_molden_section
 
       ! only do IAO analysis if explicitly requested
-      CALL section_vals_get(input_section, explicit=explicit)
-      IF (.NOT. explicit) RETURN
+      CPASSERT(iao_env%do_iao)
 
       ! k-points?
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -208,43 +208,12 @@ CONTAINS
       END IF
       CALL cite_reference(Knizia2013)
 
-      ! input options
-      CALL section_vals_val_get(input_section, "EPS_SVD", r_val=eps_svd)
-      CALL section_vals_val_get(input_section, "EPS_OCC", r_val=eps_occ)
-      CALL section_vals_val_get(input_section, "ATOMIC_CHARGES", l_val=do_charges)
-      iao_molden_section => section_vals_get_subs_vals(input_section, "IAO_MOLDEN")
-      CALL section_vals_get(iao_molden_section, explicit=molden_iao)
-      iao_cubes_section => section_vals_get_subs_vals(input_section, "IAO_CUBES")
-      CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
-      subsection => section_vals_get_subs_vals(input_section, "ONE_CENTER_EXPANSION")
-      CALL section_vals_get(subsection, explicit=do_oce)
-      IF (do_oce) THEN
-         subsection => section_vals_get_subs_vals(input_section, "ONE_CENTER_EXPANSION")
-         CALL section_vals_val_get(subsection, "LMAX", i_val=lmax_oce)
-         CALL section_vals_val_get(subsection, "NBAS", i_val=nbas_oce)
-         CALL section_vals_val_get(subsection, "APPEND", l_val=append_oce)
-      END IF
-      subsection => section_vals_get_subs_vals(input_section, "BOND_ORBITALS")
-      CALL section_vals_get(subsection, explicit=do_bondorbitals)
-      IF (do_bondorbitals) THEN
-         subsection => section_vals_get_subs_vals(input_section, "BOND_ORBITALS")
-         ibo_molden_section => section_vals_get_subs_vals(subsection, "IBO_MOLDEN")
-         CALL section_vals_get(ibo_molden_section, explicit=molden_ibo)
-         ibo_cubes_section => section_vals_get_subs_vals(subsection, "IBO_CUBES")
-         CALL section_vals_get(ibo_cubes_section, explicit=cubes_ibo)
-         ibo_cc_section => section_vals_get_subs_vals(subsection, "CHARGE_CENTER")
-         CALL section_vals_get(ibo_cc_section, explicit=do_center)
-         IF (do_center) THEN
-            CALL get_qs_env(qs_env, cell=cell)
-            CALL section_vals_val_get(ibo_cc_section, "POSITION_OPERATOR_BERRY", &
-                                      l_val=pos_periodic, explicit=explicit)
-            IF (.NOT. explicit) THEN
-               ! set default according to cell periodicity
-               pos_periodic = .TRUE.
-               IF (ALL(cell%perd == 0)) pos_periodic = .FALSE.
-            END IF
-         END IF
-      END IF
+      ! input sections
+      iao_molden_section => iao_env%iao_molden_section
+      iao_cubes_section => iao_env%iao_cubes_section
+      ibo_molden_section => iao_env%ibo_molden_section
+      ibo_cubes_section => iao_env%ibo_cubes_section
+      ibo_cc_section => iao_env%ibo_cc_section
 
       ! check for or generate reference basis
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
@@ -318,7 +287,7 @@ CONTAINS
       CALL cp_fm_create(p_orb_ref, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       !
-      CALL iao_projectors(smat, sref(1)%matrix, sro(1)%matrix, p_orb_ref, p_ref_orb, eps_svd)
+      CALL iao_projectors(smat, sref(1)%matrix, sro(1)%matrix, p_orb_ref, p_ref_orb, iao_env%eps_svd)
 
       ! occupied orbitals
       nocc(1:2) = 0
@@ -330,7 +299,7 @@ CONTAINS
          ELSE
             nvec = 0
             DO i = 1, norb
-               IF (occupation_numbers(i) > eps_occ) THEN
+               IF (occupation_numbers(i) > iao_env%eps_occ) THEN
                   nvec = i
                ELSE
                   EXIT
@@ -375,7 +344,7 @@ CONTAINS
          CALL cp_fm_release(smo)
       END DO
       !
-      IF (do_charges) THEN
+      IF (iao_env%do_charges) THEN
          ! population analysis
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T2,A)') 'Intrinsic AO Population Analysis '
@@ -405,7 +374,7 @@ CONTAINS
          DEALLOCATE (mcharge)
       END IF
       !
-      IF (do_oce) THEN
+      IF (iao_env%do_oce) THEN
          ! generate OCE basis
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A)') "IAO One-Center Expansion: OCE Basis Set"
@@ -415,7 +384,7 @@ CONTAINS
             orbbasis => orb_basis_set_list(ikind)%gto_basis_set
             CPASSERT(ASSOCIATED(orbbasis))
             NULLIFY (ocebasis)
-            CALL create_oce_basis(ocebasis, orbbasis, lmax_oce, nbas_oce)
+            CALL create_oce_basis(ocebasis, orbbasis, iao_env%lmax_oce, iao_env%nbas_oce)
             CALL init_orb_basis_set(ocebasis)
             CALL init_interaction_radii_orb_basis(ocebasis, dft_control%qs_control%eps_pgf_orb)
             oce_basis_set_list(ikind)%gto_basis_set => ocebasis
@@ -557,10 +526,10 @@ CONTAINS
          END DO
          DEALLOCATE (cloc)
          !
-         IF (do_center) THEN
+         IF (iao_env%do_center) THEN
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A)') '  Calculate Localized Orbital Centers and Spread'
-               IF (pos_periodic) THEN
+               IF (iao_env%pos_periodic) THEN
                   WRITE (unit_nr, '(T2,A)') '    Use Berry Phase Position Operator'
                ELSE
                   WRITE (unit_nr, '(T2,A)') '    Use Local Position Operator'
@@ -570,7 +539,7 @@ CONTAINS
             ! x  y  z  m2(1)  m2(2)
             ALLOCATE (moments(5, nvec, nspin))
             moments = 0.0_dp
-            IF (pos_periodic) THEN
+            IF (iao_env%pos_periodic) THEN
                CALL center_spread_berry(qs_env, c_loc_orb, moments)
             ELSE
                CALL center_spread_loc(qs_env, c_loc_orb, moments)
