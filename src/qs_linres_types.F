@@ -1302,6 +1302,8 @@ CONTAINS
          END IF
          CALL cp_fm_release(polar_env%dBerry_psi0)
          CALL cp_fm_release(polar_env%psi1_dBerry)
+         DEALLOCATE (polar_env)
+         NULLIFY (polar_env)
       END IF
 
    END SUBROUTINE polar_env_release
