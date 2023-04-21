@@ -2252,11 +2252,8 @@ CONTAINS
       !clean-up
       IF (dft_control%do_admm) CALL dbcsr_deallocate_matrix_set(YP_admm)
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(cpmos(ispin))
-         CALL cp_fm_release(mo_occ(ispin))
-      END DO
-      DEALLOCATE (cpmos, mo_occ)
+      CALL cp_fm_release(cpmos)
+      CALL cp_fm_release(mo_occ)
       CALL p_env_release(p_env)
       DEALLOCATE (p_env)
 

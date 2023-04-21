@@ -255,18 +255,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_kp_matrices'
 
-      INTEGER                                            :: handle, i_size, j_size
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      DO i_size = 1, SIZE(fm_mat_Minv_L_kpoints, 1)
-         DO j_size = 1, SIZE(fm_mat_Minv_L_kpoints, 2)
-            CALL cp_fm_release(fm_mat_Minv_L_kpoints(i_size, j_size))
-            CALL cp_fm_release(fm_matrix_L_kpoints(i_size, j_size))
-         END DO
-      END DO
-      DEALLOCATE (fm_mat_Minv_L_kpoints)
-      DEALLOCATE (fm_matrix_L_kpoints)
+      CALL cp_fm_release(fm_mat_Minv_L_kpoints)
+      CALL cp_fm_release(fm_matrix_L_kpoints)
 
       CALL timestop(handle)
 

@@ -510,12 +510,7 @@ CONTAINS
          ! energy
          ex_env%evalue = evals(my_state)
          ! excitation vector
-         IF (ASSOCIATED(ex_env%evect)) THEN
-            DO ispin = 1, SIZE(ex_env%evect)
-               CALL cp_fm_release(ex_env%evect(ispin))
-            END DO
-            DEALLOCATE (ex_env%evect)
-         END IF
+         CALL cp_fm_release(ex_env%evect)
          ALLOCATE (ex_env%evect(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct)
@@ -538,13 +533,9 @@ CONTAINS
       END IF
 
       ! clean up
-      DO istate = 1, SIZE(evects, 2)
-         DO ispin = 1, nspins
-            CALL cp_fm_release(evects(ispin, istate))
-            CALL cp_fm_release(S_evects(ispin, istate))
-         END DO
-      END DO
-      DEALLOCATE (evects, S_evects, evals, ostrength)
+      CALL cp_fm_release(evects)
+      CALL cp_fm_release(S_evects)
+      DEALLOCATE (evals, ostrength)
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          IF (do_admm) CALL release_kernel_env(kernel_env%admm_kernel)
@@ -565,14 +556,7 @@ CONTAINS
       CALL tddfpt_release_work_matrices(work_matrices, sub_env)
       CALL tddfpt_sub_env_release(sub_env)
 
-      IF (ALLOCATED(dipole_op_mos_occ)) THEN
-         DO ispin = nspins, 1, -1
-            DO istate = SIZE(dipole_op_mos_occ, 1), 1, -1
-               CALL cp_fm_release(dipole_op_mos_occ(istate, ispin))
-            END DO
-         END DO
-         DEALLOCATE (dipole_op_mos_occ)
-      END IF
+      CALL cp_fm_release(dipole_op_mos_occ)
 
       DO ispin = nspins, 1, -1
          CALL tddfpt_release_ground_state_mos(gs_mos(ispin))

@@ -640,11 +640,8 @@ CONTAINS
             END DO
          END DO
          !
-         DO ispin = 1, nspins
-            CALL cp_fm_release(awork(ispin))
-            CALL cp_fm_release(vomat(ispin))
-         END DO
-         DEALLOCATE (awork, vomat)
+         CALL cp_fm_release(awork)
+         CALL cp_fm_release(vomat)
       END IF
 
       CALL timestop(handle)

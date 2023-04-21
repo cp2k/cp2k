@@ -949,7 +949,6 @@ list(
   fm/cp_fm_pool_types.F
   fm/cp_fm_types.F
   fm/cp_fm_struct.F
-  fm/cp_fm_vect.F
   fm/cp_linked_list_fm.F)
 
 list(APPEND CP2K_SRCS_F hfxbase/hfx_compression_core_methods.F

@@ -524,11 +524,8 @@ CONTAINS
       !
       !
       ! Dellocate grids for the calculation of jrho and the shift
-      DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin))
-         CALL cp_fm_release(p_psi1(ispin))
-      END DO
-      DEALLOCATE (psi1, p_psi1)
+      CALL cp_fm_release(psi1)
+      CALL cp_fm_release(p_psi1)
 
       CALL dbcsr_deallocate_matrix_set(density_matrix0)
       CALL dbcsr_deallocate_matrix_set(density_matrix_a)

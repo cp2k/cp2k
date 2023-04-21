@@ -623,7 +623,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, nspins
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -632,10 +632,7 @@ CONTAINS
       my_open_shell = (nspins == 2)
 
       IF (my_do_gw) THEN
-         DO ispin = 1, nspins
-            CALL cp_fm_release(fm_mat_S_gw_work(ispin))
-         END DO
-         DEALLOCATE (fm_mat_S_gw_work)
+         CALL cp_fm_release(fm_mat_S_gw_work)
          DEALLOCATE (vec_Sigma_x_minus_vxc_gw)
          DEALLOCATE (vec_W_gw)
       END IF
@@ -700,7 +697,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw_im_time'
 
-      INTEGER                                            :: handle, ispin, jquad, nspins, unused
+      INTEGER                                            :: handle, ispin, nspins, unused
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -712,15 +709,8 @@ CONTAINS
       IF (ALLOCATED(weights_sin_tf_t_to_w)) DEALLOCATE (weights_sin_tf_t_to_w)
 
       IF (.NOT. do_kpoints_cubic_RPA) THEN
-
-         DO jquad = 1, SIZE(fm_mat_W, 1)
-            CALL cp_fm_release(fm_mat_W(jquad))
-         END DO
-
-         DEALLOCATE (fm_mat_W)
-
+         CALL cp_fm_release(fm_mat_W)
          CALL dbcsr_release_P(mat_W)
-
       END IF
 
       DO ispin = 1, nspins
@@ -1853,10 +1843,7 @@ CONTAINS
 
       CALL dbcsr_deallocate_matrix_set(rho_ao_weighted)
 
-      DO i_img = 1, nimg
-         CALL cp_fm_release(fm_work(i_img))
-      END DO
-      DEALLOCATE (fm_work)
+      CALL cp_fm_release(fm_work)
 
       DEALLOCATE (E_array)
 

@@ -13,8 +13,8 @@
 ! **************************************************************************************************
 MODULE qs_p_env_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
                                               hartree_local_type
@@ -106,10 +106,10 @@ CONTAINS
          DEALLOCATE (p_env%kpp1_env)
          NULLIFY (p_env%kpp1_env)
       END IF
-      CALL cp_fm_vect_dealloc(p_env%S_psi0)
-      CALL cp_fm_vect_dealloc(p_env%m_epsilon)
-      CALL cp_fm_vect_dealloc(p_env%psi0d)
-      CALL cp_fm_vect_dealloc(p_env%Smo_inv)
+      CALL cp_fm_release(p_env%S_psi0)
+      CALL cp_fm_release(p_env%m_epsilon)
+      CALL cp_fm_release(p_env%psi0d)
+      CALL cp_fm_release(p_env%Smo_inv)
       IF (ASSOCIATED(p_env%rho1_xc)) THEN
          CALL qs_rho_release(p_env%rho1_xc)
          DEALLOCATE (p_env%rho1_xc)
@@ -137,7 +137,7 @@ CONTAINS
          CALL local_rho_set_release(p_env%local_rho_set_admm)
       END IF
       IF (ASSOCIATED(p_env%PS_psi0)) THEN
-         CALL cp_fm_vect_dealloc(p_env%PS_psi0)
+         CALL cp_fm_release(p_env%PS_psi0)
       END IF
       IF (ASSOCIATED(p_env%preconditioner)) THEN
          DO ip = 1, SIZE(p_env%preconditioner, 1)

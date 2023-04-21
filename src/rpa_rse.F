@@ -274,14 +274,14 @@ CONTAINS
       DEALLOCATE (diag_diff)
       CALL cp_fm_release(fm_ao)
       CALL cp_fm_release(fm_ao_mo)
+      CALL cp_fm_release(fm_P_mu_nu)
+      CALL cp_fm_release(fm_X_mo)
+      CALL cp_fm_release(fm_XC_mo)
       DO ispin = 1, nspins
-         CALL cp_fm_release(fm_P_mu_nu(ispin))
-         CALL cp_fm_release(fm_X_mo(ispin))
-         CALL cp_fm_release(fm_XC_mo(ispin))
          CALL dbcsr_release(mat_mu_nu(ispin)%matrix)
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
       END DO
-      DEALLOCATE (fm_P_mu_nu, fm_X_mo, fm_XC_mo, mat_mu_nu)
+      DEALLOCATE (mat_mu_nu)
 
       CALL timestop(handle)
 

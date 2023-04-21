@@ -120,13 +120,9 @@ CONTAINS
                                       t_env%evecs(i, spin))
          END DO
       END DO
+      DEALLOCATE (t_env%evecs, t_env%evals)
 
-      DO spin = 1, SIZE(t_env%invS)
-         CALL cp_fm_release(t_env%invS(spin))
-      END DO
-      DEALLOCATE (t_env%invS, t_env%evecs, t_env%evals)
-
-      NULLIFY (t_env%invS)
+      CALL cp_fm_release(t_env%invS)
 
    END SUBROUTINE tddfpt_env_deallocate
 

@@ -106,14 +106,7 @@ CONTAINS
    SUBROUTINE et_coupling_release(et_coupling)
       TYPE(et_coupling_type), POINTER                    :: et_coupling
 
-      INTEGER                                            :: i
-
-      IF (ASSOCIATED(et_coupling%et_mo_coeff)) THEN
-         DO i = 1, SIZE(et_coupling%et_mo_coeff)
-            CALL cp_fm_release(et_coupling%et_mo_coeff(i))
-         END DO
-         DEALLOCATE (et_coupling%et_mo_coeff)
-      END IF
+      CALL cp_fm_release(et_coupling%et_mo_coeff)
       IF (ASSOCIATED(et_coupling%rest_mat)) THEN
 !         CALL deallocate_matrix_set(et_coupling%rest_mat)
          DEALLOCATE (et_coupling%rest_mat)

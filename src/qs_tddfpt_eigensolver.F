@@ -489,13 +489,11 @@ CONTAINS
       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
       DO spin = 1, nspins
          CALL cp_fm_struct_release(kv_fm_struct(spin)%struct)
-         DO i = 1, max_kv
-            CALL cp_fm_release(b(i, spin))
-            CALL cp_fm_release(Ab(i, spin))
-            CALL cp_fm_release(Sb(i, spin))
-         END DO
       END DO
-      DEALLOCATE (b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
+      CALL cp_fm_release(b)
+      CALL cp_fm_release(Ab)
+      CALL cp_fm_release(Sb)
+      DEALLOCATE (evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
 
       CALL timestop(handle)
 

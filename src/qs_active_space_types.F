@@ -150,7 +150,7 @@ CONTAINS
    SUBROUTINE release_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
 
-      INTEGER                                            :: imo, isp
+      INTEGER                                            :: imo
 
       IF (ASSOCIATED(active_space_env)) THEN
 
@@ -178,40 +178,11 @@ CONTAINS
 
          CALL release_eri_type(active_space_env%eri)
 
-         IF (ASSOCIATED(active_space_env%p_active)) THEN
-            DO isp = 1, SIZE(active_space_env%p_active)
-               CALL cp_fm_release(active_space_env%p_active(isp))
-            END DO
-            DEALLOCATE (active_space_env%p_active)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%ks_sub)) THEN
-            DO isp = 1, SIZE(active_space_env%ks_sub)
-               CALL cp_fm_release(active_space_env%ks_sub(isp))
-            END DO
-            DEALLOCATE (active_space_env%ks_sub)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
-            DO isp = 1, SIZE(active_space_env%vxc_sub)
-               CALL cp_fm_release(active_space_env%vxc_sub(isp))
-            END DO
-            DEALLOCATE (active_space_env%vxc_sub)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%h_sub)) THEN
-            DO isp = 1, SIZE(active_space_env%h_sub)
-               CALL cp_fm_release(active_space_env%h_sub(isp))
-            END DO
-            DEALLOCATE (active_space_env%h_sub)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%fock_sub)) THEN
-            DO isp = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(isp))
-            END DO
-            DEALLOCATE (active_space_env%fock_sub)
-         END IF
+         CALL cp_fm_release(active_space_env%p_active)
+         CALL cp_fm_release(active_space_env%ks_sub)
+         CALL cp_fm_release(active_space_env%vxc_sub)
+         CALL cp_fm_release(active_space_env%h_sub)
+         CALL cp_fm_release(active_space_env%fock_sub)
 
          IF (ASSOCIATED(active_space_env%pmat_inactive)) &
             CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)

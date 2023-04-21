@@ -353,12 +353,9 @@ CONTAINS
          WRITE (output_unit, '(T2,A,E14.6)') ' TDDFPT : CheckSum  =', SQRT(SUM(t_env%evals**2))
       END IF
 
-      DO spin = 1, n_spins
-         CALL cp_fm_release(S_lumos(spin))
-      END DO
-      DEALLOCATE (homo_coeff_col, lumo_coeff_col)
+      CALL cp_fm_release(S_lumos)
 
-      DEALLOCATE (S_lumos)
+      DEALLOCATE (homo_coeff_col, lumo_coeff_col)
 
    END SUBROUTINE find_contributions
 

@@ -597,10 +597,9 @@ CONTAINS
                   IF (nlumo_stm > 0) THEN
                      DO ispin = 1, dft_control%nspins
                         DEALLOCATE (unoccupied_evals_stm(ispin)%array)
-                        CALL cp_fm_release(unoccupied_orbs_stm(ispin))
                      END DO
                      DEALLOCATE (unoccupied_evals_stm)
-                     DEALLOCATE (unoccupied_orbs_stm)
+                     CALL cp_fm_release(unoccupied_orbs_stm)
                   END IF
                END IF
             END IF
@@ -851,10 +850,7 @@ CONTAINS
       CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
                    lumos, scf_env, matrix_s, iounit)
 
-      DO ispin = 1, SIZE(mos)
-         CALL cp_fm_release(lumos(ispin))
-      END DO
-      DEALLOCATE (lumos)
+      CALL cp_fm_release(lumos)
       CALL cp_fm_release(S_tmp)
       CALL cp_fm_release(MO_tmp)
       CALL cp_fm_release(KS_tmp)

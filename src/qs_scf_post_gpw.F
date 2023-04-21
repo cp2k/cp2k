@@ -40,7 +40,6 @@ MODULE qs_scf_post_gpw
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -543,7 +542,7 @@ CONTAINS
             !write restart for localization of occupied orbitals
             CALL loc_write_restart(qs_loc_env_homo, loc_print_section, mos, &
                                    homo_localized, do_homo)
-            CALL cp_fm_vect_dealloc(homo_localized)
+            CALL cp_fm_release(homo_localized)
             DEALLOCATE (occupied_orbs)
             DEALLOCATE (occupied_evals)
             ! Print Total Dipole if the localization has been performed
@@ -713,7 +712,7 @@ CONTAINS
             !write restart for localization of occupied orbitals
             CALL loc_write_restart(qs_loc_env_mixed, loc_print_section, mos, &
                                    mixed_localized, do_homo, do_mixed=do_mixed)
-            CALL cp_fm_vect_dealloc(mixed_localized)
+            CALL cp_fm_release(mixed_localized)
             DEALLOCATE (mixed_orbs)
             DEALLOCATE (mixed_evals)
             ! Print Total Dipole if the localization has been performed
@@ -753,7 +752,7 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
                       lumo_ptr, scf_env, matrix_s, output_unit, marked_states)
-         IF (p_loc_lumo) CALL cp_fm_vect_dealloc(lumo_localized)
+         IF (p_loc_lumo) CALL cp_fm_release(lumo_localized)
       END IF
       IF (ASSOCIATED(marked_states)) THEN
          DEALLOCATE (marked_states)
@@ -794,10 +793,9 @@ CONTAINS
             IF (nlumo_stm > 0) THEN
                DO ispin = 1, dft_control%nspins
                   DEALLOCATE (unoccupied_evals_stm(ispin)%array)
-                  CALL cp_fm_release(unoccupied_orbs_stm(ispin))
                END DO
                DEALLOCATE (unoccupied_evals_stm)
-               DEALLOCATE (unoccupied_orbs_stm)
+               CALL cp_fm_release(unoccupied_orbs_stm)
             END IF
          END IF
       END IF

@@ -493,14 +493,7 @@ CONTAINS
             DO ik = 1, nkp_loc
                kp => kpoint%kp_env(ik)%kpoint_env
                ! density matrix
-               IF (ASSOCIATED(kp%pmat)) THEN
-                  DO is = 1, SIZE(kp%pmat, 2)
-                     DO ic = 1, SIZE(kp%pmat, 1)
-                        CALL cp_fm_release(kp%pmat(ic, is))
-                     END DO
-                  END DO
-                  DEALLOCATE (kp%pmat)
-               END IF
+               CALL cp_fm_release(kp%pmat)
                ALLOCATE (kp%pmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
@@ -508,14 +501,7 @@ CONTAINS
                   END DO
                END DO
                ! energy weighted density matrix
-               IF (ASSOCIATED(kp%wmat)) THEN
-                  DO is = 1, SIZE(kp%wmat, 2)
-                     DO ic = 1, SIZE(kp%wmat, 1)
-                        CALL cp_fm_release(kp%wmat(ic, is))
-                     END DO
-                  END DO
-                  DEALLOCATE (kp%wmat)
-               END IF
+               CALL cp_fm_release(kp%wmat)
                ALLOCATE (kp%wmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc

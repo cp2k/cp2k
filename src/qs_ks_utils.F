@@ -752,10 +752,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(orb_h)
       CALL cp_fm_release(matrix_v)
       CALL cp_fm_release(matrix_hv)
-      DO I = 1, SIZE(mo_derivs_local, 1)
-         CALL cp_fm_release(mo_derivs_local(I))
-      END DO
-      DEALLOCATE (mo_derivs_local)
+      CALL cp_fm_release(mo_derivs_local)
       DEALLOCATE (rho_r)
       DEALLOCATE (rho_g)
 

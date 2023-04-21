@@ -367,10 +367,7 @@ CONTAINS
                                          cpmos(ispin), nocc, &
                                          alpha=focc, beta=0.0_dp)
          END DO
-         DO ispin = 1, nspins
-            CALL cp_fm_release(mo_occ(ispin))
-         END DO
-         DEALLOCATE (mo_occ)
+         CALL cp_fm_release(mo_occ)
 
          CALL response_equation_new(qs_env, p_env, cpmos, unit_nr)
 
@@ -380,11 +377,7 @@ CONTAINS
             CALL dbcsr_copy(ec_env%matrix_z(ispin)%matrix, p_env%p1(ispin)%matrix)
             CALL dbcsr_copy(ec_env%matrix_wz(ispin)%matrix, p_env%w1(ispin)%matrix)
          END DO
-
-         DO ispin = 1, nspins
-            CALL cp_fm_release(cpmos(ispin))
-         END DO
-         DEALLOCATE (cpmos)
+         CALL cp_fm_release(cpmos)
 
       CASE (ec_ls_solver)
 
@@ -630,10 +623,9 @@ CONTAINS
       END DO
       DO ispin = 1, nspins
          CALL cp_fm_release(cpmos(ispin))
-         CALL cp_fm_release(psi1(ispin))
-         CALL cp_fm_release(psi0(ispin))
       END DO
-      DEALLOCATE (psi0, psi1)
+      CALL cp_fm_release(psi1)
+      CALL cp_fm_release(psi0)
 
       CALL timestop(handle)
 
@@ -783,11 +775,8 @@ CONTAINS
          CALL calculate_wz_matrix(mos(ispin), psi1(ispin), matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
       END DO
-      DO ispin = 1, nspins
-         CALL cp_fm_release(psi0(ispin))
-         CALL cp_fm_release(psi1(ispin))
-      END DO
-      DEALLOCATE (psi0, psi1)
+      CALL cp_fm_release(psi0)
+      CALL cp_fm_release(psi1)
 
       CALL timestop(handle)
 

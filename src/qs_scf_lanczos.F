@@ -474,11 +474,7 @@ CONTAINS
                CALL cp_fm_release(t_mat)
                CALL cp_fm_release(t_vec)
                DEALLOCATE (a_mat, b_mat, b2_mat, t_mat, t_vec)
-               DO ik = 1, krylov_space%nkrylov
-                  CALL cp_fm_release(v_mat(ik))
-               END DO
-               DEALLOCATE (v_mat)
-
+               CALL cp_fm_release(v_mat)
             END IF
             CALL cp_fm_release(c2_tmp)
             CALL cp_fm_release(c3_tmp)
@@ -872,10 +868,8 @@ CONTAINS
             DEALLOCATE (t_mat)
             DEALLOCATE (a_block)
             DEALLOCATE (b_block)
-            DO ik = 1, krylov_space%nkrylov
-               CALL cp_fm_release(v_mat(ik))
-            END DO
-            DEALLOCATE (v_mat)
+
+            CALL cp_fm_release(v_mat)
 
          END DO ! ib
 

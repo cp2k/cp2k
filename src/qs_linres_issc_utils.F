@@ -426,11 +426,9 @@ CONTAINS
       !
       !
       ! clean up
-      DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin))
-         CALL cp_fm_release(h1_psi0(ispin))
-      END DO
-      DEALLOCATE (psi1, h1_psi0, psi0_order)
+      CALL cp_fm_release(psi1)
+      CALL cp_fm_release(h1_psi0)
+      DEALLOCATE (psi0_order)
       !
       CALL cp_print_key_finished_output(output_unit, logger, lr_section,&
            &                            "PRINT%PROGRAM_RUN_INFO")
@@ -1031,8 +1029,6 @@ CONTAINS
 
       TYPE(issc_env_type), INTENT(INOUT)                 :: issc_env
 
-      INTEGER                                            :: idir, ispin
-
       IF (ASSOCIATED(issc_env%issc_on_atom_list)) THEN
          DEALLOCATE (issc_env%issc_on_atom_list)
       END IF
@@ -1044,88 +1040,28 @@ CONTAINS
       END IF
       !
       !efg_psi0
-      IF (ASSOCIATED(issc_env%efg_psi0)) THEN
-         DO idir = 1, SIZE(issc_env%efg_psi0, 2)
-            DO ispin = 1, SIZE(issc_env%efg_psi0, 1)
-               CALL cp_fm_release(issc_env%efg_psi0(ispin, idir))
-            END DO
-         END DO
-         DEALLOCATE (issc_env%efg_psi0)
-         NULLIFY (issc_env%efg_psi0)
-      END IF
+      CALL cp_fm_release(issc_env%efg_psi0)
       !
       !pso_psi0
-      IF (ASSOCIATED(issc_env%pso_psi0)) THEN
-         DO idir = 1, SIZE(issc_env%pso_psi0, 2)
-            DO ispin = 1, SIZE(issc_env%pso_psi0, 1)
-               CALL cp_fm_release(issc_env%pso_psi0(ispin, idir))
-            END DO
-         END DO
-         DEALLOCATE (issc_env%pso_psi0)
-         NULLIFY (issc_env%pso_psi0)
-      END IF
+      CALL cp_fm_release(issc_env%pso_psi0)
       !
       !dso_psi0
-      IF (ASSOCIATED(issc_env%dso_psi0)) THEN
-         DO idir = 1, SIZE(issc_env%dso_psi0, 2)
-            DO ispin = 1, SIZE(issc_env%dso_psi0, 1)
-               CALL cp_fm_release(issc_env%dso_psi0(ispin, idir))
-            END DO
-         END DO
-         DEALLOCATE (issc_env%dso_psi0)
-         NULLIFY (issc_env%dso_psi0)
-      END IF
+      CALL cp_fm_release(issc_env%dso_psi0)
       !
       !fc_psi0
-      IF (ASSOCIATED(issc_env%fc_psi0)) THEN
-         DO ispin = 1, SIZE(issc_env%fc_psi0, 1)
-            CALL cp_fm_release(issc_env%fc_psi0(ispin))
-         END DO
-         DEALLOCATE (issc_env%fc_psi0)
-         NULLIFY (issc_env%fc_psi0)
-      END IF
+      CALL cp_fm_release(issc_env%fc_psi0)
       !
       !psi1_efg
-      IF (ASSOCIATED(issc_env%psi1_efg)) THEN
-         DO idir = 1, SIZE(issc_env%psi1_efg, 2)
-            DO ispin = 1, SIZE(issc_env%psi1_efg, 1)
-               CALL cp_fm_release(issc_env%psi1_efg(ispin, idir))
-            END DO
-         END DO
-         DEALLOCATE (issc_env%psi1_efg)
-         NULLIFY (issc_env%psi1_efg)
-      END IF
+      CALL cp_fm_release(issc_env%psi1_efg)
       !
       !psi1_pso
-      IF (ASSOCIATED(issc_env%psi1_pso)) THEN
-         DO idir = 1, SIZE(issc_env%psi1_pso, 2)
-            DO ispin = 1, SIZE(issc_env%psi1_pso, 1)
-               CALL cp_fm_release(issc_env%psi1_pso(ispin, idir))
-            END DO
-         END DO
-         DEALLOCATE (issc_env%psi1_pso)
-         NULLIFY (issc_env%psi1_pso)
-      END IF
+      CALL cp_fm_release(issc_env%psi1_pso)
       !
       !psi1_dso
-      IF (ASSOCIATED(issc_env%psi1_dso)) THEN
-         DO idir = 1, SIZE(issc_env%psi1_dso, 2)
-            DO ispin = 1, SIZE(issc_env%psi1_dso, 1)
-               CALL cp_fm_release(issc_env%psi1_dso(ispin, idir))
-            END DO
-         END DO
-         DEALLOCATE (issc_env%psi1_dso)
-         NULLIFY (issc_env%psi1_dso)
-      END IF
+      CALL cp_fm_release(issc_env%psi1_dso)
       !
       !psi1_fc
-      IF (ASSOCIATED(issc_env%psi1_fc)) THEN
-         DO ispin = 1, SIZE(issc_env%psi1_fc, 1)
-            CALL cp_fm_release(issc_env%psi1_fc(ispin))
-         END DO
-         DEALLOCATE (issc_env%psi1_fc)
-         NULLIFY (issc_env%psi1_fc)
-      END IF
+      CALL cp_fm_release(issc_env%psi1_fc)
       !
       !matrix_efg
       IF (ASSOCIATED(issc_env%matrix_efg)) THEN

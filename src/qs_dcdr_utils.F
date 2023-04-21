@@ -1032,19 +1032,11 @@ CONTAINS
       END IF
 
       ! Full matrices
-      DO ispin = 1, dcdr_env%nspins
-         CALL cp_fm_release(dcdr_env%dCR(ispin))
-         CALL cp_fm_release(dcdr_env%dCR_prime(ispin))
-         CALL cp_fm_release(dcdr_env%mo_coeff(ispin))
-         CALL cp_fm_release(dcdr_env%chc(ispin))
-         CALL cp_fm_release(dcdr_env%op_dR(ispin))
-      END DO
-
-      DEALLOCATE (dcdr_env%op_dR)
-      DEALLOCATE (dcdr_env%dCR)
-      DEALLOCATE (dcdr_env%dCR_prime)
-      DEALLOCATE (dcdr_env%mo_coeff)
-      DEALLOCATE (dcdr_env%chc)
+      CALL cp_fm_release(dcdr_env%dCR)
+      CALL cp_fm_release(dcdr_env%dCR_prime)
+      CALL cp_fm_release(dcdr_env%mo_coeff)
+      CALL cp_fm_release(dcdr_env%chc)
+      CALL cp_fm_release(dcdr_env%op_dR)
 
       ! DBCSR matrices
       CALL dbcsr_deallocate_matrix_set(dcdr_env%perturbed_dm_correction)

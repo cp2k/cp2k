@@ -444,10 +444,7 @@ CONTAINS
 
       END DO
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(single_mo_coeff(ispin))
-      END DO
-      DEALLOCATE (single_mo_coeff)
+      CALL cp_fm_release(single_mo_coeff)
 
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital)
@@ -1056,10 +1053,8 @@ CONTAINS
       CALL section_vals_release(xc_section_orig)
 
       CALL local_rho_set_release(local_rho_set)
-      DO ispin = 1, nspins
-         CALL cp_fm_release(single_mo_coeff(ispin))
-      END DO
-      DEALLOCATE (mo_coeff, single_mo_coeff, mo_eigenvalues)
+      CALL cp_fm_release(single_mo_coeff)
+      DEALLOCATE (mo_coeff, mo_eigenvalues)
       CALL dbcsr_deallocate_matrix_set(orbital_density_matrix)
 
    END SUBROUTINE gapw_add_atomic_saop_pot

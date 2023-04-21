@@ -683,23 +683,8 @@ CONTAINS
             DEALLOCATE (kp_env%mos)
          END IF
 
-         IF (ASSOCIATED(kp_env%pmat)) THEN
-            DO is = 1, SIZE(kp_env%pmat, 2)
-               DO ic = 1, SIZE(kp_env%pmat, 1)
-                  CALL cp_fm_release(kp_env%pmat(ic, is))
-               END DO
-            END DO
-            DEALLOCATE (kp_env%pmat)
-         END IF
-
-         IF (ASSOCIATED(kp_env%wmat)) THEN
-            DO is = 1, SIZE(kp_env%wmat, 2)
-               DO ic = 1, SIZE(kp_env%wmat, 1)
-                  CALL cp_fm_release(kp_env%wmat(ic, is))
-               END DO
-            END DO
-            DEALLOCATE (kp_env%wmat)
-         END IF
+         CALL cp_fm_release(kp_env%pmat)
+         CALL cp_fm_release(kp_env%wmat)
 
          DEALLOCATE (kp_env)
 

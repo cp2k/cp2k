@@ -1296,28 +1296,12 @@ CONTAINS
 
       TYPE(polar_env_type), POINTER                      :: polar_env
 
-      INTEGER                                            :: idir, ispin
-
       IF (ASSOCIATED(polar_env)) THEN
          IF (ASSOCIATED(polar_env%polar)) THEN
             DEALLOCATE (polar_env%polar)
          END IF
-         IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
-            DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
-               DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
-                  CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin))
-               END DO
-            END DO
-            DEALLOCATE (polar_env%dBerry_psi0)
-         END IF
-         IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
-            DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
-               DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
-                  CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin))
-               END DO
-            END DO
-            DEALLOCATE (polar_env%psi1_dBerry)
-         END IF
+         CALL cp_fm_release(polar_env%dBerry_psi0)
+         CALL cp_fm_release(polar_env%psi1_dBerry)
          DEALLOCATE (polar_env)
          NULLIFY (polar_env)
       END IF

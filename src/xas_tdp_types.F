@@ -842,12 +842,9 @@ CONTAINS
             END DO
             DEALLOCATE (xas_tdp_env%orb_soc)
          END IF
-         IF (ASSOCIATED(xas_tdp_env%lumo_evecs)) THEN
-            DO i = 1, SIZE(xas_tdp_env%lumo_evecs)
-               CALL cp_fm_release(xas_tdp_env%lumo_evecs(i))
-            END DO
-            DEALLOCATE (xas_tdp_env%lumo_evecs)
-         END IF
+
+         CALL cp_fm_release(xas_tdp_env%lumo_evecs)
+
          IF (ASSOCIATED(xas_tdp_env%lumo_evals)) THEN
             DO i = 1, SIZE(xas_tdp_env%lumo_evals)
                DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)

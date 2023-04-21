@@ -190,7 +190,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_2c_integrals'
 
-      INTEGER                                            :: handle, i_size, j_size, num_small_eigen
+      INTEGER                                            :: handle, num_small_eigen
       REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
       TYPE(cp_fm_type)                                   :: fm_matrix_L_work, fm_matrix_M_inv_work, &
                                                             fm_matrix_V
@@ -316,12 +316,7 @@ CONTAINS
          IF (.NOT. do_im_time) THEN
 
             CALL cp_fm_to_fm(fm_matrix_Minv_L_kpoints(1, 1), fm_matrix_L_work)
-            DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
-            DO i_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
-               CALL cp_fm_release(fm_matrix_Minv_L_kpoints(i_size, j_size))
-            END DO
-            END DO
-            DEALLOCATE (fm_matrix_Minv_L_kpoints)
+            CALL cp_fm_release(fm_matrix_Minv_L_kpoints)
 
          END IF
 

@@ -110,27 +110,12 @@ CONTAINS
    SUBROUTINE qs_diis_b_release(diis_buffer)
       TYPE(qs_diis_buffer_type), INTENT(INOUT)           :: diis_buffer
 
-      INTEGER                                            :: i, j
-
       IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
          DEALLOCATE (diis_buffer%b_matrix)
       END IF
-      IF (ASSOCIATED(diis_buffer%error)) THEN
-         DO j = 1, SIZE(diis_buffer%error, 2)
-            DO i = 1, SIZE(diis_buffer%error, 1)
-               CALL cp_fm_release(diis_buffer%error(i, j))
-            END DO
-         END DO
-         DEALLOCATE (diis_buffer%error)
-      END IF
-      IF (ASSOCIATED(diis_buffer%param)) THEN
-         DO j = 1, SIZE(diis_buffer%param, 2)
-            DO i = 1, SIZE(diis_buffer%param, 1)
-               CALL cp_fm_release(diis_buffer%param(i, j))
-            END DO
-         END DO
-         DEALLOCATE (diis_buffer%param)
-      END IF
+      CALL cp_fm_release(diis_buffer%error)
+      CALL cp_fm_release(diis_buffer%param)
+
    END SUBROUTINE qs_diis_b_release
 
 ! **************************************************************************************************

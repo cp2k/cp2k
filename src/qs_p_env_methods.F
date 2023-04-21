@@ -44,7 +44,6 @@ MODULE qs_p_env_methods
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -532,7 +531,7 @@ CONTAINS
       ! def psi0d
       IF (p_env%orthogonal_orbitals) THEN
          IF (ASSOCIATED(p_env%psi0d)) THEN
-            CALL cp_fm_vect_dealloc(p_env%psi0d)
+            CALL cp_fm_release(p_env%psi0d)
          END IF
          p_env%psi0d => psi0
       ELSE
@@ -654,7 +653,7 @@ CONTAINS
       IF (p_env%orthogonal_orbitals) THEN
          NULLIFY (psi0)
       ELSE
-         CALL cp_fm_vect_dealloc(psi0)
+         CALL cp_fm_release(psi0)
       END IF
 
       ! tells kpp1_env about the change of psi0

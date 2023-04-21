@@ -336,19 +336,13 @@ CONTAINS
          END DO
 
          ! --- release berry-phase-related work matrices
+         CALL cp_fm_release(opvec)
+         CALL cp_fm_release(gamma_real_imag)
          DO ispin = nspins, 1, -1
-            DO i_cos_sin = SIZE(opvec, 1), 1, -1
-               CALL cp_fm_release(opvec(i_cos_sin, ispin))
-            END DO
-
-            DO i_cos_sin = SIZE(gamma_real_imag, 1), 1, -1
-               CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin))
-            END DO
-
             CALL cp_cfm_release(gamma_inv_00(ispin))
             CALL cp_cfm_release(gamma_00(ispin))
          END DO
-         DEALLOCATE (gamma_00, gamma_inv_00, gamma_real_imag, opvec)
+         DEALLOCATE (gamma_00, gamma_inv_00)
          CALL dbcsr_deallocate_matrix_set(berry_cossin_xyz)
 
          NULLIFY (fm_struct)
@@ -378,13 +372,7 @@ CONTAINS
          END DO
 
          CALL cp_fm_release(wfm_ao_ao)
-
-         DO ispin = nspins, 1, -1
-            DO ideriv = SIZE(dBerry_mos_occ, 1), 1, -1
-               CALL cp_fm_release(dBerry_mos_occ(ideriv, ispin))
-            END DO
-         END DO
-         DEALLOCATE (dBerry_mos_occ)
+         CALL cp_fm_release(dBerry_mos_occ)
 
       CASE (tddfpt_dipole_length)
          IF (ndim_periodic /= 0) THEN
@@ -514,10 +502,7 @@ CONTAINS
       END SELECT
 
       ! --- release work matrices
-      DO ispin = nspins, 1, -1
-         CALL cp_fm_release(S_mos_virt(ispin))
-      END DO
-      DEALLOCATE (S_mos_virt)
+      CALL cp_fm_release(S_mos_virt)
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt_dipole_operator
@@ -894,11 +879,8 @@ CONTAINS
          END IF
       END IF
 
-      DO ispin = nspins, 1, -1
-         CALL cp_fm_release(weights_fm(ispin))
-         CALL cp_fm_release(S_mos_virt(ispin))
-      END DO
-      DEALLOCATE (S_mos_virt, weights_fm)
+      CALL cp_fm_release(weights_fm)
+      CALL cp_fm_release(S_mos_virt)
 
       CALL timestop(handle)
 
@@ -1148,10 +1130,7 @@ CONTAINS
             CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section)
             !
             DEALLOCATE (eigenvalues)
-            DO ispin = 1, nspins
-               CALL cp_fm_release(teig(ispin))
-            END DO
-            DEALLOCATE (teig)
+            CALL cp_fm_release(teig)
             !
             DO i = 1, 2
                CALL deallocate_mo_set(nto_set(i))

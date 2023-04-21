@@ -442,7 +442,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vcd_env_cleanup'
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -455,25 +455,13 @@ CONTAINS
       DEALLOCATE (vcd_env%aat_atom_nvpt)
       DEALLOCATE (vcd_env%aat_atom_mfp)
 
-      DO ispin = 1, SIZE(vcd_env%dCV)
-         CALL cp_fm_release(vcd_env%dCV(ispin))
-         CALL cp_fm_release(vcd_env%dCV_prime(ispin))
-         CALL cp_fm_release(vcd_env%op_dV(ispin))
-         CALL cp_fm_release(vcd_env%op_dB(ispin))
-      END DO
+      CALL cp_fm_release(vcd_env%dCV)
+      CALL cp_fm_release(vcd_env%dCV_prime)
+      CALL cp_fm_release(vcd_env%op_dV)
+      CALL cp_fm_release(vcd_env%op_dB)
 
-      DO ispin = 1, 3
-         CALL cp_fm_release(vcd_env%dCB(ispin))
-         CALL cp_fm_release(vcd_env%dCB_prime(ispin))
-      END DO
-
-      DEALLOCATE (vcd_env%dCV)
-      DEALLOCATE (vcd_env%dCV_prime)
-      DEALLOCATE (vcd_env%op_dV)
-
-      DEALLOCATE (vcd_env%dCB)
-      DEALLOCATE (vcd_env%dCB_prime)
-      DEALLOCATE (vcd_env%op_dB)
+      CALL cp_fm_release(vcd_env%dCB)
+      CALL cp_fm_release(vcd_env%dCB_prime)
 
       ! DBCSR matrices
       ! Probably, the memory requirements could be reduced by quite a bit

@@ -205,12 +205,7 @@ CONTAINS
          DEALLOCATE (evals_virt)
       END IF
 
-      IF (ALLOCATED(mos_virt)) THEN
-         DO ispin = 1, SIZE(mos_virt)
-            CALL cp_fm_release(mos_virt(ispin))
-         END DO
-         DEALLOCATE (mos_virt)
-      END IF
+      CALL cp_fm_release(mos_virt)
 
       CALL timestop(handle)
 

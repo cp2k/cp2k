@@ -1827,10 +1827,7 @@ CONTAINS
          CALL copy_fm_to_dbcsr(mo_derivs_fm(ispin), mo_derivs(ispin)%matrix)
       END DO
 
-      DO ispin = 1, nspins
-         CALL cp_fm_release(mo_derivs_fm(ispin))
-      END DO
-      DEALLOCATE (mo_derivs_fm)
+      CALL cp_fm_release(mo_derivs_fm)
 
    END SUBROUTINE calc_admm_mo_derivatives
 

@@ -202,12 +202,7 @@ CONTAINS
                END IF
                ex_env%state = istate
                ex_env%evalue = evals(istate)
-               IF (ASSOCIATED(ex_env%evect)) THEN
-                  DO ispin = 1, SIZE(ex_env%evect)
-                     CALL cp_fm_release(ex_env%evect(ispin))
-                  END DO
-                  DEALLOCATE (ex_env%evect)
-               END IF
+               CALL cp_fm_release(ex_env%evect)
                ALLOCATE (ex_env%evect(nspins))
                DO ispin = 1, nspins
                   CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct)

@@ -891,10 +891,7 @@ CONTAINS
       END DO
       DEALLOCATE (g_surf_circular, g_surf_linear)
 
-      DO ispin = nspins, 1, -1
-         CALL cp_fm_release(rho_ao_fm(ispin))
-      END DO
-      DEALLOCATE (rho_ao_fm)
+      CALL cp_fm_release(rho_ao_fm)
 
       IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) THEN
          CALL cp_fm_release(matrix_s_fm)
@@ -1256,11 +1253,8 @@ CONTAINS
          END IF
       END DO
 
-      DO ispin = nspins, 1, -1
-         CALL cp_fm_release(rho_ao_new_fm(ispin))
-         CALL cp_fm_release(rho_ao_delta_fm(ispin))
-      END DO
-      DEALLOCATE (rho_ao_delta_fm, rho_ao_new_fm)
+      CALL cp_fm_release(rho_ao_new_fm)
+      CALL cp_fm_release(rho_ao_delta_fm)
 
       DO image = 1, nimages
          DO ispin = 1, nspins

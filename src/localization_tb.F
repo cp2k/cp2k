@@ -15,9 +15,9 @@ MODULE localization_tb
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -205,7 +205,7 @@ CONTAINS
             !write restart for localization of occupied orbitals
             CALL loc_write_restart(qs_loc_env_homo, loc_print_section, mos, &
                                    homo_localized, do_homo)
-            CALL cp_fm_vect_dealloc(homo_localized)
+            CALL cp_fm_release(homo_localized)
             DEALLOCATE (occupied_orbs)
             DEALLOCATE (occupied_evals)
             ! Print Total Dipole if the localization has been performed

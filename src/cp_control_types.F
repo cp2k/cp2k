@@ -872,15 +872,8 @@ CONTAINS
    SUBROUTINE tddfpt_control_release(tddfpt_control)
       TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
 
-      INTEGER                                            :: ispin
-
       IF (ASSOCIATED(tddfpt_control)) THEN
-         IF (ASSOCIATED(tddfpt_control%lumos)) THEN
-            DO ispin = 1, SIZE(tddfpt_control%lumos)
-               CALL cp_fm_release(tddfpt_control%lumos(ispin))
-            END DO
-            DEALLOCATE (tddfpt_control%lumos)
-         END IF
+         CALL cp_fm_release(tddfpt_control%lumos)
          IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
             DEALLOCATE (tddfpt_control%lumos_eigenvalues)
          END IF

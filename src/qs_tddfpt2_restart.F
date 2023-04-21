@@ -433,14 +433,7 @@ CONTAINS
          END DO
 
          IF (print_virtuals) THEN
-            IF (ALLOCATED(evects_mo)) THEN
-               DO istate = 1, nstates
-                  DO ispin = 1, nspins
-                     CALL cp_fm_release(matrix=evects_mo(ispin, istate))
-                  END DO
-               END DO
-            END IF
-            DEALLOCATE (evects_mo)
+            CALL cp_fm_release(evects_mo)
          END IF
 
          DO ispin = 1, nspins

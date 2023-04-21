@@ -124,14 +124,7 @@ CONTAINS
    SUBROUTINE wfs_release(snapshot)
       TYPE(qs_wf_snapshot_type), INTENT(INOUT)           :: snapshot
 
-      INTEGER                                            :: i
-
-      IF (ASSOCIATED(snapshot%wf)) THEN
-         DO i = 1, SIZE(snapshot%wf)
-            CALL cp_fm_release(snapshot%wf(i))
-         END DO
-         DEALLOCATE (snapshot%wf)
-      END IF
+      CALL cp_fm_release(snapshot%wf)
       ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
       ! of qs_wf_history_methods, in case you wonder about it.
       IF (ASSOCIATED(snapshot%rho_ao)) THEN

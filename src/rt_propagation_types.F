@@ -35,7 +35,6 @@ MODULE rt_propagation_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
@@ -483,13 +482,13 @@ CONTAINS
 
       IF (ASSOCIATED(rtp%mos)) THEN
          IF (ASSOCIATED(rtp%mos%old)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%old)
+            CALL cp_fm_release(rtp%mos%old)
          IF (ASSOCIATED(rtp%mos%new)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%new)
+            CALL cp_fm_release(rtp%mos%new)
          IF (ASSOCIATED(rtp%mos%next)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%next)
+            CALL cp_fm_release(rtp%mos%next)
          IF (ASSOCIATED(rtp%mos%admm)) &
-            CALL cp_fm_vect_dealloc(rtp%mos%admm)
+            CALL cp_fm_release(rtp%mos%admm)
          CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
          DEALLOCATE (rtp%mos)
       END IF
@@ -550,20 +549,14 @@ CONTAINS
    SUBROUTINE rtp_history_release(rtp)
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i
 
       IF (ASSOCIATED(rtp%history%rho_history)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%history%rho_history)
       END IF
 
-      IF (ASSOCIATED(rtp%history%mo_history)) THEN
-         DO i = 1, SIZE(rtp%history%mo_history, 1)
-            DO j = 1, SIZE(rtp%history%mo_history, 2)
-               CALL cp_fm_release(rtp%history%mo_history(i, j))
-            END DO
-         END DO
-         DEALLOCATE (rtp%history%mo_history)
-      END IF
+      CALL cp_fm_release(rtp%history%mo_history)
+
       IF (ASSOCIATED(rtp%history%s_history)) THEN
          DO i = 1, SIZE(rtp%history%s_history)
             IF (ASSOCIATED(rtp%history%s_history(i)%matrix)) &
