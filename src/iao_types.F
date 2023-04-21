@@ -27,32 +27,34 @@ MODULE iao_types
 
 ! **************************************************************************************************
    TYPE iao_env_type
-      LOGICAL                                :: do_iao
+      LOGICAL                                :: do_iao = .FALSE.
       !
-      REAL(KIND=dp)                          :: eps_svd
-      REAL(KIND=dp)                          :: eps_occ
+      REAL(KIND=dp)                          :: eps_svd = 0.0_dp
+      REAL(KIND=dp)                          :: eps_occ = 0.0_dp
       ! chages
-      LOGICAL                                :: do_charges
+      LOGICAL                                :: do_charges = .FALSE.
       ! one-center expansion
-      LOGICAL                                :: do_oce
-      INTEGER                                :: lmax_oce
-      INTEGER                                :: nbas_oce
-      LOGICAL                                :: append_oce
+      LOGICAL                                :: do_oce = .FALSE.
+      INTEGER                                :: lmax_oce = 0
+      INTEGER                                :: nbas_oce = 0
+      LOGICAL                                :: append_oce = .FALSE.
       ! Bond orbitals
-      LOGICAL                                :: do_bondorbitals
+      LOGICAL                                :: do_bondorbitals = .FALSE.
       ! Wannier centers
-      LOGICAL                                :: do_center
-      LOGICAL                                :: pos_periodic
+      LOGICAL                                :: do_center = .FALSE.
+      LOGICAL                                :: pos_periodic = .FALSE.
       ! Molden
-      LOGICAL                                :: molden_iao
-      LOGICAL                                :: molden_ibo
+      LOGICAL                                :: molden_iao = .FALSE.
+      LOGICAL                                :: molden_ibo = .FALSE.
       ! CUBE files
-      LOGICAL                                :: cubes_iao
-      LOGICAL                                :: cubes_ibo
+      LOGICAL                                :: cubes_iao = .FALSE.
+      LOGICAL                                :: cubes_ibo = .FALSE.
       ! Input sections
-      TYPE(section_vals_type), POINTER       :: iao_cubes_section, iao_molden_section, &
-                                                ibo_cubes_section, ibo_molden_section, &
-                                                ibo_cc_section
+      TYPE(section_vals_type), POINTER       :: iao_cubes_section => NULL(), &
+                                                iao_molden_section => NULL(), &
+                                                ibo_cubes_section => NULL(), &
+                                                ibo_molden_section => NULL(), &
+                                                ibo_cc_section => NULL()
    END TYPE iao_env_type
 ! **************************************************************************************************
 
