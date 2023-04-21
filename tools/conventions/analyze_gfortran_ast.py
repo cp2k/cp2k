@@ -146,6 +146,8 @@ def process_log_file(fhandle: TextIO) -> None:
                 msg(f'Found CALL RANDOM_NUMBER in procedure "{cur_proc}"', 104)
             elif tokens[1].lower().startswith("_gfortran_random_seed_"):
                 msg(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"', 105)
+            elif tokens[1].lower().startswith("_gfortran_execute_command_line"):
+                msg(f'Found CALL EXECUTE_COMMAND_LINE in procedure "{cur_proc}"', 106)
 
         elif line.startswith("GOTO"):
             msg(f'Found GOTO statement in procedure "{cur_proc}"', 201)
