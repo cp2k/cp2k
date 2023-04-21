@@ -819,7 +819,7 @@ CONTAINS
                CALL cp_cfm_release(inv_mat(i, ispin))
             END DO
          END DO
-         DEALLOCATE (inv_work)
+         DEALLOCATE (inv_mat)
          DEALLOCATE (eigrmat)
 
          CALL cp_fm_release(inv_work)
