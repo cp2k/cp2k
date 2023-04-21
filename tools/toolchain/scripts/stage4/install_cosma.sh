@@ -74,7 +74,6 @@ case "$with_cosma" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DBUILD_SHARED_LIBS=NO \
-        -DCOSTA_BLAS=${cosma_blas} \
         -DCOSTA_SCALAPACK=${cosma_sl} \
         .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
@@ -89,7 +88,6 @@ case "$with_cosma" in
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DBUILD_SHARED_LIBS=NO \
-          -DCOSTA_BLAS=${cosma_blas} \
           -DCOSTA_SCALAPACK=${cosma_sl} \
           .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
