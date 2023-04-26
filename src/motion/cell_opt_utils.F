@@ -15,8 +15,7 @@ MODULE cell_opt_utils
    USE cell_types,                      ONLY: &
         cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, &
         cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
-        cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type, &
-        get_cell_param, set_cell_param
+        cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -26,7 +25,6 @@ MODULE cell_opt_utils
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_units,                        ONLY: cp_units_rad
    USE input_constants,                 ONLY: fix_none,&
                                               fix_x,&
                                               fix_xy,&
@@ -59,31 +57,11 @@ MODULE cell_opt_utils
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
-   PUBLIC :: get_ut_cell_matrix, get_dg_dh, gopt_new_logger_create, &
+   PUBLIC :: get_dg_dh, gopt_new_logger_create, &
              gopt_new_logger_release, read_external_press_tensor, &
              apply_cell_constraints
 
 CONTAINS
-! **************************************************************************************************
-!> \brief Transform a general cell matrix into an upper triangular one
-!> \param cell ...
-!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
-! **************************************************************************************************
-   SUBROUTINE get_ut_cell_matrix(cell)
-      TYPE(cell_type), POINTER                           :: cell
-
-      INTEGER, DIMENSION(3)                              :: periodic
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_angle, cell_length
-
-! orthorhombic cells are diagonal, and should stay exactly like this
-
-      IF (.NOT. cell%orthorhombic) THEN
-         CALL get_cell_param(cell, cell_length, cell_angle, cp_units_rad, periodic=periodic)
-         CALL set_cell_param(cell, cell_length, cell_angle, periodic=periodic, &
-                             do_init_cell=.TRUE.)
-      END IF
-
-   END SUBROUTINE get_ut_cell_matrix
 
 ! **************************************************************************************************
 !> \brief creates a new logger used for cell optimization algorithm

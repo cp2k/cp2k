@@ -12,8 +12,7 @@
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! **************************************************************************************************
 MODULE cell_opt_types
-   USE cell_opt_utils,                  ONLY: get_ut_cell_matrix,&
-                                              read_external_press_tensor
+   USE cell_opt_utils,                  ONLY: read_external_press_tensor
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_create,&
                                               cell_release,&
@@ -99,9 +98,6 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
       CALL section_vals_val_get(geo_section, "CONSTRAINT", i_val=cell_env%constraint_id)
-
-      ! First let's rotate the cell vectors in order to have an upper triangular matrix.
-      CALL get_ut_cell_matrix(cell)
 
       ! Compute the rotation matrix that give the cell vectors in the "canonical" orientation
       cell_env%rot_matrix = MATMUL(cell_env%ref_cell%hmat, cell%h_inv)
