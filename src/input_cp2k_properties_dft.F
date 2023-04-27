@@ -1666,9 +1666,9 @@ CONTAINS
                                        each_iter_names=s2a("TDDFT_SCF"), each_iter_values=(/10/), &
                                        add_last=add_last_numeric, filename="RESTART")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum index of backup copies.", &
+                          description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
-                          default_i_val=3)
+                          default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, print_key)
