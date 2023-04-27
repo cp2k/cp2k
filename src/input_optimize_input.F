@@ -254,9 +254,9 @@ CONTAINS
                                        description="writes an input file that can be used to restart ", &
                                        print_level=low_print_level, filename="optimize", common_iter_levels=1)
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum index of backup copies.", &
+                          description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
-                          default_i_val=3)
+                          default_i_val=1)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsubsection)

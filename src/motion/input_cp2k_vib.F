@@ -203,9 +203,9 @@ CONTAINS
                                        add_last=add_last_numeric, &
                                        filename="VIBRATIONS")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum index of backup copies.", &
+                          description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
-                          default_i_val=3)
+                          default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
@@ -216,9 +216,9 @@ CONTAINS
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, &
                                        filename="FullNormalizedCartesian")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
-                          description="Specifies the maximum index of backup copies.", &
+                          description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
-                          default_i_val=3)
+                          default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
