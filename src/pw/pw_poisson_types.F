@@ -353,7 +353,8 @@ CONTAINS
                nz = grid%g_hat(iz, ig)
                g2 = grid%gsq(ig)
                g3d = fourpi/g2
-               gg = 0.5_dp*SQRT(g2)
+               gxy = MAX(0.0_dp, g2 - grid%g(iz, ig)*grid%g(iz, ig))
+               gg = 0.5_dp*SQRT(gxy)
                gf%cc(ig) = g3d*(1.0_dp - (-1.0_dp)**nz*EXP(-gg*zlength))
             END DO
             IF (grid%have_g0) gf%cc(1) = 0.0_dp
