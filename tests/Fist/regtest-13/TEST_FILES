@@ -11,4 +11,7 @@ Pt_1H2O_eam_tersoff.inp                               11    1.0E-14             
 Si_direct_cell_opt.inp                                11    1.0E-13            -20.281318879181363
 Si_direct_cell_opt_sym.inp                            11    1.0E-13            -20.281318879182081
 Si_geo_opt_cell_opt.inp                               11    1.0E-13            -20.281318879181441
+Si_nosym_hexagonal_abc.inp                            11    1.0E-13            -18.375043216682144
+Si_nosym_hexagonal.inp                                11    1.0E-13            -18.375043216690411
+Si_sym_hexagonal_gamma_120.inp                        11    1.0E-13            -18.375043216681973
 #EOF
