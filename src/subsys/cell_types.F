@@ -39,8 +39,9 @@ MODULE cell_types
                                                cell_sym_tetragonal_ac = 6, &
                                                cell_sym_tetragonal_bc = 7, &
                                                cell_sym_rhombohedral = 8, &
-                                               cell_sym_hexagonal = 9, &
-                                               cell_sym_cubic = 10
+                                               cell_sym_hexagonal_gamma_60 = 9, &
+                                               cell_sym_hexagonal_gamma_120 = 10, &
+                                               cell_sym_cubic = 11
 
    INTEGER, PARAMETER, PUBLIC               :: use_perd_x = 0, &
                                                use_perd_y = 1, &
@@ -318,9 +319,9 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: eps_hmat = 1.0E-14_dp
 
       INTEGER                                            :: dim
-      REAL(KIND=dp)                                      :: a, acosa, acosah, acosgamma, alpha, &
-                                                            asina, asinah, asingamma, beta, gamma, &
-                                                            norm, norm_c
+      REAL(KIND=dp)                                      :: a, acosa, acosah, acosg, alpha, asina, &
+                                                            asinah, asing, beta, gamma, norm, &
+                                                            norm_c
       REAL(KIND=dp), DIMENSION(3)                        :: abc
 
       IF (PRESENT(hmat)) cell%hmat(:, :) = hmat(:, :)
@@ -367,13 +368,14 @@ CONTAINS
          cell%hmat(1, 1) = abc(1); cell%hmat(1, 2) = 0.0_dp; cell%hmat(1, 3) = 0.0_dp
          cell%hmat(2, 1) = 0.0_dp; cell%hmat(2, 2) = abc(2); cell%hmat(2, 3) = 0.0_dp
          cell%hmat(3, 1) = 0.0_dp; cell%hmat(3, 2) = 0.0_dp; cell%hmat(3, 3) = abc(3)
-      CASE (cell_sym_hexagonal)
+      CASE (cell_sym_hexagonal_gamma_60, cell_sym_hexagonal_gamma_120)
          CALL get_cell(cell=cell, abc=abc)
          a = 0.5_dp*(abc(1) + abc(2))
-         acosa = 0.5_dp*a
-         asina = sqrt3*acosa
-         cell%hmat(1, 1) = a; cell%hmat(1, 2) = acosa; cell%hmat(1, 3) = 0.0_dp
-         cell%hmat(2, 1) = 0.0_dp; cell%hmat(2, 2) = asina; cell%hmat(2, 3) = 0.0_dp
+         acosg = 0.5_dp*a
+         asing = sqrt3*acosg
+         IF (cell%symmetry_id == cell_sym_hexagonal_gamma_120) acosg = -acosg
+         cell%hmat(1, 1) = a; cell%hmat(1, 2) = acosg; cell%hmat(1, 3) = 0.0_dp
+         cell%hmat(2, 1) = 0.0_dp; cell%hmat(2, 2) = asing; cell%hmat(2, 3) = 0.0_dp
          cell%hmat(3, 1) = 0.0_dp; cell%hmat(3, 2) = 0.0_dp; cell%hmat(3, 3) = abc(3)
       CASE (cell_sym_rhombohedral)
          CALL get_cell(cell=cell, abc=abc)
@@ -397,14 +399,14 @@ CONTAINS
          cell%hmat(2, 1) = 0.0_dp; cell%hmat(2, 2) = abc(2); cell%hmat(2, 3) = 0.0_dp
          cell%hmat(3, 1) = 0.0_dp; cell%hmat(3, 2) = 0.0_dp; cell%hmat(3, 3) = abc(3)*SIN(beta)
       CASE (cell_sym_monoclinic_gamma_ab)
-         ! Cell symmetry with a=b, alpha=beta=90deg and gammma unequal 90deg
+         ! Cell symmetry with a = b, alpha = beta = 90 degree and gammma not equal 90 degree
          CALL get_cell(cell=cell, abc=abc)
          a = 0.5_dp*(abc(1) + abc(2))
          gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))
-         acosgamma = a*COS(gamma)
-         asingamma = a*SIN(gamma)
-         cell%hmat(1, 1) = a; cell%hmat(1, 2) = acosgamma; cell%hmat(1, 3) = 0.0_dp
-         cell%hmat(2, 1) = 0.0_dp; cell%hmat(2, 2) = asingamma; cell%hmat(2, 3) = 0.0_dp
+         acosg = a*COS(gamma)
+         asing = a*SIN(gamma)
+         cell%hmat(1, 1) = a; cell%hmat(1, 2) = acosg; cell%hmat(1, 3) = 0.0_dp
+         cell%hmat(2, 1) = 0.0_dp; cell%hmat(2, 2) = asing; cell%hmat(2, 3) = 0.0_dp
          cell%hmat(3, 1) = 0.0_dp; cell%hmat(3, 2) = 0.0_dp; cell%hmat(3, 3) = abc(3)
       CASE (cell_sym_triclinic)
          ! Nothing to do

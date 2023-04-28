@@ -41,7 +41,9 @@ cs_cell_opt_lbfgs_geo_opt_lbfgs.inp                   11      4e-09            -
 mc_cs_geo_opt_lbfgs.inp                               11      1e-08           -136.663104867266583
 # Cell symmetry constraint
 cell_sym_cubic.inp                                    11      1e-10            -129.12247913626771
-cell_sym_hexagonal.inp                                11      4e-09            -129.05206532770148
+cell_sym_hexagonal_gamma_120.inp                      11      4e-09            -129.05206532631195
+cell_sym_hexagonal_gamma_60.inp                       11      4e-09            -129.05206533232612
+cell_sym_hexagonal.inp                                11      4e-09            -129.05206533232612
 cell_sym_monoclinic.inp                               11      3e-09            -129.28637033131494
 cell_sym_monoclinic_gamma_ab.inp                      11      3e-09            -129.23692670296523
 cell_sym_none.inp                                     11      4e-09            -129.28637032411459

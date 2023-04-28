@@ -13,9 +13,10 @@
 ! **************************************************************************************************
 MODULE cell_opt_utils
    USE cell_types,                      ONLY: &
-        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, &
-        cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
-        cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type
+        cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
+        cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_orthorhombic, &
+        cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
+        cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -320,9 +321,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: constraint_id
 
       REAL(KIND=dp)                                      :: a, a_length, ab_length, b_length, cosa, &
-                                                            cosah, cosgamma, deriv_gamma, g, &
-                                                            gamma, norm, norm_b, norm_c, sina, &
-                                                            sinah, singamma
+                                                            cosah, cosg, deriv_gamma, g, gamma, &
+                                                            norm, norm_b, norm_c, sina, sinah, sing
 
       IF (keep_angles) THEN
          ! If we want to keep the angles constant we have to project out the
@@ -378,11 +378,18 @@ CONTAINS
             gradient(2) = 0.0_dp
             gradient(4) = 0.0_dp
             gradient(5) = 0.0_dp
-         CASE (cell_sym_hexagonal)
+         CASE (cell_sym_hexagonal_gamma_60)
             g = 0.5_dp*(gradient(1) + 0.5_dp*(gradient(2) + sqrt3*gradient(3)))
             gradient(1) = g
             gradient(2) = 0.5_dp*g
             gradient(3) = sqrt3*gradient(2)
+            gradient(4) = 0.0_dp
+            gradient(5) = 0.0_dp
+         CASE (cell_sym_hexagonal_gamma_120)
+            g = 0.5_dp*(gradient(1) - 0.5_dp*(gradient(2) - sqrt3*gradient(3)))
+            gradient(1) = g
+            gradient(2) = -0.5_dp*g
+            gradient(3) = -sqrt3*gradient(2)
             gradient(4) = 0.0_dp
             gradient(5) = 0.0_dp
          CASE (cell_sym_rhombohedral)
@@ -407,7 +414,7 @@ CONTAINS
             gradient(2) = 0.0_dp
             gradient(5) = 0.0_dp
          CASE (cell_sym_monoclinic_gamma_ab)
-            ! Cell symmetry with a=b, alpha=beta=90deg and gammma unequal 90deg
+            ! Cell symmetry with a = b, alpha = beta = 90 degree and gammma not equal 90 degree
             a_length = SQRT(cell%hmat(1, 1)*cell%hmat(1, 1) + &
                             cell%hmat(2, 1)*cell%hmat(2, 1) + &
                             cell%hmat(3, 1)*cell%hmat(3, 1))
@@ -416,14 +423,14 @@ CONTAINS
                             cell%hmat(3, 2)*cell%hmat(3, 2))
             ab_length = 0.5_dp*(a_length + b_length)
             gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))
-            cosgamma = COS(gamma)
-            singamma = SIN(gamma)
+            cosg = COS(gamma)
+            sing = SIN(gamma)
             ! Here, g is the average derivative of the cell vector length ab_length, and deriv_gamma is the derivative of the angle gamma
-            g = 0.5_dp*(gradient(1) + cosgamma*gradient(2) + singamma*gradient(3))
-            deriv_gamma = (gradient(3)*cosgamma - gradient(2)*singamma)/b_length
+            g = 0.5_dp*(gradient(1) + cosg*gradient(2) + sing*gradient(3))
+            deriv_gamma = (gradient(3)*cosg - gradient(2)*sing)/b_length
             gradient(1) = g
-            gradient(2) = g*cosgamma - ab_length*singamma*deriv_gamma
-            gradient(3) = g*singamma + ab_length*cosgamma*deriv_gamma
+            gradient(2) = g*cosg - ab_length*sing*deriv_gamma
+            gradient(3) = g*sing + ab_length*cosg*deriv_gamma
             gradient(4) = 0.0_dp
             gradient(5) = 0.0_dp
          CASE (cell_sym_triclinic)
