@@ -87,7 +87,6 @@ def clean_publics(fn, unused):
 
         without_comment = re.sub("!.*", "", line).strip()
         if len(without_comment) > 0 and without_comment[-1] != "&":
-
             # flush new_public
             for i, entry in enumerate(new_public):
                 if i == 0:

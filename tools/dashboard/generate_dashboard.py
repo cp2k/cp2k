@@ -42,6 +42,7 @@ from matplotlib.ticker import AutoMinorLocator  # type: ignore
 GitSha = NewType("GitSha", str)
 ReportStatus = Literal["OK", "FAILED", "OUTDATED", "UNKNOWN"]
 
+
 # ======================================================================================
 class GitLog:
     def __init__(self) -> None:
@@ -157,7 +158,6 @@ def main() -> None:
 def gen_frontpage(
     config: ConfigParser, log: GitLog, status_fn: Path, outdir: Path, send_emails: bool
 ) -> None:
-
     status: Dict[str, Status] = {}
     if path.exists(status_fn):
         with open(status_fn, "rb") as f:
@@ -239,7 +239,6 @@ def gen_frontpage(
 
 # ======================================================================================
 def gen_archive(config: ConfigParser, log: GitLog, outdir: Path) -> None:
-
     for s in config.sections():
         print(f"Working on archive page of: {s}")
         name = config.get(s, "name")
@@ -354,7 +353,6 @@ def gen_url_list(config: ConfigParser, outdir: Path) -> None:
 def gen_plots(
     archive_reports: Dict[GitSha, Report], log: GitLog, outdir: Path, full_archive: bool
 ) -> str:
-
     ordered_shas = [c.sha for c in log.commits]
     ordered_reports = [archive_reports[s] for s in ordered_shas if s in archive_reports]
 
@@ -414,7 +412,6 @@ def make_plot_data(fn: Path, plot: AggregatedPlot, max_age: int, log: GitLog) ->
 def make_plot_image(
     fn: Path, plot: AggregatedPlot, max_age: int, full_archive: bool
 ) -> None:
-
     # Setup figure.
     fig = plt.figure(figsize=(12, 4))
     fig.subplots_adjust(bottom=0.18, left=0.06, right=0.70)
@@ -468,7 +465,6 @@ def send_notification(
     s: str,
     send_emails: bool,
 ) -> None:
-
     idx_end = log.index_by_sha[report.sha] if report.sha else 0
     if not last_ok:
         return  # we don't know when this started

@@ -9,6 +9,7 @@ from os import path
 re_program = re.compile(r"\n\s*end\s*program")
 re_main = re.compile(r"\sint\s+main\s*\(")
 
+
 # ============================================================================
 def main():
     if len(sys.argv) != 2:

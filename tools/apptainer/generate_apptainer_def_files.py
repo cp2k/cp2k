@@ -84,7 +84,6 @@ def main() -> None:
         )
 
     for release in cp2k_release_list:
-
         if args.release != "all" and args.release != release:
             continue
 
@@ -94,7 +93,6 @@ def main() -> None:
             prefix = f"{package}-{release}"
 
         for mpi_implementation in mpi_implementation_list:
-
             if (
                 args.mpi_implementation != "all"
                 and args.mpi_implementation != mpi_implementation
@@ -157,7 +155,6 @@ def write_definition_file(
     target_cpu: str,
     testopts: str,
 ) -> str:
-
     if release == "master":
         branch = ""
     else:

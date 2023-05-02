@@ -57,7 +57,6 @@ TEST_FILE_CONTENT = """
 
 
 def sample_run(input_file_path):
-
     with cp2k.ForceEnvironment(input_file_path, "/dev/null") as fenv:
         print("potential energy: {:e}".format(fenv.potential_energy))
         print("calculating energy..")

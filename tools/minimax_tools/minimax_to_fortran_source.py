@@ -103,7 +103,6 @@ def format_array(
     begin: str = "[",
     end: str = "]",
 ) -> List[str]:
-
     lines: List[str] = [" " * indent + begin]
     for i, x in enumerate(array):
         if i % wrap == 0 and i > 0:

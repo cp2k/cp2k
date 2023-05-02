@@ -23,7 +23,6 @@ class TestSingleFileFolder(unittest.TestCase):
         shutil.rmtree(self.tempdir)
 
     def test_prettify(self):
-
         # call prettify, the return value should be 0 (OK)
         self.assertEqual(main([self.fname]), 0)
 

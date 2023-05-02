@@ -46,6 +46,7 @@ IGNORED_WARNINGS = (
     "style of line directive is a GCC extension",
 )
 
+
 # ======================================================================================
 def check_warnings(fhandle):
     loc = loc_short = ""
