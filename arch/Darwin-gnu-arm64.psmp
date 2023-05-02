@@ -26,7 +26,7 @@
    if $(command -v brew >/dev/null 2>&1); then \
       brew install cmake; \
       brew install coreutils; \
-      brew install gcc; \
+      brew install gcc@12; \
       brew install gsed; \
       brew install pkg-config; \
       brew install wget; \
