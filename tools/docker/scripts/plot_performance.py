@@ -6,6 +6,7 @@ import re
 import sys
 from collections import OrderedDict
 
+
 # ======================================================================================
 def main():
     if len(sys.argv) < 4 or (len(sys.argv) - 1) % 3 != 0:

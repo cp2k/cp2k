@@ -26,6 +26,7 @@ SCRATCH_DIR = Path("./obj/precommit")
 CACHE_FILE = SCRATCH_DIR / "cache.json"
 SERVER = os.environ.get("CP2K_PRECOMMIT_SERVER", "https://precommit.cp2k.org")
 
+
 # ======================================================================================
 def main() -> None:
     # Parse command line arguments.

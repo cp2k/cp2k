@@ -7,6 +7,7 @@ from typing import Any
 import argparse
 import io
 
+
 # ======================================================================================
 def main() -> None:
     parser = argparse.ArgumentParser()

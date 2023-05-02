@@ -16,7 +16,6 @@ def main() -> None:
     lines_out = []
     continuation = False
     for line in makefile.read_text(encoding="utf8").split("\n"):
-
         # Remove trailing whitespaces.
         line = line.rstrip()
 

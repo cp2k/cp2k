@@ -16,6 +16,7 @@ app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024  # 1MB
 app.logger.setLevel(logging.INFO)
 app.logger.info("CP2K Precommit Server is up and running :-)")
 
+
 # ======================================================================================
 @app.route("/")
 def hello():

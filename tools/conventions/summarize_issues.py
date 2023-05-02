@@ -7,7 +7,6 @@ import argparse
 
 
 def summarize(issue_files, suppressions):
-
     suppress = []
 
     if suppressions:

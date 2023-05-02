@@ -39,6 +39,7 @@ KEEPALIVE_SKIP_DIRS = [
     "QS/regtest-mp2-grad-2",
 ]
 
+
 # ======================================================================================
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Runs CP2K regression test suite.")
@@ -575,7 +576,6 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
 def eval_regtest(
     batch: Batch, test: Regtest, duration: float, returncode: int, timed_out: bool
 ) -> TestResult:
-
     output_bytes = test.out_path.read_bytes() if test.out_path.exists() else b""
     output = output_bytes.decode("utf8", errors="replace")
     output_tail = "\n".join(output.split("\n")[-100:])
