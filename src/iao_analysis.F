@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Calculate ntrinsic atomic orbitals and analyze wavefunctions
+!> \brief Calculate intrinsic atomic orbitals and analyze wavefunctions
 !> \par History
 !>      03.2023 created [JGH]
 !> \author JGH
@@ -19,11 +19,11 @@ MODULE iao_analysis
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE auto_basis,                      ONLY: create_oce_basis
-   USE basis_set_container_types,       ONLY: add_basis_set_to_container
-   USE basis_set_types,                 ONLY: &
-        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_gto_basis_set, &
-        deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_p_type, gto_basis_set_type, &
-        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
+   USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
+                                              get_gto_basis_set,&
+                                              gto_basis_set_p_type,&
+                                              gto_basis_set_type,&
+                                              init_orb_basis_set
    USE bibliography,                    ONLY: Knizia2013,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
@@ -60,6 +60,8 @@ MODULE iao_analysis
         dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE iao_types,                       ONLY: iao_env_type
+   USE input_constants,                 ONLY: do_iaoloc_enone,&
+                                              do_iaoloc_pm2
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -70,14 +72,13 @@ MODULE iao_analysis
    USE mathlib,                         ONLY: invmat_symm,&
                                               jacobi
    USE message_passing,                 ONLY: mp_comm_type
+   USE min_basis_set,                   ONLY: create_minbas_set
    USE molden_utils,                    ONLY: write_mos_molden
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
-   USE periodic_table,                  ONLY: get_ptable_info,&
-                                              ptable
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -131,24 +132,26 @@ CONTAINS
 !> \param qs_env ...
 !> \param iao_env ...
 !> \param unit_nr ...
+!> \param c_iao_coef ...
+!> \param c_loc_coef ...
 ! **************************************************************************************************
-   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr)
+   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(iao_env_type), INTENT(IN)                     :: iao_env
       INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         OPTIONAL                                        :: c_iao_coef
+      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL           :: c_loc_coef
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_wfn_analysis'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
       INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
-                                                            lb, mao, nao, natom, ne, nimages, &
-                                                            nkind, norb, nref, nsgf, nspin, nvec, &
-                                                            sweeps, ub, z
+                                                            nao, natom, nimages, nkind, norb, &
+                                                            nref, nsgf, nspin, nvec, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
-      INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(2)                              :: nocc
-      INTEGER, DIMENSION(:), POINTER                     :: econf
       LOGICAL                                            :: cubes_iao, cubes_ibo, do_bondorbitals, &
                                                             molden_iao, molden_ibo, &
                                                             uniform_occupation
@@ -216,37 +219,14 @@ CONTAINS
       ibo_cc_section => iao_env%ibo_cc_section
 
       ! check for or generate reference basis
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
-      nkind = SIZE(qs_kind_set)
-      DO ikind = 1, nkind
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
-         CALL get_ptable_info(element_symbol, ielement=z)
-         NULLIFY (refbasis)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
-         IF (.NOT. ASSOCIATED(refbasis)) THEN
-            CALL get_qs_kind(qs_kind=qs_kind, mao=mao)
-            ! generate a minimal basis set
-            elcon = 0
-            lb = LBOUND(econf, 1)
-            ub = UBOUND(econf, 1)
-            ne = ub - lb
-            elcon(0:ne) = econf(lb:ub)
-            CALL create_min_basis(refbasis, z, elcon, mao)
-            CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
-         END IF
-         IF (unit_nr > 0) THEN
-            CALL get_gto_basis_set(refbasis, name=bname, nsgf=nsgf)
-            WRITE (unit_nr, '(T2,A,A,T14,A,I4,T40,A,A24)') "Kind: ", element_symbol, "NBasFun: ", nsgf, &
-               "Reference Basis: ", ADJUSTL(TRIM(bname))
-         END IF
-      END DO
+      CALL create_minbas_set(qs_env, unit_nr)
 
       ! overlap matrices
       CALL get_qs_env(qs_env, matrix_s_kp=matrix_s)
       smat => matrix_s(1, 1)%matrix
       !
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+      nkind = SIZE(qs_kind_set)
       ALLOCATE (ref_basis_set_list(nkind), orb_basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
@@ -275,7 +255,8 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
       CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=nref, nfullcols_total=norb)
-      !
+
+      ! Projectors
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=nref, &
                                ncol_global=norb, para_env=mo_coeff%matrix_struct%para_env)
@@ -329,22 +310,22 @@ CONTAINS
          END IF
       END DO
       !
-      ! MOs in IAO basis
-      ALLOCATE (ciao(nspin))
-      DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
-         CALL cp_fm_create(smo, mo_coeff%matrix_struct)
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
-         CALL cp_fm_create(ciao(ispin), fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-         ! CIAO = A(T)*S*C
-         CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
-         CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
-         CALL cp_fm_release(smo)
-      END DO
-      !
       IF (iao_env%do_charges) THEN
+         ! MOs in IAO basis
+         ALLOCATE (ciao(nspin))
+         DO ispin = 1, nspin
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
+            CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(ciao(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+            ! CIAO = A(T)*S*C
+            CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
+            CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
+            CALL cp_fm_release(smo)
+         END DO
+         !
          ! population analysis
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T2,A)') 'Intrinsic AO Population Analysis '
@@ -372,14 +353,34 @@ CONTAINS
          CALL print_atomic_charges(particle_set, qs_kind_set, unit_nr, "Intrinsic Atomic Orbital Charges", &
                                    electronic_charges=mcharge)
          DEALLOCATE (mcharge)
+         CALL cp_fm_release(ciao)
       END IF
+      !
+      ! Deallocate the neighbor list structure
+      CALL release_neighbor_list_sets(srr_list)
+      CALL release_neighbor_list_sets(sro_list)
+      IF (ASSOCIATED(sref)) CALL dbcsr_deallocate_matrix_set(sref)
+      IF (ASSOCIATED(sro)) CALL dbcsr_deallocate_matrix_set(sro)
+      CALL cp_fm_release(p_ref_orb)
+      CALL cp_fm_release(p_orb_ref)
+      CALL cp_fm_release(cvec)
+      DEALLOCATE (ref_basis_set_list, orb_basis_set_list)
       !
       IF (iao_env%do_oce) THEN
          ! generate OCE basis
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A)') "IAO One-Center Expansion: OCE Basis Set"
          END IF
-         ALLOCATE (oce_basis_set_list(nkind))
+         CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+         nkind = SIZE(qs_kind_set)
+         ALLOCATE (oce_basis_set_list(nkind), orb_basis_set_list(nkind))
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
+            NULLIFY (orbbasis)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orbbasis, basis_type="ORB")
+            IF (ASSOCIATED(orbbasis)) orb_basis_set_list(ikind)%gto_basis_set => orbbasis
+         END DO
          DO ikind = 1, nkind
             orbbasis => orb_basis_set_list(ikind)%gto_basis_set
             CPASSERT(ASSOCIATED(orbbasis))
@@ -421,7 +422,7 @@ CONTAINS
             ocebasis => oce_basis_set_list(ikind)%gto_basis_set
             CALL deallocate_gto_basis_set(ocebasis)
          END DO
-         DEALLOCATE (oce_basis_set_list)
+         DEALLOCATE (oce_basis_set_list, orb_basis_set_list)
          !
          CALL release_neighbor_list_sets(sxo_list)
          IF (ASSOCIATED(sxo)) CALL dbcsr_deallocate_matrix_set(sxo)
@@ -473,6 +474,38 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T2,A)') 'Intrinsic Bond Orbital Generation'
          END IF
+         ! MOs in IAO basis -> ciao
+         ALLOCATE (ciao(nspin))
+         IF (PRESENT(c_loc_coef)) THEN
+            DO ispin = 1, nspin
+               CALL cp_fm_get_info(c_loc_coef(ispin), nrow_global=nao, ncol_global=norb)
+               nocc(ispin) = norb
+               CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+               NULLIFY (fm_struct)
+               CALL cp_fm_struct_create(fm_struct, nrow_global=nref, &
+                                        template_fmstruct=c_loc_coef(ispin)%matrix_struct)
+               CALL cp_fm_create(ciao(ispin), fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
+               ! CIAO = A(T)*S*C
+               CALL cp_dbcsr_sm_fm_multiply(smat, c_loc_coef(ispin), smo, ncol=norb)
+               CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
+               CALL cp_fm_release(smo)
+            END DO
+         ELSE
+            DO ispin = 1, nspin
+               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
+               CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+               NULLIFY (fm_struct)
+               CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
+               CALL cp_fm_create(ciao(ispin), fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
+               ! CIAO = A(T)*S*C
+               CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
+               CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
+               CALL cp_fm_release(smo)
+            END DO
+         END IF
+         !
          ! localize occupied orbitals
          CALL get_mo_set(mos(1), nao=nao)
          ALLOCATE (cloc(nspin), c_loc_orb(nspin))
@@ -484,18 +517,27 @@ CONTAINS
             CALL cp_fm_struct_release(fm_struct)
             CALL cp_fm_to_fm(ciao(ispin), cloc(ispin), ncol=nocc(ispin))
          END DO
+         CALL cp_fm_release(ciao)
          CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, natom=natom)
          ALLOCATE (first_sgf(natom), last_sgf(natom), nsgfat(natom))
          CALL get_ks_env(ks_env=ks_env, particle_set=particle_set)
          CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf, &
                                nsgf=nsgfat, basis=ref_basis_set_list)
+
+         IF (iao_env%loc_operator /= do_iaoloc_pm2) THEN
+            CPABORT("IAO localization operator NYA")
+         END IF
+         IF (iao_env%eloc_function /= do_iaoloc_enone) THEN
+            CPABORT("IAO energy weight localization NYA")
+         END IF
+
          DO ispin = 1, nspin
             nvec = nocc(ispin)
             IF (nvec > 0) THEN
                ALLOCATE (zij_atom(natom, 1))
                NULLIFY (fm_struct)
                CALL cp_fm_struct_create(fm_struct, nrow_global=nvec, ncol_global=nvec, &
-                                        template_fmstruct=p_ref_orb%matrix_struct)
+                                        template_fmstruct=cloc(ispin)%matrix_struct)
                DO iatom = 1, natom
                   CALL cp_fm_create(zij_atom(iatom, 1), fm_struct)
                   isgf = first_sgf(iatom)
@@ -576,23 +618,24 @@ CONTAINS
             CALL print_ibo_cubes(qs_env, ibo_cubes_section, c_loc_orb)
          END IF
          !
+         IF (PRESENT(c_loc_coef)) THEN
+            ! c_loc_orb -> c_loc_coef
+            DO ispin = 1, nspin
+               CALL cp_fm_to_fm(c_loc_orb(ispin), c_loc_coef(ispin))
+            END DO
+         END IF
          CALL cp_fm_release(c_loc_orb)
       END IF
 
-      ! Deallocate the neighbor list structure
-      CALL release_neighbor_list_sets(srr_list)
-      CALL release_neighbor_list_sets(sro_list)
-
-      DEALLOCATE (ref_basis_set_list, orb_basis_set_list)
-
-      IF (ASSOCIATED(sref)) CALL dbcsr_deallocate_matrix_set(sref)
-      IF (ASSOCIATED(sro)) CALL dbcsr_deallocate_matrix_set(sro)
-      CALL cp_fm_release(p_ref_orb)
-      CALL cp_fm_release(p_orb_ref)
-
+      IF (PRESENT(c_iao_coef)) THEN
+         CALL cp_fm_release(c_iao_coef)
+         ALLOCATE (c_iao_coef(nspin))
+         DO ispin = 1, nspin
+            CALL cp_fm_create(c_iao_coef(ispin), iao_coef(ispin)%matrix_struct)
+            CALL cp_fm_to_fm(iao_coef(ispin), c_iao_coef(ispin))
+         END DO
+      END IF
       CALL cp_fm_release(iao_coef)
-      CALL cp_fm_release(cvec)
-      CALL cp_fm_release(ciao)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') &
@@ -1021,131 +1064,6 @@ CONTAINS
       CALL cp_print_key_finished_output(iw, logger, print_section, "")
 
    END SUBROUTINE print_center_spread
-
-! **************************************************************************************************
-!> \brief Creates a minimal basis set based on Slater rules
-!> \param min_basis_set ...
-!> \param zval ...
-!> \param econf ...
-!> \param mao ...
-!> \par History
-!>      03.2023 created [JGH]
-! **************************************************************************************************
-   SUBROUTINE create_min_basis(min_basis_set, zval, econf, mao)
-      TYPE(gto_basis_set_type), POINTER                  :: min_basis_set
-      INTEGER, INTENT(IN)                                :: zval
-      INTEGER, DIMENSION(0:3)                            :: econf
-      INTEGER, INTENT(IN)                                :: mao
-
-      CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = (/"S", "P", "D", "F"/)
-
-      CHARACTER(len=6)                                   :: str
-      CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
-      CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: i, iss, l, n, nmao, nn, nss
-      INTEGER, DIMENSION(0:3)                            :: nae, nco, npe
-      INTEGER, DIMENSION(4, 7)                           :: ne
-      INTEGER, DIMENSION(:), POINTER                     :: lq, nq
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
-      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
-
-      CPASSERT(.NOT. ASSOCIATED(min_basis_set))
-      NULLIFY (sto_basis_set)
-
-      ! electronic configuration
-      ne = 0
-      DO l = 1, 4
-         nn = 2*(l - 1) + 1
-         DO i = l, 7
-            ne(l, i) = ptable(zval)%e_conv(l - 1) - 2*nn*(i - l)
-            ne(l, i) = MAX(ne(l, i), 0)
-            ne(l, i) = MIN(ne(l, i), 2*nn)
-         END DO
-      END DO
-      ! STO definition
-      nae = 0
-      npe = 0
-      DO l = 0, 3
-         nn = 2*(2*l + 1)
-         nae(l) = ptable(zval)%e_conv(l)/nn
-         IF (MOD(ptable(zval)%e_conv(l), nn) /= 0) nae(l) = nae(l) + 1
-         npe(l) = econf(l)/nn
-         IF (MOD(econf(l), nn) /= 0) npe(l) = npe(l) + 1
-      END DO
-      CPASSERT(ALL(nae - npe >= 0))
-      nco = nae - npe
-      ! MAO count
-      nmao = 0
-      DO l = 0, 3
-         nmao = nmao + npe(l)*(2*l + 1)
-      END DO
-
-      IF (mao > nmao) THEN
-         nmao = mao - nmao
-         SELECT CASE (nmao)
-         CASE (1)
-            npe(0) = npe(0) + 1
-         CASE (2)
-            npe(0) = npe(0) + 2
-         CASE (3)
-         CASE (4)
-            npe(0) = npe(0) + 1
-            npe(1) = npe(1) + 1
-         CASE (5)
-            IF (npe(2) == 0) THEN
-               npe(2) = npe(2) + 1
-            ELSE
-               npe(0) = npe(0) + 2
-               npe(1) = npe(1) + 1
-            END IF
-         CASE (6)
-            npe(0) = npe(0) + 1
-            npe(2) = npe(2) + 1
-         CASE (7)
-            npe(0) = npe(0) + 2
-            npe(2) = npe(2) + 1
-         CASE (8)
-            npe(0) = npe(0) + 3
-            npe(2) = npe(2) + 1
-         CASE (9)
-            npe(0) = npe(0) + 1
-            npe(1) = npe(1) + 1
-            npe(2) = npe(2) + 1
-         CASE DEFAULT
-            CPABORT("Default setting of minimal basis failed")
-         END SELECT
-         CALL cp_warn(__LOCATION__, "Reference basis has been adjusted according to MAO value.")
-      END IF
-
-      nss = SUM(npe)
-      ALLOCATE (sym(nss), lq(nss), nq(nss), zet(nss))
-      iss = 0
-      DO l = 0, 3
-         DO i = 1, npe(l)
-            iss = iss + 1
-            lq(iss) = l
-            n = nco(l) + l
-            nq(iss) = n + i
-            str = "      "
-            WRITE (str(5:5), FMT='(I1)') nq(iss)
-            str(6:6) = lnam(l)
-            sym(iss) = str
-            zet(iss) = srules(zval, ne, nq(iss), lq(iss))
-         END DO
-      END DO
-
-      bname = ADJUSTR(ptable(zval)%symbol)//"_MBas"
-      CALL allocate_sto_basis_set(sto_basis_set)
-      CALL set_sto_basis_set(sto_basis_set, name=bname, nshell=nss, nq=nq, &
-                             lq=lq, zet=zet, symbol=sym)
-      CALL create_gto_from_sto_basis(sto_basis_set, min_basis_set, 6)
-      min_basis_set%norm_type = 2
-      CALL init_orb_basis_set(min_basis_set)
-      CALL deallocate_sto_basis_set(sto_basis_set)
-
-      DEALLOCATE (sym, lq, nq, zet)
-
-   END SUBROUTINE create_min_basis
 
 ! **************************************************************************************************
 !> \brief ...

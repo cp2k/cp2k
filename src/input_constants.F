@@ -651,6 +651,14 @@ MODULE input_constants
                                                mao_basis_prim = 2001, &
                                                mao_basis_ext = 2002
 
+   ! IAO
+   INTEGER, PARAMETER, PUBLIC               :: do_iaoloc_pm2 = 100, &
+                                               do_iaoloc_pm4 = 200, &
+                                               do_iaoloc_l1 = 300, &
+                                               do_iaoloc_enone = 1000, &
+                                               do_iaoloc_energy = 1001, &
+                                               do_iaoloc_occ = 1002
+
    ! X-Ray spectra Calculation
    INTEGER, PARAMETER, PUBLIC               :: xas_none = 0, &
                                                xas_tp_hh = 1, &

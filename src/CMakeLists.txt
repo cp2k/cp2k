@@ -318,6 +318,7 @@ list(
   metadynamics_utils.F
   metadyn_tools/graph_methods.F
   metadyn_tools/graph_utils.F
+  min_basis_set.F
   minbas_methods.F
   minbas_wfn_analysis.F
   mixed_cdft_methods.F
