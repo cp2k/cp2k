@@ -404,36 +404,22 @@ COPY ./tools/regtesting ./tools/regtesting
 
 # ======================================================================================
 def install_cp2k_cmake() -> str:
-    # TODO: This is a draft and does not yet actually work.
-
-    return rf"""
-
-COPY ./tools/build_utils/fypp /bin/fypp
+    return (
+        rf"""
 
 # Install CP2K using CMake.
-
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
-WORKDIR ./build
-RUN /bin/bash -c " \
-    echo 'Compiling cp2k...' && \
-    source /opt/cp2k-toolchain/install/setup && \
-    cmake -Werror=dev -DCP2K_USE_VORI=ON -DCP2K_USE_COSMA=NO -DCP2K_BLAS_VENDOR=OpenBLAS -DCP2K_USE_SPGLIB=ON -DCP2K_USE_LIBINT2=ON -DCP2K_USE_LIBXC=ON -DCP2K_USE_LIBTORCH=OFF -DCP2K_ENABLE_CONSISTENCY_CHECKS=ON -DCP2K_BUILD_DBCSR=ON -DCP2K_ENABLE_REGTESTS=ON .. |& tee ./cmake.log && \
-    ! grep -A5 'CMake Warning' ./cmake.log && \
-    make -j"
-WORKDIR /opt/cp2k
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
 
-RUN echo "\nSummary: Compilation works fine.\nStatus: OK\n"
-
-#EOF
+COPY ./tools/docker/scripts/test_cmake.sh .
+RUN ./test_cmake.sh 2>&1 | tee report.log
 """
+        + print_cached_report()
+    )
 
 
 # ======================================================================================
