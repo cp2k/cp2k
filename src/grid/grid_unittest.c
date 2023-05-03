@@ -13,13 +13,18 @@
 #include "common/grid_library.h"
 #include "grid_replay.h"
 
+// Only used to call MPI_Init and MPI_Finalize to avoid spurious MPI error.
+#if defined(__parallel)
+#include <mpi.h>
+#endif
+
 /*******************************************************************************
  * \brief Standin for mpi_sum, passed to grid_library_print_stats.
  * \author Ole Schuett
  ******************************************************************************/
 static void mpi_sum_func(long *number, int mpi_comm) {
-  *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
-  mpi_comm += 0;
+  (void)number; // mark used
+  (void)mpi_comm;
 }
 
 /*******************************************************************************
@@ -27,7 +32,7 @@ static void mpi_sum_func(long *number, int mpi_comm) {
  * \author Ole Schuett
  ******************************************************************************/
 static void print_func(char *message, int output_unit) {
-  output_unit += 0; // Pretend argument is used.
+  (void)output_unit; // mark used
   printf("%s", message);
 }
 
@@ -65,6 +70,10 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 }
 
 int main(int argc, char *argv[]) {
+#if defined(__parallel)
+  MPI_Init(&argc, &argv);
+#endif
+
   if (argc != 2) {
     printf("Usage: grid_unittest.x <cp2k-root-dir>\n");
     return 1;
@@ -95,6 +104,10 @@ int main(int argc, char *argv[]) {
   } else {
     printf("\nFound %i errors :-(\n", errors);
   }
+
+#if defined(__parallel)
+  MPI_Finalize();
+#endif
 
   return errors;
 }
