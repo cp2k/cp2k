@@ -69,6 +69,7 @@ service postgresql start
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
 source /opt/cp2k-toolchain/install/setup
+export OMP_NUM_THREADS=2
 /opt/cp2k/exe/local/cp2k.sdbg "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
