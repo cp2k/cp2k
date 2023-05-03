@@ -20,7 +20,9 @@ import time
 try:
     from typing import Literal  # not available before Python 3.8
 
-    TestStatus = Literal["OK", "WRONG RESULT", "RUNTIME FAIL", "TIMED OUT"]
+    TestStatus = Literal[
+        "OK", "WRONG RESULT", "RUNTIME FAIL", "TIMED OUT", "HUGE OUTPUT"
+    ]
 except ImportError:
     TestStatus = str  # type: ignore
 
@@ -195,21 +197,20 @@ async def main() -> None:
     print("\n----------------------------- Slow Tests -------------------------------")
     slow_test_threshold = 2 * percentile(timings, 0.95)
     print(f"Duration threshold (2x 95th %ile): {slow_test_threshold:.2f} sec")
-    slow_supps_fn = cfg.cp2k_root / "tests" / "SLOW_TESTS_SUPPRESSIONS"
-    slow_supps = slow_supps_fn.read_text(encoding="utf8").split("\n")
     slow_tests_all = [r for r in all_results if r.duration > slow_test_threshold]
-    slow_tests = [r for r in slow_tests_all if r.fullname() not in slow_supps]
+    slow_tests = [r for r in slow_tests_all if r.fullname not in cfg.slow_suppressions]
     num_slow_suppressed = len(slow_tests_all) - len(slow_tests)
     print(f"Found {len(slow_tests)} slow tests ({num_slow_suppressed} suppressed):")
     for r in slow_tests:
-        print(f"    {r.fullname() :<80s} ( {r.duration:6.2f} sec)")
+        print(f"    {r.fullname :<80s} ( {r.duration:6.2f} sec)")
     if not cfg.flag_slow:
         slow_tests = []
 
     print("\n------------------------------- Summary --------------------------------")
     total_duration = time.perf_counter() - start_time
     num_tests = len(all_results)
-    num_failed = sum(r.status in ("TIMED OUT", "RUNTIME FAIL") for r in all_results)
+    failure_modes = ["RUNTIME FAIL", "TIMED OUT", "HUGE OUTPUT"]
+    num_failed = sum(r.status in failure_modes for r in all_results)
     num_wrong = sum(r.status == "WRONG RESULT" for r in all_results)
     num_ok = sum(r.status == "OK" for r in all_results)
     status_ok = (num_ok == num_tests) and (not slow_tests)
@@ -259,6 +260,12 @@ class Config:
             else self.cp2k_root / "regtesting" / leaf_dir
         )
         self.error_summary = self.work_base_dir / "error_summary"
+
+        # Parse suppression files.
+        slow_supps_fn = self.cp2k_root / "tests" / "SLOW_TESTS_SUPPRESSIONS"
+        self.slow_suppressions = slow_supps_fn.read_text(encoding="utf8").split("\n")
+        huge_supps_fn = self.cp2k_root / "tests" / "HUGE_TESTS_SUPPRESSIONS"
+        self.huge_suppressions = huge_supps_fn.read_text(encoding="utf8").split("\n")
 
         def run_with_capture_stdout(cmd: str) -> bytes:
             # capture_output argument not available before Python 3.7
@@ -364,6 +371,7 @@ class Batch:
         self.regtests: List[Regtest] = []
         self.src_dir = cfg.cp2k_root / "tests" / self.name
         self.workdir = cfg.work_base_dir / self.name
+        self.huge_suppressions = cfg.huge_suppressions
 
     def requirements_satisfied(self, flags: List[str], mpiranks: int) -> bool:
         for r in self.requirements:
@@ -389,13 +397,11 @@ class TestResult:
         self.status = status
         self.value = value
         self.error = error
+        self.fullname = f"{batch.name}/{test.name}"
 
     def __str__(self) -> str:
         value = f"{self.value:.10g}" if self.value else "-"
         return f"    {self.test.name :<80s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
-
-    def fullname(self) -> str:
-        return f"{self.batch.name}/{self.test.name}"
 
 
 # ======================================================================================
@@ -536,6 +542,7 @@ async def run_regtests_keepalive(batch: Batch, cfg: Config) -> List[TestResult]:
     results: List[TestResult] = []
     for test in batch.regtests:
         start_time = time.perf_counter()
+        start_dirsize = dirsize(batch.workdir)
         await shell.sendline(f"RUN {test.inp_fn} __STD_OUT__")
         with open(test.out_path, "wt", encoding="utf8", errors="replace") as fh:
             try:
@@ -550,7 +557,8 @@ async def run_regtests_keepalive(batch: Batch, cfg: Config) -> List[TestResult]:
             await shell.stop()
             await shell.start()
         duration = time.perf_counter() - start_time
-        res = eval_regtest(batch, test, duration, returncode, timed_out)
+        output_size = dirsize(batch.workdir) - start_dirsize
+        res = eval_regtest(batch, test, duration, output_size, returncode, timed_out)
         results.append(res)
 
     await shell.stop()
@@ -562,20 +570,33 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
     results: List[TestResult] = []
     for test in batch.regtests:
         start_time = time.perf_counter()
+        start_dirsize = dirsize(batch.workdir)
         child = await cfg.launch_exe("cp2k", test.inp_fn, cwd=batch.workdir)
         output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
-        duration = time.perf_counter() - start_time
         test.out_path.write_bytes(output)
-        res = eval_regtest(batch, test, duration, returncode, timed_out)
+        duration = time.perf_counter() - start_time
+        output_size = dirsize(batch.workdir) - start_dirsize
+        res = eval_regtest(batch, test, duration, output_size, returncode, timed_out)
         results.append(res)
 
     return results
 
 
 # ======================================================================================
+def dirsize(folder: Path) -> int:
+    return sum(f.stat().st_size for f in folder.rglob("*"))
+
+
+# ======================================================================================
 def eval_regtest(
-    batch: Batch, test: Regtest, duration: float, returncode: int, timed_out: bool
+    batch: Batch,
+    test: Regtest,
+    duration: float,
+    output_size: int,
+    returncode: int,
+    timed_out: bool,
 ) -> TestResult:
+    is_huge_suppressed = f"{batch.name}/{test.name}" in batch.huge_suppressions
     output_bytes = test.out_path.read_bytes() if test.out_path.exists() else b""
     output = output_bytes.decode("utf8", errors="replace")
     output_tail = "\n".join(output.split("\n")[-100:])
@@ -586,6 +607,9 @@ def eval_regtest(
     elif returncode != 0:
         error += f"{output_tail}\n\nRuntime failure with code {returncode}."
         return TestResult(batch, test, duration, "RUNTIME FAIL", error=error)
+    elif output_size > 2 * 1024 * 1024 and not is_huge_suppressed:  # 2MiB limit
+        error += f"Test produced {output_size/1024/1024:.2f} MiB of output."
+        return TestResult(batch, test, duration, "HUGE OUTPUT", error=error)
     elif not test.test_type:
         return TestResult(batch, test, duration, "OK")  # test type zero
     else:
