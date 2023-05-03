@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE iao_types
    USE cell_types,                      ONLY: cell_type
-   USE input_constants,                 ONLY: do_iaoloc_pm2, do_iaoloc_enone
+   USE input_constants,                 ONLY: do_iaoloc_enone,&
+                                              do_iaoloc_pm2
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&

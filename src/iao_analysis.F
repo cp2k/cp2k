@@ -60,8 +60,8 @@ MODULE iao_analysis
         dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE iao_types,                       ONLY: iao_env_type
-   USE input_constants,                 ONLY: do_iaoloc_energy, do_iaoloc_enone, do_iaoloc_l1, &
-        do_iaoloc_occ, do_iaoloc_pm2, do_iaoloc_pm4
+   USE input_constants,                 ONLY: do_iaoloc_enone,&
+                                              do_iaoloc_pm2
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -524,10 +524,10 @@ CONTAINS
          CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf, &
                                nsgf=nsgfat, basis=ref_basis_set_list)
 
-         IF(iao_env%loc_operator /= do_iaoloc_pm2) THEN
+         IF (iao_env%loc_operator /= do_iaoloc_pm2) THEN
             CPABORT("IAO localization operator NYA")
          END IF
-         IF(iao_env%eloc_function /= do_iaoloc_enone) THEN
+         IF (iao_env%eloc_function /= do_iaoloc_enone) THEN
             CPABORT("IAO energy weight localization NYA")
          END IF
 
