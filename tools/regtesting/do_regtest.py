@@ -37,6 +37,7 @@ KEEPALIVE_SKIP_DIRS = [
     "QS/regtest-gpw-1",
     "QS/regtest-mp2-grad-1",
     "QS/regtest-mp2-grad-2",
+    "UNIT/grid_unittest",
 ]
 
 
