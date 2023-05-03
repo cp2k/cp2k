@@ -103,7 +103,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
       INTEGER                                            :: dim_op, handle, i, imo, imoloc, j, lb, &
-                                                            loc_method, nao, nmo, nmosub, ub
+                                                            loc_method, nao, nmosub, ub
       LOGICAL, SAVE                                      :: first_time = .TRUE.
       REAL(dp), DIMENSION(6)                             :: weights
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
@@ -154,7 +154,6 @@ CONTAINS
             DO j = 1, SIZE(op_fm_set, 1)
                CALL cp_fm_create(op_fm_set(j, i), tmp_fm_struct)
                CALL cp_fm_get_info(op_fm_set(j, i), nrow_global=nmosub)
-               CPASSERT(nmo >= nmosub)
                CALL cp_fm_set_all(op_fm_set(j, i), 0.0_dp)
             END DO
          END DO
