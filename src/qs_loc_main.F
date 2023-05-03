@@ -139,7 +139,6 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(myspin), mo_coeff=locorb)
       END IF
 
-      CALL get_mo_set(mo_set=mos(myspin), nao=nao, nmo=nmo)
       loc_method = localized_wfn_control%localization_method
 
       nmosub = localized_wfn_control%nloc_states(myspin)
@@ -209,7 +208,6 @@ CONTAINS
             CALL cp_fm_set_submatrix(locorb, vecbuffer, 1, imo, nao, 1, transpose=.TRUE.)
          END DO
          DEALLOCATE (vecbuffer)
-
       ELSE
          nmosub = localized_wfn_control%nloc_states(myspin)
          CALL cp_fm_to_fm(moloc_coeff(myspin), locorb, nmosub, 1, lb)

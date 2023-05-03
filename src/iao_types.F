@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE iao_types
    USE cell_types,                      ONLY: cell_type
+   USE input_constants,                 ONLY: do_iaoloc_pm2, do_iaoloc_enone
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -43,6 +44,9 @@ MODULE iao_types
       ! Wannier centers
       LOGICAL                                :: do_center = .FALSE.
       LOGICAL                                :: pos_periodic = .FALSE.
+      INTEGER                                :: loc_operator = 0
+      INTEGER                                :: eloc_function = 0
+      REAL(KIND=dp)                          :: eloc_weight = 0.0_dp
       ! Molden
       LOGICAL                                :: molden_iao = .FALSE.
       LOGICAL                                :: molden_ibo = .FALSE.
@@ -56,6 +60,7 @@ MODULE iao_types
                                                 ibo_molden_section => NULL(), &
                                                 ibo_cc_section => NULL()
    END TYPE iao_env_type
+
 ! **************************************************************************************************
 
 CONTAINS
@@ -83,6 +88,9 @@ CONTAINS
       ! Wannier centers
       iao_env%do_center = .FALSE.
       iao_env%pos_periodic = .FALSE.
+      iao_env%loc_operator = do_iaoloc_pm2
+      iao_env%eloc_function = do_iaoloc_enone
+      iao_env%eloc_weight = 0.0_dp
       ! i/o
       iao_env%molden_iao = .FALSE.
       iao_env%molden_ibo = .FALSE.
@@ -136,6 +144,9 @@ CONTAINS
          CALL section_vals_get(subsection, explicit=iao_env%do_bondorbitals)
          IF (iao_env%do_bondorbitals) THEN
             subsection => section_vals_get_subs_vals(iao_section, "BOND_ORBITALS")
+            CALL section_vals_val_get(subsection, "LOCALIZATION_OPERATOR", i_val=iao_env%loc_operator)
+            CALL section_vals_val_get(subsection, "ENERGY_LOCALIZATION_FUNCTION", i_val=iao_env%eloc_function)
+            CALL section_vals_val_get(subsection, "ENERGY_LOCALIZATION_WEIGHT", r_val=iao_env%eloc_weight)
             iao_env%ibo_molden_section => section_vals_get_subs_vals(subsection, "IBO_MOLDEN")
             CALL section_vals_get(iao_env%ibo_molden_section, explicit=iao_env%molden_ibo)
             iao_env%ibo_cubes_section => section_vals_get_subs_vals(subsection, "IBO_CUBES")

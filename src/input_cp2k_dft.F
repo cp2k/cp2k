@@ -53,46 +53,47 @@ MODULE input_cp2k_dft
         do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
         do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
         do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
-        do_gapw_gct, do_gapw_log, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, &
-        do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
-        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
-        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
-        do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, do_potential_short, &
-        do_potential_truncated, do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
-        do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
-        do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-        do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, ehrenfest, embed_diff, &
-        embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
-        embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, eri_method_gpw_ht, &
-        eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
-        eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, &
-        gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, hf_model, &
-        high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
-        jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
-        kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
-        manual_selection, mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, &
-        mopac_guess, no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, &
-        oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, &
-        orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, &
-        ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
-        outer_scf_basis_center_opt, outer_scf_becke_constraint, outer_scf_cdft_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
-        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, &
-        outer_scf_optimizer_sd, outer_scf_optimizer_secant, outer_scf_s2_constraint, &
-        plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, radius_covalent, radius_default, &
-        radius_single, radius_user, radius_vdw, random_guess, real_time_propagation, &
-        ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, &
-        rel_sczora_mp, rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
-        rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
+        do_gapw_gct, do_gapw_log, do_iaoloc_energy, do_iaoloc_enone, do_iaoloc_l1, do_iaoloc_occ, &
+        do_iaoloc_pm2, do_iaoloc_pm4, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, &
+        do_lri_opt_coeff, do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, &
+        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
+        do_method_rm1, do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, &
+        do_potential_short, do_potential_truncated, do_ppl_analytic, do_ppl_grid, &
+        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
+        do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+        ehrenfest, embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, &
+        embed_none, embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, &
+        eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
+        eri_operator_gaussian, eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
+        gapw_1c_small, gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, &
+        hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
+        jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, &
+        kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, &
+        ls_2pnt, ls_3pnt, ls_gold, ls_none, manual_selection, mao_basis_ext, mao_basis_orb, &
+        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
+        oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
+        orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
+        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, random_guess, &
+        real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, &
+        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
         tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
         tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
         use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
@@ -1906,6 +1907,34 @@ CONTAINS
                                        "localized MOs in IAO basis.", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric, filename="")
+
+      CALL keyword_create(keyword, __LOCATION__, name="LOCALIZATION_OPERATOR", &
+                          description="Operator to be optimized for orbital localization", &
+                          enum_c_vals=s2a("PIPEK_MEZEY", "PIPEK_MEZEY_4", "L1NORM"), &
+                          enum_i_vals=(/do_iaoloc_pm2, do_iaoloc_pm4, do_iaoloc_l1/), &
+                          enum_desc=s2a("Use Pipek-Mezey operator (order 2)", &
+                                        "Use Pipek-Mezey operator (order 4)", &
+                                        "Use L1 norm"), &
+                          default_i_val=do_iaoloc_pm2)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_LOCALIZATION_FUNCTION", &
+                          description="Function for energy localization: f(e_i), e_i orbital energy", &
+                          enum_c_vals=s2a("NONE", "ENERGY", "OCCUPATION"), &
+                          enum_i_vals=(/do_iaoloc_enone, do_iaoloc_energy, do_iaoloc_occ/), &
+                          enum_desc=s2a("Don't use energy localization.", &
+                                        "Use orbital energies for localization.", &
+                                        "Use occupation numbers for localization."), &
+                          default_i_val=do_iaoloc_enone)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_LOCALIZATION_WEIGHT", &
+                          description="Weight given to energy localization, using f(e_i) function", &
+                          usage="ENERGY_LOCALIZATION_WEIGHT 0.1", n_var=1, &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+
       ! CHARGE CENTER AND SPREAD
       NULLIFY (subsection)
       CALL cp_print_key_section_create(subsection, __LOCATION__, "CHARGE_CENTER", &
