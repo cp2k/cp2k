@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT_NAME               he32_only_worm
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                low
 &END GLOBAL
 
 &MOTION

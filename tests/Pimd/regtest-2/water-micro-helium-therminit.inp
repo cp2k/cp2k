@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT_NAME               water-micro-helium
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                low
 &END GLOBAL
 
 &MOTION

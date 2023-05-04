@@ -3,7 +3,7 @@
 &GLOBAL
   PROJECT_NAME               water-in-helium-restart
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                low
 &END GLOBAL
 
 &MOTION
