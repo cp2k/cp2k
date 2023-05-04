@@ -20,9 +20,9 @@
 #include "common/grid_common.h"
 #include "grid_replay.h"
 
+#include "cpu/grid_cpu_collocate.h"
+#include "cpu/grid_cpu_integrate.h"
 #include "grid_task_list.h"
-#include "ref/grid_ref_collocate.h"
-#include "ref/grid_ref_integrate.h"
 
 /*******************************************************************************
  * \brief Reads next line from given filehandle and handles errors.
@@ -384,7 +384,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
       // collocate
       memset(grid_test->host_buffer, 0, npts_local_total * sizeof(double));
       for (int i = 0; i < cycles; i++) {
-        grid_ref_collocate_pgf_product(
+        grid_cpu_collocate_pgf_product(
             orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min,
             zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
             shift_local, border_width, radius, o1, o2, n1, n2, pab,
@@ -396,7 +396,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
       memset(forces_test, 0, 2 * 3 * sizeof(double));
       double virials_test[2][3][3] = {0};
       for (int i = 0; i < cycles; i++) {
-        grid_ref_integrate_pgf_product(
+        grid_cpu_integrate_pgf_product(
             orthorhombic, compute_tau, border_mask, la_max, la_min, lb_max,
             lb_min, zeta, zetb, dh, dh_inv, ra, rab, npts_global, npts_local,
             shift_local, border_width, radius, o1, o2, n1, n2,

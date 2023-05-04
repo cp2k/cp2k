@@ -22,8 +22,8 @@ Currently, the following backends exist:
 
 ## The .task files
 
-For debugging all collocations by the reference backend can be written to .task
-files. To enable this feature edit the following line in [grid_ref_collocate.c](ref/grid_ref_collocate.c):
+For debugging all collocations by the CPU backend can be written to .task
+files. To enable this feature edit the following line in [grid_cpu_collocate.c](cpu/grid_cpu_collocate.c):
 
 ```C
 // Set this to true to write each task to a file.
