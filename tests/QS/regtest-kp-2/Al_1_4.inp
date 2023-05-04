@@ -95,7 +95,7 @@
     MAX_SCF 50
    &END OUTER_SCF
    &PRINT
-    &RESTART
+    &RESTART off
      ADD_LAST NUMERIC
      BACKUP_COPIES 0
      &EACH
