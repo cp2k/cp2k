@@ -138,14 +138,14 @@ CONTAINS
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       INTERFACE
-         SUBROUTINE grid_ref_collocate_pgf_product_c(orthorhombic, &
+         SUBROUTINE grid_cpu_collocate_pgf_product_c(orthorhombic, &
                                                      border_mask, func, &
                                                      la_max, la_min, lb_max, lb_min, &
                                                      zeta, zetb, rscale, dh, dh_inv, ra, rab, &
                                                      npts_global, npts_local, shift_local, border_width, &
                                                      radius, o1, o2, n1, n2, pab, &
                                                      grid) &
-            BIND(C, name="grid_ref_collocate_pgf_product")
+            BIND(C, name="grid_cpu_collocate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: border_mask
@@ -172,7 +172,7 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: n2
             TYPE(C_PTR), VALUE                        :: pab
             TYPE(C_PTR), VALUE                        :: grid
-         END SUBROUTINE grid_ref_collocate_pgf_product_c
+         END SUBROUTINE grid_cpu_collocate_pgf_product_c
       END INTERFACE
 
       border_mask = 0
@@ -208,9 +208,9 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(grid))
 #endif
 
-      ! For collocating single pgf products there is only the reference implementation.
+      ! For collocating a single pgf product we use the optimized cpu backend.
 
-      CALL grid_ref_collocate_pgf_product_c(orthorhombic=orthorhombic, &
+      CALL grid_cpu_collocate_pgf_product_c(orthorhombic=orthorhombic, &
                                             border_mask=border_mask, &
                                             func=ga_gb_function, &
                                             la_max=la_max, &
@@ -311,14 +311,14 @@ CONTAINS
       TYPE(C_PTR)                                        :: a_hdab_cptr, forces_cptr, hadb_cptr, &
                                                             hdab_cptr, pab_cptr, virials_cptr
       INTERFACE
-         SUBROUTINE grid_ref_integrate_pgf_product_c(orthorhombic, compute_tau, &
+         SUBROUTINE grid_cpu_integrate_pgf_product_c(orthorhombic, compute_tau, &
                                                      border_mask, &
                                                      la_max, la_min, lb_max, lb_min, &
                                                      zeta, zetb, dh, dh_inv, ra, rab, &
                                                      npts_global, npts_local, shift_local, border_width, &
                                                      radius, o1, o2, n1, n2, grid, hab, pab, &
                                                      forces, virials, hdab, hadb, a_hdab) &
-            BIND(C, name="grid_ref_integrate_pgf_product")
+            BIND(C, name="grid_cpu_integrate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             LOGICAL(KIND=C_BOOL), VALUE               :: compute_tau
@@ -350,7 +350,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: hdab
             TYPE(C_PTR), VALUE                        :: hadb
             TYPE(C_PTR), VALUE                        :: a_hdab
-         END SUBROUTINE grid_ref_integrate_pgf_product_c
+         END SUBROUTINE grid_cpu_integrate_pgf_product_c
       END INTERFACE
 
       IF (radius == 0.0_dp) THEN
@@ -446,7 +446,7 @@ CONTAINS
       END IF
 #endif
 
-      CALL grid_ref_integrate_pgf_product_c(orthorhombic=orthorhombic, &
+      CALL grid_cpu_integrate_pgf_product_c(orthorhombic=orthorhombic, &
                                             compute_tau=my_compute_tau, &
                                             border_mask=border_mask, &
                                             la_max=la_max, &
