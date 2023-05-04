@@ -1300,15 +1300,15 @@ set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c
     grid/common/grid_library.c
     grid/common/grid_sphere_cache.c
-    grid/cpu/coefficients.c
-    grid/cpu/collocation_integration.c
-    grid/cpu/grid_collocate_dgemm.c
-    grid/cpu/grid_context_cpu.c
-    grid/cpu/grid_integrate_dgemm.c
-    grid/cpu/grid_prepare_pab_dgemm.c
-    grid/cpu/non_orthorombic_corrections.c
-    grid/cpu/tensor_local.c
-    grid/cpu/utils.c
+    grid/dgemm/grid_dgemm_coefficients.c
+    grid/dgemm/grid_dgemm_collocation_integration.c
+    grid/dgemm/grid_dgemm_collocate.c
+    grid/dgemm/grid_dgemm_context.c
+    grid/dgemm/grid_dgemm_integrate.c
+    grid/dgemm/grid_dgemm_prepare_pab.c
+    grid/dgemm/grid_dgemm_non_orthorombic_corrections.c
+    grid/dgemm/grid_dgemm_tensor_local.c
+    grid/dgemm/grid_dgemm_utils.c
     grid/grid_task_list.c
     grid/ref/grid_ref_collocate.c
     grid/ref/grid_ref_integrate.c

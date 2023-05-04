@@ -5,12 +5,12 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef NON_ORTHOROMBIC_CORRECTIONS_H
-#define NON_ORTHOROMBIC_CORRECTIONS_H
+#ifndef GRID_DGEMM_NON_ORTHOROMBIC_CORRECTIONS_H
+#define GRID_DGEMM_NON_ORTHOROMBIC_CORRECTIONS_H
 
 #include <stdbool.h>
 
-#include "tensor_local.h"
+#include "grid_dgemm_tensor_local.h"
 extern void calculate_non_orthorombic_corrections_tensor(
     const double mu_mean, const double *r_ab, const double basis[3][3],
     const int *const xmin, const int *const xmax, bool plane[3],

@@ -13,7 +13,7 @@
 #include "../offload/offload_runtime.h"
 #include "common/grid_basis_set.h"
 #include "common/grid_constants.h"
-#include "cpu/grid_cpu_task_list.h"
+#include "dgemm/grid_dgemm_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
 #include "hip/grid_hip_task_list.h"
 #include "ref/grid_ref_task_list.h"
@@ -27,7 +27,7 @@ typedef struct {
   int nlevels;
   int (*npts_local)[3];
   grid_ref_task_list *ref;
-  grid_cpu_task_list *cpu;
+  grid_dgemm_task_list *dgemm;
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   grid_gpu_task_list *gpu;
 #endif

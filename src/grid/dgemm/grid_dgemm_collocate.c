@@ -21,14 +21,14 @@
 #include "../common/grid_basis_set.h"
 #include "../common/grid_common.h"
 #include "../common/grid_constants.h"
-#include "coefficients.h"
-#include "collocation_integration.h"
-#include "cpu_private_header.h"
-#include "grid_collocate_dgemm.h"
-#include "grid_cpu_task_list.h"
-#include "grid_prepare_pab_dgemm.h"
-#include "non_orthorombic_corrections.h"
-#include "tensor_local.h"
+#include "grid_dgemm_coefficients.h"
+#include "grid_dgemm_collocate.h"
+#include "grid_dgemm_collocation_integration.h"
+#include "grid_dgemm_non_orthorombic_corrections.h"
+#include "grid_dgemm_prepare_pab.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_task_list.h"
+#include "grid_dgemm_tensor_local.h"
 
 void collocate_l0(double *scratch, const double alpha, const bool orthogonal,
                   const struct tensor_ *exp_xy,
@@ -855,7 +855,7 @@ void grid_collocate(collocation_integration *const handler,
 }
 
 //******************************************************************************
-void grid_collocate_pgf_product_cpu_dgemm(
+void grid_dgemm_collocate_pgf_product(
     const bool use_ortho, const int border_mask, const enum grid_func func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
@@ -1230,10 +1230,11 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
  * \brief Collocate all tasks of a given list onto given grids.
  *        See grid_task_list.h for details.
  ******************************************************************************/
-void grid_cpu_collocate_task_list(grid_cpu_task_list *const ptr,
-                                  const enum grid_func func, const int nlevels,
-                                  const offload_buffer *pab_blocks,
-                                  offload_buffer *grids[nlevels]) {
+void grid_dgemm_collocate_task_list(grid_dgemm_task_list *const ptr,
+                                    const enum grid_func func,
+                                    const int nlevels,
+                                    const offload_buffer *pab_blocks,
+                                    offload_buffer *grids[nlevels]) {
 
   grid_context *const ctx = (grid_context *)ptr;
 

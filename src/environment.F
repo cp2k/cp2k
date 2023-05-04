@@ -51,7 +51,7 @@ MODULE environment
    USE gamma,                           ONLY: deallocate_md_ftable
    USE global_types,                    ONLY: global_environment_type
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
-                                              GRID_BACKEND_CPU,&
+                                              GRID_BACKEND_DGEMM,&
                                               GRID_BACKEND_GPU,&
                                               GRID_BACKEND_HIP,&
                                               GRID_BACKEND_REF
@@ -831,9 +831,9 @@ CONTAINS
          CASE (GRID_BACKEND_AUTO)
             WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
                start_section_label//"| Grid backend", "AUTO"
-         CASE (GRID_BACKEND_CPU)
+         CASE (GRID_BACKEND_DGEMM)
             WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
-               start_section_label//"| Grid backend", "CPU"
+               start_section_label//"| Grid backend", "DGEMM"
          CASE (GRID_BACKEND_GPU)
             WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
                start_section_label//"| Grid backend", "GPU"

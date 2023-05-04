@@ -21,13 +21,13 @@
 #endif
 
 #include "../common/grid_common.h"
-#include "coefficients.h"
-#include "collocation_integration.h"
-#include "cpu_private_header.h"
-#include "grid_collocate_dgemm.h"
-#include "non_orthorombic_corrections.h"
-#include "tensor_local.h"
-#include "utils.h"
+#include "grid_dgemm_coefficients.h"
+#include "grid_dgemm_collocate.h"
+#include "grid_dgemm_collocation_integration.h"
+#include "grid_dgemm_non_orthorombic_corrections.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_tensor_local.h"
+#include "grid_dgemm_utils.h"
 
 void extract_cube_within_spherical_cutoff_ortho(
     struct collocation_integration_ *const handler, const double disr_radius,
@@ -1056,7 +1056,7 @@ void integrate_one_grid_level_dgemm(
  * \brief Integrate all tasks of in given list from given grids using matrix -
  * matrix multiplication
  ******************************************************************************/
-void grid_cpu_integrate_task_list(
+void grid_dgemm_integrate_task_list(
     void *ptr, const bool compute_tau, const int natoms, const int nlevels,
     const offload_buffer *const pab_blocks, offload_buffer *grids[nlevels],
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {

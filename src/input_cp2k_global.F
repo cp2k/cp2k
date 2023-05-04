@@ -33,7 +33,7 @@ MODULE input_cp2k_global
                                               medium_print_level,&
                                               silent_print_level
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
-                                              GRID_BACKEND_CPU,&
+                                              GRID_BACKEND_DGEMM,&
                                               GRID_BACKEND_GPU,&
                                               GRID_BACKEND_HIP,&
                                               GRID_BACKEND_REF
@@ -751,13 +751,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="BACKEND", &
                           description="Selects the backed used by the grid library.", &
                           default_i_val=GRID_BACKEND_AUTO, &
-                          enum_i_vals=(/GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_CPU, &
+                          enum_i_vals=(/GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_DGEMM, &
                                         GRID_BACKEND_GPU, GRID_BACKEND_HIP/), &
-                          enum_c_vals=s2a("AUTO", "REF", "CPU", "GPU", "HIP"), &
+                          enum_c_vals=s2a("AUTO", "REF", "DGEMM", "GPU", "HIP"), &
                           enum_desc=s2a("Let the grid library pick the backend automatically", &
-                                        "Reference backend implementation", &
                                         "Optimized CPU backend", &
-                                        "GPU backend optimized for CUDA", &
+                                        "Alternative CPU backend based on DGEMM", &
+                                        "GPU backend optimized for CUDA that also supports HIP", &
                                         "HIP backend optimized for ROCm"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

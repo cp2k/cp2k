@@ -5,9 +5,9 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include "tensor_local.h"
+#include "grid_dgemm_tensor_local.h"
 #include "../common/grid_common.h"
-#include "utils.h"
+#include "grid_dgemm_utils.h"
 
 size_t realloc_tensor(tensor *t) {
   assert(t);

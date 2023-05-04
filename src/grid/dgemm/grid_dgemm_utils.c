@@ -21,8 +21,8 @@
 #endif
 
 #include "../common/grid_common.h"
-#include "tensor_local.h"
-#include "utils.h"
+#include "grid_dgemm_tensor_local.h"
+#include "grid_dgemm_utils.h"
 
 void convert_to_lattice_coordinates(const double dh_inv_[3][3],
                                     const double *restrict const rp,

@@ -12,10 +12,10 @@
 #include <unistd.h>
 
 #include "../common/grid_common.h"
-#include "collocation_integration.h"
-#include "non_orthorombic_corrections.h"
-#include "tensor_local.h"
-#include "utils.h"
+#include "grid_dgemm_collocation_integration.h"
+#include "grid_dgemm_non_orthorombic_corrections.h"
+#include "grid_dgemm_tensor_local.h"
+#include "grid_dgemm_utils.h"
 
 struct collocation_integration_ *collocate_create_handle(void) {
   struct collocation_integration_ *handle = NULL;
