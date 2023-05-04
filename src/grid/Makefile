@@ -21,6 +21,10 @@ ALL_OBJECTS := ../offload/offload_buffer.o \
         ref/grid_ref_collocate.o \
         ref/grid_ref_integrate.o \
         ref/grid_ref_prepare_pab.o \
+        cpu/grid_cpu_task_list.o \
+        cpu/grid_cpu_collocate.o \
+        cpu/grid_cpu_integrate.o \
+        cpu/grid_cpu_prepare_pab.o \
         dgemm/grid_dgemm_context.o \
         dgemm/grid_dgemm_coefficients.o \
         dgemm/grid_dgemm_collocate.o \
