@@ -179,7 +179,7 @@ static void collocate_internal(
 
 /*******************************************************************************
  * \brief Public entry point. A thin wrapper with the only purpose of calling
- *        record_collocate when DUMP_TASKS = true.
+ *        write_task_file when DUMP_TASKS = true.
  * \author Ole Schuett
  ******************************************************************************/
 void grid_cpu_collocate_pgf_product(

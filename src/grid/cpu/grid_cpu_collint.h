@@ -724,11 +724,10 @@ static inline void general_cijk_to_cij(const int lp, const double dk,
  * \brief Precompute mapping of grid indices and its homogeneous sections.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void precompute_mapping(const int index_min, const int index_max,
-                                      const int shift_local,
-                                      const int npts_global,
-                                      const int bounds[2], int map[],
-                                      int sections[]) {
+static inline void
+general_precompute_mapping(const int index_min, const int index_max,
+                           const int shift_local, const int npts_global,
+                           const int bounds[2], int map[], int sections[]) {
 
   // Precompute mapping from continous grid indices to pbc wraped.
   for (int k = index_min; k <= index_max; k++) {
@@ -752,14 +751,14 @@ static inline void precompute_mapping(const int index_min, const int index_max,
 }
 
 /*******************************************************************************
- * \brief Fill one of the 2D tables that is used to assemble the 3D Gaussian.
+ * \brief Fill one of the 2D tables that speedup 3D Gaussian (Mathieu's trick).
  * \author Ole Schuett
  ******************************************************************************/
 static inline void
-precompute_exp_table(const int idir, const int jdir, const int index_min[3],
-                     const int index_max[3], const double zetp,
-                     const double dh[3][3], const double gp[3],
-                     double exp_table[]) {
+general_fill_exp_table(const int idir, const int jdir, const int index_min[3],
+                       const int index_max[3], const double zetp,
+                       const double dh[3][3], const double gp[3],
+                       double exp_table[]) {
 
   const int stride_i = index_max[idir] - index_min[idir] + 1;
   const double h_ii = dh[idir][0] * dh[idir][0] + dh[idir][1] * dh[idir][1] +
@@ -865,24 +864,24 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
   // Precompute mappings
   const int range_i = index_max[0] - index_min[0] + 1;
   int map_i[range_i], sections_i[range_i];
-  precompute_mapping(index_min[0], index_max[0], shift_local[0], npts_global[0],
-                     bounds_i, map_i, sections_i);
+  general_precompute_mapping(index_min[0], index_max[0], shift_local[0],
+                             npts_global[0], bounds_i, map_i, sections_i);
   const int range_j = index_max[1] - index_min[1] + 1;
   int map_j[range_j], sections_j[range_j];
-  precompute_mapping(index_min[1], index_max[1], shift_local[1], npts_global[1],
-                     bounds_j, map_j, sections_j);
+  general_precompute_mapping(index_min[1], index_max[1], shift_local[1],
+                             npts_global[1], bounds_j, map_j, sections_j);
   const int range_k = index_max[2] - index_min[2] + 1;
   int map_k[range_k], sections_k[range_k];
-  precompute_mapping(index_min[2], index_max[2], shift_local[2], npts_global[2],
-                     bounds_k, map_k, sections_k);
+  general_precompute_mapping(index_min[2], index_max[2], shift_local[2],
+                             npts_global[2], bounds_k, map_k, sections_k);
 
   // Precompute exponentials
   double exp_ij[range_i * range_j];
-  precompute_exp_table(0, 1, index_min, index_max, zetp, dh, gp, exp_ij);
+  general_fill_exp_table(0, 1, index_min, index_max, zetp, dh, gp, exp_ij);
   double exp_jk[range_j * range_k];
-  precompute_exp_table(1, 2, index_min, index_max, zetp, dh, gp, exp_jk);
+  general_fill_exp_table(1, 2, index_min, index_max, zetp, dh, gp, exp_jk);
   double exp_ki[range_k * range_i];
-  precompute_exp_table(2, 0, index_min, index_max, zetp, dh, gp, exp_ki);
+  general_fill_exp_table(2, 0, index_min, index_max, zetp, dh, gp, exp_ki);
 
   // go over the grid, but cycle if the point is not within the radius
   const int cij_size = (lp + 1) * (lp + 1);
