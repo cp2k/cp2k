@@ -1314,6 +1314,10 @@ set(CP2K_GRID_SRCS_C
     grid/ref/grid_ref_integrate.c
     grid/ref/grid_ref_prepare_pab.c
     grid/ref/grid_ref_task_list.c
+    grid/cpu/grid_cpu_collocate.c
+    grid/cpu/grid_cpu_integrate.c
+    grid/cpu/grid_cpu_prepare_pab.c
+    grid/cpu/grid_cpu_task_list.c
     grid/grid_replay.c)
 
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)

@@ -14,7 +14,8 @@ Currently, this package offers the following main features:
 In order to support diverse hardware architectures different backends are available.
 Currently, the following backends exist:
 
-- [ref](./ref/):  A performance optimized implementation for x86 CPUs.
+- [ref](./ref/): A reference implementations for documentation and validation purposes.
+- [cpu](./cpu/): A performance optimized implementation for x86 CPUs.
 - [dgemm](./dgemm/): An alternative implementation for x86 CPUs based on DGEMM.
 - [gpu](./gpu/): A GPU implemenation optimized for CUDA that also supports HIP.
 - [hip](./hip/): An implementation optimized for HIP.

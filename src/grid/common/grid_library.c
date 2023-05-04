@@ -186,7 +186,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
 
   const char *kernel_names[] = {"collocate ortho", "integrate ortho",
                                 "collocate general", "integrate general"};
-  const char *backend_names[] = {"REF", "CPU", "GPU", "HIP"};
+  const char *backend_names[] = {"REF", "CPU", "DGEMM", "GPU", "HIP"};
 
   for (int i = 0; i < ncounters; i++) {
     if (counters[i][0] == 0)
