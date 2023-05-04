@@ -17,7 +17,7 @@
 #include "grid_library.h"
 
 // counter dimensions
-#define GRID_NBACKENDS 4
+#define GRID_NBACKENDS 5
 #define GRID_NKERNELS 4
 #define GRID_MAX_LP 20
 
