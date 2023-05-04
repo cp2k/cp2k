@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT w512_pint_nose
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                low
 &END GLOBAL
 &MOTION
   &PINT

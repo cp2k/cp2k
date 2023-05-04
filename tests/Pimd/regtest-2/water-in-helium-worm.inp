@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT_NAME               water-in-helium-worm
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                low
 &END GLOBAL
 
 &MOTION
