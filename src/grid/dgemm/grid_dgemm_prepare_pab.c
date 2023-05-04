@@ -5,14 +5,14 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include "grid_prepare_pab_dgemm.h"
+#include "grid_dgemm_prepare_pab.h"
 
 #include <assert.h>
 #include <stdbool.h>
 
 #include "../common/grid_common.h"
 #include "../common/grid_constants.h"
-#include "utils.h"
+#include "grid_dgemm_utils.h"
 
 struct pab_computation_struct_ {
   int offset[2];

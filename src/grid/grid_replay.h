@@ -30,7 +30,7 @@ void grid_collocate_record(
  * \param filename          Name of the task file.
  * \param cycles            Number of times the task should be collocated.
  * \param collocate         When true collocate is called otherwise integrate.
- * \param batch             When false grid_collocate_pgf_product_cpu is called.
+ * \param batch             When false grid_ref_collocate_pgf_product is called.
  *                          When true grid_collocate_task_list is called.
  * \param cycles_per_block  Number of cycles per matrix block decontraction.
  * \returns                 The maximum relative difference.

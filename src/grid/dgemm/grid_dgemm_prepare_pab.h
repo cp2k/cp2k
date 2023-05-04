@@ -5,11 +5,11 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef GRID_PREPARE_PAB_DGEMM_H
-#define GRID_PREPARE_PAB_DGEMM_H
+#ifndef GRID_DGEMM_PREPARE_PAB_H
+#define GRID_DGEMM_PREPARE_PAB_H
 
 #include "../common/grid_constants.h"
-#include "tensor_local.h"
+#include "grid_dgemm_tensor_local.h"
 void grid_prepare_get_ldiffs_dgemm(const enum grid_func func,
                                    int *const lmin_diff, int *const lmax_diff);
 

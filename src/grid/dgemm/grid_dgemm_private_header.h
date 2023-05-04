@@ -5,13 +5,13 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef CPU_PRIVATE_HEADER_H
-#define CPU_PRIVATE_HEADER_H
+#ifndef GRID_DGEMM_PRIVATE_HEADER_H
+#define GRID_DGEMM_PRIVATE_HEADER_H
 
-#include "tensor_local.h"
+#include "grid_dgemm_tensor_local.h"
 #include <assert.h>
 #include <stdbool.h>
-/* everything here is specific to the cpu and gpu backends*/
+/* everything here is specific to the dgemm and gpu backends*/
 #include "../../offload/offload_buffer.h"
 #include "../common/grid_basis_set.h"
 #include "../common/grid_common.h"

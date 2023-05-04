@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include "non_orthorombic_corrections.h"
+#include "grid_dgemm_non_orthorombic_corrections.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "../common/grid_common.h"
-#include "utils.h"
+#include "grid_dgemm_utils.h"
 
 double exp_recursive(const double c_exp, const double c_exp_minus_1,
                      const int index) {

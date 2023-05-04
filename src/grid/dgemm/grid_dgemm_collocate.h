@@ -5,15 +5,15 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef GRID_COLLOCATE_DGEMM_H
-#define GRID_COLLOCATE_DGEMM_H
+#ifndef GRID_DGEMM_COLLOCATE_H
+#define GRID_DGEMM_COLLOCATE_H
 
 #include "../common/grid_constants.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void grid_collocate_pgf_product_cpu_dgemm(
+void grid_dgemm_collocate_pgf_product(
     const bool orthorhombic, const int border_mask, const enum grid_func func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,

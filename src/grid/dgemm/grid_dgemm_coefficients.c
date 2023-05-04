@@ -13,9 +13,9 @@
 #include <libxsmm.h>
 #endif
 #include "../common/grid_common.h"
-#include "coefficients.h"
-#include "cpu_private_header.h"
-#include "tensor_local.h"
+#include "grid_dgemm_coefficients.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_tensor_local.h"
 
 void transform_xyz_to_triangular(const tensor *const coef,
                                  double *const coef_xyz) {

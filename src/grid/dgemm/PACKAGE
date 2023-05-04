@@ -1,5 +1,5 @@
 {
     "description": "Optimized CPU backend",
     "requires": ["../common", "../ref", "../../offload"],
-    "archive": "libcp2kgridcpu",
+    "archive": "libcp2kgriddgemm",
 }

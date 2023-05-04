@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef TENSOR_LOCAL_H
-#define TENSOR_LOCAL_H
+#ifndef GRID_DGEMM_TENSOR_LOCAL_H
+#define GRID_DGEMM_TENSOR_LOCAL_H
 
 #include <stdbool.h>
 #include <stdio.h>

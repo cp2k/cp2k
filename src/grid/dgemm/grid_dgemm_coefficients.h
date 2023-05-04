@@ -5,13 +5,13 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef COEFFICIENTS_H
-#define COEFFICIENTS_H
+#ifndef GRID_DGEMM_COEFFICIENTS_H
+#define GRID_DGEMM_COEFFICIENTS_H
 #include <stdbool.h>
 #include <string.h>
 
 #include "../common/grid_common.h"
-#include "utils.h"
+#include "grid_dgemm_utils.h"
 
 // *****************************************************************************
 extern void grid_prepare_alpha_dgemm(const double ra[3], const double rb[3],

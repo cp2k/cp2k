@@ -12,13 +12,13 @@
 #include <string.h>
 
 #include "../common/grid_library.h"
-#include "collocation_integration.h"
-#include "cpu_private_header.h"
-#include "grid_collocate_dgemm.h"
-#include "grid_context_cpu.h"
-#include "grid_cpu_task_list.h"
-#include "tensor_local.h"
-#include "utils.h"
+#include "grid_dgemm_collocate.h"
+#include "grid_dgemm_collocation_integration.h"
+#include "grid_dgemm_context.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_task_list.h"
+#include "grid_dgemm_tensor_local.h"
+#include "grid_dgemm_utils.h"
 
 void return_dh(void *const ptr, const int level, double *const dh) {
   grid_context *const ctx = (grid_context *)ptr;
@@ -349,7 +349,7 @@ void update_grid(const int nlevels, grid_context *ctx) {
   ctx->nlevels = nlevels;
 }
 
-void *create_grid_context_cpu(
+void *create_grid_context_dgemm(
     const bool orthorhombic, const int ntasks, const int nlevels,
     const int natoms, const int nkinds, const int nblocks,
     const int *block_offsets, const double atom_positions[natoms][3],
@@ -396,7 +396,7 @@ void *create_grid_context_cpu(
   return ctx;
 }
 
-void update_grid_context_cpu(
+void update_grid_context_dgemm(
     const bool orthorhombic, const int ntasks, const int nlevels,
     const int natoms, const int nkinds, const int nblocks,
     const int *block_offsets, const double atom_positions[natoms][3],
@@ -455,7 +455,7 @@ void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
   memcpy(ctx->device_id, device_id, sizeof(int) * number_of_devices);
 }
 
-void destroy_grid_context_cpu(void *ptr) {
+void destroy_grid_context_dgemm(void *ptr) {
   assert(ptr);
   grid_context *ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
@@ -553,10 +553,10 @@ void set_grid_parameters(
 }
 
 /*******************************************************************************
- * \brief Allocates a task list for the cpu backend.
+ * \brief Allocates a task list for the dgemm backend.
  *        See grid_task_list.h for details.
  ******************************************************************************/
-void grid_cpu_create_task_list(
+void grid_dgemm_create_task_list(
     const bool orthorhombic, const int ntasks, const int nlevels,
     const int natoms, const int nkinds, const int nblocks,
     const int block_offsets[nblocks], const double atom_positions[natoms][3],
@@ -569,17 +569,17 @@ void grid_cpu_create_task_list(
     const double rab_list[ntasks][3], const int npts_global[nlevels][3],
     const int npts_local[nlevels][3], const int shift_local[nlevels][3],
     const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], grid_cpu_task_list **task_list) {
+    const double dh_inv[nlevels][3][3], grid_dgemm_task_list **task_list) {
 
   if (*task_list == NULL) {
-    *task_list = create_grid_context_cpu(
+    *task_list = create_grid_context_dgemm(
         orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
         atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
         jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
         border_mask_list, block_num_list, radius_list, rab_list, npts_global,
         npts_local, shift_local, border_width, dh, dh_inv);
   } else {
-    update_grid_context_cpu(
+    update_grid_context_dgemm(
         orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
         atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
         jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
@@ -596,6 +596,6 @@ void grid_cpu_create_task_list(
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.
  ******************************************************************************/
-void grid_cpu_free_task_list(grid_cpu_task_list *task_list) {
-  destroy_grid_context_cpu(task_list);
+void grid_dgemm_free_task_list(grid_dgemm_task_list *task_list) {
+  destroy_grid_context_dgemm(task_list);
 }

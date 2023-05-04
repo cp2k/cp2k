@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef GRID_DGEMM_UTILS_H
+#define GRID_DGEMM_UTILS_H
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -22,8 +22,8 @@
 #endif
 
 #include "../common/grid_common.h"
-#include "cpu_private_header.h"
-#include "tensor_local.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_tensor_local.h"
 
 /* inverse of the factorials */
 static const double inv_fac[] = {1.0,

@@ -51,7 +51,7 @@
 &END FORCE_EVAL
 &GLOBAL
   &GRID
-    BACKEND CPU
+    BACKEND DGEMM
     APPLY_CUTOFF no
   &END GRID
   PROJECT simple_ortho_grid_dgemm

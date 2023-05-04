@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef COLLOCATION_INTEGRATION_H
-#define COLLOCATION_INTEGRATION_H
+#ifndef GRID_DGEMM_COLLOCATION_INTEGRATION_H
+#define GRID_DGEMM_COLLOCATION_INTEGRATION_H
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,8 +16,8 @@
 extern "C" {
 #endif
 
-#include "../cpu/tensor_local.h"
-#include "cpu_private_header.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_tensor_local.h"
 
 typedef struct collocation_integration_ {
   /* number of compute device */
