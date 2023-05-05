@@ -16,6 +16,12 @@ QS/regtest-gpw-4/basis_none_1.inp
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
+# Test produced 19.81 MiB of output.
+Fist/regtest-1-2/deca_ala.inp
+
+# Test produced 19.66 MiB of output.
+Fist/regtest-1-3/deca_ala_include.inp
+
 # Test produced 18.13 MiB of output.
 QS/regtest-gpw-4/basis_none_2.inp
 
@@ -31,6 +37,12 @@ Fist/regtest-12/argon_opt_cell.inp
 # Test produced 13.28 MiB of output.
 QMMM/SE/regtest-force-mixing/tyrosine_NVT.inp
 
+# Test produced 13.21 MiB of output.
+Fist/regtest-3/argon.inp
+
+# Test produced 12.99 MiB of output.
+Fist/regtest-3/cu_eam_3.inp
+
 # Test produced 12.35 MiB of output.
 QMMM/SE/regtest/mol_sph_cut.inp
 
@@ -45,6 +57,9 @@ QMMM/SE/regtest/mol_CSVR_gen3.inp
 
 # Test produced 8.74 MiB of output.
 QMMM/SE/regtest/mol_CSVR_gen1.inp
+
+# Test produced 7.93 MiB of output.
+Fist/regtest-4/acn.inp
 
 # Test produced 7.61 MiB of output.
 Fist/regtest-12/acn-3.inp
@@ -88,6 +103,9 @@ QS/regtest-ot-1/H2O-print.inp
 # Test produced 4.95 MiB of output.
 QS/regtest-ls-rtp/H2O-ls-emd-ewindow.inp
 
+# Test produced 4.91 MiB of output.
+Fist/regtest-2/H2O-ST_debug.inp
+
 # Test produced 4.81 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-binary_restart-cs-7.inp
 
@@ -103,11 +121,17 @@ SE/regtest-2-1/hcl.inp
 # Test produced 4.44 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-binary_restart-nve-npt-cs-2.inp
 
+# Test produced 4.41 MiB of output.
+Fist/regtest-2/H2O-32_NPT_res_2.inp
+
 # Test produced 4.32 MiB of output.
 SE/regtest-2-1/hcl_z.inp
 
 # Test produced 4.16 MiB of output.
 Fist/regtest-12/argon_opt_cell_ks.inp
+
+# Test produced 3.79 MiB of output.
+Fist/regtest-1-2/multi_frag.inp
 
 # Test produced 3.73 MiB of output.
 QS/C.inp
@@ -127,8 +151,17 @@ Fist/regtest-7-1/UO2-4x4x4-autofit.inp
 # Test produced 3.42 MiB of output.
 QS/regtest-ls-rtp/H2O-ls-emd.inp
 
+# Test produced 3.36 MiB of output.
+NEB/regtest-4/NEB-MIXED.inp
+
 # Test produced 3.31 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-binary_restart-nve-npt-2.inp
+
+# Test produced 3.36 MiB of output.
+NEB/regtest-4/NEB-MIXED.inp
+
+# Test produced 3.14 MiB of output.
+Fist/regtest-1-2/multi_frag_check.inp
 
 # Test produced 3.10 MiB of output.
 QS/regtest-rtp-3/wfn_mix_loc-1.inp
@@ -141,6 +174,9 @@ Fist/regtest-7-2/UO2-2x2x2-binary_restart-npt-nve-2.inp
 
 # Test produced 2.86 MiB of output.
 xTB/regtest-3/ch2o_dens.inp
+
+# Test produced 2.85 MiB of output.
+QS/regtest-sccs-3/H2O_sccs_td_cd5_geo_opt.inp
 
 # Test produced 2.75 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-cs-geo_opt-bfgs.inp
