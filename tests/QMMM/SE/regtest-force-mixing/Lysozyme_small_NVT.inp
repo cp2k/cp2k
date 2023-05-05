@@ -22,8 +22,12 @@
       SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
       &MIXING
-   ALPHA 0.1
+        ALPHA 0.1
       &END MIXING
+      &PRINT
+        &RESTART off
+        &END RESTART
+      &END PRINT
     &END SCF
 @ENDIF
 
@@ -359,7 +363,7 @@
       COORD_FILE_NAME ../sample_rst/Lysozyme_small.rst
       CONNECTIVITY AMBER
       CONN_FILE_NAME ../sample_top/Lysozyme_small.top
-      &DUMP_PDB
+      &DUMP_PDB off
       &END DUMP_PDB
     &END TOPOLOGY
 #USER: BASIS_SET - double zeta in valence + polarization (DZVP)
@@ -409,27 +413,29 @@
 
 &MOTION
    &PRINT
-      &TRAJECTORY
-   FORMAT XYZ
-   &EACH
-      MD 1
-   &END EACH
-   COMMON_ITERATION_LEVELS 0
-      &END TRAJECTORY
-      &FORCES
-   FORMAT XYZ
-   &EACH
-      MD 1
-   &END EACH
-   COMMON_ITERATION_LEVELS 0
-      &END FORCES
-      &FORCE_MIXING_LABELS
+      &FORCES off
+         COMMON_ITERATION_LEVELS 0
          FORMAT XYZ
          &EACH
             MD 1
          &END EACH
+      &END FORCES
+      &FORCE_MIXING_LABELS off
          COMMON_ITERATION_LEVELS 0
+         FORMAT XYZ
+         &EACH
+            MD 1
+         &END EACH
       &END FORCE_MIXING_LABELS
+      &RESTART off
+      &END RESTART
+      &TRAJECTORY off
+         COMMON_ITERATION_LEVELS 0
+         FORMAT XYZ
+         &EACH
+            MD 1
+         &END EACH
+      &END TRAJECTORY
    &END PRINT
 
   &MD

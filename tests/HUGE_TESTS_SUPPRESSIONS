@@ -4,15 +4,6 @@
 
 # Legacy entries. TODO: Please fix.
 
-# Test produced 43.25 MiB of output.
-QMMM/SE/regtest-force-mixing/Lysozyme_small_NVT.inp
-
-# Test produced 31.72 MiB of output.
-QMMM/SE/regtest/mol.inp
-
-# Test produced 24.11 MiB of output.
-QS/regtest-gpw-4/basis_none_1.inp
-
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
