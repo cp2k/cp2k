@@ -7,9 +7,6 @@
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
-# Test produced 15.56 MiB of output.
-xTB/regtest-1/si_kp.inp
-
 # Test produced 13.79 MiB of output.
 Fist/regtest-12/argon_opt_cell.inp
 
