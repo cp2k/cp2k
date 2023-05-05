@@ -7,12 +7,6 @@
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
-# Test produced 19.81 MiB of output.
-Fist/regtest-1-2/deca_ala.inp
-
-# Test produced 19.66 MiB of output.
-Fist/regtest-1-3/deca_ala_include.inp
-
 # Test produced 18.13 MiB of output.
 QS/regtest-gpw-4/basis_none_2.inp
 
