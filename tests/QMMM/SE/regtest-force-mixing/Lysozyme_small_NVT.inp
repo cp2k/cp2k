@@ -408,7 +408,7 @@
   PROJECT Lysozyme_small_NVT
 # RUN_TYPE GEO_OPT should also work (no guarantees about convergence without a well defined total energy, though)
   RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
+  PRINT_LEVEL low
 &END GLOBAL
 
 &MOTION
