@@ -7,9 +7,6 @@
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
-# Test produced 15.82 MiB of output.
-QS/regtest-dm-ls-scf-3/H2O-ewindow-01.inp
-
 # Test produced 15.56 MiB of output.
 xTB/regtest-1/si_kp.inp
 
