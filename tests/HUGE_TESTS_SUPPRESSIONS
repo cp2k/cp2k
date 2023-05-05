@@ -7,12 +7,6 @@
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
-# Test produced 13.28 MiB of output.
-QMMM/SE/regtest-force-mixing/tyrosine_NVT.inp
-
-# Test produced 12.35 MiB of output.
-QMMM/SE/regtest/mol_sph_cut.inp
-
 # Test produced 9.98 MiB of output.
 QS/regtest-ot/H2O-geo-ot-lumo-all.inp
 
