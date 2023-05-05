@@ -13,7 +13,7 @@
       &END EWALD
     &END POISSON
     &PRINT
-      &FF_INFO
+      &FF_INFO off
         SPLINE_INFO
         SPLINE_DATA
       &END
