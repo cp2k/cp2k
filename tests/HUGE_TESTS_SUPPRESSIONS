@@ -10,12 +10,6 @@ QS/regtest-kp-1/c_5.inp
 # Test produced 13.28 MiB of output.
 QMMM/SE/regtest-force-mixing/tyrosine_NVT.inp
 
-# Test produced 13.21 MiB of output.
-Fist/regtest-3/argon.inp
-
-# Test produced 12.99 MiB of output.
-Fist/regtest-3/cu_eam_3.inp
-
 # Test produced 12.35 MiB of output.
 QMMM/SE/regtest/mol_sph_cut.inp
 
