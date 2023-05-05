@@ -7,9 +7,6 @@
 # Test produced 21.61 MiB of output.
 QS/regtest-kp-1/c_5.inp
 
-# Test produced 18.13 MiB of output.
-QS/regtest-gpw-4/basis_none_2.inp
-
 # Test produced 15.82 MiB of output.
 QS/regtest-dm-ls-scf-3/H2O-ewindow-01.inp
 
