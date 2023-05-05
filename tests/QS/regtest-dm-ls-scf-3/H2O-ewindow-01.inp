@@ -24,7 +24,7 @@
           JUST_ENERGY 1
         &END EACH
         N_WINDOWS 10
-        PRINT_CUBES
+        PRINT_CUBES no
       &END
     &END
     &LS_SCF
