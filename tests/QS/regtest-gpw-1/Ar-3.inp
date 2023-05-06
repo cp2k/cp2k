@@ -41,6 +41,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
   &GRID
-    BACKEND REF ! basis is too large for GPU backend
+    BACKEND CPU ! basis is too large for GPU backend
   &END GRID
 &END GLOBAL

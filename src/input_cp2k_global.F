@@ -754,7 +754,7 @@ CONTAINS
                           default_i_val=GRID_BACKEND_AUTO, &
                           enum_i_vals=(/GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_CPU, &
                                         GRID_BACKEND_DGEMM, GRID_BACKEND_GPU, GRID_BACKEND_HIP/), &
-                          enum_c_vals=s2a("AUTO", "REF", "CPU", "DGEMM", "GPU", "HIP"), &
+                          enum_c_vals=s2a("AUTO", "REFERENCE", "CPU", "DGEMM", "GPU", "HIP"), &
                           enum_desc=s2a("Let the grid library pick the backend automatically", &
                                         "Reference backend implementation", &
                                         "Optimized CPU backend", &
