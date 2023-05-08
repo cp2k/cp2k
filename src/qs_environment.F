@@ -250,7 +250,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
       INTEGER                                            :: ikind, method_id, nelectron_total, nkind
-      LOGICAL :: do_admm_rpa, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
+      LOGICAL :: do_admm_rpa, do_ec_hfx, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
          mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, silent, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -268,8 +268,9 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER :: dft_section, ec_section, et_coupling_section, &
-         hfx_section, kpoint_section, mp2_section, rpa_hfx_section, transport_section
+      TYPE(section_vals_type), POINTER :: dft_section, ec_hfx_section, ec_section, &
+         et_coupling_section, hfx_section, kpoint_section, mp2_section, rpa_hfx_section, &
+         transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, ec_section, &
@@ -440,9 +441,6 @@ CONTAINS
       END IF
 
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-      CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
-                                l_val=qs_env%energy_correction)
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       CALL section_vals_val_get(dft_section, "EXCITED_STATES%_SECTION_PARAMETERS_", &
                                 l_val=qs_env%excited_state)
       NULLIFY (exstate_env)
@@ -471,6 +469,42 @@ CONTAINS
       ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
       CALL ec_env_create(qs_env, ec_env, dft_section, ec_section)
       CALL set_qs_env(qs_env, ec_env=ec_env)
+
+      IF (qs_env%energy_correction) THEN
+         ! Energy correction with Hartree-Fock exchange
+         ec_hfx_section => section_vals_get_subs_vals(ec_section, "XC%HF")
+         CALL section_vals_get(ec_hfx_section, explicit=do_ec_hfx)
+
+         IF (do_ec_hfx) THEN
+
+            ! Hybrid functionals require same basis
+            IF (ec_env%basis_inconsistent) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Energy correction methods with hybrid functionals:"// &
+                             "correction and ground state need to use the same basis."// &
+                             "Checked by comparing basis set names only.")
+            END IF
+
+            ! Similar to RPA_HFX we can check if HFX integrals from the qs_env can be reused
+            IF (ec_env%do_ec_admm .AND. .NOT. dft_control%do_admm) THEN
+               CALL cp_abort(__LOCATION__, "Need an ADMM input section for ADMM EC to work")
+            END IF
+
+            ec_env%reuse_hfx = .TRUE.
+            IF (.NOT. do_hfx) ec_env%reuse_hfx = .FALSE.
+            CALL compare_hfx_sections(hfx_section, ec_hfx_section, is_identical, same_except_frac)
+            IF (.NOT. (is_identical .OR. same_except_frac)) ec_env%reuse_hfx = .FALSE.
+            IF (dft_control%do_admm .AND. .NOT. ec_env%do_ec_admm) ec_env%reuse_hfx = .FALSE.
+
+            IF (.NOT. ec_env%reuse_hfx) THEN
+               CALL hfx_create(ec_env%x_data, para_env, ec_hfx_section, atomic_kind_set, &
+                               qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. ec_env%do_ec_admm), &
+                               nelectron_total=nelectron_total)
+            ELSE
+               ec_env%x_data => qs_env%x_data
+            END IF
+         END IF
+      END IF
 
       IF (dft_control%qs_control%do_almo_scf) THEN
          CALL almo_scf_env_create(qs_env)

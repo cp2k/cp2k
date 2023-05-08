@@ -48,6 +48,7 @@ MODULE mp2_cphf
                                               dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
+   USE hfx_exx,                         ONLY: add_exx_to_rhs
    USE hfx_ri,                          ONLY: hfx_ri_update_forces
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
@@ -124,7 +125,6 @@ MODULE mp2_cphf
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type,&
                                               zero_virial
@@ -329,7 +329,14 @@ CONTAINS
          CALL section_vals_get(hfx_section, explicit=do_exx)
       END IF
       IF (do_exx) THEN
-         CALL add_exx_to_rhs(P_mu_nu, qs_env, mp2_env%ri_grad%free_hfx_buffer)
+         CALL add_exx_to_rhs(rhs=P_mu_nu, &
+                             qs_env=qs_env, &
+                             ext_hfx_section=hfx_section, &
+                             x_data=mp2_env%ri_rpa%x_data, &
+                             recalc_integrals=.FALSE., &
+                             do_admm=mp2_env%ri_rpa%do_admm, &
+                             do_exx=do_exx, &
+                             reuse_hfx=mp2_env%ri_rpa%reuse_hfx)
 
          focc = 1.0_dp
          IF (nspins == 1) focc = 2.0_dp

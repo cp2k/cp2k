@@ -16,7 +16,10 @@ MODULE ec_env_types
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
-   USE input_section_types,             ONLY: section_vals_type
+   USE hfx_types,                       ONLY: hfx_release,&
+                                              hfx_type
+   USE input_section_types,             ONLY: section_vals_release,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_release,&
                                               pw_type
@@ -55,8 +58,11 @@ MODULE ec_env_types
       INTEGER                                          :: factorization
       INTEGER                                          :: ec_initial_guess
       REAL(KIND=dp)                                    :: eps_default
+      LOGICAL                                          :: do_ec_admm
       LOGICAL                                          :: should_update
       LOGICAL                                          :: use_ls_solver
+      LOGICAL                                          :: reuse_hfx
+      LOGICAL                                          :: basis_inconsistent
       ! debug
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.
@@ -70,10 +76,10 @@ MODULE ec_env_types
       REAL(KIND=dp)                                    :: mao_eps1
       INTEGER                                          :: mao_iolevel
       ! energy components
-      REAL(KIND=dp)                                    :: etotal
+      REAL(KIND=dp)                                    :: etotal, old_etotal
       REAL(KIND=dp)                                    :: eband, ecore, exc, ehartree, vhxc
       REAL(KIND=dp)                                    :: edispersion, efield_elec, &
-                                                          efield_nuclear, exc_aux_fit
+                                                          efield_nuclear, ex, exc_aux_fit
       ! forces
       TYPE(qs_force_type), DIMENSION(:), POINTER       :: force => Null()
       ! full neighbor lists and corresponding task list
@@ -96,16 +102,21 @@ MODULE ec_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef
       ! CP equations
       TYPE(qs_p_env_type), POINTER                     :: p_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_z, matrix_wz, z_admm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_wz, matrix_z, z_admm
       ! Harris (rhoout), and response density (rhoz) on grid
-      TYPE(pw_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r
+      TYPE(pw_type), DIMENSION(:), POINTER             :: rhoout_r, rhoz_r
       ! potentials from input density
       TYPE(pw_type)                                    :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
       ! LS matrices and types
       TYPE(ls_scf_env_type), POINTER                   :: ls_env
+      ! Environment for Hartree-Fock exchange
+      TYPE(hfx_type), DIMENSION(:, :), POINTER         :: x_data
+      ! ADMM XC environments
+      TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(), &
+                                                  xc_section_aux => Null()
    END TYPE energy_correction_type
 
 CONTAINS
@@ -147,9 +158,9 @@ CONTAINS
             CALL qs_dispersion_release(ec_env%dispersion_env)
          END IF
 
-         IF (ASSOCIATED(ec_env%matrix_z)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_z)
          IF (ASSOCIATED(ec_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_hz)
          IF (ASSOCIATED(ec_env%matrix_wz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_wz)
+         IF (ASSOCIATED(ec_env%matrix_z)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_z)
          IF (ASSOCIATED(ec_env%z_admm)) CALL dbcsr_deallocate_matrix_set(ec_env%z_admm)
          NULLIFY (ec_env%matrix_z, ec_env%matrix_hz, ec_env%matrix_wz)
          NULLIFY (ec_env%z_admm)
@@ -185,6 +196,13 @@ CONTAINS
          IF (ASSOCIATED(ec_env%ls_env)) THEN
             CALL ls_scf_release(ec_env%ls_env)
          END IF
+
+         IF (.NOT. ec_env%reuse_hfx) THEN
+            IF (ASSOCIATED(ec_env%x_data)) CALL hfx_release(ec_env%x_data)
+         END IF
+
+         IF (ASSOCIATED(ec_env%xc_section_aux)) CALL section_vals_release(ec_env%xc_section_aux)
+         IF (ASSOCIATED(ec_env%xc_section_primary)) CALL section_vals_release(ec_env%xc_section_primary)
 
          DEALLOCATE (ec_env)
 

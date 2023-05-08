@@ -149,8 +149,11 @@ CONTAINS
       NULLIFY (ec_env%vtau_rspace)
       NULLIFY (ec_env%vadmm_rspace)
       NULLIFY (ec_env%rhoout_r, ec_env%rhoz_r)
+      NULLIFY (ec_env%x_data)
       ec_env%should_update = .TRUE.
       ec_env%mao = .FALSE.
+      ec_env%reuse_hfx = .FALSE.
+      ec_env%do_ec_admm = .FALSE.
 
       IF (qs_env%energy_correction) THEN
 
@@ -193,6 +196,8 @@ CONTAINS
                                    l_val=ec_env%debug_forces)
          CALL section_vals_val_get(ec_section, "DEBUG_STRESS", &
                                    l_val=ec_env%debug_stress)
+         ! ADMM
+         CALL section_vals_val_get(ec_section, "ADMM", l_val=ec_env%do_ec_admm)
 
          ec_env%do_skip = .FALSE.
 
@@ -250,10 +255,11 @@ CONTAINS
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="HARRIS")
          CALL init_orbital_pointers(maxlgto + 1)
          !
-         ! Density-corrected DFT must be performed with the same basis as ground-state
          CALL uppercase(ec_env%basis)
+
          ! Basis may only differ from ground-state if explicitly added
-         IF (ec_env%energy_functional == ec_functional_dc .AND. ec_env%basis == "HARRIS") THEN
+         ec_env%basis_inconsistent = .FALSE.
+         IF (ec_env%basis == "HARRIS") THEN
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
                ! Basis sets of ground-state
@@ -262,9 +268,16 @@ CONTAINS
                CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
 
                IF (basis_set%name .NE. harris_basis%name) THEN
-                  CPABORT("DC-DFT: Correction and ground state need to use the same basis")
+                  ec_env%basis_inconsistent = .TRUE.
                END IF
             END DO
+         END IF
+
+         !Density-corrected DFT must be performed with the same basis as ground-state
+         IF (ec_env%energy_functional == ec_functional_dc .AND. ec_env%basis_inconsistent) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "DC-DFT: Correction and ground state need to use the same basis."// &
+                          "Checked by comparing basis set names only.")
          END IF
          !
          ! set functional

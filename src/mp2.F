@@ -42,6 +42,7 @@ MODULE mp2
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type
+   USE hfx_exx,                         ONLY: calculate_exx
    USE hfx_types,                       ONLY: &
         alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, &
         hfx_container_type, hfx_create_basis_types, hfx_init_container, hfx_release_basis_types, &
@@ -85,7 +86,6 @@ MODULE mp2
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE rpa_gw_sigma_x,                  ONLY: compute_vec_Sigma_x_minus_vxc_gw
-   USE rpa_hfx,                         ONLY: calculate_exx
    USE scf_control_types,               ONLY: scf_control_type
    USE virial_types,                    ONLY: virial_type
 
@@ -121,7 +121,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nelec
       LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
-         do_kpoints_cubic_RPA, free_hfx_buffer, update_xc_energy
+         do_im_time, do_kpoints_cubic_RPA, free_hfx_buffer, reuse_hfx, update_xc_energy
       REAL(KIND=dp) :: E_admm_from_GW(2), E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
          Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, Emp2_ex, &
          Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
@@ -726,7 +726,22 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          IF (do_exx) THEN
             do_gw = mp2_env%ri_rpa%do_ri_g0w0
             do_admm = mp2_env%ri_rpa%do_admm
-            CALL calculate_exx(qs_env, unit_nr, do_gw, do_admm, .FALSE., E_ex_from_GW, E_admm_from_GW, t3)
+            reuse_hfx = qs_env%mp2_env%ri_rpa%reuse_hfx
+            do_im_time = qs_env%mp2_env%do_im_time
+
+            CALL calculate_exx(qs_env=qs_env, &
+                               unit_nr=unit_nr, &
+                               hfx_sections=hfx_sections, &
+                               x_data=qs_env%mp2_env%ri_rpa%x_data, &
+                               do_gw=do_gw, &
+                               do_admm=do_admm, &
+                               calc_forces=.FALSE., &
+                               reuse_hfx=reuse_hfx, &
+                               do_im_time=do_im_time, &
+                               E_ex_from_GW=E_ex_from_GW, &
+                               E_admm_from_GW=E_admm_from_GW, &
+                               t3=t3)
+
          END IF
       END IF
 
