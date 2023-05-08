@@ -31,6 +31,7 @@ MODULE qs_force
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
+   USE hfx_exx,                         ONLY: calculate_exx
    USE input_constants,                 ONLY: ri_mp2_laplace,&
                                               ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
@@ -69,7 +70,6 @@ MODULE qs_force
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
    USE ri_environment_methods,          ONLY: build_ri_matrices
-   USE rpa_hfx,                         ONLY: calculate_exx
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
                                               rt_admm_force
    USE se_core_core,                    ONLY: se_core_core_interaction
@@ -131,8 +131,9 @@ CONTAINS
                                                             ispin, iw, natom, nkind, nspin, &
                                                             output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
-      LOGICAL                                            :: do_admm, do_exx, do_gw, has_unit_metric, &
-                                                            omit_headers, perform_ec
+      LOGICAL                                            :: do_admm, do_exx, do_gw, do_im_time, &
+                                                            has_unit_metric, omit_headers, &
+                                                            perform_ec, reuse_hfx
       REAL(dp)                                           :: dummy_real, dummy_real2(2)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -327,9 +328,23 @@ CONTAINS
             IF (do_exx) THEN
                do_gw = qs_env%mp2_env%ri_rpa%do_ri_g0w0
                do_admm = qs_env%mp2_env%ri_rpa%do_admm
+               reuse_hfx = qs_env%mp2_env%ri_rpa%reuse_hfx
+               do_im_time = qs_env%mp2_env%do_im_time
                output_unit = cp_logger_get_default_io_unit()
                dummy_real = 0.0_dp
-               CALL calculate_exx(qs_env, output_unit, do_gw, do_admm, .TRUE., dummy_real, dummy_real2, dummy_real)
+
+               CALL calculate_exx(qs_env=qs_env, &
+                                  unit_nr=output_unit, &
+                                  hfx_sections=hfx_sections, &
+                                  x_data=qs_env%mp2_env%ri_rpa%x_data, &
+                                  do_gw=do_gw, &
+                                  do_admm=do_admm, &
+                                  calc_forces=.TRUE., &
+                                  reuse_hfx=reuse_hfx, &
+                                  do_im_time=do_im_time, &
+                                  E_ex_from_GW=dummy_real, &
+                                  E_admm_from_GW=dummy_real2, &
+                                  t3=dummy_real)
             END IF
          END IF
       ELSEIF (.NOT. perform_ec) THEN

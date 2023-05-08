@@ -747,13 +747,17 @@ CONTAINS
 !> \param rho_ao ...
 !> \param qs_env ...
 !> \param hfx_sections ...
+!> \param external_x_data ...
+!> \param ex ...
 !> \note
 !>     Simplified version of subroutine hfx_ks_matrix()
 ! **************************************************************************************************
-   SUBROUTINE hfx_matrix(matrix_ks, rho_ao, qs_env, hfx_sections)
+   SUBROUTINE hfx_matrix(matrix_ks, rho_ao, qs_env, hfx_sections, external_x_data, ex)
       TYPE(dbcsr_p_type), DIMENSION(:), TARGET           :: matrix_ks, rho_ao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections
+      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, TARGET  :: external_x_data
+      REAL(KIND=dp), OPTIONAL                            :: ex
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_matrix'
 
@@ -762,7 +766,7 @@ CONTAINS
       LOGICAL                                            :: distribute_fock_matrix, &
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed
-      REAL(KIND=dp)                                      :: eh1
+      REAL(KIND=dp)                                      :: eh1, ehfx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
@@ -770,13 +774,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, para_env, matrix_ks_kp, rho_ao_kp)
+      NULLIFY (dft_control, para_env, matrix_ks_kp, rho_ao_kp, x_data)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       para_env=para_env, &
                       s_mstruct_changed=s_mstruct_changed, &
                       x_data=x_data)
+
+      IF (PRESENT(external_x_data)) x_data => external_x_data
 
       CPASSERT(dft_control%nimages == 1)
       nspins = dft_control%nspins
@@ -795,10 +801,10 @@ CONTAINS
       rho_ao_kp(1:nspins, 1:1) => rho_ao(1:nspins)
 
       DO irep = 1, n_rep_hf
-         eh1 = 0.0_dp
+         ehfx = 0.0_dp
 
          IF (x_data(irep, 1)%do_hfx_ri) THEN
-            CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_kp, eh1, &
+            CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_kp, ehfx, &
                                   rho_ao=rho_ao_kp, geometry_did_change=s_mstruct_changed, &
                                   nspins=nspins, hf_fraction=x_data(irep, 1)%general_parameter%fraction)
 
@@ -807,10 +813,14 @@ CONTAINS
             DO ispin = 1, mspin
                CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
                                           s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
+               ehfx = ehfx + eh1
             END DO
 
          END IF
       END DO
+
+      ! Export energy
+      IF (PRESENT(ex)) ex = ehfx
 
       CALL timestop(handle)
 

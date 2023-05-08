@@ -38,6 +38,9 @@ MODULE rpa_gw_sigma_x
         dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_exx,                         ONLY: calc_exx_admm_xc_contributions,&
+                                              exx_post_hfx,&
+                                              exx_pre_hfx
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_none,&
@@ -77,9 +80,6 @@ MODULE rpa_gw_sigma_x
    USE rpa_gw,                          ONLY: compute_minus_vxc_kpoints,&
                                               trafo_to_mo_and_kpoints
    USE rpa_gw_kpoints_util,             ONLY: get_bandstruc_and_k_dependent_MOs
-   USE rpa_hfx,                         ONLY: calc_ri_rpa_admm_xc_contributions,&
-                                              ri_rpa_post_hfx,&
-                                              ri_rpa_pre_hfx
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -424,7 +424,7 @@ CONTAINS
          ehfx = 0.0_dp
          IF (.NOT. do_ri_Sigma_x) THEN
 
-            CALL ri_rpa_pre_hfx(qs_env)
+            CALL exx_pre_hfx(hfx_sections, qs_env%mp2_env%ri_rpa%x_data, qs_env%mp2_env%ri_rpa%reuse_hfx)
             calc_ints = .NOT. qs_env%mp2_env%ri_rpa%reuse_hfx
 
             ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
@@ -460,9 +460,14 @@ CONTAINS
 
             !ADMM XC correction
             IF (do_admm_rpa) THEN
-               CALL calc_ri_rpa_admm_xc_contributions(qs_env, matrix_ks, matrix_ks_aux_fit, &
-                                                      energy_xc_admm(1), energy_xc_admm(2), &
-                                                      .FALSE., .FALSE.)
+               CALL calc_exx_admm_xc_contributions(qs_env=qs_env, &
+                                                   matrix_prim=matrix_ks, &
+                                                   matrix_aux=matrix_ks_aux_fit, &
+                                                   x_data=qs_env%mp2_env%ri_rpa%x_data, &
+                                                   exc=energy_xc_admm(1), &
+                                                   exc_aux_fit=energy_xc_admm(2), &
+                                                   calc_forces=.FALSE., &
+                                                   use_virial=.FALSE.)
             END IF
 
             IF (do_kpoints_from_Gamma .AND. print_exx == gw_print_exx) THEN
@@ -478,7 +483,7 @@ CONTAINS
 
             END IF
 
-            CALL ri_rpa_post_hfx(qs_env)
+            CALL exx_post_hfx(qs_env, qs_env%mp2_env%ri_rpa%x_data, qs_env%mp2_env%ri_rpa%reuse_hfx)
          END IF
 
          energy_ex = ehfx
