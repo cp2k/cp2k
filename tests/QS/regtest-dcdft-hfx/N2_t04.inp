@@ -1,0 +1,108 @@
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &PRINT
+    &FORCES                    ON
+    &END FORCES
+  &END PRINT
+
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    BASIS_SET_FILE_NAME  BASIS_ADMM
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC NONE
+      EXCH_SCALING_MODEL NONE
+      METHOD BASIS_PROJECTION
+    &END
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.E-10
+    &END QS
+    &ENERGY_CORRECTION
+      ENERGY_FUNCTIONAL        DCDFT
+      HARRIS_BASIS             HARRIS 
+      &RESPONSE_SOLVER
+        METHOD                 AO_ORTHO
+        PRECONDITIONER         MULTI_LEVEL
+        EPS                    1.0E-5
+        MAX_ITER               4
+      &END RESPONSE_SOLVER
+      &XC
+        ! use a PBE0 functional
+        ! By using an interaction potential and different EPS_SCHWARZ 
+        ! we do not reuse the HFX section of the ground-state calculation
+        &XC_FUNCTIONAL
+         &PBE
+           ! 75% GGA exchange
+           SCALE_X 0.75
+           ! 100% GGA correlation
+           SCALE_C 1.0
+         &END PBE
+        &END XC_FUNCTIONAL
+        &HF
+          ! 25 % HFX exchange
+          FRACTION 0.25
+          &SCREENING
+            EPS_SCHWARZ 1.0E-4 
+          &END
+          &INTERACTION_POTENTIAL
+             POTENTIAL_TYPE      TRUNCATED
+             CUTOFF_RADIUS       2.4
+             T_C_G_DATA          t_c_g.dat
+           &END INTERACTION_POTENTIAL
+        &END
+      &END XC
+    &END ENERGY_CORRECTION
+    &SCF
+      EPS_SCF 1.0E-5
+      SCF_GUESS ATOMIC 
+      MAX_SCF 20
+    &END
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-2 
+        &END
+      &END HF
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    N     0.000000     0.000000     0.650000    
+    N     0.000000     0.000000    -0.650000   
+    &END COORD
+    &KIND N
+      BASIS_SET ORB DZVP-GTH
+      BASIS_SET HARRIS DZVP-GTH
+      BASIS_SET AUX_FIT cFIT3
+      POTENTIAL GTH-PBE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT N2 
+  RUN_TYPE GEO_OPT
+  PRINT_LEVEL LOW
+  &REFERENCES OFF
+  &END REFERENCES
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+     MAX_ITER 1
+  &END
+&END

@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# Density-corrected DFT with exact exchange contribution
+# PBE0 - B3LYP - MO solver
+N2_t01.inp                                            11      2e-11                -19.833876765056527
+# PBE0 - B3LYP - AO solver
+N2_t02.inp                                            11      2e-11                -19.833895915235669
+# PBE0 - PBE0 (no hfx_reuse)
+N2_t03.inp                                            11      2e-11                -19.845258168005117
+# HFX(ADMM-NONE) - PBE0 (no hfx_reuse)
+N2_t04.inp                                            11      2e-11                -19.302519275679337
+# HFX(ADMM-PBEX) - PBE0 (no hfx_reuse)
+N2_t05.inp                                            11      2e-11                -19.185463292738298
+# HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (no hfx_reuse)
+N2_t06.inp                                            11      2e-11                -19.251845127905508
+# HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (hfx_reuse)
+N2_t07.inp                                            11      2e-11                -19.831385800569105
+# HFX(ADMM-PBEX) - B3LYP(ADMM) - AO solver (hfx_reuse)
+N2_t08.inp                                            11      2e-11                -19.831467529116253
+#EOF
