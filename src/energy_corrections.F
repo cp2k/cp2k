@@ -1240,191 +1240,6 @@ CONTAINS
    END SUBROUTINE ec_build_core_hamiltonian
 
 ! **************************************************************************************************
-!> \brief calculate KS matrix for DC-DFT
-!>
-!> \param qs_env ...
-!> \param ec_env ...
-!> \par History
-!>      03.2014 adapted from qs_ks_build_kohn_sham_matrix [JGH]
-!> \author JGH
-! **************************************************************************************************
-   SUBROUTINE ec_dc_build_ks_matrix(qs_env, ec_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(energy_correction_type), POINTER              :: ec_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_dc_build_ks_matrix'
-
-      CHARACTER(LEN=default_string_length)               :: headline
-      INTEGER                                            :: handle, iounit, ispin, nspins
-      LOGICAL                                            :: calculate_forces, &
-                                                            do_adiabatic_rescaling, do_ec_hfx, &
-                                                            hfx_treat_lsd_in_core, use_virial
-      REAL(dp)                                           :: dummy_real, dummy_real2(2), eexc, evhxc, &
-                                                            t3
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r, v_rspace, v_tau_rspace
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
-                                                            ec_hfx_sections, ec_section
-
-! fbelle
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iounit = -1
-      END IF
-
-      ! get all information on the electronic density
-      NULLIFY (auxbas_pw_pool, dft_control, ks_env, para_env, rho, rho_r, tau_r)
-      CALL get_qs_env(qs_env=qs_env, &
-                      dft_control=dft_control, &
-                      ks_env=ks_env, &
-                      para_env=para_env, &
-                      rho=rho)
-      nspins = dft_control%nspins
-      calculate_forces = .FALSE.
-      use_virial = .FALSE.
-
-      ! Kohn-Sham matrix
-      IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
-      CALL dbcsr_allocate_matrix_set(ec_env%matrix_ks, nspins, 1)
-      DO ispin = 1, nspins
-         headline = "KOHN-SHAM MATRIX"
-         ALLOCATE (ec_env%matrix_ks(ispin, 1)%matrix)
-         CALL dbcsr_create(ec_env%matrix_ks(ispin, 1)%matrix, name=TRIM(headline), &
-                           template=ec_env%matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
-         CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%sab_orb)
-         CALL dbcsr_set(ec_env%matrix_ks(ispin, 1)%matrix, 0.0_dp)
-      END DO
-
-      NULLIFY (pw_env)
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CPASSERT(ASSOCIATED(pw_env))
-
-!-----------------
-
-      ! Exact exchange contribution (hybrid functionals)
-      ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
-      ec_hfx_sections => section_vals_get_subs_vals(ec_section, "XC%HF")
-      CALL section_vals_get(ec_hfx_sections, explicit=do_ec_hfx)
-
-      IF (do_ec_hfx) THEN
-
-         adiabatic_rescaling_section => section_vals_get_subs_vals(ec_section, "XC%ADIABATIC_RESCALING")
-         CALL section_vals_get(adiabatic_rescaling_section, explicit=do_adiabatic_rescaling)
-         IF (do_adiabatic_rescaling) THEN
-            CALL cp_abort(__LOCATION__, "Adiabatic rescaling NYI for energy correction")
-         END IF
-         CALL section_vals_val_get(ec_hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core)
-         IF (hfx_treat_lsd_in_core) THEN
-            CALL cp_abort(__LOCATION__, "HFX_TREAT_LSD_IN_CORE NYI for energy correction")
-         END IF
-
-         dummy_real = 0.0_dp
-         t3 = 0.0_dp
-         ! XXX could calculate forces here
-         ! but then need to be stored and re-added later
-         CALL calculate_exx(qs_env=qs_env, &
-                            unit_nr=iounit, &
-                            hfx_sections=ec_hfx_sections, &
-                            x_data=ec_env%x_data, &
-                            do_gw=.FALSE., &
-                            do_admm=ec_env%do_ec_admm, &
-                            calc_forces=.FALSE., &
-                            reuse_hfx=ec_env%reuse_hfx, &
-                            do_im_time=.FALSE., &
-                            E_ex_from_GW=dummy_real, &
-                            E_admm_from_GW=dummy_real2, &
-                            t3=dummy_real)
-         CALL get_qs_env(qs_env, energy=energy)
-         ec_env%ex = energy%ex
-
-      END IF
-
-!-------------------------
-
-      ! v_rspace and v_tau_rspace are generated from the auxbas pool
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      NULLIFY (v_rspace, v_tau_rspace)
-      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
-
-      IF (.NOT. ASSOCIATED(v_rspace)) THEN
-         ALLOCATE (v_rspace(nspins))
-         DO ispin = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_zero(v_rspace(ispin))
-         END DO
-      END IF
-
-      evhxc = 0.0_dp
-      CALL qs_rho_get(rho, rho_r=rho_r)
-      IF (ASSOCIATED(v_tau_rspace)) THEN
-         CALL qs_rho_get(rho, tau_r=tau_r)
-      END IF
-      DO ispin = 1, nspins
-         ! Add v_hartree + v_xc = v_rspace
-         CALL pw_scale(v_rspace(ispin), v_rspace(ispin)%pw_grid%dvol)
-         CALL pw_axpy(ec_env%vh_rspace, v_rspace(ispin))
-         ! integrate over potential <a|V|b>
-         CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
-                                 hmat=ec_env%matrix_ks(ispin, 1), &
-                                 qs_env=qs_env, &
-                                 calculate_forces=.FALSE., &
-                                 basis_type="HARRIS", &
-                                 task_list_external=ec_env%task_list)
-
-         IF (ASSOCIATED(v_tau_rspace)) THEN
-            ! integrate over Tau-potential <nabla.a|V|nabla.b>
-            CALL pw_scale(v_tau_rspace(ispin), v_tau_rspace(ispin)%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), &
-                                    hmat=ec_env%matrix_ks(ispin, 1), &
-                                    qs_env=qs_env, &
-                                    calculate_forces=.FALSE., &
-                                    compute_tau=.TRUE., &
-                                    basis_type="HARRIS", &
-                                    task_list_external=ec_env%task_list)
-         END IF
-      END DO
-
-      ! return pw grids
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin))
-         IF (ASSOCIATED(v_tau_rspace)) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
-         END IF
-      END DO
-      DEALLOCATE (v_rspace)
-      IF (ASSOCIATED(v_tau_rspace)) DEALLOCATE (v_tau_rspace)
-
-      ! energies
-      ec_env%exc = eexc
-      ec_env%vhxc = evhxc
-
-      ! add the core matrix
-      DO ispin = 1, nspins
-         CALL dbcsr_add(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_h(1, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-         CALL dbcsr_filter(ec_env%matrix_ks(ispin, 1)%matrix, &
-                           dft_control%qs_control%eps_filter_matrix)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE ec_dc_build_ks_matrix
-
-! **************************************************************************************************
 !> \brief Solve KS equation for a given matrix
 !>        calculate the complete KS matrix
 !> \param qs_env ...
@@ -1492,8 +1307,6 @@ CONTAINS
       NULLIFY (pw_env)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CPASSERT(ASSOCIATED(pw_env))
-
-!-----------------
 
       ! Exact exchange contribution (hybrid functionals)
       ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
@@ -1566,8 +1379,6 @@ CONTAINS
                              reuse_hfx=ec_env%reuse_hfx)
 
       END IF
-
-!-------------------------
 
       ! v_rspace and v_tau_rspace are generated from the auxbas pool
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
