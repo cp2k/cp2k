@@ -207,6 +207,7 @@ list(
   hfx_compression_methods.F
   hfx_derivatives.F
   hfx_energy_potential.F
+  hfx_exx.F
   hfx_helpers.F
   hfx_libint_interface.F
   hfx_load_balance_methods.F
@@ -687,7 +688,6 @@ list(
   rpa_gw_im_time_util.F
   rpa_gw_kpoints_util.F
   rpa_gw_sigma_x.F
-  rpa_hfx.F
   rpa_im_time.F
   rpa_main.F
   rpa_rse.F
