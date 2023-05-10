@@ -694,8 +694,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: mo_blk_size
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
-      TYPE(dbt_type)                                     :: aj_Ib, aj_Ib_diff, aj_X(2), ja_Ik, &
-                                                            ja_Ik_diff
+      TYPE(dbt_type)                                     :: aj_Ib, aj_Ib_diff, ja_Ik, ja_Ik_diff
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: aj_X
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -721,6 +721,7 @@ CONTAINS
       !g(omega) = eps_I - omega + mp2 terms, dg(omega) = -1 + d/d_omega (mp2 terms)
       !We simply compute at each iteration: omega_k+1 = omega_k - g(omega_k)/dg(omega_k)
 
+      ALLOCATE (aj_X(2))
       DO ispin = 1, nspins
 
          !need transposed tensor of (ja|X) for optimal contraction scheme,

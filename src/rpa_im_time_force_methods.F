@@ -147,8 +147,8 @@ MODULE rpa_im_time_force_methods
                                               qs_rho_type
    USE qs_tensors,                      ONLY: &
         build_2c_derivatives, build_2c_integrals, build_2c_neighbor_lists, build_3c_derivatives, &
-        build_3c_neighbor_lists, compress_tensor, decompress_tensor, get_tensor_occupancy, &
-        neighbor_list_3c_destroy
+        build_3c_neighbor_lists, calc_2c_virial, calc_3c_virial, compress_tensor, &
+        decompress_tensor, get_tensor_occupancy, neighbor_list_3c_destroy
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
                                               create_tensor_batches,&
@@ -208,7 +208,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims_t2c
       INTEGER, DIMENSION(3)                              :: nblks_total, pcoord, pdims, pdims_t3c
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
-      LOGICAL                                            :: do_periodic
+      LOGICAL                                            :: do_periodic, use_virial
       REAL(dp)                                           :: compression_factor, eps_pgf_orb, &
                                                             eps_pgf_orb_old, memory, occ
       TYPE(cell_type), POINTER                           :: cell
@@ -220,15 +220,15 @@ CONTAINS
       TYPE(dbcsr_type), DIMENSION(1, 3)                  :: t_2c_der_tmp
       TYPE(dbt_pgrid_type)                               :: pgrid_t2c, pgrid_t3c
       TYPE(dbt_type)                                     :: t_2c_template, t_2c_tmp, t_3c_template
-      TYPE(dbt_type), DIMENSION(1, 1, 3)                 :: t_3c_der_AO_prv, t_3c_der_RI_prv
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :, :)    :: t_3c_der_AO_prv, t_3c_der_RI_prv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d
-      TYPE(distribution_3d_type)                         :: dist_3d
+      TYPE(distribution_3d_type)                         :: dist_3d, dist_vir
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(libint_potential_type)                        :: identity_pot
-      TYPE(mp_cart_type)                                 :: mp_comm_t3c
+      TYPE(mp_cart_type)                                 :: mp_comm_t3c, mp_comm_vir
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -237,17 +237,28 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: qs_section
+      TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (dft_control, para_env, particle_set, qs_kind_set, dist_2d, nl_2c, blacs_env, matrix_s, &
-               rho, rho_ao, cell, qs_section, orb_basis, ri_basis)
+               rho, rho_ao, cell, qs_section, orb_basis, ri_basis, virial)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, natom=natom, nkind=nkind, dft_control=dft_control, para_env=para_env, &
-                      particle_set=particle_set, qs_kind_set=qs_kind_set, cell=cell)
+                      particle_set=particle_set, qs_kind_set=qs_kind_set, cell=cell, virial=virial)
       IF (dft_control%qs_control%gapw) THEN
          CPABORT("Low-scaling RPA/SOS-MP2 forces only available with GPW")
       END IF
+
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+      do_periodic = .FALSE.
+      IF (ANY(cell%perd == 1)) do_periodic = .TRUE.
+      force_data%do_periodic = do_periodic
+
+      !Dealing with the 3-center derivatives
+      pdims_t3c = 0
+      CALL dbt_pgrid_create(para_env, pdims_t3c, pgrid_t3c)
 
       !Make sure we use the proper QS EPS_PGF_ORB values
       qs_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS")
@@ -259,14 +270,6 @@ CONTAINS
          eps_pgf_orb = SQRT(eps_pgf_orb)
       END IF
       eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
-
-      do_periodic = .FALSE.
-      IF (ANY(cell%perd == 1)) do_periodic = .TRUE.
-      force_data%do_periodic = do_periodic
-
-      !Dealing with the 3-center derivatives
-      pdims_t3c = 0
-      CALL dbt_pgrid_create(para_env, pdims_t3c, pgrid_t3c)
 
       ALLOCATE (sizes_RI(natom), sizes_AO(natom))
       ALLOCATE (basis_set_ri_aux(nkind), basis_set_ao(nkind))
@@ -285,21 +288,39 @@ CONTAINS
       CALL create_3c_tensor(t_3c_template, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c, &
                             sizes_RI, sizes_AO, sizes_AO, map1=[1], map2=[2, 3], name="der (RI AO | AO)")
 
+      ALLOCATE (t_3c_der_RI_prv(1, 1, 3), t_3c_der_AO_prv(1, 1, 3))
       DO i_xyz = 1, 3
          CALL dbt_create(t_3c_template, t_3c_der_RI_prv(1, 1, i_xyz))
          CALL dbt_create(t_3c_template, t_3c_der_AO_prv(1, 1, i_xyz))
       END DO
+
+      IF (use_virial) THEN
+         ALLOCATE (force_data%t_3c_virial, force_data%t_3c_virial_split)
+         CALL dbt_create(t_3c_template, force_data%t_3c_virial)
+         CALL dbt_create(t_3c_M, force_data%t_3c_virial_split)
+      END IF
       CALL dbt_destroy(t_3c_template)
 
       CALL dbt_mp_environ_pgrid(pgrid_t3c, pdims, pcoord)
       CALL mp_comm_t3c%create(pgrid_t3c%mp_comm_2d, 3, pdims)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
-      DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
+
+      !In case of virial, we need to store the 3c_nl
+      IF (use_virial) THEN
+         ALLOCATE (force_data%nl_3c)
+         CALL mp_comm_vir%create(pgrid_t3c%mp_comm_2d, 3, pdims)
+         CALL distribution_3d_create(dist_vir, dist_RI, dist_AO_1, dist_AO_2, &
+                                     nkind, particle_set, mp_comm_vir, own_comm=.TRUE.)
+         CALL build_3c_neighbor_lists(force_data%nl_3c, basis_set_ri_aux, basis_set_ao, basis_set_ao, &
+                                      dist_vir, mp2_env%ri_metric, "RPA_3c_nl", qs_env, op_pos=1, &
+                                      sym_jk=.FALSE., own_dist=.TRUE.)
+      END IF
 
       CALL build_3c_neighbor_lists(nl_3c, basis_set_ri_aux, basis_set_ao, basis_set_ao, dist_3d, &
                                    mp2_env%ri_metric, "RPA_3c_nl", qs_env, op_pos=1, sym_jk=.TRUE., &
                                    own_dist=.TRUE.)
+      DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
 
       !Prepare the resulting 3c tensors in the format of t_3c_M for compatible traces: (RI|AO AO), split blocks
       CALL dbt_get_info(t_3c_M, nblks_total=nblks_total)
@@ -390,6 +411,14 @@ CONTAINS
                            dbcsr_type_antisymmetric, row_bsize, col_bsize)
       END DO
 
+      IF (use_virial) THEN
+         ALLOCATE (force_data%RI_virial_pot, force_data%RI_virial_met)
+         CALL dbcsr_create(force_data%RI_virial_pot, "RI_virial", dbcsr_dist, &
+                           dbcsr_type_no_symmetry, row_bsize, col_bsize)
+         CALL dbcsr_create(force_data%RI_virial_met, "RI_virial", dbcsr_dist, &
+                           dbcsr_type_no_symmetry, row_bsize, col_bsize)
+      END IF
+
       ! Main (P|Q) integrals and derivatives
       ! Integrals are passed as a full matrix => convert to DBCSR
       CALL dbcsr_create(dbcsr_work, template=t_2c_int_tmp(1))
@@ -435,6 +464,12 @@ CONTAINS
             CALL dbt_destroy(t_2c_tmp)
             CALL dbcsr_clear(t_2c_der_tmp(1, i_xyz))
          END DO
+
+         IF (use_virial) THEN
+            CALL build_2c_neighbor_lists(force_data%nl_2c_pot, basis_set_ri_aux, basis_set_ri_aux, &
+                                         mp2_env%potential_parameter, "RPA_2c_nl_pot", qs_env, &
+                                         sym_ij=.FALSE., dist_2d=dist_2d)
+         END IF
       END IF
       ! Create a G_PQ matrix to collect the terms for the force trace in the periodic case
       CALL dbcsr_create(force_data%G_PQ, "G_PQ", dbcsr_dist, dbcsr_type_no_symmetry, row_bsize, col_bsize)
@@ -447,6 +482,12 @@ CONTAINS
       CALL build_2c_derivatives(t_2c_der_tmp, mp2_env%ri_rpa_im_time%eps_filter, qs_env, nl_2c, &
                                 basis_set_ri_aux, basis_set_ri_aux, mp2_env%ri_metric)
       CALL release_neighbor_list_sets(nl_2c)
+
+      IF (use_virial) THEN
+         CALL build_2c_neighbor_lists(force_data%nl_2c_met, basis_set_ri_aux, basis_set_ri_aux, &
+                                      mp2_env%ri_metric, "RPA_2c_nl_metric", qs_env, sym_ij=.FALSE., &
+                                      dist_2d=dist_2d)
+      END IF
 
       CALL dbcsr_copy(dbcsr_work, t_2c_int_tmp(1))
       CALL cp_dbcsr_cholesky_decompose(dbcsr_work, para_env=para_env, blacs_env=blacs_env)
@@ -508,6 +549,11 @@ CONTAINS
       CALL build_2c_derivatives(t_2c_der_tmp, mp2_env%ri_rpa_im_time%eps_filter, qs_env, nl_2c, &
                                 basis_set_ao, basis_set_ao, identity_pot)
       CALL release_neighbor_list_sets(nl_2c)
+
+      IF (use_virial) THEN
+         CALL build_2c_neighbor_lists(force_data%nl_2c_ovlp, basis_set_ao, basis_set_ao, identity_pot, &
+                                      "RPA_2c_nl_metric", qs_env, sym_ij=.FALSE., dist_2d=dist_2d)
+      END IF
 
       CALL dbcsr_create(force_data%inv_ovlp, template=matrix_s(1)%matrix)
       CALL dbcsr_copy(force_data%inv_ovlp, matrix_s(1)%matrix)
@@ -648,9 +694,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_laplace_loop_forces'
 
-      INTEGER                                            :: dummy_int, handle, handle2, i_mem, &
-                                                            i_xyz, ispin, j_xyz, jquad, k_xyz, &
-                                                            n_mem_RI, natom, nspins, unit_nr_dbcsr
+      INTEGER :: dummy_int, handle, handle2, i_mem, i_xyz, ibasis, ispin, j_xyz, jquad, k_xyz, &
+         n_mem_RI, n_rep, natom, nkind, nspins, unit_nr_dbcsr
       INTEGER(int_8)                                     :: flop, nze, nze_ddint, nze_der_AO, &
                                                             nze_der_RI, nze_KQK
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, batch_blk_end, &
@@ -659,7 +704,8 @@ CONTAINS
                                                             mc_ranges_RI
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
-      REAL(dp)                                           :: eps_filter, fac, occ, occ_ddint, &
+      REAL(dp)                                           :: eps_filter, eps_pgf_orb, &
+                                                            eps_pgf_orb_old, fac, occ, occ_ddint, &
                                                             occ_der_AO, occ_der_RI, occ_KQK, &
                                                             omega, pref, t1, t2, tau
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
@@ -668,26 +714,34 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ, mat_dm_virt
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
-                                                            exp_occ, exp_virt, R_occ, R_virt, Y_1, &
-                                                            Y_2
+                                                            exp_occ, exp_virt, R_occ, R_virt, &
+                                                            virial_ovlp, Y_1, Y_2
       TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_3, t_3c_4, &
          t_3c_5, t_3c_6, t_3c_7, t_3c_8, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, &
          t_3c_work, t_dm_occ, t_dm_virt, t_KQKT, t_M_occ, t_M_virt, t_Q, t_R_occ, t_R_virt
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_P
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
+      TYPE(libint_potential_type)                        :: identity_pot
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: qs_section
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (matrix_s, dummy_ptr, atomic_kind_set, force, matrix_s, matrix_ks, mat_dm_occ, mat_dm_virt)
-      NULLIFY (dft_control, virial, particle_set, cell, para_env)
+      NULLIFY (dft_control, virial, particle_set, cell, para_env, orb_basis, ri_basis, qs_section)
+      NULLIFY (qs_kind_set)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s, natom=natom, atomic_kind_set=atomic_kind_set, &
                       force=force, matrix_ks=matrix_ks, dft_control=dft_control, virial=virial, &
-                      particle_set=particle_set, cell=cell, para_env=para_env)
+                      particle_set=particle_set, cell=cell, para_env=para_env, nkind=nkind, &
+                      qs_kind_set=qs_kind_set)
       eps_filter = mp2_env%ri_rpa_im_time%eps_filter
       nspins = dft_control%nspins
 
@@ -701,6 +755,29 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       IF (use_virial) virial%pv_calculate = .TRUE.
+
+      IF (use_virial) THEN
+         qs_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS")
+         CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", n_rep_val=n_rep)
+         IF (n_rep /= 0) THEN
+            CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", r_val=eps_pgf_orb)
+         ELSE
+            CALL section_vals_val_get(qs_section, "EPS_DEFAULT", r_val=eps_pgf_orb)
+            eps_pgf_orb = SQRT(eps_pgf_orb)
+         END IF
+         eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
+
+         ALLOCATE (basis_set_ri_aux(nkind), basis_set_ao(nkind))
+         CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
+         CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
+
+         DO ibasis = 1, SIZE(basis_set_ao)
+            orb_basis => basis_set_ao(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb)
+            ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb)
+         END DO
+      END IF
 
       !We follow the general logic of the compute_mat_P_omega routine
       ALLOCATE (t_P(nspins))
@@ -787,6 +864,7 @@ CONTAINS
       CALL dbcsr_create(dbcsr_work3, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(exp_occ, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(exp_virt, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      IF (use_virial) CALL dbcsr_create(virial_ovlp, template=dbcsr_work1)
 
       CALL dbt_batched_contract_init(t_3c_0, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_1, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
@@ -810,14 +888,14 @@ CONTAINS
       CALL dbt_batched_contract_init(t_3c_sparse, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
                                      batch_range_3=mc_ranges)
 
+      work_virial = 0.0_dp
+      work_virial_ovlp = 0.0_dp
       DO jquad = 1, num_integ_points
          tau = tau_tj(jquad)
          omega = tau_wj(jquad)
          fac = -2.0_dp*omega*mp2_env%scale_S
          IF (open_shell) fac = 0.5_dp*fac
          occ_ddint = 0; nze_ddint = 0
-         work_virial = 0.0_dp
-         work_virial_ovlp = 0.0_dp
 
          CALL para_env%sync()
          t1 = m_walltime()
@@ -847,9 +925,8 @@ CONTAINS
          dbcsr_nflop = dbcsr_nflop + flop
          CALL dbt_clear(t_2c_RI)
 
-         CALL perform_2c_ops(force, work_virial, t_KQKT, force_data, fac, t_Q, t_P(Pspin), t_2c_RI, &
-                             t_2c_RI_2, use_virial, cell, particle_set, atom_of_kind, kind_of, &
-                             eps_filter, dbcsr_nflop, unit_nr_dbcsr)
+         CALL perform_2c_ops(force, t_KQKT, force_data, fac, t_Q, t_P(Pspin), t_2c_RI, t_2c_RI_2, &
+                             use_virial, atom_of_kind, kind_of, eps_filter, dbcsr_nflop, unit_nr_dbcsr)
          CALL get_tensor_occupancy(t_KQKT, nze_KQK, occ_KQK)
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
@@ -873,11 +950,11 @@ CONTAINS
          CALL dbt_destroy(t_2c_tmp)
 
          !Deal with the 3-center quantities.
-         CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
+         CALL perform_3c_ops(force, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KQKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
                              t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_8, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
                              t_3c_ints, t_3c_work, starts_array_mc, ends_array_mc, batch_start_RI, &
-                             batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
+                             batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
                              unit_nr_dbcsr, mp2_env)
 
@@ -918,14 +995,10 @@ CONTAINS
          CALL dbt_copy(t_2c_tmp, t_2c_AO, move_data=.TRUE.)
 
          pref = -1.0_dp*fac
-         IF (use_virial) THEN
-            CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_AO, pref, work_virial_ovlp, cell, &
-                                  particle_set, do_ovlp=.TRUE.)
-         ELSE
-            CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
-         END IF
+         CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
+                               kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
+
+         IF (use_virial) CALL dbcsr_add(virial_ovlp, dbcsr_work2, 1.0_dp, pref)
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', tau*fac, Y_1, force_data%P_occ(Pspin)%matrix, 1.0_dp, &
@@ -945,22 +1018,6 @@ CONTAINS
                              force_data%sum_O_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
 
          CALL timestop(handle2)
-
-         IF (use_virial) THEN
-            DO k_xyz = 1, 3
-               DO j_xyz = 1, 3
-                  DO i_xyz = 1, 3
-                     virial%pv_mp2(i_xyz, j_xyz) = virial%pv_mp2(i_xyz, j_xyz) &
-                                                   - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
-                     virial%pv_overlap(i_xyz, j_xyz) = virial%pv_overlap(i_xyz, j_xyz) &
-                                                       - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
-                     virial%pv_virial(i_xyz, j_xyz) = virial%pv_virial(i_xyz, j_xyz) &
-                                                      - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz) &
-                                                      - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
-                  END DO
-               END DO
-            END DO
-         END IF
 
          !Print some info
          CALL para_env%sync()
@@ -1005,6 +1062,43 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_8)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
+      !Calculate the 2c and 3c contributions to the virial
+      IF (use_virial) THEN
+         CALL dbt_copy(force_data%t_3c_virial_split, force_data%t_3c_virial, move_data=.TRUE.)
+         CALL calc_3c_virial(work_virial, force_data%t_3c_virial, 1.0_dp, qs_env, force_data%nl_3c, &
+                             basis_set_ri_aux, basis_set_ao, basis_set_ao, mp2_env%ri_metric, &
+                             der_eps=mp2_env%ri_rpa_im_time%eps_filter, op_pos=1)
+
+         CALL calc_2c_virial(work_virial, force_data%RI_virial_met, 1.0_dp, qs_env, force_data%nl_2c_met, &
+                             basis_set_ri_aux, basis_set_ri_aux, mp2_env%ri_metric)
+         CALL dbcsr_clear(force_data%RI_virial_met)
+
+         IF (.NOT. force_data%do_periodic) THEN
+            CALL calc_2c_virial(work_virial, force_data%RI_virial_pot, 1.0_dp, qs_env, force_data%nl_2c_pot, &
+                                basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter)
+            CALL dbcsr_clear(force_data%RI_virial_pot)
+         END IF
+
+         identity_pot%potential_type = do_potential_id
+         CALL calc_2c_virial(work_virial_ovlp, virial_ovlp, 1.0_dp, qs_env, force_data%nl_2c_ovlp, &
+                             basis_set_ao, basis_set_ao, identity_pot)
+         CALL dbcsr_release(virial_ovlp)
+
+         DO k_xyz = 1, 3
+            DO j_xyz = 1, 3
+               DO i_xyz = 1, 3
+                  virial%pv_mp2(i_xyz, j_xyz) = virial%pv_mp2(i_xyz, j_xyz) &
+                                                - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+                  virial%pv_overlap(i_xyz, j_xyz) = virial%pv_overlap(i_xyz, j_xyz) &
+                                                    - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+                  virial%pv_virial(i_xyz, j_xyz) = virial%pv_virial(i_xyz, j_xyz) &
+                                                   - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz) &
+                                                   - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+               END DO
+            END DO
+         END DO
+      END IF
+
       !Calculate the periodic contributions of (P|Q) to the force and the virial
       work_virial = 0.0_dp
       IF (force_data%do_periodic) THEN
@@ -1023,6 +1117,13 @@ CONTAINS
          virial%pv_mp2 = virial%pv_mp2 + work_virial
          virial%pv_virial = virial%pv_virial + work_virial
          virial%pv_calculate = .FALSE.
+
+         DO ibasis = 1, SIZE(basis_set_ao)
+            orb_basis => basis_set_ao(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb_old)
+            ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb_old)
+         END DO
       END IF
 
       !clean-up
@@ -1148,9 +1249,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rpa_loop_forces'
 
-      INTEGER                                            :: dummy_int, handle, handle2, i_mem, &
-                                                            i_xyz, iquad, j_xyz, jquad, k_xyz, &
-                                                            n_mem_RI, natom, nspins, unit_nr_dbcsr
+      INTEGER :: dummy_int, handle, handle2, i_mem, i_xyz, ibasis, iquad, j_xyz, jquad, k_xyz, &
+         n_mem_RI, n_rep, natom, nkind, nspins, unit_nr_dbcsr
       INTEGER(int_8)                                     :: flop, nze, nze_ddint, nze_der_AO, &
                                                             nze_der_RI, nze_KBK
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, batch_blk_end, &
@@ -1159,10 +1259,8 @@ CONTAINS
                                                             mc_ranges_RI
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
-      REAL(dp)                                           :: eps_filter, fac, occ, occ_ddint, &
-                                                            occ_der_AO, occ_der_RI, occ_KBK, &
-                                                            omega, pref, spin_fac, t1, t2, tau, &
-                                                            weight
+      REAL(dp) :: eps_filter, eps_pgf_orb, eps_pgf_orb_old, fac, occ, occ_ddint, occ_der_AO, &
+         occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1171,25 +1269,33 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ, mat_dm_virt
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
                                                             dbcsr_work_symm, exp_occ, exp_virt, &
-                                                            R_occ, R_virt, Y_1, Y_2
+                                                            R_occ, R_virt, virial_ovlp, Y_1, Y_2
       TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_3, t_3c_4, &
          t_3c_5, t_3c_6, t_3c_7, t_3c_8, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, &
          t_3c_work, t_dm_occ, t_dm_virt, t_KBKT, t_M_occ, t_M_virt, t_P, t_R_occ, t_R_virt
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_B
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:), TARGET                            :: basis_set_ao, basis_set_ri_aux
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
+      TYPE(libint_potential_type)                        :: identity_pot
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: qs_section
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (matrix_s, dummy_ptr, atomic_kind_set, force, matrix_s, matrix_ks, mat_dm_occ, mat_dm_virt)
-      NULLIFY (dft_control, virial, particle_set, cell, blacs_env, para_env)
+      NULLIFY (dft_control, virial, particle_set, cell, blacs_env, para_env, orb_basis, ri_basis)
+      NULLIFY (qs_kind_set)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s, natom=natom, atomic_kind_set=atomic_kind_set, &
                       force=force, matrix_ks=matrix_ks, dft_control=dft_control, virial=virial, &
-                      particle_set=particle_set, cell=cell, blacs_env=blacs_env, para_env=para_env)
+                      particle_set=particle_set, cell=cell, blacs_env=blacs_env, para_env=para_env, &
+                      qs_kind_set=qs_kind_set, nkind=nkind)
       eps_filter = mp2_env%ri_rpa_im_time%eps_filter
       nspins = dft_control%nspins
 
@@ -1203,6 +1309,29 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       IF (use_virial) virial%pv_calculate = .TRUE.
+
+      IF (use_virial) THEN
+         qs_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS")
+         CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", n_rep_val=n_rep)
+         IF (n_rep /= 0) THEN
+            CALL section_vals_val_get(qs_section, "EPS_PGF_ORB", r_val=eps_pgf_orb)
+         ELSE
+            CALL section_vals_val_get(qs_section, "EPS_DEFAULT", r_val=eps_pgf_orb)
+            eps_pgf_orb = SQRT(eps_pgf_orb)
+         END IF
+         eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
+
+         ALLOCATE (basis_set_ri_aux(nkind), basis_set_ao(nkind))
+         CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
+         CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
+
+         DO ibasis = 1, SIZE(basis_set_ao)
+            orb_basis => basis_set_ao(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb)
+            ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb)
+         END DO
+      END IF
 
       !We follow the general logic of the compute_mat_P_omega routine
       CALL dbt_create(force_data%t_2c_K, t_2c_RI)
@@ -1363,6 +1492,7 @@ CONTAINS
       CALL dbcsr_create(dbcsr_work3, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(exp_occ, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(exp_virt, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      IF (use_virial) CALL dbcsr_create(virial_ovlp, template=dbcsr_work1)
 
       CALL dbt_batched_contract_init(t_3c_0, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_1, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
@@ -1389,11 +1519,11 @@ CONTAINS
       fac = 1.0_dp/fourpi*mp2_env%ri_rpa%scale_rpa
       IF (open_shell) fac = 0.5_dp*fac
 
+      work_virial = 0.0_dp
+      work_virial_ovlp = 0.0_dp
       DO jquad = 1, num_integ_points
          tau = tau_tj(jquad)
          occ_ddint = 0; nze_ddint = 0
-         work_virial = 0.0_dp
-         work_virial_ovlp = 0.0_dp
 
          CALL para_env%sync()
          t1 = m_walltime()
@@ -1406,9 +1536,8 @@ CONTAINS
          CALL dbt_filter(t_P, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
 
-         CALL perform_2c_ops(force, work_virial, t_KBKT, force_data, fac, t_B(jquad), t_P, t_2c_RI, &
-                             t_2c_RI_2, use_virial, cell, particle_set, atom_of_kind, kind_of, &
-                             eps_filter, dbcsr_nflop, unit_nr_dbcsr)
+         CALL perform_2c_ops(force, t_KBKT, force_data, fac, t_B(jquad), t_P, t_2c_RI, t_2c_RI_2, &
+                             use_virial, atom_of_kind, kind_of, eps_filter, dbcsr_nflop, unit_nr_dbcsr)
          CALL get_tensor_occupancy(t_KBKT, nze_KBK, occ_KBK)
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
@@ -1432,11 +1561,11 @@ CONTAINS
          CALL dbt_destroy(t_2c_tmp)
 
          !Deal with the 3-center quantities.
-         CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
+         CALL perform_3c_ops(force, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KBKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
                              t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_8, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
                              t_3c_ints, t_3c_work, starts_array_mc, ends_array_mc, batch_start_RI, &
-                             batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
+                             batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
                              unit_nr_dbcsr, mp2_env)
 
@@ -1481,14 +1610,10 @@ CONTAINS
          CALL dbt_copy(t_2c_tmp, t_2c_AO, move_data=.TRUE.)
 
          pref = -1.0_dp*fac
-         IF (use_virial) THEN
-            CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_AO, pref, work_virial_ovlp, cell, &
-                                  particle_set, do_ovlp=.TRUE.)
-         ELSE
-            CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
-         END IF
+         CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
+                               kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
+
+         IF (use_virial) CALL dbcsr_add(virial_ovlp, dbcsr_work2, 1.0_dp, pref)
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(ispin)%matrix, 1.0_dp, &
@@ -1509,22 +1634,6 @@ CONTAINS
                              force_data%sum_O_tau(ispin)%matrix, retain_sparsity=.TRUE.)
 
          CALL timestop(handle2)
-
-         IF (use_virial) THEN
-            DO k_xyz = 1, 3
-               DO j_xyz = 1, 3
-                  DO i_xyz = 1, 3
-                     virial%pv_mp2(i_xyz, j_xyz) = virial%pv_mp2(i_xyz, j_xyz) &
-                                                   - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
-                     virial%pv_overlap(i_xyz, j_xyz) = virial%pv_overlap(i_xyz, j_xyz) &
-                                                       - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
-                     virial%pv_virial(i_xyz, j_xyz) = virial%pv_virial(i_xyz, j_xyz) &
-                                                      - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz) &
-                                                      - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
-                  END DO
-               END DO
-            END DO
-         END IF
 
          !Print some info
          CALL para_env%sync()
@@ -1570,6 +1679,43 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_8)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
+      !Calculate the 2c and 3c contributions to the virial
+      IF (use_virial) THEN
+         CALL dbt_copy(force_data%t_3c_virial_split, force_data%t_3c_virial, move_data=.TRUE.)
+         CALL calc_3c_virial(work_virial, force_data%t_3c_virial, 1.0_dp, qs_env, force_data%nl_3c, &
+                             basis_set_ri_aux, basis_set_ao, basis_set_ao, mp2_env%ri_metric, &
+                             der_eps=mp2_env%ri_rpa_im_time%eps_filter, op_pos=1)
+
+         CALL calc_2c_virial(work_virial, force_data%RI_virial_met, 1.0_dp, qs_env, force_data%nl_2c_met, &
+                             basis_set_ri_aux, basis_set_ri_aux, mp2_env%ri_metric)
+         CALL dbcsr_clear(force_data%RI_virial_met)
+
+         IF (.NOT. force_data%do_periodic) THEN
+            CALL calc_2c_virial(work_virial, force_data%RI_virial_pot, 1.0_dp, qs_env, force_data%nl_2c_pot, &
+                                basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter)
+            CALL dbcsr_clear(force_data%RI_virial_pot)
+         END IF
+
+         identity_pot%potential_type = do_potential_id
+         CALL calc_2c_virial(work_virial_ovlp, virial_ovlp, 1.0_dp, qs_env, force_data%nl_2c_ovlp, &
+                             basis_set_ao, basis_set_ao, identity_pot)
+         CALL dbcsr_release(virial_ovlp)
+
+         DO k_xyz = 1, 3
+            DO j_xyz = 1, 3
+               DO i_xyz = 1, 3
+                  virial%pv_mp2(i_xyz, j_xyz) = virial%pv_mp2(i_xyz, j_xyz) &
+                                                - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+                  virial%pv_overlap(i_xyz, j_xyz) = virial%pv_overlap(i_xyz, j_xyz) &
+                                                    - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+                  virial%pv_virial(i_xyz, j_xyz) = virial%pv_virial(i_xyz, j_xyz) &
+                                                   - work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz) &
+                                                   - work_virial_ovlp(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+               END DO
+            END DO
+         END DO
+      END IF
+
       !Calculate the periodic contributions of (P|Q) to the force and the virial
       work_virial = 0.0_dp
       IF (force_data%do_periodic) THEN
@@ -1588,6 +1734,13 @@ CONTAINS
          virial%pv_mp2 = virial%pv_mp2 + work_virial
          virial%pv_virial = virial%pv_virial + work_virial
          virial%pv_calculate = .FALSE.
+
+         DO ibasis = 1, SIZE(basis_set_ao)
+            orb_basis => basis_set_ao(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, eps_pgf_orb_old)
+            ri_basis => basis_set_ri_aux(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, eps_pgf_orb_old)
+         END DO
       END IF
 
       !clean-up
@@ -1640,7 +1793,6 @@ CONTAINS
 !> \brief This subroutines performs the 2c tensor operations that are common accros low-scaling RPA
 !>        and SOS-MP2, including forces and virial
 !> \param force ...
-!> \param work_virial ...
 !> \param t_KBKT returns the 2c tensor product of K*B*K^T
 !> \param force_data ...
 !> \param fac ...
@@ -1649,27 +1801,21 @@ CONTAINS
 !> \param t_2c_RI ...
 !> \param t_2c_RI_2 ...
 !> \param use_virial ...
-!> \param cell ...
-!> \param particle_set ...
 !> \param atom_of_kind ...
 !> \param kind_of ...
 !> \param eps_filter ...
 !> \param dbcsr_nflop ...
 !> \param unit_nr_dbcsr ...
 ! **************************************************************************************************
-   SUBROUTINE perform_2c_ops(force, work_virial, t_KBKT, force_data, fac, t_B, t_P, t_2c_RI, t_2c_RI_2, &
-                             use_virial, cell, particle_set, atom_of_kind, kind_of, eps_filter, &
-                             dbcsr_nflop, unit_nr_dbcsr)
+   SUBROUTINE perform_2c_ops(force, t_KBKT, force_data, fac, t_B, t_P, t_2c_RI, t_2c_RI_2, use_virial, &
+                             atom_of_kind, kind_of, eps_filter, dbcsr_nflop, unit_nr_dbcsr)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      REAL(dp), DIMENSION(3, 3), INTENT(INOUT)           :: work_virial
       TYPE(dbt_type), INTENT(INOUT)                      :: t_KBKT
       TYPE(im_time_force_type), INTENT(INOUT)            :: force_data
       REAL(dp), INTENT(IN)                               :: fac
       TYPE(dbt_type), INTENT(INOUT)                      :: t_B, t_P, t_2c_RI, t_2c_RI_2
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of
       REAL(dp), INTENT(IN)                               :: eps_filter
       INTEGER(int_8), INTENT(INOUT)                      :: dbcsr_nflop
@@ -1680,9 +1826,11 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER(int_8)                                     :: flop
       REAL(dp)                                           :: pref
-      TYPE(dbt_type)                                     :: t_2c_tmp
+      TYPE(dbt_type)                                     :: t_2c_tmp, t_2c_virial
 
       CALL timeset(routineN, handle)
+
+      IF (use_virial) CALL dbt_create(force_data%RI_virial_pot, t_2c_virial)
 
       !P^T*K*B + P*K*B^T (note we calculate and save K*B*K^T for later, and P=P^T)
       CALL dbt_contract(1.0_dp, force_data%t_2c_K, t_B, 0.0_dp, t_2c_RI, &
@@ -1725,13 +1873,13 @@ CONTAINS
 
       !Here we do the trace for the force
       pref = -1.0_dp*fac
+      CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_metric, atom_of_kind, &
+                            kind_of, force_data%idx_to_at_RI, pref, do_mp2=.TRUE.)
       IF (use_virial) THEN
-         CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_metric, atom_of_kind, &
-                               kind_of, force_data%idx_to_at_RI, pref, work_virial, cell, &
-                               particle_set, do_mp2=.TRUE.)
-      ELSE
-         CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_metric, atom_of_kind, &
-                               kind_of, force_data%idx_to_at_RI, pref, do_mp2=.TRUE.)
+         CALL dbt_copy(t_2c_RI_2, t_2c_virial)
+         CALL dbt_scale(t_2c_virial, pref)
+         CALL dbt_copy_tensor_to_matrix(t_2c_virial, force_data%RI_virial_met, summation=.TRUE.)
+         CALL dbt_clear(t_2c_virial)
       END IF
 
       !For the potential contribution, we need S^-1*(P^T*K*B + P*K*B^T)*V^-0.5
@@ -1752,18 +1900,21 @@ CONTAINS
          CALL dbt_copy_tensor_to_matrix(t_2c_tmp, force_data%G_PQ, summation=.TRUE.)
          CALL dbt_destroy(t_2c_tmp)
       ELSE
+         CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
+                               kind_of, force_data%idx_to_at_RI, pref, do_mp2=.TRUE.)
+
          IF (use_virial) THEN
-            CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_RI, pref, work_virial, cell, &
-                                  particle_set, do_mp2=.TRUE.)
-         ELSE
-            CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_RI, pref, do_mp2=.TRUE.)
+            CALL dbt_copy(t_2c_RI_2, t_2c_virial)
+            CALL dbt_scale(t_2c_virial, pref)
+            CALL dbt_copy_tensor_to_matrix(t_2c_virial, force_data%RI_virial_pot, summation=.TRUE.)
+            CALL dbt_clear(t_2c_virial)
          END IF
       END IF
 
       CALL dbt_clear(t_2c_RI)
       CALL dbt_clear(t_2c_RI_2)
+
+      IF (use_virial) CALL dbt_destroy(t_2c_virial)
 
       CALL timestop(handle)
 
@@ -1773,7 +1924,6 @@ CONTAINS
 !> \brief This subroutines performs the 3c tensor operations that are common accros low-scaling RPA
 !>        and SOS-MP2, including forces and virial
 !> \param force ...
-!> \param work_virial ...
 !> \param t_R_occ ...
 !> \param t_R_virt ...
 !> \param force_data ...
@@ -1807,8 +1957,6 @@ CONTAINS
 !> \param t_3c_O_compressed ...
 !> \param t_3c_O_ind ...
 !> \param use_virial ...
-!> \param cell ...
-!> \param particle_set ...
 !> \param atom_of_kind ...
 !> \param kind_of ...
 !> \param eps_filter ...
@@ -1818,16 +1966,15 @@ CONTAINS
 !> \param unit_nr_dbcsr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
+   SUBROUTINE perform_3c_ops(force, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KBKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
                              t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_8, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
                              t_3c_ints, t_3c_work, starts_array_mc, ends_array_mc, batch_start_RI, &
-                             batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
+                             batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
                              unit_nr_dbcsr, mp2_env)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      REAL(dp), DIMENSION(3, 3), INTENT(INOUT)           :: work_virial
       TYPE(dbt_type), INTENT(INOUT)                      :: t_R_occ, t_R_virt
       TYPE(im_time_force_type), INTENT(INOUT)            :: force_data
       REAL(dp), INTENT(IN)                               :: fac
@@ -1840,8 +1987,6 @@ CONTAINS
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of
       REAL(dp), INTENT(IN)                               :: eps_filter
       REAL(dp), INTENT(INOUT)                            :: occ_ddint
@@ -1996,7 +2141,7 @@ CONTAINS
                CALL dbt_contract(1.0_dp, t_KBKT, t_3c_6, 0.0_dp, t_3c_7, &
                                  contract_1=[2], notcontract_1=[1], &
                                  contract_2=[1], notcontract_2=[2, 3], &
-                                 map_1=[1], map_2=[2, 3], filter_eps=eps_filter, &
+                                 map_1=[1], map_2=[2, 3], &
                                  retain_sparsity=.TRUE., flop=flop, unit_nr=unit_nr_dbcsr)
                dbcsr_nflop = dbcsr_nflop + flop
                CALL timestop(handle2)
@@ -2009,53 +2154,34 @@ CONTAINS
          CALL dbt_copy(t_3c_8, t_3c_help_1, move_data=.TRUE.)
 
          pref = 1.0_dp*fac
+         DO k_mem = 1, cut_memory
+            DO i_xyz = 1, 3
+               CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
+               CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(k_mem, i_xyz)%ind, &
+                                      force_data%t_3c_der_RI_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            END DO
+            CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
+                                         force_data%idx_to_at_RI, pref, do_mp2=.TRUE., deriv_dim=1)
+         END DO
+
          IF (use_virial) THEN
-            DO k_mem = 1, cut_memory
-               DO i_xyz = 1, 3
-                  CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
-                  CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(k_mem, i_xyz)%ind, &
-                                         force_data%t_3c_der_RI_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-               END DO
-               CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
-                                            force_data%idx_to_at_RI, pref, work_virial, cell, particle_set, &
-                                            do_mp2=.TRUE., deriv_dim=1)
-            END DO
-
             CALL dbt_copy(t_3c_help_1, t_3c_help_2)
-            CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-            DO k_mem = 1, cut_memory
-               DO i_xyz = 1, 3
-                  CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
-                  CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(k_mem, i_xyz)%ind, &
-                                         force_data%t_3c_der_AO_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-               END DO
-               CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
-                                            force_data%idx_to_at_AO, pref, work_virial, cell, particle_set, &
-                                            do_mp2=.TRUE., deriv_dim=3)
-            END DO
-         ELSE
-            DO k_mem = 1, cut_memory
-               DO i_xyz = 1, 3
-                  CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
-                  CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(k_mem, i_xyz)%ind, &
-                                         force_data%t_3c_der_RI_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-               END DO
-               CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
-                                            force_data%idx_to_at_RI, pref, do_mp2=.TRUE., deriv_dim=1)
-            END DO
-
-            CALL dbt_copy(t_3c_help_1, t_3c_help_2)
-            CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-            DO k_mem = 1, cut_memory
-               DO i_xyz = 1, 3
-                  CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
-                  CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(k_mem, i_xyz)%ind, &
-                                         force_data%t_3c_der_AO_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-               END DO
-               CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
-                                            force_data%idx_to_at_AO, pref, do_mp2=.TRUE., deriv_dim=3)
-            END DO
+            CALL dbt_scale(t_3c_help_2, pref)
+            CALL dbt_copy(t_3c_help_2, force_data%t_3c_virial_split, summation=.TRUE., move_data=.TRUE.)
          END IF
+
+         CALL dbt_copy(t_3c_help_1, t_3c_help_2)
+         CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
+         DO k_mem = 1, cut_memory
+            DO i_xyz = 1, 3
+               CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
+               CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(k_mem, i_xyz)%ind, &
+                                      force_data%t_3c_der_AO_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            END DO
+            CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
+                                         force_data%idx_to_at_AO, pref, do_mp2=.TRUE., deriv_dim=3)
+         END DO
+
          CALL dbt_clear(t_3c_help_2)
       END DO !i_mem
       CALL dbt_batched_contract_finalize(t_KBKT)

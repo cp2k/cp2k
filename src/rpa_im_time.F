@@ -202,8 +202,7 @@ CONTAINS
                                                             t_3c_M_virt_tmp, t_dm, t_dm_tmp, t_P, &
                                                             t_P_tmp
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_dm_occ, t_dm_virt
-      TYPE(dbt_type), &
-         DIMENSION(SIZE(t_3c_O, 1), SIZE(t_3c_O, 2))     :: t_3c_O_occ, t_3c_O_virt
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O_occ, t_3c_O_virt
       TYPE(mp_comm_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
@@ -220,6 +219,7 @@ CONTAINS
       num_3c_repl = MAXVAL(cell_to_index_3c)
 
       first_cycle_im_time = .TRUE.
+      ALLOCATE (t_3c_O_occ(SIZE(t_3c_O, 1), SIZE(t_3c_O, 2)), t_3c_O_virt(SIZE(t_3c_O, 1), SIZE(t_3c_O, 2)))
       DO i = 1, SIZE(t_3c_O, 1)
          DO j = 1, SIZE(t_3c_O, 2)
             CALL dbt_create(t_3c_O(i, j), t_3c_O_occ(i, j))

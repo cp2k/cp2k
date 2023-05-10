@@ -26,7 +26,7 @@
             &END XC_FUNCTIONAL
             &HF
                 &RI
-                   RI_FLAVOR MO
+                   RI_FLAVOR RHO
                    EPS_FILTER 1.0E-12
                 &END
                 &INTERACTION_POTENTIAL
