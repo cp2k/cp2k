@@ -7,9 +7,9 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 cosma_ver="2.6.6"
-cosma_sha256="e54caf70c154b5d94eeee6f9f7faac51bc21030e0b0b4f1f63d01e885faeade4"
-costa_ver="2.2.1"
-costa_sha256="aa8aa2a4a79de094f857c22293825de270ff72becd6bd736ff9f2dd8c192446d"
+cosma_sha256="1604be101e77192fbcc5551236bc87888d336e402f5409bbdd9dea900401cc37"
+costa_ver="2.2.2"
+costa_sha256="e87bc37aad14ac0c5922237be5d5390145c9ac6aef0350ed17d86cb2d994e67c"
 tiled_mm_ver="2.2"
 tiled_mm_sha256="6d0b49c9588ece744166822fd44a7bc5bec3dc666b836de8bf4bf1a7bb675aac"
 
