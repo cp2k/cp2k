@@ -19,6 +19,10 @@ MODULE rpa_im_time_force_types
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
+   USE qs_tensors,                      ONLY: neighbor_list_3c_destroy
+   USE qs_tensors_types,                ONLY: neighbor_list_3c_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -64,6 +68,16 @@ MODULE rpa_im_time_force_types
 
       !Is it a periodic calculation
       LOGICAL :: do_periodic
+
+      !Necessary stuff for the on-the fly calculation of the virial
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nl_2c_ovlp => Null(), &
+                                                               nl_2c_met => Null(), &
+                                                               nl_2c_pot => Null()
+      TYPE(neighbor_list_3c_type), POINTER                  :: nl_3c => Null()
+      TYPE(dbcsr_type), POINTER                             :: RI_virial_pot => Null(), &
+                                                               RI_virial_met => Null()
+      TYPE(dbt_type), POINTER                               :: t_3c_virial => Null(), &
+                                                               t_3c_virial_split => Null()
 
    END TYPE im_time_force_type
 
@@ -114,6 +128,43 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (force_data%t_3c_der_AO_ind, force_data%t_3c_der_RI_ind)
+
+      IF (ASSOCIATED(force_data%nl_2c_ovlp)) THEN
+         CALL release_neighbor_list_sets(force_data%nl_2c_ovlp)
+      END IF
+
+      IF (ASSOCIATED(force_data%nl_2c_pot)) THEN
+         CALL release_neighbor_list_sets(force_data%nl_2c_pot)
+      END IF
+
+      IF (ASSOCIATED(force_data%nl_2c_met)) THEN
+         CALL release_neighbor_list_sets(force_data%nl_2c_met)
+      END IF
+
+      IF (ASSOCIATED(force_data%nl_3c)) THEN
+         CALL neighbor_list_3c_destroy(force_data%nl_3c)
+         DEALLOCATE (force_data%nl_3c)
+      END IF
+
+      IF (ASSOCIATED(force_data%RI_virial_pot)) THEN
+         CALL dbcsr_release(force_data%RI_virial_pot)
+         DEALLOCATE (force_data%RI_virial_pot)
+      END IF
+
+      IF (ASSOCIATED(force_data%RI_virial_met)) THEN
+         CALL dbcsr_release(force_data%RI_virial_met)
+         DEALLOCATE (force_data%RI_virial_met)
+      END IF
+
+      IF (ASSOCIATED(force_data%t_3c_virial)) THEN
+         CALL dbt_destroy(force_data%t_3c_virial)
+         DEALLOCATE (force_data%t_3c_virial)
+      END IF
+
+      IF (ASSOCIATED(force_data%t_3c_virial_split)) THEN
+         CALL dbt_destroy(force_data%t_3c_virial_split)
+         DEALLOCATE (force_data%t_3c_virial_split)
+      END IF
 
    END SUBROUTINE im_time_force_release
 
