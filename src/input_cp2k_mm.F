@@ -1481,7 +1481,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the NEQUIP potential. "// &
-                          "Provide a list of each element.", &
+                          "Provide a list of each element, making sure that the mapping from the ATOMS list "// &
+                          "to NequIP atom types is correct. This mapping should also be consistent for the "// &
+                          "atomic coordinates as specified in the sections COORDS or TOPOLOGY.", &
                           usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
                           n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -1542,7 +1544,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the ALLEGRO potential. "// &
-                          "Provide a list of each element.", &
+                          "Provide a list of each element, making sure that the mapping from the ATOMS list "// &
+                          "to NequIP atom types is correct. This mapping should also be consistent for the "// &
+                          "atomic coordinates as specified in the sections COORDS or TOPOLOGY.", &
                           usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
                           n_var=-1)
       CALL section_add_keyword(section, keyword)

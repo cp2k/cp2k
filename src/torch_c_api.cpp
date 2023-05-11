@@ -80,6 +80,20 @@ void torch_c_dict_insert_int64(torch_c_dict_t *dict, const char *key,
 }
 
 /*******************************************************************************
+ * \brief Inserts array of doubles into Torch dictionary.
+ *        The passed array has to outlive the dictionary!
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_dict_insert_double(torch_c_dict_t *dict, const char *key,
+                                const int ndims, const int64_t sizes[],
+                                double source[]) {
+  const auto options = torch::TensorOptions().dtype(torch::kFloat64);
+  const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
+  const torch::Tensor tensor = torch::from_blob(source, sizes_ref, options);
+  dict->insert(key, tensor.to(get_device()));
+}
+
+/*******************************************************************************
  * \brief Retrieves array of floats from Torch dictionary.
  *        The returned array has to be deallocated by caller!
  * \author Ole Schuett
@@ -99,6 +113,17 @@ void torch_c_dict_get_int64(const torch_c_dict_t *dict, const char *key,
                             const int ndims, int64_t sizes[], int64_t **dest) {
 
   torch_c_dict_get<int64_t>(dict, key, ndims, sizes, dest);
+}
+
+/*******************************************************************************
+ * \brief Retrieves array of doubles from Torch dictionary.
+ *        The returned array has to be deallocated by caller!
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_dict_get_double(const torch_c_dict_t *dict, const char *key,
+                             const int ndims, int64_t sizes[], double **dest) {
+
+  torch_c_dict_get<double>(dict, key, ndims, sizes, dest);
 }
 
 /*******************************************************************************
@@ -175,6 +200,28 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
  * \author Ole Schuett
  ******************************************************************************/
 bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
+
+/*******************************************************************************
+ * \brief Set whether to allow TF32.
+ *        Needed due to changes in defaults from pytorch 1.7 to 1.11 to >=1.12
+ *        See https://pytorch.org/docs/stable/notes/cuda.html
+ * \author Gabriele Tocci
+ ******************************************************************************/
+void torch_c_allow_tf32(const bool allow_tf32) {
+
+  at::globalContext().setAllowTF32CuBLAS(allow_tf32);
+  at::globalContext().setAllowTF32CuDNN(allow_tf32);
+}
+
+/******************************************************************************
+ * \brief Freeze the Torch model: generic optimization that speeds up model.
+ *        See https://pytorch.org/docs/stable/generated/torch.jit.freeze.html
+ * \author Gabriele Tocci
+ ******************************************************************************/
+void torch_c_model_freeze(torch_c_model_t *model) {
+
+  *model = torch::jit::freeze(*model);
+}
 
 #ifdef __cplusplus
 }

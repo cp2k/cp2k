@@ -35,6 +35,7 @@ MODULE manybody_allegro
                                               torch_dict_release,&
                                               torch_dict_type,&
                                               torch_model_eval,&
+                                              torch_model_freeze,&
                                               torch_model_load
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -244,10 +245,13 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
       REAL(kind=dp)                                      :: drij, lattice(3, 3), rab2_max, rij(3)
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
-      REAL(kind=sp), ALLOCATABLE                         :: pos(:, :)
-      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, new_edge_cell_shifts
-      REAL(sp), DIMENSION(:, :), POINTER                 :: atomic_energy, forces
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, new_edge_cell_shifts, &
+                                                            pos
+      REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces
+      REAL(kind=sp)                                      :: lattice_sp(3, 3)
+      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: new_edge_cell_shifts_sp, pos_sp
+      REAL(kind=sp), DIMENSION(:, :), POINTER            :: atomic_energy_sp, forces_sp
       TYPE(allegro_data_type), POINTER                   :: allegro_data
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_single_type), POINTER          :: pot
@@ -255,7 +259,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atomic_energy, forces)
+      NULLIFY (atomic_energy, forces, atomic_energy_sp, forces_sp)
       n_atoms = SIZE(particle_set)
       ALLOCATE (use_atom(n_atoms))
       use_atom = .FALSE.
@@ -265,7 +269,6 @@ CONTAINS
          pot => potparm%pot(ikind, jkind)%pot
          DO i = 1, SIZE(pot%type)
             IF (pot%type(i) /= allegro_type) CYCLE
-            IF (.NOT. ASSOCIATED(allegro)) allegro => pot%set(i)%allegro
             DO iat = 1, n_atoms
                IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
                    particle_set(iat)%atomic_kind%kind_number == jkind) use_atom(iat) = .TRUE.
@@ -282,6 +285,7 @@ CONTAINS
          CALL fist_nonbond_env_set(fist_nonbond_env, allegro_data=allegro_data)
          NULLIFY (allegro_data%use_indices, allegro_data%force)
          CALL torch_model_load(allegro_data%model, pot%set(1)%allegro%allegro_file_name)
+         CALL torch_model_freeze(allegro_data%model)
       END IF
       IF (ASSOCIATED(allegro_data%force)) THEN
          IF (SIZE(allegro_data%force, 2) /= n_atoms_use) THEN
@@ -366,7 +370,7 @@ CONTAINS
                         IF (drij <= rab2_max) THEN
                            nedges = nedges + 1
                            edge_index(:, nedges) = [atom_a - 1, atom_b - 1]
-                           edge_cell_shifts(:, nedges) = REAL(cvi, kind=sp)
+                           edge_cell_shifts(:, nedges) = cvi
                         END IF
                      END DO
                      ifirst = ilast + 1
@@ -378,10 +382,13 @@ CONTAINS
          END DO Kind_Group_Loop_Allegro
       END DO
 
+      allegro => pot%set(1)%allegro
+
       ALLOCATE (temp_edge_index(2, nedges))
       temp_edge_index(:, :) = edge_index(:, :nedges)
       ALLOCATE (new_edge_cell_shifts(3, nedges))
       new_edge_cell_shifts(:, :) = edge_cell_shifts(:, :nedges)
+      DEALLOCATE (edge_cell_shifts)
 
       ALLOCATE (t_edge_index(nedges, 2))
 
@@ -389,6 +396,7 @@ CONTAINS
       DEALLOCATE (temp_edge_index, edge_index)
 
       lattice = cell%hmat/pot%set(1)%allegro%unit_cell_val
+      lattice_sp = REAL(lattice, kind=sp)
 
       iat_use = 0
       ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
@@ -397,38 +405,56 @@ CONTAINS
          IF (.NOT. use_atom(iat)) CYCLE
          iat_use = iat_use + 1
          atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number - 1
-         pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)/pot%set(1)%allegro%unit_coords_val, kind=sp)
+         pos(:, iat) = r_last_update_pbc(iat)%r(:)/allegro%unit_coords_val
       END DO
 
       CALL torch_dict_create(inputs)
-      CALL torch_dict_insert(inputs, "pos", pos)
+
+      IF (allegro%do_allegro_sp) THEN
+         ALLOCATE (new_edge_cell_shifts_sp(3, nedges), pos_sp(3, n_atoms_use))
+         new_edge_cell_shifts_sp(:, :) = REAL(new_edge_cell_shifts(:, :), kind=sp)
+         pos_sp(:, :) = REAL(pos(:, :), kind=sp)
+         DEALLOCATE (pos, new_edge_cell_shifts)
+         CALL torch_dict_insert(inputs, "pos", pos_sp)
+         CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts_sp)
+         CALL torch_dict_insert(inputs, "cell", lattice_sp)
+      ELSE
+         CALL torch_dict_insert(inputs, "pos", pos)
+         CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts)
+         CALL torch_dict_insert(inputs, "cell", lattice)
+      END IF
+
       CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
-      CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts)
-      CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
       CALL torch_dict_insert(inputs, "atom_types", atom_types)
-
       CALL torch_dict_create(outputs)
-
       CALL torch_model_eval(allegro_data%model, inputs, outputs)
-
-      CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
-      CALL torch_dict_get(outputs, "forces", forces)
-
-      allegro_data%force(:, :) = REAL(forces(:, :), kind=dp)*allegro%unit_forces_val
 
       pot_allegro = 0.0_dp
 
-      DO iat_use = 1, SIZE(unique_list_a)
-         i = unique_list_a(iat_use)
-         pot_allegro = pot_allegro + REAL(atomic_energy(1, i), kind=dp)*allegro%unit_energy_val
-      END DO
+      IF (allegro%do_allegro_sp) THEN
+         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_sp)
+         CALL torch_dict_get(outputs, "forces", forces_sp)
+         allegro_data%force(:, :) = REAL(forces_sp(:, :), kind=dp)*allegro%unit_forces_val
+         DO iat_use = 1, SIZE(unique_list_a)
+            i = unique_list_a(iat_use)
+            pot_allegro = pot_allegro + REAL(atomic_energy_sp(1, i), kind=dp)*allegro%unit_energy_val
+         END DO
+         DEALLOCATE (forces_sp, atomic_energy_sp, new_edge_cell_shifts_sp, pos_sp)
+      ELSE
+         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
+         CALL torch_dict_get(outputs, "forces", forces)
+         allegro_data%force(:, :) = forces(:, :)*allegro%unit_forces_val
+         DO iat_use = 1, SIZE(unique_list_a)
+            i = unique_list_a(iat_use)
+            pot_allegro = pot_allegro + atomic_energy(1, i)*allegro%unit_energy_val
+         END DO
+         DEALLOCATE (forces, atomic_energy, pos, new_edge_cell_shifts)
+      END IF
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
 
-      DEALLOCATE (pos, t_edge_index, edge_cell_shifts, atom_types, atomic_energy)
-      DEALLOCATE (new_edge_cell_shifts)
-      DEALLOCATE (forces)
+      DEALLOCATE (t_edge_index, atom_types)
 
       CALL timestop(handle)
    END SUBROUTINE allegro_energy_store_force_virial
