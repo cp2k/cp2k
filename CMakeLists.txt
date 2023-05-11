@@ -148,11 +148,16 @@ if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
   message(FATAL_ERROR "Invalid scalapack vendor backend")
 endif()
 
-
 set(CP2K_BUILD_OPTIONS_LIST "DEFAULT" "MINIMAL" "FULL" "SERIAL")
 
-set(CP2K_BUILD_OPTIONS "DEFAULT" CACHE STRING "Build cp2k with a predefined set of dependencies. The default is full user control")
-set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS ${CP2K_BUILD_OPTIONS_LIST})
+set(CP2K_BUILD_OPTIONS
+    "DEFAULT"
+    CACHE
+      STRING
+      "Build cp2k with a predefined set of dependencies. The default is full user control"
+)
+set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS
+                                               ${CP2K_BUILD_OPTIONS_LIST})
 
 string(TOUPPER ${CP2K_BUILD_OPTIONS} cp2k_build_options_up)
 
@@ -160,12 +165,12 @@ if(NOT ${cp2k_build_options_up} IN_LIST CP2K_BUILD_OPTIONS_LIST)
   message(FATAL_ERROR "Invalid value for cp2k build options")
 endif()
 
-if (${cp2k_build_options_up} STREQUAL "MINIMAL")
+if(${cp2k_build_options_up} STREQUAL "MINIMAL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI ON)
 endif()
 
-if (${cp2k_build_options_up} STREQUAL "FULL")
+if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI ON)
   set(CP2K_USE_SIRIUS ON)
@@ -184,7 +189,7 @@ if (${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_SUPERLU ON)
 endif()
 
-if (${cp2k_build_options_up} STREQUAL "SERIAL")
+if(${cp2k_build_options_up} STREQUAL "SERIAL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI OFF)
   set(CP2K_USE_SIRIUS ON)
