@@ -1,3 +1,4 @@
 # Test of NequIP using libtorch https://pytorch.org/cppdocs/installing.html
-NequIP_water.inp                                        11    1.0E-14        -17.194825205515503
+NequIP_water.inp                                        11    1.0E-6         -17.194825205515503
+NequIP_water_double.inp                                 11    1.0E-12        -550.638647597308932
 #EOF

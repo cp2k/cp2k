@@ -74,7 +74,8 @@ MODULE force_fields_input
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: torch_model_read_metadata
+   USE torch_api,                       ONLY: torch_allow_tf32,&
+                                              torch_model_read_metadata
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -707,7 +708,7 @@ CONTAINS
 !> \param nonbonded ...
 !> \param section ...
 !> \param start ...
-!> \author teo
+!> \author Gabriele Tocci
 ! **************************************************************************************************
    SUBROUTINE read_nequip_section(nonbonded, section, start)
       TYPE(pair_potential_p_type), POINTER               :: nonbonded
@@ -755,7 +756,7 @@ CONTAINS
 !> \param nonbonded ...
 !> \param section ...
 !> \param start ...
-!> \author teo
+!> \author Gabriele Tocci
 ! **************************************************************************************************
    SUBROUTINE read_allegro_section(nonbonded, section, start)
       TYPE(pair_potential_p_type), POINTER               :: nonbonded
@@ -2371,15 +2372,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief reads NequIP potential from .pth file
 !> \param nequip ...
+!> \author Gabriele Tocci
 ! **************************************************************************************************
    SUBROUTINE read_nequip_data(nequip)
       TYPE(nequip_pot_type), POINTER                     :: nequip
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
 
-      CHARACTER(LEN=default_path_length)                 :: cutoff_str
+      CHARACTER(LEN=default_path_length)                 :: allow_tf32_str, config_str, cutoff_str
       INTEGER                                            :: handle
-      LOGICAL                                            :: found
+      LOGICAL                                            :: allow_tf32, found
 
       CALL timeset(routineN, handle)
 
@@ -2395,14 +2397,23 @@ CONTAINS
       READ (cutoff_str, *) nequip%rcutsq
       nequip%rcutsq = cp_unit_to_cp2k(nequip%rcutsq, nequip%unit_coords)
       nequip%rcutsq = nequip%rcutsq*nequip%rcutsq
-      nequip%unit_coords_val = 1.0_dp
       nequip%unit_coords_val = cp_unit_to_cp2k(nequip%unit_coords_val, nequip%unit_coords)
-      nequip%unit_forces_val = 1.0_dp
       nequip%unit_forces_val = cp_unit_to_cp2k(nequip%unit_forces_val, nequip%unit_forces)
-      nequip%unit_energy_val = 1.0_dp
       nequip%unit_energy_val = cp_unit_to_cp2k(nequip%unit_energy_val, nequip%unit_energy)
-      nequip%unit_cell_val = 1.0_dp
       nequip%unit_cell_val = cp_unit_to_cp2k(nequip%unit_cell_val, nequip%unit_cell)
+
+      ! look in config which contains all the .yaml file options to see if we use float32 or float64
+      config_str = torch_model_read_metadata(nequip%nequip_file_name, "config")
+      CALL read_default_dtype(config_str, nequip%do_nequip_sp)
+
+      allow_tf32_str = torch_model_read_metadata(nequip%nequip_file_name, "allow_tf32")
+      allow_tf32 = (TRIM(allow_tf32_str) == "1")
+      IF (TRIM(allow_tf32_str) /= "1" .AND. TRIM(allow_tf32_str) /= "0") THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The value for allow_tf32 <"//TRIM(allow_tf32_str)// &
+                       "> is not supported. Check the .yaml and .pth files.")
+      END IF
+      CALL torch_allow_tf32(allow_tf32)
 
       CALL timestop(handle)
    END SUBROUTINE read_nequip_data
@@ -2410,15 +2421,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief reads ALLEGRO potential from .pth file
 !> \param allegro ...
+!> \author Gabriele Tocci
 ! **************************************************************************************************
    SUBROUTINE read_allegro_data(allegro)
       TYPE(allegro_pot_type), POINTER                    :: allegro
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_allegro_data'
 
-      CHARACTER(LEN=default_path_length)                 :: cutoff_str
+      CHARACTER(LEN=default_path_length)                 :: allow_tf32_str, config_str, cutoff_str
       INTEGER                                            :: handle
-      LOGICAL                                            :: found
+      LOGICAL                                            :: allow_tf32, found
 
       CALL timeset(routineN, handle)
 
@@ -2429,22 +2441,79 @@ CONTAINS
                        "> not found.")
       END IF
 
-      allegro%allegro_version = torch_model_read_metadata(allegro%allegro_file_name, "nequip_version")
+      allegro%nequip_version = torch_model_read_metadata(allegro%allegro_file_name, "nequip_version")
+      IF (allegro%nequip_version == "") THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Allegro model file <"//TRIM(allegro%allegro_file_name)// &
+                       "> has not been deployed; did you forget to run `nequip-deploy`?")
+      END IF
       cutoff_str = torch_model_read_metadata(allegro%allegro_file_name, "r_max")
       READ (cutoff_str, *) allegro%rcutsq
       allegro%rcutsq = cp_unit_to_cp2k(allegro%rcutsq, allegro%unit_coords)
       allegro%rcutsq = allegro%rcutsq*allegro%rcutsq
-      allegro%unit_coords_val = 1.0_dp
       allegro%unit_coords_val = cp_unit_to_cp2k(allegro%unit_coords_val, allegro%unit_coords)
-      allegro%unit_forces_val = 1.0_dp
       allegro%unit_forces_val = cp_unit_to_cp2k(allegro%unit_forces_val, allegro%unit_forces)
-      allegro%unit_energy_val = 1.0_dp
       allegro%unit_energy_val = cp_unit_to_cp2k(allegro%unit_energy_val, allegro%unit_energy)
-      allegro%unit_cell_val = 1.0_dp
       allegro%unit_cell_val = cp_unit_to_cp2k(allegro%unit_cell_val, allegro%unit_cell)
+
+      ! look in config which contains all the .yaml file options to see if we use float32 or float64
+      config_str = torch_model_read_metadata(allegro%allegro_file_name, "config")
+      CALL read_default_dtype(config_str, allegro%do_allegro_sp)
+
+      allow_tf32_str = torch_model_read_metadata(allegro%allegro_file_name, "allow_tf32")
+      allow_tf32 = (TRIM(allow_tf32_str) == "1")
+      IF (TRIM(allow_tf32_str) /= "1" .AND. TRIM(allow_tf32_str) /= "0") THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The value for allow_tf32 <"//TRIM(allow_tf32_str)// &
+                       "> is not supported. Check the .yaml and .pth files.")
+      END IF
+      CALL torch_allow_tf32(allow_tf32)
 
       CALL timestop(handle)
    END SUBROUTINE read_allegro_data
+
+! **************************************************************************************************
+!> \brief reads the default_dtype used in the Allegro/NequIP model by parsing the config file
+!> \param config_str ...
+!> \param do_model_sp ...
+!> \author Gabriele Tocci
+! **************************************************************************************************
+   SUBROUTINE read_default_dtype(config_str, do_model_sp)
+
+      CHARACTER(LEN=default_path_length)                 :: config_str
+      LOGICAL                                            :: do_model_sp
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_default_dtype'
+
+      INTEGER                                            :: handle, i, idx, len_config
+
+      CALL timeset(routineN, handle)
+
+      len_config = LEN_TRIM(config_str)
+      idx = INDEX(config_str, "default_dtype:")
+      IF (idx /= 0) THEN
+         i = idx + 14 ! skip over "default_dtype:"
+         DO WHILE (i <= len_config .AND. config_str(i:i) == " ")
+            i = i + 1 ! skip over any whitespace
+         END DO
+
+         IF (i > len_config) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "No default_dtype found, check the Nequip/Allegro .yaml or .pth files."// &
+                          " Default_dtype should be either <float32> or <float64>.")
+         ELSE IF (config_str(i:i + 6) == "float32") THEN
+            do_model_sp = .TRUE.
+         ELSE IF (config_str(i:i + 6) == "float64") THEN
+            do_model_sp = .FALSE.
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "The default_dtype should be either <float32> or <float64>."// &
+                          " Check the NequIP/Allegro .yaml and .pth files.")
+         END IF
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE read_default_dtype
 
 ! **************************************************************************************************
 !> \brief reads TABPOT potential from file

@@ -9,6 +9,7 @@ MODULE torch_api
                             C_BOOL, &
                             C_CHAR, &
                             C_FLOAT, &
+                            C_DOUBLE, &
                             C_F_POINTER, &
                             C_INT, &
                             C_NULL_CHAR, &
@@ -16,7 +17,7 @@ MODULE torch_api
                             C_PTR, &
                             C_INT64_T
 
-   USE kinds, ONLY: sp, int_8
+   USE kinds, ONLY: sp, int_8, dp
 
 #include "./base/base_uses.f90"
 
@@ -39,6 +40,7 @@ MODULE torch_api
       #:for ndims  in range(1, max_dim+1)
          MODULE PROCEDURE torch_dict_insert_float_${ndims}$d
          MODULE PROCEDURE torch_dict_insert_int64_${ndims}$d
+         MODULE PROCEDURE torch_dict_insert_double_${ndims}$d
       #:endfor
    END INTERFACE torch_dict_insert
 
@@ -46,6 +48,7 @@ MODULE torch_api
       #:for ndims  in range(1, max_dim+1)
          MODULE PROCEDURE torch_dict_get_float_${ndims}$d
          MODULE PROCEDURE torch_dict_get_int64_${ndims}$d
+         MODULE PROCEDURE torch_dict_get_double_${ndims}$d
       #:endfor
    END INTERFACE torch_dict_get
 
@@ -53,13 +56,13 @@ MODULE torch_api
    PUBLIC :: torch_dict_insert, torch_dict_get
    PUBLIC :: torch_model_type, torch_model_load, torch_model_eval, torch_model_release
    PUBLIC :: torch_model_read_metadata
-   PUBLIC :: torch_cuda_is_available
+   PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze
 
 CONTAINS
 
-   #:set typenames = ['float', 'int64']
-   #:set types_f = ['REAL(sp)','INTEGER(kind=int_8)']
-   #:set types_c = ['REAL(kind=C_FLOAT)','INTEGER(kind=C_INT64_T)']
+   #:set typenames = ['float', 'int64', 'double']
+   #:set types_f = ['REAL(sp)','INTEGER(kind=int_8)', 'REAL(dp)']
+   #:set types_c = ['REAL(kind=C_FLOAT)','INTEGER(kind=C_INT64_T)', 'REAL(kind=C_DOUBLE)']
 
    #:for ndims in range(1, max_dim+1)
       #:for typename, type_f, type_c in zip(typenames, types_f, types_c)
@@ -80,7 +83,7 @@ CONTAINS
             INTERFACE
                SUBROUTINE torch_c_dict_insert_${typename}$ (dict, key, ndims, sizes, source) &
                   BIND(C, name="torch_c_dict_insert_${typename}$")
-                  IMPORT :: C_CHAR, C_PTR, C_INT, C_INT64_T, C_FLOAT
+                  IMPORT :: C_CHAR, C_PTR, C_INT, C_INT64_T, C_FLOAT, C_DOUBLE
                   TYPE(C_PTR), VALUE                           :: dict
                   CHARACTER(kind=C_CHAR), DIMENSION(*)         :: key
                   INTEGER(kind=C_INT), VALUE                   :: ndims
@@ -366,5 +369,53 @@ CONTAINS
       MARK_USED(res)
 #endif
    END FUNCTION torch_cuda_is_available
+
+! **************************************************************************************************
+!> \brief Set whether to allow the use of TF32.
+!>        Needed due to changes in defaults from pytorch 1.7 to 1.11 to >=1.12
+!>        See https://pytorch.org/docs/stable/notes/cuda.html
+!> \author Gabriele Tocci
+! **************************************************************************************************
+   SUBROUTINE torch_allow_tf32(allow_tf32)
+      LOGICAL, INTENT(IN)                                  :: allow_tf32
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_allow_tf32(allow_tf32) BIND(C, name="torch_c_allow_tf32")
+            IMPORT :: C_BOOL
+            LOGICAL(C_BOOL), VALUE                  :: allow_tf32
+         END SUBROUTINE torch_c_allow_tf32
+      END INTERFACE
+
+      CALL torch_c_allow_tf32(allow_tf32=LOGICAL(allow_tf32, C_BOOL))
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(allow_tf32)
+#endif
+   END SUBROUTINE torch_allow_tf32
+
+! **************************************************************************************************
+!> \brief Freeze the given Torch model: applies generic optimization that speed up model.
+!>        See https://pytorch.org/docs/stable/generated/torch.jit.freeze.html
+!> \author Gabriele Tocci
+! **************************************************************************************************
+   SUBROUTINE torch_model_freeze(model)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_model_freeze(model) BIND(C, name="torch_c_model_freeze")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                        :: model
+         END SUBROUTINE torch_c_model_freeze
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CALL torch_c_model_freeze(model=model%c_ptr)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+#endif
+   END SUBROUTINE torch_model_freeze
 
 END MODULE torch_api

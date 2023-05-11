@@ -33,6 +33,7 @@
     &END CELL
   &TOPOLOGY 
     COORD_FILE_FORMAT XYZ
+#   coordinates must be ordered by atomic number
     COORD_FILE_NAME si_input.xyz
 #   MULTIPLE_UNIT_CELL 4 4 4
   &END

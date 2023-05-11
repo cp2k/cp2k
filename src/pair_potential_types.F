@@ -184,19 +184,21 @@ MODULE pair_potential_types
       CHARACTER(LEN=default_path_length)     :: nequip_file_name = 'NULL', nequip_version = 'NULL', &
                                                 unit_coords = 'NULL', unit_forces = 'NULL', &
                                                 unit_energy = 'NULL', unit_cell = 'NULL'
-      REAL(KIND=dp)                          :: rcutsq = 0.0_dp, unit_coords_val = 0.0_dp, &
-                                                unit_forces_val = 0.0_dp, unit_energy_val = 0.0_dp, &
-                                                unit_cell_val = 0.0_dp
+      REAL(KIND=dp)                          :: rcutsq = 0.0_dp, unit_coords_val = 1.0_dp, &
+                                                unit_forces_val = 1.0_dp, unit_energy_val = 1.0_dp, &
+                                                unit_cell_val = 1.0_dp
+      LOGICAL                                :: do_nequip_sp = .FALSE.
    END TYPE nequip_pot_type
 
 ! **************************************************************************************************
    TYPE allegro_pot_type
       CHARACTER(LEN=default_path_length)     :: allegro_file_name = 'NULL', unit_cell = 'NULL', &
-                                                allegro_version = 'NULL', unit_coords = 'NULL', &
+                                                nequip_version = 'NULL', unit_coords = 'NULL', &
                                                 unit_forces = 'NULL', unit_energy = 'NULL'
-      REAL(KIND=dp)                          :: rcutsq = 0.0_dp, unit_coords_val = 0.0_dp, &
-                                                unit_forces_val = 0.0_dp, unit_cell_val = 0.0_dp, &
-                                                unit_energy_val = 0.0_dp
+      REAL(KIND=dp)                          :: rcutsq = 0.0_dp, unit_coords_val = 1.0_dp, &
+                                                unit_forces_val = 1.0_dp, unit_cell_val = 1.0_dp, &
+                                                unit_energy_val = 1.0_dp
+      LOGICAL                                :: do_allegro_sp = .FALSE.
    END TYPE allegro_pot_type
 
 ! **************************************************************************************************

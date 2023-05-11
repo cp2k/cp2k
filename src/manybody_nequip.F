@@ -36,6 +36,7 @@ MODULE manybody_nequip
                                               torch_dict_release,&
                                               torch_dict_type,&
                                               torch_model_eval,&
+                                              torch_model_freeze,&
                                               torch_model_load
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -227,10 +228,14 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
       REAL(kind=dp)                                      :: drij, lattice(3, 3), rab2_max, rij(3)
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
-      REAL(kind=sp), ALLOCATABLE                         :: pos(:, :)
-      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, temp_edge_cell_shifts
-      REAL(sp), DIMENSION(:, :), POINTER                 :: atomic_energy, forces, total_energy
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, pos, &
+                                                            temp_edge_cell_shifts
+      REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, total_energy
+      REAL(kind=sp)                                      :: lattice_sp(3, 3)
+      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts_sp, pos_sp
+      REAL(kind=sp), DIMENSION(:, :), POINTER            :: atomic_energy_sp, forces_sp, &
+                                                            total_energy_sp
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(nequip_data_type), POINTER                    :: nequip_data
       TYPE(pair_potential_single_type), POINTER          :: pot
@@ -238,7 +243,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (total_energy, atomic_energy, forces)
+      NULLIFY (total_energy, atomic_energy, forces, total_energy_sp, atomic_energy_sp, forces_sp)
       n_atoms = SIZE(particle_set)
       ALLOCATE (use_atom(n_atoms))
       use_atom = .FALSE.
@@ -248,7 +253,6 @@ CONTAINS
          pot => potparm%pot(ikind, jkind)%pot
          DO i = 1, SIZE(pot%type)
             IF (pot%type(i) /= nequip_type) CYCLE
-            IF (.NOT. ASSOCIATED(nequip)) nequip => pot%set(i)%nequip
             DO iat = 1, n_atoms
                IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
                    particle_set(iat)%atomic_kind%kind_number == jkind) use_atom(iat) = .TRUE.
@@ -265,6 +269,7 @@ CONTAINS
          CALL fist_nonbond_env_set(fist_nonbond_env, nequip_data=nequip_data)
          NULLIFY (nequip_data%use_indices, nequip_data%force)
          CALL torch_model_load(nequip_data%model, pot%set(1)%nequip%nequip_file_name)
+         CALL torch_model_freeze(nequip_data%model)
       END IF
       IF (ASSOCIATED(nequip_data%force)) THEN
          IF (SIZE(nequip_data%force, 2) /= n_atoms_use) THEN
@@ -346,7 +351,7 @@ CONTAINS
                         IF (drij <= rab2_max) THEN
                            nedges = nedges + 1
                            edge_index(:, nedges) = [atom_a - 1, atom_b - 1]
-                           edge_cell_shifts(:, nedges) = REAL(cvi, kind=sp)
+                           edge_cell_shifts(:, nedges) = cvi
                         END IF
                      END DO
                      ifirst = ilast + 1
@@ -357,6 +362,8 @@ CONTAINS
             END DO
          END DO Kind_Group_Loop_Nequip
       END DO
+
+      nequip => pot%set(1)%nequip
 
       ALLOCATE (edge_count(para_env%num_pe))
       ALLOCATE (edge_count_cell(para_env%num_pe))
@@ -392,7 +399,8 @@ CONTAINS
       t_edge_index(:, :) = TRANSPOSE(edge_index)
       DEALLOCATE (temp_edge_index, temp_edge_cell_shifts, edge_index)
 
-      lattice = cell%hmat/pot%set(1)%nequip%unit_cell_val
+      lattice = cell%hmat/nequip%unit_cell_val
+      lattice_sp = REAL(lattice, kind=sp)
 
       iat_use = 0
       ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
@@ -401,42 +409,56 @@ CONTAINS
          IF (.NOT. use_atom(iat)) CYCLE
          iat_use = iat_use + 1
          atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number - 1
-         pos(:, iat) = REAL(r_last_update_pbc(iat)%r(:)/pot%set(1)%nequip%unit_coords_val, kind=sp)
+         pos(:, iat) = r_last_update_pbc(iat)%r(:)/nequip%unit_coords_val
       END DO
 
       CALL torch_dict_create(inputs)
-      CALL torch_dict_insert(inputs, "pos", pos)
+      IF (nequip%do_nequip_sp) THEN
+         ALLOCATE (pos_sp(3, n_atoms_use), edge_cell_shifts_sp(3, nedges_tot))
+         pos_sp(:, :) = REAL(pos(:, :), kind=sp)
+         edge_cell_shifts_sp(:, :) = REAL(edge_cell_shifts(:, :), kind=sp)
+         CALL torch_dict_insert(inputs, "pos", pos_sp)
+         CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts_sp)
+         CALL torch_dict_insert(inputs, "cell", lattice_sp)
+      ELSE
+         CALL torch_dict_insert(inputs, "pos", pos)
+         CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
+         CALL torch_dict_insert(inputs, "cell", lattice)
+      END IF
+
       CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
-      CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
-      CALL torch_dict_insert(inputs, "cell", REAL(lattice, kind=sp))
       CALL torch_dict_insert(inputs, "atom_types", atom_types)
 
       CALL torch_dict_create(outputs)
 
       CALL torch_model_eval(nequip_data%model, inputs, outputs)
 
-      CALL torch_dict_get(outputs, "total_energy", total_energy)
-      CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
-      CALL torch_dict_get(outputs, "forces", forces)
-
-      pot_nequip = REAL(total_energy(1, 1), kind=dp)*pot%set(1)%nequip%unit_energy_val
-      total_energy = total_energy(1, 1)*REAL(pot%set(1)%nequip%unit_energy_val, kind=sp)
+      IF (nequip%do_nequip_sp) THEN
+         CALL torch_dict_get(outputs, "total_energy", total_energy_sp)
+         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_sp)
+         CALL torch_dict_get(outputs, "forces", forces_sp)
+         pot_nequip = REAL(total_energy_sp(1, 1), kind=dp)*nequip%unit_energy_val
+         nequip_data%force(:, :) = REAL(forces_sp(:, :), kind=dp)*nequip%unit_forces_val
+         DEALLOCATE (pos_sp, edge_cell_shifts_sp, total_energy_sp, atomic_energy_sp, forces_sp)
+      ELSE
+         CALL torch_dict_get(outputs, "total_energy", total_energy)
+         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
+         CALL torch_dict_get(outputs, "forces", forces)
+         pot_nequip = total_energy(1, 1)*nequip%unit_energy_val
+         nequip_data%force(:, :) = forces(:, :)*nequip%unit_forces_val
+         DEALLOCATE (pos, edge_cell_shifts, total_energy, atomic_energy, forces)
+      END IF
 
       CALL torch_dict_release(inputs)
       CALL torch_dict_release(outputs)
 
-      DEALLOCATE (pos, t_edge_index, edge_cell_shifts, atom_types, total_energy, atomic_energy)
+      DEALLOCATE (t_edge_index, atom_types)
 
       ! account for double counting from multiple MPI processes
-      IF (PRESENT(para_env)) pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
       IF (PRESENT(para_env)) THEN
-         nequip_data%force = REAL(forces, kind=dp)* &
-                             pot%set(1)%nequip%unit_forces_val/REAL(para_env%num_pe, dp)
-      ELSE
-         nequip_data%force = REAL(forces, kind=dp)*pot%set(1)%nequip%unit_forces_val
+         pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
+         nequip_data%force = nequip_data%force/REAL(para_env%num_pe, dp)
       END IF
-
-      DEALLOCATE (forces)
 
       CALL timestop(handle)
    END SUBROUTINE nequip_energy_store_force_virial

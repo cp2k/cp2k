@@ -1,3 +1,4 @@
 # Test of Allegro using libtorch https://pytorch.org/cppdocs/installing.html
-Allegro_si_MD.inp                                       11    1.0E-14        -305.899211744308900
+Allegro_si_MD.inp                                       11    1.0E-6         -305.899211744308900
+Allegro_wat_gra_film_double.inp                         11    1.0E-12       -2073.467026976485613
 #EOF
