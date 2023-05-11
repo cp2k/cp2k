@@ -1448,10 +1448,10 @@ foreach(cp2k_src ${CP2K_SRCS})
 endforeach()
 
 if(CP2K_USE_LIBTORCH)
-  add_library(cp2k
+  add_library(cp2k $<$<BOOL:${CMAKE_BUILD_SHARED}>:SHARED>
               "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
-  add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
+  add_library(cp2k $<$<BOOL:${CMAKE_BUILD_SHARED}>:SHARED> "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 endif()
 
 target_compile_features(cp2k PUBLIC cxx_std_14)
@@ -1756,7 +1756,7 @@ install(
   NAMESPACE cp2k::
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
 
-install(FILES src/start/libcp2k.h
+install(FILES start/libcp2k.h
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/cp2k")
 
 install(

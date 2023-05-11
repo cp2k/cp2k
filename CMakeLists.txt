@@ -107,6 +107,7 @@ option(CP2K_USE_METIS "enable metis library support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
 option(CP2K_BUILD_DBCSR "Duild dbcsr at the same time than cp2k." OFF)
+option(CMAKE_BUILD_SHARED "Build cp2k shared library" OFF)
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable elpa openmp support" ON "CP2K_USE_ELPA" OFF)
@@ -145,6 +146,61 @@ set_property(CACHE CP2K_SCALAPACK_VENDOR PROPERTY STRINGS
 
 if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
   message(FATAL_ERROR "Invalid scalapack vendor backend")
+endif()
+
+
+set(CP2K_BUILD_OPTIONS_LIST "DEFAULT" "MINIMAL" "FULL" "SERIAL")
+
+set(CP2K_BUILD_OPTIONS "DEFAULT" CACHE STRING "Build cp2k with a predefined set of dependencies. The default is full user control")
+set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS ${CP2K_BUILD_OPTIONS_LIST})
+
+string(TOUPPER ${CP2K_BUILD_OPTIONS} cp2k_build_options_up)
+
+if(NOT ${cp2k_build_options_up} IN_LIST CP2K_BUILD_OPTIONS_LIST)
+  message(FATAL_ERROR "Invalid value for cp2k build options")
+endif()
+
+if (${cp2k_build_options_up} STREQUAL "MINIMAL")
+  set(CP2K_USE_FFTW3 ON)
+  set(CP2K_USE_MPI ON)
+endif()
+
+if (${cp2k_build_options_up} STREQUAL "FULL")
+  set(CP2K_USE_FFTW3 ON)
+  set(CP2K_USE_MPI ON)
+  set(CP2K_USE_SIRIUS ON)
+  set(CP2K_USE_LIBXSMM ON)
+  set(CP2K_USE_VORI ON)
+  set(CP2K_USE_COSMA ON)
+  set(CP2K_USE_SPLA ON)
+  set(CP2K_USE_LIBXC ON)
+  set(CP2K_USE_LIBINT2 ON)
+  set(CP2K_USE_ELPA ON)
+  set(CP2K_USE_SPGLIB ON)
+  set(CP2K_USE_LIBTORCH ON)
+  set(CP2K_USE_METIS ON)
+  set(CP2K_USE_QUIP ON)
+  set(CP2K_USE_PEXSI ON)
+  set(CP2K_USE_SUPERLU ON)
+endif()
+
+if (${cp2k_build_options_up} STREQUAL "SERIAL")
+  set(CP2K_USE_FFTW3 ON)
+  set(CP2K_USE_MPI OFF)
+  set(CP2K_USE_SIRIUS ON)
+  set(CP2K_USE_LIBXSMM ON)
+  set(CP2K_USE_VORI ON)
+  set(CP2K_USE_COSMA ON)
+  set(CP2K_USE_SPLA ON)
+  set(CP2K_USE_LIBXC ON)
+  set(CP2K_USE_LIBINT2 ON)
+  set(CP2K_USE_ELPA ON)
+  set(CP2K_USE_SPGLIB ON)
+  set(CP2K_USE_LIBTORCH ON)
+  set(CP2K_USE_METIS ON)
+  set(CP2K_USE_QUIP ON)
+  set(CP2K_USE_PEXSI ON)
+  set(CP2K_USE_SUPERLU ON)
 endif()
 
 # ##############################################################################
