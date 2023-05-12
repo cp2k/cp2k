@@ -20,11 +20,6 @@
         GMAX 29
       &END EWALD
     &END POISSON
-    &PRINT
-      &FF_INFO
-        SPLINE_INFO
-      &END
-    &END
   &END MM
   &SUBSYS
     &CELL
@@ -52,11 +47,6 @@
 &END GLOBAL
 &MOTION
   &PRINT
-    &RESTART
-       &EACH
-         BAND     1
-       &END
-    &END
     &VELOCITIES OFF
     &END
   &END
