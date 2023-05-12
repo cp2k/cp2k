@@ -107,7 +107,7 @@ option(CP2K_USE_METIS "enable metis library support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
 option(CP2K_BUILD_DBCSR "Duild dbcsr at the same time than cp2k." OFF)
-option(CMAKE_BUILD_SHARED "Build cp2k shared library" OFF)
+option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable elpa openmp support" ON "CP2K_USE_ELPA" OFF)

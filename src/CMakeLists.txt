@@ -1449,10 +1449,10 @@ endforeach()
 
 if(CP2K_USE_LIBTORCH)
   add_library(
-    cp2k $<$<BOOL:${CMAKE_BUILD_SHARED}>:SHARED>
+    cp2k $<$<BOOL:${BUILD_SHARED_LIBS}>:SHARED>
          "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
-  add_library(cp2k $<$<BOOL:${CMAKE_BUILD_SHARED}>:SHARED>
+  add_library(cp2k $<$<BOOL:${BUILD_SHARED_LIBRARIES}>:SHARED>
                    "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 endif()
 
