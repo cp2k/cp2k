@@ -5,7 +5,7 @@ all: grid_miniapp.x grid_unittest.x
 clean:
 	rm -fv *.o */*.o *.x ../offload/*.o
 
-CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
+CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter
 NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
 LIBS := -lm -lblas
 
