@@ -255,7 +255,9 @@ __device__ static void grid_to_cxyz(const kernel_params *params,
     // Add register values to coefficients stored in shared memory.
 #pragma unroll // avoid dynamic indexing of registers
     for (int i = 0; i < GRID_N_CXYZ_REGISTERS; i++) {
-      atomicAddDouble(&cxyz[i + offset], cxyz_regs[i]);
+      if (i + offset < ncoset(task->lp)) {
+        atomicAddDouble(&cxyz[i + offset], cxyz_regs[i]);
+      }
     }
   }
   __syncthreads(); // because of concurrent writes to cxyz
