@@ -392,20 +392,21 @@ __device__ static void integrate_kernel(const kernel_params *params) {
   double *smem_alpha = &shared_memory[params->smem_alpha_offset];
   double *smem_cxyz = &shared_memory[params->smem_cxyz_offset];
 
-  compute_alpha(&task, smem_alpha);
-
   zero_cxyz(&task, smem_cxyz);
   grid_to_cxyz(params, &task, params->grid, smem_cxyz);
 
-  cab_store cab = {
-      .data = smem_cab, .n1 = task.n1, .length = params->smem_cab_length};
-  zero_cab(&cab);
-  cab_to_cxyz(&task, smem_alpha, &cab, smem_cxyz);
-
-  store_hab<COMPUTE_TAU>(&task, &cab);
-
-  if (CALCULATE_FORCES) {
-    store_forces_and_virial<COMPUTE_TAU>(params, &task, &cab);
+  // For large basis sets the Cab matrix does not fit into shared memory.
+  // Therefore, we're doing multiple passes while applying a mask.
+  compute_alpha(&task, smem_alpha);
+  for (int lb = 0; lb < task.n1 * task.n2; lb += params->smem_cab_length) {
+    const int ub = lb + params->smem_cab_length;
+    cab_store cab = {.data = smem_cab, .n1 = task.n1, .mask = {lb, ub}};
+    zero_cab(&cab);
+    cab_to_cxyz(&task, smem_alpha, &cab, smem_cxyz);
+    store_hab<COMPUTE_TAU>(&task, &cab);
+    if (CALCULATE_FORCES) {
+      store_forces_and_virial<COMPUTE_TAU>(params, &task, &cab);
+    }
   }
 }
 
@@ -472,22 +473,15 @@ void grid_gpu_integrate_one_grid_level(
   init_constant_memory();
 
   // Compute required shared memory.
-  // TODO: Currently, cab's indicies run over 0...ncoset[lmax],
-  //       however only ncoset(lmin)...ncoset(lmax) are actually needed.
-  const int cab_len = ncoset(lb_max) * ncoset(la_max);
+  const size_t available_dynamic_smem = 48 * 1024 - sizeof(smem_task);
   const int alpha_len = 3 * (lb_max + 1) * (la_max + 1) * (lp_max + 1);
   const int cxyz_len = ncoset(lp_max);
+  const int leftover_smem_len =
+      (available_dynamic_smem / sizeof(double)) - alpha_len - cxyz_len;
+  const int cab_full_len = ncoset(lb_max) * ncoset(la_max);
+  const int cab_len = imin(cab_full_len, leftover_smem_len);
   const size_t smem_per_block =
-      (cab_len + alpha_len + cxyz_len) * sizeof(double);
-
-  if (smem_per_block > 48 * 1024) {
-    fprintf(stderr, "ERROR: Not enough shared memory in grid_gpu_integrate.\n");
-    fprintf(stderr, "cab_len: %i, ", cab_len);
-    fprintf(stderr, "alpha_len: %i, ", alpha_len);
-    fprintf(stderr, "cxyz_len: %i, ", cxyz_len);
-    fprintf(stderr, "total smem_per_block: %f kb\n\n", smem_per_block / 1024.0);
-    abort();
-  }
+      (alpha_len + cxyz_len + cab_len) * sizeof(double);
 
   // kernel parameters
   kernel_params params;

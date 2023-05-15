@@ -437,8 +437,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         max_rel_diff = fmax(max_rel_diff, rel_diff);
         max_value = fmax(max_value, fabs(test_value));
         if (max_rel_diff > 1e-14) {
-          printf("%i %i ref: %le test: %le diff:%le rel_diff: %le\n", i, j,
-                 ref_value, test_value, diff, rel_diff);
+          printf("hab[%i, %i] ref: %le test: %le diff:%le rel_diff: %le\n", i,
+                 j, ref_value, test_value, diff, rel_diff);
         }
       }
     }
@@ -452,8 +452,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
         max_rel_diff = fmax(max_rel_diff, rel_diff * forces_fudge_factor);
         if (max_rel_diff > 1e-14) {
-          printf("forces %i %i ref: %le test: %le diff:%le rel_diff: %le\n", i,
-                 j, ref_value, test_value, diff, rel_diff);
+          printf("forces[%i, %i] ref: %le test: %le diff:%le rel_diff: %le\n",
+                 i, j, ref_value, test_value, diff, rel_diff);
         }
       }
     }
@@ -467,8 +467,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
         max_rel_diff = fmax(max_rel_diff, rel_diff * virial_fudge_factor);
         if (max_rel_diff > 1e-14) {
-          printf("virial %i %i ref: %le test: %le diff:%le rel_diff: %le\n", i,
-                 j, ref_value, test_value, diff, rel_diff);
+          printf("virial[ %i, %i] ref: %le test: %le diff:%le rel_diff: %le\n",
+                 i, j, ref_value, test_value, diff, rel_diff);
         }
       }
     }

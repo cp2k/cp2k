@@ -88,7 +88,7 @@ __device__ static void atomicAddDouble(double *address, double val) {
 typedef struct {
   double *data;
   const int n1;
-  const int length;
+  const int mask[2];
 } cab_store;
 
 /*******************************************************************************
@@ -97,7 +97,12 @@ typedef struct {
  ******************************************************************************/
 __device__ static inline double cab_get(const cab_store *cab, const orbital a,
                                         const orbital b) {
-  return cab->data[idx(b) * cab->n1 + idx(a)];
+  const int i = idx(b) * cab->n1 + idx(a);
+  if (cab->mask[0] <= i && i < cab->mask[1]) {
+    return cab->data[i - cab->mask[0]];
+  } else {
+    return 0.0;
+  }
 }
 
 /*******************************************************************************
@@ -106,7 +111,10 @@ __device__ static inline double cab_get(const cab_store *cab, const orbital a,
  ******************************************************************************/
 __device__ static inline void cab_add(cab_store *cab, const orbital a,
                                       const orbital b, const double value) {
-  atomicAddDouble(&cab->data[idx(b) * cab->n1 + idx(a)], value);
+  const int i = idx(b) * cab->n1 + idx(a);
+  if (cab->mask[0] <= i && i < cab->mask[1]) {
+    atomicAddDouble(&cab->data[i - cab->mask[0]], value);
+  }
 }
 
 /*******************************************************************************
@@ -477,8 +485,9 @@ __device__ static void cab_to_cxyz(const smem_task *task, const double *alpha,
  * \author Ole Schuett
  ******************************************************************************/
 __device__ static void zero_cab(cab_store *cab) {
+  const int n = cab->mask[1] - cab->mask[0];
   if (threadIdx.z == 0 && threadIdx.y == 0) {
-    for (int i = threadIdx.x; i < cab->length; i += blockDim.x) {
+    for (int i = threadIdx.x; i < n; i += blockDim.x) {
       cab->data[i] = 0.0;
     }
   }
