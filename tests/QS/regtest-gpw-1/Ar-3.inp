@@ -40,7 +40,4 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  &GRID
-    BACKEND CPU ! basis is too large for GPU backend
-  &END GRID
 &END GLOBAL
