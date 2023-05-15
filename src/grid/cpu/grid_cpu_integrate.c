@@ -14,9 +14,28 @@
 
 #define GRID_DO_COLLOCATE 0
 #include "../common/grid_common.h"
-#include "../common/grid_process_vab.h"
 #include "grid_cpu_collint.h"
 #include "grid_cpu_integrate.h"
+
+/*******************************************************************************
+ * \brief Cab matrix container to be passed through get_force/virial to cab_get.
+ * \author Ole Schuett
+ ******************************************************************************/
+typedef struct {
+  const double *data;
+  const int m1;
+} cab_store;
+
+/*******************************************************************************
+ * \brief Returns matrix element cab[idx(b)][idx(a)].
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline double cab_get(const cab_store *cab, const orbital a,
+                             const orbital b) {
+  return cab->data[idx(b) * cab->m1 + idx(a)];
+}
+
+#include "../common/grid_process_vab.h"
 
 /*******************************************************************************
  * \brief Integrates a single task. See grid_cpu_integrate.h for details.
@@ -49,6 +68,8 @@ void grid_cpu_integrate_pgf_product(
   double cab[m2 * m1];
   memset(cab, 0, m2 * m1 * sizeof(double));
 
+  const cab_store cab_obj = {.data = cab, .m1 = m1};
+
   const double rscale = 1.0; // TODO: remove rscale from cab_to_grid
   cab_to_grid(orthorhombic, border_mask, la_max_local, la_min_local,
               lb_max_local, lb_min_local, zeta, zetb, rscale, dh, dh_inv, ra,
@@ -70,16 +91,16 @@ void grid_cpu_integrate_pgf_product(
 
               // Update hab block.
               hab[o2 + idx(b)][o1 + idx(a)] +=
-                  get_hab(a, b, zeta, zetb, m1, cab, compute_tau);
+                  get_hab(a, b, zeta, zetb, &cab_obj, compute_tau);
 
               // Update forces.
               if (forces != NULL) {
                 const double pabval = pab[o2 + idx(b)][o1 + idx(a)];
                 for (int i = 0; i < 3; i++) {
-                  forces[0][i] += pabval * get_force_a(a, b, i, zeta, zetb, m1,
-                                                       cab, compute_tau);
+                  forces[0][i] += pabval * get_force_a(a, b, i, zeta, zetb,
+                                                       &cab_obj, compute_tau);
                   forces[1][i] += pabval * get_force_b(a, b, i, zeta, zetb, rab,
-                                                       m1, cab, compute_tau);
+                                                       &cab_obj, compute_tau);
                 }
               }
 
@@ -89,11 +110,11 @@ void grid_cpu_integrate_pgf_product(
                 for (int i = 0; i < 3; i++) {
                   for (int j = 0; j < 3; j++) {
                     virials[0][i][j] +=
-                        pabval * get_virial_a(a, b, i, j, zeta, zetb, m1, cab,
+                        pabval * get_virial_a(a, b, i, j, zeta, zetb, &cab_obj,
                                               compute_tau);
                     virials[1][i][j] +=
-                        pabval * get_virial_b(a, b, i, j, zeta, zetb, rab, m1,
-                                              cab, compute_tau);
+                        pabval * get_virial_b(a, b, i, j, zeta, zetb, rab,
+                                              &cab_obj, compute_tau);
                   }
                 }
               }
@@ -103,14 +124,14 @@ void grid_cpu_integrate_pgf_product(
                 assert(!compute_tau);
                 for (int i = 0; i < 3; i++) {
                   hdab[o2 + idx(b)][o1 + idx(a)][i] +=
-                      get_force_a(a, b, i, zeta, zetb, m1, cab, false);
+                      get_force_a(a, b, i, zeta, zetb, &cab_obj, false);
                 }
               }
               if (hadb != NULL) {
                 assert(!compute_tau);
                 for (int i = 0; i < 3; i++) {
                   hadb[o2 + idx(b)][o1 + idx(a)][i] +=
-                      get_force_b(a, b, i, zeta, zetb, rab, m1, cab, false);
+                      get_force_b(a, b, i, zeta, zetb, rab, &cab_obj, false);
                 }
               }
               if (a_hdab != NULL) {
@@ -118,7 +139,7 @@ void grid_cpu_integrate_pgf_product(
                 for (int i = 0; i < 3; i++) {
                   for (int j = 0; j < 3; j++) {
                     a_hdab[o2 + idx(b)][o1 + idx(a)][i][j] +=
-                        get_virial_a(a, b, i, j, zeta, zetb, m1, cab, false);
+                        get_virial_a(a, b, i, j, zeta, zetb, &cab_obj, false);
                   }
                 }
               }

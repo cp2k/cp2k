@@ -18,9 +18,11 @@
 
 #define GRID_DO_COLLOCATE 1
 #include "../common/grid_common.h"
-#include "../common/grid_prepare_pab.h"
 #include "grid_gpu_collint.h"
 #include "grid_gpu_collocate.h"
+
+// This has to be included after grid_gpu_collint.h
+#include "../common/grid_prepare_pab.h"
 
 #if defined(_OMP_H)
 #error "OpenMP should not be used in .cu files to accommodate HIP."
@@ -194,22 +196,12 @@ __device__ static void cxyz_to_grid(const kernel_params *params,
 }
 
 /*******************************************************************************
- * \brief Adds given value to matrix element cab[idx(b)][idx(a)].
- * \author Ole Schuett
- ******************************************************************************/
-__device__ static inline void prep_term(const orbital a, const orbital b,
-                                        const double value, const int n,
-                                        double *cab) {
-  atomicAddDouble(&cab[idx(b) * n + idx(a)], value);
-}
-
-/*******************************************************************************
  * \brief Decontracts the subblock, going from spherical to cartesian harmonics.
  * \author Ole Schuett
  ******************************************************************************/
 template <bool IS_FUNC_AB>
 __device__ static void block_to_cab(const kernel_params *params,
-                                    const smem_task *task, double *cab) {
+                                    const smem_task *task, cab_store *cab) {
 
   // The spherical index runs over angular momentum and then over contractions.
   // The carthesian index runs over exponents and then over angular momentum.
@@ -231,13 +223,16 @@ __device__ static void block_to_cab(const kernel_params *params,
         const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.x;
         const int jco_end = ncoset(task->lb_max_basis);
         for (int jco = jco_start; jco < jco_end; jco += blockDim.x) {
+          const orbital b = coset_inv[jco];
           const double sphib = task->sphib[i * task->maxcob + jco];
           const int ico_start = ncoset(task->la_min_basis - 1);
           const int ico_end = ncoset(task->la_max_basis);
           for (int ico = ico_start; ico < ico_end; ico++) {
+            const orbital a = coset_inv[ico];
             const double sphia = task->sphia[j * task->maxcoa + ico];
             const double pab_val = block_val * sphia * sphib;
-            atomicAddDouble(&cab[jco * task->n1 + ico], pab_val);
+            prepare_pab(GRID_FUNC_AB, a, b, task->zeta, task->zetb, pab_val,
+                        cab);
           }
         }
       } else {
@@ -256,7 +251,7 @@ __device__ static void block_to_cab(const kernel_params *params,
             const double sphib = task->sphib[i * task->maxcob + idx(b)];
             const double pab_val = block_val * sphia * sphib;
             prepare_pab(params->func, a, b, task->zeta, task->zetb, pab_val,
-                        task->n1, cab);
+                        cab);
           }
         }
       }
@@ -287,12 +282,13 @@ __device__ static void collocate_kernel(const kernel_params *params) {
   double *smem_alpha = &shared_memory[params->smem_alpha_offset];
   double *smem_cxyz = &shared_memory[params->smem_cxyz_offset];
 
-  zero_cab(&task, smem_cab);
-  block_to_cab<IS_FUNC_AB>(params, &task, smem_cab);
-
   compute_alpha(&task, smem_alpha);
-  cab_to_cxyz(&task, smem_alpha, smem_cab, smem_cxyz);
 
+  cab_store cab = {
+      .data = smem_cab, .n1 = task.n1, .length = params->smem_cab_length};
+  zero_cab(&cab);
+  block_to_cab<IS_FUNC_AB>(params, &task, &cab);
+  cab_to_cxyz(&task, smem_alpha, &cab, smem_cxyz);
   cxyz_to_grid(params, &task, smem_cxyz, params->grid);
 }
 
@@ -356,6 +352,7 @@ void grid_gpu_collocate_one_grid_level(
 
   // kernel parameters
   kernel_params params;
+  params.smem_cab_length = cab_len;
   params.smem_cab_offset = 0;
   params.smem_alpha_offset = cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;

@@ -18,9 +18,11 @@
 
 #define GRID_DO_COLLOCATE 0
 #include "../common/grid_common.h"
-#include "../common/grid_process_vab.h"
 #include "grid_gpu_collint.h"
 #include "grid_gpu_integrate.h"
+
+// This has to be included after grid_gpu_collint.h
+#include "../common/grid_process_vab.h"
 
 #if defined(_OMP_H)
 #error "OpenMP should not be used in .cu files to accommodate HIP."
@@ -264,7 +266,7 @@ __device__ static void grid_to_cxyz(const kernel_params *params,
  * \author Ole Schuett
  ******************************************************************************/
 template <bool COMPUTE_TAU>
-__device__ static void store_hab(const smem_task *task, const double *cab) {
+__device__ static void store_hab(const smem_task *task, const cab_store *cab) {
 
   // The spherical index runs over angular momentum and then over contractions.
   // The carthesian index runs over exponents and then over angular momentum.
@@ -284,7 +286,7 @@ __device__ static void store_hab(const smem_task *task, const double *cab) {
         for (int ico = ico_start; ico < ico_end; ico++) {
           const orbital a = coset_inv[ico];
           const double hab =
-              get_hab(a, b, task->zeta, task->zetb, task->n1, cab, COMPUTE_TAU);
+              get_hab(a, b, task->zeta, task->zetb, cab, COMPUTE_TAU);
           const double sphia = task->sphia[j * task->maxcoa + ico];
           block_val += hab * sphia * sphib;
         }
@@ -306,7 +308,8 @@ __device__ static void store_hab(const smem_task *task, const double *cab) {
 template <bool COMPUTE_TAU>
 __device__ static void store_forces_and_virial(const kernel_params *params,
                                                const smem_task *task,
-                                               const double *cab) {
+                                               const cab_store *cab) {
+
   for (int i = threadIdx.x; i < task->nsgf_setb; i += blockDim.x) {
     for (int j = threadIdx.y; j < task->nsgf_seta; j += blockDim.y) {
       double block_val;
@@ -327,23 +330,21 @@ __device__ static void store_forces_and_virial(const kernel_params *params,
           const orbital b = coset_inv[jco];
           const orbital a = coset_inv[ico];
           for (int k = 0; k < 3; k++) {
-            const double force_a = get_force_a(a, b, k, task->zeta, task->zetb,
-                                               task->n1, cab, COMPUTE_TAU);
+            const double force_a =
+                get_force_a(a, b, k, task->zeta, task->zetb, cab, COMPUTE_TAU);
             atomicAddDouble(&task->forces_a[k], force_a * pabval);
-            const double force_b =
-                get_force_b(a, b, k, task->zeta, task->zetb, task->rab,
-                            task->n1, cab, COMPUTE_TAU);
+            const double force_b = get_force_b(a, b, k, task->zeta, task->zetb,
+                                               task->rab, cab, COMPUTE_TAU);
             atomicAddDouble(&task->forces_b[k], force_b * pabval);
           }
           if (params->virial != NULL) {
             for (int k = 0; k < 3; k++) {
               for (int l = 0; l < 3; l++) {
-                const double virial_a =
-                    get_virial_a(a, b, k, l, task->zeta, task->zetb, task->n1,
-                                 cab, COMPUTE_TAU);
+                const double virial_a = get_virial_a(
+                    a, b, k, l, task->zeta, task->zetb, cab, COMPUTE_TAU);
                 const double virial_b =
                     get_virial_b(a, b, k, l, task->zeta, task->zetb, task->rab,
-                                 task->n1, cab, COMPUTE_TAU);
+                                 cab, COMPUTE_TAU);
                 const double virial = pabval * (virial_a + virial_b);
                 atomicAddDouble(&params->virial[k * 3 + l], virial);
               }
@@ -391,17 +392,20 @@ __device__ static void integrate_kernel(const kernel_params *params) {
   double *smem_alpha = &shared_memory[params->smem_alpha_offset];
   double *smem_cxyz = &shared_memory[params->smem_cxyz_offset];
 
+  compute_alpha(&task, smem_alpha);
+
   zero_cxyz(&task, smem_cxyz);
   grid_to_cxyz(params, &task, params->grid, smem_cxyz);
 
-  zero_cab(&task, smem_cab);
-  compute_alpha(&task, smem_alpha);
-  cab_to_cxyz(&task, smem_alpha, smem_cab, smem_cxyz);
+  cab_store cab = {
+      .data = smem_cab, .n1 = task.n1, .length = params->smem_cab_length};
+  zero_cab(&cab);
+  cab_to_cxyz(&task, smem_alpha, &cab, smem_cxyz);
 
-  store_hab<COMPUTE_TAU>(&task, smem_cab);
+  store_hab<COMPUTE_TAU>(&task, &cab);
 
   if (CALCULATE_FORCES) {
-    store_forces_and_virial<COMPUTE_TAU>(params, &task, smem_cab);
+    store_forces_and_virial<COMPUTE_TAU>(params, &task, &cab);
   }
 }
 
@@ -487,6 +491,7 @@ void grid_gpu_integrate_one_grid_level(
 
   // kernel parameters
   kernel_params params;
+  params.smem_cab_length = cab_len;
   params.smem_cab_offset = 0;
   params.smem_alpha_offset = cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;

@@ -10,17 +10,27 @@
 #include <stdlib.h>
 
 #include "../common/grid_common.h"
-#include "../common/grid_prepare_pab.h"
 #include "grid_ref_prepare_pab.h"
+
+/*******************************************************************************
+ * \brief Cab matrix container to be passed through prepare_pab to cab_add.
+ * \author Ole Schuett
+ ******************************************************************************/
+typedef struct {
+  double *data;
+  const int n1;
+} cab_store;
 
 /*******************************************************************************
  * \brief Adds given value to matrix element cab[idx(b)][idx(a)].
  * \author Ole Schuett
  ******************************************************************************/
-static inline void prep_term(const orbital a, const orbital b,
-                             const double value, const int n, double *cab) {
-  cab[idx(b) * n + idx(a)] += value;
+static inline void cab_add(cab_store *cab, const orbital a, const orbital b,
+                           const double value) {
+  cab->data[idx(b) * cab->n1 + idx(a)] += value;
 }
+
+#include "../common/grid_prepare_pab.h"
 
 /*******************************************************************************
  * \brief Returns block size changes due to transformation grid_prepare_pab.
@@ -49,6 +59,8 @@ void grid_ref_prepare_pab(const enum grid_func func, const int o1, const int o2,
                           const int n2_prep,
                           double pab_prep[n2_prep][n1_prep]) {
 
+  cab_store cab = {.data = (double *)pab_prep, .n1 = n1_prep};
+
   for (int lxa = 0; lxa <= la_max; lxa++) {
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
@@ -60,8 +72,7 @@ void grid_ref_prepare_pab(const enum grid_func func, const int o1, const int o2,
               const orbital a = {{lxa, lya, lza}};
               const orbital b = {{lxb, lyb, lzb}};
               const double pab_val = pab[o2 + idx(b)][o1 + idx(a)];
-              prepare_pab(func, a, b, zeta, zetb, pab_val, n1_prep,
-                          (double *)pab_prep);
+              prepare_pab(func, a, b, zeta, zetb, pab_val, &cab);
             }
           }
         }

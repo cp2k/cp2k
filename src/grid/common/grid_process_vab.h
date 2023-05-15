@@ -15,12 +15,12 @@
 
 /*******************************************************************************
  * \brief Returns matrix element cab[idx(b)][idx(a)].
+ *        This function has to be implemented by the importing compilation unit.
+ *        A simple implementation is just: returns cab[idx(b) * n1 + idx(a)];
  * \author Ole Schuett
  ******************************************************************************/
-GRID_DEVICE static inline double get_term(const orbital a, const orbital b,
-                                          const int n, const double *cab) {
-  return cab[idx(b) * n + idx(a)];
-}
+GRID_DEVICE static inline double cab_get(const cab_store *cab, const orbital a,
+                                         const orbital b);
 
 /*******************************************************************************
  * \brief Returns i'th component of force on atom a for compute_tau=false.
@@ -28,9 +28,9 @@ GRID_DEVICE static inline double get_term(const orbital a, const orbital b,
  ******************************************************************************/
 GRID_DEVICE static inline double
 get_force_a_normal(const orbital a, const orbital b, const int i,
-                   const double zeta, const int n, const double *cab) {
-  const double aip1 = get_term(up(i, a), b, n, cab);
-  const double aim1 = get_term(down(i, a), b, n, cab);
+                   const double zeta, const cab_store *cab) {
+  const double aip1 = cab_get(cab, up(i, a), b);
+  const double aim1 = cab_get(cab, down(i, a), b);
   return 2.0 * zeta * aip1 - a.l[i] * aim1;
 }
 
@@ -38,24 +38,22 @@ get_force_a_normal(const orbital a, const orbital b, const int i,
  * \brief Returns i'th component of force on atom a.
  * \author Ole Schuett
  ******************************************************************************/
-GRID_DEVICE static inline double get_force_a(const orbital a, const orbital b,
-                                             const int i, const double zeta,
-                                             const double zetb, const int n,
-                                             const double *cab,
-                                             const bool compute_tau) {
+GRID_DEVICE static inline double
+get_force_a(const orbital a, const orbital b, const int i, const double zeta,
+            const double zetb, const cab_store *cab, const bool compute_tau) {
   if (!compute_tau) {
-    return get_force_a_normal(a, b, i, zeta, n, cab);
+    return get_force_a_normal(a, b, i, zeta, cab);
   } else {
     double force = 0.0;
     for (int k = 0; k < 3; k++) {
       force += 0.5 * a.l[k] * b.l[k] *
-               get_force_a_normal(down(k, a), down(k, b), i, zeta, n, cab);
+               get_force_a_normal(down(k, a), down(k, b), i, zeta, cab);
       force -= zeta * b.l[k] *
-               get_force_a_normal(up(k, a), down(k, b), i, zeta, n, cab);
+               get_force_a_normal(up(k, a), down(k, b), i, zeta, cab);
       force -= a.l[k] * zetb *
-               get_force_a_normal(down(k, a), up(k, b), i, zeta, n, cab);
+               get_force_a_normal(down(k, a), up(k, b), i, zeta, cab);
       force += 2.0 * zeta * zetb *
-               get_force_a_normal(up(k, a), up(k, b), i, zeta, n, cab);
+               get_force_a_normal(up(k, a), up(k, b), i, zeta, cab);
     }
     return force;
   }
@@ -67,11 +65,11 @@ GRID_DEVICE static inline double get_force_a(const orbital a, const orbital b,
  ******************************************************************************/
 GRID_DEVICE static inline double
 get_force_b_normal(const orbital a, const orbital b, const int i,
-                   const double zetb, const double rab[3], const int n,
-                   const double *cab) {
-  const double axpm0 = get_term(a, b, n, cab);
-  const double aip1 = get_term(up(i, a), b, n, cab);
-  const double bim1 = get_term(a, down(i, b), n, cab);
+                   const double zetb, const double rab[3],
+                   const cab_store *cab) {
+  const double axpm0 = cab_get(cab, a, b);
+  const double aip1 = cab_get(cab, up(i, a), b);
+  const double bim1 = cab_get(cab, a, down(i, b));
   return 2.0 * zetb * (aip1 - rab[i] * axpm0) - b.l[i] * bim1;
 }
 
@@ -81,21 +79,21 @@ get_force_b_normal(const orbital a, const orbital b, const int i,
  ******************************************************************************/
 GRID_DEVICE static inline double
 get_force_b(const orbital a, const orbital b, const int i, const double zeta,
-            const double zetb, const double rab[3], const int n,
-            const double *cab, const bool compute_tau) {
+            const double zetb, const double rab[3], const cab_store *cab,
+            const bool compute_tau) {
   if (!compute_tau) {
-    return get_force_b_normal(a, b, i, zetb, rab, n, cab);
+    return get_force_b_normal(a, b, i, zetb, rab, cab);
   } else {
     double force = 0.0;
     for (int k = 0; k < 3; k++) {
       force += 0.5 * a.l[k] * b.l[k] *
-               get_force_b_normal(down(k, a), down(k, b), i, zetb, rab, n, cab);
+               get_force_b_normal(down(k, a), down(k, b), i, zetb, rab, cab);
       force -= zeta * b.l[k] *
-               get_force_b_normal(up(k, a), down(k, b), i, zetb, rab, n, cab);
+               get_force_b_normal(up(k, a), down(k, b), i, zetb, rab, cab);
       force -= a.l[k] * zetb *
-               get_force_b_normal(down(k, a), up(k, b), i, zetb, rab, n, cab);
+               get_force_b_normal(down(k, a), up(k, b), i, zetb, rab, cab);
       force += 2.0 * zeta * zetb *
-               get_force_b_normal(up(k, a), up(k, b), i, zetb, rab, n, cab);
+               get_force_b_normal(up(k, a), up(k, b), i, zetb, rab, cab);
     }
     return force;
   }
@@ -107,9 +105,9 @@ get_force_b(const orbital a, const orbital b, const int i, const double zeta,
  ******************************************************************************/
 GRID_DEVICE static inline double
 get_virial_a_normal(const orbital a, const orbital b, const int i, const int j,
-                    const double zeta, const int n, const double *cab) {
-  return 2.0 * zeta * get_term(up(i, up(j, a)), b, n, cab) -
-         a.l[j] * get_term(up(i, down(j, a)), b, n, cab);
+                    const double zeta, const cab_store *cab) {
+  return 2.0 * zeta * cab_get(cab, up(i, up(j, a)), b) -
+         a.l[j] * cab_get(cab, up(i, down(j, a)), b);
 }
 
 /*******************************************************************************
@@ -118,22 +116,22 @@ get_virial_a_normal(const orbital a, const orbital b, const int i, const int j,
  ******************************************************************************/
 GRID_DEVICE static inline double
 get_virial_a(const orbital a, const orbital b, const int i, const int j,
-             const double zeta, const double zetb, const int n,
-             const double *cab, const bool compute_tau) {
+             const double zeta, const double zetb, const cab_store *cab,
+             const bool compute_tau) {
 
   if (!compute_tau) {
-    return get_virial_a_normal(a, b, i, j, zeta, n, cab);
+    return get_virial_a_normal(a, b, i, j, zeta, cab);
   } else {
     double virial = 0.0;
     for (int k = 0; k < 3; k++) {
       virial += 0.5 * a.l[k] * b.l[k] *
-                get_virial_a_normal(down(k, a), down(k, b), i, j, zeta, n, cab);
+                get_virial_a_normal(down(k, a), down(k, b), i, j, zeta, cab);
       virial -= zeta * b.l[k] *
-                get_virial_a_normal(up(k, a), down(k, b), i, j, zeta, n, cab);
+                get_virial_a_normal(up(k, a), down(k, b), i, j, zeta, cab);
       virial -= a.l[k] * zetb *
-                get_virial_a_normal(down(k, a), up(k, b), i, j, zeta, n, cab);
+                get_virial_a_normal(down(k, a), up(k, b), i, j, zeta, cab);
       virial += 2.0 * zeta * zetb *
-                get_virial_a_normal(up(k, a), up(k, b), i, j, zeta, n, cab);
+                get_virial_a_normal(up(k, a), up(k, b), i, j, zeta, cab);
     }
     return virial;
   }
@@ -145,15 +143,15 @@ get_virial_a(const orbital a, const orbital b, const int i, const int j,
  ******************************************************************************/
 GRID_DEVICE static inline double
 get_virial_b_normal(const orbital a, const orbital b, const int i, const int j,
-                    const double zetb, const double rab[3], const int n,
-                    const double *cab) {
+                    const double zetb, const double rab[3],
+                    const cab_store *cab) {
 
   return 2.0 * zetb *
-             (get_term(up(i, up(j, a)), b, n, cab) -
-              get_term(up(i, a), b, n, cab) * rab[j] -
-              get_term(up(j, a), b, n, cab) * rab[i] +
-              get_term(a, b, n, cab) * rab[j] * rab[i]) -
-         b.l[j] * get_term(a, up(i, down(j, b)), n, cab);
+             (cab_get(cab, up(i, up(j, a)), b) -
+              cab_get(cab, up(i, a), b) * rab[j] -
+              cab_get(cab, up(j, a), b) * rab[i] +
+              cab_get(cab, a, b) * rab[j] * rab[i]) -
+         b.l[j] * cab_get(cab, a, up(i, down(j, b)));
 }
 
 /*******************************************************************************
@@ -163,25 +161,22 @@ get_virial_b_normal(const orbital a, const orbital b, const int i, const int j,
 GRID_DEVICE static inline double
 get_virial_b(const orbital a, const orbital b, const int i, const int j,
              const double zeta, const double zetb, const double rab[3],
-             const int n, const double *cab, const bool compute_tau) {
+             const cab_store *cab, const bool compute_tau) {
 
   if (!compute_tau) {
-    return get_virial_b_normal(a, b, i, j, zetb, rab, n, cab);
+    return get_virial_b_normal(a, b, i, j, zetb, rab, cab);
   } else {
     double virial = 0.0;
     for (int k = 0; k < 3; k++) {
       virial +=
           0.5 * a.l[k] * b.l[k] *
-          get_virial_b_normal(down(k, a), down(k, b), i, j, zetb, rab, n, cab);
-      virial -=
-          zeta * b.l[k] *
-          get_virial_b_normal(up(k, a), down(k, b), i, j, zetb, rab, n, cab);
-      virial -=
-          a.l[k] * zetb *
-          get_virial_b_normal(down(k, a), up(k, b), i, j, zetb, rab, n, cab);
-      virial +=
-          2.0 * zeta * zetb *
-          get_virial_b_normal(up(k, a), up(k, b), i, j, zetb, rab, n, cab);
+          get_virial_b_normal(down(k, a), down(k, b), i, j, zetb, rab, cab);
+      virial -= zeta * b.l[k] *
+                get_virial_b_normal(up(k, a), down(k, b), i, j, zetb, rab, cab);
+      virial -= a.l[k] * zetb *
+                get_virial_b_normal(down(k, a), up(k, b), i, j, zetb, rab, cab);
+      virial += 2.0 * zeta * zetb *
+                get_virial_b_normal(up(k, a), up(k, b), i, j, zetb, rab, cab);
     }
     return virial;
   }
@@ -193,17 +188,17 @@ get_virial_b(const orbital a, const orbital b, const int i, const int j,
  ******************************************************************************/
 GRID_DEVICE static inline double get_hab(const orbital a, const orbital b,
                                          const double zeta, const double zetb,
-                                         const int n, const double *cab,
+                                         const cab_store *cab,
                                          const bool compute_tau) {
   if (!compute_tau) {
-    return get_term(a, b, n, cab);
+    return cab_get(cab, a, b);
   } else {
     double hab = 0.0;
     for (int k = 0; k < 3; k++) {
-      hab += 0.5 * a.l[k] * b.l[k] * get_term(down(k, a), down(k, b), n, cab);
-      hab -= zeta * b.l[k] * get_term(up(k, a), down(k, b), n, cab);
-      hab -= a.l[k] * zetb * get_term(down(k, a), up(k, b), n, cab);
-      hab += 2.0 * zeta * zetb * get_term(up(k, a), up(k, b), n, cab);
+      hab += 0.5 * a.l[k] * b.l[k] * cab_get(cab, down(k, a), down(k, b));
+      hab -= zeta * b.l[k] * cab_get(cab, up(k, a), down(k, b));
+      hab -= a.l[k] * zetb * cab_get(cab, down(k, a), up(k, b));
+      hab += 2.0 * zeta * zetb * cab_get(cab, up(k, a), up(k, b));
     }
     return hab;
   }
