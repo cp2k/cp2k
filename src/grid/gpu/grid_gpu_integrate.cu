@@ -518,6 +518,7 @@ void grid_gpu_integrate_one_grid_level(
     grid_integrate_tau_forces<<<nblocks, threads_per_block, smem_per_block,
                                 stream>>>(params);
   }
+  OFFLOAD_CHECK(offloadGetLastError());
 }
 
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
