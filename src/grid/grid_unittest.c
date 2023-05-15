@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "ortho_density_l2200.task");
   errors += run_test(argv[1], "ortho_density_l3300.task");
   errors += run_test(argv[1], "ortho_density_l3333.task");
+  errors += run_test(argv[1], "ortho_density_l0505.task");
   errors += run_test(argv[1], "ortho_non_periodic.task");
   errors += run_test(argv[1], "ortho_tau.task");
   errors += run_test(argv[1], "general_density.task");
