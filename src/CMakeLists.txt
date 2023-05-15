@@ -1448,8 +1448,8 @@ foreach(cp2k_src ${CP2K_SRCS})
 endforeach()
 
 if(CP2K_USE_LIBTORCH)
-  add_library(
-    cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
+  add_library(cp2k
+              "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
   add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 endif()
@@ -1459,11 +1459,13 @@ target_compile_features(cp2k PUBLIC c_std_99)
 target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
-set_target_properties(cp2k PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-				      Fortran_MODULE_DIRECTORY mod_files
-			              POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS}
-			              VERSION ${cp2k_VERSION}
-			      	      SOVERSION ${cp2k_APIVERSION})
+set_target_properties(
+  cp2k
+  PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+             Fortran_MODULE_DIRECTORY mod_files
+             POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS}
+             VERSION ${cp2k_VERSION}
+             SOVERSION ${cp2k_APIVERSION})
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set_property(TARGET cp2k PROPERTY CUDA_ARCHITECTURES
