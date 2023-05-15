@@ -228,21 +228,29 @@ __device__ static void block_to_cab(const kernel_params *params,
 
       if (IS_FUNC_AB) {
         // fast path for common case
-        const int jco_start = task->first_cosetb + threadIdx.x;
-        for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.x) {
+        const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.x;
+        const int jco_end = ncoset(task->lb_max_basis);
+        for (int jco = jco_start; jco < jco_end; jco += blockDim.x) {
           const double sphib = task->sphib[i * task->maxcob + jco];
-          for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
+          const int ico_start = ncoset(task->la_min_basis - 1);
+          const int ico_end = ncoset(task->la_max_basis);
+          for (int ico = ico_start; ico < ico_end; ico++) {
             const double sphia = task->sphia[j * task->maxcoa + ico];
             const double pab_val = block_val * sphia * sphib;
-            atomicAddDouble(&cab[jco * task->ncoseta + ico], pab_val);
+            atomicAddDouble(&cab[jco * task->n1 + ico], pab_val);
           }
         }
       } else {
+        // TODO find if we can make better bounds for ico and jco because
+        // we only need a submatrix of cab.
         // Since prepare_pab is a register hog we use it only when really needed
-        const int jco_start = task->first_cosetb + threadIdx.x;
-        for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.x) {
+        const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.x;
+        const int jco_end = ncoset(task->lb_max_basis);
+        for (int jco = jco_start; jco < jco_end; jco += blockDim.x) {
           const orbital b = coset_inv[jco];
-          for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
+          const int ico_start = ncoset(task->la_min_basis - 1);
+          const int ico_end = ncoset(task->la_max_basis);
+          for (int ico = ico_start; ico < ico_end; ico++) {
             const orbital a = coset_inv[ico];
             const double sphia = task->sphia[j * task->maxcoa + idx(a)];
             const double sphib = task->sphib[i * task->maxcob + idx(b)];

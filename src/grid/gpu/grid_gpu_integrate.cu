@@ -273,12 +273,15 @@ __device__ static void store_hab(const smem_task *task, const double *cab) {
   // two products are fused to conserve shared memory.
   for (int i = threadIdx.x; i < task->nsgf_setb; i += blockDim.x) {
     for (int j = threadIdx.y; j < task->nsgf_seta; j += blockDim.y) {
-      const int jco_start = task->first_cosetb + threadIdx.z;
       double block_val = 0.0;
-      for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.z) {
+      const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.z;
+      const int jco_end = ncoset(task->lb_max_basis);
+      for (int jco = jco_start; jco < jco_end; jco += blockDim.z) {
         const orbital b = coset_inv[jco];
         const double sphib = task->sphib[i * task->maxcob + jco];
-        for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
+        const int ico_start = ncoset(task->la_min_basis - 1);
+        const int ico_end = ncoset(task->la_max_basis);
+        for (int ico = ico_start; ico < ico_end; ico++) {
           const orbital a = coset_inv[ico];
           const double hab =
               get_hab(a, b, task->zeta, task->zetb, task->n1, cab, COMPUTE_TAU);
@@ -312,10 +315,13 @@ __device__ static void store_forces_and_virial(const kernel_params *params,
       } else {
         block_val = task->pab_block[i * task->nsgfa + j] * task->off_diag_twice;
       }
-      const int jco_start = task->first_cosetb + threadIdx.z;
-      for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.z) {
+      const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.z;
+      const int jco_end = ncoset(task->lb_max_basis);
+      for (int jco = jco_start; jco < jco_end; jco += blockDim.z) {
         const double sphib = task->sphib[i * task->maxcob + jco];
-        for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
+        const int ico_start = ncoset(task->la_min_basis - 1);
+        const int ico_end = ncoset(task->la_max_basis);
+        for (int ico = ico_start; ico < ico_end; ico++) {
           const double sphia = task->sphia[j * task->maxcoa + ico];
           const double pabval = block_val * sphia * sphib;
           const orbital b = coset_inv[jco];
