@@ -377,6 +377,7 @@ void grid_gpu_collocate_one_grid_level(
     collocate_kernel_anyfunc<<<nblocks, threads_per_block, smem_per_block,
                                stream>>>(params);
   }
+  OFFLOAD_CHECK(offloadGetLastError());
 }
 
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
