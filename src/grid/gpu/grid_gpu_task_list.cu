@@ -103,16 +103,6 @@ create_tasks(const bool orthorhombic, const int ntasks,
     task->la_min_basis = ibasis->lmin[iset];
     task->lb_min_basis = jbasis->lmin[jset];
 
-    // start of decontracted set, ie. pab and hab
-    const int prev_ncoseta = ncoset(task->la_min_basis - 1);
-    const int prev_ncosetb = ncoset(task->lb_min_basis - 1);
-    task->first_coseta = (task->la_min_basis > 0) ? prev_ncoseta : 0;
-    task->first_cosetb = (task->lb_min_basis > 0) ? prev_ncosetb : 0;
-
-    // size of decontracted set, ie. pab and hab
-    task->ncoseta = ncoset(task->la_max_basis);
-    task->ncosetb = ncoset(task->lb_max_basis);
-
     // size of entire spherical basis
     task->nsgfa = ibasis->nsgf;
     task->nsgfb = jbasis->nsgf;
@@ -130,8 +120,8 @@ create_tasks(const bool orthorhombic, const int ntasks,
     const int sgfb = jbasis->first_sgf[jset] - 1;
 
     // start of exponent within the cartesian set
-    const int o1 = ipgf * task->ncoseta;
-    const int o2 = jpgf * task->ncosetb;
+    const int o1 = ipgf * ncoset(task->la_max_basis);
+    const int o2 = jpgf * ncoset(task->lb_max_basis);
 
     // transformations from contracted spherical to primitiv carthesian basis
     task->sphia = &sphis_dev[ikind][sgfa * task->maxcoa + o1];

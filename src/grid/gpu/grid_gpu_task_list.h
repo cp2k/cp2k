@@ -40,23 +40,21 @@ typedef struct grid_gpu_task_struct {
   double prefactor;
   double off_diag_twice;
   double dh_max;
+
   // angular momentum range of basis set
   int la_max_basis;
   int lb_max_basis;
   int la_min_basis;
   int lb_min_basis;
+
   // size of entire spherical basis
   int nsgfa;
   int nsgfb;
+
   // size of spherical set
   int nsgf_seta;
   int nsgf_setb;
-  // start of decontracted set, ie. pab and hab
-  int first_coseta;
-  int first_cosetb;
-  // size of decontracted set, ie. pab and hab
-  int ncoseta;
-  int ncosetb;
+
   // strides of the sphi transformation matrices
   int maxcoa;
   int maxcob;

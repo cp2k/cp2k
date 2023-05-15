@@ -390,17 +390,24 @@ __device__ static void cab_to_cxyz(const smem_task *task, const double *alpha,
       for (int lxp = threadIdx.x; lxp <= task->lp - lzp - lyp;
            lxp += blockDim.x) {
         double reg = 0.0; // accumulate into a register
-        for (int jco = 0; jco < ncoset(task->lb_max); jco++) {
+        const int jco_start = ncoset(task->lb_min - 1);
+        const int jco_end = ncoset(task->lb_max);
+        for (int jco = jco_start; jco < jco_end; jco++) {
           const orbital b = coset_inv[jco];
-          for (int ico = 0; ico < ncoset(task->la_max); ico++) {
+          const int ico_start = ncoset(task->la_min - 1);
+          const int ico_end = ncoset(task->la_max);
+          for (int ico = ico_start; ico < ico_end; ico++) {
             const orbital a = coset_inv[ico];
 #else
   // integrate
   if (threadIdx.z == 0) { // TODO: How bad is this?
-    for (int jco = threadIdx.y; jco < ncoset(task->lb_max); jco += blockDim.y) {
+    const int jco_start = ncoset(task->lb_min - 1) + threadIdx.y;
+    const int jco_end = ncoset(task->lb_max);
+    for (int jco = jco_start; jco < jco_end; jco += blockDim.y) {
       const orbital b = coset_inv[jco];
-      for (int ico = threadIdx.x; ico < ncoset(task->la_max);
-           ico += blockDim.x) {
+      const int ico_start = ncoset(task->la_min - 1) + threadIdx.x;
+      const int ico_end = ncoset(task->la_max);
+      for (int ico = ico_start; ico < ico_end; ico += blockDim.x) {
         const orbital a = coset_inv[ico];
         double reg = 0.0; // accumulate into a register
         for (int lzp = 0; lzp <= task->lp; lzp++) {
