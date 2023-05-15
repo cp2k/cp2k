@@ -36,7 +36,7 @@ Beware that MPI ranks can overwrite each other's files.
 The resulting .task files are human readable and diffable:
 
 ```task-file
-#Grid collocate task v9
+#Grid task v10
 orthorhombic 1
 border_mask 0
 func 100
@@ -49,18 +49,18 @@ For more information see [grid_replay.c](grid_replay.c).
 
 ## MiniApp
 
-The `grid_collocate_miniapp.x` binary allows to run individual .task files.
+The `grid_miniapp.x` binary allows to run individual .task files.
 By default `grid_ref_collocate_pgf_product` is called. When the `--batch` flag
 is set then `grid_collocate_task_list` is called instead.
 
 ```shell
 $ cd cp2k/src/grid
 $ make
-$ ./grid_collocate_miniapp.x
-Usage: grid_base_ref_miniapp.x [--batch <cycles-per-block>] <cycles> <task-file>
+$ ./grid_miniapp.x
+Usage: grid_miniapp.x [--integrate] [--batch <cycles-per-block>] <cycles> <task-file>
 
-$ ./grid_collocate_miniapp.x --batch 10 100 sample_tasks/collocate_ortho_density_l2200.task
-Task: sample_tasks/collocate_ortho_density_l2200.task                     Batched: yes   Cycles: 1.000000e+02   Max value: 1.579830e+02   Max diff: 1.705303e-13   Time: 1.884854e-03 sec
+$ ./grid_miniapp.x --batch 10 100 ./sample_tasks/ortho_density_l2200.task
+Task: ./sample_tasks/ortho_density_l2200.task                   Collocate Batched   Cycles: 1.000000e+02   Max value: 1.579830e+02   Max rel diff: 7.435177e-11   Time: 1.438550e-04 sec
 ```
 
 ## Unit Test
@@ -104,4 +104,72 @@ Task: ../../src/grid/sample_tasks/general_overflow.task         Collocate Batche
  -------------------------------------------------------------------------------
 
 All tests have passed :-)
+```
+
+## CUDA Register Usage
+
+When modifying the CUDA kernels keep an eye on the register usage:
+
+```shell
+$ cd cp2k/src/grid
+$ make
+$ cuobjdump --dump-resource-usage ./gpu/grid_gpu_collocate.o
+
+Fatbin elf code:
+================
+arch = sm_70
+code version = [1,7]
+host = linux
+compile_size = 64bit
+identifier = grid_gpu_collocate.cu
+
+Resource usage:
+ Common:
+  GLOBAL:328 CONSTANT[3]:18848
+ Function _Z24collocate_kernel_anyfunc13kernel_params:
+  REG:134 STACK:0 SHARED:416 LOCAL:0 CONSTANT[0]:600 CONSTANT[2]:312 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _Z24collocate_kernel_density13kernel_params:
+  REG:71 STACK:0 SHARED:416 LOCAL:0 CONSTANT[0]:600 CONSTANT[2]:104 TEXTURE:0 SURFACE:0 SAMPLER:0
+
+Fatbin ptx code:
+================
+arch = sm_70
+code version = [7,8]
+host = linux
+compile_size = 64bit
+compressed
+identifier = grid_gpu_collocate.cu
+ptxasOptions =  --generate-line-info
+
+$ cuobjdump --dump-resource-usage ./gpu/grid_gpu_integrate.o
+
+Fatbin elf code:
+================
+arch = sm_70
+code version = [1,7]
+host = linux
+compile_size = 64bit
+identifier = grid_gpu_integrate.cu
+
+Resource usage:
+ Common:
+  GLOBAL:328 CONSTANT[3]:18848
+ Function _Z25grid_integrate_tau_forces13kernel_params:
+  REG:132 STACK:64 SHARED:432 LOCAL:0 CONSTANT[0]:616 CONSTANT[2]:208 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _Z29grid_integrate_density_forces13kernel_params:
+  REG:128 STACK:16 SHARED:432 LOCAL:0 CONSTANT[0]:616 CONSTANT[2]:208 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _Z18grid_integrate_tau13kernel_params:
+  REG:80 STACK:0 SHARED:432 LOCAL:0 CONSTANT[0]:616 CONSTANT[2]:216 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _Z22grid_integrate_density13kernel_params:
+  REG:74 STACK:0 SHARED:432 LOCAL:0 CONSTANT[0]:616 CONSTANT[2]:208 TEXTURE:0 SURFACE:0 SAMPLER:0
+
+Fatbin ptx code:
+================
+arch = sm_70
+code version = [7,8]
+host = linux
+compile_size = 64bit
+compressed
+identifier = grid_gpu_integrate.cu
+ptxasOptions =  --generate-line-info
 ```
