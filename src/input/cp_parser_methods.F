@@ -36,6 +36,7 @@ MODULE cp_parser_methods
                                               dp,&
                                               int_8,&
                                               max_line_length
+   USE mathconstants,                   ONLY: radians
    USE message_passing,                 ONLY: mp_para_env_type
    USE string_utilities,                ONLY: is_whitespace,&
                                               uppercase
@@ -1247,10 +1248,11 @@ CONTAINS
 !> \param object ...
 !> \param error_message ...
 !> \date    11.01.2011 (MK)
+!> \par History
+!>      - Add simple function parsing (17.05.2023, MK)
 !> \author  Matthias Krack
-!> \version 1.0
-!> \note - Parse also multiple products and fractions of floating point
-!>            numbers (23.11.2012,MK)
+!> \version 2.0
+!> \note - Parse also multiple products and fractions of floating point numbers (23.11.2012,MK)
 ! **************************************************************************************************
    ELEMENTAL SUBROUTINE read_float_object(string, object, error_message)
 
@@ -1258,11 +1260,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: object
       CHARACTER(LEN=*), INTENT(OUT)                      :: error_message
 
-      INTEGER                                            :: i, iop, islash, istar, istat, n
+      INTEGER, PARAMETER                                 :: maxlen = 5
+
+      CHARACTER(LEN=maxlen)                              :: func
+      INTEGER                                            :: i, ileft, iop, iright, is, islash, &
+                                                            istar, istat, n
       LOGICAL                                            :: parsing_done
-      REAL(KIND=dp)                                      :: z
+      REAL(KIND=dp)                                      :: fsign, z
 
       error_message = ""
+      func = ""
 
       i = 1
       iop = 0
@@ -1285,11 +1292,55 @@ CONTAINS
          ELSE IF (istar > 0) THEN
             iop = istar
          END IF
-         READ (UNIT=string(i:i + iop - 2), FMT=*, IOSTAT=istat) z
-         IF (istat /= 0) THEN
-            error_message = "A floating point type object was expected, found <"// &
-                            string(i:i + iop - 2)//">"
-            RETURN
+         ileft = INDEX(string(i:MIN(n, i + maxlen + 1)), "(")
+         IF (ileft > 0) THEN
+            ! Check for sign
+            is = ICHAR(string(i:i))
+            SELECT CASE (is)
+            CASE (43)
+               fsign = 1.0_dp
+               func = string(i + 1:i + ileft - 2)
+            CASE (45)
+               fsign = -1.0_dp
+               func = string(i + 1:i + ileft - 2)
+            CASE DEFAULT
+               fsign = 1.0_dp
+               func = string(i:i + ileft - 2)
+            END SELECT
+            iright = INDEX(string(i:n), ")")
+            READ (UNIT=string(i + ileft:i + iright - 2), FMT=*, IOSTAT=istat) z
+            IF (istat /= 0) THEN
+               error_message = "A floating point type object as argument for function <"// &
+                               TRIM(func)//"> is expected, found <"// &
+                               string(i + ileft:i + iright - 2)//">"
+               RETURN
+            END IF
+            SELECT CASE (func)
+            CASE ("COS")
+               z = fsign*COS(z*radians)
+            CASE ("EXP")
+               z = fsign*EXP(z)
+            CASE ("LOG")
+               z = fsign*LOG(z)
+            CASE ("LOG10")
+               z = fsign*LOG10(z)
+            CASE ("SIN")
+               z = fsign*SIN(z*radians)
+            CASE ("SQRT")
+               z = fsign*SQRT(z)
+            CASE ("TAN")
+               z = fsign*TAN(z*radians)
+            CASE DEFAULT
+               error_message = "Unknown function <"//TRIM(func)//"> found"
+               RETURN
+            END SELECT
+         ELSE
+            READ (UNIT=string(i:i + iop - 2), FMT=*, IOSTAT=istat) z
+            IF (istat /= 0) THEN
+               error_message = "A floating point type object was expected, found <"// &
+                               string(i:i + iop - 2)//">"
+               RETURN
+            END IF
          END IF
          IF (i == 1) THEN
             object = z

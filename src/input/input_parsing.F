@@ -657,7 +657,7 @@ CONTAINS
             CALL parser_get_object(parser, c_val)
             IF (c_val(1:1) /= "[" .OR. c_val(LEN_TRIM(c_val):LEN_TRIM(c_val)) /= "]") THEN
                CALL cp_abort(__LOCATION__, &
-                             "Invalid unit specifier found when parsing a number: "// &
+                             "Invalid unit specifier or function found when parsing a number: "// &
                              c_val)
             END IF
             ALLOCATE (my_unit)
