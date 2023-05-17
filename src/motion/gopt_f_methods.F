@@ -15,15 +15,14 @@ MODULE gopt_f_methods
    USE atomic_kind_list_types, ONLY: atomic_kind_list_type
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind_set
+   USE cell_methods, ONLY: cell_create, &
+                           init_cell
    USE cell_types, ONLY: cell_copy, &
-                         cell_create, &
                          cell_release, &
                          cell_type, &
-                         init_cell, &
                          real_to_scaled, &
                          scaled_to_real
    USE cp_log_handling, ONLY: cp_to_string
-   USE message_passing, ONLY: mp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_get, &
                               cp_subsys_set, &
                               cp_subsys_type, &
@@ -49,11 +48,14 @@ MODULE gopt_f_methods
                               default_ts_method_id, &
                               fix_none
    USE input_cp2k_restarts, ONLY: write_restart
-   USE input_section_types, ONLY: section_vals_type, section_vals_val_get
+   USE input_section_types, ONLY: section_vals_type, &
+                                  section_vals_val_get
    USE kinds, ONLY: default_string_length, &
-                    dp, int_8
+                    dp, &
+                    int_8
    USE machine, ONLY: m_flush
    USE md_energies, ONLY: sample_memory
+   USE message_passing, ONLY: mp_para_env_type
    USE motion_utils, ONLY: write_simulation_cell, &
                            write_stress_tensor, &
                            write_trajectory
@@ -255,11 +257,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pred, rat, step, rad
       REAL(KIND=dp)                                      :: used_time
 
+      INTEGER(KIND=int_8)                                :: max_memory
+      LOGICAL                                            :: print_memory
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
                                                             pres_tol
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER(KIND=int_8)                                :: max_memory
-      LOGICAL                                            :: print_memory
 
       NULLIFY (para_env)
       CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
@@ -504,6 +506,7 @@ CONTAINS
 !> \param output_unit ...
 !> \param conv ...
 !> \param gopt_param ...
+!> \param max_memory ...
 !> \param pres_diff ...
 !> \param pres_tol ...
 !> \param pres_diff_constr ...
@@ -911,9 +914,9 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(virial_type), POINTER                         :: virial

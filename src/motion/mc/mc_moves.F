@@ -15,8 +15,8 @@
 ! **************************************************************************************************
 MODULE mc_moves
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE cell_methods,                    ONLY: cell_create
    USE cell_types,                      ONLY: cell_clone,&
-                                              cell_create,&
                                               cell_release,&
                                               cell_type,&
                                               get_cell

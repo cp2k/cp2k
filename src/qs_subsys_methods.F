@@ -15,10 +15,10 @@ MODULE qs_subsys_methods
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cell_methods,                    ONLY: read_cell,&
+   USE cell_methods,                    ONLY: cell_create,&
+                                              read_cell,&
                                               write_cell
    USE cell_types,                      ONLY: cell_clone,&
-                                              cell_create,&
                                               cell_release,&
                                               cell_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create

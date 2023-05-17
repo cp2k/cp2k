@@ -20,12 +20,12 @@ MODULE force_env_methods
    USE bibliography,                    ONLY: Heaton_Burgess2007,&
                                               Huang2011,&
                                               cite_reference
+   USE cell_methods,                    ONLY: cell_create,&
+                                              init_cell
    USE cell_types,                      ONLY: cell_clone,&
-                                              cell_create,&
                                               cell_release,&
                                               cell_sym_triclinic,&
                                               cell_type,&
-                                              init_cell,&
                                               real_to_scaled,&
                                               scaled_to_real
    USE constraint_fxd,                  ONLY: fix_atom_control

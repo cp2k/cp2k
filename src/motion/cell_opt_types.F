@@ -12,9 +12,9 @@
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! **************************************************************************************************
 MODULE cell_opt_types
+   USE cell_methods,                    ONLY: cell_create
    USE cell_opt_utils,                  ONLY: read_external_press_tensor
    USE cell_types,                      ONLY: cell_clone,&
-                                              cell_create,&
                                               cell_release,&
                                               cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&

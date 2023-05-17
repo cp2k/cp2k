@@ -21,7 +21,7 @@
 ! **************************************************************************************************
 
 MODULE tmc_master
-   USE cell_types,                      ONLY: init_cell
+   USE cell_methods,                    ONLY: init_cell
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_to_string
    USE global_types,                    ONLY: global_environment_type

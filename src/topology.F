@@ -13,10 +13,10 @@
 MODULE topology
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE atoms_input,                     ONLY: read_atoms_input
-   USE cell_methods,                    ONLY: read_cell,&
+   USE cell_methods,                    ONLY: cell_create,&
+                                              read_cell,&
                                               write_cell
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_retain,&
+   USE cell_types,                      ONLY: cell_retain,&
                                               cell_type
    USE colvar_types,                    ONLY: colvar_p_type
    USE colvar_utils,                    ONLY: post_process_colvar
