@@ -35,12 +35,14 @@
  &END MM
  &SUBSYS
   &CELL
-   A  3.850/2 -3.850*${Sqrt3}/2      0
-   B  3.850/2  3.850*${Sqrt3}/2      0
-   C        0                 0  6.366
+   # Test function parsing
+   A -3.85000/-2  -3.85*+SQRT(3.000e00)/2                                      COS(+9.E001)
+   B +3.850/+2.0  -0.385E1*-TAN(+6E+01)/2                                      -LOG(01)/-10
+   C     -SIN(0)                 +000/342  +LOG10(+0.10)*6.366*+EXP(-00.000)/-COS(0.000E-5)
    MULTIPLE_UNIT_CELL 3 3 3
    PERIODIC XYZ
    &CELL_REF
+    # CELL and CELL_REF should coincide if parsing works
     A  3.850/2 -3.850*${Sqrt3}/2      0
     B  3.850/2  3.850*${Sqrt3}/2      0
     C        0                 0  6.366
