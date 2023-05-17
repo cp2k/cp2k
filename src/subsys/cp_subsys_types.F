@@ -446,7 +446,7 @@ CONTAINS
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
-      TYPE(cell_type), INTENT(IN), OPTIONAL              :: cell
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index
@@ -456,6 +456,7 @@ CONTAINS
 
       IF (PRESENT(s)) THEN
          CPASSERT(PRESENT(cell))
+         CPASSERT(ASSOCIATED(cell))
       END IF
 
       NULLIFY (core_particles)
@@ -526,7 +527,6 @@ CONTAINS
 
       IF (PRESENT(s)) THEN
          CPASSERT((SIZE(s) >= nsize))
-         CPASSERT(PRESENT(cell))
          j = 0
          DO iatom = 1, natom
             shell_index = particles%els(iatom)%shell_index
@@ -596,7 +596,7 @@ CONTAINS
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
-      TYPE(cell_type), INTENT(IN), OPTIONAL              :: cell
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index
@@ -684,6 +684,7 @@ CONTAINS
       IF (PRESENT(s)) THEN
          CPASSERT((SIZE(s) >= nsize))
          CPASSERT(PRESENT(cell))
+         CPASSERT(ASSOCIATED(cell))
          j = 0
          DO iatom = 1, natom
             shell_index = particles%els(iatom)%shell_index

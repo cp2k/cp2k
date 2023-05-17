@@ -133,9 +133,9 @@ CONTAINS
 
       ! Create cell
       NULLIFY (cell)
-      CALL cell_create(cell)
+      CALL cell_create(cell, tag="CELL_CIF")
       CALL read_cell_cif(topology%coord_file_name, cell, para_env)
-      CALL write_cell(cell, subsys_section, label="CELL_CIF|")
+      CALL write_cell(cell, subsys_section)
 
       CALL parser_create(parser, topology%coord_file_name, &
                          para_env=para_env, apply_preprocessing=.FALSE.)

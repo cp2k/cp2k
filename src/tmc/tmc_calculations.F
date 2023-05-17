@@ -188,6 +188,7 @@ CONTAINS
       IF (PRESENT(vol)) CALL get_cell(cell=tmp_cell, deth=vol)
       IF (PRESENT(abc)) CALL get_cell(cell=tmp_cell, abc=abc)
       IF (new_scaled_cell) DEALLOCATE (tmp_cell)
+
    END SUBROUTINE get_scaled_cell
 
 ! **************************************************************************************************

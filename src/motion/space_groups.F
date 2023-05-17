@@ -197,7 +197,7 @@ CONTAINS
       !..set cell values
       NULLIFY (spgr%cell_ref)
       CALL cell_create(spgr%cell_ref)
-      CALL cell_copy(cell, spgr%cell_ref)
+      CALL cell_copy(cell, spgr%cell_ref, tag="CELL_OPT_REF")
       SELECT CASE (gopt_env%type_id)
       CASE (default_minimization_method_id, default_ts_method_id)
          CALL init_cell(spgr%cell_ref, hmat=cell%hmat)

@@ -1219,7 +1219,7 @@ CONTAINS
          CALL get_cell(cell(ibox)%cell, abc=abc(:, ibox))
          NULLIFY (cell_old(ibox)%cell)
          CALL cell_create(cell_old(ibox)%cell)
-         CALL cell_clone(cell(ibox)%cell, cell_old(ibox)%cell)
+         CALL cell_clone(cell(ibox)%cell, cell_old(ibox)%cell, tag="CELL_OLD")
          CALL cp_subsys_get(oldsys(ibox)%subsys, &
                             particles=particles_old(ibox)%list)
 

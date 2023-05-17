@@ -667,6 +667,7 @@ CONTAINS
          cell_section => section_vals_get_subs_vals(qmmm_section, "CELL")
          CALL read_cell(qm_cell_small, qm_cell_small, cell_section=cell_section, &
                         check_for_ref=.FALSE., para_env=para_env)
+         qm_cell_small%tag = "CELL_QM"
          CALL section_vals_val_get(qmmm_section, "E_COUPL", i_val=qmmm_coupl_type)
          CALL section_vals_val_get(qmmm_section, "EPS_MM_RSPACE", r_val=eps_mm_rspace)
          CALL section_vals_val_get(qmmm_section, "SPHERICAL_CUTOFF", r_vals=tmp_sph_cut)

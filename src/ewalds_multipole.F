@@ -1080,7 +1080,7 @@ CONTAINS
                                    e_neut, task, do_efield, radii, charges, dipoles, quadrupoles, efield0, &
                                    efield1, efield2)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(distribution_1d_type), POINTER                :: local_particles
       REAL(KIND=dp), INTENT(OUT)                         :: e_self, e_neut
       LOGICAL, DIMENSION(3, 3), INTENT(IN)               :: task
@@ -1221,6 +1221,7 @@ CONTAINS
             END IF
          END DO
       END DO
+
    END SUBROUTINE ewald_multipole_self
 
 ! **************************************************************************************************

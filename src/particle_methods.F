@@ -319,7 +319,7 @@ CONTAINS
             ! in the xy plane.
             NULLIFY (cell_dcd)
             CALL cell_create(cell_dcd)
-            CALL cell_clone(cell, cell_dcd)
+            CALL cell_clone(cell, cell_dcd, tag="CELL_DCD")
             angles(1) = angle_alpha/degree
             angles(2) = angle_beta/degree
             angles(3) = angle_gamma/degree

@@ -40,6 +40,13 @@
    C        0                 0  6.366
    MULTIPLE_UNIT_CELL 3 3 3
    PERIODIC XYZ
+   &CELL_REF
+    A  3.850/2 -3.850*${Sqrt3}/2      0
+    B  3.850/2  3.850*${Sqrt3}/2      0
+    C        0                 0  6.366
+    MULTIPLE_UNIT_CELL 3 3 3
+    PERIODIC XYZ
+   &END CELL_REF
   &END CELL
   &TOPOLOGY
    MULTIPLE_UNIT_CELL 3 3 3

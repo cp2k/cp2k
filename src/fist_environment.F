@@ -144,7 +144,8 @@ CONTAINS
       CALL get_cell(cell, abc=abc)
 
       ! Print the cell parameters
-      CALL write_cell(cell, subsys_section, cell_ref)
+      CALL write_cell(cell, subsys_section)
+      CALL write_cell(cell_ref, subsys_section)
 
       ! Create the ewald environment
       ALLOCATE (ewald_env)

@@ -47,6 +47,7 @@ MODULE cell_methods
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE machine,                         ONLY: default_output_unit
    USE mathconstants,                   ONLY: degree,&
                                               sqrt3
    USE mathlib,                         ONLY: angle,&
@@ -75,16 +76,18 @@ CONTAINS
 !> \param cell the cell to initialize
 !> \param hmat the h matrix that defines the cell
 !> \param periodic periodicity of the cell
+!> \param tag ...
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE cell_create(cell, hmat, periodic)
+   SUBROUTINE cell_create(cell, hmat, periodic, tag)
 
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: periodic
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: tag
 
       CPASSERT(.NOT. ASSOCIATED(cell))
       ALLOCATE (cell)
@@ -97,6 +100,7 @@ CONTAINS
       cell%orthorhombic = .FALSE.
       cell%symmetry_id = cell_sym_none
       IF (PRESENT(hmat)) CALL init_cell(cell, hmat)
+      IF (PRESENT(tag)) cell%tag = tag
 
    END SUBROUTINE cell_create
 
@@ -111,7 +115,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_cell(cell, hmat, periodic)
 
-      TYPE(cell_type), INTENT(INOUT)                     :: cell
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: periodic
@@ -124,15 +128,18 @@ CONTAINS
                                                             norm_c
       REAL(KIND=dp), DIMENSION(3)                        :: abc
 
+      CPASSERT(ASSOCIATED(cell))
+
       IF (PRESENT(hmat)) cell%hmat(:, :) = hmat(:, :)
       IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
 
       cell%deth = ABS(det_3x3(cell%hmat))
 
       IF (cell%deth < 1.0E-10_dp) THEN
+         CALL write_cell_low(cell, "angstrom", default_output_unit)
          CALL cp_abort(__LOCATION__, &
                        "An invalid set of cell vectors was specified. "// &
-                       "The determinant det(h) is too small")
+                       "The cell volume is too small")
       END IF
 
       SELECT CASE (cell%symmetry_id)
@@ -242,7 +249,7 @@ CONTAINS
       IF (cell%deth < 1.0E-10_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "An invalid set of cell vectors was obtained after applying "// &
-                       "the requested cell symmetry. The determinant det(h) is too small")
+                       "the requested cell symmetry. The cell volume is too small")
       END IF
       cell%h_inv = inv_3x3(cell%hmat)
 
@@ -262,6 +269,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE read_cell(cell, cell_ref, use_ref_cell, cell_section, &
                                   check_for_ref, para_env)
+
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_ref_cell
       TYPE(section_vals_type), OPTIONAL, POINTER         :: cell_section
@@ -278,8 +286,8 @@ CONTAINS
 
       my_check = .TRUE.
       NULLIFY (cell_ref_section, cell_par, multiple_unit_cell)
-      IF (.NOT. ASSOCIATED(cell)) CALL cell_create(cell)
-      IF (.NOT. ASSOCIATED(cell_ref)) CALL cell_create(cell_ref)
+      IF (.NOT. ASSOCIATED(cell)) CALL cell_create(cell, tag="CELL")
+      IF (.NOT. ASSOCIATED(cell_ref)) CALL cell_create(cell_ref, tag="CELL_REF")
       IF (PRESENT(check_for_ref)) my_check = check_for_ref
 
       cell%deth = 0.0_dp
@@ -367,14 +375,13 @@ CONTAINS
       CALL init_cell(cell)
 
       IF (.NOT. my_check) RETURN
-      cell_ref_section => section_vals_get_subs_vals(cell_section, &
-                                                     "CELL_REF")
+      cell_ref_section => section_vals_get_subs_vals(cell_section, "CELL_REF")
       IF (parsed_cp2k_input(cell_ref_section, check_this_section=.TRUE.)) THEN
          IF (PRESENT(use_ref_cell)) use_ref_cell = .TRUE.
          CALL read_cell(cell_ref, cell_ref, use_ref_cell, cell_section=cell_ref_section, &
                         check_for_ref=.FALSE., para_env=para_env)
       ELSE
-         CALL cell_clone(cell, cell_ref)
+         CALL cell_clone(cell, cell_ref, tag="CELL_REF")
          IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
       END IF
 
@@ -389,6 +396,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION parsed_cp2k_input(input_file, check_this_section) RESULT(res)
+
       TYPE(section_vals_type), POINTER                   :: input_file
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_this_section
       LOGICAL                                            :: res
@@ -408,6 +416,7 @@ CONTAINS
             CALL section_vals_get(input_file, explicit=res)
          END IF
       END IF
+
    END FUNCTION parsed_cp2k_input
 
 ! **************************************************************************************************
@@ -425,16 +434,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_cell_param(cell, cell_length, cell_angle, periodic, do_init_cell)
 
-      TYPE(cell_type), INTENT(INOUT)                     :: cell
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: cell_length, cell_angle
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: periodic
       LOGICAL, INTENT(IN)                                :: do_init_cell
 
-      REAL(KIND=dp)                                      :: cos_alpha, cos_beta, cos_gamma, eps, &
-                                                            sin_gamma
+      REAL(KIND=dp), PARAMETER                           :: eps = EPSILON(0.0_dp)
 
+      REAL(KIND=dp)                                      :: cos_alpha, cos_beta, cos_gamma, sin_gamma
+
+      CPASSERT(ASSOCIATED(cell))
       CPASSERT(ALL(cell_angle /= 0.0_dp))
-      eps = EPSILON(0.0_dp)
+
       cos_gamma = COS(cell_angle(3)); IF (ABS(cos_gamma) < eps) cos_gamma = 0.0_dp
       IF (ABS(ABS(cos_gamma) - 1.0_dp) < eps) cos_gamma = SIGN(1.0_dp, cos_gamma)
       sin_gamma = SIN(cell_angle(3)); IF (ABS(sin_gamma) < eps) sin_gamma = 0.0_dp
@@ -476,14 +487,15 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
 
-      ! Abort, if one of the value is set to zero
+      CPASSERT(ASSOCIATED(cell))
 
+      ! Abort, if one of the value is set to zero
       IF (ANY(multiple_unit_cell <= 0)) &
          CALL cp_abort(__LOCATION__, &
                        "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "// &
                        "A value of 0 or negative is meaningless!")
 
-      ! scale abc accordingly user request
+      ! Scale abc according to user request
       cell%hmat(:, 1) = cell%hmat(:, 1)*multiple_unit_cell(1)
       cell%hmat(:, 2) = cell%hmat(:, 2)*multiple_unit_cell(2)
       cell%hmat(:, 3) = cell%hmat(:, 3)*multiple_unit_cell(3)
@@ -600,6 +612,7 @@ CONTAINS
 !>         moved from topology_cif (1/2019 JHU)
 ! **************************************************************************************************
    SUBROUTINE read_cell_cif(cif_file_name, cell, para_env)
+
       CHARACTER(len=*)                                   :: cif_file_name
       TYPE(cell_type), POINTER                           :: cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -686,6 +699,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
    SUBROUTINE cif_get_real(parser, r)
+
       TYPE(cp_parser_type), INTENT(INOUT)                :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
@@ -696,52 +710,85 @@ CONTAINS
       iln = LEN_TRIM(s_tag)
       IF (INDEX(s_tag, "(") /= 0) iln = INDEX(s_tag, "(") - 1
       READ (s_tag(1:iln), *) r
+
    END SUBROUTINE cif_get_real
 
 ! **************************************************************************************************
 !> \brief   Write the cell parameters to the output unit.
 !> \param cell ...
 !> \param subsys_section ...
-!> \param cell_ref ...
-!> \param label ...
+!> \param tag ...
 !> \date    02.06.2000
 !> \par     History
 !>    - 11.2008 Teodoro Laino [tlaino] - rewrite and enabling user driven units
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE write_cell(cell, subsys_section, cell_ref, label)
+   SUBROUTINE write_cell(cell, subsys_section, tag)
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: tag
+
+      CHARACTER(LEN=default_string_length)               :: label, unit_str
+      INTEGER                                            :: output_unit
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      IF (PRESENT(tag)) THEN
+         label = TRIM(tag)//"|"
+      ELSE
+         label = TRIM(cell%tag)//"|"
+      END IF
+
+      output_unit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%CELL", extension=".Log")
+      CALL section_vals_val_get(subsys_section, "PRINT%CELL%UNIT", c_val=unit_str)
+      CALL write_cell_low(cell, unit_str, output_unit, label)
+      CALL cp_print_key_finished_output(output_unit, logger, subsys_section, "PRINT%CELL")
+
+   END SUBROUTINE write_cell
+
+! **************************************************************************************************
+!> \brief  Write the cell parameters to the output unit
+!> \param cell ...
+!> \param unit_str ...
+!> \param output_unit ...
+!> \param label ...
+!> \date  17.05.2023
+!> \par   History
+!>        - Extracted from write_cell (17.05.2023, MK)
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE write_cell_low(cell, unit_str, output_unit, label)
+
+      TYPE(cell_type), POINTER                           :: cell
+      CHARACTER(LEN=*), INTENT(IN)                       :: unit_str
+      INTEGER, INTENT(IN)                                :: output_unit
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: label
 
+      CHARACTER(LEN=12)                                  :: tag
       CHARACTER(LEN=3)                                   :: string
-      CHARACTER(LEN=default_string_length)               :: my_label, unit_str
-      INTEGER                                            :: output_unit
+      CHARACTER(LEN=default_string_length)               :: my_label
       REAL(KIND=dp)                                      :: alpha, beta, gamma, val
       REAL(KIND=dp), DIMENSION(3)                        :: abc
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
 
       NULLIFY (enum)
       NULLIFY (keyword)
-      NULLIFY (logger)
       NULLIFY (section)
-      logger => cp_get_default_logger()
-      my_label = "CELL|"
-      IF (PRESENT(label)) my_label = TRIM(label)
-      output_unit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%CELL", &
-                                         extension=".Log")
-      CALL section_vals_val_get(subsys_section, "PRINT%CELL%UNIT", c_val=unit_str)
+
       IF (output_unit > 0) THEN
-         CALL get_cell(cell=cell, abc=abc, alpha=alpha, beta=beta, gamma=gamma)
-         WRITE (UNIT=output_unit, FMT='( )')
+         CALL get_cell(cell=cell, abc=abc, alpha=alpha, beta=beta, gamma=gamma, tag=tag)
+         IF (PRESENT(label)) THEN
+            my_label = label
+         ELSE
+            my_label = TRIM(tag)//"|"
+         END IF
          val = cp_unit_from_cp2k(cell%deth, TRIM(unit_str)//"^3")
-         WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.6)") &
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,F20.6)") &
             TRIM(my_label)//" Volume ["//TRIM(unit_str)//"^3]:", val
          val = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
          WRITE (UNIT=output_unit, FMT="(T2,A,T30,3F10.3,3X,A6,F12.6)") &
@@ -783,13 +830,7 @@ CONTAINS
                TRIM(my_label)//" Periodicity", ADJUSTR(string)
          END IF
       END IF
-      CALL cp_print_key_finished_output(output_unit, logger, subsys_section, &
-                                        "PRINT%CELL")
 
-      IF (PRESENT(cell_ref)) THEN
-         CALL write_cell(cell_ref, subsys_section, label="CELL_REF|")
-      END IF
-
-   END SUBROUTINE write_cell
+   END SUBROUTINE write_cell_low
 
 END MODULE cell_methods

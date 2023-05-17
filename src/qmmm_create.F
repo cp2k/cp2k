@@ -243,6 +243,7 @@ CONTAINS
       CALL fist_init(fist_env, root_section, para_env, force_env_section, &
                      subsys_section, use_motion_section, prev_subsys=prev_subsys)
       CALL fist_env_get(fist_env, subsys=subsys_mm, cell=mm_cell)
+      mm_cell%tag = "CELL_MM"
 
       ! Set up QM/MM Options
       CALL setup_qmmm_vars_qm(qmmm_section, &
@@ -283,8 +284,7 @@ CONTAINS
             WRITE (iw, '(A,I8)') " Number of MM atoms with image charge: ", &
                qmmm_env_qm%num_image_mm_atoms
          END IF
-         WRITE (iw, '(A)') " QM cell ::"
-         CALL write_cell(qm_cell_small, subsys_section)
+         CALL write_cell(mm_cell, subsys_section)
       END IF
       CALL get_cell(qm_cell_small, abc=abc_qm)
       CALL get_cell(mm_cell, abc=abc_mm)
@@ -369,7 +369,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(super_cell)) THEN
             ALLOCATE (super_cell)
          END IF
-         CALL cell_clone(mm_cell, super_cell)
+         CALL cell_clone(mm_cell, super_cell, tag="SUPER_CELL")
          CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic)
          CALL cell_release(super_cell)
       END IF

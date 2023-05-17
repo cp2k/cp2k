@@ -90,7 +90,8 @@ CONTAINS
       CALL get_cell(cell, abc=abc)
 
       ! Print the cell parameters ***
-      CALL write_cell(cell, subsys_section, cell_ref)
+      CALL write_cell(cell, subsys_section)
+      CALL write_cell(cell_ref, subsys_section)
 
       CALL embed_init_subsys(embed_env, subsys, cell, cell_ref, &
                              force_env_section, subsys_section)

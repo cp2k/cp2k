@@ -172,6 +172,8 @@ CONTAINS
       CALL rs_grid_set_box(grid_b, rs=rden)
       CALL rs_grid_zero(rden)
 
+      CPASSERT(ASSOCIATED(box))
+
       IF (rden%desc%parallel .AND. rden%desc%distributed) THEN
          CALL get_center(particle_set, box, exp_igr%centre, exp_igr%delta, grid_b%npts, 1)
       END IF
@@ -505,7 +507,7 @@ CONTAINS
       TYPE(dg_type), POINTER                             :: dg
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(structure_factor_type)                        :: exp_igr
-      TYPE(cell_type), INTENT(IN)                        :: box
+      TYPE(cell_type), POINTER                           :: box
       INTEGER, INTENT(IN)                                :: p1, p2
       TYPE(pw_grid_type), INTENT(IN)                     :: grid_b, grid_s
       TYPE(pw_type), INTENT(INOUT)                       :: rhos1, rhos2
@@ -579,6 +581,8 @@ CONTAINS
          ey1 => exp_igr%ey(:, p1)
          ez1 => exp_igr%ez(:, p1)
       END IF
+
+      CPASSERT(ASSOCIATED(box))
 
       CALL dg_get_strucfac(box%hmat, r1, grid_s%npts, grid_b%npts, center1, &
                            exp_igr%lb, ex1, ey1, ez1)

@@ -12,6 +12,7 @@
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! **************************************************************************************************
 MODULE cell_opt_types
+
    USE cell_methods,                    ONLY: cell_create
    USE cell_opt_utils,                  ONLY: read_external_press_tensor
    USE cell_types,                      ONLY: cell_clone,&
@@ -93,7 +94,7 @@ CONTAINS
       NULLIFY (cell_env%ref_cell, cell, subsys, particles)
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL cell_create(cell_env%ref_cell)
-      CALL cell_clone(cell, cell_env%ref_cell)
+      CALL cell_clone(cell, cell_env%ref_cell, tag="REF_CELL_OPT")
       CALL section_vals_val_get(geo_section, "KEEP_ANGLES", l_val=cell_env%keep_angles)
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
