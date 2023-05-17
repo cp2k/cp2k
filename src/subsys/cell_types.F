@@ -13,8 +13,7 @@
 !> \author Matthias KracK (16.01.2002, based on a earlier version of CJM, JGH)
 ! **************************************************************************************************
 MODULE cell_types
-   USE cp_units,                        ONLY: cp_unit_to_cp2k,&
-                                              cp_units_rad
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: degree
    USE mathlib,                         ONLY: angle
@@ -54,11 +53,14 @@ MODULE cell_types
 !> \version 1.0
 ! **************************************************************************************************
    TYPE cell_type
-      INTEGER                           :: ref_count = -1, symmetry_id = use_perd_none
+      CHARACTER(LEN=12)                 :: tag = "CELL"
+      INTEGER                           :: ref_count = -1, &
+                                           symmetry_id = use_perd_none
       LOGICAL                           :: orthorhombic = .FALSE. ! actually means a diagonal hmat
       REAL(KIND=dp)                     :: deth = 0.0_dp
       INTEGER, DIMENSION(3)             :: perd = -1
-      REAL(KIND=dp), DIMENSION(3, 3)    :: hmat = 0.0_dp, h_inv = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)    :: hmat = 0.0_dp, &
+                                           h_inv = 0.0_dp
    END TYPE cell_type
 
    TYPE cell_p_type
@@ -75,7 +77,6 @@ MODULE cell_types
              cell_release, &
              cell_retain, &
              get_cell, &
-             get_cell_param, &
              parse_cell_line
 
 #if defined (__PLUMED2)
@@ -95,29 +96,36 @@ MODULE cell_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param cell_in ...
-!> \param cell_out ...
+!> \brief Clone cell variable
+!> \param cell_in Cell variable to be clone
+!> \param cell_out Cloned cell variable
+!> \param tag Optional new tag for cloned cell variable
+!> \par History
+!>      - Optional tag added (17.05.2023, MK)
 ! **************************************************************************************************
-   SUBROUTINE cell_clone(cell_in, cell_out)
+   SUBROUTINE cell_clone(cell_in, cell_out, tag)
 
-      TYPE(cell_type), INTENT(IN)                        :: cell_in
-      TYPE(cell_type), INTENT(OUT)                       :: cell_out
+      TYPE(cell_type), POINTER                           :: cell_in, cell_out
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: tag
 
       cell_out = cell_in
       cell_out%ref_count = 1
+      IF (PRESENT(tag)) cell_out%tag = tag
 
    END SUBROUTINE cell_clone
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param cell_in ...
-!> \param cell_out ...
+!> \brief Copy cell variable
+!> \param cell_in Cell variable to be copied
+!> \param cell_out Copy of cell variable
+!> \param tag Optional new tag
+!> \par History
+!>      - Optional tag added (17.05.2023, MK)
 ! **************************************************************************************************
-   SUBROUTINE cell_copy(cell_in, cell_out)
+   SUBROUTINE cell_copy(cell_in, cell_out, tag)
 
-      TYPE(cell_type), INTENT(IN)                        :: cell_in
-      TYPE(cell_type), INTENT(INOUT)                     :: cell_out
+      TYPE(cell_type), POINTER                           :: cell_in, cell_out
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: tag
 
       cell_out%deth = cell_in%deth
       cell_out%perd = cell_in%perd
@@ -125,6 +133,11 @@ CONTAINS
       cell_out%h_inv = cell_in%h_inv
       cell_out%orthorhombic = cell_in%orthorhombic
       cell_out%symmetry_id = cell_in%symmetry_id
+      IF (PRESENT(tag)) THEN
+         cell_out%tag = tag
+      ELSE
+         cell_out%tag = cell_in%tag
+      END IF
 
    END SUBROUTINE cell_copy
 
@@ -140,6 +153,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE parse_cell_line(input_line, cell_itimes, cell_time, h, vol)
+
       CHARACTER(LEN=*), INTENT(IN)                       :: input_line
       INTEGER, INTENT(OUT)                               :: cell_itimes
       REAL(KIND=dp), INTENT(OUT)                         :: cell_time
@@ -171,14 +185,15 @@ CONTAINS
 !> \param h ...
 !> \param h_inv ...
 !> \param symmetry_id ...
+!> \param tag ...
 !> \date    16.01.2002
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_cell(cell, alpha, beta, gamma, deth, orthorhombic, abc, periodic, &
-                       h, h_inv, symmetry_id)
+                       h, h_inv, symmetry_id, tag)
 
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha, beta, gamma, deth
       LOGICAL, INTENT(OUT), OPTIONAL                     :: orthorhombic
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: abc
@@ -186,6 +201,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h, h_inv
       INTEGER, INTENT(OUT), OPTIONAL                     :: symmetry_id
+      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: tag
+
+      CPASSERT(ASSOCIATED(cell))
 
       IF (PRESENT(deth)) deth = cell%deth ! the volume
       IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
@@ -214,43 +232,9 @@ CONTAINS
       ! gamma = <(a,b)
       IF (PRESENT(gamma)) gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))*degree
       IF (PRESENT(symmetry_id)) symmetry_id = cell%symmetry_id
+      IF (PRESENT(tag)) tag = cell%tag
 
    END SUBROUTINE get_cell
-
-! **************************************************************************************************
-!> \brief   Access internal type variables
-!> \param cell ...
-!> \param cell_length ...
-!> \param cell_angle ...
-!> \param units_angle ...
-!> \param periodic ...
-!> \date    04.04.2002
-!> \author  Matthias Krack
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE get_cell_param(cell, cell_length, cell_angle, units_angle, periodic)
-
-      TYPE(cell_type), INTENT(IN)                        :: cell
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: cell_length
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: cell_angle
-      INTEGER, INTENT(IN), OPTIONAL                      :: units_angle
-      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: periodic
-
-      REAL(KIND=dp)                                      :: alpha, beta, gamma
-
-      CALL get_cell(cell=cell, abc=cell_length)
-
-      IF (PRESENT(cell_angle)) THEN
-         CALL get_cell(cell=cell, alpha=alpha, beta=beta, gamma=gamma)
-         cell_angle(:) = (/alpha, beta, gamma/)
-         IF (PRESENT(units_angle)) THEN
-            IF (units_angle == cp_units_rad) cell_angle = cell_angle/degree
-         END IF
-      END IF
-
-      IF (PRESENT(periodic)) CALL get_cell(cell=cell, periodic=periodic)
-
-   END SUBROUTINE get_cell_param
 
 ! **************************************************************************************************
 !> \brief   Calculate the distance between two lattice planes as defined by
@@ -267,7 +251,7 @@ CONTAINS
    FUNCTION plane_distance(h, k, l, cell) RESULT(distance)
 
       INTEGER, INTENT(IN)                                :: h, k, l
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp)                                      :: distance
 
       REAL(KIND=dp)                                      :: a, alpha, b, beta, c, cosa, cosb, cosg, &
@@ -331,10 +315,12 @@ CONTAINS
    FUNCTION pbc1(r, cell) RESULT(r_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
 
       REAL(KIND=dp), DIMENSION(3)                        :: s
+
+      CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)*ANINT(cell%h_inv(1, 1)*r(1))
@@ -368,11 +354,13 @@ CONTAINS
    FUNCTION pbc2(r, cell, nl) RESULT(r_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       INTEGER, DIMENSION(3), INTENT(IN)                  :: nl
       REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
 
       REAL(KIND=dp), DIMENSION(3)                        :: s
+
+      CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)* &
@@ -409,7 +397,7 @@ CONTAINS
    FUNCTION pbc3(ra, rb, cell) RESULT(rab_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(3)                        :: rab_pbc
 
       INTEGER                                            :: icell, jcell, kcell
@@ -454,11 +442,13 @@ CONTAINS
    FUNCTION pbc4(r, cell, positive_range) RESULT(r_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       LOGICAL                                            :: positive_range
       REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
 
       REAL(KIND=dp), DIMENSION(3)                        :: s
+
+      CPASSERT(ASSOCIATED(cell))
 
       IF (positive_range) THEN
          IF (cell%orthorhombic) THEN
@@ -496,7 +486,9 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: s
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
+
+      CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
          s(1) = cell%h_inv(1, 1)*r(1)
@@ -524,7 +516,9 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: r
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: s
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
+
+      CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
          r(1) = cell%hmat(1, 1)*s(1)
@@ -588,12 +582,13 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE pbc_cp2k_plumed_getset_cell(cell, set)
+
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL                                            :: set
 
       TYPE(cell_type), POINTER, SAVE                     :: stored_cell
 
-      IF (set .EQV. .TRUE.) THEN
+      IF (set) THEN
          stored_cell => cell
       ELSE
          cell => stored_cell

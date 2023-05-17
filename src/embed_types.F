@@ -258,9 +258,9 @@ CONTAINS
       END IF
       IF (PRESENT(subsys)) THEN
          IF (ASSOCIATED(embed_env%subsys)) THEN
-         IF (.NOT. ASSOCIATED(embed_env%subsys, subsys)) THEN
-            CALL cp_subsys_release(embed_env%subsys)
-         END IF
+            IF (.NOT. ASSOCIATED(embed_env%subsys, subsys)) THEN
+               CALL cp_subsys_release(embed_env%subsys)
+            END IF
          END IF
          embed_env%subsys => subsys
       END IF

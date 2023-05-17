@@ -181,7 +181,7 @@ CONTAINS
       ! 2. Get the cell info
       CALL read_cell(topology%cell, topology%cell_ref, cell_section=cell_section, &
                      para_env=para_env)
-      CALL write_cell(topology%cell, subsys_section, label="CELL_TOP|")
+      CALL write_cell(topology%cell, subsys_section, tag="CELL_TOP")
       CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
 
       ! 3. Read in the topology section in the input file if any
@@ -644,10 +644,9 @@ CONTAINS
          hmat_ref(:, 1) = cell%hmat(:, 1)/multiple_unit_cell(1)
          hmat_ref(:, 2) = cell%hmat(:, 2)/multiple_unit_cell(2)
          hmat_ref(:, 3) = cell%hmat(:, 3)/multiple_unit_cell(3)
-
          ! Create the MUC cell
-         CALL cell_create(cell_muc, hmat=hmat_ref, periodic=cell%perd)
-         CALL write_cell(cell_muc, subsys_section, label="CELL_UC|")
+         CALL cell_create(cell_muc, hmat=hmat_ref, periodic=cell%perd, tag="CELL_UC")
+         CALL write_cell(cell_muc, subsys_section)
       ELSE
          ! If a multiple_unit_cell was not requested just point to the original cell
          CALL cell_retain(cell)
@@ -657,4 +656,3 @@ CONTAINS
    END SUBROUTINE setup_cell_muc
 
 END MODULE topology
-

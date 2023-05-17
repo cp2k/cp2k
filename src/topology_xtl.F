@@ -169,10 +169,10 @@ CONTAINS
 
       ! Create cell
       NULLIFY (cell)
-      CALL cell_create(cell)
+      CALL cell_create(cell, tag="CELL_XTL")
       CALL set_cell_param(cell, cell_lengths, cell_angles, periodic=periodic, &
                           do_init_cell=.TRUE.)
-      CALL write_cell(cell, subsys_section, label="CELL_XTL|")
+      CALL write_cell(cell, subsys_section)
 
       ! Parse atoms info and fractional coordinates
       ! Check for   _atom_site_label

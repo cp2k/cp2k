@@ -1032,7 +1032,7 @@ CONTAINS
       CALL force_env_get(force_env, subsys=oldsys, cell=cell)
       CALL get_cell(cell, abc=abc)
       CALL cell_create(cell_old)
-      CALL cell_clone(cell, cell_old)
+      CALL cell_clone(cell, cell_old, tag="CELL_OLD")
       CALL cp_subsys_get(oldsys, particles=particles_old)
 
 ! find the old cell length

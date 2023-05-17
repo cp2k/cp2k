@@ -21,10 +21,7 @@ MODULE mp2_eri
                                 get_atomic_kind_set
    USE basis_set_types, ONLY: gto_basis_set_p_type, &
                               gto_basis_set_type
-   USE cell_methods, ONLY: cell_create, &
-                           init_cell
-   USE cell_types, ONLY: cell_release, &
-                         cell_type, &
+   USE cell_types, ONLY: cell_type, &
                          pbc
    USE cp_eri_mme_interface, ONLY: cp_eri_mme_finalize, &
                                    cp_eri_mme_init_read_input, &

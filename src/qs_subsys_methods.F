@@ -109,7 +109,7 @@ CONTAINS
             use_ref_cell = .TRUE.
          ELSE
             CALL cell_create(my_cell_ref)
-            CALL cell_clone(my_cell, my_cell_ref)
+            CALL cell_clone(my_cell, my_cell_ref, tag="CELL_REF")
             use_ref_cell = .FALSE.
          END IF
       ELSE
@@ -118,7 +118,8 @@ CONTAINS
                         cell_section=cell_section, para_env=para_env)
       END IF
       CALL cp_subsys_set(my_cp_subsys, cell=my_cell)
-      CALL write_cell(my_cell, subsys_section, cell_ref=my_cell_ref)
+      CALL write_cell(my_cell, subsys_section)
+      CALL write_cell(my_cell_ref, subsys_section)
 
       ! setup qs_kinds
       CALL cp_subsys_get(my_cp_subsys, atomic_kind_set=atomic_kind_set)

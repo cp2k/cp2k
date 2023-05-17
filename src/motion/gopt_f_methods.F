@@ -989,7 +989,7 @@ CONTAINS
 
       ! Retrieve the reference cell
       CALL cell_create(cell_ref)
-      CALL cell_copy(cell, cell_ref)
+      CALL cell_copy(cell, cell_ref, tag="CELL_OPT_REF")
 
       ! Load the updated cell information
       SELECT CASE (gopt_env%cell_method_id)

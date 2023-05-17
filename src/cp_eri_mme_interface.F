@@ -343,7 +343,7 @@ CONTAINS
    SUBROUTINE eri_mme_set_params_from_basis(param, cell, qs_kind_set, basis_type_1, basis_type_2, para_env, &
                                             potential, pot_par)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      TYPE(cell_type), INTENT(IN)                        :: cell
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
       CHARACTER(len=*), INTENT(IN)                       :: basis_type_1

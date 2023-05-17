@@ -934,7 +934,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE update_veps(box, npt, simpar, pv_kin, kin, virial, infree, virial_components)
 
-      TYPE(cell_type), INTENT(IN)                        :: box
+      TYPE(cell_type), POINTER                           :: box
       TYPE(npt_info_type), DIMENSION(:, :), &
          INTENT(INOUT)                                   :: npt
       TYPE(simpar_type), INTENT(IN)                      :: simpar
@@ -948,7 +948,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: fdotr, trace, v, v0, v0i, vi
       REAL(KIND=dp), DIMENSION(3, 3)                     :: unit
 
-! initialize unit
+      CPASSERT(ASSOCIATED(box))
+
+      ! Initialize unit
 
       unit = 0.0_dp
       unit(1, 1) = 1.0_dp

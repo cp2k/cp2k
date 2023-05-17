@@ -255,10 +255,13 @@ CONTAINS
 !> \param weights ...
 ! **************************************************************************************************
    SUBROUTINE initialize_weights(cell, weights)
-      TYPE(cell_type), INTENT(IN)                        :: cell
+
+      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:)                        :: weights
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: metric
+
+      CPASSERT(ASSOCIATED(cell))
 
       metric = 0.0_dp
       CALL dgemm('T', 'N', 3, 3, 3, 1._dp, cell%hmat(:, :), 3, cell%hmat(:, :), 3, 0.0_dp, metric(:, :), 3)
