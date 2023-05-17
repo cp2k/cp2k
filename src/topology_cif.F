@@ -11,10 +11,10 @@
 !> \date   12.2008
 ! **************************************************************************************************
 MODULE topology_cif
-   USE cell_methods,                    ONLY: read_cell_cif,&
+   USE cell_methods,                    ONLY: cell_create,&
+                                              read_cell_cif,&
                                               write_cell
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
+   USE cell_types,                      ONLY: cell_release,&
                                               cell_type,&
                                               pbc,&
                                               real_to_scaled,&

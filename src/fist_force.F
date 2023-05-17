@@ -17,8 +17,8 @@ MODULE fist_force
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE atprop_types,                    ONLY: atprop_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              init_cell
+   USE cell_methods,                    ONLY: init_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -78,18 +78,17 @@ MODULE fist_force
    PUBLIC :: fist_calc_energy_force
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
-! **************************************************************************************************
    TYPE debug_variables_type
-      REAL(KIND=dp)                          :: pot_manybody, pot_bend, pot_torsion
-      REAL(KIND=dp)                          :: pot_nonbond, pot_g, pot_bond
-      REAL(KIND=dp)                          :: pot_imptors, pot_urey_bradley
-      REAL(KIND=dp)                          :: pot_opbend
+      REAL(KIND=dp)                           :: pot_manybody, pot_bend, pot_torsion
+      REAL(KIND=dp)                           :: pot_nonbond, pot_g, pot_bond
+      REAL(KIND=dp)                           :: pot_imptors, pot_urey_bradley
+      REAL(KIND=dp)                           :: pot_opbend
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: f_nonbond, f_g, f_bond, f_bend, &
                                                  f_torsion, f_imptors, f_ub, &
                                                  f_opbend
-      REAL(KIND=dp), DIMENSION(3, 3)         :: pv_nonbond, pv_g, pv_bond, pv_ub, &
-                                                pv_bend, pv_torsion, pv_imptors, &
-                                                pv_opbend
+      REAL(KIND=dp), DIMENSION(3, 3)          :: pv_nonbond, pv_g, pv_bond, pv_ub, &
+                                                 pv_bend, pv_torsion, pv_imptors, &
+                                                 pv_opbend
    END TYPE debug_variables_type
 
 CONTAINS

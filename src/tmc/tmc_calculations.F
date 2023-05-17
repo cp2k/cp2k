@@ -13,10 +13,10 @@
 ! **************************************************************************************************
 
 MODULE tmc_calculations
+   USE cell_methods,                    ONLY: init_cell
    USE cell_types,                      ONLY: cell_copy,&
                                               cell_type,&
                                               get_cell,&
-                                              init_cell,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_to_string
    USE f77_interface,                   ONLY: calc_energy,&

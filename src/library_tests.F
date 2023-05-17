@@ -18,10 +18,10 @@
 MODULE library_tests
 
    USE ai_coulomb_test,                 ONLY: eri_test
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
-                                              cell_type,&
+   USE cell_methods,                    ONLY: cell_create,&
                                               init_cell
+   USE cell_types,                      ONLY: cell_release,&
+                                              cell_type
    USE cg_test,                         ONLY: clebsch_gordon_test
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&

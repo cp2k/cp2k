@@ -15,10 +15,10 @@ MODULE space_groups
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE bibliography,                    ONLY: Togo2018,&
                                               cite_reference
+   USE cell_methods,                    ONLY: cell_create,&
+                                              init_cell
    USE cell_types,                      ONLY: cell_copy,&
-                                              cell_create,&
                                               cell_type,&
-                                              init_cell,&
                                               real_to_scaled,&
                                               scaled_to_real
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&

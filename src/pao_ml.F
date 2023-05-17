@@ -13,8 +13,8 @@ MODULE pao_ml
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_type
+   USE cell_methods,                    ONLY: cell_create
+   USE cell_types,                      ONLY: cell_type
    USE dbcsr_api,                       ONLY: dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&

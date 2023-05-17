@@ -23,8 +23,8 @@ MODULE f77_interface
                                               timeset_hook,&
                                               timestop_hook
    USE bibliography,                    ONLY: add_all_references
-   USE cell_types,                      ONLY: cell_type,&
-                                              init_cell
+   USE cell_methods,                    ONLY: init_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp2k_info,                       ONLY: get_runtime_info
    USE cp_error_handling,               ONLY: cp_error_handling_setup
    USE cp_files,                        ONLY: init_preconnection_list,&

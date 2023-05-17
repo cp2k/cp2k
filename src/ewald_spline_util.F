@@ -13,8 +13,8 @@
 !> \author Teodoro Laino
 ! **************************************************************************************************
 MODULE ewald_spline_util
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
+   USE cell_methods,                    ONLY: cell_create
+   USE cell_types,                      ONLY: cell_release,&
                                               cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type

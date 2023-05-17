@@ -21,10 +21,10 @@ MODULE ipi_driver
    USE bibliography,                    ONLY: Ceriotti2014,&
                                               Kapil2016,&
                                               cite_reference
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
-                                              cell_type,&
+   USE cell_methods,                    ONLY: cell_create,&
                                               init_cell
+   USE cell_types,                      ONLY: cell_release,&
+                                              cell_type
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&

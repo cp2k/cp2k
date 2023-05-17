@@ -11,10 +11,10 @@
 
 MODULE cp_eri_mme_interface
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
+   USE cell_methods,                    ONLY: cell_create,&
+                                              init_cell
+   USE cell_types,                      ONLY: cell_release,&
                                               cell_type,&
-                                              init_cell,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type

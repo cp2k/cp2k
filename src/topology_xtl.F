@@ -11,13 +11,13 @@
 !> \date   05.2009
 ! **************************************************************************************************
 MODULE topology_xtl
-   USE cell_methods,                    ONLY: write_cell
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
+   USE cell_methods,                    ONLY: cell_create,&
+                                              set_cell_param,&
+                                              write_cell
+   USE cell_types,                      ONLY: cell_release,&
                                               cell_type,&
                                               pbc,&
-                                              scaled_to_real,&
-                                              set_cell_param
+                                              scaled_to_real
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
