@@ -27,6 +27,8 @@ QS/regtest-almo-trustr/FHchain-dogleg.inp
 QS/regtest-dm-ls-scf-3/C_TRS4.inp
 QS/regtest-hfx-block/H2-block-06.inp
 QS/regtest-hfx-ri/Ne-hybrid-periodic-shortrange.inp
+QS/regtest-hfx-ri/CH-hfx-ri-rho.inp
+QS/regtest-hfx-ri/CH3-hfx-converged.inp
 QS/regtest-kp-2/Ar_1.inp
 QS/regtest-kp-2/cc1.inp
 QS/regtest-kp-2/cc2.inp
@@ -42,6 +44,7 @@ QS/regtest-ps-implicit-2-2/H2O_mixed_periodic_aa_planar.inp
 QS/regtest-ps-implicit-2-2/H2O_mixed_periodic_planar.inp
 QS/regtest-ps-implicit-2-3/H2O_mixed_periodic_cuboidal.inp
 QS/regtest-rel/Hg_rel.inp
+QS/regtest-rel/h2o-3.inp
 xTB/regtest-5/AdeThyvdW.inp
 xTB/regtest-5/ef_stress1.inp
 xTB/regtest-5/ef_stress3.inp
@@ -57,6 +60,7 @@ LIBTEST/libbqb/test_01.inp
 LIBTEST/libvori/test_02.inp
 xTB/regtest-1/si_kp.inp
 QS/regtest-tddfpt-3/ch2o_t2.inp
+QS/regtest-tddfpt-lri/h2o_lri01_only_es.inp
 QS/regtest-kg/H2_MD.inp
 QS/regtest-kg/geo-phase-1.inp
 QS/regtest-nonortho/graph_b111_gapw.inp
