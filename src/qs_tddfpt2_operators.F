@@ -207,7 +207,7 @@ CONTAINS
          CALL Vh_1c_gg_integrals(qs_env, pair_energy, &
                                  hartree_local%ecoul_1c, &
                                  local_rho_set, &
-                                 sub_env%para_env, tddft=.TRUE.)
+                                 sub_env%para_env, tddft=.TRUE., core_2nd=.TRUE.)
          CALL pw_scale(work_v_rspace, work_v_rspace%pw_grid%dvol)
          CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
                                     calculate_forces=.FALSE., &

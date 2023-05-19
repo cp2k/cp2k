@@ -436,7 +436,8 @@ CONTAINS
 
       IF (gapw) THEN
          CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, local_rho_set=local_rho_set)
-         CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+         CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
+                                 core_2nd=.FALSE.)
       END IF
 
       ! Check if CDFT constraint is needed

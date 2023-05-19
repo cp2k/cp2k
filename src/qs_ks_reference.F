@@ -363,7 +363,8 @@ CONTAINS
 
          IF (gapw) THEN
             CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c)
-            CALL Vh_1c_gg_integrals(qs_env, eh1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+            CALL Vh_1c_gg_integrals(qs_env, eh1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
+                                    core_2nd=.FALSE.)
          END IF
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)

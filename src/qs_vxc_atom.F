@@ -376,6 +376,7 @@ CONTAINS
 
                IF (.NOT. energy_only) THEN
                   NULLIFY (int_hh, int_ss)
+                  rho_atom => my_rho_atom_set(iatom)
                   CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, int_hh, int_ss, &
