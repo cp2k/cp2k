@@ -907,10 +907,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="coord", &
-                          description="The coordinates for simple systems (like small QM cells)"// &
-                          " are specified here by default using explicit XYZ coordinates.  "// &
-                          " More complex systems should be given via an external coordinate "// &
-                          " file in the SUBSYS%TOPOLOGY section.", &
+                          description="The coordinates for simple systems (like small QM cells) "// &
+                          "are specified here by default using explicit XYZ coordinates. "// &
+                          "Simple products and fractions combined with functions of a single "// &
+                          "number can be used like 2/3, 0.3*COS(60) or -SQRT(3)/2. "// &
+                          "More complex systems should be given via an external coordinate "// &
+                          "file in the SUBSYS%TOPOLOGY section.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
