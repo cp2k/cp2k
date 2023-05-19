@@ -312,14 +312,16 @@ CONTAINS
 !> \param para_env ...
 !> \param calculate_forces ...
 !> \param local_rho_set ...
+!> \param local_rho_set_2nd ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set)
+   SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set, &
+                                    local_rho_set_2nd)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
+      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set, local_rho_set_2nd
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace'
 
@@ -368,9 +370,9 @@ CONTAINS
       ! attribute 'OPTIONAL' from the argument 'local_rho_set'.
 
       ! CPASSERT(.NOT. (calculate_forces .AND. PRESENT(local_rho_set)))
-      IF (calculate_forces .AND. PRESENT(local_rho_set)) THEN
-         CPWARN("Forces and External Density")
-      END IF
+!      IF (calculate_forces .AND. PRESENT(local_rho_set)) THEN
+!         CPWARN("Forces and External Density!")
+!      END IF
 
       NULLIFY (atomic_kind_set, qs_kind_set, dft_control, particle_set)
       NULLIFY (cell, force, pw_env, rho0_mpole, rho_atom_set)
@@ -405,7 +407,12 @@ CONTAINS
 
       IF (PRESENT(local_rho_set)) &
          CALL get_local_rho(local_rho_set, rho0_mpole=rho0_mpole, rho_atom_set=rho_atom_set)
-
+      ! Q from rho0_mpole of local_rho_set
+      ! for TDDFT forces we need mixed potential / integral space
+      ! potential stored on local_rho_set_2nd
+      IF (PRESENT(local_rho_set_2nd)) THEN
+         CALL get_local_rho(local_rho_set_2nd, rho_atom_set=rho_atom_set)
+      END IF
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, lmax_0=lmax0, &
                           zet0_h=zet0, igrid_zet0_s=igrid, &
                           norm_g0l_h=norm_l)
@@ -494,7 +501,7 @@ CONTAINS
 
          NULLIFY (Qlm_gg, lmax, npgf)
          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
-                             l0_ikind=l0_ikind, Qlm_gg=Qlm_gg, &
+                             l0_ikind=l0_ikind, Qlm_gg=Qlm_gg, &  ! Qs different
                              rpgf0_s=rpgf0)
 
          CALL get_gto_basis_set(gto_basis_set=basis_1c_set, &
@@ -602,7 +609,7 @@ CONTAINS
                                  ig1 = iso1 + n1*(ipgf1 - 1) + m1
                                  ig2 = iso2 + n2*(ipgf2 - 1) + m2
 
-                                 intloc(ig1, ig2) = intloc(ig1, ig2) + Qlm_gg(ig1, ig2, iso)*hab_sph(iso)
+                                 intloc(ig1, ig2) = intloc(ig1, ig2) + Qlm_gg(ig1, ig2, iso)*hab_sph(iso) ! potential times Q
 
                               END DO ! icg
                            END DO ! iso
@@ -631,7 +638,7 @@ CONTAINS
                IF (calculate_forces) THEN
                   force_tmp(1:3) = 0.0_dp
                   DO iso = 1, nsoset(l0_ikind)
-                     force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1, iso)
+                     force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1, iso) ! Q here is from local_rho_set
                      force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2, iso)
                      force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3, iso)
                   END DO
@@ -642,6 +649,7 @@ CONTAINS
                   DO iso = 1, nsoset(l0_ikind)
                      DO ii = 1, 3
                      DO i = 1, 3
+                        ! Q from local_rho_set
                         virial%pv_gapw(i, ii) = virial%pv_gapw(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
                         virial%pv_virial(i, ii) = virial%pv_virial(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
                      END DO

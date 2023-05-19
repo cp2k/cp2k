@@ -425,7 +425,8 @@ CONTAINS
          END IF
          IF (gapw) THEN
             IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
-            CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, tddft=.TRUE.)
+            CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, tddft=.TRUE., &
+                                    core_2nd=.TRUE.)
             CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace, para_env, calculate_forces=.TRUE., &
                                        local_rho_set=local_rho_set)
             IF (debug_forces) THEN

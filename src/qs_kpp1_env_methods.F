@@ -527,7 +527,7 @@ CONTAINS
             CALL Vh_1c_gg_integrals(qs_env, energy_hartree_1c, &
                                     p_env%hartree_local%ecoul_1c, &
                                     p_env%local_rho_set, &
-                                    para_env, tddft=.TRUE.)
+                                    para_env, tddft=.TRUE., core_2nd=.TRUE.)
             CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
                                        calculate_forces=my_calc_forces, &
                                        local_rho_set=p_env%local_rho_set)

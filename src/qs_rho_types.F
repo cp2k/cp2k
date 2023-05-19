@@ -24,6 +24,8 @@ MODULE qs_rho_types
                                               kpoint_transitional_type,&
                                               set_1d_pointer,&
                                               set_2d_pointer
+   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                              pw_pool_type
    USE pw_types,                        ONLY: pw_release,&
                                               pw_type
 #include "./base/base_uses.f90"
@@ -35,7 +37,7 @@ MODULE qs_rho_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_types'
 
    PUBLIC :: qs_rho_p_type, qs_rho_type
-   PUBLIC :: qs_rho_release, &
+   PUBLIC :: qs_rho_release, qs_rho_clear_pwpool, &
              qs_rho_get, qs_rho_set, qs_rho_clear, qs_rho_create, qs_rho_unset_rho_ao
 
 ! **************************************************************************************************
@@ -337,5 +339,32 @@ CONTAINS
       IF (PRESENT(complex_rho_ao)) rho_struct%complex_rho_ao = complex_rho_ao
 
    END SUBROUTINE qs_rho_set
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_struct ...
+!> \param auxbas_pw_pool ...
+! **************************************************************************************************
+   SUBROUTINE qs_rho_clear_pwpool(rho_struct, auxbas_pw_pool)
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
+
+      INTEGER                                            :: i
+
+      IF (ASSOCIATED(rho_struct%rho_r)) THEN
+         DO i = 1, SIZE(rho_struct%rho_r)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_struct%rho_r(i))
+         END DO
+         DEALLOCATE (rho_struct%rho_r)
+         NULLIFY (rho_struct%rho_r)
+      END IF
+      IF (ASSOCIATED(rho_struct%rho_g)) THEN
+         DO i = 1, SIZE(rho_struct%rho_g)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_struct%rho_g(i))
+         END DO
+         DEALLOCATE (rho_struct%rho_g)
+         NULLIFY (rho_struct%rho_g)
+      END IF
+
+   END SUBROUTINE qs_rho_clear_pwpool
 
 END MODULE qs_rho_types
