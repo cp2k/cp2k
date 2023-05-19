@@ -12,6 +12,7 @@
 !> \author teo & fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_subsys
+
    USE bibliography,                    ONLY: Goedecker1996,&
                                               Guidon2010,&
                                               Hartwigsen1998,&
@@ -66,7 +67,7 @@ MODULE input_cp2k_subsys
              create_structure_data_section, &
              create_rng_section, &
              create_basis_section
-!***
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -83,14 +84,18 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, "CELL", &
-                          description="Input parameters needed to set up the simulation cell.")
+                          description="Input parameters needed to set up the simulation cell. "// &
+                          "Simple products and fractions combined with functions of a single "// &
+                          "number can be used like 2/3, 0.3*COS(60) or -SQRT(3)/2. The functions "// &
+                          "COS, EXP, LOG, LOG10, SIN, SQRT, and TAN are available.")
       CALL create_cell_section_low(section, periodic)
 
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, "CELL_REF", &
                           description="Input parameters needed to set up the reference cell. "// &
                           "This option can be used to keep the FFT grid fixed while "// &
-                          "running a cell optimization or NpT molecular dynamics.")
+                          "running a cell optimization or NpT molecular dynamics. "// &
+                          "Check the &CELL section for further details.")
       CALL create_cell_section_low(subsection, periodic)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -332,7 +337,6 @@ CONTAINS
       CALL create_shell_vel_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-
       CALL create_core_coord_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
