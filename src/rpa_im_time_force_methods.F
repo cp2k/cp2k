@@ -59,6 +59,7 @@ MODULE rpa_im_time_force_methods
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
+   USE hfx_exx,                         ONLY: add_exx_to_rhs
    USE hfx_ri,                          ONLY: get_2c_der_force,&
                                               get_force_from_3c_trace,&
                                               get_idx_to_atom,&
@@ -158,7 +159,6 @@ MODULE rpa_im_time_force_methods
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_type
    USE response_solver,                 ONLY: response_equation_new
-   USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE rpa_im_time,                     ONLY: compute_mat_dm_global
    USE rpa_im_time_force_types,         ONLY: im_time_force_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
@@ -2322,7 +2322,17 @@ CONTAINS
          hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
          CALL section_vals_get(hfx_section, explicit=do_exx)
       END IF
-      IF (do_exx) CALL add_exx_to_rhs(force_data%sum_O_tau, qs_env)
+
+      IF (do_exx) THEN
+         CALL add_exx_to_rhs(rhs=force_data%sum_O_tau, &
+                             qs_env=qs_env, &
+                             ext_hfx_section=hfx_section, &
+                             x_data=qs_env%mp2_env%ri_rpa%x_data, &
+                             recalc_integrals=.FALSE., &
+                             do_admm=qs_env%mp2_env%ri_rpa%do_admm, &
+                             do_exx=do_exx, &
+                             reuse_hfx=qs_env%mp2_env%ri_rpa%reuse_hfx)
+      END IF
 
       focc = 2.0_dp
       IF (nspins == 1) focc = 4.0_dp

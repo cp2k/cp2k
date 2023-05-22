@@ -5,6 +5,7 @@
 # the order will be regularly checked and modified...
 QS/regtest-wfn-restart
 QS/regtest-dcdft-force                                      libint libxc
+QS/regtest-dcdft-hfx                                        libint libxc
 QS/regtest-dcdft-stress                                     libint libxc
 QS/regtest-ec-stress                                        libint libxc
 QS/regtest-ri-rpa-grad                                      libint

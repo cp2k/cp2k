@@ -347,6 +347,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="ADMM", &
+         description="Decide whether to perform ADMM in the exact exchange calc. for DC-DFT. "// &
+         "The ADMM XC correction is governed by the AUXILIARY_DENSITY_MATRIX_METHOD section in &DFT. "// &
+         "In most cases, the Hartree-Fock exchange is not too expensive and there is no need for ADMM, "// &
+         "ADMM can however provide significant speedup and memory savings in case of diffuse basis sets. ", &
+         usage="ADMM", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_ec_section
 
 ! **************************************************************************************************

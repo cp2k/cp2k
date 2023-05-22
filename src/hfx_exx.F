@@ -6,13 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Routines to calculate EXX in RPA
+!> \brief Routines to calculate EXX in RPA and energy correction methods
 !> \par History
 !>      07.2020 separated from mp2.F [F. Stein, code by Jan Wilhelm]
 !>      06.2022 EXX contribution to the forces [A. Bussy]
-!> \author Jan Wilhelm, Frederick Stein, Augustin Bussy
+!>      03.2023 Generalized for energy correction methods
+!> \author Jan Wilhelm, Frederick Stein, Augustin Bussy, Fabian Belleflamme
 ! **************************************************************************************************
-MODULE rpa_hfx
+MODULE hfx_exx
    USE admm_methods,                    ONLY: admm_projection_derivative
    USE admm_types,                      ONLY: admm_env_create,&
                                               admm_env_release,&
@@ -23,6 +24,9 @@ MODULE rpa_hfx
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
@@ -37,6 +41,7 @@ MODULE rpa_hfx
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
                                               hfx_ri_update_ks
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none
    USE input_section_types,             ONLY: section_vals_create,&
                                               section_vals_duplicate,&
@@ -75,9 +80,9 @@ MODULE rpa_hfx
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_hfx'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_exx'
 
-   PUBLIC :: calculate_exx, add_exx_to_rhs, calc_ri_rpa_admm_xc_contributions, ri_rpa_pre_hfx, ri_rpa_post_hfx
+   PUBLIC :: calculate_exx, add_exx_to_rhs, calc_exx_admm_xc_contributions, exx_pre_hfx, exx_post_hfx
 
 CONTAINS
 
@@ -85,17 +90,26 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param unit_nr ...
+!> \param hfx_sections ...
+!> \param x_data ...
 !> \param do_gw ...
 !> \param do_admm ...
 !> \param calc_forces ...
+!> \param reuse_hfx ...
+!> \param do_im_time ...
 !> \param E_ex_from_GW ...
 !> \param E_admm_from_GW ...
 !> \param t3 ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_exx(qs_env, unit_nr, do_gw, do_admm, calc_forces, E_ex_from_GW, E_admm_from_GW, t3)
+   SUBROUTINE calculate_exx(qs_env, unit_nr, hfx_sections, x_data, &
+                            do_gw, do_admm, calc_forces, reuse_hfx, do_im_time, &
+                            E_ex_from_GW, E_admm_from_GW, t3)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
-      LOGICAL, INTENT(IN)                                :: do_gw, do_admm, calc_forces
+      TYPE(section_vals_type), POINTER                   :: hfx_sections
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      LOGICAL, INTENT(IN)                                :: do_gw, do_admm, calc_forces, reuse_hfx, &
+                                                            do_im_time
       REAL(KIND=dp), INTENT(IN)                          :: E_ex_from_GW, E_admm_from_GW(2), t3
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_exx'
@@ -104,7 +118,7 @@ CONTAINS
                                                             nspins
       LOGICAL                                            :: calc_ints, hfx_treat_lsd_in_core, &
                                                             use_virial
-      REAL(KIND=dp)                                      :: eh1, ehfx, t1, t2
+      REAL(KIND=dp)                                      :: eh1, ehfx, t1, t2, tf1, tf2
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, rho_ao, &
                                                             rho_ao_aux_fit, rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
@@ -112,17 +126,17 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, input
+      TYPE(section_vals_type), POINTER                   :: input
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
       t1 = m_walltime()
 
-      NULLIFY (hfx_sections, input, para_env, matrix_ks, matrix_ks_aux_fit, rho, rho_ao, virial, &
+      NULLIFY (input, para_env, matrix_ks, matrix_ks_aux_fit, rho, rho_ao, virial, &
                dft_control, rho_aux_fit, rho_ao_aux_fit)
 
-      CALL ri_rpa_pre_hfx(qs_env)
+      CALL exx_pre_hfx(hfx_sections, x_data, reuse_hfx)
 
       CALL get_qs_env(qs_env=qs_env, &
                       input=input, &
@@ -135,15 +149,15 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       IF (do_admm) THEN
-         CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, rho_aux_fit=rho_aux_fit)
+         CALL get_admm_env(qs_env%admm_env, &
+                           matrix_ks_aux_fit=matrix_ks_aux_fit, &
+                           rho_aux_fit=rho_aux_fit)
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
 
          IF (qs_env%admm_env%do_gapw) THEN
-            CPABORT("RPA with ADMM EXX only implmented with GPW")
+            CPABORT("ADMM EXX only implmented with GPW")
          END IF
       END IF
-
-      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
       CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
@@ -188,8 +202,8 @@ CONTAINS
          IF (hfx_treat_lsd_in_core) mspin = nspins
 
          calc_ints = .TRUE.
-         IF (qs_env%mp2_env%ri_rpa%reuse_hfx) calc_ints = .FALSE.
-         IF (calc_forces .AND. qs_env%mp2_env%do_im_time) calc_ints = .FALSE.
+         IF (reuse_hfx) calc_ints = .FALSE.
+         IF (calc_forces .AND. do_im_time) calc_ints = .FALSE.
 
          ehfx = 0.0_dp
          IF (do_admm) THEN
@@ -202,15 +216,17 @@ CONTAINS
 
          DO irep = 1, n_rep_hf
 
-            IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
-               CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
+            IF (x_data(irep, 1)%do_hfx_ri) THEN
+               CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
                                      rho_ao=rho_ao_2d, geometry_did_change=calc_ints, nspins=nspins, &
-                                     hf_fraction=qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction)
+                                     hf_fraction=x_data(irep, 1)%general_parameter%fraction)
             ELSE
 
                DO ispin = 1, mspin
-                  CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
-                                             rho_ao_2d, hfx_sections, para_env, calc_ints, irep, .TRUE., ispin=ispin)
+
+                  CALL integrate_four_center(qs_env, x_data, matrix_ks_2d, eh1, &
+                                             rho_ao_2d, hfx_sections, para_env, &
+                                             calc_ints, irep, .TRUE., ispin=ispin)
                   ehfx = ehfx + eh1
                END DO
             END IF
@@ -227,25 +243,31 @@ CONTAINS
          END IF
 
          IF (calc_forces) THEN
+            tf1 = m_walltime()
+
             !Note: no need to remove xc forces: they are not even calculated in the first place
             NULLIFY (rho_ao_resp)
 
             DO irep = 1, n_rep_hf
 
-               IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
+               IF (x_data(irep, 1)%do_hfx_ri) THEN
 
-                  CALL hfx_ri_update_forces(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, nspins, &
-                                            qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction, &
-                                            rho_ao=rho_ao_2d, rho_ao_resp=rho_ao_resp, use_virial=use_virial)
-
+                  CALL hfx_ri_update_forces(qs_env, x_data(irep, 1)%ri_data, nspins, &
+                                            x_data(irep, 1)%general_parameter%fraction, &
+                                            rho_ao=rho_ao_2d, rho_ao_resp=rho_ao_resp, &
+                                            use_virial=use_virial)
                ELSE
 
-                  CALL derivatives_four_center(qs_env, rho_ao_2d, rho_ao_resp, hfx_sections, para_env, irep, &
-                                               use_virial, external_x_data=qs_env%mp2_env%ri_rpa%x_data)
+                  CALL derivatives_four_center(qs_env, rho_ao_2d, rho_ao_resp, &
+                                               hfx_sections, para_env, irep, &
+                                               use_virial, external_x_data=x_data)
 
                END IF
 
             END DO !irep
+
+            tf2 = m_walltime()
+            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total EXX Force Time=', tf2 - tf1
          END IF
 
          IF (use_virial) THEN
@@ -256,8 +278,9 @@ CONTAINS
          ! ADMM XC correction
          IF (do_admm) THEN
 
-            CALL calc_ri_rpa_admm_xc_contributions(qs_env, matrix_ks, matrix_ks_aux_fit, energy%exc, &
-                                                   energy%exc_aux_fit, calc_forces, use_virial)
+            CALL calc_exx_admm_xc_contributions(qs_env, matrix_ks, matrix_ks_aux_fit, x_data, &
+                                                energy%exc, energy%exc_aux_fit, calc_forces, &
+                                                use_virial)
 
             ! ADMM overlap forces
             IF (calc_forces) CALL admm_projection_derivative(qs_env, matrix_ks_aux_fit, rho_ao)
@@ -280,7 +303,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL ri_rpa_post_hfx(qs_env)
+      CALL exx_post_hfx(qs_env, x_data, reuse_hfx)
 
       CALL timestop(handle)
 
@@ -290,20 +313,33 @@ CONTAINS
 !> \brief Add the EXX contribution to the RHS of the Z-vector equation, namely the HF Hamiltonian
 !> \param rhs ...
 !> \param qs_env ...
+!> \param ext_hfx_section ...
+!> \param x_data ...
 !> \param recalc_integrals ...
+!> \param do_admm ...
+!> \param do_ec ...
+!> \param do_exx ...
+!> \param reuse_hfx ...
 ! **************************************************************************************************
-   SUBROUTINE add_exx_to_rhs(rhs, qs_env, recalc_integrals)
+   SUBROUTINE add_exx_to_rhs(rhs, qs_env, ext_hfx_section, x_data, &
+                             recalc_integrals, do_admm, do_ec, do_exx, reuse_hfx)
 
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: rhs
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_integrals
+      TYPE(section_vals_type), POINTER                   :: ext_hfx_section
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_integrals, do_admm, do_ec, &
+                                                            do_exx, reuse_hfx
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_exx_to_rhs'
 
-      INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
-      LOGICAL                                            :: calc_ints, do_hfx, my_recalc_integrals
+      INTEGER                                            :: handle, ispin, nao, nao_aux, nspins, &
+                                                            unit_nr
+      LOGICAL                                            :: calc_ints, do_hfx, my_do_ec, my_do_exx, &
+                                                            my_recalc_integrals
       REAL(dp)                                           :: dummy_real1, dummy_real2
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_s_aux, &
                                                             rho_ao, rho_ao_aux, work_admm
       TYPE(dbcsr_type)                                   :: dbcsr_tmp
@@ -320,20 +356,36 @@ CONTAINS
                auxbas_pw_pool, dft_control, rho_ao, rho_aux_fit, rho_ao_aux, work_admm, &
                matrix_s_aux, admm_env, task_list_aux_fit)
 
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
+
       CALL timeset(routineN, handle)
 
       my_recalc_integrals = .FALSE.
       IF (PRESENT(recalc_integrals)) my_recalc_integrals = recalc_integrals
+      my_do_ec = .FALSE.
+      IF (PRESENT(do_ec)) my_do_ec = do_ec
+      my_do_exx = .TRUE.
+      IF (PRESENT(do_exx)) my_do_exx = do_exx
 
       ! Strategy: we take the ks_matrix, remove the current xc contribution, and then add the RPA HF one
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, rho=rho, pw_env=pw_env, dft_control=dft_control)
       nspins = dft_control%nspins
 
+      ! do_exx ; subtract XC and EX
+      ! do_dcdft: subtract EX
+
       CALL dbcsr_allocate_matrix_set(dbcsr_work, nspins)
       DO ispin = 1, nspins
          ALLOCATE (dbcsr_work(ispin)%matrix)
          CALL dbcsr_copy(dbcsr_work(ispin)%matrix, matrix_ks(ispin)%matrix)
+         CALL dbcsr_set(dbcsr_work(ispin)%matrix, 0.0_dp)
       END DO
+
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit, &
@@ -353,55 +405,74 @@ CONTAINS
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
       END IF
 
-      !Remove the standard XC + HFX contribution
       CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      ! Remove the standard XC + HFX contribution
       CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, dummy_real1, dummy_real2)
-      DO ispin = 1, nspins
-         CALL pw_scale(vxc_rspace(ispin), -1.0_dp)
-         CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
-                                 calculate_forces=.FALSE.)
-         IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL pw_scale(vtau_rspace(ispin), -1.0_dp)
-            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
-                                    calculate_forces=.FALSE., compute_tau=.TRUE.)
-         END IF
-         IF (dft_control%do_admm) THEN
-            !note: factor -1.0 taken care of later, after HFX ADMM contribution is taken
-            IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
-               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=work_admm(ispin), &
-                                       qs_env=qs_env, calculate_forces=.FALSE., basis_type="AUX_FIT", &
-                                       task_list_external=task_list_aux_fit)
+
+      ! Only remove standard XC and/or HFX
+      ! (due to different requirements for RHS)
+      IF (my_do_exx) THEN
+
+         DO ispin = 1, nspins
+            CALL dbcsr_copy(dbcsr_work(ispin)%matrix, matrix_ks(ispin)%matrix)
+         END DO
+
+         DO ispin = 1, nspins
+            CALL pw_scale(vxc_rspace(ispin), -1.0_dp)
+            CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+                                    calculate_forces=.FALSE.)
+            IF (ASSOCIATED(vtau_rspace)) THEN
+               CALL pw_scale(vtau_rspace(ispin), -1.0_dp)
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+                                       calculate_forces=.FALSE., compute_tau=.TRUE.)
             END IF
-         END IF
-      END DO
+         END DO
 
-      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
-      CALL section_vals_get(hfx_section, explicit=do_hfx)
-      IF (do_hfx) THEN
-         IF (dft_control%do_admm) THEN
+      END IF ! do_exx
 
-            CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
+      ! Remove standard HFX
+      IF (my_do_exx .OR. my_do_ec) THEN
 
-            DO ispin = 1, nspins
-               CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
-               CALL parallel_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
-                                  0.0_dp, admm_env%work_aux_orb)
-               CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
-                                  0.0_dp, admm_env%work_orb_orb)
-               CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_tmp, keep_sparsity=.TRUE.)
-               CALL dbcsr_add(dbcsr_work(ispin)%matrix, dbcsr_tmp, 1.0_dp, -1.0_dp)
-            END DO
-         ELSE
-            DO ispin = 1, nspins
-               CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
-            END DO
-            CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., my_recalc_integrals)
-            DO ispin = 1, nspins
-               CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
-            END DO
-         END IF
-      END IF !do_hfx
+         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
+         CALL section_vals_get(hfx_section, explicit=do_hfx)
+         IF (do_hfx) THEN
+            IF (dft_control%do_admm) THEN
 
+               !note: factor -1.0 taken care of later, after HFX ADMM contribution is taken
+               IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
+                  DO ispin = 1, nspins
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=work_admm(ispin), &
+                                             qs_env=qs_env, calculate_forces=.FALSE., basis_type="AUX_FIT", &
+                                             task_list_external=task_list_aux_fit)
+                  END DO
+               END IF
+
+               CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
+
+               DO ispin = 1, nspins
+                  CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
+                  CALL parallel_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
+                                     0.0_dp, admm_env%work_aux_orb)
+                  CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                                     0.0_dp, admm_env%work_orb_orb)
+                  CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_tmp, keep_sparsity=.TRUE.)
+                  CALL dbcsr_add(dbcsr_work(ispin)%matrix, dbcsr_tmp, 1.0_dp, -1.0_dp)
+               END DO
+            ELSE
+               DO ispin = 1, nspins
+                  CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
+               END DO
+               CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., my_recalc_integrals)
+               DO ispin = 1, nspins
+                  CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
+               END DO
+            END IF
+         END IF !do_hfx
+
+      END IF ! do_exx
+
+      ! Clean
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace)
       DO ispin = 1, nspins
@@ -409,30 +480,35 @@ CONTAINS
          IF (ASSOCIATED(vtau_rspace)) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin))
          END IF
-         IF (ASSOCIATED(vadmm_rspace)) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin))
-         END IF
       END DO
       DEALLOCATE (vxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
-      IF (ASSOCIATED(vadmm_rspace)) DEALLOCATE (vadmm_rspace)
 
-      !Add the HF contribution from RI_RPA to the ks matrix
-      CALL ri_rpa_pre_hfx(qs_env)
+      IF (dft_control%do_admm) THEN
+         DO ispin = 1, nspins
+            IF (ASSOCIATED(vadmm_rspace)) THEN
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin))
+            END IF
+         END DO
+         IF (ASSOCIATED(vadmm_rspace)) DEALLOCATE (vadmm_rspace)
+      END IF
+
+      !Add the HF contribution from RI_RPA/EC_ENV to the ks matrix
+      CALL exx_pre_hfx(ext_hfx_section, x_data, reuse_hfx)
+
       calc_ints = .TRUE.
-      IF (qs_env%mp2_env%ri_rpa%reuse_hfx) calc_ints = .FALSE.
-      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
-      IF (qs_env%mp2_env%ri_rpa%do_admm) THEN
+      IF (reuse_hfx) calc_ints = .FALSE.
+      IF (do_admm) THEN
          DO ispin = 1, nspins
             CALL dbcsr_set(work_admm(ispin)%matrix, 0.0_dp)
          END DO
 
-         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., calc_ints, hfx_section, &
-                               qs_env%mp2_env%ri_rpa%x_data)
+         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., calc_ints, ext_hfx_section, &
+                               x_data)
 
          !ADMM XC correction
-         CALL calc_ri_rpa_admm_xc_contributions(qs_env, dbcsr_work, work_admm, dummy_real1, &
-                                                dummy_real2, .FALSE., .FALSE.)
+         CALL calc_exx_admm_xc_contributions(qs_env, dbcsr_work, work_admm, x_data, dummy_real1, &
+                                             dummy_real2, .FALSE., .FALSE.)
 
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
@@ -445,9 +521,9 @@ CONTAINS
          END DO
 
       ELSE
-         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., calc_ints, hfx_section, qs_env%mp2_env%ri_rpa%x_data)
+         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., calc_ints, ext_hfx_section, x_data)
       END IF
-      CALL ri_rpa_post_hfx(qs_env)
+      CALL exx_post_hfx(qs_env, x_data, reuse_hfx)
 
       !Update the RHS
       DO ispin = 1, nspins
@@ -465,13 +541,15 @@ CONTAINS
    END SUBROUTINE add_exx_to_rhs
 
 ! **************************************************************************************************
-!> \brief get the ADMM XC section from the ri_rpa type if available, create and store them otherwise
+!> \brief get the ADMM XC section from the ri_rpa/ec_env type if available, create and store them otherwise
 !> \param qs_env ...
+!> \param x_data ...
 !> \param xc_section_aux ...
 !> \param xc_section_primary ...
 ! **************************************************************************************************
-   SUBROUTINE get_ri_rpa_admm_xc_sections(qs_env, xc_section_aux, xc_section_primary)
+   SUBROUTINE get_exx_admm_xc_sections(qs_env, x_data, xc_section_aux, xc_section_primary)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(section_vals_type), POINTER                   :: xc_section_aux, xc_section_primary
 
       INTEGER                                            :: natom
@@ -484,11 +562,21 @@ CONTAINS
       NULLIFY (qs_admm_env, tmp_admm_env, para_env, xc_section, xc_section_empty, xc_fun_empty, &
                xc_fun, dft_control)
 
-      IF (ASSOCIATED(qs_env%mp2_env%ri_rpa%xc_section_aux) .AND. &
-          ASSOCIATED(qs_env%mp2_env%ri_rpa%xc_section_primary)) THEN
-         xc_section_aux => qs_env%mp2_env%ri_rpa%xc_section_aux
-         xc_section_primary => qs_env%mp2_env%ri_rpa%xc_section_primary
-      ELSE
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         IF (ASSOCIATED(qs_env%mp2_env%ri_rpa%xc_section_aux) .AND. &
+             ASSOCIATED(qs_env%mp2_env%ri_rpa%xc_section_primary)) THEN
+            xc_section_aux => qs_env%mp2_env%ri_rpa%xc_section_aux
+            xc_section_primary => qs_env%mp2_env%ri_rpa%xc_section_primary
+         END IF
+      ELSEIF (qs_env%energy_correction) THEN
+         IF (ASSOCIATED(qs_env%ec_env%xc_section_aux) .AND. &
+             ASSOCIATED(qs_env%ec_env%xc_section_primary)) THEN
+            xc_section_aux => qs_env%ec_env%xc_section_aux
+            xc_section_primary => qs_env%ec_env%xc_section_primary
+         END IF
+      END IF
+
+      IF (.NOT. ASSOCIATED(xc_section_aux) .OR. .NOT. ASSOCIATED(xc_section_primary)) THEN
 
          CALL get_qs_env(qs_env, admm_env=qs_admm_env, natom=natom, para_env=para_env, dft_control=dft_control)
          CPASSERT(ASSOCIATED(qs_admm_env))
@@ -503,14 +591,20 @@ CONTAINS
          CALL admm_env_create(tmp_admm_env, dft_control%admm_control, qs_admm_env%mos_aux_fit, &
                               para_env, natom, qs_admm_env%nao_aux_fit)
 
-         CALL create_admm_xc_section(x_data=qs_env%mp2_env%ri_rpa%x_data, xc_section=xc_section_empty, &
+         CALL create_admm_xc_section(x_data=x_data, xc_section=xc_section_empty, &
                                      admm_env=tmp_admm_env)
 
          CALL section_vals_duplicate(tmp_admm_env%xc_section_aux, xc_section_aux)
          CALL section_vals_duplicate(tmp_admm_env%xc_section_primary, xc_section_primary)
 
-         qs_env%mp2_env%ri_rpa%xc_section_aux => xc_section_aux
-         qs_env%mp2_env%ri_rpa%xc_section_primary => xc_section_primary
+         IF (ASSOCIATED(qs_env%mp2_env)) THEN
+            qs_env%mp2_env%ri_rpa%xc_section_aux => xc_section_aux
+            qs_env%mp2_env%ri_rpa%xc_section_primary => xc_section_primary
+         END IF
+         IF (qs_env%energy_correction) THEN
+            qs_env%ec_env%xc_section_aux => xc_section_aux
+            qs_env%ec_env%xc_section_primary => xc_section_primary
+         END IF
 
          CALL section_vals_release(xc_section_empty)
          CALL section_vals_release(xc_fun_empty)
@@ -518,22 +612,24 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE get_ri_rpa_admm_xc_sections
+   END SUBROUTINE get_exx_admm_xc_sections
 
 ! **************************************************************************************************
-!> \brief Calculate the RI_RPA%HF ADMM XC contributions to the KS matrices and the respective energies
+!> \brief Calculate the RI_RPA%HF / EC_ENV%HF ADMM XC contributions to the KS matrices and the respective energies
 !> \param qs_env ...
 !> \param matrix_prim ...
 !> \param matrix_aux ...
+!> \param x_data ...
 !> \param exc ...
 !> \param exc_aux_fit ...
 !> \param calc_forces ...
 !> \param use_virial ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ri_rpa_admm_xc_contributions(qs_env, matrix_prim, matrix_aux, exc, exc_aux_fit, &
-                                                calc_forces, use_virial)
+   SUBROUTINE calc_exx_admm_xc_contributions(qs_env, matrix_prim, matrix_aux, x_data, exc, exc_aux_fit, &
+                                             calc_forces, use_virial)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_prim, matrix_aux
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       REAL(dp), INTENT(INOUT)                            :: exc, exc_aux_fit
       LOGICAL, INTENT(IN)                                :: calc_forces, use_virial
 
@@ -560,7 +656,7 @@ CONTAINS
       CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL get_ri_rpa_admm_xc_sections(qs_env, xc_section_aux, xc_section_primary)
+      CALL get_exx_admm_xc_sections(qs_env, x_data, xc_section_aux, xc_section_primary)
 
       IF (use_virial) virial%pv_xc = 0.0_dp
       CALL qs_vxc_create(qs_env%ks_env, rho_struct=rho_aux_fit, xc_section=xc_section_aux, &
@@ -627,45 +723,50 @@ CONTAINS
          DEALLOCATE (v_dummy)
       END IF
 
-   END SUBROUTINE calc_ri_rpa_admm_xc_contributions
+   END SUBROUTINE calc_exx_admm_xc_contributions
 
 ! **************************************************************************************************
-!> \brief Prepare the ri_rpa%x_data for integration. Simply change the HFX fraction in case the
+!> \brief Prepare the external x_data for integration. Simply change the HFX fraction in case the
 !>        qs_env%x_data is reused
-!> \param qs_env ...
+!> \param ext_hfx_section ...
+!> \param x_data ...
+!> \param reuse_hfx ...
 ! **************************************************************************************************
-   SUBROUTINE ri_rpa_pre_hfx(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE exx_pre_hfx(ext_hfx_section, x_data, reuse_hfx)
+      TYPE(section_vals_type), POINTER                   :: ext_hfx_section
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      LOGICAL                                            :: reuse_hfx
 
       INTEGER                                            :: irep, n_rep_hf
       REAL(dp)                                           :: frac
-      TYPE(section_vals_type), POINTER                   :: input, rpa_hfx_section
 
-      IF (.NOT. qs_env%mp2_env%ri_rpa%reuse_hfx) RETURN
+      IF (.NOT. reuse_hfx) RETURN
 
-      CALL get_qs_env(qs_env, input=input)
-      rpa_hfx_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
-      CALL section_vals_get(rpa_hfx_section, n_repetition=n_rep_hf)
+      CALL section_vals_get(ext_hfx_section, n_repetition=n_rep_hf)
 
       DO irep = 1, n_rep_hf
-         CALL section_vals_val_get(rpa_hfx_section, "FRACTION", r_val=frac, i_rep_section=irep)
-         qs_env%mp2_env%ri_rpa%x_data(irep, :)%general_parameter%fraction = frac
+         CALL section_vals_val_get(ext_hfx_section, "FRACTION", r_val=frac, i_rep_section=irep)
+         x_data(irep, :)%general_parameter%fraction = frac
       END DO
 
-   END SUBROUTINE ri_rpa_pre_hfx
+   END SUBROUTINE exx_pre_hfx
 
 ! **************************************************************************************************
 !> \brief Revert back to the proper HFX fraction in case qs_env%x_data is reused
 !> \param qs_env ...
+!> \param x_data ...
+!> \param reuse_hfx ...
 ! **************************************************************************************************
-   SUBROUTINE ri_rpa_post_hfx(qs_env)
+   SUBROUTINE exx_post_hfx(qs_env, x_data, reuse_hfx)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      LOGICAL                                            :: reuse_hfx
 
       INTEGER                                            :: irep, n_rep_hf
       REAL(dp)                                           :: frac
       TYPE(section_vals_type), POINTER                   :: input, qs_hfx_section
 
-      IF (.NOT. qs_env%mp2_env%ri_rpa%reuse_hfx) RETURN
+      IF (.NOT. reuse_hfx) RETURN
 
       CALL get_qs_env(qs_env, input=input)
       qs_hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
@@ -673,10 +774,10 @@ CONTAINS
 
       DO irep = 1, n_rep_hf
          CALL section_vals_val_get(qs_hfx_section, "FRACTION", r_val=frac, i_rep_section=irep)
-         qs_env%mp2_env%ri_rpa%x_data(irep, :)%general_parameter%fraction = frac
+         x_data(irep, :)%general_parameter%fraction = frac
       END DO
 
-   END SUBROUTINE ri_rpa_post_hfx
+   END SUBROUTINE exx_post_hfx
 
 ! **************************************************************************************************
 !> \brief ...
@@ -697,5 +798,5 @@ CONTAINS
 
    END SUBROUTINE
 
-END MODULE rpa_hfx
+END MODULE hfx_exx
 
