@@ -3,13 +3,13 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 12.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 12.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.1.0, OpenBLAS 0.3.21, SPGLIB 1.16.2
-# on an Apple M1 (macOS Ventura 13.1)
+# on an Apple M1 (macOS Ventura 13.4)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (19.04.2023)
+# Author: Matthias Krack (22.05.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
