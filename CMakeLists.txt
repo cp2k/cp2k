@@ -148,13 +148,13 @@ if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
   message(FATAL_ERROR "Invalid scalapack vendor backend")
 endif()
 
-set(CP2K_BUILD_OPTIONS_LIST "DEFAULT" "MINIMAL" "FULL" "SERIAL")
+set(CP2K_BUILD_OPTIONS_LIST "CUSTOM" "DEFAULT" "MINIMAL" "FULL" "SERIAL")
 
 set(CP2K_BUILD_OPTIONS
-    "DEFAULT"
+    "CUSTOM"
     CACHE
       STRING
-      "Build cp2k with a predefined set of dependencies. The default is full user control"
+      "Build cp2k with a predefined set of dependencies. The default setting is full user control"
 )
 set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS
                                                ${CP2K_BUILD_OPTIONS_LIST})
@@ -206,6 +206,16 @@ if(${cp2k_build_options_up} STREQUAL "SERIAL")
   set(CP2K_USE_QUIP ON)
   set(CP2K_USE_PEXSI ON)
   set(CP2K_USE_SUPERLU ON)
+endif()
+
+if(${cp2k_build_options_up} STREQUAL "DEFAULT")
+  set(CP2K_USE_FFTW3 ON)
+  set(CP2K_USE_MPI ON)
+  set(CP2K_USE_COSMA ON)
+  set(CP2K_USE_LIBXSMM ON)
+  set(CP2K_USE_LIBXC ON)
+  set(CP2K_USE_LIBINT2 ON)
+  set(CP2K_USE_SPGLIB ON)
 endif()
 
 # ##############################################################################

@@ -73,7 +73,6 @@ template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
 __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
-  T *coef_shared = &shared_memory[0];
   T *smem_cab = &shared_memory[dev_.smem_cab_offset];
   T *smem_alpha = &shared_memory[dev_.smem_alpha_offset];
   const int tid =
@@ -113,12 +112,9 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
 
     T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
 
-    for (int i = tid; i < ncoset(task.lp);
-         i += blockDim.x * blockDim.y * blockDim.z)
-      coef_shared[i] = coef_[i];
     compute_alpha(task, smem_alpha);
     __syncthreads();
-    cxyz_to_cab(task, smem_alpha, coef_shared, smem_cab);
+    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
 
     for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
@@ -180,10 +176,13 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
 
         // we can use shuffle_down if it exists for T
 
+        // these atomic operations are not needed since the blocks are updated
+        // by one single block thread. However the grid_miniapp will fail if not
+        // there.
         if (task.block_transposed) {
-          task.hab_block[j * task.nsgfb + i] += res;
+          atomicAdd(task.hab_block + j * task.nsgfb + i, res);
         } else {
-          task.hab_block[i * task.nsgfa + j] += res;
+          atomicAdd(task.hab_block + i * task.nsgfa + j, res);
         }
       }
     }
