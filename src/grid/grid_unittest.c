@@ -88,14 +88,7 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "ortho_density_l2200.task");
   errors += run_test(argv[1], "ortho_density_l3300.task");
   errors += run_test(argv[1], "ortho_density_l3333.task");
-
-#if defined(__OFFLOAD_HIP)
-  printf("\nSkipping ortho_density_l0505.task for HIP backend "
-         "because of shared memory limits.\n\n");
-#else
   errors += run_test(argv[1], "ortho_density_l0505.task");
-#endif
-
   errors += run_test(argv[1], "ortho_non_periodic.task");
   errors += run_test(argv[1], "ortho_tau.task");
   errors += run_test(argv[1], "general_density.task");
