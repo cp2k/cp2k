@@ -804,8 +804,7 @@ public:
     smem_per_block_ = std::max(cab_len_ + alpha_len_, 64) * sizeof(double);
 
     if (smem_per_block_ > 64 * 1024) {
-      fprintf(stderr,
-              q "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
+      fprintf(stderr, "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
       fprintf(stderr, "cab_len: %i, ", cab_len_);
       fprintf(stderr, "alpha_len: %i, ", alpha_len_);
       fprintf(stderr, "total smem_per_block: %f kb\n\n",
