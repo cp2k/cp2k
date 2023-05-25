@@ -646,7 +646,6 @@ cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
       cab[jco * task.n1 + ico] = reg; // partial loop coverage -> zero it
     }
   }
-  __syncthreads(); // because of concurrent writes to cxyz / cab
 }
 
 /*******************************************************************************
@@ -801,10 +800,11 @@ public:
 
     cab_len_ = ncoset(lb_max_) * ncoset(la_max_);
     alpha_len_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
-    smem_per_block_ = std::max(cab_len_ + alpha_len_, 64) * sizeof(double);
+    smem_per_block_ = std::max(alpha_len_, 64) * sizeof(double);
 
     if (smem_per_block_ > 64 * 1024) {
-      fprintf(stderr, "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
+      fprintf(stderr,
+              "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
       fprintf(stderr, "cab_len: %i, ", cab_len_);
       fprintf(stderr, "alpha_len: %i, ", alpha_len_);
       fprintf(stderr, "total smem_per_block: %f kb\n\n",

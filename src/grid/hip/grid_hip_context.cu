@@ -95,7 +95,7 @@ extern "C" void grid_hip_create_task_list(
   std::vector<rocm_backend::task_info> tasks_host(ntasks);
 
   size_t coef_size = 0;
-
+  size_t cab_size_ = 0;
   for (int i = 0; i < ntasks; i++) {
     const int level = level_list[i] - 1;
 
@@ -214,6 +214,17 @@ extern "C" void grid_hip_create_task_list(
           rocm_backend::ncoset(tasks_host[i - 1].lp_max);
     }
     coef_size += rocm_backend::ncoset(tasks_host[i].lp_max);
+
+    if (i == 0)
+      tasks_host[i].cab_offset = 0;
+    else
+      tasks_host[i].cab_offset =
+          tasks_host[i - 1].cab_offset +
+          rocm_backend::ncoset(tasks_host[i - 1].la_max + 3) *
+              rocm_backend::ncoset(tasks_host[i - 1].lb_max + 3);
+
+    cab_size_ += rocm_backend::ncoset(tasks_host[i].la_max + 3) *
+                 rocm_backend::ncoset(tasks_host[i].lb_max + 3);
 
     auto &grid = ctx->grid_[tasks_host[i].level];
     // compute the cube properties
@@ -349,6 +360,7 @@ extern "C" void grid_hip_create_task_list(
 
   tasks_host.clear();
   ctx->coef_dev_.resize(coef_size);
+  ctx->cab_dev_.resize(cab_size_);
   ctx->compute_checksum();
   // return newly created or updated context
   *ctx_out = ctx;

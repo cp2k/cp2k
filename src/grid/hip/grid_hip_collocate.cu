@@ -88,11 +88,12 @@ __global__ void calculate_coefficients(const kernel_params dev_) {
 
   fill_smem_task_coef(dev_, dev_.first_task + blockIdx.x, task);
   extern __shared__ T shared_memory[];
-  T *smem_cab = &shared_memory[dev_.smem_cab_offset];
+  // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
   T *smem_alpha = &shared_memory[dev_.smem_alpha_offset];
   T *coef_ =
       &dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset];
-
+  T *smem_cab =
+      &dev_.ptr_dev[6][dev_.tasks[dev_.first_task + blockIdx.x].cab_offset];
   for (int z = tid; z < task.n1 * task.n2;
        z += blockDim.x * blockDim.y * blockDim.z)
     smem_cab[z] = 0.0;
