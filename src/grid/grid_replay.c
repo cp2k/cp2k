@@ -219,8 +219,9 @@ static void create_dummy_task_list(
  *        See grid_replay.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-double grid_replay(const char *filename, const int cycles, const bool collocate,
-                   const bool batch, const int cycles_per_block) {
+bool grid_replay(const char *filename, const int cycles, const bool collocate,
+                 const bool batch, const int cycles_per_block,
+                 const double tolerance) {
 
   if (cycles < 1) {
     fprintf(stderr, "Error: Cycles have to be greater than zero.\n");
@@ -414,6 +415,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
 
   double max_value = 0.0;
   double max_rel_diff = 0.0;
+  const double derivatives_precision = 1e-4; // account for higher numeric noise
   if (collocate) {
     // collocate
     // compare grid
@@ -436,37 +438,35 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
         max_rel_diff = fmax(max_rel_diff, rel_diff);
         max_value = fmax(max_value, fabs(test_value));
-        if (max_rel_diff > 1e-14) {
+        if (rel_diff > tolerance) {
           printf("hab[%i, %i] ref: %le test: %le diff:%le rel_diff: %le\n", i,
                  j, ref_value, test_value, diff, rel_diff);
         }
       }
     }
     // compare forces
-    const double forces_fudge_factor = 1e-4; // account for higher numeric noise
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         const double ref_value = cycles * forces_ref[i][j];
         const double test_value = forces_test[i][j];
         const double diff = fabs(test_value - ref_value);
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
-        max_rel_diff = fmax(max_rel_diff, rel_diff * forces_fudge_factor);
-        if (max_rel_diff > 1e-14) {
+        max_rel_diff = fmax(max_rel_diff, rel_diff * derivatives_precision);
+        if (rel_diff * derivatives_precision > tolerance) {
           printf("forces[%i, %i] ref: %le test: %le diff:%le rel_diff: %le\n",
                  i, j, ref_value, test_value, diff, rel_diff);
         }
       }
     }
     // compare virial
-    const double virial_fudge_factor = 1e-4; // account for higher numeric noise
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         const double ref_value = cycles * virial_ref[i][j];
         const double test_value = virial_test[i][j];
         const double diff = fabs(test_value - ref_value);
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
-        max_rel_diff = fmax(max_rel_diff, rel_diff * virial_fudge_factor);
-        if (max_rel_diff > 1e-14) {
+        max_rel_diff = fmax(max_rel_diff, rel_diff * derivatives_precision);
+        if (rel_diff * derivatives_precision > tolerance) {
           printf("virial[ %i, %i] ref: %le test: %le diff:%le rel_diff: %le\n",
                  i, j, ref_value, test_value, diff, rel_diff);
         }
@@ -476,7 +476,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
   printf("Task: %-55s   %9s %-7s   Cycles: %e   Max value: %le   "
          "Max rel diff: %le   Time: %le sec\n",
          filename, collocate ? "Collocate" : "Integrate",
-         batch ? "Batched" : "PGF-Ref", (float)cycles, max_value, max_rel_diff,
+         batch ? "Batched" : "PGF-CPU", (float)cycles, max_value, max_rel_diff,
          end_time - start_time);
 
   offload_free_buffer(grid_ref);
@@ -492,7 +492,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     exit(1);
   }
 
-  return max_rel_diff;
+  return max_rel_diff < tolerance;
 }
 
 // EOF

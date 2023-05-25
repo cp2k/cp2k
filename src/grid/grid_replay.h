@@ -19,12 +19,14 @@
  * \param batch             When false grid_ref_collocate_pgf_product is called.
  *                          When true grid_collocate_task_list is called.
  * \param cycles_per_block  Number of cycles per matrix block decontraction.
- * \returns                 The maximum relative difference.
+ * \param tolerance         Tolerance for comparing floating point results.
+ * \returns                 Returns true iff the test passed.
  *
  * \author Ole Schuett
  ******************************************************************************/
-double grid_replay(const char *filename, const int cycles, const bool collocate,
-                   const bool batch, const int cycles_per_block);
+bool grid_replay(const char *filename, const int cycles, const bool collocate,
+                 const bool batch, const int cycles_per_block,
+                 const double tolerance);
 
 #endif
 
