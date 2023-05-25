@@ -279,6 +279,7 @@ struct task_info {
   double rab[3];
   int lp_max{0};
   size_t coef_offset{0};
+  size_t cab_offset{0};
   int la_max, lb_max, la_min, lb_min, first_coseta, first_cosetb, ncoseta,
       ncosetb, nsgfa, nsgfb, nsgf_seta, nsgf_setb, maxcoa, maxcob;
   int sgfa, sgfb, subblock_offset;
@@ -313,7 +314,8 @@ struct kernel_params {
   char la_max_diff{0};
   char lb_max_diff{0};
   enum grid_func func;
-  double *ptr_dev[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+  double *ptr_dev[7] = {nullptr, nullptr, nullptr, nullptr,
+                        nullptr, nullptr, nullptr};
   double **sphi_dev{nullptr};
   int ntasks{0};
   int *task_sorted_by_blocks_dev{nullptr};
@@ -342,6 +344,7 @@ public:
   // from them
   gpu_vector<int> block_offsets_dev;
   gpu_vector<double> coef_dev_;
+  gpu_vector<double> cab_dev_;
   gpu_vector<double> pab_block_;
   gpu_vector<double> hab_block_;
   gpu_vector<double> forces_;
@@ -373,6 +376,7 @@ public:
     tasks_dev.reset();
     block_offsets_dev.reset();
     coef_dev_.reset();
+    cab_dev_.reset();
     task_sorted_by_blocks_dev.reset();
     sorted_blocks_offset_dev.reset();
     sphi_dev.reset();

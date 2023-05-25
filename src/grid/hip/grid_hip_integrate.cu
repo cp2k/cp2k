@@ -73,8 +73,7 @@ template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
 __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
-  T *coef_shared = &shared_memory[0];
-  T *smem_cab = &shared_memory[dev_.smem_cab_offset];
+  // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
   T *smem_alpha = &shared_memory[dev_.smem_alpha_offset];
   const int tid =
       threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
@@ -112,13 +111,11 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
+    T *smem_cab = &dev_.ptr_dev[6][dev_.tasks[task_id].cab_offset];
 
-    for (int i = tid; i < ncoset(task.lp);
-         i += blockDim.x * blockDim.y * blockDim.z)
-      coef_shared[i] = coef_[i];
     compute_alpha(task, smem_alpha);
     __syncthreads();
-    cxyz_to_cab(task, smem_alpha, coef_shared, smem_cab);
+    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
 
     for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
@@ -180,10 +177,13 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
 
         // we can use shuffle_down if it exists for T
 
+        // these atomic operations are not needed since the blocks are updated
+        // by one single block thread. However the grid_miniapp will fail if not
+        // there.
         if (task.block_transposed) {
-          task.hab_block[j * task.nsgfb + i] += res;
+          atomicAdd(task.hab_block + j * task.nsgfb + i, res);
         } else {
-          task.hab_block[i * task.nsgfa + j] += res;
+          atomicAdd(task.hab_block + i * task.nsgfa + j, res);
         }
       }
     }
@@ -651,6 +651,7 @@ context_info::set_kernel_parameters(const int level,
   params.ptr_dev[3] = hab_block_.data();
   params.ptr_dev[4] = forces_.data();
   params.ptr_dev[5] = virial_.data();
+  params.ptr_dev[6] = this->cab_dev_.data();
   params.sphi_dev = this->sphi_dev.data();
   return params;
 }

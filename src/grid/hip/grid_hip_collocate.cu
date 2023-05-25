@@ -88,12 +88,12 @@ __global__ void calculate_coefficients(const kernel_params dev_) {
 
   fill_smem_task_coef(dev_, dev_.first_task + blockIdx.x, task);
   extern __shared__ T shared_memory[];
-  T *smem_cab = &shared_memory[dev_.smem_cab_offset];
+  // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
   T *smem_alpha = &shared_memory[dev_.smem_alpha_offset];
   T *coef_ =
       &dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset];
-  T *coefs_ = &shared_memory[0];
-
+  T *smem_cab =
+      &dev_.ptr_dev[6][dev_.tasks[dev_.first_task + blockIdx.x].cab_offset];
   for (int z = tid; z < task.n1 * task.n2;
        z += blockDim.x * blockDim.y * blockDim.z)
     smem_cab[z] = 0.0;
@@ -103,12 +103,7 @@ __global__ void calculate_coefficients(const kernel_params dev_) {
   __syncthreads();
   compute_alpha(task, smem_alpha);
   __syncthreads();
-  cab_to_cxyz(task, smem_alpha, smem_cab, coefs_);
-  __syncthreads();
-
-  for (int z = tid; z < ncoset(task.lp);
-       z += blockDim.x * blockDim.y * blockDim.z)
-    coef_[z] = coefs_[z];
+  cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
 }
 
 /*
@@ -171,9 +166,8 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
   }
 
   __syncthreads();
-  for (int i = tid; i < ncoset(task.lp);
-       i += blockDim.x * blockDim.y * blockDim.z)
-    coefs_[i] = coef_[i];
+  if (tid < ncoset(4))
+    coefs_[tid] = coef_[tid];
 
   if (tid == 0) {
     // the cube center is initialy expressed in lattice coordinates but we
@@ -360,10 +354,11 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
           res += coefs_[34] * r3z2 * r3z2;
         }
 
+        // beware it is coef_ (global memory) here not coefs_ (shared memory)
         if (task.lp > 4) {
           for (int ic = 35; ic < ncoset(task.lp); ic++) {
             auto &co = coset_inv[ic];
-            T tmp = coefs_[ic];
+            T tmp = coef_[ic];
             for (int po = 0; po < co.l[2]; po++)
               tmp *= r3.z;
             for (int po = 0; po < co.l[1]; po++)
@@ -423,24 +418,20 @@ void context_info::collocate_one_grid_level(const int level,
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, true, true>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
-              params);
+             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
     else
       collocate_kernel<double, double3, true, false>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
-              params);
+             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
   } else {
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, false, true>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
-              params);
+             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
     else
       collocate_kernel<double, double3, false, false>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
-              params);
+             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
   }
 }
 } // namespace rocm_backend

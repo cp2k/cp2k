@@ -1425,6 +1425,22 @@ if(CP2K_USE_HIP)
                                                 hip::host)
 endif()
 
+add_library(cp2k_linalg_libs INTERFACE)
+target_link_libraries(
+  cp2k_linalg_libs
+  INTERFACE CP2K::LAPACK::lapack
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
+            CP2K::BLAS::blas
+            $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
+            $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+            OpenMP::OpenMP_Fortran
+            OpenMP::OpenMP_C
+            OpenMP::OpenMP_CXX)
+
 set(CP2K_GPU_DFLAGS
     $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
     __OFFLOAD_HIP>
@@ -1521,19 +1537,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:CP2K::SCALAPACK::scalapack>
-    CP2K::LAPACK::lapack
-    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
-    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmf>
-    $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K::LibXSMM::libxsmmext>
-    CP2K::BLAS::blas
-    $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
-    $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
-    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
-    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
-    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
-    OpenMP::OpenMP_Fortran
-    OpenMP::OpenMP_C
-    OpenMP::OpenMP_CXX)
+    cp2k_linalg_libs)
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 
@@ -1641,8 +1645,8 @@ foreach(_app ${__CP2K_APPS})
 
   target_compile_features(${_app} PUBLIC c_std_99)
   if(CP2K_USE_ACCEL MATCHES HIP)
-    set_target_properties(${_app} PROPERTIES HIP_ARCHITECTURES
-                                             ${CMAKE_HIP_ARCHITECTURES})
+    set_property(TARGET ${_app} PROPERTY HIP_ARCHITECTURES
+                                         ${CMAKE_HIP_ARCHITECTURES})
   endif()
 
   target_link_libraries(${_app} PUBLIC cp2k)
@@ -1701,8 +1705,8 @@ foreach(__app grid_miniapp grid_unittest dbm_miniapp)
                OUTPUT_NAME "${__app}.${__cp2k_ext}")
 
   if(CP2K_USE_HIP)
-    set_target_properties(${__app} PROPERTIES HIP_ARCHITECTURES
-                                              ${CMAKE_HIP_ARCHITECTURES})
+    set_property(TARGET ${__app} PROPERTY HIP_ARCHITECTURES
+                                          ${CMAKE_HIP_ARCHITECTURES})
   endif()
 
   if(CP2K_USE_CUDA)
@@ -1721,7 +1725,7 @@ foreach(__app grid_miniapp grid_unittest dbm_miniapp)
            $<$<BOOL:${CP2K_USE_CUDA}>:${CMAKE_CUDA_INCLUDE_DIRECTORIES}>
            $<$<BOOL:${CP2K_USE_HIP}>:${CMAKE_HIP_INCLUDE_DIRECTORIES}>)
 
-  target_link_libraries(${__app} PUBLIC cp2k_link_libs m)
+  target_link_libraries(${__app} PUBLIC cp2k_linalg_libs m)
 endforeach()
 
 # ##############################################################################
@@ -1741,7 +1745,7 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/data"
 # cp2kConfig.cmake, etc...
 # ##############################################################################
 
-set(cp2k_export_libs cp2k cp2k_link_libs)
+set(cp2k_export_libs cp2k cp2k_link_libs cp2k_linalg_libs)
 if(CP2K_USE_CUDA)
   list(APPEND cp2k_export_libs cp2k_cuda_libs)
 endif()

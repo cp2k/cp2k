@@ -124,15 +124,10 @@ template <typename T> struct smem_task {
  * \brief data needed for collocate and integrate kernels
  ******************************************************************************/
 template <typename T, typename T3> struct smem_task_reduced {
-  // bool block_transposed;
   T radius, discrete_radius;
   int3 cube_center, lb_cube, cube_size, window_size, window_shift;
   T3 roffset;
   T zetp;
-  // char la_max;
-  // char lb_max;
-  // char la_min;
-  // char lb_min;
   char lp;
   bool apply_border_mask;
 };
@@ -651,7 +646,6 @@ cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
       cab[jco * task.n1 + ico] = reg; // partial loop coverage -> zero it
     }
   }
-  __syncthreads(); // because of concurrent writes to cxyz / cab
 }
 
 /*******************************************************************************
@@ -790,7 +784,6 @@ private:
   int la_max_{-1};
   int lb_max_{-1};
   int smem_per_block_{0};
-  int cxyz_len_{-1};
   int alpha_len_{-1};
   int cab_len_{-1};
   int lp_max_{-1};
@@ -807,16 +800,13 @@ public:
 
     cab_len_ = ncoset(lb_max_) * ncoset(la_max_);
     alpha_len_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
-    cxyz_len_ = ncoset(lp_max_);
-    smem_per_block_ =
-        std::max(cab_len_ + alpha_len_ + cxyz_len_, 64) * sizeof(double);
+    smem_per_block_ = std::max(alpha_len_, 64) * sizeof(double);
 
     if (smem_per_block_ > 64 * 1024) {
       fprintf(stderr,
               "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
       fprintf(stderr, "cab_len: %i, ", cab_len_);
       fprintf(stderr, "alpha_len: %i, ", alpha_len_);
-      fprintf(stderr, "cxyz_len: %i, ", cxyz_len_);
       fprintf(stderr, "total smem_per_block: %f kb\n\n",
               smem_per_block_ / 1024.0);
       abort();
@@ -827,11 +817,11 @@ public:
 
   // copy and move are trivial
 
-  inline int smem_cab_offset() const { return cxyz_len_; }
+  inline int smem_alpha_offset() const { return 0; }
 
-  inline int smem_alpha_offset() const { return cab_len_ + cxyz_len_; }
+  inline int smem_cab_offset() const { return alpha_len_; }
 
-  inline int smem_cxyz_offset() const { return 0; }
+  inline int smem_cxyz_offset() const { return alpha_len_ + cab_len_; }
 
   inline int smem_per_block() const { return smem_per_block_; }
 
@@ -841,7 +831,7 @@ public:
 
   inline int lp_max() const { return lp_max_; }
 
-  inline int cxyz_len() const { return cxyz_len_; }
+  inline int cxyz_len() const { return ncoset(lp_max_); }
 };
 
 } // namespace rocm_backend
