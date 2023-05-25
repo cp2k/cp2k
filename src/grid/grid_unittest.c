@@ -55,12 +55,13 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
   strcat(filename, "src/grid/sample_tasks/");
   strcat(filename, task_file);
 
+  const double tolerance = 1e-12;
   int errors = 0;
   for (int icol = 0; icol < 2; icol++) {
     for (int ibatch = 0; ibatch < 2; ibatch++) {
-      const double max_diff =
-          grid_replay(filename, 1, icol == 1, ibatch == 1, 1);
-      if (max_diff > 1e-12) {
+      const bool success =
+          grid_replay(filename, 1, icol == 1, ibatch == 1, 1, tolerance);
+      if (!success) {
         printf("Max diff too high, test failed.\n\n");
         errors++;
       }

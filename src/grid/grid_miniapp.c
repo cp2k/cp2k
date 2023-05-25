@@ -67,13 +67,14 @@ int main(int argc, char *argv[]) {
   offload_set_chosen_device(0);
   grid_library_init();
 
-  const double max_diff =
-      grid_replay(argv[iarg++], cycles, collocate, batch, cycles_per_block);
+  const double tolerance = 1e-12 * cycles;
+  const bool success = grid_replay(argv[iarg++], cycles, collocate, batch,
+                                   cycles_per_block, tolerance);
 
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();
 
-  if (max_diff > 1e-12 * cycles) {
+  if (!success) {
     fprintf(stderr, "Error: Maximal difference is too large.\n");
     return 2;
   }
