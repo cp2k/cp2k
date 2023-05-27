@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../offload/offload_runtime.h"
 #include "grid_common.h"
 #include "grid_constants.h"
 #include "grid_library.h"
@@ -45,6 +46,15 @@ void grid_library_init(void) {
     printf("Error: Grid library was already initialized.\n");
     abort();
   }
+
+#if defined(__OFFLOAD)
+  // Reserve global GPU memory for storing the intermediate Cab matrix blocks.
+  // CUDA does not allow to increase this limit after a kernel was launched.
+  // Unfortunately, the required memory is hard to predict because we neither
+  // know which tasks will be run nor how many thread blocks the available GPU
+  // can execute in parallel... 64 MiB ought to be enough for anybody ;-)
+  offloadEnsureMallocHeapSize(64 * 1024 * 1024);
+#endif
 
   max_threads = omp_get_max_threads();
   per_thread_globals = malloc(max_threads * sizeof(grid_library_globals *));
