@@ -1677,10 +1677,16 @@ CONTAINS
 
         ! write SOC parameters to gth_potential%hprj_ppnl
 
-        ALLOCATE(gth_potential%kprj_ppnl(3, 3, 3))
+!        ALLOCATE(gth_potential%kprj_ppnl(3, 3, 3))
+!        ALLOCATE(gth_potential%kprj_ppnl(LBOUND(gth_potential%hprj_ppnl,1):UBOUND(gth_potential%hprj_ppnl,1), &
+!                                         LBOUND(gth_potential%hprj_ppnl,2):UBOUND(gth_potential%hprj_ppnl,2), &
+!                                        LBOUND(gth_potential%hprj_ppnl,3):UBOUND(gth_potential%hprj_ppnl,3))
+        ALLOCATE(gth_potential%kprj_ppnl(0:6, 0:6, 0:6))
         gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
 
-        ALLOCATE(gth_potential%wprj_ppnl(1:SIZE(gth_potential%vprj_ppnl, 1), 1:SIZE(gth_potential%vprj_ppnl, 2)))
+        ALLOCATE(gth_potential%wprj_ppnl(0:SIZE(gth_potential%vprj_ppnl,1)+1,0:SIZE(gth_potential%vprj_ppnl,2)+1))
+!        ALLOCATE(gth_potential%wprj_ppnl(LBOUND(gth_potential%vprj_ppnl,1):UBOUND(gth_potential%vprj_ppnl,1), &
+!                                         LBOUND(gth_potential%hprj_ppnl,2):UBOUND(gth_potential%vprj_ppnl,2))
         gth_potential%wprj_ppnl(:,:) = 0.0_dp
 
         SELECT CASE (element_symbol)
@@ -1809,8 +1815,8 @@ CONTAINS
 
         PRINT *, 'element =', element_symbol
 
-        DO i=1, SIZE(gth_potential%wprj_ppnl,1)
-          DO j=1,  SIZE(gth_potential%wprj_ppnl,2)
+        DO i=LBOUND(gth_potential%wprj_ppnl,1), UBOUND(gth_potential%wprj_ppnl,1)
+          DO j= LBOUND(gth_potential%wprj_ppnl,2),  UBOUND(gth_potential%wprj_ppnl,2)
             PRINT *, 'i, j, wprj =', i, j, gth_potential%wprj_ppnl(i, j)
           END DO
         END DO
