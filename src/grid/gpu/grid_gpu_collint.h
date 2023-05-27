@@ -88,7 +88,6 @@ __device__ static void atomicAddDouble(double *address, double val) {
 typedef struct {
   double *data;
   const int n1;
-  const int mask[2];
 } cab_store;
 
 /*******************************************************************************
@@ -98,11 +97,7 @@ typedef struct {
 __device__ static inline double cab_get(const cab_store *cab, const orbital a,
                                         const orbital b) {
   const int i = idx(b) * cab->n1 + idx(a);
-  if (cab->mask[0] <= i && i < cab->mask[1]) {
-    return cab->data[i - cab->mask[0]];
-  } else {
-    return 0.0;
-  }
+  return cab->data[i];
 }
 
 /*******************************************************************************
@@ -112,9 +107,7 @@ __device__ static inline double cab_get(const cab_store *cab, const orbital a,
 __device__ static inline void cab_add(cab_store *cab, const orbital a,
                                       const orbital b, const double value) {
   const int i = idx(b) * cab->n1 + idx(a);
-  if (cab->mask[0] <= i && i < cab->mask[1]) {
-    atomicAddDouble(&cab->data[i - cab->mask[0]], value);
-  }
+  atomicAddDouble(&cab->data[i], value);
 }
 
 /*******************************************************************************
@@ -481,13 +474,38 @@ __device__ static void cab_to_cxyz(const smem_task *task, const double *alpha,
 }
 
 /*******************************************************************************
+ * \brief Allocates Cab block from global memory.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static double *malloc_cab(const smem_task *task) {
+  __shared__ double *gmem_cab;
+  if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+    gmem_cab = (double *)malloc(task->n1 * task->n2 * sizeof(double));
+    assert(gmem_cab != NULL &&
+           "MallocHeapSize too low, please increase it in grid_library_init()");
+  }
+  __syncthreads(); // wait for write to shared gmem_cab variable
+  return gmem_cab;
+}
+
+/*******************************************************************************
+ * \brief Frees Cab block. Only needed if it was allocated from global memory.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static void free_cab(double *gmem_cab) {
+  __syncthreads(); // Ensure that all threads have finished using cab.
+  if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+    free(gmem_cab);
+  }
+}
+
+/*******************************************************************************
  * \brief Initializes the cab matrix with zeros.
  * \author Ole Schuett
  ******************************************************************************/
-__device__ static void zero_cab(cab_store *cab) {
-  const int n = cab->mask[1] - cab->mask[0];
+__device__ static void zero_cab(cab_store *cab, const int cab_len) {
   if (threadIdx.z == 0 && threadIdx.y == 0) {
-    for (int i = threadIdx.x; i < n; i += blockDim.x) {
+    for (int i = threadIdx.x; i < cab_len; i += blockDim.x) {
       cab->data[i] = 0.0;
     }
   }

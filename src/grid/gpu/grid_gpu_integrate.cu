@@ -394,21 +394,28 @@ __device__ static void integrate_kernel(const kernel_params *params) {
   double *smem_alpha = &shared_memory[params->smem_alpha_offset];
   double *smem_cxyz = &shared_memory[params->smem_cxyz_offset];
 
+  // Allocate Cab from global memory if it does not fit into shared memory.
+  cab_store cab = {.data = NULL, .n1 = task.n1};
+  if (params->smem_cab_length < task.n1 * task.n2) {
+    cab.data = malloc_cab(&task);
+  } else {
+    cab.data = smem_cab;
+  }
+
+  zero_cab(&cab, task.n1 * task.n2);
+  compute_alpha(&task, smem_alpha);
+
   zero_cxyz(&task, smem_cxyz);
   grid_to_cxyz(params, &task, params->grid, smem_cxyz);
+  cab_to_cxyz(&task, smem_alpha, &cab, smem_cxyz);
 
-  // For large basis sets the Cab matrix does not fit into shared memory.
-  // Therefore, we're doing multiple passes while applying a mask.
-  compute_alpha(&task, smem_alpha);
-  for (int lb = 0; lb < task.n1 * task.n2; lb += params->smem_cab_length) {
-    const int ub = lb + params->smem_cab_length;
-    cab_store cab = {.data = smem_cab, .n1 = task.n1, .mask = {lb, ub}};
-    zero_cab(&cab);
-    cab_to_cxyz(&task, smem_alpha, &cab, smem_cxyz);
-    store_hab<COMPUTE_TAU>(&task, &cab);
-    if (CALCULATE_FORCES) {
-      store_forces_and_virial<COMPUTE_TAU>(params, &task, &cab);
-    }
+  store_hab<COMPUTE_TAU>(&task, &cab);
+  if (CALCULATE_FORCES) {
+    store_forces_and_virial<COMPUTE_TAU>(params, &task, &cab);
+  }
+
+  if (params->smem_cab_length < task.n1 * task.n2) {
+    free_cab(cab.data);
   }
 }
 
@@ -474,14 +481,13 @@ void grid_gpu_integrate_one_grid_level(
 
   init_constant_memory();
 
+  // Small Cab blocks are stored in shared mem, larger ones in global memory.
+  const int CAB_SMEM_LIMIT = ncoset(5) * ncoset(5); // = 56 * 56 = 3136
+
   // Compute required shared memory.
-  const size_t available_dynamic_smem = 48 * 1024 - sizeof(smem_task);
   const int alpha_len = 3 * (lb_max + 1) * (la_max + 1) * (lp_max + 1);
   const int cxyz_len = ncoset(lp_max);
-  const int leftover_smem_len =
-      (available_dynamic_smem / sizeof(double)) - alpha_len - cxyz_len;
-  const int cab_full_len = ncoset(lb_max) * ncoset(la_max);
-  const int cab_len = imin(cab_full_len, leftover_smem_len);
+  const int cab_len = imin(CAB_SMEM_LIMIT, ncoset(lb_max) * ncoset(la_max));
   const size_t smem_per_block =
       (alpha_len + cxyz_len + cab_len) * sizeof(double);
 
@@ -489,7 +495,7 @@ void grid_gpu_integrate_one_grid_level(
   kernel_params params;
   params.smem_cab_length = cab_len;
   params.smem_cab_offset = 0;
-  params.smem_alpha_offset = cab_len;
+  params.smem_alpha_offset = params.smem_cab_offset + cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;
   params.first_task = first_task;
   params.grid = grid_dev;

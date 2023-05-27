@@ -328,6 +328,24 @@ static inline void offloadDeviceSynchronize(void) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Wrapper around cudaDeviceSetLimit(cudaLimitMallocHeapSize,...).
+ ******************************************************************************/
+static inline void offloadEnsureMallocHeapSize(const size_t required_size) {
+  size_t current_size;
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaDeviceGetLimit(&current_size, cudaLimitMallocHeapSize));
+  if (current_size < required_size) {
+    OFFLOAD_CHECK(cudaDeviceSetLimit(cudaLimitMallocHeapSize, required_size));
+  }
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipDeviceGetLimit(&current_size, hipLimitMallocHeapSize));
+  if (current_size < required_size) {
+    OFFLOAD_CHECK(hipDeviceSetLimit(hipLimitMallocHeapSize, required_size));
+  }
+#endif
+}
+
 #ifdef __cplusplus
 }
 #endif
