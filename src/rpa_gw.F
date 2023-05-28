@@ -2013,11 +2013,11 @@ CONTAINS
          CALL cp_cfm_set_all(cfm_mat_h_double, z_zero)
          CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, 1, 1)
          CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, nao+1, nao+1)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
-
+!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
+!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
+!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
+!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
+!
 
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
          CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, 1, 1)
@@ -2053,6 +2053,35 @@ CONTAINS
 
          ! JW TEST TMP
          CALL cp_cfm_to_cfm(cfm_mat_s_double, cfm_mat_s_double_tmp)
+
+         cfm_mo_coeff_double%local_data = z_zero
+         ! JW TEST: diagonalize H in MO basis
+         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, 1, 1)
+         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, nao+1, nao+1)
+
+         CALL parallel_gemm(transa="N", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
+                            matrix_a=cfm_mat_h_double, matrix_b=cfm_mo_coeff_double, beta=z_zero, &
+                            matrix_c=cfm_mat_work_double)
+
+         CALL parallel_gemm(transa="C", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
+                            matrix_a=cfm_mo_coeff_double, matrix_b=cfm_mat_work_double, beta=z_zero, &
+                            matrix_c=cfm_mat_h_double)
+
+         IF(ikp == nkp_self_energy) THEN
+           PRINT *, 'H(k) IN MO BASIS'
+           DO i_row = 1, nrow_local
+             DO j_col = 1, ncol_local
+                PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
+             END DO
+           END DO
+         END IF
+
+         cfm_mat_s_double_tmp%local_data = z_zero
+         DO i_row = 1, nrow_local
+           cfm_mat_s_double_tmp%local_data(i_row, i_row ) = z_one
+         END DO
+
+         ! END TEST
  
          eigenvalues = 0.0_dp
 !         CALL cp_cfm_geeig_canon(cfm_mat_h_double, cfm_mat_s_double, cfm_mo_coeff_double, eigenvalues, &
