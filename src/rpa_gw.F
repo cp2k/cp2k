@@ -1647,8 +1647,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type)                                  :: cfm_mat_h_double, cfm_mat_s_double, cfm_mat_h_ks, &
                                                              cfm_mo_coeff_double, cfm_mo_coeff, cfm_work, cfm_mat_s, &
-                                                              cfm_mat_work_double, cfm_work_2, cfm_mat_work_double_2, &
-                                                              cfm_mat_s_double_tmp
+                                                              cfm_mat_work_double, cfm_work_2
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_ks_kp, mat_s_kp, mat_VSOC_lx_kp,  &
                            mat_VSOC_lz_kp,  mat_VSOC_ly_kp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
@@ -1926,10 +1925,8 @@ CONTAINS
 
       CALL create_cfm_double_row_col_size(rmos, cfm_mat_h_double)
       CALL create_cfm_double_row_col_size(rmos, cfm_mat_s_double)
-      CALL create_cfm_double_row_col_size(rmos, cfm_mat_s_double_tmp)
       CALL create_cfm_double_row_col_size(rmos, cfm_mo_coeff_double)
       CALL create_cfm_double_row_col_size(rmos, cfm_mat_work_double)
-      CALL create_cfm_double_row_col_size(rmos, cfm_mat_work_double_2)
 
       CALL cp_cfm_set_all(cfm_mo_coeff_double, z_zero)
 
@@ -2013,11 +2010,11 @@ CONTAINS
          CALL cp_cfm_set_all(cfm_mat_h_double, z_zero)
          CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, 1, 1)
          CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, nao+1, nao+1)
-!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
-!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
-!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
-!         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
-!
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
+
 
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
          CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, 1, 1)
@@ -2025,83 +2022,9 @@ CONTAINS
 
       PRINT *, 'CHECK HERM CONJ =', SUM(ABS(cfm_mat_h_double%local_data(:,:)-CONJG(TRANSPOSE(cfm_mat_h_double%local_data(:,:)))))
 
-         IF(ikp == nkp_self_energy) THEN
-         CALL cp_cfm_get_info(matrix=cfm_mo_coeff_double, &
-                              nrow_local=nrow_local, &
-                              ncol_local=ncol_local, &
-                              row_indices=row_indices, &
-                              col_indices=col_indices)
-           PRINT *, 'H(k) BEFORE DIAGONALIZATION'
-           DO i_row = 1, nrow_local
-             DO j_col = 1, ncol_local
-               IF(ABS(AIMAG(cfm_mat_h_double%local_data(i_row, j_col)))<0.1_dp) THEN
-                  PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
-               ELSE IF(ABS(AIMAG(cfm_mat_h_double%local_data(i_row, j_col)))<0.3_dp) THEN
-                  PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col), 'LARGE'
-               ELSE 
-                  PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col), 'HUGE'
-               END IF
-             END DO
-           END DO
-           PRINT *, 'S(k) BEFORE DIAGONALIZATION'
-           DO j_col = 1, ncol_local
-             PRINT *, 1, j_col, cfm_mat_s_double%local_data(1, j_col)
-           END DO
-           CALL cp_cfm_to_cfm(cfm_mat_s_double, cfm_mat_s_double_tmp)
-
-         END IF
-
-         ! JW TEST TMP
-         CALL cp_cfm_to_cfm(cfm_mat_s_double, cfm_mat_s_double_tmp)
-
-         cfm_mo_coeff_double%local_data = z_zero
-         ! JW TEST: diagonalize H in MO basis
-         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, 1, 1)
-         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, nao+1, nao+1)
-
-         CALL parallel_gemm(transa="N", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
-                            matrix_a=cfm_mat_h_double, matrix_b=cfm_mo_coeff_double, beta=z_zero, &
-                            matrix_c=cfm_mat_work_double)
-
-         CALL parallel_gemm(transa="C", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
-                            matrix_a=cfm_mo_coeff_double, matrix_b=cfm_mat_work_double, beta=z_zero, &
-                            matrix_c=cfm_mat_h_double)
-
-         IF(ikp == nkp_self_energy) THEN
-           PRINT *, 'H(k) IN MO BASIS'
-           DO i_row = 1, nrow_local
-             DO j_col = 1, ncol_local
-                PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
-             END DO
-           END DO
-         END IF
-
-         cfm_mat_s_double_tmp%local_data = z_zero
-         DO i_row = 1, nrow_local
-           cfm_mat_s_double_tmp%local_data(i_row, i_row ) = z_one
-         END DO
-
-         ! END TEST
- 
          eigenvalues = 0.0_dp
-!         CALL cp_cfm_geeig_canon(cfm_mat_h_double, cfm_mat_s_double, cfm_mo_coeff_double, eigenvalues, &
-         CALL cp_cfm_geeig_canon(cfm_mat_h_double, cfm_mat_s_double_tmp, cfm_mo_coeff_double, eigenvalues, &
+         CALL cp_cfm_geeig_canon(cfm_mat_h_double, cfm_mat_s_double, cfm_mo_coeff_double, eigenvalues, &
                                  cfm_mat_work_double, scf_control%eps_eigval)
-
-         IF(ikp == nkp_self_energy) THEN
-           PRINT *, 'First 2 eigenvectors ='
-           DO i_row = 1, nrow_local
-             PRINT *, i_row, 1, cfm_mo_coeff_double%local_data(i_row, 1), &
-                      i_row, 2, cfm_mo_coeff_double%local_data(i_row, 2)
-           END DO
-           PRINT *, ''
-           PRINT *, ''
-           PRINT *, 'Last 2 eigenvectors ='
-           DO i_row = 1, nrow_local
-             PRINT *, i_row, 2*nao, cfm_mo_coeff_double%local_data(i_row,2*nao-1), &
-                      i_row, 2*nao-1, cfm_mo_coeff_double%local_data(i_row, 2*nao)
-           END DO
-         END IF
 
          PRINT *, 'homo =', homo(1)
          PRINT *, 'gw_corr_lev_occ(1) =',  gw_corr_lev_occ(1)
@@ -2128,43 +2051,6 @@ CONTAINS
                        (eigenvalues(n_level_gw)-Eigenval((n_level_gw+1)/2, ikp, 1))*evolt
             END DO
          END IF
-
-         ! JW HACK TEST
-
-         CALL cp_cfm_get_info(matrix=cfm_mo_coeff_double, &
-                              nrow_local=nrow_local, &
-                              ncol_local=ncol_local, &
-                              row_indices=row_indices, &
-                              col_indices=col_indices)
-
-         CALL parallel_gemm(transa="N", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
-                            matrix_a=cfm_mat_s_double, matrix_b=cfm_mo_coeff_double, beta=z_zero, &
-                            matrix_c=cfm_mat_work_double)
-
-         CALL cp_cfm_to_cfm(cfm_mat_work_double, cfm_mat_work_double_2)
-
-         ! Multiply with GW eigenvalue to get h^GW = S*C*eps)*C^H*S
-          DO j_col = 1, ncol_local
-             j_glob = col_indices(j_col)
-             cfm_mat_work_double%local_data(:, j_col) = cfm_mat_work_double%local_data(:, j_col)*eigenvalues(j_glob)
-         END DO
-
-         CALL parallel_gemm(transa="N", transb="C", m=nao, n=2*nao, k=2*nao, alpha=z_one, &
-                            matrix_a=cfm_mat_work_double, matrix_b=cfm_mat_work_double_2, beta=z_zero, &
-                            matrix_c=cfm_mat_h_double)
-
-         IF(ikp == nkp_self_energy) THEN
-           PRINT *, 'CHECK DOUBLE H(k)'
-           DO j_col = 1, ncol_local
-             PRINT *, 1, j_col, cfm_mat_h_double%local_data(1, j_col)
-           END DO
-           PRINT *, 'CHECK DOUBLE S(k)'
-           DO j_col = 1, ncol_local
-             PRINT *, 1, j_col, cfm_mat_s_double%local_data(1, j_col)
-           END DO
-         END IF
-
-         ! JW END HACK TEST
 
       END DO
 
@@ -2204,8 +2090,6 @@ CONTAINS
       CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_cfm_release(cfm_mat_h_ks)
       CALL cp_cfm_release(cfm_mat_work_double)
-      CALL cp_cfm_release(cfm_mat_work_double_2)
-      CALL cp_cfm_release(cfm_mat_s_double_tmp)
       CALL cp_fm_release(fm_mat_work_double_re)
       CALL cp_fm_release(fm_mat_work_double_im)
       CALL cp_fm_release(fm_mat_work)
