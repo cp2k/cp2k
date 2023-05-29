@@ -1693,7 +1693,6 @@ CONTAINS
         CASE("H ")
 
            PRINT *, 'you enter H'
-           gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
 
         CASE("K ")
 
@@ -1701,7 +1700,6 @@ CONTAINS
 
            ! JW fantasy parameters
 
-           gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
            gth_potential%kprj_ppnl(1,1,1) = 1.0_dp
 
 !           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
@@ -1725,7 +1723,6 @@ CONTAINS
 
            ! JW fantasy parameters
 
-           gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
            gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
 
 !           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
@@ -1745,7 +1742,6 @@ CONTAINS
 
            ! JW fantasy parameters
 
-           gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
            gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
 
 !           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
@@ -1764,7 +1760,6 @@ CONTAINS
            PRINT *, 'you enter Se'
 
            ! THESE ARE THE PARAMETERS OF W !!!!!!!!!!!!!!!!!!!!
-           gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
            gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
            gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
            gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
@@ -1782,7 +1777,6 @@ CONTAINS
 
         CASE("W ")
 
-           gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
            gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
            gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
            gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
