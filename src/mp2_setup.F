@@ -165,6 +165,8 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%regularization_minimax)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SOC", &
                                 i_val=mp2_env%ri_g0w0%soc_type)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SOC_ENERGY_WINDOW", &
+                                r_val=mp2_env%ri_g0w0%soc_energy_window)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
                                 l_val=mp2_env%ri_g0w0%do_bse)

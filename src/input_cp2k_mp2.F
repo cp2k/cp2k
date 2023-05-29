@@ -944,8 +944,17 @@ CONTAINS
                                         "Use parameters from LDA (PADE) pseudopotential.", &
                                         "Use parameters from PBE pseudopotential."), &
                           default_i_val=soc_none)
-!                          default_l_val=.FALSE., &
-!                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_ENERGY_WINDOW", &
+                          description="For perturbative SOC calculation, only "// &
+                          "take frontier levels in an energy window "// &
+                          "[E_HOMO - SOC_ENERGY_WINDOW/2 , E_LUMO + SOC_ENERGY_WINDOW/2 "// &
+                          "into account for the diagonalization of H^GW,SOC.", &
+                          usage="SOC_ENERGY_WINDOW 10.0_eV", &
+                          default_r_val=cp_unit_to_cp2k(value=5.0_dp, unit_str="eV"), &
+                          unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

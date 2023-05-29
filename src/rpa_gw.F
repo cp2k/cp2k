@@ -1621,10 +1621,11 @@ CONTAINS
         ncol_local, nrow_local
       LOGICAL                                            :: do_kpoints_Sigma, my_open_shell,calculate_force, &
       use_virial
-      INTEGER :: nder , i_dim, i,j, nkp_self_energy, ik, i_global, j_global, j_glob
+      INTEGER :: nder , i_dim, i,j, nkp_self_energy, ik, i_global,j_global, j_glob, i_glob
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp) :: E_CBM_GW, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, &
          E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit, eps_ppnl,  avg_occ_QP_shift,  avg_virt_QP_shift
+             REAL(KIND=dp)                                   ::  E_i,E_HOMO, E_LUMO, E_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1678,17 +1679,10 @@ CONTAINS
         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, element_symbol=element_symbol)
 
         ! write SOC parameters to gth_potential%hprj_ppnl
-
-!        ALLOCATE(gth_potential%kprj_ppnl(3, 3, 3))
-!        ALLOCATE(gth_potential%kprj_ppnl(LBOUND(gth_potential%hprj_ppnl,1):UBOUND(gth_potential%hprj_ppnl,1), &
-!                                         LBOUND(gth_potential%hprj_ppnl,2):UBOUND(gth_potential%hprj_ppnl,2), &
-!                                        LBOUND(gth_potential%hprj_ppnl,3):UBOUND(gth_potential%hprj_ppnl,3))
         ALLOCATE(gth_potential%kprj_ppnl(0:6, 0:6, 0:6))
         gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
 
         ALLOCATE(gth_potential%wprj_ppnl(0:SIZE(gth_potential%vprj_ppnl,1)+1,0:SIZE(gth_potential%vprj_ppnl,2)+1))
-!        ALLOCATE(gth_potential%wprj_ppnl(LBOUND(gth_potential%vprj_ppnl,1):UBOUND(gth_potential%vprj_ppnl,1), &
-!                                         LBOUND(gth_potential%hprj_ppnl,2):UBOUND(gth_potential%vprj_ppnl,2))
         gth_potential%wprj_ppnl(:,:) = 0.0_dp
 
         SELECT CASE(qs_env%mp2_env%ri_g0w0%soc_type)
@@ -1699,124 +1693,6 @@ CONTAINS
         CASE DEFAULT 
           CPABORT("Unknown SOC type.")
         END SELECT
-
-!        SELECT CASE (element_symbol)
-!        CASE("H ")
-!
-!           PRINT *, 'you enter H'
-!
-!        CASE("K ")
-!
-!           PRINT *, 'you enter K'
-!
-!           ! JW fantasy parameters
-!
-!           gth_potential%kprj_ppnl(1,1,1) = 1.0_dp
-!
-!!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-!!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-!!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-!!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-!!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-!!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-!!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-!!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-!!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-!
-!!           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
-!!           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
-!!           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
-!!           gth_potential%kprj_ppnl(2,2,2) = 0.100046_dp
-!
-!        CASE("Na")
-!
-!           PRINT *, 'you enter Na'
-!
-!           ! JW fantasy parameters
-!
-!           gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
-!
-!!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-!!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-!!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-!!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-!!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-!!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-!!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-!!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-!!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-!
-!
-!        CASE("Mg")
-!
-!           PRINT *, 'you enter Mg'
-!
-!           ! JW fantasy parameters
-!
-!           gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
-!
-!!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-!!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-!!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-!!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-!!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-!!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-!!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-!!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-!!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-!
-!
-!        CASE("Se")
-!
-!           PRINT *, 'you enter Se'
-!
-!           ! THESE ARE THE PARAMETERS OF W !!!!!!!!!!!!!!!!!!!!
-!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-!
-!           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
-!           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
-!           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
-!           gth_potential%kprj_ppnl(2,2,2) = -0.100046_dp
-!
-!        CASE("W ")
-!
-!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-!
-!           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
-!           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
-!           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
-!           gth_potential%kprj_ppnl(2,2,2) = -0.100046_dp
-!
-!           Do i_size = 1, 3
-!           Do j_size = 1, 3
-!           Do k_size = 1, 3
-!              IF(para_env%mepos == 0) THEN 
-!                 PRINT *, 'check', i_size, j_size, k_size, gth_potential%kprj_ppnl(i_size, j_size, k_size)
-!              END IF
-!           END DO
-!           END DO
-!           END DO
-!
-!        END SELECT
-
-!        ! write SOC parameters from kprj_ppnl into wprj_ppnl
-!        CALL init_potential(gth_potential)
 
         PRINT *, 'element =', element_symbol
 
@@ -1990,40 +1866,89 @@ CONTAINS
                                                                   + avg_virt_QP_shift
          END IF
 
-         CALL cp_cfm_get_info(matrix=cfm_mo_coeff, &
-                              nrow_local=nrow_local, &
-                              ncol_local=ncol_local, &
-                              row_indices=row_indices, &
-                              col_indices=col_indices)
-
-         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=z_one, &
-                            matrix_a=cfm_mat_s, matrix_b=cfm_mo_coeff, beta=z_zero, &
-                            matrix_c=cfm_work)
-
-         CALL cp_cfm_to_cfm(cfm_work, cfm_work_2)
-
-         ! Multiply with GW eigenvalue to get h^GW = S*C*eps)*C^H*S
-          DO j_col = 1, ncol_local
-             j_glob = col_indices(j_col)
-             cfm_work%local_data(:, j_col) = cfm_work%local_data(:, j_col)*Eigenval(j_glob, ikp, 1)
-         END DO
-
-         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=nao, alpha=z_one, &
-                            matrix_a=cfm_work, matrix_b=cfm_work_2, beta=z_zero, &
-                            matrix_c=cfm_mat_h_ks)         
+!         CALL cp_cfm_get_info(matrix=cfm_mo_coeff, &
+!                              nrow_local=nrow_local, &
+!                              ncol_local=ncol_local, &
+!                              row_indices=row_indices, &
+!                              col_indices=col_indices)
+!
+!         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=z_one, &
+!                            matrix_a=cfm_mat_s, matrix_b=cfm_mo_coeff, beta=z_zero, &
+!                            matrix_c=cfm_work)
+!
+!         CALL cp_cfm_to_cfm(cfm_work, cfm_work_2)
+!
+!         ! Multiply with GW eigenvalue to get h^GW = S*C*eps)*C^H*S
+!          DO j_col = 1, ncol_local
+!             j_glob = col_indices(j_col)
+!             cfm_work%local_data(:, j_col) = cfm_work%local_data(:, j_col)*Eigenval(j_glob, ikp, 1)
+!         END DO
+!
+!         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=nao, alpha=z_one, &
+!                            matrix_a=cfm_work, matrix_b=cfm_work_2, beta=z_zero, &
+!                            matrix_c=cfm_mat_h_ks)         
 
          CALL cp_cfm_set_all(cfm_mat_h_double, z_zero)
-         CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, 1, 1)
-         CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, nao+1, nao+1)
+!         CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, 1, 1)
+!         CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, nao+1, nao+1)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
 
+         ! trafo to MO basis
+         cfm_mo_coeff_double%local_data = z_zero
+         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, 1, 1)
+         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, nao+1, nao+1)
+
+         CALL parallel_gemm(transa="N", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
+                            matrix_a=cfm_mat_h_double, matrix_b=cfm_mo_coeff_double, beta=z_zero, &
+                            matrix_c=cfm_mat_work_double)
+
+         CALL parallel_gemm(transa="C", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
+                            matrix_a=cfm_mo_coeff_double, matrix_b=cfm_mat_work_double, beta=z_zero, &
+                            matrix_c=cfm_mat_h_double)
+
+         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
+                              nrow_local=nrow_local, &
+                              ncol_local=ncol_local, &
+                              row_indices=row_indices, &
+                              col_indices=col_indices)
 
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
-         CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, 1, 1)
-         CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, nao+1, nao+1)
+         DO i_row = 1, nrow_local
+         DO j_col = 1, ncol_local
+             i_glob = row_indices(i_row)
+             j_glob = col_indices(j_col)
+             IF(i_glob == j_glob) THEN
+                IF(i_glob .LE. nao) THEN
+                   E_i = Eigenval(j_glob, ikp, 1)
+                ELSE
+                   E_i = Eigenval(j_glob-nao, ikp, 1)
+                END IF
+                E_HOMO = Eigenval(homo(1), ikp, 1)
+                E_LUMO = Eigenval(homo(1)+1, ikp, 1)
+                E_window = qs_env%mp2_env%ri_g0w0%soc_energy_window*0.5_dp
+                IF( E_i > E_HOMO - E_window .AND. E_i < E_LUMO + E_window) THEN
+                   cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
+                 ELSE IF( E_i < E_HOMO - E_window) THEN
+                   cfm_mat_h_double%local_data(i_row, :) = z_zero
+                   cfm_mat_h_double%local_data(:, j_col) = z_zero
+                   cfm_mat_h_double%local_data(i_row, j_col) =-100.0_dp*z_one
+                 ELSE IF( E_i > E_LUMO + E_window) THEN
+                   cfm_mat_h_double%local_data(i_row, :) = z_zero
+                   cfm_mat_h_double%local_data(:, j_col) = z_zero
+                   cfm_mat_h_double%local_data(i_row, j_col) =100.0_dp*z_one
+                END IF
+                  cfm_mat_s_double%local_data(i_row, j_col) =z_one
+             END IF
+         END DO
+         END DO
+
+         ! JW TODO: remove cfm_mat_s completely
+!         CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
+!         CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, 1, 1)
+!         CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, nao+1, nao+1)
 
       PRINT *, 'CHECK HERM CONJ =', SUM(ABS(cfm_mat_h_double%local_data(:,:)-CONJG(TRANSPOSE(cfm_mat_h_double%local_data(:,:)))))
 
@@ -2068,7 +1993,7 @@ CONTAINS
 !        END DO
 !      END DO
 !
-! JW 2del
+!! JW 2del
 !      PRINT *, ''
 !      PRINT *, ''
 !      PRINT *, 'Eigenval_SCF =', Eigenval_scf(:,nkp_self_energy, 1)
