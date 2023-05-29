@@ -12,6 +12,7 @@
 !>      12.2022 added periodic GW routines [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_gw
+         USE util,                            ONLY: sort
   USE external_potential_soc_parameters, ONLY: get_kprj_SOC_parameters
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon
@@ -1656,7 +1657,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
       TYPE(cp_fm_type)                                   :: fm_dummy
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE ::      eigenvalues_without_soc_sorted
       TYPE(scf_control_type), POINTER                    :: scf_control
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
 
       CALL timeset(routineN, handle)
 
@@ -1837,6 +1840,12 @@ CONTAINS
 
       ALLOCATE(eigenvalues(2*nao))
       eigenvalues = 0.0_dp
+      ALLOCATE(eigenvalues_without_soc_sorted(2*nao))
+
+      E_window = qs_env%mp2_env%ri_g0w0%soc_energy_window*0.5_dp
+      IF(unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A,F42.1)') 'GW_SOC_INFO | SOC energy window (eV)', E_window*evolt
+      END IF
 
       DO ikp = 1, nkp_self_energy
 
@@ -1928,19 +1937,13 @@ CONTAINS
                 END IF
                 E_HOMO = Eigenval(homo(1), ikp, 1)
                 E_LUMO = Eigenval(homo(1)+1, ikp, 1)
-                E_window = qs_env%mp2_env%ri_g0w0%soc_energy_window*0.5_dp
-                IF( E_i > E_HOMO - E_window .AND. E_i < E_LUMO + E_window) THEN
-                   cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
-                 ELSE IF( E_i < E_HOMO - E_window) THEN
+
+                IF( E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window) THEN
                    cfm_mat_h_double%local_data(i_row, :) = z_zero
                    cfm_mat_h_double%local_data(:, j_col) = z_zero
-                   cfm_mat_h_double%local_data(i_row, j_col) =-100.0_dp*z_one
-                 ELSE IF( E_i > E_LUMO + E_window) THEN
-                   cfm_mat_h_double%local_data(i_row, :) = z_zero
-                   cfm_mat_h_double%local_data(:, j_col) = z_zero
-                   cfm_mat_h_double%local_data(i_row, j_col) =100.0_dp*z_one
                 END IF
-                  cfm_mat_s_double%local_data(i_row, j_col) =z_one
+                cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
+                cfm_mat_s_double%local_data(i_row, j_col) = z_one
              END IF
          END DO
          END DO
@@ -1955,6 +1958,12 @@ CONTAINS
          eigenvalues = 0.0_dp
          CALL cp_cfm_geeig_canon(cfm_mat_h_double, cfm_mat_s_double, cfm_mo_coeff_double, eigenvalues, &
                                  cfm_mat_work_double, scf_control%eps_eigval)
+
+         eigenvalues_without_soc_sorted(1:nao) = Eigenval(:, ikp, 1)
+         eigenvalues_without_soc_sorted(nao+1:2*nao) = Eigenval(:, ikp, 1)
+         ALLOCATE(index0(nao))
+         CALL sort(eigenvalues_without_soc_sorted, 2*nao, index0)
+         DEALLOCATE(index0)
 
          PRINT *, 'homo =', homo(1)
          PRINT *, 'gw_corr_lev_occ(1) =',  gw_corr_lev_occ(1)
@@ -1972,13 +1981,13 @@ CONTAINS
 
             DO n_level_gw = 2*(homo(1) - gw_corr_lev_occ(1)) + 1, 2*homo(1)
                 WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( occ ) ', eigenvalues(n_level_gw)*evolt, &
-                       Eigenval((n_level_gw+1)/2, ikp, 1)*evolt, &
-                       (eigenvalues(n_level_gw)-Eigenval((n_level_gw+1)/2, ikp, 1))*evolt
+                       eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
+                       (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
             DO n_level_gw = 2*homo(1)+1, 2*(homo(1) + gw_corr_lev_virt(1))
                 WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( vir ) ', eigenvalues(n_level_gw)*evolt, &
-                       Eigenval((n_level_gw+1)/2, ikp, 1)*evolt, &
-                       (eigenvalues(n_level_gw)-Eigenval((n_level_gw+1)/2, ikp, 1))*evolt
+                       eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
+                       (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
          END IF
 

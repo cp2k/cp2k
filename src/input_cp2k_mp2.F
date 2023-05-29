@@ -952,8 +952,8 @@ CONTAINS
                           "take frontier levels in an energy window "// &
                           "[E_HOMO - SOC_ENERGY_WINDOW/2 , E_LUMO + SOC_ENERGY_WINDOW/2 "// &
                           "into account for the diagonalization of H^GW,SOC.", &
-                          usage="SOC_ENERGY_WINDOW 10.0_eV", &
-                          default_r_val=cp_unit_to_cp2k(value=5.0_dp, unit_str="eV"), &
+                          usage="SOC_ENERGY_WINDOW 20.0_eV", &
+                          default_r_val=cp_unit_to_cp2k(value=20.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
