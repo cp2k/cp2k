@@ -12,6 +12,7 @@
 !>      12.2022 added periodic GW routines [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_gw
+  USE external_potential_soc_parameters, ONLY: get_kprj_SOC_parameters
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
@@ -1689,19 +1690,79 @@ CONTAINS
 !                                         LBOUND(gth_potential%hprj_ppnl,2):UBOUND(gth_potential%vprj_ppnl,2))
         gth_potential%wprj_ppnl(:,:) = 0.0_dp
 
-        SELECT CASE (element_symbol)
-        CASE("H ")
+        CALL get_kprj_SOC_parameters(gth_potential, "LDA", element_symbol)
 
-           PRINT *, 'you enter H'
-
-        CASE("K ")
-
-           PRINT *, 'you enter K'
-
-           ! JW fantasy parameters
-
-           gth_potential%kprj_ppnl(1,1,1) = 1.0_dp
-
+!        SELECT CASE (element_symbol)
+!        CASE("H ")
+!
+!           PRINT *, 'you enter H'
+!
+!        CASE("K ")
+!
+!           PRINT *, 'you enter K'
+!
+!           ! JW fantasy parameters
+!
+!           gth_potential%kprj_ppnl(1,1,1) = 1.0_dp
+!
+!!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
+!!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
+!!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
+!!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
+!!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
+!!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
+!!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
+!!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
+!!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
+!
+!!           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
+!!           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
+!!           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
+!!           gth_potential%kprj_ppnl(2,2,2) = 0.100046_dp
+!
+!        CASE("Na")
+!
+!           PRINT *, 'you enter Na'
+!
+!           ! JW fantasy parameters
+!
+!           gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
+!
+!!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
+!!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
+!!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
+!!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
+!!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
+!!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
+!!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
+!!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
+!!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
+!
+!
+!        CASE("Mg")
+!
+!           PRINT *, 'you enter Mg'
+!
+!           ! JW fantasy parameters
+!
+!           gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
+!
+!!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
+!!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
+!!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
+!!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
+!!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
+!!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
+!!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
+!!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
+!!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
+!
+!
+!        CASE("Se")
+!
+!           PRINT *, 'you enter Se'
+!
+!           ! THESE ARE THE PARAMETERS OF W !!!!!!!!!!!!!!!!!!!!
 !           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
 !           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
 !           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
@@ -1711,20 +1772,14 @@ CONTAINS
 !           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
 !           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
 !           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-
+!
 !           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
 !           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
 !           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
-!           gth_potential%kprj_ppnl(2,2,2) = 0.100046_dp
-
-        CASE("Na")
-
-           PRINT *, 'you enter Na'
-
-           ! JW fantasy parameters
-
-           gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
-
+!           gth_potential%kprj_ppnl(2,2,2) = -0.100046_dp
+!
+!        CASE("W ")
+!
 !           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
 !           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
 !           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
@@ -1734,78 +1789,26 @@ CONTAINS
 !           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
 !           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
 !           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
+!
+!           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
+!           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
+!           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
+!           gth_potential%kprj_ppnl(2,2,2) = -0.100046_dp
+!
+!           Do i_size = 1, 3
+!           Do j_size = 1, 3
+!           Do k_size = 1, 3
+!              IF(para_env%mepos == 0) THEN 
+!                 PRINT *, 'check', i_size, j_size, k_size, gth_potential%kprj_ppnl(i_size, j_size, k_size)
+!              END IF
+!           END DO
+!           END DO
+!           END DO
+!
+!        END SELECT
 
-
-        CASE("Mg")
-
-           PRINT *, 'you enter Mg'
-
-           ! JW fantasy parameters
-
-           gth_potential%kprj_ppnl(1,1,1) = 0.1_dp
-
-!           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-!           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-!           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-!           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-!           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-!           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-!           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-!           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-!           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-
-
-        CASE("Se")
-
-           PRINT *, 'you enter Se'
-
-           ! THESE ARE THE PARAMETERS OF W !!!!!!!!!!!!!!!!!!!!
-           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-
-           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
-           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
-           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
-           gth_potential%kprj_ppnl(2,2,2) = -0.100046_dp
-
-        CASE("W ")
-
-           gth_potential%kprj_ppnl(1,1,1) =  0.715480_dp
-           gth_potential%kprj_ppnl(1,2,1) =  0.162835_dp
-           gth_potential%kprj_ppnl(2,1,1) =  0.162835_dp
-           gth_potential%kprj_ppnl(2,2,1) = -0.385339_dp
-           gth_potential%kprj_ppnl(3,1,1) = -0.022919_dp
-           gth_potential%kprj_ppnl(1,3,1) = -0.022919_dp
-           gth_potential%kprj_ppnl(3,2,1) =  0.054237_dp
-           gth_potential%kprj_ppnl(2,3,1) =  0.054237_dp
-           gth_potential%kprj_ppnl(3,3,1) = -0.077093_dp
-
-           gth_potential%kprj_ppnl(1,1,2) = 0.205860_dp
-           gth_potential%kprj_ppnl(1,2,2) = 0.044116_dp
-           gth_potential%kprj_ppnl(2,1,2) = 0.044116_dp
-           gth_potential%kprj_ppnl(2,2,2) = -0.100046_dp
-
-           Do i_size = 1, 3
-           Do j_size = 1, 3
-           Do k_size = 1, 3
-              IF(para_env%mepos == 0) THEN 
-                 PRINT *, 'check', i_size, j_size, k_size, gth_potential%kprj_ppnl(i_size, j_size, k_size)
-              END IF
-           END DO
-           END DO
-           END DO
-
-        END SELECT
-
-        ! write SOC parameters from kprj_ppnl into wprj_ppnl
-        CALL init_potential(gth_potential)
+!        ! write SOC parameters from kprj_ppnl into wprj_ppnl
+!        CALL init_potential(gth_potential)
 
         PRINT *, 'element =', element_symbol
 
