@@ -7,7 +7,7 @@
 
 ! **************************************************************************************************
 !> \brief SOC parameters of Hartwigsten-Goedecker-Hutter pseudopotentials 
-!>        (temporary file until storage of SOC parameters in data directory is there
+!>        (temporary file before storage of SOC parameters in data directory)
 !> \par History
 !>      06.2023 created [Jan Wilhelm]
 ! **************************************************************************************************
@@ -50,7 +50,7 @@ CONTAINS
       CASE("LDA")
         CALL get_kprj_SOC_parameters_LDA(gth_potential, element_symbol,charge)
       CASE("PBE")
-
+        CALL get_kprj_SOC_parameters_PBE(gth_potential, element_symbol,charge)
       CASE DEFAULT
         CPABORT("Unknown xc functional in SOC part of pseudopotential.")
       END SELECT
@@ -1178,5 +1178,964 @@ END IF
       CALL timestop(handle)
 
 END SUBROUTINE get_kprj_SOC_parameters_LDA
+
+
+   SUBROUTINE get_kprj_SOC_parameters_PBE(gth_potential, element_symbol, charge)
+
+     TYPE(gth_potential_type), POINTER                  :: gth_potential
+
+      CHARACTER(LEN=*), PARAMETER :: routineN ='get_kprj_SOC_parameters_PBE'
+
+      INTEGER :: handle, charge
+     CHARACTER(LEN=2)           :: element_symbol
+
+      CALL timeset(routineN, handle)
+
+IF(element_symbol == "Ag" .AND. charge == 11) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.25749375_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.41140313_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.41140313_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.48677875_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.04679548_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.08682477_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.08682477_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.09845003_dp
+
+ELSE IF(element_symbol == "Ag" .AND. charge == 19) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.24535051_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.64883901_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.64883901_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.76771666_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.03347751_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.06201267_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.06201267_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.07031576_dp
+
+ELSE IF(element_symbol == "Al" .AND. charge == 3) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.01323750_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.01265070_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.01265070_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.01496851_dp
+
+ELSE IF(element_symbol == "Ar" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.05709588_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.03927810_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.03927810_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.04647447_dp
+
+ELSE IF(element_symbol == "As" .AND. charge == 5) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.07884496_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.03308528_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.03308528_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.03914703_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00335570_dp
+
+ELSE IF(element_symbol == "At" .AND. charge == 7) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.66100264_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.11918597_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.11918597_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.14102275_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.03023997_dp
+
+ELSE IF(element_symbol == "Au" .AND. charge == 11) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.21911104_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.38187511_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.38187511_dp
+   gth_potential%kprj_ppnl(2,2,1) = 2.81827264_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.12113041_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.26246301_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.26246301_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.29760507_dp
+
+ELSE IF(element_symbol == "Au" .AND. charge == 19) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.18370022_dp
+   gth_potential%kprj_ppnl(1,2,1) = 2.64213942_dp
+   gth_potential%kprj_ppnl(2,1,1) = 2.64213942_dp
+   gth_potential%kprj_ppnl(1,3,1) = -2.01606276_dp
+   gth_potential%kprj_ppnl(3,1,1) = -2.01606276_dp
+   gth_potential%kprj_ppnl(2,2,1) = -6.48265855_dp
+   gth_potential%kprj_ppnl(2,3,1) = 4.77087526_dp
+   gth_potential%kprj_ppnl(3,2,1) = 4.77087526_dp
+   gth_potential%kprj_ppnl(3,3,1) = -3.39068639_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.15609346_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.06062427_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.06062427_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.06874145_dp
+
+ELSE IF(element_symbol == "B " .AND. charge == 3) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.00085498_dp
+
+ELSE IF(element_symbol == "Ba" .AND. charge == 10) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.38677712_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.22926159_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.22926159_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.55122185_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.55122185_dp
+   gth_potential%kprj_ppnl(2,2,1) = 3.55539820_dp
+   gth_potential%kprj_ppnl(2,3,1) = -1.30442898_dp
+   gth_potential%kprj_ppnl(3,2,1) = -1.30442898_dp
+   gth_potential%kprj_ppnl(3,3,1) = 0.92706460_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01663250_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.00607912_dp
+
+ELSE IF(element_symbol == "Bi" .AND. charge == 15) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.61410367_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.26162040_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.26162040_dp
+   gth_potential%kprj_ppnl(1,3,1) = 1.01570961_dp
+   gth_potential%kprj_ppnl(3,1,1) = 1.01570961_dp
+   gth_potential%kprj_ppnl(2,2,1) = 4.36698694_dp
+   gth_potential%kprj_ppnl(2,3,1) = -2.40360764_dp
+   gth_potential%kprj_ppnl(3,2,1) = -2.40360764_dp
+   gth_potential%kprj_ppnl(3,3,1) = 1.70825672_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.17397466_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.35675867_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.35675867_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.40452630_dp
+
+ELSE IF(element_symbol == "Bi" .AND. charge == 5) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.33910609_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.02108594_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.02108594_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.02494923_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.02035678_dp
+
+ELSE IF(element_symbol == "Br" .AND. charge == 7) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.17300601_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.09956873_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.09956873_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.11781131_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00654644_dp
+
+ELSE IF(element_symbol == "C " .AND. charge == 4) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.00207319_dp
+
+ELSE IF(element_symbol == "Ca" .AND. charge == 10) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.15992263_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.19967894_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.19967894_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.23626331_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00046474_dp
+
+ELSE IF(element_symbol == "Cd" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.28931079_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.45543886_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.45543886_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.53888253_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.06128372_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.11410996_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.11410996_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.12938854_dp
+
+ELSE IF(element_symbol == "Ce" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.53180154_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.20234053_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.20234053_dp
+   gth_potential%kprj_ppnl(1,3,1) = -0.09655667_dp
+   gth_potential%kprj_ppnl(3,1,1) = -0.09655667_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.07866042_dp
+   gth_potential%kprj_ppnl(2,3,1) = 0.22849478_dp
+   gth_potential%kprj_ppnl(3,2,1) = 0.22849478_dp
+   gth_potential%kprj_ppnl(3,3,1) = -0.16239245_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01651587_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.00785811_dp
+
+ELSE IF(element_symbol == "Ce" .AND. charge == 30) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 6.58733940_dp
+   gth_potential%kprj_ppnl(1,2,1) = -7.76347086_dp
+   gth_potential%kprj_ppnl(2,1,1) = -7.76347086_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.01837566_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.01837566_dp
+   gth_potential%kprj_ppnl(2,2,1) = 9.21645527_dp
+   gth_potential%kprj_ppnl(2,3,1) = -0.04348474_dp
+   gth_potential%kprj_ppnl(3,2,1) = -0.04348474_dp
+   gth_potential%kprj_ppnl(3,3,1) = 0.03090484_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.36360640_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01337882_dp
+
+ELSE IF(element_symbol == "Cl" .AND. charge == 7) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.04528923_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.03257832_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.03257832_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.03854719_dp
+
+ELSE IF(element_symbol == "Co" .AND. charge == 17) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.03467390_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.13534705_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.13534705_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.16014479_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01143107_dp
+
+ELSE IF(element_symbol == "Cr" .AND. charge == 14) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.19042071_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.04824721_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.04824721_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.05708687_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00894423_dp
+
+ELSE IF(element_symbol == "Cs" .AND. charge == 9) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.47901467_dp
+   gth_potential%kprj_ppnl(1,2,1) = -4.82006821_dp
+   gth_potential%kprj_ppnl(2,1,1) = -4.82006821_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.71637516_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.71637516_dp
+   gth_potential%kprj_ppnl(2,2,1) = 6.89583701_dp
+   gth_potential%kprj_ppnl(2,3,1) = -1.69525304_dp
+   gth_potential%kprj_ppnl(3,2,1) = -1.69525304_dp
+   gth_potential%kprj_ppnl(3,3,1) = 1.20482534_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01060475_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.00322244_dp
+
+ELSE IF(element_symbol == "Cu" .AND. charge == 11) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.09147262_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.11244872_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.11244872_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.13305111_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01046090_dp
+
+ELSE IF(element_symbol == "Cu" .AND. charge == 19) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.14035346_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.18322786_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.18322786_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.21679813_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01478075_dp
+
+ELSE IF(element_symbol == "Dy" .AND. charge == 20) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.44352171_dp
+   gth_potential%kprj_ppnl(1,2,1) = 3.08608168_dp
+   gth_potential%kprj_ppnl(2,1,1) = 3.08608168_dp
+   gth_potential%kprj_ppnl(1,3,1) = -3.44531996_dp
+   gth_potential%kprj_ppnl(3,1,1) = -3.44531996_dp
+   gth_potential%kprj_ppnl(2,2,1) = -9.38743338_dp
+   gth_potential%kprj_ppnl(2,3,1) = 8.15311509_dp
+   gth_potential%kprj_ppnl(3,2,1) = 8.15311509_dp
+   gth_potential%kprj_ppnl(3,3,1) = -5.79446221_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.05555208_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01775081_dp
+
+ELSE IF(element_symbol == "Er" .AND. charge == 22) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 2.03813991_dp
+   gth_potential%kprj_ppnl(1,2,1) = -4.27357152_dp
+   gth_potential%kprj_ppnl(2,1,1) = -4.27357152_dp
+   gth_potential%kprj_ppnl(1,3,1) = 5.04555798_dp
+   gth_potential%kprj_ppnl(3,1,1) = 5.04555798_dp
+   gth_potential%kprj_ppnl(2,2,1) = 13.45664255_dp
+   gth_potential%kprj_ppnl(2,3,1) = -11.93996941_dp
+   gth_potential%kprj_ppnl(3,2,1) = -11.93996941_dp
+   gth_potential%kprj_ppnl(3,3,1) = 8.48579969_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.07930876_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.02173132_dp
+
+ELSE IF(element_symbol == "Eu" .AND. charge == 17) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.65792601_dp
+   gth_potential%kprj_ppnl(1,2,1) = -3.71639117_dp
+   gth_potential%kprj_ppnl(2,1,1) = -3.71639117_dp
+   gth_potential%kprj_ppnl(1,3,1) = 4.37001603_dp
+   gth_potential%kprj_ppnl(3,1,1) = 4.37001603_dp
+   gth_potential%kprj_ppnl(2,2,1) = 11.67270356_dp
+   gth_potential%kprj_ppnl(2,3,1) = -10.34134539_dp
+   gth_potential%kprj_ppnl(3,2,1) = -10.34134539_dp
+   gth_potential%kprj_ppnl(3,3,1) = 7.34964910_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.05828324_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01315523_dp
+
+ELSE IF(element_symbol == "F " .AND. charge == 7) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.01261401_dp
+
+ELSE IF(element_symbol == "Fe" .AND. charge == 16) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.09786820_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.08070002_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.08070002_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.09548555_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01036288_dp
+
+ELSE IF(element_symbol == "Ga" .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.07922219_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.05277747_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.05277747_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.06244715_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01545711_dp
+
+ELSE IF(element_symbol == "Ga" .AND. charge == 3) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.04378597_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.01162286_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.01162286_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.01375235_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00090534_dp
+
+ELSE IF(element_symbol == "Gd" .AND. charge == 18) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.54157080_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.12917284_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.12917284_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.16099098_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.16099098_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.42086479_dp
+   gth_potential%kprj_ppnl(2,3,1) = -0.38097419_dp
+   gth_potential%kprj_ppnl(3,2,1) = -0.38097419_dp
+   gth_potential%kprj_ppnl(3,3,1) = 0.27076038_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.05014620_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01468660_dp
+
+ELSE IF(element_symbol == "Ge" .AND. charge == 4) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.07515712_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.03426241_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.03426241_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.04053983_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00209896_dp
+
+ELSE IF(element_symbol == "Hf" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.25433226_dp
+   gth_potential%kprj_ppnl(1,2,1) = 2.89231345_dp
+   gth_potential%kprj_ppnl(2,1,1) = 2.89231345_dp
+   gth_potential%kprj_ppnl(1,3,1) = -3.44888647_dp
+   gth_potential%kprj_ppnl(3,1,1) = -3.44888647_dp
+   gth_potential%kprj_ppnl(2,2,1) = -9.16410141_dp
+   gth_potential%kprj_ppnl(2,3,1) = 8.16155501_dp
+   gth_potential%kprj_ppnl(3,2,1) = 8.16155501_dp
+   gth_potential%kprj_ppnl(3,3,1) = -5.80046050_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.07470137_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.01580845_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.01580845_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.01792510_dp
+
+ELSE IF(element_symbol == "Hg" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.97627823_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.29430950_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.29430950_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.55490433_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.55490433_dp
+   gth_potential%kprj_ppnl(2,2,1) = 2.45527872_dp
+   gth_potential%kprj_ppnl(2,3,1) = -1.31314330_dp
+   gth_potential%kprj_ppnl(3,2,1) = -1.31314330_dp
+   gth_potential%kprj_ppnl(3,3,1) = 0.93325792_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.09794385_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.26202008_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.26202008_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.29710284_dp
+
+ELSE IF(element_symbol == "Ho" .AND. charge == 21) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.21869071_dp
+   gth_potential%kprj_ppnl(1,2,1) = 1.32948068_dp
+   gth_potential%kprj_ppnl(2,1,1) = 1.32948068_dp
+   gth_potential%kprj_ppnl(1,3,1) = -1.61141491_dp
+   gth_potential%kprj_ppnl(3,1,1) = -1.61141491_dp
+   gth_potential%kprj_ppnl(2,2,1) = -4.25582283_dp
+   gth_potential%kprj_ppnl(2,3,1) = 3.81330367_dp
+   gth_potential%kprj_ppnl(3,2,1) = 3.81330367_dp
+   gth_potential%kprj_ppnl(3,3,1) = -2.71013518_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.06631442_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01966354_dp
+
+ELSE IF(element_symbol == "I " .AND. charge == 7) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.27569304_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.10630683_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.10630683_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.12578393_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01290065_dp
+
+ELSE IF(element_symbol == "In" .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.34177179_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.54199431_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.54199431_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.64129631_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.07755078_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.13327922_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.13327922_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.15112443_dp
+
+ELSE IF(element_symbol == "In" .AND. charge == 3) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.10576704_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.01722946_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.01722946_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.02038617_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00226126_dp
+
+ELSE IF(element_symbol == "Ir" .AND. charge == 17) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.31484605_dp
+   gth_potential%kprj_ppnl(1,2,1) = 3.24759365_dp
+   gth_potential%kprj_ppnl(2,1,1) = 3.24759365_dp
+   gth_potential%kprj_ppnl(1,3,1) = -3.24130779_dp
+   gth_potential%kprj_ppnl(3,1,1) = -3.24130779_dp
+   gth_potential%kprj_ppnl(2,2,1) = -9.23888776_dp
+   gth_potential%kprj_ppnl(2,3,1) = 7.67033419_dp
+   gth_potential%kprj_ppnl(3,2,1) = 7.67033419_dp
+   gth_potential%kprj_ppnl(3,3,1) = -5.45134725_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.10055806_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.00337529_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.00337529_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.00382722_dp
+
+ELSE IF(element_symbol == "Ir" .AND. charge == 9) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.67464477_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.13818413_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.13818413_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.34671763_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.15231734_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.28618874_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.28618874_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.32450753_dp
+
+ELSE IF(element_symbol == "K " .AND. charge == 9) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.08936707_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.06986008_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.06986008_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.08265956_dp
+
+ELSE IF(element_symbol == "Kr" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.19991623_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.11006240_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.11006240_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.13022759_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00829734_dp
+
+ELSE IF(element_symbol == "La" .AND. charge == 11) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.64154939_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.31941115_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.31941115_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.08447724_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.08447724_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.51857409_dp
+   gth_potential%kprj_ppnl(2,3,1) = -0.19990965_dp
+   gth_potential%kprj_ppnl(3,2,1) = -0.19990965_dp
+   gth_potential%kprj_ppnl(3,3,1) = 0.14207685_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.02046237_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.00738047_dp
+
+ELSE IF(element_symbol == "Lu" .AND. charge == 25) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -1.45526864_dp
+   gth_potential%kprj_ppnl(1,2,1) = 6.93159024_dp
+   gth_potential%kprj_ppnl(2,1,1) = 6.93159024_dp
+   gth_potential%kprj_ppnl(1,3,1) = -7.42062918_dp
+   gth_potential%kprj_ppnl(3,1,1) = -7.42062918_dp
+   gth_potential%kprj_ppnl(2,2,1) = -20.55578405_dp
+   gth_potential%kprj_ppnl(2,3,1) = 17.56041370_dp
+   gth_potential%kprj_ppnl(3,2,1) = 17.56041370_dp
+   gth_potential%kprj_ppnl(3,3,1) = -12.48027930_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.06950855_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.02740377_dp
+
+ELSE IF(element_symbol == "Mg" .AND. charge == 10) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.10308305_dp
+
+ELSE IF(element_symbol == "Mg" .AND. charge == 2) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.00414275_dp
+
+ELSE IF(element_symbol == "Mn" .AND. charge == 15) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.18314922_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.04673645_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.04673645_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.05529931_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00951135_dp
+
+ELSE IF(element_symbol == "Mo" .AND. charge == 14) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.10103602_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.15762775_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.15762775_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.18650767_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00136004_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.02273862_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.02273862_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.02578317_dp
+
+ELSE IF(element_symbol == "N " .AND. charge == 5) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.00414750_dp
+
+ELSE IF(element_symbol == "Na" .AND. charge == 9) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.05324287_dp
+
+ELSE IF(element_symbol == "Nb" .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.18261561_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.04502076_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.04502076_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.05326929_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00621330_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.01529808_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.01529808_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.01734639_dp
+
+ELSE IF(element_symbol == "Nd" .AND. charge == 14) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.59294947_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.61371631_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.61371631_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.67792729_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.67792729_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.85480449_dp
+   gth_potential%kprj_ppnl(2,3,1) = -1.60426878_dp
+   gth_potential%kprj_ppnl(3,2,1) = -1.60426878_dp
+   gth_potential%kprj_ppnl(3,3,1) = 1.14016235_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.41574225_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.00947171_dp
+
+ELSE IF(element_symbol == "Ne" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.01296979_dp
+
+ELSE IF(element_symbol == "Ni" .AND. charge == 18) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.13310966_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.15168114_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.15168114_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.17947154_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01349066_dp
+
+ELSE IF(element_symbol == "O " .AND. charge == 6) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.00755927_dp
+
+ELSE IF(element_symbol == "Os" .AND. charge == 16) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.54785930_dp
+   gth_potential%kprj_ppnl(1,2,1) = 2.46435737_dp
+   gth_potential%kprj_ppnl(2,1,1) = 2.46435737_dp
+   gth_potential%kprj_ppnl(1,3,1) = -2.55981011_dp
+   gth_potential%kprj_ppnl(3,1,1) = -2.55981011_dp
+   gth_potential%kprj_ppnl(2,2,1) = -7.17756040_dp
+   gth_potential%kprj_ppnl(2,3,1) = 6.05761634_dp
+   gth_potential%kprj_ppnl(3,2,1) = 6.05761634_dp
+   gth_potential%kprj_ppnl(3,3,1) = -4.30518011_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.08081206_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.01626524_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.01626524_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.01844305_dp
+
+ELSE IF(element_symbol == "Os" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.65252379_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.16198770_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.16198770_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.37488239_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.12910182_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.26738080_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.26738080_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.30318133_dp
+
+ELSE IF(element_symbol == "P " .AND. charge == 5) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.02606888_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.02118456_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.02118456_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.02506591_dp
+
+ELSE IF(element_symbol == "Pb" .AND. charge == 14) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.61384844_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.17491530_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.17491530_dp
+   gth_potential%kprj_ppnl(1,3,1) = 1.71513508_dp
+   gth_potential%kprj_ppnl(3,1,1) = 1.71513508_dp
+   gth_potential%kprj_ppnl(2,2,1) = 5.42883283_dp
+   gth_potential%kprj_ppnl(2,3,1) = -4.05875039_dp
+   gth_potential%kprj_ppnl(3,2,1) = -4.05875039_dp
+   gth_potential%kprj_ppnl(3,3,1) = 2.88457546_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.14916233_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.31992302_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.31992302_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.36275861_dp
+
+ELSE IF(element_symbol == "Pb" .AND. charge == 4) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.27466972_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.02305844_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.02305844_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.02728312_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01870296_dp
+
+ELSE IF(element_symbol == "Pd" .AND. charge == 10) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.20640805_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.35787163_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.35787163_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.42343942_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.06113102_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.10023162_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.10023162_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.11365198_dp
+
+ELSE IF(element_symbol == "Pd" .AND. charge == 18) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.44546453_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.88057476_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.88057476_dp
+   gth_potential%kprj_ppnl(2,2,1) = -1.04191011_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.03119207_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.06201267_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.06201267_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.07031576_dp
+
+ELSE IF(element_symbol == "Pm" .AND. charge == 15) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.21858858_dp
+   gth_potential%kprj_ppnl(1,2,1) = 1.91346180_dp
+   gth_potential%kprj_ppnl(2,1,1) = 1.91346180_dp
+   gth_potential%kprj_ppnl(1,3,1) = -2.21408582_dp
+   gth_potential%kprj_ppnl(3,1,1) = -2.21408582_dp
+   gth_potential%kprj_ppnl(2,2,1) = -5.95015377_dp
+   gth_potential%kprj_ppnl(2,3,1) = 5.23948335_dp
+   gth_potential%kprj_ppnl(3,2,1) = 5.23948335_dp
+   gth_potential%kprj_ppnl(3,3,1) = -3.72372865_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.05970555_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01053306_dp
+
+ELSE IF(element_symbol == "Po" .AND. charge == 6) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.23215645_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.02511538_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.02511538_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.02971692_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.02706723_dp
+
+ELSE IF(element_symbol == "Pr" .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.11738149_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.91802470_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.91802470_dp
+   gth_potential%kprj_ppnl(1,3,1) = -1.36977830_dp
+   gth_potential%kprj_ppnl(3,1,1) = -1.36977830_dp
+   gth_potential%kprj_ppnl(2,2,1) = -3.36669344_dp
+   gth_potential%kprj_ppnl(2,3,1) = 3.24148708_dp
+   gth_potential%kprj_ppnl(3,2,1) = 3.24148708_dp
+   gth_potential%kprj_ppnl(3,3,1) = -2.30374209_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01209488_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.00863072_dp
+
+ELSE IF(element_symbol == "Pt" .AND. charge == 10) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.68131890_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.13737593_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.13737593_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.34576135_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.13179902_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.26337958_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.26337958_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.29864437_dp
+
+ELSE IF(element_symbol == "Pt" .AND. charge == 18) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.35156689_dp
+   gth_potential%kprj_ppnl(1,2,1) = 2.38906445_dp
+   gth_potential%kprj_ppnl(2,1,1) = 2.38906445_dp
+   gth_potential%kprj_ppnl(1,3,1) = -2.06064115_dp
+   gth_potential%kprj_ppnl(3,1,1) = -2.06064115_dp
+   gth_potential%kprj_ppnl(2,2,1) = -6.25743244_dp
+   gth_potential%kprj_ppnl(2,3,1) = 4.87636699_dp
+   gth_potential%kprj_ppnl(3,2,1) = 4.87636699_dp
+   gth_potential%kprj_ppnl(3,3,1) = -3.46565992_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.18032724_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.02920945_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.02920945_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.03312040_dp
+
+ELSE IF(element_symbol == "Rb" .AND. charge == 9) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.41180234_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.61453234_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.61453234_dp
+   gth_potential%kprj_ppnl(2,2,1) = 3.09355639_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00696032_dp
+
+ELSE IF(element_symbol == "Re" .AND. charge == 15) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.48781828_dp
+   gth_potential%kprj_ppnl(1,2,1) = 2.51603934_dp
+   gth_potential%kprj_ppnl(2,1,1) = 2.51603934_dp
+   gth_potential%kprj_ppnl(1,3,1) = -2.67688069_dp
+   gth_potential%kprj_ppnl(3,1,1) = -2.67688069_dp
+   gth_potential%kprj_ppnl(2,2,1) = -7.43361600_dp
+   gth_potential%kprj_ppnl(2,3,1) = 6.33465589_dp
+   gth_potential%kprj_ppnl(3,2,1) = 6.33465589_dp
+   gth_potential%kprj_ppnl(3,3,1) = -4.50207359_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.07649146_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.01299626_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.01299626_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.01473637_dp
+
+ELSE IF(element_symbol == "Re" .AND. charge == 7) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.69313998_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.31294961_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.31294961_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.55350293_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.11238482_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.25543977_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.25543977_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.28964148_dp
+
+ELSE IF(element_symbol == "Rh" .AND. charge == 17) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.18648086_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.14716083_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.14716083_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.17412304_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.02161325_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.05073757_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.05073757_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.05753100_dp
+
+ELSE IF(element_symbol == "Rh" .AND. charge == 9) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.18034883_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.29258721_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.29258721_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.34619385_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.03265865_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.10951165_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.10951165_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.12417454_dp
+
+ELSE IF(element_symbol == "Rn" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.64375030_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.05907890_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.05907890_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.06990310_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.03732898_dp
+
+ELSE IF(element_symbol == "Ru" .AND. charge == 16) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.15600415_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.48648402_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.48648402_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.57561565_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.01536873_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.04203938_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.04203938_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.04766818_dp
+
+ELSE IF(element_symbol == "Ru" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.24365860_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.44245368_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.44245368_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.52351826_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.02436658_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.09258568_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.09258568_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.10498229_dp
+
+ELSE IF(element_symbol == "S " .AND. charge == 6) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.03492359_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.02660790_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.02660790_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.03148290_dp
+
+ELSE IF(element_symbol == "Sb" .AND. charge == 5) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.23747176_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.10907432_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.10907432_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.12905847_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00696671_dp
+
+ELSE IF(element_symbol == "Sc" .AND. charge == 11) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.20196646_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.05799329_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.05799329_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.06861858_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00480094_dp
+
+ELSE IF(element_symbol == "Se" .AND. charge == 6) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.15386757_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.09508784_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.09508784_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.11250945_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00489231_dp
+
+ELSE IF(element_symbol == "Si" .AND. charge == 4) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.01877687_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.01639758_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.01639758_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.01940188_dp
+
+ELSE IF(element_symbol == "Sm" .AND. charge == 16) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.68601615_dp
+   gth_potential%kprj_ppnl(1,2,1) = 3.27621519_dp
+   gth_potential%kprj_ppnl(2,1,1) = 3.27621519_dp
+   gth_potential%kprj_ppnl(1,3,1) = -3.50012699_dp
+   gth_potential%kprj_ppnl(3,1,1) = -3.50012699_dp
+   gth_potential%kprj_ppnl(2,2,1) = -9.70364773_dp
+   gth_potential%kprj_ppnl(2,3,1) = 8.28281221_dp
+   gth_potential%kprj_ppnl(3,2,1) = 8.28281221_dp
+   gth_potential%kprj_ppnl(3,3,1) = -5.88663864_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.04985656_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01177755_dp
+
+ELSE IF(element_symbol == "Sn" .AND. charge == 4) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.22160101_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.11203353_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.11203353_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.13255986_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00451584_dp
+
+ELSE IF(element_symbol == "Sr" .AND. charge == 10) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.34629459_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.37169277_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.37169277_dp
+   gth_potential%kprj_ppnl(2,2,1) = 2.80622473_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00779193_dp
+
+ELSE IF(element_symbol == "Ta" .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.12324816_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.67250512_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.67250512_dp
+   gth_potential%kprj_ppnl(1,3,1) = -0.97730022_dp
+   gth_potential%kprj_ppnl(3,1,1) = -0.97730022_dp
+   gth_potential%kprj_ppnl(2,2,1) = -2.42277460_dp
+   gth_potential%kprj_ppnl(2,3,1) = 2.31271443_dp
+   gth_potential%kprj_ppnl(3,2,1) = 2.31271443_dp
+   gth_potential%kprj_ppnl(3,3,1) = -1.64365843_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.07060129_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.00876170_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.00876170_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.00993484_dp
+
+ELSE IF(element_symbol == "Ta" .AND. charge == 5) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.67406021_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.28529463_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.28529463_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.52078112_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.08463039_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.21860129_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.21860129_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.24787056_dp
+
+ELSE IF(element_symbol == "Tb" .AND. charge == 19) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.85647669_dp
+   gth_potential%kprj_ppnl(1,2,1) = 4.27218592_dp
+   gth_potential%kprj_ppnl(2,1,1) = 4.27218592_dp
+   gth_potential%kprj_ppnl(1,3,1) = -4.86408800_dp
+   gth_potential%kprj_ppnl(3,1,1) = -4.86408800_dp
+   gth_potential%kprj_ppnl(2,2,1) = -13.15288326_dp
+   gth_potential%kprj_ppnl(2,3,1) = 11.51053306_dp
+   gth_potential%kprj_ppnl(3,2,1) = 11.51053306_dp
+   gth_potential%kprj_ppnl(3,3,1) = -8.18059700_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.05530956_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.01609128_dp
+
+ELSE IF(element_symbol == "Tc" .AND. charge == 15) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.00672609_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.27805622_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.27805622_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.32900056_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.00760164_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.03277719_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.03277719_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.03716584_dp
+
+ELSE IF(element_symbol == "Te" .AND. charge == 6) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.28709255_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.13816104_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.13816104_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.16347435_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00929869_dp
+
+ELSE IF(element_symbol == "Ti" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.20121752_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.06088315_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.06088315_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.07203791_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00584456_dp
+
+ELSE IF(element_symbol == "Tl" .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.35297827_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.28901237_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.28901237_dp
+   gth_potential%kprj_ppnl(1,3,1) = 0.68067754_dp
+   gth_potential%kprj_ppnl(3,1,1) = 0.68067754_dp
+   gth_potential%kprj_ppnl(2,2,1) = 3.84162025_dp
+   gth_potential%kprj_ppnl(2,3,1) = -1.61077704_dp
+   gth_potential%kprj_ppnl(3,2,1) = -1.61077704_dp
+   gth_potential%kprj_ppnl(3,3,1) = 1.14478780_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.11559254_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.30671016_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.30671016_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.34777664_dp
+
+ELSE IF(element_symbol == "Tl" .AND. charge == 3) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.18274699_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.00921547_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.00921547_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.01090389_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01256903_dp
+
+ELSE IF(element_symbol == "Tm" .AND. charge == 23) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 2.55564771_dp
+   gth_potential%kprj_ppnl(1,2,1) = -6.24092488_dp
+   gth_potential%kprj_ppnl(2,1,1) = -6.24092488_dp
+   gth_potential%kprj_ppnl(1,3,1) = 7.42426380_dp
+   gth_potential%kprj_ppnl(3,1,1) = 7.42426380_dp
+   gth_potential%kprj_ppnl(2,2,1) = 19.74462887_dp
+   gth_potential%kprj_ppnl(2,3,1) = -17.56901479_dp
+   gth_potential%kprj_ppnl(3,2,1) = -17.56901479_dp
+   gth_potential%kprj_ppnl(3,3,1) = 12.48639214_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.11677823_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.02372319_dp
+
+ELSE IF(element_symbol == "V " .AND. charge == 13) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.19032152_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.05946067_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.05946067_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.07035481_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.00648186_dp
+
+ELSE IF(element_symbol == "W " .AND. charge == 14) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.42485618_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.04791036_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.04791036_dp
+   gth_potential%kprj_ppnl(1,3,1) = -0.23348205_dp
+   gth_potential%kprj_ppnl(3,1,1) = -0.23348205_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.33202370_dp
+   gth_potential%kprj_ppnl(2,3,1) = 0.55251937_dp
+   gth_potential%kprj_ppnl(3,2,1) = 0.55251937_dp
+   gth_potential%kprj_ppnl(3,3,1) = -0.39267845_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.07015958_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.01318853_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.01318853_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.01495438_dp
+
+ELSE IF(element_symbol == "W " .AND. charge == 6) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.70941707_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.36284306_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.36284306_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.61253765_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.10122950_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.22114149_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.22114149_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.25075088_dp
+
+ELSE IF(element_symbol == "Xe" .AND. charge == 8) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.27633099_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.09115677_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.09115677_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.10785815_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01674755_dp
+
+ELSE IF(element_symbol == "Y " .AND. charge == 11) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.23578364_dp
+   gth_potential%kprj_ppnl(1,2,1) = -2.38648117_dp
+   gth_potential%kprj_ppnl(2,1,1) = -2.38648117_dp
+   gth_potential%kprj_ppnl(2,2,1) = 2.82372260_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01304100_dp
+   gth_potential%kprj_ppnl(1,2,2) = -0.00010639_dp
+   gth_potential%kprj_ppnl(2,1,2) = -0.00010639_dp
+   gth_potential%kprj_ppnl(2,2,2) = 0.00012063_dp
+
+ELSE IF(element_symbol == "Yb" .AND. charge == 24) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.03061526_dp
+   gth_potential%kprj_ppnl(1,2,1) = 2.18978914_dp
+   gth_potential%kprj_ppnl(2,1,1) = 2.18978914_dp
+   gth_potential%kprj_ppnl(1,3,1) = -2.38963165_dp
+   gth_potential%kprj_ppnl(3,1,1) = -2.38963165_dp
+   gth_potential%kprj_ppnl(2,2,1) = -6.56936572_dp
+   gth_potential%kprj_ppnl(2,3,1) = 5.65490060_dp
+   gth_potential%kprj_ppnl(3,2,1) = 5.65490060_dp
+   gth_potential%kprj_ppnl(3,3,1) = -4.01896790_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.06796310_dp
+   gth_potential%kprj_ppnl(1,1,3) = 0.02565096_dp
+
+ELSE IF(element_symbol == "Zn" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 0.10017431_dp
+   gth_potential%kprj_ppnl(1,2,1) = -0.10693277_dp
+   gth_potential%kprj_ppnl(2,1,1) = -0.10693277_dp
+   gth_potential%kprj_ppnl(2,2,1) = 0.12652456_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01272732_dp
+
+ELSE IF(element_symbol == "Zn" .AND. charge == 20) THEN
+   gth_potential%kprj_ppnl(1,1,1) = -0.00982281_dp
+   gth_potential%kprj_ppnl(1,2,1) = 0.28902245_dp
+   gth_potential%kprj_ppnl(2,1,1) = 0.28902245_dp
+   gth_potential%kprj_ppnl(2,2,1) = -0.34197598_dp
+   gth_potential%kprj_ppnl(1,1,2) = 0.01730011_dp
+
+ELSE IF(element_symbol == "Zr" .AND. charge == 12) THEN
+   gth_potential%kprj_ppnl(1,1,1) = 1.00490626_dp
+   gth_potential%kprj_ppnl(1,2,1) = -1.41611759_dp
+   gth_potential%kprj_ppnl(2,1,1) = -1.41611759_dp
+   gth_potential%kprj_ppnl(2,2,1) = 1.67557293_dp
+   gth_potential%kprj_ppnl(1,1,2) = -0.00255322_dp
+   gth_potential%kprj_ppnl(1,2,2) = 0.01079629_dp
+   gth_potential%kprj_ppnl(2,1,2) = 0.01079629_dp
+   gth_potential%kprj_ppnl(2,2,2) = -0.01224184_dp
+END IF
+
+
+      CALL timestop(handle)
+
+END SUBROUTINE get_kprj_SOC_parameters_PBE
 
 END MODULE external_potential_soc_parameters
