@@ -1961,7 +1961,7 @@ CONTAINS
 
          eigenvalues_without_soc_sorted(1:nao) = Eigenval(:, ikp, 1)
          eigenvalues_without_soc_sorted(nao+1:2*nao) = Eigenval(:, ikp, 1)
-         ALLOCATE(index0(nao))
+         ALLOCATE(index0(2*nao))
          CALL sort(eigenvalues_without_soc_sorted, 2*nao, index0)
          DEALLOCATE(index0)
 
