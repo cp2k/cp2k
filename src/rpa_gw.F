@@ -1773,35 +1773,37 @@ CONTAINS
 
       nkp_self_energy = kpoints_Sigma%nkp
 
-      PRINT *, ''
-      PRINT *, 'ik =', nkp_self_energy, 'Re(L_x matrix):'
-      PRINT *, ''
-      CALL dbcsr_print(mat_VSOC_lx_kp(nkp_self_energy,1)%matrix)
+      ikp = 5
 
       PRINT *, ''
-      PRINT *, 'ik =', nkp_self_energy, 'Im(L_x matrix):'
+      PRINT *, 'ik =', ikp, 'Re(L_x matrix):'
       PRINT *, ''
-      CALL dbcsr_print(mat_VSOC_lx_kp(nkp_self_energy,2)%matrix)
+      CALL dbcsr_print(mat_VSOC_lx_kp(ikp,1)%matrix)
 
       PRINT *, ''
-      PRINT *, 'ik =', nkp_self_energy, 'Re(L_y matrix):'
+      PRINT *, 'ik =', ikp, 'Im(L_x matrix):'
       PRINT *, ''
-      CALL dbcsr_print(mat_VSOC_ly_kp(nkp_self_energy,1)%matrix)
+      CALL dbcsr_print(mat_VSOC_lx_kp(ikp,2)%matrix)
 
       PRINT *, ''
-      PRINT *, 'ik =', nkp_self_energy, 'Im(L_y matrix):'
+      PRINT *, 'ik =', ikp, 'Re(L_y matrix):'
       PRINT *, ''
-      CALL dbcsr_print(mat_VSOC_ly_kp(nkp_self_energy,2)%matrix)
+      CALL dbcsr_print(mat_VSOC_ly_kp(ikp,1)%matrix)
 
       PRINT *, ''
-      PRINT *, 'ik =', nkp_self_energy, 'Re(L_z matrix):'
+      PRINT *, 'ik =', ikp, 'Im(L_y matrix):'
       PRINT *, ''
-      CALL dbcsr_print(mat_VSOC_lz_kp(nkp_self_energy,1)%matrix)
+      CALL dbcsr_print(mat_VSOC_ly_kp(ikp,2)%matrix)
 
       PRINT *, ''
-      PRINT *, 'ik =', nkp_self_energy, 'Im(L_z matrix):'
+      PRINT *, 'ik =', ikp, 'Re(L_z matrix):'
       PRINT *, ''
-      CALL dbcsr_print(mat_VSOC_lz_kp(nkp_self_energy,2)%matrix)
+      CALL dbcsr_print(mat_VSOC_lz_kp(ikp,1)%matrix)
+
+      PRINT *, ''
+      PRINT *, 'ik =', ikp, 'Im(L_z matrix):'
+      PRINT *, ''
+      CALL dbcsr_print(mat_VSOC_lz_kp(ikp,2)%matrix)
 
       CALL get_mo_set(kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1), mo_coeff=rmos)
 
