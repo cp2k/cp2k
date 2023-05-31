@@ -4,14 +4,14 @@
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
 # Tested with: GNU 12.3.0, MPICH 4.0.3,
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
-#              LIBXC 6.1.0, SPGLIB 1.16.2, PLUMED 2.8.2,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.23, FFTW 3.3.10, LIBINT 2.6.0,
+#              LIBXC 6.2.0, SPGLIB 1.16.2, PLUMED 2.8.2,
 #              LIBVORI 220621, GSL 2.7, COSMA 2.6.6, SIRIUS 7.4.3
 # on an Apple M1 (macOS Ventura 13.1)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (25.05.2023)
+# Author: Matthias Krack (31.05.2023)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -61,8 +61,8 @@ USE_COSMA      := 2.6.6
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
-USE_LIBXC      := 6.1.0
-USE_OPENBLAS   := 0.3.21
+USE_LIBXC      := 6.2.0
+USE_OPENBLAS   := 0.3.23
 USE_PLUMED     := 2.8.2
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.4.3
@@ -192,7 +192,7 @@ ifneq ($(USE_SIRIUS),)
    HDF5_VER       := 1.12.0
    LIBVDWXC_VER   := 0.4.0
    SPFFT_VER      := 1.0.6
-   SPLA_VER       := 1.5.4
+   SPLA_VER       := 1.5.5
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
    HDF5_VER       := $(strip $(HDF5_VER))
    HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
