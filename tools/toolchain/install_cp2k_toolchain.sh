@@ -160,7 +160,7 @@ The --with-PKG options follow the rules:
                           use only one of OpenMPI, MPICH or Intel MPI.
                           Default = system
   --with-mpich-device     Select the MPICH device, implies the use of MPICH as MPI library
-                          Default = ch3
+                          Default = ch4
   --with-intelmpi         Intel MPI, MPI library like OpenMPI. one should
                           use only one of OpenMPI, MPICH or Intel MPI.
                           Default = system
@@ -342,7 +342,7 @@ enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
 export intel_classic="no"
 export GPUVER="no"
-export MPICH_DEVICE="ch3"
+export MPICH_DEVICE="ch4"
 export TARGET_CPU="native"
 
 # default for libint
