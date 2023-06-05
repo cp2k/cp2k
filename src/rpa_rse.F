@@ -106,7 +106,7 @@ CONTAINS
                                                             j_global, jjB, n_rep_hf, ncol_local, &
                                                             nrow_local, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: beta, do_hfx, hfx_treat_lsd_in_core
+      LOGICAL                                            :: do_hfx, hfx_treat_lsd_in_core
       REAL(KIND=dp)                                      :: coeff, corr, rse_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -123,7 +123,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       nspins = dft_control%nspins
-      beta = (nspins == 2)
 
       ! Pick the diagonal terms
       CALL cp_fm_get_info(matrix=mo_coeff(1), &
@@ -206,9 +205,9 @@ CONTAINS
       ! Obtain density matrix like quantity
 
       coeff = 1.0_dp
-      IF (beta) coeff = 0.5_dp
+      IF (nspins == 1) coeff = 2.0_dp
       DO ispin = 1, nspins
-         CALL parallel_gemm(transa='N', transb='T', m=dimen, n=dimen, k=dimen, alpha=coeff, &
+         CALL parallel_gemm(transa='N', transb='T', m=dimen, n=dimen, k=homo(ispin), alpha=coeff, &
                             matrix_a=mo_coeff(ispin), matrix_b=mo_coeff(ispin), &
                             beta=0.0_dp, matrix_c=fm_P_mu_nu(ispin))
       END DO
@@ -262,11 +261,13 @@ CONTAINS
 
       CALL para_env%sum(rse_corr)
 
-      rse_corr = rse_corr/nspins
+      IF (nspins == 1) rse_corr = rse_corr*2.0_dp
 
       mp2_env%ri_rpa%rse_corr_diag = rse_corr
 
       CALL non_diag_rse(fm_X_mo, eigenval, dimen, homo, para_env, blacs_env, rse_corr)
+
+      IF (nspins == 1) rse_corr = rse_corr*2.0_dp
 
       mp2_env%ri_rpa%rse_corr = rse_corr
 
@@ -441,33 +442,35 @@ CONTAINS
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace, vxc_tau=tau_rspace, exc=exc)
 
-      CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace, matrix_vxc=matrix_vxc)
+      IF (ASSOCIATED(v_rspace)) THEN
+         CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace, matrix_vxc=matrix_vxc)
 
-      DO i = 1, SIZE(v_rspace)
-         CALL pw_release(v_rspace(i))
-      END DO
-      DEALLOCATE (v_rspace)
+         DO i = 1, SIZE(v_rspace)
+            CALL pw_release(v_rspace(i))
+         END DO
+         DEALLOCATE (v_rspace)
 
-      DO i = 1, SIZE(matrix_vxc)
-         CALL cp_fm_set_all(fm_XC_ao, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=matrix_vxc(i)%matrix, fm=fm_XC_ao)
-         CALL cp_fm_set_all(fm_XC_mo(i), 0.0_dp)
+         DO i = 1, SIZE(matrix_vxc)
+            CALL cp_fm_set_all(fm_XC_ao, 0.0_dp)
+            CALL copy_dbcsr_to_fm(matrix=matrix_vxc(i)%matrix, fm=fm_XC_ao)
+            CALL cp_fm_set_all(fm_XC_mo(i), 0.0_dp)
 
-         ! First index
-         CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            mo_coeff(i), fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
+            ! First index
+            CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
+                               mo_coeff(i), fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
 
-         ! Second index
-         CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                            fm_XC_ao_mo, mo_coeff(i), 1.0_dp, fm_XC_mo(i))
+            ! Second index
+            CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+                               fm_XC_ao_mo, mo_coeff(i), 1.0_dp, fm_XC_mo(i))
 
-      END DO
+         END DO
 
-      DO i = 1, SIZE(matrix_vxc)
-         CALL dbcsr_release(matrix_vxc(i)%matrix)
-         DEALLOCATE (matrix_vxc(i)%matrix)
-      END DO
-      DEALLOCATE (matrix_vxc)
+         DO i = 1, SIZE(matrix_vxc)
+            CALL dbcsr_release(matrix_vxc(i)%matrix)
+            DEALLOCATE (matrix_vxc(i)%matrix)
+         END DO
+         DEALLOCATE (matrix_vxc)
+      END IF
 
       CALL timestop(handle)
 
@@ -591,7 +594,7 @@ CONTAINS
                                  s_firstrow=1, s_firstcol=homo(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
 
-         CALL parallel_gemm(transa='N', transb='N', m=homo(ispin), n=virtual, k=homo(ispin), alpha=1.0_dp, &
+         CALL parallel_gemm(transa='T', transb='N', m=homo(ispin), n=virtual, k=homo(ispin), alpha=1.0_dp, &
                             matrix_a=fm_O, matrix_b=fm_F_ov, beta=0.0_dp, matrix_c=fm_tmp)
 
          CALL parallel_gemm(transa='N', transb='N', m=homo(ispin), n=virtual, k=virtual, alpha=1.0_dp, &
@@ -634,7 +637,6 @@ CONTAINS
       END DO
 
       CALL para_env%sum(rse_corr)
-      rse_corr = rse_corr/nspins
 
       CALL timestop(handle)
 
