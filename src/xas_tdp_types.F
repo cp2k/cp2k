@@ -123,6 +123,7 @@ MODULE xas_tdp_types
       LOGICAL                                 :: check_only
       LOGICAL                                 :: tamm_dancoff
       LOGICAL                                 :: do_quad
+      LOGICAL                                 :: xyz_dip
       LOGICAL                                 :: do_loc
       LOGICAL                                 :: do_uks
       LOGICAL                                 :: do_roks
@@ -252,8 +253,8 @@ MODULE xas_tdp_types
 !> \param sg_evals singlet excitation energies => the eigenvalues of the linear response equation
 !> \param tp_evals triplet excitation energies => the eigenvalues of the linear response equation
 !> \param soc_evals excitation energies after inclusion of SOC
-!> \param osc_str dipole oscilaltor strengths
-!> \param soc_osc_str dipole oscillator strengths after the inclusion of SOC
+!> \param osc_str dipole oscilaltor strengths (sum and x,y,z contributions)
+!> \param soc_osc_str dipole oscillator strengths after the inclusion of SOC (sum and x,y,z contributions)
 !> \param quad_osc_str quadrupole oscilaltor strengths
 !> \param soc_quad_osc_str quadrupole oscillator strengths after the inclusion of SOC
 !> \param sc_matrix_tdp the dbcsr matrix to be diagonalized for open-shell spin-conserving calculations
@@ -286,8 +287,8 @@ MODULE xas_tdp_types
       REAL(dp), DIMENSION(:), POINTER         :: sg_evals
       REAL(dp), DIMENSION(:), POINTER         :: tp_evals
       REAL(dp), DIMENSION(:), POINTER         :: soc_evals
-      REAL(dp), DIMENSION(:), POINTER         :: osc_str
-      REAL(dp), DIMENSION(:), POINTER         :: soc_osc_str
+      REAL(dp), DIMENSION(:, :), POINTER      :: osc_str
+      REAL(dp), DIMENSION(:, :), POINTER      :: soc_osc_str
       REAL(dp), DIMENSION(:), POINTER         :: quad_osc_str
       REAL(dp), DIMENSION(:), POINTER         :: soc_quad_osc_str
       TYPE(dbcsr_type), POINTER               :: sc_matrix_tdp
@@ -407,6 +408,7 @@ CONTAINS
       xas_tdp_control%tamm_dancoff = .FALSE.
       xas_tdp_control%do_ot = .TRUE.
       xas_tdp_control%do_quad = .FALSE.
+      xas_tdp_control%xyz_dip = .FALSE.
       xas_tdp_control%do_loc = .FALSE.
       xas_tdp_control%do_uks = .FALSE.
       xas_tdp_control%do_roks = .FALSE.
@@ -500,6 +502,8 @@ CONTAINS
       CALL section_vals_val_get(xas_tdp_section, "DIPOLE_FORM", i_val=xas_tdp_control%dipole_form)
 
       CALL section_vals_val_get(xas_tdp_section, "QUADRUPOLE", l_val=xas_tdp_control%do_quad)
+
+      CALL section_vals_val_get(xas_tdp_section, "XYZ_DIPOLE", l_val=xas_tdp_control%xyz_dip)
 
       CALL section_vals_val_get(xas_tdp_section, "EPS_PGF_XAS", n_rep_val=nrep)
       IF (nrep > 0) CALL section_vals_val_get(xas_tdp_section, "EPS_PGF_XAS", r_val=xas_tdp_control%eps_pgf)
