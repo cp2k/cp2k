@@ -237,7 +237,6 @@ ifneq ($(USE_LIBINT),)
       LIBS           += -Wl,-rpath=$(LIBINT_LIB) -L$(LIBINT_LIB) -lint2
    else
       LIBS           += $(LIBINT_LIB)/libint2.a
-      LIBS           += $(LIBINT_LIB)/libint2.a
    endif
 endif
 
