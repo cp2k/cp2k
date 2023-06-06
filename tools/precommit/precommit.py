@@ -98,6 +98,10 @@ def main() -> None:
                 continue
             if root.startswith("./doxygen"):
                 continue
+            if root.startswith("./docs/_build"):
+                continue
+            if root.startswith("./docs/CP2K_INPUT"):
+                continue
             if root.startswith("./exts"):
                 continue
             if root.startswith("./obj"):

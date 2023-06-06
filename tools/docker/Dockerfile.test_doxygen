@@ -15,6 +15,7 @@ ARG GIT_COMMIT_SHA
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./data ./data
+COPY ./docs ./docs
 COPY ./tools ./tools
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
