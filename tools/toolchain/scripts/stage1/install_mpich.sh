@@ -79,7 +79,6 @@ case "${with_mpich}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
-    check_command mpiexec "mpich" && MPIRUN="$(command -v mpiexec)" || exit 1
     check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
     if [ $(command -v mpic++ > /dev/null 2>&1) ]; then
       check_command mpic++ "mpich" && MPICXX="$(command -v mpic++)" || exit 1
