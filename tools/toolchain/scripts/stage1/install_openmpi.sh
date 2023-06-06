@@ -87,7 +87,7 @@ case "${with_openmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding OpenMPI from system paths ===================="
-    check_command mpiexec "openmpi" && MPIRUN="$(command -v mpiexec)" || exit 1
+    check_command mpiexec "openmpi" && MPIRUN="$(command -v mpiexec)"
     check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
     check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
     check_command mpifort "openmpi" && MPIFC="$(command -v mpifort)" || exit 1
