@@ -228,6 +228,7 @@ def manual() -> str:
 # Generate manual.
 COPY ./tools/manual ./tools/manual
 COPY ./tools/input_editing ./tools/input_editing
+COPY ./docs ./docs
 COPY ./tools/docker/scripts/test_manual.sh .
 ARG ADD_EDIT_LINKS=yes
 RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
@@ -287,6 +288,7 @@ ARG GIT_COMMIT_SHA
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./data ./data
+COPY ./docs ./docs
 COPY ./tools ./tools
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
