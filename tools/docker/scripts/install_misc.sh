@@ -25,8 +25,9 @@ pip3 install --quiet \
   numpy \
   matplotlib \
   requests \
+  types-lxml \
   types-requests \
-  mypy==0.991
+  mypy==1.3.0
 
 # download inputs for minimax_to_fortran_source.py
 wget -q https://www.cp2k.org/static/downloads/1_xData.zip

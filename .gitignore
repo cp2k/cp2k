@@ -97,7 +97,6 @@ CMakeCache.txt
 CMakeFiles
 CMakeScripts
 Testing
-Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
@@ -253,6 +252,9 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/CP2K_INPUT/
+docs/CP2K_INPUT.md
+docs/bibliography.md
 
 # PyBuilder
 .pybuilder/
