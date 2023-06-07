@@ -90,7 +90,7 @@ cat "./arch/${ARCH}.${VERSION}"
 
 if [ -x "$(command -v nvidia-smi)" ]; then
   echo "--------------------------- NVIDIA-SMI -----------------------------------"
-  nvidia-smi
+  nvidia-smi || true
   echo ""
 fi
 
