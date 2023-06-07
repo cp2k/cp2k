@@ -20,7 +20,7 @@ HIPFLAGS := -fPIE -g -O3 --offload-arch=$(HIPARCH) -Wall -Wextra -Werror -I${ROC
 
 ifneq ($(LIBXSMMROOT),)
 LIBS += \
-        -L$(LIBXSMMROOT)/lib -lxsmm -lxsmmext \
+        $(LIBXSMMROOT)/lib/libxsmm.a $(LIBXSMMROOT)/lib/libxsmmext.a \
         -lpthread -lrt
 CFLAGS += -D__LIBXSMM -I$(LIBXSMMROOT)/include
 endif
