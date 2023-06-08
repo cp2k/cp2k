@@ -2051,7 +2051,6 @@ CONTAINS
 
       CALL dbt_batched_contract_init(t_R_occ)
       CALL dbt_batched_contract_init(t_R_virt)
-      CALL dbt_batched_contract_init(t_KBKT)
       DO i_mem = 1, cut_memory
          ibounds(:, 1) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
 
@@ -2138,12 +2137,14 @@ CONTAINS
 
                !Calculate the contraction of the above with K*B*K^T
                CALL timeset(routineN//"_3c_KBK", handle2)
+               CALL dbt_batched_contract_init(t_KBKT)
                CALL dbt_contract(1.0_dp, t_KBKT, t_3c_6, 0.0_dp, t_3c_7, &
                                  contract_1=[2], notcontract_1=[1], &
                                  contract_2=[1], notcontract_2=[2, 3], &
                                  map_1=[1], map_2=[2, 3], &
                                  retain_sparsity=.TRUE., flop=flop, unit_nr=unit_nr_dbcsr)
                dbcsr_nflop = dbcsr_nflop + flop
+               CALL dbt_batched_contract_finalize(t_KBKT)
                CALL timestop(handle2)
                CALL dbt_copy(t_3c_7, t_3c_8, summation=.TRUE.)
 
@@ -2184,7 +2185,6 @@ CONTAINS
 
          CALL dbt_clear(t_3c_help_2)
       END DO !i_mem
-      CALL dbt_batched_contract_finalize(t_KBKT)
       CALL dbt_batched_contract_finalize(t_R_occ)
       CALL dbt_batched_contract_finalize(t_R_virt)
 
