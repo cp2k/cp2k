@@ -2631,7 +2631,6 @@ CONTAINS
 
          CALL timeset(routineN//"_3c", handle)
          !Start looping of the batches
-         CALL dbt_batched_contract_init(t_SVS)
          CALL dbt_batched_contract_init(t_R)
          DO i_mem = 1, n_mem
             ibounds(:, 1) = [batch_start(i_mem), batch_end(i_mem)]
@@ -2674,12 +2673,14 @@ CONTAINS
                   CALL dbt_copy(t_3c_sparse, t_3c_4, bounds=bounds_cpy)
 
                   !Contract with the 2-center product S^-1 * V * S^-1 while keeping sparsity of derivatives
+                  CALL dbt_batched_contract_init(t_SVS)
                   CALL dbt_contract(1.0_dp, t_SVS, t_3c_3, 0.0_dp, t_3c_4, &
                                     contract_1=[2], notcontract_1=[1], &
                                     contract_2=[1], notcontract_2=[2, 3], &
                                     map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
                                     retain_sparsity=.TRUE., unit_nr=unit_nr_dbcsr, flop=nflop)
                   ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                  CALL dbt_batched_contract_finalize(t_SVS)
 
                   CALL dbt_copy(t_3c_4, t_3c_5, summation=.TRUE., move_data=.TRUE.)
 
@@ -2748,7 +2749,6 @@ CONTAINS
             CALL dbt_clear(t_3c_help_1)
             CALL dbt_clear(t_3c_help_2)
          END DO !i_mem
-         CALL dbt_batched_contract_finalize(t_SVS)
          CALL dbt_batched_contract_finalize(t_R)
          CALL timestop(handle)
 
