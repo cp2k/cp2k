@@ -47,12 +47,16 @@ MODULE rt_delta_pulse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -101,20 +105,34 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
+      CHARACTER(LEN=3), DIMENSION(3)                     :: rlab
+      INTEGER                                            :: i, output_unit
       LOGICAL                                            :: my_apply_pulse, periodic_cell
+      REAL(KIND=dp), DIMENSION(3)                        :: kvec
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section
 
+      NULLIFY (logger, input, rtp_section)
+
+      logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, &
                       cell=cell, &
+                      input=input, &
                       dft_control=dft_control, &
                       matrix_s=matrix_s)
+      rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
+                                         extension=".scfLog")
+      rlab = [CHARACTER(LEN=3) :: "X", "Y", "Z"]
       periodic_cell = ANY(cell%perd > 0)
       my_apply_pulse = .TRUE.
       CALL get_qs_env(qs_env, mos=mos)
+
       IF (rtp%linear_scaling) THEN
          IF (.NOT. ASSOCIATED(mos)) THEN
             CALL cp_warn(__LOCATION__, "Delta Pulse not implemented for Linear-Scaling based ground "// &
@@ -133,23 +151,51 @@ CONTAINS
       END IF
 
       IF (my_apply_pulse) THEN
+         ! The amplitude of the perturbation for all the method, modulo some prefactor:
+         kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+                   cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+                   cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+         kvec = kvec*twopi*rtp_control%delta_pulse_scale
+
          CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
          IF (rtp_control%apply_delta_pulse) THEN
             IF (dft_control%qs_control%dftb) &
                CALL build_dftb_overlap(qs_env, 1, matrix_s)
             IF (rtp_control%periodic) THEN
-               CALL apply_delta_pulse_electric_periodic(qs_env, mos_old, mos_new)
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &
+                     "An Electric Delta Kick within periodic condition is applied before running RTP.  "// &
+                     "Its amplitude in atomic unit is:"
+                  WRITE (output_unit, "(T3,3(A,A,E16.8,1X))") &
+                     (TRIM(rlab(i)), "=", -kvec(i), i=1, 3)
+               END IF
+               CALL apply_delta_pulse_electric_periodic(qs_env, mos_old, mos_new, -kvec)
             ELSE
                IF (periodic_cell) THEN
                   CPWARN("This application of the delta pulse is not compatible with PBC!")
                END IF
-               CALL apply_delta_pulse_electric(qs_env, mos_old, mos_new)
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &
+                     "An Electric Delta Kick within the length gauge is applied before running RTP.  "// &
+                     "Its amplitude in atomic unit is:"
+                  WRITE (output_unit, "(T3,3(A,A,E16.8,1X))") &
+                     (TRIM(rlab(i)), "=", -kvec(i), i=1, 3)
+               END IF
+               CALL apply_delta_pulse_electric(qs_env, mos_old, mos_new, -kvec)
             END IF
          ELSE IF (rtp_control%apply_delta_pulse_mag) THEN
             IF (periodic_cell) THEN
                CPWARN("This application of the delta pulse is not compatible with PBC!")
             END IF
-            CALL apply_delta_pulse_mag(qs_env, mos_old, mos_new)
+            ! The prefactor (strength of the magnetic field, should be divided by 2c)
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &
+                  "A Magnetic Delta Kick is applied before running RTP.  "// &
+                  "Its amplitude in atomic unit is:"
+               WRITE (output_unit, "(T3,3(A,A,E16.8,1X))") &
+                  (TRIM(rlab(i)), "=", -kvec(i)/2, i=1, 3)
+            END IF
+            CALL apply_delta_pulse_mag(qs_env, mos_old, mos_new, -kvec(:)/2)
          ELSE
             CPABORT("Code error: this case should not happen!")
          END IF
@@ -163,12 +209,14 @@ CONTAINS
 !> \param qs_env ...
 !> \param mos_old ...
 !> \param mos_new ...
+!> \param kvec ...
 !> \author Joost & Martin (2011)
 ! **************************************************************************************************
 
-   SUBROUTINE apply_delta_pulse_electric_periodic(qs_env, mos_old, mos_new)
+   SUBROUTINE apply_delta_pulse_electric_periodic(qs_env, mos_old, mos_new, kvec)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
+      REAL(KIND=dp), DIMENSION(3)                        :: kvec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_electric_periodic'
 
@@ -180,7 +228,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_ppnl, factor
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
-      REAL(KIND=dp), DIMENSION(3)                        :: kvec, rcc
+      REAL(KIND=dp), DIMENSION(3)                        :: rcc
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_tmp
@@ -266,12 +314,6 @@ CONTAINS
          END DO
          CALL build_local_moment_matrix(qs_env, matrix_r, 1, rcc)
       END IF
-
-      ! the prefactor (strength of the electric field)
-      kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-                cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-                cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-      kvec = -kvec*twopi*rtp_control%delta_pulse_scale
 
       IF (rtp_control%velocity_gauge) THEN
          rtp_control%vec_pot = rtp_control%vec_pot + kvec
@@ -383,17 +425,18 @@ CONTAINS
 !> \param qs_env ...
 !> \param mos_old ...
 !> \param mos_new ...
+!> \param kvec ...
 !> \author Joost & Martin (2011)
 ! **************************************************************************************************
 
-   SUBROUTINE apply_delta_pulse_electric(qs_env, mos_old, mos_new)
+   SUBROUTINE apply_delta_pulse_electric(qs_env, mos_old, mos_new, kvec)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
+      REAL(KIND=dp), DIMENSION(3)                        :: kvec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_electric'
 
       INTEGER                                            :: handle, i, nao, nmo
-      REAL(KIND=dp), DIMENSION(3)                        :: kvec
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type)                                   :: S_inv_fm, tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -412,14 +455,6 @@ CONTAINS
                       mos=mos, &
                       rtp=rtp)
       rtp_control => dft_control%rtp_control
-
-      ! direction ... unscaled, this will yield a exp(ikr) that is periodic with the cell
-      kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-                cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-                cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-      kvec = -kvec*twopi
-      ! scaling will make the things not periodic with the cell, which would only be good for gas phase systems ?
-      kvec(:) = dft_control%rtp_control%delta_pulse_scale*kvec
 
       IF (rtp_control%velocity_gauge) THEN
          rtp_control%vec_pot = rtp_control%vec_pot + kvec
@@ -467,17 +502,19 @@ CONTAINS
 !> \param qs_env ...
 !> \param mos_old ...
 !> \param mos_new ...
+!> \param kvec ...
 ! **************************************************************************************************
-   SUBROUTINE apply_delta_pulse_mag(qs_env, mos_old, mos_new)
+   SUBROUTINE apply_delta_pulse_mag(qs_env, mos_old, mos_new, kvec)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old, mos_new
+      REAL(KIND=dp), DIMENSION(3)                        :: kvec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_mag'
 
       INTEGER                                            :: gauge_orig, handle, idir, ispin, nao, &
                                                             nmo, nrow_global, nvirt
       REAL(KIND=dp)                                      :: eps_ppnl, factor
-      REAL(KIND=dp), DIMENSION(3)                        :: kvec, rcc
+      REAL(KIND=dp), DIMENSION(3)                        :: rcc
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -600,14 +637,8 @@ CONTAINS
          ! apply perturbation
          CALL cp_fm_set_all(mos_new(2*ispin - 1), 0.0_dp)
 
-         ! the prefactor (strength of the magnetic field, should be divided by 2c)
-         kvec(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
-                   cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
-                   cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-         kvec = -kvec*twopi*dft_control%rtp_control%delta_pulse_scale
-
          DO idir = 1, 3
-            factor = kvec(idir)/2         ! divide by two b.c. of pre-factor for magnetic term
+            factor = kvec(idir)
             IF (factor .NE. 0.0_dp) THEN
                CALL cp_dbcsr_sm_fm_multiply(matrix_mag(idir)%matrix, mos_old(2*ispin - 1), &
                                             mos_old(2*ispin), ncol=nmo)
