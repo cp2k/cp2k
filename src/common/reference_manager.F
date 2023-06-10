@@ -24,6 +24,7 @@
 MODULE reference_manager
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_para_env_type
+   USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
@@ -133,7 +134,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: DOI
 
       CHARACTER                                          :: tmp
-      CHARACTER(LEN=ISI_length)                          :: author, citation_key, year
+      CHARACTER(LEN=ISI_length)                          :: author, citation_key, key_a, key_b, year
       INTEGER                                            :: commaloc, i, ires, line, match, mylen, &
                                                             nlines
 
@@ -176,11 +177,15 @@ CONTAINS
       END DO
       citation_key(ires + 1:) = ""
 
-      ! avoid duplicates, search through the list for matches
+      ! avoid duplicates, search through the list for matches (case-insensitive)
       mylen = LEN_TRIM(citation_key)
+      key_a = citation_key(1:mylen)
+      CALL uppercase(key_a)
       match = 0
       DO I = 1, nbib - 1
-         IF (thebib(I)%ref%citation_key(1:mylen) == citation_key(1:mylen)) match = match + 1
+         key_b = thebib(I)%ref%citation_key(1:mylen)
+         CALL uppercase(key_b)
+         IF (key_a == key_b) match = match + 1
       END DO
       IF (match > 0) citation_key = citation_key(1:mylen)//CHAR(ICHAR('a') + match)
 
