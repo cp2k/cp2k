@@ -4825,7 +4825,7 @@ CONTAINS
       CALL add_reference(key=Musaelian2023, ISI_record=s2a( &
                          "TY JOUR", &
                          "PT J", &
-                         "   Musaelian, A", &
+                         "AU Musaelian, A", &
                          "   Batzner, S", &
                          "   Johansson, A", &
                          "   Sun, L", &
