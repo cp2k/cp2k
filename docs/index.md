@@ -21,9 +21,3 @@ units
 ```
 
 % TODO: `{toctree} % :caption: Explanations % % dummy % `
-
-# Indices and tables
-
-- {ref}`genindex`
-- {ref}`modindex`
-- {ref}`search`
