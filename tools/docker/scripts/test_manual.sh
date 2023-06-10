@@ -68,7 +68,7 @@ echo -e "\n========== Generating New Manual =========="
   set -e # abort if error is encountered
   /opt/cp2k/docs/generate_input_reference.py ./cp2k_input.xml ./references.html
   echo ""
-  sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual/new --jobs 16
+  sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual/new -W -n --keep-going --jobs 16
 )
 EXIT_CODE=$?
 if ((EXIT_CODE)); then
