@@ -210,7 +210,8 @@ MODULE mp2_types
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: &
          matrix_sigma_x_minus_vxc, matrix_ks
       REAL(KIND=dp)            :: broadening_print_loc_bandgap, energy_window_print_loc_bandgap, &
-                                  ldos_thresh_print_loc_bandgap, energy_spacing_print_loc_bandgap
+                                  ldos_thresh_print_loc_bandgap, energy_spacing_print_loc_bandgap, &
+                                    regularization_minimax
       INTEGER, DIMENSION(:), POINTER :: stride_loc_bandgap
    END TYPE
 

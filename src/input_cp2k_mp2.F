@@ -922,6 +922,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_MINIMAX", &
+                          description="Tikhonov regularization for computing weights of the Fourier transform "// &
+                          "from imaginary time to imaginary frequency and vice versa. Needed for large minimax "// &
+                          "grids with 20 or more points and a small range.", &
+                          usage="REGULARIZATION_MINIMAX 1.0E-6", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a subsection for the periodic GW correction
       CALL create_periodic_gw_correction_section(subsection)
       CALL section_add_subsection(section, subsection)
