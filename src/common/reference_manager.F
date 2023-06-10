@@ -161,9 +161,10 @@ CONTAINS
       author = get_next_author(thebib(key)%ref%ISI_record, line)
       commaloc = INDEX(author, ',')
       IF (commaloc .GT. 0) author = author(1:commaloc - 1)
+      CPASSERT(LEN_TRIM(author) > 0)
       year = get_year(thebib(key)%ref%ISI_record)
+      CPASSERT(LEN_TRIM(year) == 4)
       citation_key = TRIM(author)//TRIM(year)
-      IF (citation_key == "") citation_key = "unknown"
 
       ! avoid special characters in names, just remove them
       mylen = LEN_TRIM(citation_key)
@@ -176,6 +177,7 @@ CONTAINS
          END IF
       END DO
       citation_key(ires + 1:) = ""
+      CPASSERT(LEN_TRIM(citation_key) > 4) ! At least one character of the author should be left.
 
       ! avoid duplicates, search through the list for matches (case-insensitive)
       mylen = LEN_TRIM(citation_key)
