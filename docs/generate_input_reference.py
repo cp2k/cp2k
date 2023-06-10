@@ -213,9 +213,9 @@ def render_keyword(
     output: List[str] = []
     output += [f"```{{py:data}}  {keyword_names[0]}"]
     n_var_brackets = f"[{n_var}]" if n_var > 1 else ""
-    output += [f":type: {data_type}{n_var_brackets}"]
+    output += [f":type: '{data_type}{n_var_brackets}'"]
     if default_value:
-        output += [f":value: {default_value}"]
+        output += [f":value: '{default_value}'"]
     output += [""]
     if len(keyword_names) > 1:
         aliases = " ,".join(keyword_names)
@@ -260,6 +260,7 @@ def get_text(element: Optional[lxml.etree._Element]) -> str:
 # =======================================================================================
 def escape_markdown(text: str) -> str:
     text = text.replace("__", "\_\_")
+    text = text.replace("#", "\#")
     return text
 
 
