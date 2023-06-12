@@ -217,18 +217,15 @@ def render_keyword(
     if default_value:
         output += [f":value: '{default_value}'"]
     output += [""]
-    if len(keyword_names) > 1:
-        aliases = " ,".join(keyword_names)
-        output += [f"**Aliase:** {aliases}"]
     if repeats:
         output += [f"**Keyword can be repeated.**", ""]
+    if len(keyword_names) > 1:
+        aliases = " ,".join(keyword_names[1:])
+        output += [f"**Aliase:** {aliases}", ""]
     if lone_leyword_value:
         output += [f"**Lone keyword:** `{escape_markdown(lone_leyword_value)}`", ""]
     if usage:
-        output += [
-            f"**Usage:** _{escape_markdown(usage)}_",
-            "",
-        ]
+        output += [f"**Usage:** _{escape_markdown(usage)}_", ""]
     if data_type == "enum":
         output += [f"**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
@@ -238,10 +235,7 @@ def render_keyword(
         output += [""]
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
-        output += [
-            f"**References:** {citations}",
-            "",
-        ]
+        output += [f"**References:** {citations}", ""]
     output += [f"{escape_markdown(description)} {github_link(location)}", ""]
 
     output += ["```", ""]  # Close py:data directive.
