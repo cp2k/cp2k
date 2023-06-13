@@ -257,7 +257,7 @@ class Config:
         self.work_base_dir = (
             args.workbasedir / leaf_dir
             if args.workbasedir
-            else self.cp2k_root / "regtesting" / leaf_dir
+            else self.cp2k_root / "regtesting" / args.arch / args.version / leaf_dir
         )
         self.error_summary = self.work_base_dir / "error_summary"
 
