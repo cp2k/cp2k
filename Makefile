@@ -74,8 +74,8 @@ endif
         pretty precommit precommitclean doxygenclean doxygen \
         fpretty fprettyclean \
         doxify doxifyclean \
-        install clean realclean distclean mrproper help \
-        test testbg testclean testrealclean \
+        install clean realclean distclean help \
+        test testbg testclean \
         data \
         $(EXTSPACKAGES)
 
@@ -334,14 +334,10 @@ testclean:
 	rm -rf $(foreach v, $(VERSION), $(MAINTSTDIR)/$(ARCH)/$(v)/TEST-*)
 OTHER_HELP += "testclean : Remove all TEST-* files for given ARCH and VERSION"
 
-testrealclean: testclean
-	rm -rf $(foreach v, $(VERSION), $(MAINTSTDIR)/$(ARCH)/$(v)/LAST-*)
-OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH and VERSION"
-
 #
 # Remove all files from previous builds
 #
-distclean: precommitclean fprettyclean doxifyclean testrealclean
+distclean: precommitclean fprettyclean doxifyclean
 	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR)
 OTHER_HELP += "distclean : Remove all files from previous builds"
 
