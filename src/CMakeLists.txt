@@ -1414,8 +1414,9 @@ if(CP2K_USE_CUDA)
   if(CP2K_USE_NVHPC)
     target_link_libraries(cp2k_cuda_libs INTERFACE NVHPC::MATH NVHPC::CUDA)
   else()
-    target_link_libraries(cp2k_cuda_libs INTERFACE CUDA::cufft CUDA::cufftw
-                                                   CUDA::cublas CUDA::cudart)
+    target_link_libraries(
+      cp2k_cuda_libs INTERFACE CUDA::cufft CUDA::cufftw CUDA::cublas
+                               CUDA::cudart CUDA::cuda_driver)
   endif()
 endif()
 
@@ -1479,7 +1480,7 @@ set_target_properties(
   cp2k
   PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
              Fortran_MODULE_DIRECTORY mod_files
-             POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS}
+             POSITION_INDEPENDENT_CODE ON
              VERSION ${cp2k_VERSION}
              SOVERSION ${cp2k_APIVERSION})
 
@@ -1612,8 +1613,6 @@ list(
   "dbt_tas_unittest")
 
 add_executable(cp2k-bin start/cp2k.F)
-set_target_properties(
-  cp2k-bin PROPERTIES LINKER_LANGUAGE Fortran) # always use the Fortran compiler
 # for linking
 
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
@@ -1630,6 +1629,7 @@ set_target_properties(
   cp2k-bin
   PROPERTIES CXX_STANDARD 14
              IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+             POSITION_INDEPENDENT_CODE ON
              LINKER_LANGUAGE "CXX"
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
 
@@ -1640,6 +1640,7 @@ foreach(_app ${__CP2K_APPS})
     ${_app}
     PROPERTIES CXX_STANDARD 14
                IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+               POSITION_INDEPENDENT_CODE ON
                LINKER_LANGUAGE "CXX"
                OUTPUT_NAME "${_app}.${__cp2k_ext}")
 
@@ -1702,6 +1703,7 @@ foreach(__app grid_miniapp grid_unittest dbm_miniapp)
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
                LINKER_LANGUAGE C
+               POSITION_INDEPENDENT_CODE ON
                OUTPUT_NAME "${__app}.${__cp2k_ext}")
 
   if(CP2K_USE_HIP)
