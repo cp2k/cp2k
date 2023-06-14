@@ -1267,7 +1267,8 @@ CONTAINS
                                do_ri_sos_laplace_mp2, do_print, &
                                tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
-                               weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
+                               weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                               qs_env%mp2_env%ri_g0w0%regularization_minimax)
 
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
          IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN

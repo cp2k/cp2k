@@ -65,11 +65,12 @@ CONTAINS
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_cos_tf_w_to_t ...
 !> \param weights_sin_tf_t_to_w ...
+!> \param regularization ...
 ! **************************************************************************************************
    SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
                                do_im_time, do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi, tj, wj, weights_cos_tf_t_to_w, &
-                               weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
+                               weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, regularization)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -89,6 +90,7 @@ CONTAINS
          INTENT(OUT)                                     :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: regularization
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
@@ -96,7 +98,7 @@ CONTAINS
       INTEGER                                            :: handle, ierr, ispin, jquad, nspins
       LOGICAL                                            :: my_do_kpoints, my_open_shell
       REAL(KIND=dp)                                      :: Emax, Emin, max_error_min, my_E_Range, &
-                                                            scaling
+                                                            my_regularization, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x_tw
       TYPE(section_vals_type), POINTER                   :: input
 
@@ -110,6 +112,11 @@ CONTAINS
       my_do_kpoints = .FALSE.
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          my_do_kpoints = do_kpoints_cubic_RPA
+      END IF
+
+      my_regularization = 0.0_dp
+      IF (PRESENT(regularization)) THEN
+         my_regularization = regularization
       END IF
 
       IF (my_do_kpoints) THEN
@@ -247,14 +254,16 @@ CONTAINS
             weights_cos_tf_t_to_w = 0.0_dp
 
             CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, tj, &
-                                              Emin, Emax, max_error_min, num_points_per_magnitude)
+                                              Emin, Emax, max_error_min, num_points_per_magnitude, &
+                                              my_regularization)
 
             ! get the weights for the cosine transform W^c(iw) -> W^c(it)
             ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
             weights_cos_tf_w_to_t = 0.0_dp
 
             CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
-                                              Emin, Emax, max_error_min, num_points_per_magnitude)
+                                              Emin, Emax, max_error_min, num_points_per_magnitude, &
+                                              my_regularization)
 
             IF (do_gw_im_time) THEN
 
@@ -263,7 +272,8 @@ CONTAINS
                weights_sin_tf_t_to_w = 0.0_dp
 
                CALL get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, tj, &
-                                                 Emin, Emax, max_error_min, num_points_per_magnitude)
+                                                 Emin, Emax, max_error_min, num_points_per_magnitude, &
+                                                 my_regularization)
 
                IF (unit_nr > 0) THEN
                   WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
@@ -721,9 +731,11 @@ CONTAINS
 !> \param E_max ...
 !> \param max_error ...
 !> \param num_points_per_magnitude ...
+!> \param regularization ...
 ! **************************************************************************************************
    SUBROUTINE get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, omega_tj, &
-                                           E_min, E_max, max_error, num_points_per_magnitude)
+                                           E_min, E_max, max_error, num_points_per_magnitude, &
+                                           regularization)
 
       INTEGER, INTENT(IN)                                :: num_integ_points
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -735,6 +747,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: E_min, E_max
       REAL(KIND=dp), INTENT(INOUT)                       :: max_error
       INTEGER, INTENT(IN)                                :: num_points_per_magnitude
+      REAL(KIND=dp), INTENT(IN)                          :: regularization
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_l_sq_wghts_cos_tf_t_to_w'
 
@@ -817,7 +830,9 @@ CONTAINS
          ! 1) V*Sigma
          DO jjj = 1, num_integ_points
             DO iii = 1, num_integ_points
-               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+!               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)*sing_values(jjj) &
+                                              /(regularization**2 + sing_values(jjj)**2)
             END DO
          END DO
 
@@ -853,9 +868,10 @@ CONTAINS
 !> \param E_max ...
 !> \param max_error ...
 !> \param num_points_per_magnitude ...
+!> \param regularization ...
 ! **************************************************************************************************
    SUBROUTINE get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, omega_tj, &
-                                           E_min, E_max, max_error, num_points_per_magnitude)
+                                           E_min, E_max, max_error, num_points_per_magnitude, regularization)
 
       INTEGER, INTENT(IN)                                :: num_integ_points
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -867,6 +883,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: E_min, E_max
       REAL(KIND=dp), INTENT(OUT)                         :: max_error
       INTEGER, INTENT(IN)                                :: num_points_per_magnitude
+      REAL(KIND=dp), INTENT(IN)                          :: regularization
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_l_sq_wghts_sin_tf_t_to_w'
 
@@ -954,7 +971,9 @@ CONTAINS
          ! 1) V*Sigma
          DO jjj = 1, num_integ_points
             DO iii = 1, num_integ_points
-               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+!               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)*sing_values(jjj) &
+                                              /(regularization**2 + sing_values(jjj)**2)
             END DO
          END DO
 
@@ -1187,7 +1206,8 @@ CONTAINS
             END DO
 
             CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, &
-                                              weights_cos_tf_t_to_w, tj, 1.0_dp, Rc, max_error, 200)
+                                              weights_cos_tf_t_to_w, tj, &
+                                              1.0_dp, Rc, max_error, 200, 0.0_dp)
 
             IF (iw > 0) THEN
                WRITE (iw, '(T2, I3, F12.1, ES12.3)') num_integ_points, Rc, max_error
@@ -1211,9 +1231,10 @@ CONTAINS
 !> \param E_max ...
 !> \param max_error ...
 !> \param num_points_per_magnitude ...
+!> \param regularization ...
 ! **************************************************************************************************
    SUBROUTINE get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, omega_tj, &
-                                           E_min, E_max, max_error, num_points_per_magnitude)
+                                           E_min, E_max, max_error, num_points_per_magnitude, regularization)
 
       INTEGER, INTENT(IN)                                :: num_integ_points
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1225,6 +1246,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: E_min, E_max
       REAL(KIND=dp), INTENT(INOUT)                       :: max_error
       INTEGER, INTENT(IN)                                :: num_points_per_magnitude
+      REAL(KIND=dp), INTENT(IN)                          :: regularization
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_l_sq_wghts_cos_tf_w_to_t'
 
@@ -1314,7 +1336,9 @@ CONTAINS
          ! 1) V*Sigma
          DO jjj = 1, num_integ_points
             DO iii = 1, num_integ_points
-               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+!               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)/sing_values(jjj)
+               mat_SinvVSinvSigma(iii, jjj) = mat_SinvVSinvT(jjj, iii)*sing_values(jjj) &
+                                              /(regularization**2 + sing_values(jjj)**2)
             END DO
          END DO
 
