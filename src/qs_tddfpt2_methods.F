@@ -15,8 +15,7 @@ MODULE qs_tddfpt2_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -32,10 +31,7 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
    USE hfx_types,                       ONLY: compare_hfx_sections
@@ -52,10 +48,7 @@ MODULE qs_tddfpt2_methods
    USE lri_environment_types,           ONLY: lri_density_release,&
                                               lri_env_release
    USE machine,                         ONLY: m_flush
-   USE message_passing,                 ONLY: mp_para_env_type
-   USE mulliken,                        ONLY: compute_charges
    USE physcon,                         ONLY: evolt
-   USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_methods,               ONLY: create_fxc_kernel,&
@@ -63,10 +56,10 @@ MODULE qs_tddfpt2_methods
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
                                               kernel_env_type,&
                                               release_kernel_env
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE qs_tddfpt2_assign,               ONLY: assign_state
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density,&
                                               tddfpt_construct_ground_state_orb_density
    USE qs_tddfpt2_eigensolver,          ONLY: tddfpt_davidson_solver,&
@@ -144,7 +137,7 @@ CONTAINS
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
                                                             explicit, is_restarted, state_change
-      REAL(kind=dp)                                      :: conv
+      REAL(kind=dp)                                      :: conv, gsmin, gsval, xsval
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
@@ -491,7 +484,7 @@ CONTAINS
          ELSEIF (ex_env%state < 0) THEN
             ! state following
             my_state = ABS(ex_env%state)
-            CALL assign_state(qs_env, matrix_s, evects, mos, ex_env%fingerprint, my_state)
+            CALL assign_state(qs_env, matrix_s, evects, mos, ex_env%wfn_history, my_state)
             IF (my_state /= ABS(ex_env%state)) THEN
                state_change = .TRUE.
                old_state = ABS(ex_env%state)
@@ -519,8 +512,15 @@ CONTAINS
          END DO
 
          IF (log_unit > 0) THEN
+            gsval = ex_env%wfn_history%gsval
+            gsmin = ex_env%wfn_history%gsmin
+            xsval = ex_env%wfn_history%xsval
+            WRITE (log_unit, "(1X,A,T40,F10.6,A,T62,F10.6,A)") "Ground state orbital alignment:", &
+               gsmin, "[MinVal]", gsval, "[Average]"
+            WRITE (log_unit, "(1X,A,T71,F10.6)") "Excitation vector alignment:", xsval
             IF (state_change) THEN
-               WRITE (log_unit, "(1X,A,I4,A,I4)") "Target state has been changed from ", &
+               WRITE (log_unit, "(1X,A,I5,T60,A14,T76,I5)") &
+                  "Target state has been changed from state ", &
                   old_state, " to new state ", my_state
             END IF
             WRITE (log_unit, "(1X,A,I4,A,F12.5,A)") "Calculate properties for state:", &
@@ -832,94 +832,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE kernel_info
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param matrix_s ...
-!> \param evects ...
-!> \param mos ...
-!> \param fingerprint ...
-!> \param my_state ...
-! **************************************************************************************************
-   SUBROUTINE assign_state(qs_env, matrix_s, evects, mos, fingerprint, my_state)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(cp_fm_type), DIMENSION(:, :)                  :: evects
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
-      INTEGER, INTENT(INOUT)                             :: my_state
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'assign_state'
-
-      INTEGER                                            :: handle, is, ispin, natom, nspins, nstate
-      REAL(KIND=dp)                                      :: dvm, dvp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dv
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chr
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: charges
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, natom=natom, para_env=para_env)
-      nspins = SIZE(mos)
-      nstate = SIZE(evects, 2)
-      !
-      NULLIFY (matrix_p1)
-      CALL dbcsr_allocate_matrix_set(matrix_p1, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (matrix_p1(ispin)%matrix)
-         CALL dbcsr_create(matrix=matrix_p1(ispin)%matrix, template=matrix_s(1)%matrix)
-         CALL dbcsr_copy(matrix_p1(ispin)%matrix, matrix_s(1)%matrix)
-      END DO
-      ALLOCATE (psi0(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0(ispin) = mo_coeff
-      END DO
-      !
-      IF (ASSOCIATED(fingerprint)) THEN
-         CPASSERT(SIZE(fingerprint, 1) == natom)
-         CPASSERT(SIZE(fingerprint, 2) == nspins)
-         ALLOCATE (charges(natom, nspins, nstate))
-         !
-         DO is = 1, nstate
-            DO ispin = 1, nspins
-               CALL dbcsr_set(matrix_p1(ispin)%matrix, 0.0_dp)
-            END DO
-            chr => charges(:, :, is)
-            CALL build_dm_response(psi0, evects(:, is), matrix_p1)
-            CALL compute_charges(matrix_p1, matrix_s(1)%matrix, chr, para_env)
-         END DO
-         !
-         ALLOCATE (dv(nstate))
-         DO is = 1, nstate
-            dvp = SQRT(SUM((fingerprint(:, :) + charges(:, :, is))**2)/REAL(natom, dp))
-            dvm = SQRT(SUM((fingerprint(:, :) - charges(:, :, is))**2)/REAL(natom, dp))
-            dv(is) = MIN(dvp, dvm)
-         END DO
-         !
-         my_state = MINVAL(MINLOC(dv))
-         fingerprint(:, :) = charges(:, :, my_state)
-         !
-         DEALLOCATE (charges, dv)
-      ELSE
-         ALLOCATE (fingerprint(natom, nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_set(matrix_p1(ispin)%matrix, 0.0_dp)
-         END DO
-         CALL build_dm_response(psi0, evects(:, my_state), matrix_p1)
-         CALL compute_charges(matrix_p1, matrix_s(1)%matrix, fingerprint, para_env)
-      END IF
-      !
-      CALL dbcsr_deallocate_matrix_set(matrix_p1)
-      DEALLOCATE (psi0)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE assign_state
 
 END MODULE qs_tddfpt2_methods

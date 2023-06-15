@@ -34,6 +34,17 @@ MODULE exstates_types
 
    PUBLIC :: excited_energy_type, exstate_release, exstate_create
    PUBLIC :: exstate_matrix_release, exstate_potential_release
+   PUBLIC :: wfn_history_type
+
+! *****************************************************************************
+
+   TYPE wfn_history_type
+      INTEGER                                            :: state
+      REAL(KIND=dp)                                      :: evalue
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: evect => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: cpmos => NULL()
+      REAL(KIND=dp)                                      :: xsval, gsval, gsmin
+   END TYPE wfn_history_type
 
 ! *****************************************************************************
 !> \brief Contains information on the excited states energy
@@ -62,7 +73,7 @@ MODULE exstates_types
       TYPE(pw_type), DIMENSION(:), POINTER               :: vadmm_rspace => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
+      TYPE(wfn_history_type)                             :: wfn_history
    END TYPE excited_energy_type
 
 CONTAINS
@@ -83,10 +94,8 @@ CONTAINS
          !
          CALL exstate_potential_release(ex_env)
          !
-         IF (ASSOCIATED(ex_env%fingerprint)) THEN
-            DEALLOCATE (ex_env%fingerprint)
-            NULLIFY (ex_env%fingerprint)
-         END IF
+         CALL cp_fm_release(ex_env%wfn_history%evect)
+         CALL cp_fm_release(ex_env%wfn_history%cpmos)
 
          DEALLOCATE (ex_env)
 
@@ -196,7 +205,13 @@ CONTAINS
          ex_env%state = 0
          ex_env%xc_kernel_method = xc_kernel_method_best
       END IF
-      NULLIFY (ex_env%fingerprint)
+      ex_env%wfn_history%evalue = 0.0_dp
+      ex_env%wfn_history%state = ex_env%state
+      ex_env%wfn_history%xsval = 1.0_dp
+      ex_env%wfn_history%gsval = 1.0_dp
+      ex_env%wfn_history%gsmin = 1.0_dp
+      NULLIFY (ex_env%wfn_history%cpmos)
+      NULLIFY (ex_env%wfn_history%evect)
 
    END SUBROUTINE exstate_create
 
