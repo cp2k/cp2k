@@ -1624,8 +1624,9 @@ CONTAINS
       use_virial
       INTEGER :: nder , i_dim, i,j, nkp_self_energy, ik, i_global,j_global, j_glob, i_glob
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp) :: E_CBM_GW, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, &
-         E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit, eps_ppnl,  avg_occ_QP_shift,  avg_virt_QP_shift
+      REAL(KIND=dp) :: E_CBM_GW_SOC, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW_SOC, &
+         E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit, eps_ppnl,  avg_occ_QP_shift,  avg_virt_QP_shift, &
+        E_GAP_GW_SOC, E_HOMO_GW_SOC, E_LUMO_GW_SOC
              REAL(KIND=dp)                                   ::  E_i,E_HOMO, E_LUMO, E_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
@@ -1854,6 +1855,9 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,F42.1)') 'GW_SOC_INFO | SOC energy window (eV)', E_window*evolt
       END IF
 
+      E_VBM_GW_SOC = -1000.0_dp
+      E_CBM_GW_SOC = 1000.0_dp
+
       DO ikp = 1, nkp_self_energy
 
          ! JW 2del: mat_s_kp and cfm_mat_s not needed any more
@@ -2008,28 +2012,43 @@ CONTAINS
          CALL sort(eigenvalues_without_soc_sorted, 2*nao, index0)
          DEALLOCATE(index0)
 
+         E_HOMO_GW_SOC = MAXVAL(eigenvalues(2*homo(1) - 2*gw_corr_lev_occ(1) + 1:2*homo(1)))
+         E_LUMO_GW_SOC = MINVAL(eigenvalues(2*homo(1) + 1:2*homo(1) + 2*gw_corr_lev_virt(1)))
+         E_GAP_GW_SOC = E_LUMO_GW_SOC - E_HOMO_GW_SOC
+         IF (E_HOMO_GW_SOC > E_VBM_GW_SOC) E_VBM_GW_SOC = E_HOMO_GW_SOC
+         IF (E_LUMO_GW_SOC < E_CBM_GW_SOC) E_CBM_GW_SOC = E_LUMO_GW_SOC
+
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T3,A7,I3,A3,I3,A8,3F7.3,A12,3F7.3)') 'Kpoint ', ikp, '  /', nkp_self_energy, &
                   '   xkp =',      kpoints_Sigma%xkp(1, ikp),  kpoints_Sigma%xkp(2, ikp),  kpoints_Sigma%xkp(3, ikp), &
                   '  and  xkp =', -kpoints_Sigma%xkp(1, ikp), -kpoints_Sigma%xkp(2, ikp), -kpoints_Sigma%xkp(3, ikp)
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_GW with SOC (eV)   E_GW without SOC (eV)   SOC shift (eV)'
+            WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_GW with SOC (eV)   E_GW without SOC (eV)  SOC shift (eV)'
 
 
             DO n_level_gw = 2*(homo(1) - gw_corr_lev_occ(1)) + 1, 2*homo(1)
-                WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( occ ) ', eigenvalues(n_level_gw)*evolt, &
+                WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( occ )   ', eigenvalues(n_level_gw)*evolt, &
                        eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
                        (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
             DO n_level_gw = 2*homo(1)+1, 2*(homo(1) + gw_corr_lev_virt(1))
-                WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( vir ) ', eigenvalues(n_level_gw)*evolt, &
+                WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( vir )   ', eigenvalues(n_level_gw)*evolt, &
                        eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
                        (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F38.4)') 'GW+SOC direct gap at current kpoint (eV)', E_GAP_GW_SOC*evolt
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------------'
          END IF
 
       END DO
+
+      WRITE (unit_nr, '(T3,A)') ' '
+      WRITE (unit_nr, '(T3,A,F46.4)') 'GW+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
+      WRITE (unit_nr, '(T3,A,F44.4)') 'GW+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
+      WRITE (unit_nr, '(T3,A,F59.4)') 'GW+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
 
 !      PRINT *, ''
 !      PRINT *, 'cfm_mat_h_double'
