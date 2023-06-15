@@ -920,8 +920,10 @@ CONTAINS
                   CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, -sinkl)
                ELSE
                   ! for an imaginary real-space matrix, we need to consider the imaginary unit
-                  CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, sinkl)
-                  CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, coskl)
+                  ! and we need to take into account that the transposed gives an extra "-" sign
+                  ! because the transposed is actually Hermitian conjugate
+                  CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, -sinkl)
+                  CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, -coskl)
                END IF
 
                CALL dbcsr_set(mat_work, 0.0_dp)

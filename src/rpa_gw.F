@@ -1851,6 +1851,8 @@ CONTAINS
 
       DO ikp = 1, nkp_self_energy
 
+         ! JW 2del: mat_s_kp and cfm_mat_s not needed any more
+
          CALL copy_dbcsr_to_fm(mat_s_kp(ikp, 1)%matrix, fm_mat_work)
          CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_s, z_one, fm_mat_work)
 
@@ -1907,6 +1909,26 @@ CONTAINS
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
 
+         ! JW PRINTING
+         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
+                     nrow_local=nrow_local, &
+                     ncol_local=ncol_local, &
+                     row_indices=row_indices, &
+                     col_indices=col_indices)
+
+         PRINT *, ''
+         PRINT *, 'cfm_mat_h_double with VSOC in AO basis'
+         PRINT *, ''
+         DO i_row = 1, nrow_local
+         DO j_col = 1, ncol_local
+             IF(ikp == 5) THEN
+                PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
+             END IF
+         END DO
+         END DO
+         ! END JW PRINTING
+
+
          ! trafo to MO basis
          cfm_mo_coeff_double%local_data = z_zero
          CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, 1, 1)
@@ -1925,6 +1947,19 @@ CONTAINS
                               ncol_local=ncol_local, &
                               row_indices=row_indices, &
                               col_indices=col_indices)
+
+         ! JW PRINTING
+         PRINT *, ''
+         PRINT *, 'cfm_mat_h_double with VSOC in MO basis'
+         PRINT *, ''
+         DO i_row = 1, nrow_local
+         DO j_col = 1, ncol_local
+             IF(ikp == 5) THEN
+                PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
+             END IF
+         END DO
+         END DO
+         ! END JW PRINTING
 
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
          DO i_row = 1, nrow_local
