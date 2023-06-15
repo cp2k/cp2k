@@ -115,6 +115,14 @@ CONTAINS
          END DO
          my_state = MAXVAL(MAXLOC(dv))
          wfn_history%xsval = dv(my_state)
+         IF (wfn_history%xsval < 0.75_dp) THEN
+            dv(my_state) = 0.0_dp
+            IF (wfn_history%xsval/MAXVAL(dv) < 0.5_dp) THEN
+               CALL cp_warn(__LOCATION__, "Uncertain assignment for State following."// &
+                            " Reduce trust radius in Geometry Optimization or timestep"// &
+                            " in MD runs.")
+            END IF
+         END IF
          DO ispin = 1, nspins
             CALL cp_fm_to_fm(evects(ispin, my_state), wfn_history%evect(ispin))
             CALL cp_fm_to_fm(psi0(ispin), wfn_history%cpmos(ispin))
