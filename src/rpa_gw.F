@@ -2045,10 +2045,12 @@ CONTAINS
 
       END DO
 
-      WRITE (unit_nr, '(T3,A)') ' '
-      WRITE (unit_nr, '(T3,A,F46.4)') 'GW+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
-      WRITE (unit_nr, '(T3,A,F44.4)') 'GW+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
-      WRITE (unit_nr, '(T3,A,F59.4)') 'GW+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A)') ' '
+         WRITE (unit_nr, '(T3,A,F46.4)') 'GW+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
+         WRITE (unit_nr, '(T3,A,F44.4)') 'GW+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
+         WRITE (unit_nr, '(T3,A,F59.4)') 'GW+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
+      END IF
 
 !      PRINT *, ''
 !      PRINT *, 'cfm_mat_h_double'
