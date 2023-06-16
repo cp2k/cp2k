@@ -1621,7 +1621,7 @@ CONTAINS
          ikp, ispin, n_level_gw, nspins, num_points_corr, num_poles, nkind, ikind, i_size, j_size, k_size, i_row, j_col, &
         ncol_local, nrow_local
       LOGICAL                                            :: do_kpoints_Sigma, my_open_shell,calculate_force, &
-      use_virial
+      use_virial, in_occ_block_1, in_occ_block_2, in_vir_block_1, in_vir_block_2
       INTEGER :: nder , i_dim, i,j, nkp_self_energy, ik, i_global,j_global, j_glob, i_glob
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp) :: E_CBM_GW_SOC, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW_SOC, &
@@ -1993,9 +1993,17 @@ CONTAINS
                 cfm_mat_s_double%local_data(i_row, j_col) = z_one
              END IF
 
+             in_occ_block_1 = (i_glob <= homo(1) .AND. &
+                               j_glob <= homo(1))
+             in_occ_block_2 = (nao < i_glob .AND. i_glob <= nao+homo(1) .AND. &
+                               nao < j_glob .AND. j_glob <= nao+homo(1))
+             in_vir_block_1 = (homo(1) < i_glob .AND. i_glob <= nao .AND. &
+                               homo(1) < j_glob .AND. j_glob <= nao)
+             in_vir_block_2 = (nao+homo(1) < i_glob .AND. &
+                               nao+homo(1) < j_glob)
+
              ! prevent that occupied and unoccupied states mix
-             IF((i_glob <= homo(1) .AND. j_glob > homo(1)) .OR. &
-                (i_glob > homo(1) .AND. j_glob <= homo(1))) THEN
+             IF(.NOT. (in_occ_block_1 .OR. in_occ_block_2 .OR. in_vir_block_1 .OR. in_vir_block_2)) THEN
                 cfm_mat_h_double%local_data(i_row, j_col) = z_zero
              END IF
 
