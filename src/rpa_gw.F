@@ -1975,6 +1975,7 @@ CONTAINS
          DO j_col = 1, ncol_local
              i_glob = row_indices(i_row)
              j_glob = col_indices(j_col)
+             ! add eigenvalues to diagonal entries
              IF(i_glob == j_glob) THEN
                 IF(i_glob .LE. nao) THEN
                    E_i = Eigenval(j_glob, ikp, 1)
@@ -1991,6 +1992,13 @@ CONTAINS
                 cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
                 cfm_mat_s_double%local_data(i_row, j_col) = z_one
              END IF
+
+             ! prevent that occupied and unoccupied states mix
+             IF((i_glob <= homo(1) .AND. j_glob > homo(1)) .OR. &
+                (i_glob > homo(1) .AND. j_glob <= homo(1))) THEN
+                cfm_mat_h_double%local_data(i_row, j_col) = z_zero
+             END IF
+
          END DO
          END DO
 
