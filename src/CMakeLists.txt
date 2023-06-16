@@ -642,6 +642,7 @@ list(
   qs_spin_orbit.F
   qs_subsys_methods.F
   qs_subsys_types.F
+  qs_tddfpt2_assign.F
   qs_tddfpt2_densities.F
   qs_tddfpt2_eigensolver.F
   qs_tddfpt2_fhxc.F
