@@ -1202,8 +1202,8 @@ CONTAINS
             CALL section_vals_val_get(se_section, "NEIGHBOR_LISTS%VERLET_SKIN", &
                                       r_val=verlet_skin)
             ALLOCATE (se_nonbond_env)
-            CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, &
-                                         do_nonbonded=.TRUE., verlet_skin=verlet_skin, ewald_rcut=ewald_rcut, &
+            CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, do_nonbonded=.TRUE., &
+                                         do_es=.TRUE., verlet_skin=verlet_skin, ewald_rcut=ewald_rcut, &
                                          ei_scale14=0.0_dp, vdw_scale14=0.0_dp, shift_cutoff=.FALSE.)
             ! Create and Setup NDDO multipole environment
             CALL nddo_mpole_setup(se_nddo_mpole, natom)

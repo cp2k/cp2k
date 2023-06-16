@@ -97,8 +97,8 @@ CONTAINS
       INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ikind, ilist, ipair, istart, &
          j, kind_a, kind_b, nkind, npairs, shell_a, shell_b, shell_type
       INTEGER, DIMENSION(:, :), POINTER                  :: list
-      LOGICAL                                            :: all_terms, do_multipoles, full_nl, &
-                                                            shell_present
+      LOGICAL                                            :: all_terms, do_multipoles, &
+                                                            full_nl, shell_present
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_shell_kind
       REAL(KIND=dp) :: alpha, beta, beta_a, beta_b, energy, etot, fac_ei, fac_kind, fac_vdw, &
          fscalar, mm_radius_a, mm_radius_b, qcore_a, qcore_b, qeff_a, qeff_b, qshell_a, qshell_b, &
@@ -234,8 +234,8 @@ CONTAINS
                   fac_ei = 0.5_dp*fac_ei
                   fac_vdw = 0.5_dp*fac_vdw
                END IF
-               ! decide which interactions to compute
-               IF (do_multipoles) THEN
+               ! decide which interactions to compute\b
+               IF (do_multipoles .OR. (.NOT. fist_nonbond_env%do_es)) THEN
                   fac_ei = 0.0_dp
                END IF
                IF (ipair <= neighbor_kind_pair%nscale) THEN

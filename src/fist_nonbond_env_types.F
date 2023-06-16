@@ -75,6 +75,7 @@ MODULE fist_nonbond_env_types
       INTEGER                                    :: last_update = -1
       INTEGER                                    :: num_update = -1
       LOGICAL                                    :: do_nonbonded = .FALSE.
+      LOGICAL                                    :: do_es = .FALSE.
       LOGICAL                                    :: shift_cutoff = .FALSE.
       CHARACTER(len=default_string_length)       :: unit_type = ""
       REAL(KIND=dp)                              :: lup = 0.0_dp
@@ -296,6 +297,7 @@ CONTAINS
 !> \param potparm14 ...
 !> \param potparm ...
 !> \param do_nonbonded ...
+!> \param do_es ...
 !> \param verlet_skin ...
 !> \param ewald_rcut ...
 !> \param ei_scale14 ...
@@ -306,12 +308,12 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
-                                      potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
-                                      vdw_scale14, shift_cutoff)
+                                      potparm14, potparm, do_nonbonded, do_es, verlet_skin, ewald_rcut, &
+                                      ei_scale14, vdw_scale14, shift_cutoff)
       TYPE(fist_nonbond_env_type), INTENT(OUT)           :: fist_nonbond_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
-      LOGICAL, INTENT(IN)                                :: do_nonbonded
+      LOGICAL, INTENT(IN)                                :: do_nonbonded, do_es
       REAL(KIND=dp), INTENT(IN)                          :: verlet_skin, ewald_rcut, ei_scale14, &
                                                             vdw_scale14
       LOGICAL, INTENT(IN)                                :: shift_cutoff
@@ -333,8 +335,8 @@ CONTAINS
       NULLIFY (fist_nonbond_env%allegro_data)
       NULLIFY (fist_nonbond_env%charges)
       CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm14, &
-                                 potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, vdw_scale14, &
-                                 shift_cutoff)
+                                 potparm, do_nonbonded, do_es, verlet_skin, ewald_rcut, ei_scale14, &
+                                 vdw_scale14, shift_cutoff)
    END SUBROUTINE fist_nonbond_env_create
 
 ! **************************************************************************************************
@@ -344,6 +346,7 @@ CONTAINS
 !> \param potparm14 ...
 !> \param potparm ...
 !> \param do_nonbonded ...
+!> \param do_es ...
 !> \param verlet_skin ...
 !> \param ewald_rcut ...
 !> \param ei_scale14 ...
@@ -351,13 +354,13 @@ CONTAINS
 !> \param shift_cutoff ...
 ! **************************************************************************************************
    SUBROUTINE init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, &
-                                    potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+                                    potparm14, potparm, do_nonbonded, do_es, verlet_skin, ewald_rcut, ei_scale14, &
                                     vdw_scale14, shift_cutoff)
 
       TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
-      LOGICAL, INTENT(IN)                                :: do_nonbonded
+      LOGICAL, INTENT(IN)                                :: do_nonbonded, do_es
       REAL(KIND=dp), INTENT(IN)                          :: verlet_skin, ewald_rcut, ei_scale14, &
                                                             vdw_scale14
       LOGICAL, INTENT(IN)                                :: shift_cutoff
@@ -381,6 +384,7 @@ CONTAINS
       NULLIFY (fist_nonbond_env%ij_kind_full_fac)
       fist_nonbond_env%unit_type = "ANGSTROM"
       fist_nonbond_env%do_nonbonded = do_nonbonded
+      fist_nonbond_env%do_es = do_es
       fist_nonbond_env%lup = 0
       fist_nonbond_env%aup = 0
       fist_nonbond_env%ei_scale14 = ei_scale14
@@ -390,7 +394,7 @@ CONTAINS
       fist_nonbond_env%last_update = 0
       fist_nonbond_env%num_update = 0
       fist_nonbond_env%long_range_correction = 0
-      IF (do_nonbonded) THEN
+      IF (do_nonbonded .OR. do_es) THEN
          natom_types = 1
          ! Determine size of kind arrays
          natom_types = SIZE(atomic_kind_set)
