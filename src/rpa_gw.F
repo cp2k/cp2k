@@ -1567,8 +1567,10 @@ CONTAINS
          ! Hartwigsen parametrization (1999) of GTH pseudopotentials 
          IF(mp2_env%ri_g0w0%soc_type .NE. soc_none) THEN
 
+           CALL calculate_and_print_soc(qs_env, Eigenval_scf, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                        homo, unit_nr, do_soc_gw=.FALSE., do_soc_scf=.TRUE.)
            CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                        homo, unit_nr)
+                                        homo, unit_nr, do_soc_gw=.TRUE., do_soc_scf=.FALSE.)
 
          END IF
 
@@ -1608,12 +1610,13 @@ CONTAINS
 
 
    SUBROUTINE calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                      homo, unit_nr)
+                                      homo, unit_nr, do_soc_gw, do_soc_scf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:, :, :)     :: Eigenval, Eigenval_scf
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_virt, homo
       INTEGER ::  unit_nr
+      LOGICAL :: do_soc_gw, do_soc_scf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_and_print_soc'
 
@@ -1663,6 +1666,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(do_soc_gw .NEQV. do_soc_scf)
 
       CALL get_qs_env(qs_env=qs_env, &
                       matrix_s=matrix_s, &
@@ -2040,7 +2045,11 @@ CONTAINS
                   '   xkp =',      kpoints_Sigma%xkp(1, ikp),  kpoints_Sigma%xkp(2, ikp),  kpoints_Sigma%xkp(3, ikp), &
                   '  and  xkp =', -kpoints_Sigma%xkp(1, ikp), -kpoints_Sigma%xkp(2, ikp), -kpoints_Sigma%xkp(3, ikp)
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_GW with SOC (eV)   E_GW without SOC (eV)  SOC shift (eV)'
+            IF(do_soc_gw) THEN
+               WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_GW with SOC (eV)   E_GW without SOC (eV)  SOC shift (eV)'
+            ELSE
+               WRITE (unit_nr, '(T3,2A)') 'Molecular orbital  E_SCF with SOC (eV)  E_SCF without SOC (eV)  SOC shift (eV)'
+            END IF
 
 
             DO n_level_gw = 2*(homo(1) - gw_corr_lev_occ(1)) + 1, 2*homo(1)
@@ -2054,7 +2063,11 @@ CONTAINS
                        (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F38.4)') 'GW+SOC direct gap at current kpoint (eV)', E_GAP_GW_SOC*evolt
+            IF(do_soc_gw) THEN
+               WRITE (unit_nr, '(T3,A,F38.4)') 'GW+SOC direct gap at current kpoint (eV)', E_GAP_GW_SOC*evolt
+            ELSE
+               WRITE (unit_nr, '(T3,A,F37.4)') 'SCF+SOC direct gap at current kpoint (eV)', E_GAP_GW_SOC*evolt
+            END IF
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------------'
          END IF
@@ -2063,9 +2076,15 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A,F46.4)') 'GW+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
-         WRITE (unit_nr, '(T3,A,F44.4)') 'GW+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
-         WRITE (unit_nr, '(T3,A,F59.4)') 'GW+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
+         IF(do_soc_gw) THEN
+            WRITE (unit_nr, '(T3,A,F46.4)') 'GW+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
+            WRITE (unit_nr, '(T3,A,F43.4)') 'GW+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
+            WRITE (unit_nr, '(T3,A,F59.4)') 'GW+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
+         ELSE
+            WRITE (unit_nr, '(T3,A,F45.4)') 'SCF+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
+            WRITE (unit_nr, '(T3,A,F42.4)') 'SCF+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
+            WRITE (unit_nr, '(T3,A,F58.4)') 'SCF+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
+         END IF
       END IF
 
 !      PRINT *, ''
