@@ -2004,16 +2004,6 @@ CONTAINS
                 END IF
              END IF
 
-! JW 2del wrong
-!             in_occ_block_1 = (i_glob <= homo(1) .AND. &
-!                               j_glob <= homo(1))
-!             in_occ_block_2 = (nao < i_glob .AND. i_glob <= nao+homo(1) .AND. &
-!                               nao < j_glob .AND. j_glob <= nao+homo(1))
-!             in_vir_block_1 = (homo(1) < i_glob .AND. i_glob <= nao .AND. &
-!                               homo(1) < j_glob .AND. j_glob <= nao)
-!             in_vir_block_2 = (nao+homo(1) < i_glob .AND. &
-!                               nao+homo(1) < j_glob)
-
              in_occ_block = ((i_glob <= homo(1) .OR. (nao < i_glob .AND. i_glob <= nao+homo(1))) .AND. &
                              (j_glob <= homo(1) .OR. (nao < j_glob .AND. j_glob <= nao+homo(1)))) 
              in_vir_block = (((homo(1) < i_glob .AND. i_glob <= nao) .OR. nao+homo(1) < i_glob) .AND. &
