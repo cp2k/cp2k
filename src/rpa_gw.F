@@ -1999,7 +1999,7 @@ CONTAINS
                 cfm_mat_s_double%local_data(i_row, j_col) = z_one
              ELSE
                 IF( E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window .OR. &
-                    E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window)  THEN
+                    E_j < E_HOMO - E_window .OR. E_j > E_LUMO + E_window)  THEN
                    cfm_mat_h_double%local_data(i_row, j_col) = z_zero
                 END IF
              END IF
