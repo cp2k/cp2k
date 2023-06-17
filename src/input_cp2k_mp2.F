@@ -958,6 +958,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E_SOC", &
+                          description="For perturbative SOC calculation, only "// &
+                          "take level pairs into account with energy eigenvalues that "// &
+                          "deviate less than DELTA_E_SOC.", &
+                          usage="DELTA_E_SOC 1.0_eV", &
+                          default_r_val=cp_unit_to_cp2k(value=1000.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a subsection for the periodic GW correction
       CALL create_periodic_gw_correction_section(subsection)
       CALL section_add_subsection(section, subsection)

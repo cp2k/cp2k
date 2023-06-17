@@ -1630,7 +1630,7 @@ CONTAINS
       REAL(KIND=dp) :: E_CBM_GW_SOC, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW_SOC, &
          E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit, eps_ppnl,  avg_occ_QP_shift,  avg_virt_QP_shift, &
         E_GAP_GW_SOC, E_HOMO_GW_SOC, E_LUMO_GW_SOC
-             REAL(KIND=dp)                                   ::  E_i,E_HOMO, E_LUMO, E_window
+             REAL(KIND=dp)                                   ::  E_i,E_HOMO, E_LUMO, E_window, E_j
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1975,27 +1975,33 @@ CONTAINS
 !         END DO
          ! END JW PRINTING
 
+         E_HOMO = Eigenval(homo(1), ikp, 1)
+         E_LUMO = Eigenval(homo(1)+1, ikp, 1)
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
          DO i_row = 1, nrow_local
          DO j_col = 1, ncol_local
              i_glob = row_indices(i_row)
              j_glob = col_indices(j_col)
+             IF(i_glob .LE. nao) THEN
+                E_i = Eigenval(i_glob, ikp, 1)
+             ELSE
+                E_i = Eigenval(i_glob-nao, ikp, 1)
+             END IF
+             IF(j_glob .LE. nao) THEN
+                E_j = Eigenval(j_glob, ikp, 1)
+             ELSE
+                E_j = Eigenval(j_glob-nao, ikp, 1)
+             END IF
+
              ! add eigenvalues to diagonal entries
              IF(i_glob == j_glob) THEN
-                IF(i_glob .LE. nao) THEN
-                   E_i = Eigenval(j_glob, ikp, 1)
-                ELSE
-                   E_i = Eigenval(j_glob-nao, ikp, 1)
-                END IF
-                E_HOMO = Eigenval(homo(1), ikp, 1)
-                E_LUMO = Eigenval(homo(1)+1, ikp, 1)
-
-                IF( E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window) THEN
-                   cfm_mat_h_double%local_data(i_row, :) = z_zero
-                   cfm_mat_h_double%local_data(:, j_col) = z_zero
-                END IF
                 cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
                 cfm_mat_s_double%local_data(i_row, j_col) = z_one
+             ELSE
+                IF( E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window .OR. &
+                    E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window)  THEN
+                   cfm_mat_h_double%local_data(i_row, j_col) = z_zero
+                END IF
              END IF
 
 ! JW 2del wrong
@@ -2018,28 +2024,31 @@ CONTAINS
                 cfm_mat_h_double%local_data(i_row, j_col) = z_zero
              END IF
 
+             IF(ABS(E_i-E_j) > qs_env%mp2_env%ri_g0w0%delta_E_soc) THEN
+                cfm_mat_h_double%local_data(i_row, j_col) = z_zero
+             END IF
          END DO
          END DO
 
          ! JW PRINTING
-         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
-                     nrow_local=nrow_local, &
-                     ncol_local=ncol_local, &
-                     row_indices=row_indices, &
-                     col_indices=col_indices)
-
-         PRINT *, ''
-         PRINT *, 'cfm_mat_h_double with VSOC in MO basis'
-         PRINT *, ''
-         DO i_row = 1, nrow_local
-         DO j_col = 1, ncol_local
-             i_glob = row_indices(i_row)
-             j_glob = col_indices(j_col)
-             IF(ikp == 5) THEN
-                PRINT *, i_glob, j_glob, cfm_mat_h_double%local_data(i_row, j_col)
-             END IF
-         END DO
-         END DO
+!         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
+!                     nrow_local=nrow_local, &
+!                     ncol_local=ncol_local, &
+!                     row_indices=row_indices, &
+!                     col_indices=col_indices)
+!
+!         PRINT *, ''
+!         PRINT *, 'cfm_mat_h_double with VSOC in MO basis'
+!         PRINT *, ''
+!         DO i_row = 1, nrow_local
+!         DO j_col = 1, ncol_local
+!             i_glob = row_indices(i_row)
+!             j_glob = col_indices(j_col)
+!             IF(ikp == 5) THEN
+!                PRINT *, i_glob, j_glob, cfm_mat_h_double%local_data(i_row, j_col)
+!             END IF
+!         END DO
+!         END DO
          ! END JW PRINTING
 
          ! JW TODO: remove cfm_mat_s completely
