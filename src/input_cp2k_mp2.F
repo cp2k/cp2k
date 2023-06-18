@@ -951,7 +951,7 @@ CONTAINS
                           description="If true, all SOC matrix elements between occupied and unoccupied "// &
                           "states are set to zero. ", &
                           usage="SOC_DECOUPLE_OCC_VIRT TRUE", &
-                          default_l_val=.FALSE., &
+                          default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
