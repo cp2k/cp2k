@@ -1981,6 +1981,9 @@ CONTAINS
          E_HOMO = Eigenval(homo(1), ikp, 1)
          E_LUMO = Eigenval(homo(1)+1, ikp, 1)
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
+
+         CALL para_env%sync()
+
          DO i_row = 1, nrow_local
          DO j_col = 1, ncol_local
              i_glob = row_indices(i_row)
