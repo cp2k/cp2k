@@ -951,7 +951,7 @@ CONTAINS
                           description="If true, all SOC matrix elements between occupied and unoccupied "// &
                           "states are set to zero. ", &
                           usage="SOC_DECOUPLE_OCC_VIRT TRUE", &
-                          default_l_val=.TRUE., &
+                          default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -962,7 +962,7 @@ CONTAINS
                           "[E_HOMO - SOC_ENERGY_WINDOW/2 , E_LUMO + SOC_ENERGY_WINDOW/2 "// &
                           "into account for the diagonalization of H^GW,SOC.", &
                           usage="SOC_ENERGY_WINDOW 20.0_eV", &
-                          default_r_val=cp_unit_to_cp2k(value=20.0_dp, unit_str="eV"), &
+                          default_r_val=cp_unit_to_cp2k(value=1000.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

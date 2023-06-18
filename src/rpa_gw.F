@@ -1852,7 +1852,7 @@ CONTAINS
       eigenvalues = 0.0_dp
       ALLOCATE(eigenvalues_without_soc_sorted(2*nao))
 
-      E_window = qs_env%mp2_env%ri_g0w0%soc_energy_window*0.5_dp
+      E_window = qs_env%mp2_env%ri_g0w0%soc_energy_window
       IF(unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A)') ' '
          WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------------'
@@ -1860,7 +1860,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,F42.1)') 'GW_SOC_INFO | SOC energy window (eV)', E_window*evolt
          WRITE (unit_nr, '(T3,A,F33.1)') 'GW_SOC_INFO | SOC max. energy difference (eV)', &
                                          qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
-          WRITE (unit_nr, '(T3,A,27L)') 'GW_SOC_INFO | Decouple occupied and virtual states', &
+          WRITE (unit_nr, '(T3,A,T27,L)') 'GW_SOC_INFO | Decouple occupied and virtual states', &
                                         qs_env%mp2_env%ri_g0w0%soc_decouple_occ_virt
       END IF
 
@@ -1979,8 +1979,8 @@ CONTAINS
 !         END DO
          ! END JW PRINTING
 
-         IF(ikp == 1) PRINT *, 'qs_env%mp2_env%ri_g0w0%delta_E_soc =', &
-             qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
+!         IF(ikp == 1) PRINT *, 'qs_env%mp2_env%ri_g0w0%delta_E_soc =', &
+!             qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
 
          E_HOMO = Eigenval(homo(1), ikp, 1)
          E_LUMO = Eigenval(homo(1)+1, ikp, 1)
@@ -2008,8 +2008,8 @@ CONTAINS
                 cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
                 cfm_mat_s_double%local_data(i_row, j_col) = z_one
              ELSE
-                IF( E_i < E_HOMO - E_window .OR. E_i > E_LUMO + E_window .OR. &
-                    E_j < E_HOMO - E_window .OR. E_j > E_LUMO + E_window)  THEN
+                IF( E_i < E_HOMO - 0.5_dp*E_window .OR. E_i > E_LUMO + 0.5_dp*E_window .OR. &
+                    E_j < E_HOMO - 0.5_dp*E_window .OR. E_j > E_LUMO + 0.5_dp*E_window)  THEN
                    cfm_mat_h_double%local_data(i_row, j_col) = z_zero
                 END IF
              END IF
