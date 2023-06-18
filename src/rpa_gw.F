@@ -1975,6 +1975,9 @@ CONTAINS
 !         END DO
          ! END JW PRINTING
 
+         IF(ikp == 1) PRINT *, 'qs_env%mp2_env%ri_g0w0%delta_E_soc =', &
+             qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
+
          E_HOMO = Eigenval(homo(1), ikp, 1)
          E_LUMO = Eigenval(homo(1)+1, ikp, 1)
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
@@ -2014,9 +2017,9 @@ CONTAINS
                 cfm_mat_h_double%local_data(i_row, j_col) = z_zero
              END IF
 
-!             IF(ABS(E_i-E_j) > qs_env%mp2_env%ri_g0w0%delta_E_soc) THEN
-!                cfm_mat_h_double%local_data(i_row, j_col) = z_zero
-!             END IF
+             IF(ABS(E_i-E_j) > qs_env%mp2_env%ri_g0w0%delta_E_soc) THEN
+                cfm_mat_h_double%local_data(i_row, j_col) = z_zero
+             END IF
          END DO
          END DO
 
@@ -2048,6 +2051,8 @@ CONTAINS
 
 ! JW 2del
 !      PRINT *, 'CHECK HERM CONJ =', SUM(ABS(cfm_mat_h_double%local_data(:,:)-CONJG(TRANSPOSE(cfm_mat_h_double%local_data(:,:)))))
+
+         CALL para_env%sync()
 
          eigenvalues = 0.0_dp
          CALL cp_cfm_geeig_canon(cfm_mat_h_double, cfm_mat_s_double, cfm_mo_coeff_double, eigenvalues, &
