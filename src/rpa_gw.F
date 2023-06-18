@@ -2014,9 +2014,9 @@ CONTAINS
                 cfm_mat_h_double%local_data(i_row, j_col) = z_zero
              END IF
 
-             IF(ABS(E_i-E_j) > qs_env%mp2_env%ri_g0w0%delta_E_soc) THEN
-                cfm_mat_h_double%local_data(i_row, j_col) = z_zero
-             END IF
+!             IF(ABS(E_i-E_j) > qs_env%mp2_env%ri_g0w0%delta_E_soc) THEN
+!                cfm_mat_h_double%local_data(i_row, j_col) = z_zero
+!             END IF
          END DO
          END DO
 
