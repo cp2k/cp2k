@@ -1860,7 +1860,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,F42.1)') 'GW_SOC_INFO | SOC energy window (eV)', E_window*evolt
          WRITE (unit_nr, '(T3,A,F33.1)') 'GW_SOC_INFO | SOC max. energy difference (eV)', &
                                          qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
-          WRITE (unit_nr, '(T3,A,T27,L)') 'GW_SOC_INFO | Decouple occupied and virtual states', &
+          WRITE (unit_nr, '(T3,A,L)') 'GW_SOC_INFO | Decouple occupied and virtual states                     ', &
                                         qs_env%mp2_env%ri_g0w0%soc_decouple_occ_virt
       END IF
 
