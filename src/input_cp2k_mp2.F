@@ -947,6 +947,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_DECOUPLE_OCC_VIRT", &
+                          description="If true, all SOC matrix elements between occupied and unoccupied "// &
+                          "states are set to zero. ", &
+                          usage="SOC_DECOUPLE_OCC_VIRT TRUE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SOC_ENERGY_WINDOW", &
                           description="For perturbative SOC calculation, only "// &
                           "take frontier levels in an energy window "// &

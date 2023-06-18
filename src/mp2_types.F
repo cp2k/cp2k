@@ -203,7 +203,8 @@ MODULE mp2_types
       TYPE(one_dim_real_array), DIMENSION(2) :: ic_corr_list
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
-      LOGICAL :: update_xc_energy, do_kpoints_Sigma, print_local_bandgap
+      LOGICAL :: update_xc_energy, do_kpoints_Sigma, print_local_bandgap, &
+            soc_decouple_occ_virt
       INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
                  nkp_self_energy_special_kp, nkp_self_energy_monkh_pack,&
                  soc_type

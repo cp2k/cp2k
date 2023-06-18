@@ -1858,6 +1858,10 @@ CONTAINS
          WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------------'
          WRITE (unit_nr, '(T3,A)') ' '
          WRITE (unit_nr, '(T3,A,F42.1)') 'GW_SOC_INFO | SOC energy window (eV)', E_window*evolt
+         WRITE (unit_nr, '(T3,A,F33.1)') 'GW_SOC_INFO | SOC max. energy difference (eV)', &
+                                         qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
+          WRITE (unit_nr, '(T3,A,27L)') 'GW_SOC_INFO | Decouple occupied and virtual states', &
+                                        qs_env%mp2_env%ri_g0w0%soc_decouple_occ_virt
       END IF
 
       E_VBM_GW_SOC = -1000.0_dp
@@ -2016,7 +2020,8 @@ CONTAINS
                              ((homo(1) < j_glob .AND. j_glob <= nao) .OR. nao+homo(1) < j_glob))
 
              ! prevent that occupied and unoccupied states mix
-             IF(.NOT. (in_occ_block .OR. in_vir_block)) THEN
+             IF(.NOT. (in_occ_block .OR. in_vir_block) .AND. &
+                qs_env%mp2_env%ri_g0w0%soc_decouple_occ_virt) THEN
                 cfm_mat_h_double%local_data(i_row, j_col) = z_zero
              END IF
 
