@@ -1703,15 +1703,6 @@ CONTAINS
           CPABORT("Unknown SOC type.")
         END SELECT
 
-        ! JW 2del
-!        PRINT *, 'element =', element_symbol
-!
-!        DO i=LBOUND(gth_potential%wprj_ppnl,1), UBOUND(gth_potential%wprj_ppnl,1)
-!          DO j= LBOUND(gth_potential%wprj_ppnl,2),  UBOUND(gth_potential%wprj_ppnl,2)
-!            PRINT *, 'i, j, wprj =', i, j, gth_potential%wprj_ppnl(i, j)
-!          END DO
-!        END DO
-
       END DO
 
       calculate_forces = .FALSE.
@@ -1744,35 +1735,10 @@ CONTAINS
                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
                            nimages=1, basis_type="ORB", matrix_l=matrix_l)
 
-! JW 2del
-!      PRINT *, ''
-!      PRINT *, 'GTH potential matrix :'
-!      PRINT *, ''
-!      CALL dbcsr_print(matrix_pot_dummy(1,1)%matrix)
-!
-!      DO i_dim = 1, 3
-!
-!         PRINT *, ''
-!         PRINT *, 'angular momentum matrix for i_dim =', i_dim
-!         PRINT *, ''
-!         CALL dbcsr_print(matrix_l(i_dim, 1)%matrix)
-!
-!      END DO
-
       CALL alloc_mat_set_2d(mat_VSOC_l_nosymm, 3, size_real_space, matrix_s(1)%matrix, explicitly_no_symmetry=.TRUE. )
       DO i_dim = 1, 3
          CALL dbcsr_desymmetrize(matrix_l(i_dim,1)%matrix, mat_VSOC_l_nosymm(i_dim,1)%matrix)
       END DO
-
-! JW 2del
-!      DO i_dim = 1, 3
-!
-!         PRINT *, ''
-!         PRINT *, 'desymmetrized angular momentum matrix for i_dim =', i_dim
-!         PRINT *, ''
-!         CALL dbcsr_print(mat_VSOC_l_nosymm(i_dim, 1)%matrix)
-!
-!      END DO
 
       kpoints_Sigma => qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma
 
@@ -1781,39 +1747,6 @@ CONTAINS
       CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_lz_kp, mat_VSOC_l_nosymm(3,1)%matrix, kpoints_Sigma, 1, .FALSE.)
 
       nkp_self_energy = kpoints_Sigma%nkp
-
-! JW 2del
-!      ikp = 5
-!
-!      PRINT *, ''
-!      PRINT *, 'ik =', ikp, 'Re(L_x matrix):'
-!      PRINT *, ''
-!      CALL dbcsr_print(mat_VSOC_lx_kp(ikp,1)%matrix)
-!
-!      PRINT *, ''
-!      PRINT *, 'ik =', ikp, 'Im(L_x matrix):'
-!      PRINT *, ''
-!      CALL dbcsr_print(mat_VSOC_lx_kp(ikp,2)%matrix)
-!
-!      PRINT *, ''
-!      PRINT *, 'ik =', ikp, 'Re(L_y matrix):'
-!      PRINT *, ''
-!      CALL dbcsr_print(mat_VSOC_ly_kp(ikp,1)%matrix)
-!
-!      PRINT *, ''
-!      PRINT *, 'ik =', ikp, 'Im(L_y matrix):'
-!      PRINT *, ''
-!      CALL dbcsr_print(mat_VSOC_ly_kp(ikp,2)%matrix)
-!
-!      PRINT *, ''
-!      PRINT *, 'ik =', ikp, 'Re(L_z matrix):'
-!      PRINT *, ''
-!      CALL dbcsr_print(mat_VSOC_lz_kp(ikp,1)%matrix)
-!
-!      PRINT *, ''
-!      PRINT *, 'ik =', ikp, 'Im(L_z matrix):'
-!      PRINT *, ''
-!      CALL dbcsr_print(mat_VSOC_lz_kp(ikp,2)%matrix)
 
       CALL get_mo_set(kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1), mo_coeff=rmos)
 
@@ -1846,8 +1779,6 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_desymmetrize(matrix_s(1)%matrix, matrix_s_desymm(1)%matrix)
 
-      CALL mat_kp_from_mat_gamma(qs_env, mat_s_kp, matrix_s_desymm(1)%matrix, kpoints_Sigma, 1)
-
       ALLOCATE(eigenvalues(2*nao))
       eigenvalues = 0.0_dp
       ALLOCATE(eigenvalues_without_soc_sorted(2*nao))
@@ -1864,14 +1795,6 @@ CONTAINS
       E_CBM_GW_SOC = 1000.0_dp
 
       DO ikp = 1, nkp_self_energy
-
-         ! JW 2del: mat_s_kp and cfm_mat_s not needed any more
-
-         CALL copy_dbcsr_to_fm(mat_s_kp(ikp, 1)%matrix, fm_mat_work)
-         CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_s, z_one, fm_mat_work)
-
-         CALL copy_dbcsr_to_fm(mat_s_kp(ikp, 2)%matrix, fm_mat_work)
-         CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_s, gaussi, fm_mat_work)
 
          CALL get_mo_set(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1), mo_coeff=rmos)
          CALL get_mo_set(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1), mo_coeff=imos)
@@ -1893,55 +1816,11 @@ CONTAINS
                                                                   + avg_virt_QP_shift
          END IF
 
-!         CALL cp_cfm_get_info(matrix=cfm_mo_coeff, &
-!                              nrow_local=nrow_local, &
-!                              ncol_local=ncol_local, &
-!                              row_indices=row_indices, &
-!                              col_indices=col_indices)
-!
-!         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=z_one, &
-!                            matrix_a=cfm_mat_s, matrix_b=cfm_mo_coeff, beta=z_zero, &
-!                            matrix_c=cfm_work)
-!
-!         CALL cp_cfm_to_cfm(cfm_work, cfm_work_2)
-!
-!         ! Multiply with GW eigenvalue to get h^GW = S*C*eps)*C^H*S
-!          DO j_col = 1, ncol_local
-!             j_glob = col_indices(j_col)
-!             cfm_work%local_data(:, j_col) = cfm_work%local_data(:, j_col)*Eigenval(j_glob, ikp, 1)
-!         END DO
-!
-!         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=nao, alpha=z_one, &
-!                            matrix_a=cfm_work, matrix_b=cfm_work_2, beta=z_zero, &
-!                            matrix_c=cfm_mat_h_ks)         
-
          CALL cp_cfm_set_all(cfm_mat_h_double, z_zero)
-!         CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, 1, 1)
-!         CALL add_cfm_submatrix(cfm_mat_h_double, cfm_mat_h_ks, nao+1, nao+1)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
-
-!         ! JW PRINTING
-!         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
-!                     nrow_local=nrow_local, &
-!                     ncol_local=ncol_local, &
-!                     row_indices=row_indices, &
-!                     col_indices=col_indices)
-!
-!         PRINT *, ''
-!         PRINT *, 'cfm_mat_h_double with VSOC in AO basis'
-!         PRINT *, ''
-!         DO i_row = 1, nrow_local
-!         DO j_col = 1, ncol_local
-!             IF(ikp == 5) THEN
-!                PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
-!             END IF
-!         END DO
-!         END DO
-!         ! END JW PRINTING
-
 
          ! trafo to MO basis
          cfm_mo_coeff_double%local_data = z_zero
@@ -1961,22 +1840,6 @@ CONTAINS
                               ncol_local=ncol_local, &
                               row_indices=row_indices, &
                               col_indices=col_indices)
-
-         ! JW PRINTING
-!         PRINT *, ''
-!         PRINT *, 'cfm_mat_h_double with VSOC in MO basis'
-!         PRINT *, ''
-!         DO i_row = 1, nrow_local
-!         DO j_col = 1, ncol_local
-!             IF(ikp == 5) THEN
-!                PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
-!             END IF
-!         END DO
-!         END DO
-         ! END JW PRINTING
-
-!         IF(ikp == 1) PRINT *, 'qs_env%mp2_env%ri_g0w0%delta_E_soc =', &
-!             qs_env%mp2_env%ri_g0w0%delta_E_soc*evolt
 
          E_HOMO = Eigenval(homo(1), ikp, 1)
          E_LUMO = Eigenval(homo(1)+1, ikp, 1)
@@ -2012,35 +1875,6 @@ CONTAINS
 
          END DO
          END DO
-
-         ! JW PRINTING
-!         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
-!                     nrow_local=nrow_local, &
-!                     ncol_local=ncol_local, &
-!                     row_indices=row_indices, &
-!                     col_indices=col_indices)
-!
-!         PRINT *, ''
-!         PRINT *, 'cfm_mat_h_double with VSOC in MO basis'
-!         PRINT *, ''
-!         DO i_row = 1, nrow_local
-!         DO j_col = 1, ncol_local
-!             i_glob = row_indices(i_row)
-!             j_glob = col_indices(j_col)
-!             IF(ikp == 5) THEN
-!                PRINT *, i_glob, j_glob, cfm_mat_h_double%local_data(i_row, j_col)
-!             END IF
-!         END DO
-!         END DO
-         ! END JW PRINTING
-
-         ! JW TODO: remove cfm_mat_s completely
-!         CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
-!         CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, 1, 1)
-!         CALL add_cfm_submatrix(cfm_mat_s_double, cfm_mat_s, nao+1, nao+1)
-
-! JW 2del
-!      PRINT *, 'CHECK HERM CONJ =', SUM(ABS(cfm_mat_h_double%local_data(:,:)-CONJG(TRANSPOSE(cfm_mat_h_double%local_data(:,:)))))
 
          CALL para_env%sync()
 
@@ -2108,28 +1942,9 @@ CONTAINS
          END IF
       END IF
 
-!      PRINT *, ''
-!      PRINT *, 'cfm_mat_h_double'
-!      PRINT *, ''
-!      DO i_row = 1, 2*nao
-!        DO j_col = 1, 2*nao
-!                 PRINT *, i_row, j_col, cfm_mat_h_double%local_data(i_row, j_col)
-!        END DO
-!      END DO
-!
-!! JW 2del
-!      PRINT *, ''
-!      PRINT *, ''
-!      PRINT *, 'Eigenval_SCF =', Eigenval_scf(:,nkp_self_energy, 1)
-!      PRINT *, ''
-!      PRINT *, '%matrix_ks'
-!      PRINT *, ''
-!      CALL dbcsr_print (qs_env%mp2_env%ri_g0w0%matrix_ks(1)%matrix)
- 
       CALL dbcsr_deallocate_matrix_set(matrix_l)
       CALL dbcsr_deallocate_matrix_set(mat_VSOC_l_nosymm)
       CALL dbcsr_deallocate_matrix_set(matrix_pot_dummy)
-      CALL dbcsr_deallocate_matrix_set(mat_s_kp)
       CALL dbcsr_deallocate_matrix_set(mat_VSOC_lx_kp)
       CALL dbcsr_deallocate_matrix_set(mat_VSOC_ly_kp)
       CALL dbcsr_deallocate_matrix_set(mat_VSOC_lz_kp)
@@ -2140,7 +1955,6 @@ CONTAINS
       CALL cp_cfm_release(cfm_mo_coeff_double)
       CALL cp_cfm_release(cfm_work)
       CALL cp_cfm_release(cfm_work_2)
-      CALL cp_cfm_release(cfm_mat_s)
       CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_cfm_release(cfm_mat_h_ks)
       CALL cp_cfm_release(cfm_mat_work_double)
