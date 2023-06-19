@@ -120,7 +120,8 @@ MODULE rpa_gw
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
                                               ri_rpa_g0w0_crossing_newton,&
-                                              ri_rpa_g0w0_crossing_z_shot
+                                              ri_rpa_g0w0_crossing_z_shot,&
+                                            soc_none, soc_pbe, soc_lda
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -1563,7 +1564,7 @@ CONTAINS
 
          ! decide whether to add spin-orbit splitting of bands, spin-orbit coupling strength comes from
          ! Hartwigsen parametrization (1999) of GTH pseudopotentials 
-         IF(mp2_env%ri_g0w0%do_soc) THEN
+         IF(mp2_env%ri_g0w0%soc_type .NE. soc_none) THEN
 
            CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
                                         homo, unit_nr)
@@ -1690,7 +1691,14 @@ CONTAINS
 !                                         LBOUND(gth_potential%hprj_ppnl,2):UBOUND(gth_potential%vprj_ppnl,2))
         gth_potential%wprj_ppnl(:,:) = 0.0_dp
 
-        CALL get_kprj_SOC_parameters(gth_potential, "LDA", element_symbol)
+        SELECT CASE(qs_env%mp2_env%ri_g0w0%soc_type)
+        CASE(soc_lda)
+           CALL get_kprj_SOC_parameters(gth_potential, "LDA", element_symbol)
+        CASE(soc_pbe)
+           CALL get_kprj_SOC_parameters(gth_potential, "PBE", element_symbol)
+        CASE DEFAULT 
+          CPABORT("Unknown SOC type.")
+        END SELECT
 
 !        SELECT CASE (element_symbol)
 !        CASE("H ")

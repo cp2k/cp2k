@@ -34,7 +34,8 @@ MODULE input_cp2k_mp2
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
-        wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, z_solver_sd
+        wfc_mm_style_syrk, z_solver_cg, z_solver_pople,z_solver_richardson, z_solver_sd, &
+        soc_none, soc_pbe, soc_lda
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -931,21 +932,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="DO_SOC", &
-                          description="If true, calculate the spin-orbit splitting of the eigenvalues/band structure "// &
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", &
+                          description="Calculate the spin-orbit splitting of the eigenvalues/band structure "// &
                           "using the spin-orbit part of the GTH pseudos parametrized in Hartwigsen, Goedecker, "// &
                           "Hutter, Phys. Rev. B 58, 3641 (1998), Eq. 19, "// &
                           "parameters in Table I.", &
-                          usage="DO_SOC", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SOC_POTENTIAL_FILE_NAME", &
-                          description="Name of the SOC pseudo potential file, may include a path.", &
-                          usage="SOC_POTENTIAL_FILE_NAME <FILENAME>", &
-                          default_lc_val="GTH_SOC_PART")
+                          usage="SOC", &
+                          enum_c_vals=s2a("NONE", "LDA", "PBE"), &
+                          enum_i_vals=(/soc_none, soc_lda, soc_pbe/), &
+                          enum_desc=s2a("No SOC.", &
+                                        "Use parameters from LDA (PADE) pseudopotential.", &
+                                        "Use parameters from PBE pseudopotential."), &
+                          default_i_val=soc_none)
+!                          default_l_val=.FALSE., &
+!                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

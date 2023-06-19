@@ -203,10 +203,10 @@ MODULE mp2_types
       TYPE(one_dim_real_array), DIMENSION(2) :: ic_corr_list
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
-      LOGICAL :: update_xc_energy, do_kpoints_Sigma, print_local_bandgap, do_soc
-      CHARACTER(len=default_path_length)                 :: soc_potential_file_name
+      LOGICAL :: update_xc_energy, do_kpoints_Sigma, print_local_bandgap
       INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
-                 nkp_self_energy_special_kp, nkp_self_energy_monkh_pack
+                 nkp_self_energy_special_kp, nkp_self_energy_monkh_pack,&
+                 soc_type
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: &
          matrix_sigma_x_minus_vxc, matrix_ks
