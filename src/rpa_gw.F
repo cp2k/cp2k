@@ -1757,17 +1757,7 @@ CONTAINS
 
       CALL cp_cfm_set_all(cfm_mo_coeff_double, z_zero)
 
-      CALL cp_fm_create(fm_mat_work_double_re, cfm_mat_h_double%matrix_struct)
-      CALL cp_fm_create(fm_mat_work_double_im, cfm_mat_h_double%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_work_double_re, 0.0_dp)
-      CALL cp_fm_set_all(fm_mat_work_double_im, 0.0_dp)
-
-      CALL cp_fm_create(fm_mat_work, rmos%matrix_struct)
-
       CALL cp_cfm_create(cfm_mo_coeff, rmos%matrix_struct)
-      CALL cp_cfm_create(cfm_work, rmos%matrix_struct)
-      CALL cp_cfm_create(cfm_work_2, rmos%matrix_struct)
-      CALL cp_cfm_create(cfm_mat_s, rmos%matrix_struct)
       CALL cp_cfm_create(cfm_mat_h_ks, rmos%matrix_struct)
 
       CALL cp_fm_get_info(matrix=rmos, nrow_global=nao)
@@ -1901,6 +1891,12 @@ CONTAINS
                   '  and  xkp =', -kpoints_Sigma%xkp(1, ikp), -kpoints_Sigma%xkp(2, ikp), -kpoints_Sigma%xkp(3, ikp)
             WRITE (unit_nr, '(T3,A)') ' '
             IF(do_soc_gw) THEN
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A,F13.4)') 'GW_SOC_INFO | Average GW shift of occupied levels compared to SCF',  &
+                                 avg_occ_QP_shift*evolt
+               WRITE (unit_nr, '(T3,A,F11.4)') 'GW_SOC_INFO | Average GW shift of unoccupied levels compared to SCF', &
+                                 avg_virt_QP_shift*evolt
+               WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_GW with SOC (eV)   E_GW without SOC (eV)  SOC shift (eV)'
             ELSE
                WRITE (unit_nr, '(T3,2A)') 'Molecular orbital  E_SCF with SOC (eV)  E_SCF without SOC (eV)  SOC shift (eV)'
@@ -1953,14 +1949,9 @@ CONTAINS
       CALL cp_cfm_release(cfm_mat_h_double)
       CALL cp_cfm_release(cfm_mat_s_double)
       CALL cp_cfm_release(cfm_mo_coeff_double)
-      CALL cp_cfm_release(cfm_work)
-      CALL cp_cfm_release(cfm_work_2)
       CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_cfm_release(cfm_mat_h_ks)
       CALL cp_cfm_release(cfm_mat_work_double)
-      CALL cp_fm_release(fm_mat_work_double_re)
-      CALL cp_fm_release(fm_mat_work_double_im)
-      CALL cp_fm_release(fm_mat_work)
       DEALLOCATE(eigenvalues)
 
 ! JW FOR LATER: READING SOC PARAMETERS FROM FILE
