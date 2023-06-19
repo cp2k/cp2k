@@ -88,7 +88,7 @@ MODULE rpa_gw_kpoints_util
 
    PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_power, real_space_to_kpoint_transform_rpa, &
              get_mat_cell_T_from_mat_gamma, get_bandstruc_and_k_dependent_MOs, &
-             compute_wkp_W
+             compute_wkp_W, mat_kp_from_mat_gamma
 
 CONTAINS
 
@@ -849,11 +849,12 @@ CONTAINS
 !> \param eps_filter_im_time ...
 ! **************************************************************************************************
    SUBROUTINE real_space_to_kpoint_transform_rpa(real_mat_kp, imag_mat_kp, mat_real_space, &
-                                                 kpoints, eps_filter_im_time)
+                                                 kpoints, eps_filter_im_time, real_mat_real_space)
 
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: real_mat_kp, imag_mat_kp, mat_real_space
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
+      LOGICAL, INTENT(IN), OPTIONAL :: real_mat_real_space
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'real_space_to_kpoint_transform_rpa'
 
@@ -863,8 +864,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg, coskl, sinkl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(dbcsr_type)                                   :: mat_work
+      LOGICAL :: my_real_mat_real_space
 
       CALL timeset(routineN, handle)
+
+      my_real_mat_real_space = .TRUE.
+      IF(PRESENT(real_mat_real_space)) my_real_mat_real_space = real_mat_real_space
 
       CALL dbcsr_create(matrix=mat_work, &
                         template=real_mat_kp(1)%matrix, &
@@ -884,11 +889,11 @@ CONTAINS
 
       DO ik = 1, nkp
 
-         CALL dbcsr_set(real_mat_kp(ik)%matrix, 0.0_dp)
-         CALL dbcsr_set(imag_mat_kp(ik)%matrix, 0.0_dp)
-
          CALL dbcsr_reserve_all_blocks(real_mat_kp(ik)%matrix)
          CALL dbcsr_reserve_all_blocks(imag_mat_kp(ik)%matrix)
+
+         CALL dbcsr_set(real_mat_kp(ik)%matrix, 0.0_dp)
+         CALL dbcsr_set(imag_mat_kp(ik)%matrix, 0.0_dp)
 
          DO i_cell = 1, num_cells/2 + 1
 
@@ -898,15 +903,26 @@ CONTAINS
             coskl = COS(twopi*arg)
             sinkl = SIN(twopi*arg)
 
-            CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, coskl)
-            CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, sinkl)
+            IF(my_real_mat_real_space) THEN
+               CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, coskl)
+               CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, sinkl)
+            ELSE
+               CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, -sinkl)
+               CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, coskl)
+            END IF
 
             IF (.NOT. (cell(1) == 0 .AND. cell(2) == 0 .AND. cell(3) == 0)) THEN
 
                CALL dbcsr_transposed(mat_work, mat_real_space(i_cell)%matrix)
 
-               CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, coskl)
-               CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, -sinkl)
+               IF(my_real_mat_real_space) THEN
+                  CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, coskl)
+                  CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, -sinkl)
+               ELSE
+                  ! for an imaginary real-space matrix, we need to consider the imaginary unit
+                  CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, sinkl)
+                  CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, coskl)
+               END IF
 
                CALL dbcsr_set(mat_work, 0.0_dp)
 
@@ -1522,17 +1538,6 @@ CONTAINS
 
       END IF
 
-      DO ispin = 1, nspins
-         CALL dbcsr_release(qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix)
-         DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix)
-
-         CALL dbcsr_release(qs_env%mp2_env%ri_g0w0%matrix_ks(ispin)%matrix)
-         DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks(ispin)%matrix)
-      END DO
-
-      DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc)
-      DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks)
-
       CALL release_hfx_stuff(qs_env)
 
       CALL timestop(handle)
@@ -1737,13 +1742,14 @@ CONTAINS
 !> \param kpoints ...
 !> \param ispin ...
 ! **************************************************************************************************
-   SUBROUTINE mat_kp_from_mat_gamma(qs_env, mat_kp, mat_gamma, kpoints, ispin)
+   SUBROUTINE mat_kp_from_mat_gamma(qs_env, mat_kp, mat_gamma, kpoints, ispin, real_mat_real_space)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_kp
       TYPE(dbcsr_type)                                   :: mat_gamma
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: ispin
+      LOGICAL, INTENT(IN), OPTIONAL :: real_mat_real_space
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_kp_from_mat_gamma'
 
@@ -1791,7 +1797,12 @@ CONTAINS
          END DO
       END IF
 
-      CALL real_space_to_kpoint_transform_rpa(mat_kp(:, 1), mat_kp(:, 2), mat_real_space, kpoints, 0.0_dp)
+      IF(PRESENT(real_mat_real_space)) THEN
+         CALL real_space_to_kpoint_transform_rpa(mat_kp(:, 1), mat_kp(:, 2), mat_real_space, kpoints, 0.0_dp, &
+                                                 real_mat_real_space)
+      ELSE
+         CALL real_space_to_kpoint_transform_rpa(mat_kp(:, 1), mat_kp(:, 2), mat_real_space, kpoints, 0.0_dp)
+      END IF
 
       DO i_cell = 1, num_cells
          CALL dbcsr_deallocate_matrix(mat_real_space(i_cell)%matrix)

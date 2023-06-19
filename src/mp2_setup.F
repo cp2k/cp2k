@@ -26,7 +26,7 @@ MODULE mp2_setup
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_string_length,default_path_length,&
                                               dp,&
                                               max_line_length
    USE machine,                         ONLY: m_flush
@@ -163,6 +163,10 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%update_xc_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%REGULARIZATION_MINIMAX", &
                                 r_val=mp2_env%ri_g0w0%regularization_minimax)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%DO_SOC", &
+                                l_val=mp2_env%ri_g0w0%do_soc)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SOC_POTENTIAL_FILE_NAME", &
+                                c_val=mp2_env%ri_g0w0%soc_potential_file_name)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
                                 l_val=mp2_env%ri_g0w0%do_bse)

@@ -931,6 +931,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DO_SOC", &
+                          description="If true, calculate the spin-orbit splitting of the eigenvalues/band structure "// &
+                          "using the spin-orbit part of the GTH pseudos parametrized in Hartwigsen, Goedecker, "// &
+                          "Hutter, Phys. Rev. B 58, 3641 (1998), Eq. 19, "// &
+                          "parameters in Table I.", &
+                          usage="DO_SOC", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_POTENTIAL_FILE_NAME", &
+                          description="Name of the SOC pseudo potential file, may include a path.", &
+                          usage="SOC_POTENTIAL_FILE_NAME <FILENAME>", &
+                          default_lc_val="GTH_SOC_PART")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a subsection for the periodic GW correction
       CALL create_periodic_gw_correction_section(subsection)
       CALL section_add_subsection(section, subsection)
