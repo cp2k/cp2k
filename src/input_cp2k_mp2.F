@@ -947,32 +947,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SOC_DECOUPLE_OCC_VIRT", &
-                          description="If true, all SOC matrix elements between occupied and unoccupied "// &
-                          "states are set to zero. ", &
-                          usage="SOC_DECOUPLE_OCC_VIRT TRUE", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="SOC_ENERGY_WINDOW", &
                           description="For perturbative SOC calculation, only "// &
                           "take frontier levels in an energy window "// &
                           "[E_HOMO - SOC_ENERGY_WINDOW/2 , E_LUMO + SOC_ENERGY_WINDOW/2 "// &
                           "into account for the diagonalization of H^GW,SOC.", &
                           usage="SOC_ENERGY_WINDOW 20.0_eV", &
-                          default_r_val=cp_unit_to_cp2k(value=1000.0_dp, unit_str="eV"), &
-                          unit_str="eV")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E_SOC", &
-                          description="For perturbative SOC calculation, only "// &
-                          "take level pairs into account with energy eigenvalues that "// &
-                          "deviate less than DELTA_E_SOC.", &
-                          usage="DELTA_E_SOC 1.0_eV", &
-                          default_r_val=cp_unit_to_cp2k(value=1000.0_dp, unit_str="eV"), &
+                          default_r_val=cp_unit_to_cp2k(value=50.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
