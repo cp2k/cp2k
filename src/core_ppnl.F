@@ -302,17 +302,6 @@ CONTAINS
             cell_c(:) = sap_ppnl(1)%nlist_task(slot)%cell(:)
             rac(1:3) = sap_ppnl(1)%nlist_task(slot)%r(1:3)
 
-! JW 2del
-!            IF(do_soc) THEN
-!               PRINT *, ''
-!               PRINT *, 'slot =', slot, '/', sap_ppnl(1)%nl_size, 'iatom =', iatom, 'katom =', katom
-!               PRINT *, ''
-!            ELSE
-!               PRINT *, 'slot =', slot, '/', sap_ppnl(1)%nl_size, 'iatom =', iatom, 'katom =', katom, &
-!                        'ilist =', ilist, 'nlist =', nlist
-!
-!            END IF
-
             iac = ikind + nkind*(kkind - 1)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
             ! get definition of basis set
@@ -418,20 +407,6 @@ CONTAINS
                            work_l(1:na, prjc:prjc + nb - 1, i_dim) = &
                               MATMUL(lab(1:na, 1:np, i_dim), cprj(1:np, prjc:prjc + nb - 1))
                         END DO
-
-! JW 2del
-!                        PRINT *, ''
-!                        PRINT *, 'iset =', iset, '/', nseta, 'l =', l, '/', lppnl
-!                        PRINT *, ''
-!                        PRINT *, 'na (AO) =', na, 'np (PP) =', np, 'nb (PP) =', nb
-!                        PRINT *, ''
-!
-!                     DO ib = 1, na
-!                          DO jb = 1, np
-!                            PRINT *, 'lab(ia,jb) =',ib, jb, lab(ib, jb, 1)
-!                          END DO
-!                        END DO
-
                      END IF
 
                      prjc = prjc + nprjc
@@ -462,40 +437,6 @@ CONTAINS
                         clist%alkint(sgfa:sgfa + na - 1, 1:nb, i_dim) = &
                            MATMUL(clist%alint(sgfa:sgfa + na - 1, 1:nb, i_dim), wprj_ppnl(1:nb, 1:nb))
                      END DO
-
-!                     ! JW 2del
-!                     PRINT *, ''
-!                     PRINT *, 'sgfa (AO) =', sgfa, 'na (AO) =', na, 'np (AO) =', np, 'nb (PP) =', nb
-!                     PRINT *, ''
-!
-!                     DO ib = 1, np
-!                       DO jb = 1, nb
-!!                         IF(jb < 4 .OR. jb > 6) CYCLE
-!                         PRINT *, 'work_l(ia,jb) =',ib, jb, work_l(ib, jb, 1:3)
-!                       END DO
-!                     END DO
-!                     DO ib = sgfa, sgfa + na - 1
-!                       DO jb = 1, nb
-!!                         IF(jb < 4 .OR. jb > 6) CYCLE
-!                         PRINT *, 'alint(ia,jb) =',ib,jb, clist%alint(ib, jb, 1:3)
-!                       END DO
-!                     END DO
-!                     DO ib = sgfa, sgfa + na - 1
-!                       DO jb = 1, nb
-!!                         IF(jb < 4 .OR. jb > 6) CYCLE
-!                         PRINT *, 'alkint(ia,jb) =',ib,jb, clist%alkint(ib, jb, 1:3)
-!                       END DO
-!                     END DO
-!                     DO ib = sgfa, sgfa + na - 1
-!                       DO jb = 1, nb
-!!                         IF(jb < 4 .OR. jb > 6) CYCLE
-!                         PRINT *, 'acint(ia,jb) =',ib,jb, clist%achint(ib, jb, 1)
-!                       END DO
-!                     END DO
-!                     PRINT *, 'non-zero wprj_pp(ib,jb) =', 3, 3, wprj_ppnl(3, 3)
-!                     PRINT *, 'non-zero wprj_pp(ib,jb) =', 4, 4, wprj_ppnl(4, 4)
-!                     PRINT *, 'non-zero wprj_pp(ib,jb) =', 5, 5, wprj_ppnl(5, 5)
-!                     PRINT *, 'non-zero wprj_pp(ib,jb) =', 6, 6, wprj_ppnl(6, 6)
                   END IF
                ELSE
                   ! SGP potential
@@ -663,7 +604,6 @@ CONTAINS
                               END IF
                            END IF
                            IF (do_soc) THEN
-! JW: AUFPASSEN, WIR BRAUCHEN NUR 1X DAS L-MATRIXELEMENT!!
                               IF (iatom <= jatom) THEN
                                  l_block_x(1:na, 1:nb) = l_block_x(1:na, 1:nb) + &
                                                          MATMUL(alkint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 1)))
