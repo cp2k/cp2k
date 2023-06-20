@@ -143,7 +143,7 @@ MODULE external_potential_types
       ! nonlocal projectors
       INTEGER, DIMENSION(:), POINTER             :: nprj_ppnl => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: cprj => NULL(), cprj_ppnl => NULL(), vprj_ppnl => NULL(), &
-                                                    wprj_ppnl => NULL()
+                                                   wprj_ppnl => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: hprj_ppnl => NULL(), kprj_ppnl => NULL()
       ! type extensions
       ! NLCC
@@ -498,7 +498,7 @@ CONTAINS
       END IF
 
       ! Deallocate spin-orbit part
-      IF(ASSOCIATED(potential%kprj_ppnl)) THEN
+      IF (ASSOCIATED(potential%kprj_ppnl)) THEN
          DEALLOCATE (potential%kprj_ppnl)
          DEALLOCATE (potential%wprj_ppnl)
       END IF
@@ -686,7 +686,9 @@ CONTAINS
 !> \param cprj ...
 !> \param cprj_ppnl ...
 !> \param vprj_ppnl ...
+!> \param wprj_ppnl ...
 !> \param hprj_ppnl ...
+!> \param kprj_ppnl ...
 !> \param lpot_present ...
 !> \param nexp_lpot ...
 !> \param alpha_lpot ...
@@ -713,7 +715,7 @@ CONTAINS
                                 nprj_ppnl_max, z, zeff, zeff_correction, &
                                 ppl_present, ppnl_present, &
                                 alpha_ppnl, cexp_ppl, elec_conf, nprj_ppnl, cprj, &
-                                cprj_ppnl, vprj_ppnl, wprj_ppnl,hprj_ppnl, kprj_ppnl, &
+                                cprj_ppnl, vprj_ppnl, wprj_ppnl, hprj_ppnl, kprj_ppnl, &
                                 lpot_present, nexp_lpot, alpha_lpot, nct_lpot, cval_lpot, &
                                 lsd_present, nexp_lsd, alpha_lsd, nct_lsd, cval_lsd, &
                                 nlcc_present, nexp_nlcc, alpha_nlcc, nct_nlcc, cval_nlcc)
@@ -1041,7 +1043,7 @@ CONTAINS
                                                     potential%hprj_ppnl(iprj_ppnl, &
                                                                         jprj_ppnl, l)* &
                                                     orbtramat(l)%slm(iso, jco)
-                        IF(ASSOCIATED(potential%kprj_ppnl)) THEN
+                        IF (ASSOCIATED(potential%kprj_ppnl)) THEN
                            potential%wprj_ppnl(i, j) = potential%wprj_ppnl(i, j) + &
                                                        orbtramat(l)%slm(iso, ico)* &
                                                        potential%kprj_ppnl(iprj_ppnl, &
@@ -2422,6 +2424,7 @@ CONTAINS
 !> \param cprj_ppnl ...
 !> \param vprj_ppnl ...
 !> \param hprj_ppnl ...
+!> \param kprj_ppnl ...
 !> \date    11.01.2002
 !> \author  MK
 !> \version 1.0
@@ -2446,7 +2449,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf, nprj_ppnl
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cprj, cprj_ppnl, vprj_ppnl
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: hprj_ppnl,  kprj_ppnl
+         POINTER                                         :: hprj_ppnl, kprj_ppnl
 
       IF (PRESENT(name)) potential%name = name
       IF (PRESENT(alpha_core_charge)) &

@@ -33,9 +33,9 @@ MODULE input_cp2k_mp2
         mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
-        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
-        wfc_mm_style_syrk, z_solver_cg, z_solver_pople,z_solver_richardson, z_solver_sd, &
-        soc_none, soc_pbe, soc_lda
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
+        wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
+        z_solver_sd
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&

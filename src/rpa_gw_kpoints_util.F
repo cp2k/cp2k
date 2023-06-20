@@ -847,6 +847,7 @@ CONTAINS
 !> \param mat_real_space ...
 !> \param kpoints ...
 !> \param eps_filter_im_time ...
+!> \param real_mat_real_space ...
 ! **************************************************************************************************
    SUBROUTINE real_space_to_kpoint_transform_rpa(real_mat_kp, imag_mat_kp, mat_real_space, &
                                                  kpoints, eps_filter_im_time, real_mat_real_space)
@@ -854,22 +855,22 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: real_mat_kp, imag_mat_kp, mat_real_space
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
-      LOGICAL, INTENT(IN), OPTIONAL :: real_mat_real_space
+      LOGICAL, INTENT(IN), OPTIONAL                      :: real_mat_real_space
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'real_space_to_kpoint_transform_rpa'
 
       INTEGER                                            :: handle, i_cell, ik, nkp, num_cells
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      LOGICAL                                            :: my_real_mat_real_space
       REAL(KIND=dp)                                      :: arg, coskl, sinkl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(dbcsr_type)                                   :: mat_work
-      LOGICAL :: my_real_mat_real_space
 
       CALL timeset(routineN, handle)
 
       my_real_mat_real_space = .TRUE.
-      IF(PRESENT(real_mat_real_space)) my_real_mat_real_space = real_mat_real_space
+      IF (PRESENT(real_mat_real_space)) my_real_mat_real_space = real_mat_real_space
 
       CALL dbcsr_create(matrix=mat_work, &
                         template=real_mat_kp(1)%matrix, &
@@ -903,7 +904,7 @@ CONTAINS
             coskl = COS(twopi*arg)
             sinkl = SIN(twopi*arg)
 
-            IF(my_real_mat_real_space) THEN
+            IF (my_real_mat_real_space) THEN
                CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, coskl)
                CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_real_space(i_cell)%matrix, 1.0_dp, sinkl)
             ELSE
@@ -915,7 +916,7 @@ CONTAINS
 
                CALL dbcsr_transposed(mat_work, mat_real_space(i_cell)%matrix)
 
-               IF(my_real_mat_real_space) THEN
+               IF (my_real_mat_real_space) THEN
                   CALL dbcsr_add_local(real_mat_kp(ik)%matrix, mat_work, 1.0_dp, coskl)
                   CALL dbcsr_add_local(imag_mat_kp(ik)%matrix, mat_work, 1.0_dp, -sinkl)
                ELSE
@@ -1743,6 +1744,7 @@ CONTAINS
 !> \param mat_gamma ...
 !> \param kpoints ...
 !> \param ispin ...
+!> \param real_mat_real_space ...
 ! **************************************************************************************************
    SUBROUTINE mat_kp_from_mat_gamma(qs_env, mat_kp, mat_gamma, kpoints, ispin, real_mat_real_space)
 
@@ -1751,7 +1753,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mat_gamma
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: ispin
-      LOGICAL, INTENT(IN), OPTIONAL :: real_mat_real_space
+      LOGICAL, INTENT(IN), OPTIONAL                      :: real_mat_real_space
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_kp_from_mat_gamma'
 
@@ -1799,7 +1801,7 @@ CONTAINS
          END DO
       END IF
 
-      IF(PRESENT(real_mat_real_space)) THEN
+      IF (PRESENT(real_mat_real_space)) THEN
          CALL real_space_to_kpoint_transform_rpa(mat_kp(:, 1), mat_kp(:, 2), mat_real_space, kpoints, 0.0_dp, &
                                                  real_mat_real_space)
       ELSE

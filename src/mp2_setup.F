@@ -26,7 +26,7 @@ MODULE mp2_setup
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,default_path_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               max_line_length
    USE machine,                         ONLY: m_flush

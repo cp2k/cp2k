@@ -14,8 +14,6 @@
 ! **************************************************************************************************
 MODULE core_ppnl
    USE ai_angmom,                       ONLY: angmom
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
    USE ai_overlap,                      ONLY: overlap
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
@@ -83,6 +81,7 @@ CONTAINS
 !> \param cell_to_index ...
 !> \param basis_type ...
 !> \param deltaR Weighting factors of the derivatives wrt. nuclear positions
+!> \param matrix_l ...
 ! **************************************************************************************************
    SUBROUTINE build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
@@ -105,20 +104,23 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: deltaR
-      TYPE(dbcsr_p_type), DIMENSION(:,:), POINTER, OPTIONAL       :: matrix_l
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrix_l
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppnl'
 
-      INTEGER :: atom_a, first_col, handle, i, iab, iac, iatom, ibc, icol, ikind, ilist, img, &
-         irow, iset, j, jatom, jkind, jneighbor, kac, katom, kbc, kkind, l, lc_max, lc_min, ldai, &
-         ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, na, natom, nb, &
-         ncoa, ncoc, nkind, nlist, nneighbor, nnl, np, nppnl, nprjc, nseta, nsgfa, prjc, sgfa, slot, i_dim, ib, jb
+      INTEGER :: atom_a, first_col, handle, i, i_dim, iab, iac, iatom, ib, ibc, icol, ikind, &
+         ilist, img, irow, iset, j, jatom, jb, jkind, jneighbor, kac, katom, kbc, kkind, l, &
+         lc_max, lc_min, ldai, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, &
+         maxsgf, na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnl, np, nppnl, nprjc, nseta, &
+         nsgfa, prjc, sgfa, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: do_dR, dogth, dokp, found, ppnl_present, do_soc
+      LOGICAL                                            :: do_dR, do_soc, dogth, dokp, found, &
+                                                            ppnl_present
       LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
@@ -133,10 +135,10 @@ CONTAINS
       TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(clist_type), POINTER                          :: clist
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint, c_nl, alkint, blkint
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, h_nl, p_block, r_2block, &
-                                                            r_3block, rpgfa, sphi_a, vprj_ppnl, wprj_ppnl,&
-                                                            zeta, l_block_x, l_block_y, l_block_z
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, alkint, bchint, bcint, &
+                                                            blkint, c_nl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: cprj, h_block, h_nl, l_block_x, l_block_y, &
+         l_block_z, p_block, r_2block, r_3block, rpgfa, sphi_a, vprj_ppnl, wprj_ppnl, zeta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
       REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -281,14 +283,14 @@ CONTAINS
          sab = 0.0_dp
          ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
          ai_work = 0.0_dp
-         IF(do_soc) THEN
-            ALLOCATE(lab(ldsab, ldsab, 3), work_l(ldsab, ldsab, 3))
+         IF (do_soc) THEN
+            ALLOCATE (lab(ldsab, ldsab, 3), work_l(ldsab, ldsab, 3))
             lab = 0.0_dp
          END IF
 
 !$OMP DO SCHEDULE(GUIDED)
          DO slot = 1, sap_ppnl(1)%nl_size
- 
+
             ikind = sap_ppnl(1)%nlist_task(slot)%ikind
             kkind = sap_ppnl(1)%nlist_task(slot)%jkind
             iatom = sap_ppnl(1)%nlist_task(slot)%iatom
@@ -308,7 +310,7 @@ CONTAINS
 !            ELSE
 !               PRINT *, 'slot =', slot, '/', sap_ppnl(1)%nl_size, 'iatom =', iatom, 'katom =', katom, &
 !                        'ilist =', ilist, 'nlist =', nlist
-!                          
+!
 !            END IF
 
             iac = ikind + nkind*(kkind - 1)
@@ -407,7 +409,7 @@ CONTAINS
                            MATMUL(sab(1:na, first_col + 1:first_col + np), cprj(1:np, prjc:prjc + nb - 1))
                      END DO
 
-                     IF(do_soc) THEN
+                     IF (do_soc) THEN
                         ! *** Calculate the primitive angular momentum integrals needed for spin-orbit coupling ***
                         lab = 0.0_dp
                         CALL angmom(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
@@ -423,7 +425,7 @@ CONTAINS
 !                        PRINT *, ''
 !                        PRINT *, 'na (AO) =', na, 'np (PP) =', np, 'nb (PP) =', nb
 !                        PRINT *, ''
-!   
+!
 !                     DO ib = 1, na
 !                          DO jb = 1, np
 !                            PRINT *, 'lab(ia,jb) =',ib, jb, lab(ib, jb, 1)
@@ -528,7 +530,7 @@ CONTAINS
          END DO
 
          DEALLOCATE (sab, ai_work, work)
-         IF(do_soc) DEALLOCATE(lab, work_l)
+         IF (do_soc) DEALLOCATE (lab, work_l)
 !$OMP END PARALLEL
 
          ! *** Set up a sorting index
@@ -603,8 +605,8 @@ CONTAINS
             END IF
             NULLIFY (h_block)
             CALL dbcsr_get_block_p(matrix_h(1, img)%matrix, irow, icol, h_block, found)
-            IF(do_soc) THEN
-               NULLIFY(l_block_x, l_block_y, l_block_z)
+            IF (do_soc) THEN
+               NULLIFY (l_block_x, l_block_y, l_block_z)
                CALL dbcsr_get_block_p(matrix_l(1, img)%matrix, irow, icol, l_block_x, found)
                CALL dbcsr_get_block_p(matrix_l(2, img)%matrix, irow, icol, l_block_y, found)
                CALL dbcsr_get_block_p(matrix_l(3, img)%matrix, irow, icol, l_block_z, found)
@@ -641,7 +643,7 @@ CONTAINS
                            bcint => alist_bc%clist(kbc)%acint
                            achint => alist_ac%clist(kac)%achint
                            bchint => alist_bc%clist(kbc)%achint
-                           IF(do_soc) THEN
+                           IF (do_soc) THEN
                               alkint => alist_ac%clist(kac)%alkint
                               blkint => alist_bc%clist(kbc)%alkint
                            END IF
@@ -660,7 +662,7 @@ CONTAINS
                                                        MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 1)))
                               END IF
                            END IF
-                           IF(do_soc) THEN
+                           IF (do_soc) THEN
 ! JW: AUFPASSEN, WIR BRAUCHEN NUR 1X DAS L-MATRIXELEMENT!!
                               IF (iatom <= jatom) THEN
                                  l_block_x(1:na, 1:nb) = l_block_x(1:na, 1:nb) + &

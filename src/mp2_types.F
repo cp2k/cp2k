@@ -31,7 +31,7 @@ MODULE mp2_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE iso_c_binding,                   ONLY: c_ptr
-   USE kinds,                           ONLY: dp, default_path_length
+   USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
@@ -205,14 +205,14 @@ MODULE mp2_types
       LOGICAL :: do_gamma_only_sigma
       LOGICAL :: update_xc_energy, do_kpoints_Sigma, print_local_bandgap
       INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
-                 nkp_self_energy_special_kp, nkp_self_energy_monkh_pack,&
+                 nkp_self_energy_special_kp, nkp_self_energy_monkh_pack, &
                  soc_type
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: &
          matrix_sigma_x_minus_vxc, matrix_ks
       REAL(KIND=dp)            :: broadening_print_loc_bandgap, energy_window_print_loc_bandgap, &
                                   ldos_thresh_print_loc_bandgap, energy_spacing_print_loc_bandgap, &
-                                  regularization_minimax,   soc_energy_window
+                                  regularization_minimax, soc_energy_window
       INTEGER, DIMENSION(:), POINTER :: stride_loc_bandgap
    END TYPE
 

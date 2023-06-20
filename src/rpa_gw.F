@@ -12,67 +12,25 @@
 !>      12.2022 added periodic GW routines [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_gw
-         USE util,                            ONLY: sort
-  USE external_potential_soc_parameters, ONLY: get_kprj_SOC_parameters
-   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
-                                              cp_cfm_geeig_canon
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_cholesky_invert,&
-                                              cp_cfm_column_scale,&
-                                              cp_cfm_scale_and_add,cp_cfm_scale,&
-                                              cp_cfm_scale_and_add_fm,&
-                                              cp_cfm_transpose
-
-   USE scf_control_types,               ONLY: scf_control_type
    USE ai_overlap,                      ONLY: overlap
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
-                                              gto_basis_set_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_p_type
-   USE external_potential_types,        ONLY: gth_potential_p_type,&
-                                              gth_potential_type,&
-                                              sgp_potential_p_type,&
-                                              sgp_potential_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE orbital_pointers,                ONLY: init_orbital_pointers,&
-                                              nco,&
-                                              ncoset
-   USE particle_types,                  ONLY: particle_type
-   USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE sap_kind_types,                  ONLY: alist_type,&
-                                              clist_type,&
-                                              get_alist,&
-                                              release_sap_int,&
-                                              sap_int_type,&
-                                              sap_sort
-   USE virial_methods,                  ONLY: virial_pair_force
-   USE virial_types,                    ONLY: virial_type
-   USE virial_types,                    ONLY: virial_type
-    USE core_ppnl, ONLY:   build_core_ppnl
-   USE qs_force_types,                  ONLY: qs_force_type
-   USE external_potential_types,        ONLY: gth_potential_p_type,&
-                                              gth_potential_type,&
-                                              sgp_potential_p_type,&
-                                              sgp_potential_type, init_potential
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
+   USE core_ppnl,                       ONLY: build_core_ppnl
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
+                                              cp_cfm_scale_and_add,&
+                                              cp_cfm_scale_and_add_fm,&
+                                              cp_cfm_transpose
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig_canon
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
-                                              cp_fm_to_cfm, cp_cfm_to_cfm
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -89,14 +47,9 @@ MODULE rpa_gw
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type, cp_fm_to_fm_submat
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -107,13 +60,15 @@ MODULE rpa_gw
         dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_print, dbcsr_type_antisymmetric
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
         dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_create, dbt_destroy, &
         dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, &
         dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, &
         dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE external_potential_soc_parameters,ONLY: get_kprj_SOC_parameters
+   USE external_potential_types,        ONLY: gth_potential_type
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
@@ -122,7 +77,9 @@ MODULE rpa_gw
                                               ri_rpa_g0w0_crossing_bisection,&
                                               ri_rpa_g0w0_crossing_newton,&
                                               ri_rpa_g0w0_crossing_z_shot,&
-                                            soc_none, soc_pbe, soc_lda
+                                              soc_lda,&
+                                              soc_none,&
+                                              soc_pbe
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -165,6 +122,7 @@ MODULE rpa_gw
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_release,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -184,8 +142,12 @@ MODULE rpa_gw
    USE rpa_gw_ic,                       ONLY: apply_ic_corr
    USE rpa_gw_im_time_util,             ONLY: get_tensor_3c_overl_int_gw
    USE rpa_gw_kpoints_util,             ONLY: get_mat_cell_T_from_mat_gamma,&
-                                              real_space_to_kpoint_transform_rpa, mat_kp_from_mat_gamma
+                                              mat_kp_from_mat_gamma,&
+                                              real_space_to_kpoint_transform_rpa
    USE rpa_im_time,                     ONLY: compute_periodic_dm
+   USE scf_control_types,               ONLY: scf_control_type
+   USE util,                            ONLY: sort
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1564,13 +1526,13 @@ CONTAINS
          END IF
 
          ! decide whether to add spin-orbit splitting of bands, spin-orbit coupling strength comes from
-         ! Hartwigsen parametrization (1999) of GTH pseudopotentials 
-         IF(mp2_env%ri_g0w0%soc_type .NE. soc_none) THEN
+         ! Hartwigsen parametrization (1999) of GTH pseudopotentials
+         IF (mp2_env%ri_g0w0%soc_type .NE. soc_none) THEN
 
-           CALL calculate_and_print_soc(qs_env, Eigenval_scf, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                        homo, unit_nr, do_soc_gw=.FALSE., do_soc_scf=.TRUE.)
-           CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                        homo, unit_nr, do_soc_gw=.TRUE., do_soc_scf=.FALSE.)
+            CALL calculate_and_print_soc(qs_env, Eigenval_scf, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                         homo, unit_nr, do_soc_gw=.FALSE., do_soc_scf=.TRUE.)
+            CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                         homo, unit_nr, do_soc_gw=.TRUE., do_soc_scf=.FALSE.)
 
          END IF
 
@@ -1607,63 +1569,60 @@ CONTAINS
 
    END SUBROUTINE compute_QP_energies
 
-
-
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param Eigenval ...
+!> \param Eigenval_scf ...
+!> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
+!> \param homo ...
+!> \param unit_nr ...
+!> \param do_soc_gw ...
+!> \param do_soc_scf ...
+! **************************************************************************************************
    SUBROUTINE calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
                                       homo, unit_nr, do_soc_gw, do_soc_scf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), DIMENSION(:, :, :)     :: Eigenval, Eigenval_scf
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_virt, homo
-      INTEGER ::  unit_nr
-      LOGICAL :: do_soc_gw, do_soc_scf
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: Eigenval, Eigenval_scf
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, homo
+      INTEGER                                            :: unit_nr
+      LOGICAL                                            :: do_soc_gw, do_soc_scf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_and_print_soc'
 
-      INTEGER :: count_ev_sc_GW_print, count_sc_GW0, count_sc_GW0_print, crossing_search, handle, &
-         ikp, ispin, n_level_gw, nspins, num_points_corr, num_poles, nkind, ikind, i_size, j_size, k_size, i_row, j_col, &
-        ncol_local, nrow_local
-      LOGICAL                                            :: do_kpoints_Sigma, my_open_shell,calculate_force, &
-      use_virial, in_occ_block_1, in_occ_block_2, in_vir_block_1, in_vir_block_2, in_occ_block, in_vir_block
-      INTEGER :: nder , i_dim, i,j, nkp_self_energy, ik, i_global,j_global, j_glob, i_glob
+      CHARACTER(LEN=2)                                   :: element_symbol
+      INTEGER :: handle, i_dim, i_glob, i_row, ikind, ikp, j_col, j_glob, n_level_gw, nao, &
+         ncol_local, nder, nkind, nkp_self_energy, nrow_local, periodic(3), size_real_space
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp) :: E_CBM_GW_SOC, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW_SOC, &
-         E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit, eps_ppnl,  avg_occ_QP_shift,  avg_virt_QP_shift, &
-        E_GAP_GW_SOC, E_HOMO_GW_SOC, E_LUMO_GW_SOC
-             REAL(KIND=dp)                                   ::  E_i,E_HOMO, E_LUMO, E_window, E_j
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
-      TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      REAL(KIND=dp), DIMENSION(3, 3, 3)     :: hprj_ppnl_tmp
+      LOGICAL                                            :: calculate_forces, use_virial
+      REAL(KIND=dp) :: avg_occ_QP_shift, avg_virt_QP_shift, E_CBM_GW_SOC, E_GAP_GW_SOC, E_HOMO, &
+         E_HOMO_GW_SOC, E_i, E_j, E_LUMO, E_LUMO_GW_SOC, E_VBM_GW_SOC, E_window, eps_ppnl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_without_soc_sorted
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_cfm_type)                                  :: cfm_mat_h_double, cfm_mat_h_ks, &
+                                                            cfm_mat_s_double, cfm_mat_work_double, &
+                                                            cfm_mo_coeff, cfm_mo_coeff_double
+      TYPE(cp_fm_type), POINTER                          :: imos, rmos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_VSOC_l_nosymm, mat_VSOC_lx_kp, &
+                                                            mat_VSOC_ly_kp, mat_VSOC_lz_kp, &
+                                                            matrix_dummy, matrix_l, &
+                                                            matrix_pot_dummy
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gth_potential_type), POINTER                  :: gth_potential
-      CHARACTER(LEN=2)           :: element_symbol
+      TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_dummy, matrix_pot_dummy
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_l, matrix_l_kp_re, matrix_l_kp_im, mat_VSOC_l_nosymm
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(virial_type), POINTER                         :: virial
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      LOGICAL :: calculate_forces
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(cp_fm_type), POINTER                          :: imos, rmos, imos_tmp, rmos_tmp
-      TYPE(cp_fm_type)                                  ::fm_mat_work_double_re, fm_mat_work_double_im, &
-                                                            fm_mat_work, fm_mat_work_im
-      INTEGER                                            :: periodic(3), size_real_space, i_real_space, nao
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type)                                  :: cfm_mat_h_double, cfm_mat_s_double, cfm_mat_h_ks, &
-                                                             cfm_mo_coeff_double, cfm_mo_coeff, cfm_work, cfm_mat_s, &
-                                                              cfm_mat_work_double, cfm_work_2
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_ks_kp, mat_s_kp, mat_VSOC_lx_kp,  &
-                           mat_VSOC_lz_kp,  mat_VSOC_ly_kp
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
-      TYPE(cp_fm_type)                                   :: fm_dummy
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE ::      eigenvalues_without_soc_sorted
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_control
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -1684,24 +1643,24 @@ CONTAINS
 
       DO ikind = 1, nkind
 
-        NULLIFY(gth_potential)
-        CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, element_symbol=element_symbol)
+         NULLIFY (gth_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, element_symbol=element_symbol)
 
-        ! write SOC parameters to gth_potential%hprj_ppnl
-        ALLOCATE(gth_potential%kprj_ppnl(0:6, 0:6, 0:6))
-        gth_potential%kprj_ppnl(:,:,:) = 0.0_dp
+         ! write SOC parameters to gth_potential%hprj_ppnl
+         ALLOCATE (gth_potential%kprj_ppnl(0:6, 0:6, 0:6))
+         gth_potential%kprj_ppnl(:, :, :) = 0.0_dp
 
-        ALLOCATE(gth_potential%wprj_ppnl(0:SIZE(gth_potential%vprj_ppnl,1)+1,0:SIZE(gth_potential%vprj_ppnl,2)+1))
-        gth_potential%wprj_ppnl(:,:) = 0.0_dp
+         ALLOCATE (gth_potential%wprj_ppnl(0:SIZE(gth_potential%vprj_ppnl, 1) + 1, 0:SIZE(gth_potential%vprj_ppnl, 2) + 1))
+         gth_potential%wprj_ppnl(:, :) = 0.0_dp
 
-        SELECT CASE(qs_env%mp2_env%ri_g0w0%soc_type)
-        CASE(soc_lda)
-           CALL get_kprj_SOC_parameters(gth_potential, "LDA", element_symbol)
-        CASE(soc_pbe)
-           CALL get_kprj_SOC_parameters(gth_potential, "PBE", element_symbol)
-        CASE DEFAULT 
-          CPABORT("Unknown SOC type.")
-        END SELECT
+         SELECT CASE (qs_env%mp2_env%ri_g0w0%soc_type)
+         CASE (soc_lda)
+            CALL get_kprj_SOC_parameters(gth_potential, "LDA", element_symbol)
+         CASE (soc_pbe)
+            CALL get_kprj_SOC_parameters(gth_potential, "PBE", element_symbol)
+         CASE DEFAULT
+            CPABORT("Unknown SOC type.")
+         END SELECT
 
       END DO
 
@@ -1714,17 +1673,17 @@ CONTAINS
 
       size_real_space = 3**(periodic(1) + periodic(2) + periodic(3))
 
-      NULLIFY(matrix_l)
+      NULLIFY (matrix_l)
       CALL dbcsr_allocate_matrix_set(matrix_l, 3, 1)
       DO i_dim = 1, 3
-          ALLOCATE (matrix_l(i_dim, 1)%matrix)
-          CALL dbcsr_create(matrix_l(i_dim, 1)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_antisymmetric)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_l(i_dim, 1)%matrix, sab_orb)
-          CALL dbcsr_set(matrix_l(i_dim, 1)%matrix, 0.0_dp)
+         ALLOCATE (matrix_l(i_dim, 1)%matrix)
+         CALL dbcsr_create(matrix_l(i_dim, 1)%matrix, template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_l(i_dim, 1)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_l(i_dim, 1)%matrix, 0.0_dp)
       END DO
 
-      NULLIFY(matrix_pot_dummy)
+      NULLIFY (matrix_pot_dummy)
       CALL dbcsr_allocate_matrix_set(matrix_pot_dummy, 1, 1)
       ALLOCATE (matrix_pot_dummy(1, 1)%matrix)
       CALL dbcsr_create(matrix_pot_dummy(1, 1)%matrix, template=matrix_s(1)%matrix)
@@ -1735,16 +1694,16 @@ CONTAINS
                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
                            nimages=1, basis_type="ORB", matrix_l=matrix_l)
 
-      CALL alloc_mat_set_2d(mat_VSOC_l_nosymm, 3, size_real_space, matrix_s(1)%matrix, explicitly_no_symmetry=.TRUE. )
+      CALL alloc_mat_set_2d(mat_VSOC_l_nosymm, 3, size_real_space, matrix_s(1)%matrix, explicitly_no_symmetry=.TRUE.)
       DO i_dim = 1, 3
-         CALL dbcsr_desymmetrize(matrix_l(i_dim,1)%matrix, mat_VSOC_l_nosymm(i_dim,1)%matrix)
+         CALL dbcsr_desymmetrize(matrix_l(i_dim, 1)%matrix, mat_VSOC_l_nosymm(i_dim, 1)%matrix)
       END DO
 
       kpoints_Sigma => qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma
 
-      CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_lx_kp, mat_VSOC_l_nosymm(1,1)%matrix, kpoints_Sigma, 1, .FALSE.)
-      CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_ly_kp, mat_VSOC_l_nosymm(2,1)%matrix, kpoints_Sigma, 1, .FALSE.)
-      CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_lz_kp, mat_VSOC_l_nosymm(3,1)%matrix, kpoints_Sigma, 1, .FALSE.)
+      CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_lx_kp, mat_VSOC_l_nosymm(1, 1)%matrix, kpoints_Sigma, 1, .FALSE.)
+      CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_ly_kp, mat_VSOC_l_nosymm(2, 1)%matrix, kpoints_Sigma, 1, .FALSE.)
+      CALL mat_kp_from_mat_gamma(qs_env, mat_VSOC_lz_kp, mat_VSOC_l_nosymm(3, 1)%matrix, kpoints_Sigma, 1, .FALSE.)
 
       nkp_self_energy = kpoints_Sigma%nkp
 
@@ -1769,12 +1728,12 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_desymmetrize(matrix_s(1)%matrix, matrix_s_desymm(1)%matrix)
 
-      ALLOCATE(eigenvalues(2*nao))
+      ALLOCATE (eigenvalues(2*nao))
       eigenvalues = 0.0_dp
-      ALLOCATE(eigenvalues_without_soc_sorted(2*nao))
+      ALLOCATE (eigenvalues_without_soc_sorted(2*nao))
 
       E_window = qs_env%mp2_env%ri_g0w0%soc_energy_window
-      IF(unit_nr > 0) THEN
+      IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A)') ' '
          WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------------'
          WRITE (unit_nr, '(T3,A)') ' '
@@ -1792,30 +1751,30 @@ CONTAINS
          CALL cp_fm_to_cfm(rmos, imos, cfm_mo_coeff)
 
          ! ispin = 1
-         avg_occ_QP_shift = SUM(Eigenval(homo(1)-gw_corr_lev_occ(1)+1:homo(1), ikp, 1) - &
-                                Eigenval_scf(homo(1)-gw_corr_lev_occ(1)+1:homo(1), ikp, 1)) / gw_corr_lev_occ(1)
-         avg_virt_QP_shift = SUM(Eigenval(homo(1):homo(1)+gw_corr_lev_virt(1), ikp, 1) - &
-                                 Eigenval_scf(homo(1):homo(1)+gw_corr_lev_virt(1), ikp, 1)) / gw_corr_lev_virt(1)
+         avg_occ_QP_shift = SUM(Eigenval(homo(1) - gw_corr_lev_occ(1) + 1:homo(1), ikp, 1) - &
+                                Eigenval_scf(homo(1) - gw_corr_lev_occ(1) + 1:homo(1), ikp, 1))/gw_corr_lev_occ(1)
+         avg_virt_QP_shift = SUM(Eigenval(homo(1):homo(1) + gw_corr_lev_virt(1), ikp, 1) - &
+                                 Eigenval_scf(homo(1):homo(1) + gw_corr_lev_virt(1), ikp, 1))/gw_corr_lev_virt(1)
 
-         IF(gw_corr_lev_occ(1) < homo(1)) THEN
-            Eigenval(1:homo(1)-gw_corr_lev_occ(1), ikp, 1) = Eigenval_scf(1:homo(1)-gw_corr_lev_occ(1), ikp, 1) &
-                                                             + avg_occ_QP_shift
+         IF (gw_corr_lev_occ(1) < homo(1)) THEN
+            Eigenval(1:homo(1) - gw_corr_lev_occ(1), ikp, 1) = Eigenval_scf(1:homo(1) - gw_corr_lev_occ(1), ikp, 1) &
+                                                               + avg_occ_QP_shift
          END IF
-         IF(gw_corr_lev_virt(1) < nao-homo(1)+1) THEN
-            Eigenval(homo(1)+gw_corr_lev_virt(1)+1:nao, ikp, 1) = Eigenval_scf(homo(1)+gw_corr_lev_virt(1)+1:nao, ikp, 1) &
-                                                                  + avg_virt_QP_shift
+         IF (gw_corr_lev_virt(1) < nao - homo(1) + 1) THEN
+            Eigenval(homo(1) + gw_corr_lev_virt(1) + 1:nao, ikp, 1) = Eigenval_scf(homo(1) + gw_corr_lev_virt(1) + 1:nao, ikp, 1) &
+                                                                      + avg_virt_QP_shift
          END IF
 
          CALL cp_cfm_set_all(cfm_mat_h_double, z_zero)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, z_one, .TRUE.)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, 1, gaussi, .TRUE.)
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lx_kp(ikp, 1:2), cfm_mat_h_ks, nao + 1, 1, z_one, .TRUE.)
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_ly_kp(ikp, 1:2), cfm_mat_h_ks, nao + 1, 1, gaussi, .TRUE.)
          CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, 1, 1, z_one, .FALSE.)
-         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao+1, nao+1, -z_one, .FALSE.)
+         CALL add_dbcsr_submatrix(cfm_mat_h_double, mat_VSOC_lz_kp(ikp, 1:2), cfm_mat_h_ks, nao + 1, nao + 1, -z_one, .FALSE.)
 
          ! trafo to MO basis
          cfm_mo_coeff_double%local_data = z_zero
          CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, 1, 1)
-         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, nao+1, nao+1)
+         CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, nao + 1, nao + 1)
 
          CALL parallel_gemm(transa="N", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
                             matrix_a=cfm_mat_h_double, matrix_b=cfm_mo_coeff_double, beta=z_zero, &
@@ -1832,36 +1791,36 @@ CONTAINS
                               col_indices=col_indices)
 
          E_HOMO = Eigenval(homo(1), ikp, 1)
-         E_LUMO = Eigenval(homo(1)+1, ikp, 1)
+         E_LUMO = Eigenval(homo(1) + 1, ikp, 1)
          CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
 
          CALL para_env%sync()
 
          DO i_row = 1, nrow_local
          DO j_col = 1, ncol_local
-             i_glob = row_indices(i_row)
-             j_glob = col_indices(j_col)
-             IF(i_glob .LE. nao) THEN
-                E_i = Eigenval(i_glob, ikp, 1)
-             ELSE
-                E_i = Eigenval(i_glob-nao, ikp, 1)
-             END IF
-             IF(j_glob .LE. nao) THEN
-                E_j = Eigenval(j_glob, ikp, 1)
-             ELSE
-                E_j = Eigenval(j_glob-nao, ikp, 1)
-             END IF
+            i_glob = row_indices(i_row)
+            j_glob = col_indices(j_col)
+            IF (i_glob .LE. nao) THEN
+               E_i = Eigenval(i_glob, ikp, 1)
+            ELSE
+               E_i = Eigenval(i_glob - nao, ikp, 1)
+            END IF
+            IF (j_glob .LE. nao) THEN
+               E_j = Eigenval(j_glob, ikp, 1)
+            ELSE
+               E_j = Eigenval(j_glob - nao, ikp, 1)
+            END IF
 
-             ! add eigenvalues to diagonal entries
-             IF(i_glob == j_glob) THEN
-                cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
-                cfm_mat_s_double%local_data(i_row, j_col) = z_one
-             ELSE
-                IF( E_i < E_HOMO - 0.5_dp*E_window .OR. E_i > E_LUMO + 0.5_dp*E_window .OR. &
-                    E_j < E_HOMO - 0.5_dp*E_window .OR. E_j > E_LUMO + 0.5_dp*E_window)  THEN
-                   cfm_mat_h_double%local_data(i_row, j_col) = z_zero
-                END IF
-             END IF
+            ! add eigenvalues to diagonal entries
+            IF (i_glob == j_glob) THEN
+               cfm_mat_h_double%local_data(i_row, j_col) = cfm_mat_h_double%local_data(i_row, j_col) + E_i*z_one
+               cfm_mat_s_double%local_data(i_row, j_col) = z_one
+            ELSE
+               IF (E_i < E_HOMO - 0.5_dp*E_window .OR. E_i > E_LUMO + 0.5_dp*E_window .OR. &
+                   E_j < E_HOMO - 0.5_dp*E_window .OR. E_j > E_LUMO + 0.5_dp*E_window) THEN
+                  cfm_mat_h_double%local_data(i_row, j_col) = z_zero
+               END IF
+            END IF
 
          END DO
          END DO
@@ -1873,10 +1832,10 @@ CONTAINS
                                  cfm_mat_work_double, scf_control%eps_eigval)
 
          eigenvalues_without_soc_sorted(1:nao) = Eigenval(:, ikp, 1)
-         eigenvalues_without_soc_sorted(nao+1:2*nao) = Eigenval(:, ikp, 1)
-         ALLOCATE(index0(2*nao))
+         eigenvalues_without_soc_sorted(nao + 1:2*nao) = Eigenval(:, ikp, 1)
+         ALLOCATE (index0(2*nao))
          CALL sort(eigenvalues_without_soc_sorted, 2*nao, index0)
-         DEALLOCATE(index0)
+         DEALLOCATE (index0)
 
          E_HOMO_GW_SOC = MAXVAL(eigenvalues(2*homo(1) - 2*gw_corr_lev_occ(1) + 1:2*homo(1)))
          E_LUMO_GW_SOC = MINVAL(eigenvalues(2*homo(1) + 1:2*homo(1) + 2*gw_corr_lev_virt(1)))
@@ -1887,34 +1846,33 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T3,A7,I3,A3,I3,A8,3F7.3,A12,3F7.3)') 'Kpoint ', ikp, '  /', nkp_self_energy, &
-                  '   xkp =',      kpoints_Sigma%xkp(1, ikp),  kpoints_Sigma%xkp(2, ikp),  kpoints_Sigma%xkp(3, ikp), &
-                  '  and  xkp =', -kpoints_Sigma%xkp(1, ikp), -kpoints_Sigma%xkp(2, ikp), -kpoints_Sigma%xkp(3, ikp)
+               '   xkp =', kpoints_Sigma%xkp(1, ikp), kpoints_Sigma%xkp(2, ikp), kpoints_Sigma%xkp(3, ikp), &
+               '  and  xkp =', -kpoints_Sigma%xkp(1, ikp), -kpoints_Sigma%xkp(2, ikp), -kpoints_Sigma%xkp(3, ikp)
             WRITE (unit_nr, '(T3,A)') ' '
-            IF(do_soc_gw) THEN
+            IF (do_soc_gw) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F13.4)') 'GW_SOC_INFO | Average GW shift of occupied levels compared to SCF',  &
-                                 avg_occ_QP_shift*evolt
+               WRITE (unit_nr, '(T3,A,F13.4)') 'GW_SOC_INFO | Average GW shift of occupied levels compared to SCF', &
+                  avg_occ_QP_shift*evolt
                WRITE (unit_nr, '(T3,A,F11.4)') 'GW_SOC_INFO | Average GW shift of unoccupied levels compared to SCF', &
-                                 avg_virt_QP_shift*evolt
+                  avg_virt_QP_shift*evolt
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_GW with SOC (eV)   E_GW without SOC (eV)  SOC shift (eV)'
             ELSE
                WRITE (unit_nr, '(T3,2A)') 'Molecular orbital  E_SCF with SOC (eV)  E_SCF without SOC (eV)  SOC shift (eV)'
             END IF
 
-
             DO n_level_gw = 2*(homo(1) - gw_corr_lev_occ(1)) + 1, 2*homo(1)
-                WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( occ )   ', eigenvalues(n_level_gw)*evolt, &
-                       eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
-                       (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
+               WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( occ )   ', eigenvalues(n_level_gw)*evolt, &
+                  eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
+                  (eigenvalues(n_level_gw) - eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
-            DO n_level_gw = 2*homo(1)+1, 2*(homo(1) + gw_corr_lev_virt(1))
-                WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( vir )   ', eigenvalues(n_level_gw)*evolt, &
-                       eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
-                       (eigenvalues(n_level_gw)-eigenvalues_without_soc_sorted(n_level_gw))*evolt
+            DO n_level_gw = 2*homo(1) + 1, 2*(homo(1) + gw_corr_lev_virt(1))
+               WRITE (unit_nr, '(T3,I4,A,3F21.4)') n_level_gw, ' ( vir )   ', eigenvalues(n_level_gw)*evolt, &
+                  eigenvalues_without_soc_sorted(n_level_gw)*evolt, &
+                  (eigenvalues(n_level_gw) - eigenvalues_without_soc_sorted(n_level_gw))*evolt
             END DO
             WRITE (unit_nr, '(T3,A)') ' '
-            IF(do_soc_gw) THEN
+            IF (do_soc_gw) THEN
                WRITE (unit_nr, '(T3,A,F38.4)') 'GW+SOC direct gap at current kpoint (eV)', E_GAP_GW_SOC*evolt
             ELSE
                WRITE (unit_nr, '(T3,A,F37.4)') 'SCF+SOC direct gap at current kpoint (eV)', E_GAP_GW_SOC*evolt
@@ -1927,7 +1885,7 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A)') ' '
-         IF(do_soc_gw) THEN
+         IF (do_soc_gw) THEN
             WRITE (unit_nr, '(T3,A,F46.4)') 'GW+SOC valence band maximum (eV)', E_VBM_GW_SOC*evolt
             WRITE (unit_nr, '(T3,A,F43.4)') 'GW+SOC conduction band minimum (eV)', E_CBM_GW_SOC*evolt
             WRITE (unit_nr, '(T3,A,F59.4)') 'GW+SOC bandgap (eV)', (E_CBM_GW_SOC - E_VBM_GW_SOC)*evolt
@@ -1952,7 +1910,7 @@ CONTAINS
       CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_cfm_release(cfm_mat_h_ks)
       CALL cp_cfm_release(cfm_mat_work_double)
-      DEALLOCATE(eigenvalues)
+      DEALLOCATE (eigenvalues)
 
 ! JW FOR LATER: READING SOC PARAMETERS FROM FILE
 !
@@ -1974,21 +1932,33 @@ CONTAINS
 
    END SUBROUTINE calculate_and_print_soc
 
-
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_mat_target ...
+!> \param mat_source ...
+!> \param cfm_source_template ...
+!> \param nstart_row ...
+!> \param nstart_col ...
+!> \param factor ...
+!> \param add_also_herm_conj ...
+! **************************************************************************************************
    SUBROUTINE add_dbcsr_submatrix(cfm_mat_target, mat_source, cfm_source_template, &
                                   nstart_row, nstart_col, factor, add_also_herm_conj)
-      TYPE(cp_cfm_type)                       ::  cfm_mat_target, cfm_source_template
-      TYPE(dbcsr_p_type), DIMENSION(:)     :: mat_source
-      INTEGER :: nstart_row, nstart_col, handle, nao, i_row, j_col
-      LOGICAL :: add_also_herm_conj, my_print_stuff
-      COMPLEX(KIND=dp)                                   ::  factor
+      TYPE(cp_cfm_type)                                  :: cfm_mat_target
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_source
+      TYPE(cp_cfm_type)                                  :: cfm_source_template
+      INTEGER                                            :: nstart_row, nstart_col
+      COMPLEX(KIND=dp)                                   :: factor
+      LOGICAL                                            :: add_also_herm_conj
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_dbcsr_submatrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_dbcsr_submatrix'
 
-      TYPE(cp_fm_type)                                  ::fm_mat_work_double_re, fm_mat_work_double_im, &
-                                                          fm_mat_work_re, fm_mat_work_im, &
-                                 fm_mat_work_double_conj_re, fm_mat_work_double_conj_im
-      TYPE(cp_cfm_type)                       ::  cfm_mat_work_double, cfm_mat_work_double_2
+      INTEGER                                            :: handle, nao
+      TYPE(cp_cfm_type)                                  :: cfm_mat_work_double, &
+                                                            cfm_mat_work_double_2
+      TYPE(cp_fm_type)                                   :: fm_mat_work_double_im, &
+                                                            fm_mat_work_double_re, fm_mat_work_im, &
+                                                            fm_mat_work_re
 
       CALL timeset(routineN, handle)
 
@@ -1997,8 +1967,8 @@ CONTAINS
       CALL cp_fm_set_all(fm_mat_work_double_re, 0.0_dp)
       CALL cp_fm_set_all(fm_mat_work_double_im, 0.0_dp)
 
-      CALL cp_cfm_create(cfm_mat_work_double, cfm_mat_target%matrix_struct)   
-      CALL cp_cfm_create(cfm_mat_work_double_2, cfm_mat_target%matrix_struct)      
+      CALL cp_cfm_create(cfm_mat_work_double, cfm_mat_target%matrix_struct)
+      CALL cp_cfm_create(cfm_mat_work_double_2, cfm_mat_target%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work_double, z_zero)
       CALL cp_cfm_set_all(cfm_mat_work_double_2, z_zero)
 
@@ -2006,7 +1976,7 @@ CONTAINS
       CALL cp_fm_create(fm_mat_work_im, cfm_source_template%matrix_struct)
 
       CALL copy_dbcsr_to_fm(mat_source(1)%matrix, fm_mat_work_re)
-      CALL copy_dbcsr_to_fm(mat_source(2)%matrix, fm_mat_work_im)     
+      CALL copy_dbcsr_to_fm(mat_source(2)%matrix, fm_mat_work_im)
 
       CALL cp_cfm_get_info(cfm_source_template, nrow_global=nao)
 
@@ -2027,9 +1997,9 @@ CONTAINS
 
       CALL cp_cfm_scale_and_add(z_one, cfm_mat_target, z_one, cfm_mat_work_double)
 
-      IF( add_also_herm_conj ) THEN
-          CALL cp_cfm_transpose(cfm_mat_work_double, 'C', cfm_mat_work_double_2)
-          CALL cp_cfm_scale_and_add(z_one, cfm_mat_target, z_one, cfm_mat_work_double_2)     
+      IF (add_also_herm_conj) THEN
+         CALL cp_cfm_transpose(cfm_mat_work_double, 'C', cfm_mat_work_double_2)
+         CALL cp_cfm_scale_and_add(z_one, cfm_mat_target, z_one, cfm_mat_work_double_2)
       END IF
 
       CALL cp_fm_release(fm_mat_work_double_re)
@@ -2041,19 +2011,27 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE 
+   END SUBROUTINE
 
-
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_mat_target ...
+!> \param cfm_mat_source ...
+!> \param nstart_row ...
+!> \param nstart_col ...
+! **************************************************************************************************
    SUBROUTINE add_cfm_submatrix(cfm_mat_target, cfm_mat_source, nstart_row, nstart_col)
 
-      TYPE(cp_cfm_type)                       ::  cfm_mat_target, cfm_mat_source
-      INTEGER :: nstart_row, nstart_col, handle, nao
+      TYPE(cp_cfm_type)                                  :: cfm_mat_target, cfm_mat_source
+      INTEGER                                            :: nstart_row, nstart_col
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_cfm_submatrix'
 
-      TYPE(cp_fm_type)                                  ::fm_mat_work_double_re, fm_mat_work_double_im, &
-                                                          fm_mat_work_re, fm_mat_work_im
-      TYPE(cp_cfm_type)                       ::  cfm_mat_work_double
+      INTEGER                                            :: handle, nao
+      TYPE(cp_fm_type)                                   :: fm_mat_work_double_im, &
+                                                            fm_mat_work_double_re, fm_mat_work_im, &
+                                                            fm_mat_work_re
+
       CALL timeset(routineN, handle)
 
       CALL cp_fm_create(fm_mat_work_double_re, cfm_mat_target%matrix_struct)
@@ -2089,19 +2067,26 @@ CONTAINS
 
    END SUBROUTINE add_cfm_submatrix
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_orig ...
+!> \param cfm_double ...
+! **************************************************************************************************
    SUBROUTINE create_cfm_double_row_col_size(fm_orig, cfm_double)
-      TYPE(cp_fm_type)                       ::  fm_orig
-      TYPE(cp_cfm_type)                       ::  cfm_double
-      INTEGER                                            :: handle, i, j, k, nrow_global_orig, ncol_global_orig
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_double
+      TYPE(cp_fm_type)                                   :: fm_orig
+      TYPE(cp_cfm_type)                                  :: cfm_double
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_cfm_double_row_col_size'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_cfm_double_row_col_size'
+
+      INTEGER                                            :: handle, ncol_global_orig, &
+                                                            nrow_global_orig
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_double
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=fm_orig, nrow_global=nrow_global_orig, ncol_global=ncol_global_orig)
 
-      CALL cp_fm_struct_create(fm_struct_double,  &
+      CALL cp_fm_struct_create(fm_struct_double, &
                                nrow_global=2*nrow_global_orig, &
                                ncol_global=2*ncol_global_orig, &
                                template_fmstruct=fm_orig%matrix_struct)
@@ -2114,13 +2099,27 @@ CONTAINS
 
    END SUBROUTINE
 
-   SUBROUTINE  print_gaps(E_VBM_SCF, E_CBM_SCF, E_VBM_SCF_beta, E_CBM_SCF_beta, &
-                          E_VBM_GW, E_CBM_GW, E_VBM_GW_beta, E_CBM_GW_beta, my_open_shell, unit_nr)
+! **************************************************************************************************
+!> \brief ...
+!> \param E_VBM_SCF ...
+!> \param E_CBM_SCF ...
+!> \param E_VBM_SCF_beta ...
+!> \param E_CBM_SCF_beta ...
+!> \param E_VBM_GW ...
+!> \param E_CBM_GW ...
+!> \param E_VBM_GW_beta ...
+!> \param E_CBM_GW_beta ...
+!> \param my_open_shell ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE print_gaps(E_VBM_SCF, E_CBM_SCF, E_VBM_SCF_beta, E_CBM_SCF_beta, &
+                         E_VBM_GW, E_CBM_GW, E_VBM_GW_beta, E_CBM_GW_beta, my_open_shell, unit_nr)
 
-      LOGICAL :: my_open_shell
-      INTEGER :: unit_nr
-      REAL(KIND=dp) :: E_CBM_GW, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, &
-         E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit      
+      REAL(KIND=dp)                                      :: E_VBM_SCF, E_CBM_SCF, E_VBM_SCF_beta, &
+                                                            E_CBM_SCF_beta, E_VBM_GW, E_CBM_GW, &
+                                                            E_VBM_GW_beta, E_CBM_GW_beta
+      LOGICAL                                            :: my_open_shell
+      INTEGER                                            :: unit_nr
 
       IF (my_open_shell) THEN
          WRITE (unit_nr, '(T3,A)') ' '
@@ -6087,8 +6086,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_minus_vxc_kpoints'
 
-      INTEGER                                            :: handle, ikp, ispin, nkp_self_energy, nmo, &
-                                                            nspins
+      INTEGER                                            :: handle, ikp, ispin, nkp_self_energy, &
+                                                            nmo, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Sigma_x_minus_vxc_mo_mo
       TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, ks_mat_ao_ao, &
                                                             ks_mat_no_xc_ao_ao, vxc_ao_ao, &
@@ -6346,28 +6345,29 @@ CONTAINS
 !> \param mat_set ...
 !> \param mat_size ...
 !> \param template ...
+!> \param explicitly_no_symmetry ...
 ! **************************************************************************************************
    SUBROUTINE alloc_mat_set(mat_set, mat_size, template, explicitly_no_symmetry)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_set
       INTEGER, INTENT(IN)                                :: mat_size
       TYPE(dbcsr_type), TARGET                           :: template
-      LOGICAL, OPTIONAL :: explicitly_no_symmetry
+      LOGICAL, OPTIONAL                                  :: explicitly_no_symmetry
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_mat_set'
 
       INTEGER                                            :: handle, i_size
-      LOGICAL :: my_explicitly_no_symmetry
+      LOGICAL                                            :: my_explicitly_no_symmetry
 
       CALL timeset(routineN, handle)
 
       my_explicitly_no_symmetry = .FALSE.
-      IF(PRESENT(explicitly_no_symmetry)) my_explicitly_no_symmetry = explicitly_no_symmetry
+      IF (PRESENT(explicitly_no_symmetry)) my_explicitly_no_symmetry = explicitly_no_symmetry
 
       NULLIFY (mat_set)
       CALL dbcsr_allocate_matrix_set(mat_set, mat_size)
       DO i_size = 1, mat_size
          ALLOCATE (mat_set(i_size)%matrix)
-         IF( my_explicitly_no_symmetry) THEN
+         IF (my_explicitly_no_symmetry) THEN
             CALL dbcsr_create(matrix=mat_set(i_size)%matrix, template=template, &
                               matrix_type=dbcsr_type_no_symmetry)
          ELSE
@@ -6381,44 +6381,49 @@ CONTAINS
 
    END SUBROUTINE alloc_mat_set
 
-
-
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_set ...
+!> \param mat_size_1 ...
+!> \param mat_size_2 ...
+!> \param template ...
+!> \param explicitly_no_symmetry ...
+! **************************************************************************************************
    SUBROUTINE alloc_mat_set_2d(mat_set, mat_size_1, mat_size_2, template, explicitly_no_symmetry)
-      TYPE(dbcsr_p_type), DIMENSION(:,:), POINTER          :: mat_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_set
       INTEGER, INTENT(IN)                                :: mat_size_1, mat_size_2
       TYPE(dbcsr_type), TARGET                           :: template
-      LOGICAL, OPTIONAL :: explicitly_no_symmetry
+      LOGICAL, OPTIONAL                                  :: explicitly_no_symmetry
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_mat_set_2d'
 
       INTEGER                                            :: handle, i_size, j_size
-      LOGICAL :: my_explicitly_no_symmetry
+      LOGICAL                                            :: my_explicitly_no_symmetry
 
       CALL timeset(routineN, handle)
 
       my_explicitly_no_symmetry = .FALSE.
-      IF(PRESENT(explicitly_no_symmetry)) my_explicitly_no_symmetry = explicitly_no_symmetry
+      IF (PRESENT(explicitly_no_symmetry)) my_explicitly_no_symmetry = explicitly_no_symmetry
 
       NULLIFY (mat_set)
       CALL dbcsr_allocate_matrix_set(mat_set, mat_size_1, mat_size_2)
       DO i_size = 1, mat_size_1
-       DO j_size = 1, mat_size_2
-         ALLOCATE (mat_set(i_size, j_size)%matrix)
-         IF( my_explicitly_no_symmetry) THEN
-            CALL dbcsr_create(matrix=mat_set(i_size, j_size)%matrix, template=template, &
-                              matrix_type=dbcsr_type_no_symmetry)
-         ELSE
-            CALL dbcsr_create(matrix=mat_set(i_size, j_size)%matrix, template=template)
-         END IF
-         CALL dbcsr_copy(mat_set(i_size, j_size)%matrix, template)
-         CALL dbcsr_set(mat_set(i_size, j_size)%matrix, 0.0_dp)
-       END DO
+         DO j_size = 1, mat_size_2
+            ALLOCATE (mat_set(i_size, j_size)%matrix)
+            IF (my_explicitly_no_symmetry) THEN
+               CALL dbcsr_create(matrix=mat_set(i_size, j_size)%matrix, template=template, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+            ELSE
+               CALL dbcsr_create(matrix=mat_set(i_size, j_size)%matrix, template=template)
+            END IF
+            CALL dbcsr_copy(mat_set(i_size, j_size)%matrix, template)
+            CALL dbcsr_set(mat_set(i_size, j_size)%matrix, 0.0_dp)
+         END DO
       END DO
 
       CALL timestop(handle)
 
    END SUBROUTINE alloc_mat_set_2d
-
 
 ! **************************************************************************************************
 !> \brief ...
