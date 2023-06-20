@@ -101,6 +101,7 @@ Total Spread (Berry) : !6
 NVP |   1  2  !8
 Alpha GW direct gap !9
 Beta GW direct gap !9
+GW+SOC bandgap (eV) !4
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value
