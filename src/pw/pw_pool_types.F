@@ -71,11 +71,11 @@ MODULE pw_pool_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE pw_pool_type
-      INTEGER :: ref_count, max_cache
-      TYPE(pw_grid_type), POINTER :: pw_grid
-      TYPE(cp_sll_pw_type), POINTER :: real1d_pw, real3d_pw, &
-                                       complex1d_pw, complex3d_pw
-      TYPE(cp_sll_3d_r_type), POINTER :: real3d_array
+      INTEGER :: ref_count = 0, max_cache = 0
+      TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
+      TYPE(cp_sll_pw_type), POINTER :: real1d_pw => NULL(), real3d_pw => NULL(), &
+                                       complex1d_pw => NULL(), complex3d_pw => NULL()
+      TYPE(cp_sll_3d_r_type), POINTER :: real3d_array => NULL()
    END TYPE pw_pool_type
 
 ! **************************************************************************************************
@@ -86,7 +86,7 @@ MODULE pw_pool_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE pw_pool_p_type
-      TYPE(pw_pool_type), POINTER :: pool
+      TYPE(pw_pool_type), POINTER :: pool => NULL()
    END TYPE pw_pool_p_type
 
 CONTAINS

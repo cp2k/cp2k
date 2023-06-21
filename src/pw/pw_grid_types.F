@@ -45,13 +45,13 @@ MODULE pw_grid_types
       INTEGER :: my_pos = -1! Position within group
       INTEGER :: group_size = -1! # of Processors in group
       LOGICAL :: group_head = .FALSE. ! Master process within group
-      INTEGER :: group_head_id = -1 ! Id of group_head
+      INTEGER :: group_head_id = 0 ! Id of group_head
       INTEGER, DIMENSION(:, :, :), POINTER :: yzp => NULL() ! g-space rays (xy,k,pe)
       INTEGER, DIMENSION(:, :), POINTER :: yzq => NULL() ! local inverse pointer of yzp
       INTEGER, DIMENSION(:), POINTER :: nyzray => NULL() ! number of g-space rays (pe)
       TYPE(mp_cart_type) :: rs_group = mp_cart_type() ! real space group (2-dim cart)
       INTEGER :: rs_mpo = -1 ! real space group position
-      INTEGER, DIMENSION(2) :: rs_dims = -1 ! real space group dimensions
+      INTEGER, DIMENSION(2) :: rs_dims = 0 ! real space group dimensions
       INTEGER, DIMENSION(2) :: rs_pos = -1 ! real space group positions in grid
       INTEGER, DIMENSION(:, :, :, :), POINTER :: bo => NULL() ! list of axis distribution
       INTEGER, DIMENSION(:), POINTER :: pos_of_x => NULL() ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
@@ -84,7 +84,7 @@ MODULE pw_grid_types
       LOGICAL :: have_g0 = .TRUE. ! whether I have G = [0,0,0]
       INTEGER :: first_gne0 = 0 ! first g index /= 0 [1/2]
       INTEGER :: id_nr = -1 ! tag of this grid
-      INTEGER :: reference = -1 ! reference grid identifier
+      INTEGER :: reference = 0 ! reference grid identifier
       INTEGER, DIMENSION(:), POINTER :: gidx => NULL() ! ref grid index
       INTEGER :: ref_count = 0 ! reference count
       LOGICAL :: spherical = .FALSE. ! spherical cutoff?
