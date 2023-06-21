@@ -1641,7 +1641,6 @@ CONTAINS
 
       DO ikind = 1, nkind
 
-         NULLIFY (gth_potential)
          CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, element_symbol=element_symbol)
 
          ! write SOC parameters to gth_potential%hprj_ppnl
