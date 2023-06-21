@@ -47,7 +47,7 @@ MODULE input_val_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE val_p_type
-      TYPE(val_type), POINTER :: val
+      TYPE(val_type), POINTER :: val => NULL()
    END TYPE val_p_type
 
 ! **************************************************************************************************
@@ -61,13 +61,13 @@ MODULE input_val_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE val_type
-      INTEGER :: ref_count, type_of_var
-      LOGICAL, DIMENSION(:), POINTER :: l_val
-      INTEGER, DIMENSION(:), POINTER :: i_val
+      INTEGER :: ref_count = 0, type_of_var = no_t
+      LOGICAL, DIMENSION(:), POINTER :: l_val => NULL()
+      INTEGER, DIMENSION(:), POINTER :: i_val => NULL()
       CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: &
-         c_val
-      REAL(kind=dp), DIMENSION(:), POINTER :: r_val
-      TYPE(enumeration_type), POINTER :: enum
+         c_val => NULL()
+      REAL(kind=dp), DIMENSION(:), POINTER :: r_val => NULL()
+      TYPE(enumeration_type), POINTER :: enum => NULL()
    END TYPE val_type
 CONTAINS
 
@@ -133,15 +133,12 @@ CONTAINS
       narg = 0
       val%type_of_var = no_t
       IF (PRESENT(l_val)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(l_vals),cp_failure_level,routineP,failure)
-!FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%l_val(1))
          val%l_val(1) = l_val
          val%type_of_var = logical_t
       END IF
       IF (PRESENT(l_vals)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%l_val(SIZE(l_vals)))
          val%l_val = l_vals
@@ -154,15 +151,12 @@ CONTAINS
       END IF
 
       IF (PRESENT(r_val)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(r_vals),cp_failure_level,routineP,failure)
-!FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%r_val(1))
          val%r_val(1) = r_val
          val%type_of_var = real_t
       END IF
       IF (PRESENT(r_vals)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%r_val(SIZE(r_vals)))
          val%r_val = r_vals
@@ -175,15 +169,12 @@ CONTAINS
       END IF
 
       IF (PRESENT(i_val)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(i_vals),cp_failure_level,routineP,failure)
-!FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%i_val(1))
          val%i_val(1) = i_val
          val%type_of_var = integer_t
       END IF
       IF (PRESENT(i_vals)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%i_val(SIZE(i_vals)))
          val%i_val = i_vals
@@ -197,15 +188,12 @@ CONTAINS
 
       IF (PRESENT(c_val)) THEN
          CPASSERT(LEN_TRIM(c_val) <= default_string_length)
-!FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,failure)
-!FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          ALLOCATE (val%c_val(1))
          val%c_val(1) = c_val
          val%type_of_var = char_t
       END IF
       IF (PRESENT(c_vals)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
          CPASSERT(ALL(LEN_TRIM(c_vals) <= default_string_length))
          narg = narg + 1
          ALLOCATE (val%c_val(SIZE(c_vals)))
@@ -218,8 +206,6 @@ CONTAINS
          val%type_of_var = char_t
       END IF
       IF (PRESENT(lc_val)) THEN
-!FM        CPPrecondition(.NOT.PRESENT(lc_vals),cp_failure_level,routineP,failure)
-!FM        CPPrecondition(.NOT.PRESENT(lc_vals_ptr),cp_failure_level,routineP,failure)
          narg = narg + 1
          len_c = LEN_TRIM(lc_val)
          nVal = MAX(1, CEILING(REAL(len_c, dp)/80._dp))

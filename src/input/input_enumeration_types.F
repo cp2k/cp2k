@@ -41,11 +41,11 @@ MODULE input_enumeration_types
    END TYPE char_array
 
    TYPE enumeration_type
-      INTEGER :: ref_count
-      CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: c_vals
+      INTEGER :: ref_count = 0
+      CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: c_vals => NULL()
       TYPE(char_array), DIMENSION(:), POINTER :: desc => Null()
-      INTEGER, DIMENSION(:), POINTER :: i_vals
-      LOGICAL :: strict
+      INTEGER, DIMENSION(:), POINTER :: i_vals => NULL()
+      LOGICAL :: strict = .FALSE.
    END TYPE enumeration_type
 
 CONTAINS

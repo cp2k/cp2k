@@ -25,20 +25,20 @@ MODULE cp_parser_inpp_types
    TYPE inpp_type
       ! for '@INCLUDE "some_file.inc"'
       ! currently open include file stack pointer
-      INTEGER                              :: io_stack_level
+      INTEGER                              :: io_stack_level = 0
       ! include file stack data
-      INTEGER, POINTER, DIMENSION(:)       :: io_stack_channel, &
-                                              io_stack_lineno
+      INTEGER, POINTER, DIMENSION(:)       :: io_stack_channel => NULL(), &
+                                              io_stack_lineno => NULL()
       CHARACTER(len=default_path_length), &
-         POINTER, DIMENSION(:)             :: io_stack_filename
+         POINTER, DIMENSION(:)             :: io_stack_filename => NULL()
       ! for '@SET VAR value' and '${VAR}'
       ! table size
-      INTEGER                              :: num_variables
+      INTEGER                              :: num_variables = 0
       ! table entries
       CHARACTER(len=default_path_length), &
-         POINTER, DIMENSION(:)       :: variable_name
+         POINTER, DIMENSION(:)       :: variable_name => NULL()
       CHARACTER(len=default_path_length), &
-         POINTER, DIMENSION(:)       :: variable_value
+         POINTER, DIMENSION(:)       :: variable_value => NULL()
    END TYPE inpp_type
 
    PUBLIC :: inpp_type, create_inpp_type, release_inpp_type
@@ -60,15 +60,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(inpp))
       ALLOCATE (inpp)
-
-      inpp%io_stack_level = 0
-      NULLIFY (inpp%io_stack_channel, &
-               inpp%io_stack_lineno, &
-               inpp%io_stack_filename)
-
-      inpp%num_variables = 0
-      NULLIFY (inpp%variable_name, &
-               inpp%variable_value)
 
       IF (ASSOCIATED(initial_variables)) THEN
          inpp%num_variables = SIZE(initial_variables, 2)

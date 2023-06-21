@@ -75,25 +75,25 @@ MODULE cp_parser_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_parser_type
-      CHARACTER(LEN=default_string_length)           :: end_section, start_section
-      CHARACTER(LEN=10)                              :: separators
-      CHARACTER(LEN=1)                               :: comment_character(2), &
-                                                        continuation_character, &
-                                                        quote_character, &
-                                                        section_character
-      CHARACTER(LEN=default_path_length)             :: input_file_name
-      CHARACTER(LEN=max_line_length)                 :: input_line
-      INTEGER                                        :: icol, icol1, icol2
-      INTEGER                                        :: input_unit, input_line_number
-      LOGICAL                                        :: first_separator, &
-                                                        apply_preprocessing, &
-                                                        parse_white_lines
-      CHARACTER(len=default_path_length), DIMENSION(:, :), POINTER :: initial_variables
-      TYPE(buffer_type), POINTER                     :: buffer
-      TYPE(status_type), POINTER                     :: status
-      TYPE(mp_para_env_type), POINTER                :: para_env
-      TYPE(inpp_type), POINTER                       :: inpp
-      TYPE(ilist_type), POINTER                      :: ilist
+      CHARACTER(LEN=default_string_length)           :: end_section = "", start_section = ""
+      CHARACTER(LEN=10)                              :: separators = ""
+      CHARACTER(LEN=1)                               :: comment_character(2) = "", &
+                                                        continuation_character = "", &
+                                                        quote_character = "", &
+                                                        section_character = ""
+      CHARACTER(LEN=default_path_length)             :: input_file_name = ""
+      CHARACTER(LEN=max_line_length)                 :: input_line = ""
+      INTEGER                                        :: icol = 0, icol1 = 0, icol2 = 0
+      INTEGER                                        :: input_unit = -1, input_line_number = 0
+      LOGICAL                                        :: first_separator = .TRUE., &
+                                                        apply_preprocessing = .FALSE., &
+                                                        parse_white_lines = .FALSE.
+      CHARACTER(len=default_path_length), DIMENSION(:, :), POINTER :: initial_variables => NULL()
+      TYPE(buffer_type), POINTER                     :: buffer => NULL()
+      TYPE(status_type), POINTER                     :: status => NULL()
+      TYPE(mp_para_env_type), POINTER                :: para_env => NULL()
+      TYPE(inpp_type), POINTER                       :: inpp => NULL()
+      TYPE(ilist_type), POINTER                      :: ilist => NULL()
    END TYPE cp_parser_type
 
 CONTAINS
@@ -155,10 +155,6 @@ CONTAINS
       CHARACTER(len=*), DIMENSION(:, :), OPTIONAL        :: initial_variables
       LOGICAL, INTENT(IN), OPTIONAL                      :: apply_preprocessing
 
-      parser%input_unit = -1
-      parser%input_file_name = ""
-      NULLIFY (parser%initial_variables)
-
       ! Load the default values and overwrite them, if requested
       parser%separators = default_separators
       IF (PRESENT(separator_chars)) parser%separators = separator_chars
@@ -215,15 +211,6 @@ CONTAINS
          END IF
       END IF
 
-      parser%input_line_number = 0
-      parser%icol = 0
-      parser%icol1 = 0
-      parser%icol2 = 0
-      parser%first_separator = .TRUE.
-      NULLIFY (parser%buffer)
-      NULLIFY (parser%status)
-      NULLIFY (parser%inpp)
-      NULLIFY (parser%ilist)
       CALL create_inpp_type(parser%inpp, parser%initial_variables)
       CALL create_ilist_type(parser%ilist)
       CALL create_buffer_type(parser%buffer)

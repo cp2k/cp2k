@@ -21,10 +21,10 @@ MODULE cp_parser_ilist_types
    PRIVATE
 
    TYPE ilist_type
-      LOGICAL                              :: in_use
-      INTEGER                              :: nel_list
-      INTEGER                              :: istart, iend
-      INTEGER                              :: ipresent
+      LOGICAL                              :: in_use = .FALSE.
+      INTEGER                              :: nel_list = HUGE(0)
+      INTEGER                              :: istart = HUGE(0), iend = HUGE(0)
+      INTEGER                              :: ipresent = HUGE(0)
    END TYPE ilist_type
 
    PUBLIC :: ilist_type, create_ilist_type, release_ilist_type
@@ -43,11 +43,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(ilist))
       ALLOCATE (ilist)
-      ilist%istart = HUGE(0)
-      ilist%iend = HUGE(0)
-      ilist%nel_list = HUGE(0)
-      ilist%ipresent = HUGE(0)
-      ilist%in_use = .FALSE.
 
    END SUBROUTINE create_ilist_type
 

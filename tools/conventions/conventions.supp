@@ -129,13 +129,7 @@ cp_linked_list_xc_deriv.F: Found type cp_sll_xc_deriv_type without initializer h
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
-cp_output_handling.F: Found type cp_out_flags_type without initializer https://cp2k.org/conv#c016
-cp_parser_buffer_types.F: Found type buffer_type without initializer https://cp2k.org/conv#c016
-cp_parser_ilist_types.F: Found type ilist_type without initializer https://cp2k.org/conv#c016
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
-cp_parser_inpp_types.F: Found type inpp_type without initializer https://cp2k.org/conv#c016
-cp_parser_status_types.F: Found type status_type without initializer https://cp2k.org/conv#c016
-cp_parser_types.F: Found type cp_parser_type without initializer https://cp2k.org/conv#c016
 cryssym.F: Found type csym_type without initializer https://cp2k.org/conv#c016
 csvr_system_types.F: Found type csvr_system_type without initializer https://cp2k.org/conv#c016
 csvr_system_types.F: Found type csvr_thermo_type without initializer https://cp2k.org/conv#c016
@@ -292,15 +286,7 @@ hfx_types.F: Found type pair_list_type without initializer https://cp2k.org/conv
 hfx_types.F: Found type pair_set_list_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type hirshfeld_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type shape_fn without initializer https://cp2k.org/conv#c016
-input_enumeration_types.F: Found type enumeration_type without initializer https://cp2k.org/conv#c016
-input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
-input_keyword_types.F: Found type keyword_p_type without initializer https://cp2k.org/conv#c016
-input_keyword_types.F: Found type keyword_type without initializer https://cp2k.org/conv#c016
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
-input_section_types.F: Found type section_p_type without initializer https://cp2k.org/conv#c016
-input_section_types.F: Found type section_type without initializer https://cp2k.org/conv#c016
-input_section_types.F: Found type section_vals_p_type without initializer https://cp2k.org/conv#c016
-input_section_types.F: Found type section_vals_type without initializer https://cp2k.org/conv#c016
 input_val_types.F: Found type val_p_type without initializer https://cp2k.org/conv#c016
 input_val_types.F: Found type val_type without initializer https://cp2k.org/conv#c016
 integration_grid_types.F: Found type grid_batch_info_type without initializer https://cp2k.org/conv#c016
