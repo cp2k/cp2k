@@ -34,7 +34,7 @@ MODULE swarm_message
    INTEGER, PARAMETER  :: key_length = 20
 
    TYPE message_entry_type
-      CHARACTER(LEN=key_length)                      :: key
+      CHARACTER(LEN=key_length)                      :: key = ""
       TYPE(message_entry_type), POINTER              :: next => Null()
       CHARACTER(LEN=default_string_length), POINTER  :: value_str => Null()
       INTEGER(KIND=int_4), POINTER                   :: value_i4 => Null()

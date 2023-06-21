@@ -78,37 +78,37 @@ MODULE tmc_tree_types
       !   nacc..not accepted takes an alternative configutation
       TYPE(tree_type), POINTER                :: acc => NULL(), nacc => NULL()
       !-- type of MC move (swap is handled only in global tree)
-      INTEGER                                  :: move_type
+      INTEGER                                  :: move_type = -1
       !-- status (e.g. calculated, MD calculation, accepted...)
       INTEGER                                  :: stat = status_created
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: subbox_center
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: pos ! position array
-      INTEGER, DIMENSION(:), POINTER           :: mol ! specifies the molecules the atoms participate
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: vel ! velocity array
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: frc ! force array
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: dipole ! dipole moments array
-      INTEGER, DIMENSION(:), POINTER           :: elem_stat ! status for every dimension
-      INTEGER                                  :: nr ! tree node number
-      REAL(KIND=dp), DIMENSION(3, 2, 3)        :: rng_seed ! random seed for childs
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: subbox_center => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: pos => NULL() ! position array
+      INTEGER, DIMENSION(:), POINTER           :: mol => NULL() ! specifies the molecules the atoms participate
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: vel => NULL() ! velocity array
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: frc => NULL() ! force array
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: dipole => NULL() ! dipole moments array
+      INTEGER, DIMENSION(:), POINTER           :: elem_stat => NULL() ! status for every dimension
+      INTEGER                                  :: nr = -1 ! tree node number
+      REAL(KIND=dp), DIMENSION(3, 2, 3)        :: rng_seed = 0 ! random seed for childs
       !-- remembers which subtree number element is from
-      INTEGER                                  :: sub_tree_nr
+      INTEGER                                  :: sub_tree_nr = -1
       !-- remembers the temperature the configurational change (NMC) is done with
       INTEGER                                  :: temp_created = 0
       !-- pointer to counter of next subtree element number
-      INTEGER, POINTER                         :: next_elem_nr
+      INTEGER, POINTER                         :: next_elem_nr => NULL()
       !-- for calculating the NPT ensamble, variable box sizes are necessary.
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: box_scale
-      REAL(KIND=dp)                            :: potential ! potential energy
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: box_scale => NULL()
+      REAL(KIND=dp)                            :: potential = 0.0_dp ! potential energy
       !-- potential energy calculated using (MD potential) cp2k input file
       REAL(KIND=dp)                            :: e_pot_approx = 0.0_dp
       !-- kinetic energy (espacially for HMC, where the velocities are respected)
-      REAL(KIND=dp)                            :: ekin
+      REAL(KIND=dp)                            :: ekin = 0.0_dp
       !-- kinetic energy before md steps (after gaussian velocity change)
-      REAL(KIND=dp)                            :: ekin_before_md
+      REAL(KIND=dp)                            :: ekin_before_md = 0.0_dp
       !-- estimated energies are stored in loop order in this array
-      REAL(KIND=dp), DIMENSION(4)              :: scf_energies
+      REAL(KIND=dp), DIMENSION(4)              :: scf_energies = 0.0_dp
       !-- counter to get last position in the array loop
-      INTEGER                                  :: scf_energies_count
+      INTEGER                                  :: scf_energies_count = 0
       !-- list of global tree elements referint to that node (reference back to global tree)
       !   if no reference exist anymore, global tree element can be deleted
       TYPE(gt_elem_list_type), POINTER         :: gt_nodes_references => NULL()
@@ -123,8 +123,8 @@ MODULE tmc_tree_types
    TYPE elem_list_type
       TYPE(tree_type), POINTER      :: elem => NULL()
       TYPE(elem_list_type), POINTER :: next => NULL()
-      INTEGER                        :: temp_ind
-      INTEGER                        :: nr
+      INTEGER                        :: temp_ind = 0
+      INTEGER                        :: nr = -1
    END TYPE elem_list_type
 
    !-- array with subtree elements
@@ -132,7 +132,7 @@ MODULE tmc_tree_types
       TYPE(tree_type), POINTER :: elem => NULL()
       LOGICAL                   :: busy = .FALSE.
       LOGICAL                   :: canceled = .FALSE.
-      REAL(KIND=dp)             :: start_time
+      REAL(KIND=dp)             :: start_time = 0.0_dp
    END TYPE elem_array_type
 
    !-- global tree element
@@ -144,7 +144,7 @@ MODULE tmc_tree_types
       !-- status (e.g. calculated, MD calculation, accepted...)
       INTEGER                                      :: stat = -99
       !-- remember if configuration in node are swaped
-      LOGICAL                                      :: swaped
+      LOGICAL                                      :: swaped = .FALSE.
       !-- stores the index of the configuration (temperature)
       !   which is changed
       INTEGER                                      :: mv_conf = -54321
@@ -158,12 +158,12 @@ MODULE tmc_tree_types
       !TODO store conf_n_acc in a bitshifted array to decrease the size (1Logical = 1Byte)
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: conf_n_acc
       INTEGER :: nr ! tree node number
-      REAL(KIND=dp), DIMENSION(3, 2, 3)            :: rng_seed ! random seed for childs
+      REAL(KIND=dp), DIMENSION(3, 2, 3)            :: rng_seed = 0.0_dp ! random seed for childs
       !-- random number for acceptance check
-      REAL(KIND=dp)                                :: rnd_nr
+      REAL(KIND=dp)                                :: rnd_nr = 0.0_dp
       !-- approximate probability of acceptance will be adapted while calculating the exact energy
-      REAL(KIND=dp)                                :: prob_acc ! estimated acceptance probability
-      REAL(KIND=dp)                                :: Temp ! temperature for simulated annealing
+      REAL(KIND=dp)                                :: prob_acc = 0.0_dp ! estimated acceptance probability
+      REAL(KIND=dp)                                :: Temp = 0.0_dp ! temperature for simulated annealing
    END TYPE global_tree_type
 
 CONTAINS

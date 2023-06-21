@@ -52,19 +52,19 @@ MODULE glbopt_worker
 
    TYPE glbopt_worker_type
       PRIVATE
-      INTEGER                                  :: id
-      INTEGER                                  :: iw
-      INTEGER                                  :: f_env_id
-      TYPE(f_env_type), POINTER                :: f_env
-      TYPE(force_env_type), POINTER            :: force_env
-      TYPE(cp_subsys_type), POINTER            :: subsys
-      TYPE(section_vals_type), POINTER         :: root_section
-      TYPE(global_environment_type), POINTER   :: globenv
-      INTEGER                                  :: gopt_max_iter
-      INTEGER                                  :: bump_steps_downwards
-      INTEGER                                  :: bump_steps_upwards
-      INTEGER                                  :: md_bumps_max
-      REAL(KIND=dp)                            :: fragmentation_threshold
+      INTEGER                                  :: id = -1
+      INTEGER                                  :: iw = -1
+      INTEGER                                  :: f_env_id = -1
+      TYPE(f_env_type), POINTER                :: f_env => NULL()
+      TYPE(force_env_type), POINTER            :: force_env => NULL()
+      TYPE(cp_subsys_type), POINTER            :: subsys => NULL()
+      TYPE(section_vals_type), POINTER         :: root_section => NULL()
+      TYPE(global_environment_type), POINTER   :: globenv => NULL()
+      INTEGER                                  :: gopt_max_iter = 0
+      INTEGER                                  :: bump_steps_downwards = 0
+      INTEGER                                  :: bump_steps_upwards = 0
+      INTEGER                                  :: md_bumps_max = 0
+      REAL(KIND=dp)                            :: fragmentation_threshold = 0.0_dp
       INTEGER                                  :: n_atoms = -1
       !REAL(KIND=dp)                            :: adaptive_timestep = 0.0
    END TYPE glbopt_worker_type

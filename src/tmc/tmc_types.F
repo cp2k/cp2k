@@ -60,11 +60,11 @@ MODULE tmc_types
 
    ! global environment
    TYPE tmc_env_type
-      TYPE(tmc_comp_set_type), POINTER              :: tmc_comp_set
-      TYPE(tmc_param_type), POINTER                 :: params
+      TYPE(tmc_comp_set_type), POINTER              :: tmc_comp_set => NULL()
+      TYPE(tmc_param_type), POINTER                 :: params => NULL()
       TYPE(rng_stream_type), ALLOCATABLE            :: rng_stream
-      TYPE(master_env_type), POINTER                :: m_env
-      TYPE(worker_env_type), POINTER                :: w_env
+      TYPE(master_env_type), POINTER                :: m_env => NULL()
+      TYPE(worker_env_type), POINTER                :: w_env => NULL()
    END TYPE tmc_env_type
 
    ! structure for remembering the main values used for reordering MPI communicators
@@ -72,99 +72,98 @@ MODULE tmc_types
    !                  then the Configurational Change groups,
    !                  the global master has group 0 and unused cores have negative group numbering
    TYPE tmc_comp_set_type
-      INTEGER                                       :: group_ener_size
-      INTEGER                                       :: group_ener_nr
-      INTEGER                                       :: group_cc_size
-      INTEGER                                       :: group_cc_nr
-      INTEGER                                       :: group_nr
-      INTEGER                                       :: ana_on_the_fly
+      INTEGER                                       :: group_ener_size = 0
+      INTEGER                                       :: group_ener_nr = 0
+      INTEGER                                       :: group_cc_size = 0
+      INTEGER                                       :: group_cc_nr = 0
+      INTEGER                                       :: group_nr = 0
+      INTEGER                                       :: ana_on_the_fly = -1
       ! the communicators (para_env)
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_w
-      TYPE(mp_para_env_type), POINTER               :: para_env_sub_group
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_first_w
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_ana
-      TYPE(mp_para_env_type), POINTER               :: para_env_m_only
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_w => NULL()
+      TYPE(mp_para_env_type), POINTER               :: para_env_sub_group => NULL()
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_first_w => NULL()
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_ana => NULL()
+      TYPE(mp_para_env_type), POINTER               :: para_env_m_only => NULL()
    END TYPE tmc_comp_set_type
 
    ! struct for TMC global variables
    TYPE tmc_param_type
-      INTEGER                                       :: task_type
-      INTEGER                                       :: dim_per_elem
-      INTEGER                                       :: nr_temp
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: Temp
-      TYPE(cell_type), POINTER                      :: cell
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: sub_box_size
-      TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
+      INTEGER                                       :: task_type = task_type_MC
+      INTEGER                                       :: dim_per_elem = 3
+      INTEGER                                       :: nr_temp = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: Temp => NULL()
+      TYPE(cell_type), POINTER                      :: cell => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: sub_box_size => NULL()
+      TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms => NULL()
 
-      INTEGER                                       :: nr_elem_mv
-      TYPE(tmc_move_type), POINTER                  :: move_types
-      TYPE(tmc_move_type), POINTER                  :: nmc_move_types
-      REAL(KIND=dp)                                 :: pressure
-      LOGICAL                                       :: v_isotropic
-      LOGICAL                                       :: mv_cen_of_mass
-      LOGICAL                                       :: esimate_acc_prob
-      LOGICAL                                       :: SPECULATIVE_CANCELING
-      LOGICAL                                       :: use_scf_energy_info
-      LOGICAL                                       :: USE_REDUCED_TREE
-      CHARACTER(LEN=default_path_length)          :: energy_inp_file
-      CHARACTER(LEN=default_path_length)          :: NMC_inp_file
-      LOGICAL                                       :: DRAW_TREE
-      CHARACTER(LEN=default_path_length)          :: dot_file_name
-      CHARACTER(LEN=default_path_length)          :: all_conf_file_name
-      LOGICAL                                       :: print_only_diff_conf
-      LOGICAL                                       :: print_trajectory
-      LOGICAL                                       :: print_dipole
-      LOGICAL                                       :: print_forces
-      LOGICAL                                       :: print_cell
-      LOGICAL                                       :: print_energies
-      TYPE(prior_estimate_acceptance_type), POINTER :: prior_NMC_acc
-      LOGICAL                                       :: print_test_output
+      INTEGER                                       :: nr_elem_mv = -1
+      TYPE(tmc_move_type), POINTER                  :: move_types => NULL()
+      TYPE(tmc_move_type), POINTER                  :: nmc_move_types => NULL()
+      REAL(KIND=dp)                                 :: pressure = 0.0_dp
+      LOGICAL                                       :: v_isotropic = .FALSE.
+      LOGICAL                                       :: mv_cen_of_mass = .FALSE.
+      LOGICAL                                       :: esimate_acc_prob = .FALSE.
+      LOGICAL                                       :: SPECULATIVE_CANCELING = .FALSE.
+      LOGICAL                                       :: use_scf_energy_info = .FALSE.
+      LOGICAL                                       :: USE_REDUCED_TREE = .FALSE.
+      CHARACTER(LEN=default_path_length)          :: energy_inp_file = ""
+      CHARACTER(LEN=default_path_length)          :: NMC_inp_file = ""
+      LOGICAL                                       :: DRAW_TREE = .FALSE.
+      CHARACTER(LEN=default_path_length)          :: dot_file_name = ""
+      CHARACTER(LEN=default_path_length)          :: all_conf_file_name = ""
+      LOGICAL                                       :: print_only_diff_conf = .FALSE.
+      LOGICAL                                       :: print_trajectory = .FALSE.
+      LOGICAL                                       :: print_dipole = .FALSE.
+      LOGICAL                                       :: print_forces = .FALSE.
+      LOGICAL                                       :: print_cell = .FALSE.
+      LOGICAL                                       :: print_energies = .FALSE.
+      TYPE(prior_estimate_acceptance_type), POINTER :: prior_NMC_acc => NULL()
+      LOGICAL                                       :: print_test_output = .FALSE.
    END TYPE tmc_param_type
 
    TYPE tmc_atom_type
-      CHARACTER(LEN=default_string_length)   :: name
-      REAL(KIND=dp)                        :: mass
-      !TYPE(atomic_kind_type), POINTER :: atomic_kind
+      CHARACTER(LEN=default_string_length)   :: name = ""
+      REAL(KIND=dp)                        :: mass = 0.0_dp
    END TYPE
 
    ! to estimate the prior acceptance
    TYPE prior_estimate_acceptance_type
-      INTEGER :: counter
-      REAL(KIND=dp) :: aver, aver_2
+      INTEGER :: counter = 0
+      REAL(KIND=dp) :: aver = 0.0_dp, aver_2 = 0.0_dp
    END TYPE prior_estimate_acceptance_type
 
    ! environments for the master
    TYPE master_env_type
-      INTEGER                                       :: num_MC_elem ! the specified number of Markov Chain elements, to be reached
-      CHARACTER(LEN=default_path_length)          :: restart_in_file_name
-      CHARACTER(LEN=default_path_length)          :: restart_out_file_name
-      INTEGER                                       :: restart_out_step
-      INTEGER                                       :: io_unit
-      INTEGER                                       :: info_out_step_size
-      REAL(KIND=dp)                                 :: walltime
-      INTEGER                                       :: rnd_init
-      REAL(KIND=dp)                                 :: temp_decrease ! for simulated annealing
-      TYPE(elem_list_type), POINTER                 :: cancelation_list
-      INTEGER                                       :: count_cancel_ener
-      INTEGER                                       :: count_cancel_NMC
+      INTEGER                                       :: num_MC_elem = 0! the specified number of Markov Chain elements, to be reached
+      CHARACTER(LEN=default_path_length)          :: restart_in_file_name = ""
+      CHARACTER(LEN=default_path_length)          :: restart_out_file_name = ""
+      INTEGER                                       :: restart_out_step = 0
+      INTEGER                                       :: io_unit = -1
+      INTEGER                                       :: info_out_step_size = 0
+      REAL(KIND=dp)                                 :: walltime = 0.0_dp
+      INTEGER                                       :: rnd_init = 0
+      REAL(KIND=dp)                                 :: temp_decrease = 0.0_dp ! for simulated annealing
+      TYPE(elem_list_type), POINTER                 :: cancelation_list => NULL()
+      INTEGER                                       :: count_cancel_ener = 0
+      INTEGER                                       :: count_cancel_NMC = 0
       ! masters tree stuff
-      TYPE(global_tree_type), POINTER               :: gt_head, gt_act
-      INTEGER, DIMENSION(:), POINTER                :: tree_node_count
-      INTEGER, DIMENSION(:), POINTER                :: result_count
+      TYPE(global_tree_type), POINTER               :: gt_head => NULL(), gt_act => NULL()
+      INTEGER, DIMENSION(:), POINTER                :: tree_node_count => NULL()
+      INTEGER, DIMENSION(:), POINTER                :: result_count => NULL()
       TYPE(elem_array_type), DIMENSION(:), &
-         POINTER                                  :: result_list, &
-                                                     st_heads, &
-                                                     st_clean_ends
-      TYPE(global_tree_type), POINTER              :: gt_clean_end
-      INTEGER, DIMENSION(4)                         :: estim_corr_wrong
-      TYPE(elem_list_type), POINTER                 :: analysis_list
+         POINTER                                  :: result_list => NULL(), &
+                                                     st_heads => NULL(), &
+                                                     st_clean_ends => NULL()
+      TYPE(global_tree_type), POINTER              :: gt_clean_end => NULL()
+      INTEGER, DIMENSION(4)                         :: estim_corr_wrong = 0
+      TYPE(elem_list_type), POINTER                 :: analysis_list => NULL()
    END TYPE master_env_type
 
    ! environment for the worker
    TYPE worker_env_type
-      INTEGER                                       :: env_id_ener, env_id_approx
-      INTEGER                                       :: io_unit
-      REAL(KIND=dp)                                 :: act_temp
+      INTEGER                                       :: env_id_ener = -1, env_id_approx = -1
+      INTEGER                                       :: io_unit = -1
+      REAL(KIND=dp)                                 :: act_temp = 0.0_dp
    END TYPE worker_env_type
 
 CONTAINS
@@ -189,45 +188,11 @@ CONTAINS
 
       ALLOCATE (tmc_env%tmc_comp_set)
 
-      tmc_env%tmc_comp_set%group_ener_size = 0
-      tmc_env%tmc_comp_set%group_ener_nr = 0
-      tmc_env%tmc_comp_set%group_cc_size = 0
-      tmc_env%tmc_comp_set%group_cc_nr = 0
-      tmc_env%tmc_comp_set%group_nr = 0
-      tmc_env%tmc_comp_set%ana_on_the_fly = 0
-      NULLIFY (tmc_env%tmc_comp_set%para_env_m_w)
-      NULLIFY (tmc_env%tmc_comp_set%para_env_sub_group)
-      NULLIFY (tmc_env%tmc_comp_set%para_env_m_first_w)
-      NULLIFY (tmc_env%tmc_comp_set%para_env_m_ana)
-      NULLIFY (tmc_env%tmc_comp_set%para_env_m_only)
-
-      NULLIFY (tmc_env%m_env, tmc_env%w_env)
-
       ! initialize the parameter section
       ALLOCATE (tmc_env%params)
 
-      tmc_env%params%task_type = task_type_MC
-      ! dim_per_elem can be variable somewhen,
-      !  I used it originally for the n dimension oscillator,
-      !  where each dimension is a single position
-      tmc_env%params%dim_per_elem = 3
-      tmc_env%params%nr_elem_mv = -1
-      tmc_env%params%nr_temp = -1
       ALLOCATE (tmc_env%params%sub_box_size(tmc_env%params%dim_per_elem))
       tmc_env%params%sub_box_size(:) = -1.0_dp
-      tmc_env%params%pressure = -1
-      tmc_env%params%SPECULATIVE_CANCELING = .FALSE.
-      tmc_env%params%use_scf_energy_info = .FALSE.
-      tmc_env%params%energy_inp_file = ""
-      tmc_env%params%NMC_inp_file = ""
-      tmc_env%params%DRAW_TREE = .FALSE.
-      tmc_env%params%print_dipole = .FALSE.
-      tmc_env%params%print_forces = .FALSE.
-      tmc_env%params%print_cell = .FALSE.
-      NULLIFY (tmc_env%params%Temp, tmc_env%params%nmc_move_types, &
-               tmc_env%params%move_types, &
-               tmc_env%params%prior_NMC_acc, tmc_env%params%atoms, &
-               tmc_env%params%cell)
 
       CALL timestop(handle)
 
@@ -433,8 +398,6 @@ CONTAINS
       CPASSERT(nr_atoms .GT. 0)
 
       ALLOCATE (atoms(nr_atoms))
-      atoms%name = ""
-      atoms%mass = 0.0_dp
 
       CPASSERT(ASSOCIATED(atoms))
 
