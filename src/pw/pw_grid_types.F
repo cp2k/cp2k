@@ -15,6 +15,7 @@ MODULE pw_grid_types
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_null,&
                                               mp_comm_type
 #include "../base/base_uses.f90"
 
@@ -30,64 +31,64 @@ MODULE pw_grid_types
    ! maps to positive and negative g-vectors
 ! **************************************************************************************************
    TYPE map_pn
-      INTEGER, DIMENSION(:), POINTER :: pos, neg
+      INTEGER, DIMENSION(:), POINTER :: pos => NULL(), neg => NULL()
    END TYPE map_pn
 
 ! info on parallelisation
    ! contains only significant information if mode == PW_MODE_DISTRIBUTED
 ! **************************************************************************************************
    TYPE pw_para_type
-      INTEGER :: mode ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
-      LOGICAL :: ray_distribution ! block or pencil distribution
-      LOGICAL :: blocked ! block or pencil distribution
-      TYPE(mp_comm_type) :: group ! MPI group
-      INTEGER :: my_pos ! Position within group
-      INTEGER :: group_size ! # of Processors in group
-      LOGICAL :: group_head ! Master process within group
-      INTEGER :: group_head_id ! Id of group_head
-      INTEGER, DIMENSION(:, :, :), POINTER :: yzp ! g-space rays (xy,k,pe)
-      INTEGER, DIMENSION(:, :), POINTER :: yzq ! local inverse pointer of yzp
-      INTEGER, DIMENSION(:), POINTER :: nyzray ! number of g-space rays (pe)
-      TYPE(mp_cart_type) :: rs_group ! real space group (2-dim cart)
-      INTEGER :: rs_mpo ! real space group position
-      INTEGER, DIMENSION(2) :: rs_dims ! real space group dimensions
-      INTEGER, DIMENSION(2) :: rs_pos ! real space group positions in grid
-      INTEGER, DIMENSION(:, :, :, :), POINTER :: bo ! list of axis distribution
-      INTEGER, DIMENSION(:), POINTER :: pos_of_x ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
+      INTEGER :: mode = PW_MODE_LOCAL ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
+      LOGICAL :: ray_distribution = .FALSE. ! block or pencil distribution
+      LOGICAL :: blocked = .FALSE. ! block or pencil distribution
+      TYPE(mp_comm_type) :: group = mp_comm_null ! MPI group
+      INTEGER :: my_pos = -1! Position within group
+      INTEGER :: group_size = -1! # of Processors in group
+      LOGICAL :: group_head = .FALSE. ! Master process within group
+      INTEGER :: group_head_id = -1 ! Id of group_head
+      INTEGER, DIMENSION(:, :, :), POINTER :: yzp => NULL() ! g-space rays (xy,k,pe)
+      INTEGER, DIMENSION(:, :), POINTER :: yzq => NULL() ! local inverse pointer of yzp
+      INTEGER, DIMENSION(:), POINTER :: nyzray => NULL() ! number of g-space rays (pe)
+      TYPE(mp_cart_type) :: rs_group = mp_cart_type() ! real space group (2-dim cart)
+      INTEGER :: rs_mpo = -1 ! real space group position
+      INTEGER, DIMENSION(2) :: rs_dims = -1 ! real space group dimensions
+      INTEGER, DIMENSION(2) :: rs_pos = -1 ! real space group positions in grid
+      INTEGER, DIMENSION(:, :, :, :), POINTER :: bo => NULL() ! list of axis distribution
+      INTEGER, DIMENSION(:), POINTER :: pos_of_x => NULL() ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
    END TYPE pw_para_type
 
    ! all you always wanted to know about grids, but were...
 ! **************************************************************************************************
    TYPE pw_grid_type
-      INTEGER(int_8) :: ngpts ! # grid points
-      INTEGER(int_8) :: ngpts_cut ! # grid points within cutoff
-      INTEGER, DIMENSION(2, 3) :: bounds ! lower and upper bounds
-      INTEGER, DIMENSION(3) :: npts ! # point in all directions
-      INTEGER :: ngpts_local ! # grid points
-      INTEGER :: ngpts_cut_local ! # grid points within cutoff
-      INTEGER, DIMENSION(2, 3) :: bounds_local ! bounds on local process
-      INTEGER, DIMENSION(3) :: npts_local ! local version of npts
-      REAL(KIND=dp), DIMENSION(3) :: dr ! grid spacing
-      REAL(KIND=dp), DIMENSION(3, 3) :: dh ! incremental cell matrix
-      REAL(KIND=dp), DIMENSION(3, 3) :: dh_inv ! inverse incremental cell matrix
-      LOGICAL :: orthorhombic ! cell symmetry
-      REAL(KIND=dp) :: dvol, vol ! volume element, volume
-      REAL(KIND=dp) :: cutoff ! cutoff in a.u.
-      TYPE(map_pn) :: mapl, mapm, mapn ! mapping 1D => 3D
-      TYPE(pw_para_type) :: para ! information on parallelisation
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: g ! grid point vectors
-      REAL(KIND=dp), DIMENSION(:), POINTER :: gsq ! squared vector lengths
-      INTEGER, DIMENSION(:, :), POINTER :: g_hat ! grid point indices (Miller)
-      INTEGER, DIMENSION(:, :), POINTER :: g_hatmap ! mapped grid point indices (Miller) [CUDA]
-      INTEGER :: grid_span ! type HALFSPACE/FULLSPACE
-      LOGICAL :: have_g0 ! whether I have G = [0,0,0]
-      INTEGER :: first_gne0 ! first g index /= 0 [1/2]
-      INTEGER :: id_nr ! tag of this grid
-      INTEGER :: reference ! reference grid identifier
-      INTEGER, DIMENSION(:), POINTER :: gidx ! ref grid index
-      INTEGER :: ref_count ! reference count
-      LOGICAL :: spherical ! spherical cutoff?
-      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER :: grays ! used by parallel 3D FFT routine
+      INTEGER(int_8) :: ngpts = 0_int_8 ! # grid points
+      INTEGER(int_8) :: ngpts_cut = 0_int_8 ! # grid points within cutoff
+      INTEGER, DIMENSION(2, 3) :: bounds = 0 ! lower and upper bounds
+      INTEGER, DIMENSION(3) :: npts = 0 ! # point in all directions
+      INTEGER :: ngpts_local = 0 ! # grid points
+      INTEGER :: ngpts_cut_local = 0 ! # grid points within cutoff
+      INTEGER, DIMENSION(2, 3) :: bounds_local = 0 ! bounds on local process
+      INTEGER, DIMENSION(3) :: npts_local = 0 ! local version of npts
+      REAL(KIND=dp), DIMENSION(3) :: dr = 0.0_dp ! grid spacing
+      REAL(KIND=dp), DIMENSION(3, 3) :: dh = 0.0_dp ! incremental cell matrix
+      REAL(KIND=dp), DIMENSION(3, 3) :: dh_inv = 0.0_dp ! inverse incremental cell matrix
+      LOGICAL :: orthorhombic = .TRUE. ! cell symmetry
+      REAL(KIND=dp) :: dvol = 0.0_dp, vol = 0.0_dp ! volume element, volume
+      REAL(KIND=dp) :: cutoff = 0.0_dp ! cutoff in a.u.
+      TYPE(map_pn) :: mapl = map_pn(), mapm = map_pn(), mapn = map_pn() ! mapping 1D => 3D
+      TYPE(pw_para_type) :: para = pw_para_type() ! information on parallelisation
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: g => NULL() ! grid point vectors
+      REAL(KIND=dp), DIMENSION(:), POINTER :: gsq => NULL() ! squared vector lengths
+      INTEGER, DIMENSION(:, :), POINTER :: g_hat => NULL() ! grid point indices (Miller)
+      INTEGER, DIMENSION(:, :), POINTER :: g_hatmap => NULL() ! mapped grid point indices (Miller) [CUDA]
+      INTEGER :: grid_span = FULLSPACE ! type HALFSPACE/FULLSPACE
+      LOGICAL :: have_g0 = .TRUE. ! whether I have G = [0,0,0]
+      INTEGER :: first_gne0 = 0 ! first g index /= 0 [1/2]
+      INTEGER :: id_nr = -1 ! tag of this grid
+      INTEGER :: reference = -1 ! reference grid identifier
+      INTEGER, DIMENSION(:), POINTER :: gidx => NULL() ! ref grid index
+      INTEGER :: ref_count = 0 ! reference count
+      LOGICAL :: spherical = .FALSE. ! spherical cutoff?
+      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER :: grays => NULL() ! used by parallel 3D FFT routine
    END TYPE pw_grid_type
 
 END MODULE pw_grid_types
