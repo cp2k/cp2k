@@ -150,22 +150,11 @@ dbcsr_vector.F: Found type block_ptr_s without initializer https://cp2k.org/conv
 dbcsr_vector.F: Found type block_ptr_z without initializer https://cp2k.org/conv#c016
 dbcsr_vector.F: Found type fast_vec_access_type without initializer https://cp2k.org/conv#c016
 dbcsr_vector.F: Found type hash_table_type without initializer https://cp2k.org/conv#c016
-dct.F: Found type dct_type without initializer https://cp2k.org/conv#c016
 dgemm_counter_types.F: Found type dgemm_counter_type without initializer https://cp2k.org/conv#c016
-dg_rho0_types.F: Found type dg_rho0_type without initializer https://cp2k.org/conv#c016
-dg_types.F: Found type dg_p_type without initializer https://cp2k.org/conv#c016
-dg_types.F: Found type dg_type without initializer https://cp2k.org/conv#c016
-dielectric_types.F: Found type dielectric_parameters without initializer https://cp2k.org/conv#c016
-dielectric_types.F: Found type dielectric_type without initializer https://cp2k.org/conv#c016
 dimer_types.F: Found type dimer_cg_rot_type without initializer https://cp2k.org/conv#c016
 dimer_types.F: Found type dimer_env_type without initializer https://cp2k.org/conv#c016
 dimer_types.F: Found type dimer_rotational_type without initializer https://cp2k.org/conv#c016
 dimer_types.F: Found type dimer_translational_type without initializer https://cp2k.org/conv#c016
-dirichlet_bc_types.F: Found type dirichlet_bc_parameters without initializer https://cp2k.org/conv#c016
-dirichlet_bc_types.F: Found type dirichlet_bc_p_type without initializer https://cp2k.org/conv#c016
-dirichlet_bc_types.F: Found type dirichlet_bc_type without initializer https://cp2k.org/conv#c016
-dirichlet_bc_types.F: Found type tile_p_type without initializer https://cp2k.org/conv#c016
-dirichlet_bc_types.F: Found type tile_type without initializer https://cp2k.org/conv#c016
 distribution_2d_types.F: Found type distribution_2d_type without initializer https://cp2k.org/conv#c016
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
@@ -522,8 +511,6 @@ preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
 preconditioner_types.F: Found type preconditioner_p_type without initializer https://cp2k.org/conv#c016
 preconditioner_types.F: Found type preconditioner_type without initializer https://cp2k.org/conv#c016
-ps_implicit_types.F: Found type ps_implicit_parameters without initializer https://cp2k.org/conv#c016
-ps_implicit_types.F: Found type ps_implicit_type without initializer https://cp2k.org/conv#c016
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "f_poissonsolver" https://cp2k.org/conv#c012
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "p_poissonsolver" https://cp2k.org/conv#c012
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "s_poissonsolver" https://cp2k.org/conv#c012
@@ -533,7 +520,6 @@ ps_wavelet_kernel.F: Found WRITE statement with hardcoded unit in "indices" http
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "ftest" https://cp2k.org/conv#c012
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "scaling_function" https://cp2k.org/conv#c012
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wavelet_function" https://cp2k.org/conv#c012
-ps_wavelet_types.F: Found type ps_wavelet_type without initializer https://cp2k.org/conv#c016
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions" https://cp2k.org/conv#c012
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions" https://cp2k.org/conv#c012
 pwdft_environment_types.F: Found type pwdft_energy_type without initializer https://cp2k.org/conv#c016

@@ -31,26 +31,31 @@ MODULE ps_implicit_types
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_implicit_types'
 
+   INTEGER, PARAMETER, PUBLIC           :: PERIODIC_BC = 0, &
+                                           MIXED_BC = 1, &
+                                           MIXED_PERIODIC_BC = 2, &
+                                           NEUMANN_BC = 3
+
    TYPE :: ps_implicit_parameters
-      INTEGER                           :: boundary_condition
-      LOGICAL                           :: zero_initial_guess
-      INTEGER                           :: max_iter
-      REAL(KIND=dp)                     :: tol
-      REAL(KIND=dp)                     :: omega
-      INTEGER                           :: neumann_directions
+      INTEGER                           :: boundary_condition = PERIODIC_BC
+      LOGICAL                           :: zero_initial_guess = .FALSE.
+      INTEGER                           :: max_iter = 0
+      REAL(KIND=dp)                     :: tol = 0.0_dp
+      REAL(KIND=dp)                     :: omega = 0.0_dp
+      INTEGER                           :: neumann_directions = 0
    END TYPE ps_implicit_parameters
 
    TYPE :: ps_implicit_type
-      LOGICAL                           :: do_dbc_cube
-      TYPE(dielectric_type), POINTER    :: dielectric
-      TYPE(dct_type)                    :: dct_env
-      TYPE(pw_type), POINTER            :: initial_guess
-      TYPE(pw_type), POINTER            :: v_eps
-      TYPE(pw_type), POINTER            :: cstr_charge
+      LOGICAL                           :: do_dbc_cube = .FALSE.
+      TYPE(dielectric_type), POINTER    :: dielectric => NULL()
+      TYPE(dct_type)                    :: dct_env = dct_type()
+      TYPE(pw_type), POINTER            :: initial_guess => NULL()
+      TYPE(pw_type), POINTER            :: v_eps => NULL()
+      TYPE(pw_type), POINTER            :: cstr_charge => NULL()
       REAL(dp), DIMENSION(:), POINTER   :: initial_lambda => NULL()
-      REAL(dp)                          :: ehartree
-      REAL(dp)                          :: electric_enthalpy
-      INTEGER                           :: times_called
+      REAL(dp)                          :: ehartree = 0.0_dp
+      REAL(dp)                          :: electric_enthalpy = 0.0_dp
+      INTEGER                           :: times_called = 0
       TYPE(dirichlet_bc_p_type), &
          DIMENSION(:), POINTER           :: contacts => NULL()
       REAL(dp), DIMENSION(:, :), POINTER :: QS => NULL()
@@ -67,10 +72,6 @@ MODULE ps_implicit_types
    PUBLIC ps_implicit_type, ps_implicit_parameters
    PUBLIC ps_implicit_release
 
-   INTEGER, PARAMETER, PUBLIC           :: PERIODIC_BC = 0, &
-                                           MIXED_BC = 1, &
-                                           MIXED_PERIODIC_BC = 2, &
-                                           NEUMANN_BC = 3
 CONTAINS
 
 ! **************************************************************************************************
