@@ -1528,12 +1528,10 @@ CONTAINS
          ! decide whether to add spin-orbit splitting of bands, spin-orbit coupling strength comes from
          ! Hartwigsen parametrization (1999) of GTH pseudopotentials
          IF (mp2_env%ri_g0w0%soc_type .NE. soc_none) THEN
-
             CALL calculate_and_print_soc(qs_env, Eigenval_scf, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
                                          homo, unit_nr, do_soc_gw=.FALSE., do_soc_scf=.TRUE.)
             CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
                                          homo, unit_nr, do_soc_gw=.TRUE., do_soc_scf=.FALSE.)
-
          END IF
 
          DEALLOCATE (z_value)
