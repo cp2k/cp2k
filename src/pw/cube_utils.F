@@ -32,20 +32,20 @@ MODULE cube_utils
              compute_cube_center
 
    TYPE :: cube_ptr
-      INTEGER, POINTER, DIMENSION(:) :: p
+      INTEGER, POINTER, DIMENSION(:) :: p => NULL()
    END TYPE cube_ptr
 
    TYPE :: cube_info_type
-      INTEGER                      :: max_radius
-      REAL(KIND=dp)              :: dr(3), drmin
-      REAL(KIND=dp)              :: dh(3, 3)
-      REAL(KIND=dp)              :: dh_inv(3, 3)
-      LOGICAL                      :: orthorhombic
-      INTEGER, POINTER             :: lb_cube(:, :)
-      INTEGER, POINTER             :: ub_cube(:, :)
-      TYPE(cube_ptr), POINTER, DIMENSION(:)  :: sphere_bounds
-      INTEGER, POINTER             :: sphere_bounds_count(:)
-      REAL(KIND=dp)              :: max_rad_ga
+      INTEGER                      :: max_radius = 0.0_dp
+      REAL(KIND=dp)              :: dr(3) = 0.0_dp, drmin = 0.0_dp
+      REAL(KIND=dp)              :: dh(3, 3) = 0.0_dp
+      REAL(KIND=dp)              :: dh_inv(3, 3) = 0.0_dp
+      LOGICAL                      :: orthorhombic = .TRUE.
+      INTEGER, POINTER             :: lb_cube(:, :) => NULL()
+      INTEGER, POINTER             :: ub_cube(:, :) => NULL()
+      TYPE(cube_ptr), POINTER, DIMENSION(:)  :: sphere_bounds => NULL()
+      INTEGER, POINTER             :: sphere_bounds_count(:) => NULL()
+      REAL(KIND=dp)              :: max_rad_ga = 0.0_dp
    END TYPE cube_info_type
 
 CONTAINS

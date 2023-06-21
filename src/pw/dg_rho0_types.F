@@ -40,13 +40,13 @@ MODULE dg_rho0_types
 !>              zet = Gaussian exponent
 ! **************************************************************************************************
    TYPE dg_rho0_type
-      INTEGER :: TYPE
-      INTEGER :: grid
-      INTEGER :: kind
-      REAL(KIND=dp) :: cutoff_radius
-      REAL(KIND=dp), DIMENSION(:), POINTER :: gcc
-      REAL(KIND=dp), DIMENSION(:), POINTER :: zet
-      TYPE(pw_type), POINTER :: density
+      INTEGER :: TYPE = do_ewald_none
+      INTEGER :: grid = 0
+      INTEGER :: kind = 0
+      REAL(KIND=dp) :: cutoff_radius = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: gcc => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: zet => NULL()
+      TYPE(pw_type), POINTER :: density => NULL()
    END TYPE dg_rho0_type
 
 CONTAINS
@@ -121,13 +121,6 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
 
       ALLOCATE (dg_rho0)
-      NULLIFY (dg_rho0%gcc)
-      NULLIFY (dg_rho0%zet)
-      dg_rho0%cutoff_radius = 0.0_dp
-      dg_rho0%grid = 0
-      dg_rho0%kind = 0
-      dg_rho0%type = do_ewald_none
-      NULLIFY (dg_rho0%density)
 
    END SUBROUTINE dg_rho0_create
 

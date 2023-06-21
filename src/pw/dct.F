@@ -39,12 +39,12 @@ MODULE dct
       INTEGER, DIMENSION(:), POINTER     :: srcs_expand => NULL()
       INTEGER, DIMENSION(:), POINTER     :: flipg_stat => NULL()
       INTEGER, DIMENSION(:), POINTER     :: dests_shrink => NULL()
-      INTEGER                            :: srcs_shrink
+      INTEGER                            :: srcs_shrink = 0
       INTEGER, DIMENSION(:, :, :), POINTER :: recv_msgs_bnds => NULL()
-      INTEGER, DIMENSION(2, 3)            :: dct_bounds
-      INTEGER, DIMENSION(2, 3)            :: dct_bounds_local
-      INTEGER, DIMENSION(2, 3)            :: bounds_shftd
-      INTEGER, DIMENSION(2, 3)            :: bounds_local_shftd
+      INTEGER, DIMENSION(2, 3)            :: dct_bounds = 0
+      INTEGER, DIMENSION(2, 3)            :: dct_bounds_local = 0
+      INTEGER, DIMENSION(2, 3)            :: bounds_shftd = 0
+      INTEGER, DIMENSION(2, 3)            :: bounds_local_shftd = 0
    END TYPE dct_type
 
    TYPE dct_msg_type
