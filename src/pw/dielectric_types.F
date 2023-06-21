@@ -26,40 +26,6 @@ MODULE dielectric_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_types'
 
-   TYPE dielectric_parameters
-      LOGICAL                                :: dielec_core_correction
-      INTEGER                                :: dielec_functiontype
-      REAL(KIND=dp)                          :: eps0
-      REAL(KIND=dp)                          :: rho_min
-      REAL(KIND=dp)                          :: rho_max
-      INTEGER                                :: derivative_method
-      INTEGER                                :: times_called
-
-      INTEGER                                :: n_aa_cuboidal
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa_cuboidal_xxtnt => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa_cuboidal_yxtnt => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa_cuboidal_zxtnt => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: aa_cuboidal_eps => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: aa_cuboidal_zeta => NULL()
-
-      INTEGER                                :: n_xaa_annular
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xaa_annular_xxtnt => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xaa_annular_bctr => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xaa_annular_brad => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: xaa_annular_eps => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: xaa_annular_zeta => NULL()
-   END TYPE dielectric_parameters
-
-   TYPE dielectric_type
-      TYPE(dielectric_parameters)       :: params
-      TYPE(pw_type), POINTER            :: eps
-      TYPE(pw_type), POINTER            :: deps_drho
-      TYPE(pw_type), DIMENSION(3)     :: dln_eps
-   END TYPE dielectric_type
-
-   PUBLIC :: dielectric_type, dielectric_parameters
-   PUBLIC :: dielectric_release
-
    INTEGER, PARAMETER, PUBLIC           :: derivative_cd3 = 1, &
                                            derivative_cd5 = 2, &
                                            derivative_cd7 = 3, &
@@ -70,6 +36,41 @@ MODULE dielectric_types
    INTEGER, PARAMETER, PUBLIC           :: rho_dependent = 10, &
                                            spatially_dependent = 20, &
                                            spatially_rho_dependent = 30
+
+   TYPE dielectric_parameters
+      LOGICAL                                :: dielec_core_correction = .FALSE.
+      INTEGER                                :: dielec_functiontype = rho_dependent
+      REAL(KIND=dp)                          :: eps0 = 0.0_dp
+      REAL(KIND=dp)                          :: rho_min = 0.0_dp
+      REAL(KIND=dp)                          :: rho_max = 0.0_dp
+      INTEGER                                :: derivative_method = derivative_cd3
+      INTEGER                                :: times_called = 0
+
+      INTEGER                                :: n_aa_cuboidal = 0
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa_cuboidal_xxtnt => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa_cuboidal_yxtnt => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa_cuboidal_zxtnt => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: aa_cuboidal_eps => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: aa_cuboidal_zeta => NULL()
+
+      INTEGER                                :: n_xaa_annular = 0
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xaa_annular_xxtnt => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xaa_annular_bctr => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xaa_annular_brad => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: xaa_annular_eps => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: xaa_annular_zeta => NULL()
+   END TYPE dielectric_parameters
+
+   TYPE dielectric_type
+      TYPE(dielectric_parameters)       :: params = dielectric_parameters()
+      TYPE(pw_type), POINTER            :: eps => NULL()
+      TYPE(pw_type), POINTER            :: deps_drho => NULL()
+      TYPE(pw_type), DIMENSION(3)     :: dln_eps = pw_type()
+   END TYPE dielectric_type
+
+   PUBLIC :: dielectric_type, dielectric_parameters
+   PUBLIC :: dielectric_release
+
 CONTAINS
 
 ! **************************************************************************************************

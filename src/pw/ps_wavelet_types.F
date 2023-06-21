@@ -34,13 +34,13 @@ MODULE ps_wavelet_types
 !> \author fschiff
 ! **************************************************************************************************
    TYPE ps_wavelet_type
-      CHARACTER(LEN=1)                                  :: geocode
-      CHARACTER(LEN=1)                                  :: datacode
-      INTEGER                                           :: itype_scf
-      INTEGER                                           :: method, special_dimension
-      REAL(kind=dp), POINTER, DIMENSION(:)             :: karray
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rho_z_sliced
-      INTEGER, DIMENSION(3)                              :: PS_grid
+      CHARACTER(LEN=1)                                  :: geocode = " "
+      CHARACTER(LEN=1)                                  :: datacode = " "
+      INTEGER                                           :: itype_scf = 0
+      INTEGER                                           :: method = WAVELET3D, special_dimension = 0
+      REAL(kind=dp), POINTER, DIMENSION(:)             :: karray => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rho_z_sliced => NULL()
+      INTEGER, DIMENSION(3)                              :: PS_grid = 0
    END TYPE ps_wavelet_type
 
 CONTAINS

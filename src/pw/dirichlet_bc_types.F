@@ -27,11 +27,11 @@ MODULE dirichlet_bc_types
 
 ! main types
    TYPE :: dirichlet_bc_parameters
-      LOGICAL                                  :: verbose_output
+      LOGICAL                                  :: verbose_output = .FALSE.
       LOGICAL                                  :: do_dbc_cube = .FALSE.
-      REAL(KIND=dp)                            :: time
+      REAL(KIND=dp)                            :: time = 0.0_dp
 
-      INTEGER                                  :: n_aa_planar
+      INTEGER                                  :: n_aa_planar = 0
       INTEGER, DIMENSION(:, :), POINTER         :: aa_planar_nprtn => NULL()
       INTEGER, DIMENSION(:), POINTER           :: aa_planar_pplane => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_planar_xxtnt => NULL()
@@ -45,7 +45,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_thickness => NULL()
       LOGICAL, DIMENSION(:), POINTER           :: aa_planar_is_periodic => NULL()
 
-      INTEGER                                  :: n_planar
+      INTEGER                                  :: n_planar = 0
       INTEGER, DIMENSION(:, :), POINTER         :: planar_nprtn => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: planar_Avtx => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: planar_Bvtx => NULL()
@@ -59,7 +59,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_thickness => NULL()
       LOGICAL, DIMENSION(:), POINTER           :: planar_is_periodic => NULL()
 
-      INTEGER                                  :: n_aa_cylindrical
+      INTEGER                                  :: n_aa_cylindrical = 0
       INTEGER, DIMENSION(:, :), POINTER         :: aa_cylindrical_nprtn => NULL()
       INTEGER, DIMENSION(:), POINTER           :: aa_cylindrical_paxis => NULL()
       INTEGER, DIMENSION(:), POINTER           :: aa_cylindrical_nsides => NULL()
@@ -76,7 +76,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sgap => NULL()
       LOGICAL, DIMENSION(:), POINTER           :: aa_cylindrical_is_periodic => NULL()
 
-      INTEGER                                  :: n_aa_cuboidal
+      INTEGER                                  :: n_aa_cuboidal = 0
       INTEGER, DIMENSION(:, :), POINTER         :: aa_cuboidal_nprtn => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cuboidal_xxtnt => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cuboidal_yxtnt => NULL()
@@ -90,32 +90,32 @@ MODULE dirichlet_bc_types
    END TYPE dirichlet_bc_parameters
 
    TYPE :: dirichlet_bc_type
-      REAL(dp)                          :: v_D
-      REAL(dp)                          :: osc_frac
-      REAL(dp)                          :: frequency
-      REAL(dp)                          :: phase
-      INTEGER                           :: dbc_id
-      INTEGER                           :: dbc_geom
-      REAL(dp), DIMENSION(3, 8)          :: vertices
+      REAL(dp)                          :: v_D = 0.0_dp
+      REAL(dp)                          :: osc_frac = 0.0_dp
+      REAL(dp)                          :: frequency = 0.0_dp
+      REAL(dp)                          :: phase = 0.0_dp
+      INTEGER                           :: dbc_id = 0
+      INTEGER                           :: dbc_geom = 0
+      REAL(dp), DIMENSION(3, 8)          :: vertices = 0
       TYPE(tile_p_type), &
          DIMENSION(:), POINTER           :: tiles => NULL()
-      INTEGER                           :: n_tiles
-      REAL(dp)                          :: smoothing_width
+      INTEGER                           :: n_tiles = 0
+      REAL(dp)                          :: smoothing_width = 0.0_dp
    END TYPE dirichlet_bc_type
 
    TYPE :: dirichlet_bc_p_type
-      TYPE(dirichlet_bc_type), POINTER  :: dirichlet_bc
+      TYPE(dirichlet_bc_type), POINTER  :: dirichlet_bc => NULL()
    END TYPE dirichlet_bc_p_type
 
    TYPE :: tile_type
-      INTEGER                           :: tile_id
-      REAL(dp), DIMENSION(3, 8)          :: vertices
+      INTEGER                           :: tile_id = 0
+      REAL(dp), DIMENSION(3, 8)          :: vertices = 0
       TYPE(pw_type), POINTER            :: tile_pw => NULL()
-      REAL(dp)                          :: volume
+      REAL(dp)                          :: volume = 0.0_dp
    END TYPE tile_type
 
    TYPE :: tile_p_type
-      TYPE(tile_type), POINTER          :: tile
+      TYPE(tile_type), POINTER          :: tile => NULL()
    END TYPE tile_p_type
 
 ! publicly accessible entities
