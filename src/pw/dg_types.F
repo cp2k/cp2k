@@ -22,14 +22,8 @@ MODULE dg_types
 ! **************************************************************************************************
    TYPE dg_type
       PRIVATE
-      INTEGER :: grid_index = 0
       TYPE(dg_rho0_type), POINTER :: dg_rho0 => NULL()
    END TYPE dg_type
-
-! **************************************************************************************************
-   TYPE dg_p_type
-      TYPE(dg_type), POINTER :: dg
-   END TYPE dg_p_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_types'
 
@@ -43,16 +37,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Get the dg_type
 !> \param dg ...
-!> \param grid_index ...
 !> \param dg_rho0 ...
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE dg_get(dg, grid_index, dg_rho0)
+   SUBROUTINE dg_get(dg, dg_rho0)
       TYPE(dg_type), POINTER                             :: dg
-      INTEGER, OPTIONAL                                  :: grid_index
       TYPE(dg_rho0_type), OPTIONAL, POINTER              :: dg_rho0
 
-      IF (PRESENT(grid_index)) grid_index = dg%grid_index
       IF (PRESENT(dg_rho0)) dg_rho0 => dg%dg_rho0
 
    END SUBROUTINE dg_get
@@ -88,19 +79,16 @@ CONTAINS
 !> \brief   Set the double grid environment
 !> \param dg ...
 !> \param dg_rho0 ...
-!> \param grid_index ...
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE dg_set(dg, dg_rho0, grid_index)
+   SUBROUTINE dg_set(dg, dg_rho0)
       TYPE(dg_type), POINTER                             :: dg
       TYPE(dg_rho0_type), OPTIONAL, POINTER              :: dg_rho0
-      INTEGER, OPTIONAL                                  :: grid_index
 
       IF (PRESENT(dg_rho0)) THEN
          CALL dg_rho0_release(dg%dg_rho0)
          dg%dg_rho0 => dg_rho0
       END IF
-      IF (PRESENT(grid_index)) dg%grid_index = grid_index
    END SUBROUTINE dg_set
 
 END MODULE dg_types

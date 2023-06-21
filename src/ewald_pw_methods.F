@@ -15,7 +15,6 @@ MODULE ewald_pw_methods
                                               dg_rho0_set,&
                                               dg_rho0_type
    USE dg_types,                        ONLY: dg_get,&
-                                              dg_set,&
                                               dg_type
    USE dgs,                             ONLY: dg_grid_change
    USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -154,7 +153,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(dg_type), POINTER                             :: dg
 
-      INTEGER                                            :: ewald_type, grid_index
+      INTEGER                                            :: ewald_type
       REAL(dp)                                           :: alpha
       REAL(dp), POINTER                                  :: gcc(:), zet(:)
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
@@ -162,9 +161,6 @@ CONTAINS
       CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
       CALL dg_get(dg, dg_rho0=dg_rho0)
       CALL dg_rho0_get(dg_rho0, gcc=gcc, zet=zet)
-
-! This is the first ( and only ) double grid
-      grid_index = 1
 
       IF (.NOT. ASSOCIATED(zet)) THEN
          ALLOCATE (zet(1))
@@ -177,8 +173,6 @@ CONTAINS
       CALL dg_rho0_set(dg_rho0, TYPE=ewald_type, zet=zet)
 
       CALL dg_rho0_init(dg_rho0, pw_grid)
-
-      CALL dg_set(dg, grid_index=grid_index)
 
    END SUBROUTINE ewald_pw_rho0_setup
 
