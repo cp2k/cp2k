@@ -22,8 +22,8 @@ MODULE dg_types
 ! **************************************************************************************************
    TYPE dg_type
       PRIVATE
-      INTEGER :: grid_index
-      TYPE(dg_rho0_type), POINTER :: dg_rho0
+      INTEGER :: grid_index = 0
+      TYPE(dg_rho0_type), POINTER :: dg_rho0 => NULL()
    END TYPE dg_type
 
 ! **************************************************************************************************
