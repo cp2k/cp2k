@@ -34,9 +34,9 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
       TYPE ${name}$_list_type
-         INTEGER :: ref_count, n_els
-         LOGICAL :: owns_els
-         ${el_type}$, DIMENSION(:), POINTER :: els
+         INTEGER :: ref_count = 0, n_els = 0
+         LOGICAL :: owns_els = .FALSE.
+         ${el_type}$, DIMENSION(:), POINTER :: els => NULL()
       END TYPE ${name}$_list_type
 
 ! **************************************************************************************************
@@ -47,7 +47,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
       TYPE ${name}$_list_p_type
-         TYPE(${name}$_list_type), POINTER :: list
+         TYPE(${name}$_list_type), POINTER :: list => NULL()
       END TYPE ${name}$_list_p_type
 
       CONTAINS
