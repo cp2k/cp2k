@@ -110,11 +110,11 @@ MODULE pw_spline_utils
 !> \author fawzi
 ! **************************************************************************************************
    TYPE pw_spline_precond_type
-      INTEGER :: kind
-      REAL(kind=dp), DIMENSION(4) :: coeffs
-      REAL(kind=dp), DIMENSION(3) :: coeffs_1d
-      LOGICAL :: sharpen, normalize, pbc, transpose
-      TYPE(pw_pool_type), POINTER :: pool
+      INTEGER :: kind = no_precond
+      REAL(kind=dp), DIMENSION(4) :: coeffs = 0.0_dp
+      REAL(kind=dp), DIMENSION(3) :: coeffs_1d = 0.0_dp
+      LOGICAL :: sharpen = .FALSE., normalize = .FALSE., pbc = .FALSE., transpose = .FALSE.
+      TYPE(pw_pool_type), POINTER :: pool => NULL()
    END TYPE pw_spline_precond_type
 
 CONTAINS

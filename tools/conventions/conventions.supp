@@ -525,15 +525,6 @@ ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimension
 pwdft_environment_types.F: Found type pwdft_energy_type without initializer https://cp2k.org/conv#c016
 pwdft_environment_types.F: Found type pwdft_environment_type without initializer https://cp2k.org/conv#c016
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
-pw_grid_types.F: Found type map_pn without initializer https://cp2k.org/conv#c016
-pw_grid_types.F: Found type pw_grid_type without initializer https://cp2k.org/conv#c016
-pw_grid_types.F: Found type pw_para_type without initializer https://cp2k.org/conv#c016
-pw_poisson_types.F: Found type greens_fn_type without initializer https://cp2k.org/conv#c016
-pw_poisson_types.F: Found type pw_poisson_parameter_type without initializer https://cp2k.org/conv#c016
-pw_poisson_types.F: Found type pw_poisson_type without initializer https://cp2k.org/conv#c016
-pw_pool_types.F: Found type pw_pool_p_type without initializer https://cp2k.org/conv#c016
-pw_pool_types.F: Found type pw_pool_type without initializer https://cp2k.org/conv#c016
-pw_spline_utils.F: Found type pw_spline_precond_type without initializer https://cp2k.org/conv#c016
 qmmm_gaussian_types.F: Found type qmmm_gaussian_p_type without initializer https://cp2k.org/conv#c016
 qmmm_gaussian_types.F: Found type qmmm_gaussian_type without initializer https://cp2k.org/conv#c016
 qmmm_types_low.F: Found type add_env_type without initializer https://cp2k.org/conv#c016
