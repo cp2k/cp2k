@@ -700,10 +700,6 @@ qs_wf_history_types.F: Found type qs_wf_history_p_type without initializer https
 qs_wf_history_types.F: Found type qs_wf_history_type without initializer https://cp2k.org/conv#c016
 qs_wf_history_types.F: Found type qs_wf_snapshot_p_type without initializer https://cp2k.org/conv#c016
 qs_wf_history_types.F: Found type qs_wf_snapshot_type without initializer https://cp2k.org/conv#c016
-realspace_grid_types.F: Found type realspace_grid_desc_p_type without initializer https://cp2k.org/conv#c016
-realspace_grid_types.F: Found type realspace_grid_desc_type without initializer https://cp2k.org/conv#c016
-realspace_grid_types.F: Found type realspace_grid_input_type without initializer https://cp2k.org/conv#c016
-realspace_grid_types.F: Found type realspace_grid_p_type without initializer https://cp2k.org/conv#c016
 reftraj_types.F: Found type reftraj_info_type without initializer https://cp2k.org/conv#c016
 reftraj_types.F: Found type reftraj_msd_type without initializer https://cp2k.org/conv#c016
 reftraj_types.F: Found type reftraj_type without initializer https://cp2k.org/conv#c016

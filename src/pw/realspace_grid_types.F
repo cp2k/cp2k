@@ -82,57 +82,57 @@ MODULE realspace_grid_types
 
 ! **************************************************************************************************
    TYPE realspace_grid_input_type
-      INTEGER       :: distribution_type
-      INTEGER       :: distribution_layout(3)
-      REAL(KIND=dp) :: memory_factor
-      LOGICAL       :: lock_distribution
-      INTEGER       :: nsmax
-      REAL(KIND=dp) :: halo_reduction_factor
+      INTEGER       :: distribution_type = rsgrid_replicated
+      INTEGER       :: distribution_layout(3) = -1
+      REAL(KIND=dp) :: memory_factor = 0.0_dp
+      LOGICAL       :: lock_distribution = .FALSE.
+      INTEGER       :: nsmax = -1
+      REAL(KIND=dp) :: halo_reduction_factor = 1.0_dp
    END TYPE realspace_grid_input_type
 
 ! **************************************************************************************************
    TYPE realspace_grid_desc_type
-      TYPE(pw_grid_type), POINTER   :: pw ! the pw grid
+      TYPE(pw_grid_type), POINTER   :: pw => NULL() ! the pw grid
 
-      INTEGER :: ref_count ! reference count
+      INTEGER :: ref_count = 0 ! reference count
 
-      INTEGER(int_8) :: ngpts ! # grid points
-      INTEGER, DIMENSION(3) :: npts ! # grid points per dimension
-      INTEGER, DIMENSION(3) :: lb ! lower bounds
-      INTEGER, DIMENSION(3) :: ub ! upper bounds
+      INTEGER(int_8) :: ngpts = 0_int_8 ! # grid points
+      INTEGER, DIMENSION(3) :: npts = 0 ! # grid points per dimension
+      INTEGER, DIMENSION(3) :: lb = 0 ! lower bounds
+      INTEGER, DIMENSION(3) :: ub = 0 ! upper bounds
 
-      INTEGER :: border ! border points
+      INTEGER :: border = 0 ! border points
 
-      INTEGER, DIMENSION(3) :: perd ! periodicity enforced
-      REAL(KIND=dp), DIMENSION(3, 3) :: dh ! incremental grid matrix
-      REAL(KIND=dp), DIMENSION(3, 3) :: dh_inv ! inverse incremental grid matrix
-      LOGICAL :: orthorhombic ! grid symmetry
+      INTEGER, DIMENSION(3) :: perd = -1 ! periodicity enforced
+      REAL(KIND=dp), DIMENSION(3, 3) :: dh = 0.0_dp ! incremental grid matrix
+      REAL(KIND=dp), DIMENSION(3, 3) :: dh_inv = 0.0_dp ! inverse incremental grid matrix
+      LOGICAL :: orthorhombic = .TRUE. ! grid symmetry
 
-      LOGICAL :: parallel ! whether the corresponding pw grid is distributed
-      LOGICAL :: distributed ! whether the rs grid is distributed
+      LOGICAL :: parallel = .TRUE. ! whether the corresponding pw grid is distributed
+      LOGICAL :: distributed = .TRUE. ! whether the rs grid is distributed
       ! these MPI related quantities are only meaningful depending on how the grid has been laid out
       ! they are most useful for fully distributed grids, where they reflect the topology of the grid
-      TYPE(mp_comm_type) :: group
-      INTEGER :: my_pos
-      LOGICAL :: group_head
-      INTEGER :: group_size
-      INTEGER, DIMENSION(3) :: group_dim
-      INTEGER, DIMENSION(3) :: group_coor
-      INTEGER, DIMENSION(3) :: neighbours
+      TYPE(mp_comm_type) :: group = mp_comm_null
+      INTEGER :: my_pos = -1
+      LOGICAL :: group_head = .FALSE.
+      INTEGER :: group_size = 0
+      INTEGER, DIMENSION(3) :: group_dim = -1
+      INTEGER, DIMENSION(3) :: group_coor = -1
+      INTEGER, DIMENSION(3) :: neighbours = -1
       ! only meaningful on distributed grids
       ! a list of bounds for each CPU
-      INTEGER, DIMENSION(:, :), POINTER :: lb_global
-      INTEGER, DIMENSION(:, :), POINTER :: ub_global
+      INTEGER, DIMENSION(:, :), POINTER :: lb_global => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: ub_global => NULL()
       ! a mapping from linear rank to 3d coord
-      INTEGER, DIMENSION(:, :), POINTER :: rank2coord
-      INTEGER, DIMENSION(:, :, :), POINTER :: coord2rank
+      INTEGER, DIMENSION(:, :), POINTER :: rank2coord => NULL()
+      INTEGER, DIMENSION(:, :, :), POINTER :: coord2rank => NULL()
       ! a mapping from index to rank (which allows to figure out easily on which rank a given point of the grid is)
-      INTEGER, DIMENSION(:), POINTER :: x2coord
-      INTEGER, DIMENSION(:), POINTER :: y2coord
-      INTEGER, DIMENSION(:), POINTER :: z2coord
+      INTEGER, DIMENSION(:), POINTER :: x2coord => NULL()
+      INTEGER, DIMENSION(:), POINTER :: y2coord => NULL()
+      INTEGER, DIMENSION(:), POINTER :: z2coord => NULL()
 
-      INTEGER                :: my_virtual_pos
-      INTEGER, DIMENSION(3) :: virtual_group_coor
+      INTEGER                :: my_virtual_pos = -1
+      INTEGER, DIMENSION(3) :: virtual_group_coor = -1
 
       INTEGER, DIMENSION(:), ALLOCATABLE :: virtual2real, real2virtual
 
@@ -150,18 +150,18 @@ MODULE realspace_grid_types
       INTEGER, DIMENSION(3) :: ub_real = -1 ! upper bounds of the real local data
 
       INTEGER, DIMENSION(:), POINTER             :: px => NULL(), py => NULL(), pz => NULL() ! index translators
-      TYPE(offload_buffer_type)                  :: buffer ! owner of the grid's memory
+      TYPE(offload_buffer_type)                  :: buffer = offload_buffer_type() ! owner of the grid's memory
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
 
    END TYPE realspace_grid_type
 
 ! **************************************************************************************************
    TYPE realspace_grid_p_type
-      TYPE(realspace_grid_type), POINTER :: rs_grid
+      TYPE(realspace_grid_type), POINTER :: rs_grid => NULL()
    END TYPE realspace_grid_p_type
 
    TYPE realspace_grid_desc_p_type
-      TYPE(realspace_grid_desc_type), POINTER :: rs_desc
+      TYPE(realspace_grid_desc_type), POINTER :: rs_desc => NULL()
    END TYPE realspace_grid_desc_p_type
 
 CONTAINS
