@@ -1787,9 +1787,10 @@ CONTAINS
                               row_indices=row_indices, &
                               col_indices=col_indices)
 
+         CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
+
          E_HOMO = Eigenval(homo(1), ikp, 1)
          E_LUMO = Eigenval(homo(1) + 1, ikp, 1)
-         CALL cp_cfm_set_all(cfm_mat_s_double, z_zero)
 
          CALL para_env%sync()
 
