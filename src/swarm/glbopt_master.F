@@ -73,9 +73,9 @@ MODULE glbopt_master
       INTEGER(int_8)                                      :: total_md_steps = 0
       INTEGER(int_8)                                      :: total_gopt_steps = 0
       INTEGER(int_8)                                      :: count_reports = 0
-      INTEGER                                             :: method
-      TYPE(minhop_type), POINTER                           :: minhop
-      TYPE(mincrawl_type), POINTER                        :: mincrawl
+      INTEGER                                             :: method = glbopt_do_minhop
+      TYPE(minhop_type), POINTER                           :: minhop => NULL()
+      TYPE(mincrawl_type), POINTER                        :: mincrawl => NULL()
       INTEGER                                             :: i_iteration = 0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set => Null()
       TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set => Null()

@@ -65,7 +65,7 @@ MODULE tmc_messages
    INTEGER, PARAMETER :: TMC_SEND_INFO_SIZE = 4 ! usually: 1. status, array sizes: 2. int, 3. real, 4. char
 
    TYPE message_send
-      INTEGER, DIMENSION(TMC_SEND_INFO_SIZE)   :: info
+      INTEGER, DIMENSION(TMC_SEND_INFO_SIZE)   :: info = -1
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: task_real
       INTEGER, DIMENSION(:), ALLOCATABLE       :: task_int
       CHARACTER, DIMENSION(:), ALLOCATABLE     :: task_char

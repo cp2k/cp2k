@@ -27,7 +27,7 @@ MODULE group_dist_types
 
    ! Type to represent start, end and size of one group (usually the own group)
    TYPE group_dist_d0_type
-      INTEGER :: starts, ends, sizes
+      INTEGER :: starts = -1, ends = -1, sizes = -1
    END TYPE group_dist_d0_type
 
    ! Class to represent 1d-sets of starts, ends and sizes of all groups

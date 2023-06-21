@@ -310,7 +310,7 @@ CONTAINS
       IF (l_tmp) THEN
          WRITE (file_ptr) ana_env%pair_correl%conf_counter, &
             ana_env%pair_correl%nr_bins, &
-            ana_env%pair_correl%step_lenght, &
+            ana_env%pair_correl%step_length, &
             ana_env%pair_correl%pairs, &
             ana_env%pair_correl%g_r
       END IF
@@ -413,7 +413,7 @@ CONTAINS
          IF (l_tmp) THEN
             READ (file_ptr) ana_env%pair_correl%conf_counter, &
                ana_env%pair_correl%nr_bins, &
-               ana_env%pair_correl%step_lenght, &
+               ana_env%pair_correl%step_length, &
                ana_env%pair_correl%pairs, &
                ana_env%pair_correl%g_r
          END IF
@@ -1016,7 +1016,7 @@ CONTAINS
       IF (ana_pair_correl%nr_bins .LE. 0) THEN
          ana_pair_correl%nr_bins = CEILING(MAXVAL(cell_size(:))/2.0_dp/(0.03/au2a))
       END IF
-      ana_pair_correl%step_lenght = MAXVAL(cell_size(:))/2.0_dp/ &
+      ana_pair_correl%step_length = MAXVAL(cell_size(:))/2.0_dp/ &
                                     ana_pair_correl%nr_bins
       ana_pair_correl%conf_counter = 0
 
@@ -1096,7 +1096,7 @@ CONTAINS
             dist = nearest_distance(x1=elem%pos(i:i + ana_env%dim_per_elem - 1), &
                                     x2=elem%pos(j:j + ana_env%dim_per_elem - 1), &
                                     cell=ana_env%cell, box_scale=elem%box_scale)
-            ind = CEILING(dist/ana_env%pair_correl%step_lenght)
+            ind = CEILING(dist/ana_env%pair_correl%step_length)
             IF (ind .LE. ana_env%pair_correl%nr_bins) THEN
                pair_ind = search_pair_in_list(pair_list=ana_env%pair_correl%pairs, &
                                               n1=atoms(INT(i/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%name, &
@@ -1159,12 +1159,12 @@ CONTAINS
             TRIM(ana_env%pair_correl%pairs(pair)%s_n)//" of ", &
             ana_env%pair_correl%conf_counter, " configurations"
          WRITE (file_ptr, *) "# using a bin size of ", &
-            ana_env%pair_correl%step_lenght*au2a, &
+            ana_env%pair_correl%step_length*au2a, &
             "[A] (for Vol changes: referring to the reference cell)"
          DO bin = 1, ana_env%pair_correl%nr_bins
-            voldr = 4.0/3.0*PI*ana_env%pair_correl%step_lenght**3* &
+            voldr = 4.0/3.0*PI*ana_env%pair_correl%step_length**3* &
                     (REAL(bin, KIND=dp)**3 - REAL(bin - 1, KIND=dp)**3)
-            WRITE (file_ptr, *) (bin - 0.5)*ana_env%pair_correl%step_lenght*au2a, &
+            WRITE (file_ptr, *) (bin - 0.5)*ana_env%pair_correl%step_length*au2a, &
                (ana_env%pair_correl%g_r(pair, bin)/ana_env%pair_correl%conf_counter)/ &
                (voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
          END DO

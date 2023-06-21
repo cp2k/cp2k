@@ -50,84 +50,84 @@ MODULE tmc_analysis_types
    END TYPE tmc_ana_list_type
 
    TYPE tmc_analysis_env
-      INTEGER                                       :: io_unit
+      INTEGER                                       :: io_unit = -1
       CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER                       :: dirs
-      CHARACTER(LEN=default_path_length)          :: out_file_prefix
-      INTEGER                                       :: conf_offset
-      TYPE(cell_type), POINTER                      :: cell
-      TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
+         DIMENSION(:), POINTER                       :: dirs => NULL()
+      CHARACTER(LEN=default_path_length)          :: out_file_prefix = ""
+      INTEGER                                       :: conf_offset = 0
+      TYPE(cell_type), POINTER                      :: cell => NULL()
+      TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms => NULL()
       INTEGER                                       :: dim_per_elem = 3
       INTEGER                                       :: nr_dim = -1
-      REAL(KIND=dp)                                 :: temperature
-      TYPE(tree_type), POINTER                      :: last_elem
-      INTEGER                                       :: from_elem, to_elem
-      INTEGER                                       :: id_traj, id_cell, id_frc, id_dip, id_ener
-      INTEGER                                       :: lc_traj, lc_cell, lc_frc, lc_dip, lc_ener
-      CHARACTER(LEN=default_path_length)          :: costum_pos_file_name
-      CHARACTER(LEN=default_path_length)          :: costum_dip_file_name
-      CHARACTER(LEN=default_path_length)          :: costum_cell_file_name
-      LOGICAL                                       :: restart, restarted
-      LOGICAL                                       :: print_test_output
+      REAL(KIND=dp)                                 :: temperature = 0.0_dp
+      TYPE(tree_type), POINTER                      :: last_elem => NULL()
+      INTEGER                                       :: from_elem = -1, to_elem = -1
+      INTEGER                                       :: id_traj = -1, id_cell = -1, id_frc = -1, id_dip = -1, id_ener = -1
+      INTEGER                                       :: lc_traj = 0, lc_cell = 0, lc_frc = 0, lc_dip = 0, lc_ener = 0
+      CHARACTER(LEN=default_path_length)          :: costum_pos_file_name = ""
+      CHARACTER(LEN=default_path_length)          :: costum_dip_file_name = ""
+      CHARACTER(LEN=default_path_length)          :: costum_cell_file_name = ""
+      LOGICAL                                       :: restart = .TRUE., restarted = .FALSE.
+      LOGICAL                                       :: print_test_output = .FALSE.
 
-      TYPE(density_3d_type), POINTER                :: density_3d
-      TYPE(pair_correl_type), POINTER               :: pair_correl
-      TYPE(dipole_moment_type), POINTER             :: dip_mom
-      TYPE(dipole_analysis_type), POINTER           :: dip_ana
-      TYPE(displacement_type), POINTER              :: displace
+      TYPE(density_3d_type), POINTER                :: density_3d => NULL()
+      TYPE(pair_correl_type), POINTER               :: pair_correl => NULL()
+      TYPE(dipole_moment_type), POINTER             :: dip_mom => NULL()
+      TYPE(dipole_analysis_type), POINTER           :: dip_ana => NULL()
+      TYPE(displacement_type), POINTER              :: displace => NULL()
    END TYPE tmc_analysis_env
 
    TYPE density_3d_type
-      INTEGER                                       :: conf_counter
-      INTEGER, DIMENSION(3)                         :: nr_bins
-      REAL(KIND=dp)                                 :: sum_vol
-      REAL(KIND=dp)                                 :: sum_vol2
-      REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length
-      REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length2
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER      :: sum_density, sum_dens2
-      LOGICAL                                       :: print_dens
+      INTEGER                                       :: conf_counter = 0
+      INTEGER, DIMENSION(3)                         :: nr_bins = 0
+      REAL(KIND=dp)                                 :: sum_vol = 0.0_dp
+      REAL(KIND=dp)                                 :: sum_vol2 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length2 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER      :: sum_density => NULL(), sum_dens2 => NULL()
+      LOGICAL                                       :: print_dens = .TRUE.
    END TYPE density_3d_type
 
    TYPE pair_correl_type
-      INTEGER                                       :: conf_counter
-      INTEGER                                       :: nr_bins
-      REAL(KIND=dp)                                 :: step_lenght
-      TYPE(atom_pairs_type), DIMENSION(:), POINTER  :: pairs
-      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: g_r
-      REAL(KIND=dp)                                 :: sum_box_scale(3)
+      INTEGER                                       :: conf_counter = 0
+      INTEGER                                       :: nr_bins = 0
+      REAL(KIND=dp)                                 :: step_length = -1.0_dp
+      TYPE(atom_pairs_type), DIMENSION(:), POINTER  :: pairs => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: g_r => NULL()
+      REAL(KIND=dp)                                 :: sum_box_scale(3) = 0.0_dp
    END TYPE pair_correl_type
 
    TYPE atom_pairs_type
       CHARACTER(LEN=default_string_length)          :: f_n = ""
       CHARACTER(LEN=default_string_length)          :: s_n = ""
-      INTEGER                                       :: pair_count
+      INTEGER                                       :: pair_count = 0
    END TYPE atom_pairs_type
 
    TYPE dipole_moment_type
-      INTEGER                                       :: conf_counter
-      TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: charges_inp
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: charges
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: last_dip_cl
+      INTEGER                                       :: conf_counter = 0
+      TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: charges_inp => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: charges => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: last_dip_cl => NULL()
       LOGICAL                                       :: print_cl_dip = .TRUE.
    END TYPE dipole_moment_type
 
    TYPE dipole_analysis_type
-      REAL(KIND=dp)                                 :: conf_counter
-      INTEGER                                       :: ana_type
+      REAL(KIND=dp)                                 :: conf_counter = 0
+      INTEGER                                       :: ana_type = -1
       LOGICAL                                       :: print_diel_const_traj = .TRUE.
       ! squared dipoles per volume
-      REAL(KIND=dp)                                 :: mu2_pv_s
+      REAL(KIND=dp)                                 :: mu2_pv_s = 0.0_dp
       ! dipole per square root ov volume per direction
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: mu_psv, mu_pv, mu2_pv
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: mu_psv => NULL(), mu_pv => NULL(), mu2_pv => NULL()
       ! dipole dipole correlation matrix (per volume)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: mu2_pv_mat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: mu2_pv_mat => NULL()
 
    END TYPE dipole_analysis_type
 
    TYPE displacement_type
-      INTEGER                                       :: conf_counter
-      REAL(KIND=dp)                                 :: disp
-      LOGICAL                                       :: print_disp
+      INTEGER                                       :: conf_counter = 0
+      REAL(KIND=dp)                                 :: disp = 0.0_dp
+      LOGICAL                                       :: print_disp = .TRUE.
    END TYPE displacement_type
 
 CONTAINS
@@ -144,35 +144,6 @@ CONTAINS
 
       ALLOCATE (tmc_ana)
 
-      NULLIFY (tmc_ana%dirs, tmc_ana%cell, tmc_ana%atoms, tmc_ana%density_3d, &
-               tmc_ana%pair_correl, tmc_ana%dip_mom, tmc_ana%last_elem, &
-               tmc_ana%displace, tmc_ana%dip_ana)
-
-      ! file IO units set
-      tmc_ana%id_traj = -1
-      tmc_ana%id_cell = -1
-      tmc_ana%id_frc = -1
-      tmc_ana%id_dip = -1
-      tmc_ana%id_ener = -1
-      ! line counters
-      tmc_ana%lc_traj = 0
-      tmc_ana%lc_cell = 0
-      tmc_ana%lc_frc = 0
-      tmc_ana%lc_dip = 0
-      tmc_ana%lc_ener = 0
-      ! file names
-      tmc_ana%out_file_prefix = ""
-      tmc_ana%costum_pos_file_name = ""
-      tmc_ana%costum_dip_file_name = ""
-      tmc_ana%costum_cell_file_name = ""
-      tmc_ana%restart = .TRUE.
-      tmc_ana%restarted = .FALSE.
-      tmc_ana%print_test_output = .FALSE.
-
-      ! configuration control
-      tmc_ana%conf_offset = 0
-      tmc_ana%from_elem = -1
-      tmc_ana%to_elem = -1
    END SUBROUTINE tmc_ana_env_create
 
 ! **************************************************************************************************
@@ -224,20 +195,10 @@ CONTAINS
 
       ALLOCATE (ana_dens)
 
-      NULLIFY (ana_dens%sum_density, ana_dens%sum_dens2)
-
       ana_dens%nr_bins(:) = nr_bins(:)
-      ana_dens%conf_counter = 0
-      ana_dens%sum_vol = 0.0_dp
-      ana_dens%sum_box_length(:) = 0.0_dp
-      ana_dens%sum_vol2 = 0.0_dp
-      ana_dens%sum_box_length2(:) = 0.0_dp
 
       ALLOCATE (ana_dens%sum_density(nr_bins(1), nr_bins(2), nr_bins(3)))
       ALLOCATE (ana_dens%sum_dens2(nr_bins(1), nr_bins(2), nr_bins(3)))
-      ana_dens%sum_density(:, :, :) = 0.0_dp
-      ana_dens%sum_dens2(:, :, :) = 0.0_dp
-      ana_dens%print_dens = .TRUE.
    END SUBROUTINE tmc_ana_density_create
 
 ! **************************************************************************************************
@@ -273,12 +234,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(ana_pair_correl))
       ALLOCATE (ana_pair_correl)
 
-      NULLIFY (ana_pair_correl%g_r, ana_pair_correl%pairs)
-      ana_pair_correl%conf_counter = 0
       ana_pair_correl%nr_bins = nr_bins
-      ana_pair_correl%step_lenght = -1.0_dp
-      ana_pair_correl%sum_box_scale = 0.0_dp
-      ! still the initialization routine has to be called
    END SUBROUTINE tmc_ana_pair_correl_create
 
 ! **************************************************************************************************
@@ -360,15 +316,12 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(ana_dip_mom))
       ALLOCATE (ana_dip_mom)
 
-      NULLIFY (ana_dip_mom%charges_inp, ana_dip_mom%charges)
-
       ALLOCATE (ana_dip_mom%charges_inp(SIZE(charge)))
       DO i = 1, SIZE(charge)
          ana_dip_mom%charges_inp(i)%name = charge_atm(i)
          ana_dip_mom%charges_inp(i)%mass = charge(i)
       END DO
 
-      ana_dip_mom%conf_counter = 0
       ALLOCATE (ana_dip_mom%last_dip_cl(dim_per_elem))
       ! still the initialization routine has to be called
 
@@ -403,17 +356,10 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(ana_dip_ana))
       ALLOCATE (ana_dip_ana)
 
-      ana_dip_ana%conf_counter = 0
-      ana_dip_ana%ana_type = -1
-      ana_dip_ana%mu2_pv_s = 0.0_dp
       ALLOCATE (ana_dip_ana%mu_psv(3))
-      ana_dip_ana%mu_psv(:) = 0.0_dp
       ALLOCATE (ana_dip_ana%mu_pv(3))
-      ana_dip_ana%mu_pv(:) = 0.0_dp
       ALLOCATE (ana_dip_ana%mu2_pv(3))
-      ana_dip_ana%mu2_pv(:) = 0.0_dp
       ALLOCATE (ana_dip_ana%mu2_pv_mat(3, 3))
-      ana_dip_ana%mu2_pv_mat(:, :) = 0.0_dp
    END SUBROUTINE tmc_ana_dipole_analysis_create
 
 ! **************************************************************************************************
@@ -456,9 +402,6 @@ CONTAINS
 
       ALLOCATE (ana_disp)
 
-      ana_disp%disp = 0.0_dp
-      ana_disp%conf_counter = 0
-      ana_disp%print_disp = .TRUE.
    END SUBROUTINE tmc_ana_displacement_create
 
 ! **************************************************************************************************

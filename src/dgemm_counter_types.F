@@ -31,10 +31,10 @@ MODULE dgemm_counter_types
 
    TYPE dgemm_counter_type
       PRIVATE
-      REAL(KIND=dp) :: flop_rate, t_start
-      INTEGER :: num_dgemm_call
-      INTEGER :: unit_nr
-      LOGICAL :: print_info
+      REAL(KIND=dp) :: flop_rate = 0.0_dp, t_start = 0.0_dp
+      INTEGER :: num_dgemm_call = 0
+      INTEGER :: unit_nr = -1
+      LOGICAL :: print_info = .FALSE.
    END TYPE
 
 CONTAINS
@@ -50,8 +50,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: print_info
 
-      dgemm_counter%num_dgemm_call = 0
-      dgemm_counter%flop_rate = 0.0
       dgemm_counter%unit_nr = unit_nr
       dgemm_counter%print_info = print_info
 

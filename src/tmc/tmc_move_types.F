@@ -60,7 +60,7 @@ MODULE tmc_move_types
       !   1st dimension are the different move types
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: subbox_acc_count
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: subbox_count
-      TYPE(list_atoms), DIMENSION(:), POINTER :: atom_lists
+      TYPE(list_atoms), DIMENSION(:), POINTER :: atom_lists => NULL()
 
       !-- nmc_acc_prob, probability of acceptance of a certain move type,
       !   done in Nested Monte Carlo routine, for different potential
@@ -71,7 +71,7 @@ MODULE tmc_move_types
 
    TYPE list_atoms
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                  :: atoms
+         DIMENSION(:), POINTER                  :: atoms => NULL()
    END TYPE list_atoms
 CONTAINS
 

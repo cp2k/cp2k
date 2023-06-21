@@ -77,13 +77,13 @@ MODULE cp_eri_mme_interface
    END INTERFACE
 
    TYPE cp_eri_mme_param
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(eri_mme_param)                                :: par
+      TYPE(cp_logger_type), POINTER                      :: logger => NULL()
+      TYPE(eri_mme_param)                                :: par = eri_mme_param()
       TYPE(section_vals_type), &
          POINTER                                         :: mme_section => NULL()
-      INTEGER                                            :: G_count_2c, R_count_2c
-      INTEGER                                            :: GG_count_3c, GR_count_3c, RR_count_3c
-      LOGICAL                                            :: do_calib
+      INTEGER                                            :: G_count_2c = 0, R_count_2c = 0
+      INTEGER                                            :: GG_count_3c = 0, GR_count_3c = 0, RR_count_3c = 0
+      LOGICAL                                            :: do_calib = .FALSE.
    END TYPE cp_eri_mme_param
 
 CONTAINS
