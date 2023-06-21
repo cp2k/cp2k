@@ -52,7 +52,7 @@ MODULE input_keyword_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE keyword_p_type
-      TYPE(keyword_type), POINTER :: keyword
+      TYPE(keyword_type), POINTER :: keyword => NULL()
    END TYPE keyword_p_type
 
 ! **************************************************************************************************
@@ -86,19 +86,19 @@ MODULE input_keyword_types
 !> \author Joost & fawzi
 ! **************************************************************************************************
    TYPE keyword_type
-      INTEGER :: ref_count
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
-      CHARACTER(LEN=usage_string_length) :: location
-      CHARACTER(LEN=usage_string_length) :: usage
+      INTEGER :: ref_count = 0
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names => NULL()
+      CHARACTER(LEN=usage_string_length) :: location = ""
+      CHARACTER(LEN=usage_string_length) :: usage = ""
       CHARACTER, DIMENSION(:), POINTER :: description => null()
       CHARACTER(LEN=:), ALLOCATABLE :: deprecation_notice
-      INTEGER, POINTER, DIMENSION(:) :: citations
-      INTEGER :: type_of_var, n_var
-      LOGICAL :: repeats, removed
-      TYPE(enumeration_type), POINTER :: enum
-      TYPE(cp_unit_type), POINTER :: unit
-      TYPE(val_type), POINTER :: default_value
-      TYPE(val_type), POINTER :: lone_keyword_value
+      INTEGER, POINTER, DIMENSION(:) :: citations => NULL()
+      INTEGER :: type_of_var = 0, n_var = 0
+      LOGICAL :: repeats = .FALSE., removed = .FALSE.
+      TYPE(enumeration_type), POINTER :: enum => NULL()
+      TYPE(cp_unit_type), POINTER :: unit => NULL()
+      TYPE(val_type), POINTER :: default_value => NULL()
+      TYPE(val_type), POINTER :: lone_keyword_value => NULL()
    END TYPE keyword_type
 
 CONTAINS

@@ -21,14 +21,14 @@ MODULE cp_parser_status_types
    PRIVATE
 
    TYPE status_type
-      LOGICAL                                        :: in_use
-      INTEGER                                        :: old_input_line_number
-      INTEGER                                        :: old_icol
-      INTEGER                                        :: old_icol1
-      INTEGER                                        :: old_icol2
-      CHARACTER(LEN=max_line_length)                 :: old_input_line
+      LOGICAL                                        :: in_use = .FALSE.
+      INTEGER                                        :: old_input_line_number = HUGE(0)
+      INTEGER                                        :: old_icol = HUGE(0)
+      INTEGER                                        :: old_icol1 = HUGE(0)
+      INTEGER                                        :: old_icol2 = HUGE(0)
+      CHARACTER(LEN=max_line_length)                 :: old_input_line = ""
       ! Store status of the buffer
-      TYPE(buffer_type), POINTER                     :: buffer
+      TYPE(buffer_type), POINTER                     :: buffer => NULL()
    END TYPE status_type
 
    PUBLIC :: status_type, create_status_type, release_status_type
@@ -47,13 +47,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(status))
       ALLOCATE (status)
-      status%in_use = .FALSE.
-      status%old_input_line = ""
-      status%old_input_line_number = HUGE(0)
-      status%old_icol = HUGE(0)
-      status%old_icol1 = HUGE(0)
-      status%old_icol2 = HUGE(0)
-      NULLIFY (status%buffer)
       CALL create_buffer_type(status%buffer)
    END SUBROUTINE create_status_type
 

@@ -77,7 +77,7 @@ MODULE input_section_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE section_p_type
-      TYPE(section_type), POINTER :: section
+      TYPE(section_type), POINTER :: section => NULL()
    END TYPE section_p_type
 
 ! **************************************************************************************************
@@ -99,14 +99,14 @@ MODULE input_section_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE section_type
-      LOGICAL :: frozen, repeats
-      INTEGER :: ref_count, n_keywords, n_subsections
-      CHARACTER(len=default_string_length)        :: name
-      CHARACTER(len=default_string_length)        :: location
+      LOGICAL :: frozen = .FALSE., repeats = .FALSE.
+      INTEGER :: ref_count = 0, n_keywords = 0, n_subsections = 0
+      CHARACTER(len=default_string_length)        :: name = ""
+      CHARACTER(len=default_string_length)        :: location = ""
       CHARACTER, DIMENSION(:), POINTER              :: description => Null()
-      INTEGER, POINTER, DIMENSION(:)              :: citations
-      TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
-      TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections
+      INTEGER, POINTER, DIMENSION(:)              :: citations => NULL()
+      TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords => NULL()
+      TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections => NULL()
    END TYPE section_type
 
 ! **************************************************************************************************
@@ -115,7 +115,7 @@ MODULE input_section_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE section_vals_p_type
-      TYPE(section_vals_type), POINTER :: section_vals
+      TYPE(section_vals_type), POINTER :: section_vals => NULL()
    END TYPE section_vals_p_type
 
 ! **************************************************************************************************
@@ -123,11 +123,11 @@ MODULE input_section_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE section_vals_type
-      INTEGER :: ref_count
-      INTEGER, POINTER, DIMENSION(:)                     :: ibackup
-      TYPE(section_type), POINTER                         :: section
-      TYPE(cp_sll_val_p_type), DIMENSION(:, :), POINTER   :: values
-      TYPE(section_vals_p_type), DIMENSION(:, :), POINTER :: subs_vals
+      INTEGER :: ref_count = 0
+      INTEGER, POINTER, DIMENSION(:)                     :: ibackup => NULL()
+      TYPE(section_type), POINTER                         :: section => NULL()
+      TYPE(cp_sll_val_p_type), DIMENSION(:, :), POINTER   :: values => NULL()
+      TYPE(section_vals_p_type), DIMENSION(:, :), POINTER :: subs_vals => NULL()
    END TYPE section_vals_type
 
    TYPE(section_type), POINTER, SAVE                                :: typo_match_section => NULL()

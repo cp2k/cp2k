@@ -138,13 +138,13 @@ MODULE cp_output_handling
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_out_flags_type
-      INTEGER :: ref_count, n_flags
-      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names
-      INTEGER, DIMENSION(:), POINTER :: control_val
-      TYPE(section_vals_type), POINTER :: input
-      TYPE(cp_logger_type), POINTER :: logger
-      LOGICAL :: strict
-      INTEGER :: default_val
+      INTEGER :: ref_count = 0, n_flags = 0
+      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names => NULL()
+      INTEGER, DIMENSION(:), POINTER :: control_val => NULL()
+      TYPE(section_vals_type), POINTER :: input => NULL()
+      TYPE(cp_logger_type), POINTER :: logger => NULL()
+      LOGICAL :: strict = .FALSE.
+      INTEGER :: default_val = 0
    END TYPE cp_out_flags_type
 
 CONTAINS

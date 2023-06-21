@@ -24,14 +24,14 @@ MODULE cp_parser_buffer_types
 !> \date   08.2008
 ! **************************************************************************************************
    TYPE buffer_type
-      INTEGER                              :: size, buffer_id
-      INTEGER                              :: present_line_number, &
-                                              last_line_number, &
-                                              istat
-      INTEGER, DIMENSION(:), POINTER       :: input_line_numbers
+      INTEGER                              :: size = 0, buffer_id = 0
+      INTEGER                              :: present_line_number = 0, &
+                                              last_line_number = 0, &
+                                              istat = 0
+      INTEGER, DIMENSION(:), POINTER       :: input_line_numbers => NULL()
       CHARACTER(LEN=max_line_length), &
-         DIMENSION(:), POINTER           :: input_lines
-      TYPE(buffer_type), POINTER           :: sub_buffer
+         DIMENSION(:), POINTER           :: input_lines => NULL()
+      TYPE(buffer_type), POINTER           :: sub_buffer => NULL()
    END TYPE buffer_type
 
    PUBLIC :: buffer_type, create_buffer_type, release_buffer_type, copy_buffer_type, &
@@ -55,12 +55,8 @@ CONTAINS
       buffer%size = buffer_size
       ALLOCATE (buffer%input_lines(buffer%size))
       ALLOCATE (buffer%input_line_numbers(buffer%size))
-      buffer%buffer_id = 0
-      buffer%input_line_numbers = 0
-      buffer%istat = 0
       buffer%present_line_number = buffer%size
       buffer%last_line_number = buffer%size
-      NULLIFY (buffer%sub_buffer)
    END SUBROUTINE create_buffer_type
 
 ! ****************************************************************************
