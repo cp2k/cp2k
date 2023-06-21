@@ -4,8 +4,8 @@
 #
 # Tested with: Intel(R) Fortran Intel(R) 64 Compiler Classic for applications running on Intel(R) 64, Version 2021.3.0
 #              on Cray XC40 (Piz Daint, CSCS, multi-core partition)
-
-# Author: Matthias Krack (25.02.2022)
+#
+# Last update: 25.02.2022
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
       echo "ERROR: Script ${0##*/} must be sourced"; \

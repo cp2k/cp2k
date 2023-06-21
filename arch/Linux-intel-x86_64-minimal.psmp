@@ -6,7 +6,7 @@
 
 # Usage: Source this arch file after the module for Intel/MKL has been loaded if needed.
 #
-# Author: Matthias Krack (08.08.2022)
+# Last update: 08.08.2022
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
