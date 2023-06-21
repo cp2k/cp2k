@@ -1643,11 +1643,11 @@ CONTAINS
 
          CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, element_symbol=element_symbol)
 
-         ! write SOC parameters to gth_potential%hprj_ppnl
+         ! write SOC parameters to gth_potential%kprj_ppnl
          ALLOCATE (gth_potential%kprj_ppnl(0:6, 0:6, 0:6))
          gth_potential%kprj_ppnl(:, :, :) = 0.0_dp
 
-         ALLOCATE (gth_potential%wprj_ppnl(0:SIZE(gth_potential%vprj_ppnl, 1) + 1, 0:SIZE(gth_potential%vprj_ppnl, 2) + 1))
+         ALLOCATE (gth_potential%wprj_ppnl(0:100, 0:100))
          gth_potential%wprj_ppnl(:, :) = 0.0_dp
 
          SELECT CASE (qs_env%mp2_env%ri_g0w0%soc_type)
