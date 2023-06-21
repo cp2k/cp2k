@@ -43,7 +43,7 @@ MODULE xc_derivative_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE xc_derivative_p_type
-      TYPE(xc_derivative_type), POINTER :: deriv
+      TYPE(xc_derivative_type), POINTER :: deriv => NULL()
    END TYPE xc_derivative_p_type
 
 CONTAINS

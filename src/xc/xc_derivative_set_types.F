@@ -53,8 +53,8 @@ MODULE xc_derivative_set_types
 !>      in form of a linked list
 ! **************************************************************************************************
    TYPE xc_derivative_set_type
-      TYPE(pw_pool_type), POINTER, PRIVATE :: pw_pool
-      TYPE(cp_sll_xc_deriv_type), POINTER :: derivs
+      TYPE(pw_pool_type), POINTER, PRIVATE :: pw_pool => NULL()
+      TYPE(cp_sll_xc_deriv_type), POINTER :: derivs => NULL()
    END TYPE xc_derivative_set_type
 
 CONTAINS
@@ -124,7 +124,6 @@ CONTAINS
 
       NULLIFY (pw_grid)
 
-      NULLIFY (derivative_set%derivs)
       IF (PRESENT(pw_pool)) THEN
          derivative_set%pw_pool => pw_pool
          CALL pw_pool_retain(pw_pool)
@@ -137,7 +136,6 @@ CONTAINS
          CPASSERT(PRESENT(local_bounds))
          CALL pw_grid_create(pw_grid, mp_comm_self)
          pw_grid%bounds_local = local_bounds
-         NULLIFY (derivative_set%pw_pool)
          CALL pw_pool_create(derivative_set%pw_pool, pw_grid)
          CALL pw_grid_release(pw_grid)
       END IF

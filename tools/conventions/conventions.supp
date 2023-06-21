@@ -832,8 +832,6 @@ xas_tdp_types.F: Found type xas_atom_env_type without initializer https://cp2k.o
 xas_tdp_types.F: Found type xas_tdp_control_type without initializer https://cp2k.org/conv#c016
 xas_tdp_types.F: Found type xas_tdp_env_type without initializer https://cp2k.org/conv#c016
 xas_tdp_utils.F: Found type dbcsr_soc_package_type without initializer https://cp2k.org/conv#c016
-xc_derivative_set_types.F: Found type xc_derivative_set_type without initializer https://cp2k.org/conv#c016
-xc_derivative_types.F: Found type xc_derivative_p_type without initializer https://cp2k.org/conv#c016
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c204
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c204
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c203
