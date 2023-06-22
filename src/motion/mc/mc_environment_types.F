@@ -21,14 +21,13 @@ MODULE mc_environment_types
 
 ! **************************************************************************************************
    TYPE mc_environment_type
-      INTEGER :: in_use
-      TYPE(mc_simpar_type), POINTER :: mc_par
-      TYPE(force_env_type), POINTER :: force_env
+      TYPE(mc_simpar_type), POINTER :: mc_par => NULL()
+      TYPE(force_env_type), POINTER :: force_env => NULL()
    END TYPE mc_environment_type
 
 ! **************************************************************************************************
    TYPE mc_environment_p_type
-      TYPE(mc_environment_type), POINTER :: mc_env
+      TYPE(mc_environment_type), POINTER :: mc_env => NULL()
    END TYPE mc_environment_p_type
 
 ! *** Public subroutines and data types ***
@@ -53,10 +52,7 @@ CONTAINS
 
       TYPE(mc_environment_type), INTENT(OUT)             :: mc_env
 
-      mc_env%in_use = 0
-
-      NULLIFY (mc_env%mc_par)
-      NULLIFY (mc_env%force_env)
+      MARK_USED(mc_env)
 
    END SUBROUTINE mc_env_create
 
