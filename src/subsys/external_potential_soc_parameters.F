@@ -48,6 +48,7 @@ CONTAINS
       charge = NINT(gth_potential%zeff)
 
       gth_potential%kprj_ppnl(:, :, :) = 0.0_dp
+      gth_potential%wprj_ppnl(:, :) = 0.0_dp
 
       SELECT CASE (xc_functional)
       CASE ("LDA")
