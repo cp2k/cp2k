@@ -1746,7 +1746,6 @@ CONTAINS
 
          CALL get_mo_set(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1), mo_coeff=rmos)
          CALL get_mo_set(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1), mo_coeff=imos)
-
          CALL cp_fm_to_cfm(rmos, imos, cfm_mo_coeff)
 
          ! ispin = 1
