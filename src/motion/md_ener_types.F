@@ -20,30 +20,30 @@ MODULE md_ener_types
 
 ! **************************************************************************************************
    TYPE md_ener_type
-      INTEGER       :: nfree, nfree_shell
-      REAL(KIND=dp) :: constant
-      REAL(KIND=dp) :: delta_cons, delta_epot
-      REAL(KIND=dp) :: epot
-      REAL(KIND=dp) :: ekin, ekin_qm
-      REAL(KIND=dp) :: temp_part, temp_qm
-      REAL(KIND=dp) :: temp_baro
-      REAL(KIND=dp) :: ekin_coefs
-      REAL(KIND=dp) :: temp_coefs
-      REAL(KIND=dp) :: ekin_shell, temp_shell
-      REAL(KIND=dp) :: thermostat_part_kin, thermostat_part_pot
-      REAL(KIND=dp) :: thermostat_fast_kin, thermostat_fast_pot
-      REAL(KIND=dp) :: thermostat_slow_kin, thermostat_slow_pot
-      REAL(KIND=dp) :: thermostat_baro_kin, thermostat_baro_pot
-      REAL(KIND=dp) :: thermostat_coef_kin, thermostat_coef_pot
-      REAL(KIND=dp) :: thermostat_shell_kin, thermostat_shell_pot
-      REAL(KIND=dp) :: baro_kin, baro_pot
-      REAL(KIND=dp) :: vcom(3), total_mass
-      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind
-      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind
-      INTEGER, DIMENSION(:), POINTER       :: nfree_kind
-      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_shell_kind
-      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_shell_kind
-      INTEGER, DIMENSION(:), POINTER       :: nfree_shell_kind
+      INTEGER       :: nfree = 0, nfree_shell = 0
+      REAL(KIND=dp) :: constant = 0.0_dp
+      REAL(KIND=dp) :: delta_cons = 0.0_dp, delta_epot = 0.0_dp
+      REAL(KIND=dp) :: epot = 0.0_dp
+      REAL(KIND=dp) :: ekin = 0.0_dp, ekin_qm = 0.0_dp
+      REAL(KIND=dp) :: temp_part = 0.0_dp, temp_qm = 0.0_dp
+      REAL(KIND=dp) :: temp_baro = 0.0_dp
+      REAL(KIND=dp) :: ekin_coefs = 0.0_dp
+      REAL(KIND=dp) :: temp_coefs = 0.0_dp
+      REAL(KIND=dp) :: ekin_shell = 0.0_dp, temp_shell = 0.0_dp
+      REAL(KIND=dp) :: thermostat_part_kin = 0.0_dp, thermostat_part_pot = 0.0_dp
+      REAL(KIND=dp) :: thermostat_fast_kin = 0.0_dp, thermostat_fast_pot = 0.0_dp
+      REAL(KIND=dp) :: thermostat_slow_kin = 0.0_dp, thermostat_slow_pot = 0.0_dp
+      REAL(KIND=dp) :: thermostat_baro_kin = 0.0_dp, thermostat_baro_pot = 0.0_dp
+      REAL(KIND=dp) :: thermostat_coef_kin = 0.0_dp, thermostat_coef_pot = 0.0_dp
+      REAL(KIND=dp) :: thermostat_shell_kin = 0.0_dp, thermostat_shell_pot = 0.0_dp
+      REAL(KIND=dp) :: baro_kin, baro_pot = 0.0_dp
+      REAL(KIND=dp) :: vcom(3) = 0.0_dp, total_mass = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: nfree_kind => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_shell_kind => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_shell_kind => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: nfree_shell_kind => NULL()
    END TYPE md_ener_type
 
 ! *** Public subroutines and data types ***
@@ -65,12 +65,8 @@ CONTAINS
    SUBROUTINE create_md_ener(md_ener)
       TYPE(md_ener_type), INTENT(OUT)                    :: md_ener
 
-      NULLIFY (md_ener%ekin_kind)
-      NULLIFY (md_ener%temp_kind)
-      NULLIFY (md_ener%nfree_kind)
-      NULLIFY (md_ener%ekin_shell_kind)
-      NULLIFY (md_ener%temp_shell_kind)
-      NULLIFY (md_ener%nfree_shell_kind)
+      MARK_USED(md_ener)
+
    END SUBROUTINE create_md_ener
 
 ! **************************************************************************************************

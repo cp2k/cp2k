@@ -27,18 +27,18 @@ MODULE thermal_region_types
              release_thermal_regions
 
    TYPE thermal_regions_type
-      INTEGER :: nregions
-      LOGICAL :: force_rescaling
-      REAL(KIND=dp) :: temp_reg0
-      LOGICAL, DIMENSION(:), POINTER                   :: do_langevin
-      TYPE(section_vals_type), POINTER                 :: section
-      TYPE(thermal_region_type), DIMENSION(:), POINTER :: thermal_region
+      INTEGER :: nregions = 0
+      LOGICAL :: force_rescaling = .FALSE.
+      REAL(KIND=dp) :: temp_reg0 = 0.0_dp
+      LOGICAL, DIMENSION(:), POINTER                   :: do_langevin => NULL()
+      TYPE(section_vals_type), POINTER                 :: section => NULL()
+      TYPE(thermal_region_type), DIMENSION(:), POINTER :: thermal_region => NULL()
    END TYPE thermal_regions_type
 
    TYPE thermal_region_type
-      INTEGER :: region_index, npart
-      INTEGER, DIMENSION(:), POINTER :: part_index
-      REAL(KIND=dp) :: ekin, noisy_gamma_region, temperature, temp_expected, temp_tol
+      INTEGER :: region_index = 0, npart = 0
+      INTEGER, DIMENSION(:), POINTER :: part_index => NULL()
+      REAL(KIND=dp) :: ekin = 0.0_dp, noisy_gamma_region = 0.0_dp, temperature = 0.0_dp, temp_expected = 0.0_dp, temp_tol = 0.0_dp
    END TYPE thermal_region_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_types'
@@ -52,10 +52,7 @@ CONTAINS
    SUBROUTINE allocate_thermal_regions(thermal_regions)
       TYPE(thermal_regions_type), INTENT(OUT)            :: thermal_regions
 
-      thermal_regions%nregions = 0
-      NULLIFY (thermal_regions%thermal_region)
-      NULLIFY (thermal_regions%do_langevin)
-
+      MARK_USED(thermal_regions)
    END SUBROUTINE allocate_thermal_regions
 
 ! **************************************************************************************************

@@ -35,41 +35,41 @@ MODULE reftraj_types
 !> \author MI
 ! **************************************************************************************************
    TYPE reftraj_info_type
-      INTEGER                                  :: first_snapshot
-      INTEGER                                  :: last_snapshot
-      INTEGER                                  :: stride
-      LOGICAL                                  :: eval_ef
-      LOGICAL                                  :: eval_forces
-      LOGICAL                                  :: variable_volume
-      LOGICAL                                  :: msd
-      TYPE(cp_parser_type), POINTER            :: traj_parser
-      TYPE(cp_parser_type), POINTER            :: cell_parser
+      INTEGER                                  :: first_snapshot = 0
+      INTEGER                                  :: last_snapshot = 0
+      INTEGER                                  :: stride = 0
+      LOGICAL                                  :: eval_ef = .FALSE.
+      LOGICAL                                  :: eval_forces = .FALSE.
+      LOGICAL                                  :: variable_volume = .FALSE.
+      LOGICAL                                  :: msd = .FALSE.
+      TYPE(cp_parser_type), POINTER            :: traj_parser => NULL()
+      TYPE(cp_parser_type), POINTER            :: cell_parser => NULL()
    END TYPE reftraj_info_type
 
 ! **************************************************************************************************
    TYPE reftraj_msd_type
-      LOGICAL                                  :: disp_atom, msd_kind, msd_molecule, msd_region
-      INTEGER                                  :: num_disp_atom, ref0_unit
-      INTEGER, POINTER, DIMENSION(:)           :: disp_atom_index
-      REAL(KIND=dp)                            :: disp_atom_tol, drcom(3), ref0_com(3), total_mass
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: disp_atom_dr
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: ref0_pos
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: ref0_com_molecule
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: val_msd_kind
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: val_msd_molecule
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: val_msd_region
+   LOGICAL                                  :: disp_atom = .FALSE., msd_kind = .FALSE., msd_molecule = .FALSE., msd_region = .FALSE.
+      INTEGER                                  :: num_disp_atom = 0, ref0_unit = 0
+      INTEGER, POINTER, DIMENSION(:)           :: disp_atom_index => NULL()
+    REAL(KIND=dp)                            :: disp_atom_tol = 0.0_dp, drcom(3) = 0.0_dp, ref0_com(3) = 0.0_dp, total_mass = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: disp_atom_dr => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: ref0_pos => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: ref0_com_molecule => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: val_msd_kind => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: val_msd_molecule => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)   :: val_msd_region => NULL()
    END TYPE reftraj_msd_type
 
 ! **************************************************************************************************
    TYPE reftraj_type
-      INTEGER                                  :: itimes
-      INTEGER                                  :: itimes0
-      INTEGER                                  :: isnap
-      INTEGER                                  :: natom
-      LOGICAL                                  :: init
-      REAL(KIND=dp)                            :: epot, epot0, time, time0
-      TYPE(reftraj_info_type), POINTER         :: info
-      TYPE(reftraj_msd_type), POINTER          :: msd
+      INTEGER                                  :: itimes = 0
+      INTEGER                                  :: itimes0 = 0
+      INTEGER                                  :: isnap = 0
+      INTEGER                                  :: natom = 0
+      LOGICAL                                  :: init = .FALSE.
+      REAL(KIND=dp)                            :: epot = 0.0_dp, epot0 = 0.0_dp, time = 0.0_dp, time0 = 0.0_dp
+      TYPE(reftraj_info_type), POINTER         :: info => NULL()
+      TYPE(reftraj_msd_type), POINTER          :: msd => NULL()
    END TYPE reftraj_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_types'
