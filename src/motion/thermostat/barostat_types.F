@@ -50,11 +50,11 @@ MODULE barostat_types
 
 ! **************************************************************************************************
    TYPE barostat_type
-      INTEGER                          :: ref_count
-      INTEGER                          :: type_of_barostat, virial_components
-      REAL(KIND=dp)                    :: temp_ext
-      TYPE(npt_info_type), POINTER  :: npt(:, :)
-      TYPE(section_vals_type), POINTER :: section
+      INTEGER                          :: ref_count = 0
+      INTEGER                          :: virial_components = do_clv_geo_center
+      REAL(KIND=dp)                    :: temp_ext = 0.0_dp
+      TYPE(npt_info_type), POINTER  :: npt(:, :) => NULL()
+      TYPE(section_vals_type), POINTER :: section => NULL()
    END TYPE barostat_type
 
 ! *** Global parameters ***

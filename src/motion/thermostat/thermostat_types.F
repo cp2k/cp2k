@@ -27,6 +27,7 @@ MODULE thermostat_types
                                               do_thermo_al,&
                                               do_thermo_csvr,&
                                               do_thermo_gle,&
+                                              do_thermo_no_communication,&
                                               do_thermo_nose
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -58,39 +59,39 @@ MODULE thermostat_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE thermostats_type
-      TYPE(thermostat_info_type), POINTER :: thermostat_info_part
-      TYPE(thermostat_info_type), POINTER :: thermostat_info_shell
+      TYPE(thermostat_info_type), POINTER :: thermostat_info_part => NULL()
+      TYPE(thermostat_info_type), POINTER :: thermostat_info_shell => NULL()
 ! cjm
-      TYPE(thermostat_info_type), POINTER :: thermostat_info_fast
-      TYPE(thermostat_type), POINTER       :: thermostat_fast
-      TYPE(thermostat_info_type), POINTER :: thermostat_info_slow
-      TYPE(thermostat_type), POINTER       :: thermostat_slow
+      TYPE(thermostat_info_type), POINTER :: thermostat_info_fast => NULL()
+      TYPE(thermostat_type), POINTER       :: thermostat_fast => NULL()
+      TYPE(thermostat_info_type), POINTER :: thermostat_info_slow => NULL()
+      TYPE(thermostat_type), POINTER       :: thermostat_slow => NULL()
 ! cjm
-      TYPE(thermostat_type), POINTER       :: thermostat_part
-      TYPE(thermostat_type), POINTER       :: thermostat_coef
-      TYPE(thermostat_type), POINTER       :: thermostat_shell
-      TYPE(thermostat_type), POINTER       :: thermostat_baro
+      TYPE(thermostat_type), POINTER       :: thermostat_part => NULL()
+      TYPE(thermostat_type), POINTER       :: thermostat_coef => NULL()
+      TYPE(thermostat_type), POINTER       :: thermostat_shell => NULL()
+      TYPE(thermostat_type), POINTER       :: thermostat_baro => NULL()
    END TYPE thermostats_type
 
    ! Single thermostat_type
 ! **************************************************************************************************
    TYPE thermostat_type
-      INTEGER :: type_of_thermostat
-      CHARACTER(LEN=default_string_length) :: label
-      TYPE(lnhc_parameters_type), POINTER :: nhc
-      TYPE(csvr_system_type), POINTER     :: csvr
-      TYPE(al_system_type), POINTER     :: al
-      TYPE(gle_type), POINTER      ::  gle
-      TYPE(section_vals_type), POINTER    :: section
+      INTEGER :: type_of_thermostat = do_thermo_nose
+      CHARACTER(LEN=default_string_length) :: label = ""
+      TYPE(lnhc_parameters_type), POINTER :: nhc => NULL()
+      TYPE(csvr_system_type), POINTER     :: csvr => NULL()
+      TYPE(al_system_type), POINTER     :: al => NULL()
+      TYPE(gle_type), POINTER      ::  gle => NULL()
+      TYPE(section_vals_type), POINTER    :: section => NULL()
    END TYPE thermostat_type
 
    ! Global info type
 ! **************************************************************************************************
    TYPE thermostat_info_type
-      INTEGER                              :: sum_of_thermostats
-      INTEGER                              :: number_of_thermostats
-      INTEGER                              :: dis_type
-      INTEGER, POINTER, DIMENSION(:)       :: map_loc_thermo_gen
+      INTEGER                              :: sum_of_thermostats = 0
+      INTEGER                              :: number_of_thermostats = 0
+      INTEGER                              :: dis_type = do_thermo_no_communication
+      INTEGER, POINTER, DIMENSION(:)       :: map_loc_thermo_gen => NULL()
    END TYPE thermostat_info_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
@@ -114,19 +115,6 @@ CONTAINS
       ALLOCATE (thermostats%thermostat_info_fast)
       ALLOCATE (thermostats%thermostat_info_slow)
 !cjm
-
-      NULLIFY (thermostats%thermostat_info_part%map_loc_thermo_gen)
-      NULLIFY (thermostats%thermostat_info_shell%map_loc_thermo_gen)
-!cjm
-      NULLIFY (thermostats%thermostat_info_fast%map_loc_thermo_gen)
-      NULLIFY (thermostats%thermostat_fast)
-      NULLIFY (thermostats%thermostat_info_slow%map_loc_thermo_gen)
-      NULLIFY (thermostats%thermostat_slow)
-!cjm
-      NULLIFY (thermostats%thermostat_part)
-      NULLIFY (thermostats%thermostat_shell)
-      NULLIFY (thermostats%thermostat_coef)
-      NULLIFY (thermostats%thermostat_baro)
 
    END SUBROUTINE allocate_thermostats
 
@@ -212,10 +200,6 @@ CONTAINS
       thermostat%label = label
       region = do_region_global
 
-      NULLIFY (thermostat%nhc)
-      NULLIFY (thermostat%csvr)
-      NULLIFY (thermostat%al)
-      NULLIFY (thermostat%gle)
       CALL section_vals_val_get(section, "TYPE", i_val=thermostat%type_of_thermostat)
       IF (.NOT. skip_region_loc) CALL section_vals_val_get(section, "REGION", i_val=region)
       IF (thermostat%type_of_thermostat == do_thermo_nose) THEN

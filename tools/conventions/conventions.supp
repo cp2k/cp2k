@@ -34,8 +34,6 @@ atom_types.F: Found type eri without initializer https://cp2k.org/conv#c016
 atom_types.F: Found type opgrid_type without initializer https://cp2k.org/conv#c016
 atom_types.F: Found type opmat_type without initializer https://cp2k.org/conv#c016
 atom_upf.F: Found type atom_upfpot_type without initializer https://cp2k.org/conv#c016
-averages_types.F: Found type average_quantities_type without initializer https://cp2k.org/conv#c016
-barostat_types.F: Found type barostat_type without initializer https://cp2k.org/conv#c016
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
 base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
 base_hooks.F: Found STOP statement in procedure "cp__a" https://cp2k.org/conv#c205
@@ -346,19 +344,7 @@ mao_methods.F: Found type mblocks without initializer https://cp2k.org/conv#c016
 mao_types.F: Found type mao_type without initializer https://cp2k.org/conv#c016
 mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
-mc_environment_types.F: Found type mc_environment_p_type without initializer https://cp2k.org/conv#c016
-mc_environment_types.F: Found type mc_environment_type without initializer https://cp2k.org/conv#c016
 mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update" https://cp2k.org/conv#c012
-mc_types.F: Found type accattempt without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_averages_p_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_averages_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_ekin_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_input_file_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_molecule_info_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_moves_p_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_moves_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_simpar_type without initializer https://cp2k.org/conv#c016
-mc_types.F: Found type mc_simulation_parameters_p_type without initializer https://cp2k.org/conv#c016
 mdctrl_types.F: Found type glbopt_mdctrl_data_type without initializer https://cp2k.org/conv#c016
 md_ener_types.F: Found type md_ener_type without initializer https://cp2k.org/conv#c016
 md_environment_types.F: Found type md_environment_type without initializer https://cp2k.org/conv#c016
@@ -722,9 +708,6 @@ task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_t
 task_list_types.F: Found type task_list_type without initializer https://cp2k.org/conv#c016
 thermal_region_types.F: Found type thermal_regions_type without initializer https://cp2k.org/conv#c016
 thermal_region_types.F: Found type thermal_region_type without initializer https://cp2k.org/conv#c016
-thermostat_types.F: Found type thermostat_info_type without initializer https://cp2k.org/conv#c016
-thermostat_types.F: Found type thermostats_type without initializer https://cp2k.org/conv#c016
-thermostat_types.F: Found type thermostat_type without initializer https://cp2k.org/conv#c016
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
 tip_scan_types.F: Found type scanning_type without initializer https://cp2k.org/conv#c016
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012
