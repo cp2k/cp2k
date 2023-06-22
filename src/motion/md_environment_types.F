@@ -55,7 +55,7 @@ MODULE md_environment_types
       ! that are dealt with by the integrator e.g in the PIMD this could
       ! be parent of every bead.
       PRIVATE
-      LOGICAL                                    :: init, first_time, ehrenfest_md
+      LOGICAL                                    :: init = .FALSE., first_time = .FALSE., ehrenfest_md = .FALSE.
       INTEGER, POINTER                           :: itimes => NULL()
       REAL(KIND=dp), POINTER                     :: used_time => NULL(), t => NULL()
       REAL(KIND=dp), POINTER                     :: constant => NULL()
@@ -99,19 +99,6 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: averages_section
 
-      NULLIFY (md_env%itimes)
-      NULLIFY (md_env%constant)
-      NULLIFY (md_env%t)
-      NULLIFY (md_env%cell)
-      NULLIFY (md_env%simpar)
-      NULLIFY (md_env%thermostats)
-      NULLIFY (md_env%barostat)
-      NULLIFY (md_env%force_env)
-      NULLIFY (md_env%fe_env)
-      NULLIFY (md_env%md_ener)
-      NULLIFY (md_env%reftraj)
-      NULLIFY (md_env%averages)
-      NULLIFY (md_env%thermal_regions)
       md_env%para_env => para_env
       CALL md_env%para_env%retain()
       ALLOCATE (md_env%itimes)

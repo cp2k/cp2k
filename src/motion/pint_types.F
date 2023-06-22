@@ -110,37 +110,40 @@ MODULE pint_types
    !>      2018-02-13 added qtb_therm [Fabien Brieuc]
    ! ***************************************************************************
    TYPE pint_env_type
-      INTEGER :: p, nnos, nrespa, iter, ndim, transform
-      INTEGER :: first_step, last_step, num_steps, first_propagated_mode
-      INTEGER :: pimd_thermostat, harm_integrator, thermostat_rng_seed
-      REAL(KIND=dp) :: t_tol, v_tol, kT, beta, dt, &
-                       e_gle, e_pile, e_piglet, e_qtb, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
-      REAL(KIND=dp) :: link_action, pot_action
-      TYPE(cp_logger_type), POINTER :: logger
-      TYPE(replica_env_type), POINTER :: replicas
-      TYPE(section_vals_type), POINTER :: input
-      TYPE(staging_env_type), POINTER :: staging_env
-      TYPE(normalmode_env_type), POINTER :: normalmode_env
-      TYPE(rng_stream_type) :: randomG
-      TYPE(gle_type), POINTER        :: gle
-      REAL(KIND=dp), DIMENSION(e_num_ids) :: energy
-      REAL(KIND=dp), DIMENSION(:), POINTER :: mass, e_pot_bead
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: x, v, f, mass_beads, &
-                                                 mass_fict, ux, ux_t, uv, uv_t, uv_new, uf, uf_h, external_f
-      REAL(KIND=dp), DIMENSION(:), POINTER :: centroid
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: tx, tv, tv_t, tv_old, tv_new, tf
-      REAL(KIND=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
-      REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
-      REAL(KIND=dp), DIMENSION(:), POINTER :: iwsinex, wsinex, cosex
-      TYPE(pile_therm_type), POINTER       :: pile_therm
-      TYPE(piglet_therm_type), POINTER     :: piglet_therm
-      TYPE(qtb_therm_type), POINTER        :: qtb_therm
-      TYPE(pint_propagator_type), POINTER  :: propagator
-      TYPE(simpar_type), POINTER           :: simpar
-      INTEGER                              :: n_atoms_constraints
-      INTEGER, DIMENSION(:), POINTER       :: atoms_constraints
-      LOGICAL                              :: beadwise_constraints
-      REAL(KIND=dp)                        :: kTcorr
+      INTEGER :: p = 0, nnos = 0, nrespa = 0, iter = 0, ndim = 0, transform = 0
+      INTEGER :: first_step = 0, last_step = 0, num_steps = 0, first_propagated_mode = 0
+      INTEGER :: pimd_thermostat = 0, harm_integrator = 0, thermostat_rng_seed = 0
+      REAL(KIND=dp) :: t_tol = 0.0_dp, v_tol = 0.0_dp, kT = 0.0_dp, beta = 0.0_dp, dt = 0.0_dp, &
+                       e_gle = 0.0_dp, e_pile = 0.0_dp, e_piglet = 0.0_dp, e_qtb = 0.0_dp, e_pot_h = 0.0_dp, &
+                       e_kin_beads = 0.0_dp, e_pot_t = 0.0_dp, e_kin_t = 0.0_dp, t = 0.0_dp, time_per_step = 0.0_dp
+      REAL(KIND=dp) :: link_action = 0.0_dp, pot_action = 0.0_dp
+      TYPE(cp_logger_type), POINTER :: logger => NULL()
+      TYPE(replica_env_type), POINTER :: replicas => NULL()
+      TYPE(section_vals_type), POINTER :: input => NULL()
+      TYPE(staging_env_type), POINTER :: staging_env => NULL()
+      TYPE(normalmode_env_type), POINTER :: normalmode_env => NULL()
+      TYPE(rng_stream_type) :: randomG = rng_stream_type()
+      TYPE(gle_type), POINTER        :: gle => NULL()
+      REAL(KIND=dp), DIMENSION(e_num_ids) :: energy = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: mass => NULL(), e_pot_bead => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: x => NULL(), v => NULL(), f => NULL(), mass_beads => NULL(), &
+                                                 mass_fict => NULL(), ux => NULL(), ux_t => NULL(), uv => NULL(), uv_t => NULL(), &
+                                                 uv_new => NULL(), uf => NULL(), uf_h => NULL(), external_f => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: centroid => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: tx => NULL(), tv => NULL(), tv_t => NULL(), &
+                                                    tv_old => NULL(), tv_new => NULL(), tf => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: Q => NULL() ! dim p, make it (p,ndim)?
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim => NULL(), rtmp_natom => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: iwsinex => NULL(), wsinex => NULL(), cosex => NULL()
+      TYPE(pile_therm_type), POINTER       :: pile_therm => NULL()
+      TYPE(piglet_therm_type), POINTER     :: piglet_therm => NULL()
+      TYPE(qtb_therm_type), POINTER        :: qtb_therm => NULL()
+      TYPE(pint_propagator_type), POINTER  :: propagator => NULL()
+      TYPE(simpar_type), POINTER           :: simpar => NULL()
+      INTEGER                              :: n_atoms_constraints = 0
+      INTEGER, DIMENSION(:), POINTER       :: atoms_constraints => NULL()
+      LOGICAL                              :: beadwise_constraints = .FALSE.
+      REAL(KIND=dp)                        :: kTcorr = 0.0_dp
 
    END TYPE pint_env_type
 
@@ -160,10 +163,10 @@ MODULE pint_types
    !> \author hforbert
    ! ***************************************************************************
    TYPE normalmode_env_type
-      INTEGER :: p
-      REAL(KIND=dp) :: Q_bead, Q_centroid, modefactor, harm
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: x2u, u2x
-      REAL(KIND=dp), DIMENSION(:), POINTER :: lambda
+      INTEGER :: p = 0
+      REAL(KIND=dp) :: Q_bead = 0.0_dp, Q_centroid = 0.0_dp, modefactor = 0.0_dp, harm = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: x2u => NULL(), u2x => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: lambda => NULL()
    END TYPE normalmode_env_type
 
    ! ***************************************************************************
@@ -179,8 +182,8 @@ MODULE pint_types
    !> \author fawzi
    ! ***************************************************************************
    TYPE staging_env_type
-      INTEGER :: nseg, j, p
-      REAL(KIND=dp) w_p, w_j, Q_stage, Q_end
+      INTEGER :: nseg = 0, j = 0, p = 0
+      REAL(KIND=dp) :: w_p = 0.0_dp, w_j = 0.0_dp, Q_stage = 0.0_dp, Q_end = 0.0_dp
    END TYPE staging_env_type
 
    ! ***************************************************************************
@@ -197,12 +200,12 @@ MODULE pint_types
    !> \author Felix Uhl
    ! ***************************************************************************
    TYPE pile_therm_type
-      REAL(KIND=dp)                              :: lamb, tau, thermostat_energy
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: c1
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: c2
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact
-      TYPE(rng_stream_type)                      :: gaussian_rng_stream
+      REAL(KIND=dp)                              :: lamb = 0.0_dp, tau = 0.0_dp, thermostat_energy = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c1 => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c2 => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact => NULL()
+      TYPE(rng_stream_type)                      :: gaussian_rng_stream = rng_stream_type()
    END TYPE pile_therm_type
 
    ! ***************************************************************************
@@ -227,15 +230,15 @@ MODULE pint_types
    !> \author Felix Uhl
    ! ***************************************************************************
    TYPE piglet_therm_type
-      INTEGER                              :: ndim, p, nsp1
-      REAL(KIND=dp)                        :: thermostat_energy
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: a_mat, c_mat
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gle_s, gle_t
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: smalls
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp1
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp2
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: sqrtmass
-      TYPE(rng_stream_type)                :: gaussian_rng_stream
+      INTEGER                              :: ndim = 0, p = 0, nsp1 = 0
+      REAL(KIND=dp)                        :: thermostat_energy = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: a_mat => NULL(), c_mat => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gle_s => NULL(), gle_t => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: smalls => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp1 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: temp2 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: sqrtmass => NULL()
+      TYPE(rng_stream_type)                :: gaussian_rng_stream = rng_stream_type()
    END TYPE piglet_therm_type
 
    ! ***************************************************************************
@@ -263,21 +266,21 @@ MODULE pint_types
    !> \author Fabien Brieuc
    ! ***************************************************************************
    TYPE qtb_therm_type
-      REAL(KIND=dp)                              :: tau, lamb
-      REAL(KIND=dp)                              :: taucut, lambcut
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: c1
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: c2
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: rf
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: h
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r
-      INTEGER, DIMENSION(:), POINTER             :: step
-      INTEGER, DIMENSION(:), POINTER             :: cpt
-      INTEGER                                    :: fp
-      INTEGER                                    :: nf
-      REAL(KIND=dp)                              :: thermostat_energy
-      TYPE(rng_stream_type)                      :: gaussian_rng_stream
+      REAL(KIND=dp)                              :: tau = 0.0_dp, lamb = 0.0_dp
+      REAL(KIND=dp)                              :: taucut = 0.0_dp, lambcut = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c1 => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: c2 => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: g_fric => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: massfact => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: rf => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: h => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r => NULL()
+      INTEGER, DIMENSION(:), POINTER             :: step => NULL()
+      INTEGER, DIMENSION(:), POINTER             :: cpt => NULL()
+      INTEGER                                    :: fp = 0
+      INTEGER                                    :: nf = 0
+      REAL(KIND=dp)                              :: thermostat_energy = 0.0_dp
+      TYPE(rng_stream_type)                      :: gaussian_rng_stream = rng_stream_type()
       CHARACTER(LEN=rng_record_length), DIMENSION(:), POINTER :: rng_status
    END TYPE qtb_therm_type
 
@@ -291,10 +294,10 @@ MODULE pint_types
    !> \author Felix Uhl
    ! ***************************************************************************
    TYPE pint_propagator_type
-      INTEGER                              :: prop_kind
-      REAL(KIND=dp)                        :: temp_phys2sim
-      REAL(KIND=dp)                        :: temp_sim2phys
-      REAL(KIND=dp)                        :: physpotscale
+      INTEGER                              :: prop_kind = 0
+      REAL(KIND=dp)                        :: temp_phys2sim = 0.0_dp
+      REAL(KIND=dp)                        :: temp_sim2phys = 0.0_dp
+      REAL(KIND=dp)                        :: physpotscale = 0.0_dp
    END TYPE pint_propagator_type
 
 END MODULE pint_types

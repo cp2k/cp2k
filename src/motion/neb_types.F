@@ -20,8 +20,11 @@
 MODULE neb_types
 
    USE force_env_types,                 ONLY: force_env_type
-   USE input_constants,                 ONLY: do_band_cartesian,&
-                                              do_band_collective
+   USE input_constants,                 ONLY: band_md_opt,&
+                                              do_b_neb,&
+                                              do_band_cartesian,&
+                                              do_band_collective,&
+                                              pot_neb_full
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -39,33 +42,33 @@ MODULE neb_types
 ! **************************************************************************************************
    TYPE neb_type
       ! NEB parameters
-      INTEGER       :: id_type
-      INTEGER       :: opt_type
-      INTEGER       :: pot_type
-      INTEGER       :: number_of_replica, nsize_xyz, nsize_int
-      INTEGER       :: nsteps_it, istep
-      INTEGER       :: nr_HE_image
-      LOGICAL       :: rotate_frames, align_frames
-      LOGICAL       :: optimize_end_points
-      LOGICAL       :: use_colvar
-      LOGICAL       :: reparametrize_frames
-      INTEGER       :: spline_order
-      REAL(KIND=dp) :: K, spring_energy, avg_distance
-      REAL(KIND=dp) :: smoothing
-      CHARACTER(LEN=default_string_length) :: opt_type_label
+      INTEGER       :: id_type = do_b_neb
+      INTEGER       :: opt_type = band_md_opt
+      INTEGER       :: pot_type = pot_neb_full
+      INTEGER       :: number_of_replica = 0, nsize_xyz = 0, nsize_int = 0
+      INTEGER       :: nsteps_it = 0, istep = 0
+      INTEGER       :: nr_HE_image = 0
+      LOGICAL       :: rotate_frames = .FALSE., align_frames = .FALSE.
+      LOGICAL       :: optimize_end_points = .FALSE.
+      LOGICAL       :: use_colvar = .FALSE.
+      LOGICAL       :: reparametrize_frames = .FALSE.
+      INTEGER       :: spline_order = 0
+      REAL(KIND=dp) :: K = 0.0_dp, spring_energy = 0.0_dp, avg_distance = 0.0_dp
+      REAL(KIND=dp) :: smoothing = 0.0_dp
+      CHARACTER(LEN=default_string_length) :: opt_type_label = ""
       ! Section used for restart
-      TYPE(force_env_type), POINTER        :: force_env
-      TYPE(section_vals_type), POINTER     :: root_section
-      TYPE(section_vals_type), POINTER     :: motion_print_section
-      TYPE(section_vals_type), POINTER     :: force_env_section
-      TYPE(section_vals_type), POINTER     :: neb_section
+      TYPE(force_env_type), POINTER        :: force_env => NULL()
+      TYPE(section_vals_type), POINTER     :: root_section => NULL()
+      TYPE(section_vals_type), POINTER     :: motion_print_section => NULL()
+      TYPE(section_vals_type), POINTER     :: force_env_section => NULL()
+      TYPE(section_vals_type), POINTER     :: neb_section => NULL()
    END TYPE neb_type
 
 ! **************************************************************************************************
    TYPE neb_var_type
-      INTEGER :: in_use, size_wrk(2)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: xyz, int, wrk
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: Mmatrix
+      INTEGER :: in_use = do_band_collective, size_wrk(2) = 0
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: xyz => NULL(), int => NULL(), wrk => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: Mmatrix => NULL()
    END TYPE neb_var_type
 
 CONTAINS
