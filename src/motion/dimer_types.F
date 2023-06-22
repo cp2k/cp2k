@@ -56,10 +56,11 @@ MODULE dimer_types
 ! **************************************************************************************************
    TYPE dimer_rotational_type
       ! Rotational parameters
-      INTEGER                                    :: rotation_step
-      LOGICAL                                    :: interpolate_gradient
-      REAL(KIND=dp)                              :: angle_tol, angle1, angle2, dCdp, curvature
-      REAL(KIND=dp), POINTER, DIMENSION(:)       :: g0, g1, g1p
+      INTEGER                                    :: rotation_step = 0
+      LOGICAL                                    :: interpolate_gradient = .FALSE.
+      REAL(KIND=dp)                              :: angle_tol = 0.0_dp, angle1 = 0.0_dp, angle2 = 0.0_dp, &
+                                                    dCdp = 0.0_dp, curvature = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:)       :: g0 => NULL(), g1 => NULL(), g1p => NULL()
    END TYPE dimer_rotational_type
 
 ! **************************************************************************************************
@@ -70,7 +71,7 @@ MODULE dimer_types
 ! **************************************************************************************************
    TYPE dimer_translational_type
       ! Translational parameters
-      REAL(KIND=dp), POINTER, DIMENSION(:)       :: tls_vec
+      REAL(KIND=dp), POINTER, DIMENSION(:)       :: tls_vec => NULL()
    END TYPE dimer_translational_type
 
 ! **************************************************************************************************
@@ -80,8 +81,8 @@ MODULE dimer_types
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
    TYPE dimer_cg_rot_type
-      REAL(KIND=dp)                              :: norm_theta, norm_theta_old, norm_h
-      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec_old
+      REAL(KIND=dp)                              :: norm_theta = 0.0_dp, norm_theta_old = 0.0_dp, norm_h = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec_old => NULL()
    END TYPE dimer_cg_rot_type
 
 ! **************************************************************************************************
@@ -91,14 +92,14 @@ MODULE dimer_types
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
    TYPE dimer_env_type
-      INTEGER                                    :: ref_count
-      REAL(KIND=dp)                              :: dr
-      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec
-      REAL(KIND=dp)                              :: beta
-      TYPE(dimer_rotational_type)                :: rot
-      TYPE(dimer_translational_type)             :: tsl
-      TYPE(dimer_cg_rot_type)                    :: cg_rot
-      LOGICAL                                    :: kdimer
+      INTEGER                                    :: ref_count = 0
+      REAL(KIND=dp)                              :: dr = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec => NULL()
+      REAL(KIND=dp)                              :: beta = 0.0_dp
+      TYPE(dimer_rotational_type)                :: rot = dimer_rotational_type()
+      TYPE(dimer_translational_type)             :: tsl = dimer_translational_type()
+      TYPE(dimer_cg_rot_type)                    :: cg_rot = dimer_cg_rot_type()
+      LOGICAL                                    :: kdimer = .FALSE.
    END TYPE dimer_env_type
 
 CONTAINS
@@ -131,8 +132,6 @@ CONTAINS
       ALLOCATE (dimer_env)
       dimer_env%ref_count = 1
       ! Setup NVEC
-      NULLIFY (dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p, &
-               dimer_env%tsl%tls_vec)
       ! get natom
       CALL cp_subsys_get(subsys=subsys, natom=natom)
       ! Allocate the working arrays
@@ -195,8 +194,6 @@ CONTAINS
                                 r_val=dimer_env%beta)
       ! initialise values
       dimer_env%cg_rot%norm_h = 1.0_dp
-      dimer_env%cg_rot%norm_theta = 0.0_dp
-      dimer_env%cg_rot%norm_theta_old = 0.0_dp
       dimer_env%rot%g0 = 0.0_dp
       dimer_env%rot%g1 = 0.0_dp
       dimer_env%rot%g1p = 0.0_dp

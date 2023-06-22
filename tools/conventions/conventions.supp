@@ -46,7 +46,6 @@ bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt" https://cp2k.o
 block_p_types.F: Found type block_p_type without initializer https://cp2k.org/conv#c016
 callgraph.F: Found type callgraph_item_type without initializer https://cp2k.org/conv#c016
 callgraph.F: Found type private_item_type without initializer https://cp2k.org/conv#c016
-cell_opt_types.F: Found type cell_opt_env_type without initializer https://cp2k.org/conv#c016
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test" https://cp2k.org/conv#c012
 cp2k_shell.F: Found type cp2k_shell_type without initializer https://cp2k.org/conv#c016
 cp_control_types.F: Found type admm_control_type without initializer https://cp2k.org/conv#c016
@@ -102,7 +101,6 @@ cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn1lb" https://cp2k.o
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn2lb" https://cp2k.org/conv#c012
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn3lb" https://cp2k.org/conv#c012
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm" https://cp2k.org/conv#c012
-cp_lbfgs_optimizer_gopt.F: Found type cp_lbfgs_opt_gopt_type without initializer https://cp2k.org/conv#c016
 cp_linked_list_fm.F: Found type cp_sll_fm_p_type without initializer https://cp2k.org/conv#c016
 cp_linked_list_fm.F: Found type cp_sll_fm_type without initializer https://cp2k.org/conv#c016
 cp_linked_list_input.F: Found type cp_sll_char_p_type without initializer https://cp2k.org/conv#c016
@@ -223,9 +221,6 @@ glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_l
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
 gle_system_types.F: Found type gle_thermo_type without initializer https://cp2k.org/conv#c016
 gle_system_types.F: Found type gle_type without initializer https://cp2k.org/conv#c016
-gopt_f_types.F: Found type gopt_f_type without initializer https://cp2k.org/conv#c016
-gopt_param_types.F: Found type cg_ls_param_type without initializer https://cp2k.org/conv#c016
-gopt_param_types.F: Found type gopt_param_type without initializer https://cp2k.org/conv#c016
 graphcon.F: Found GOTO statement in procedure "all_permutations" https://cp2k.org/conv#c201
 graphcon.F: Found type class without initializer https://cp2k.org/conv#c016
 graphcon.F: Found type graph_type without initializer https://cp2k.org/conv#c016
@@ -240,12 +235,6 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
 hartree_local_types.F: Found type ecoul_1center_type without initializer https://cp2k.org/conv#c016
 hartree_local_types.F: Found type hartree_local_type without initializer https://cp2k.org/conv#c016
-helium_types.F: Found type density_properties_type without initializer https://cp2k.org/conv#c016
-helium_types.F: Found type helium_solvent_p_type without initializer https://cp2k.org/conv#c016
-helium_types.F: Found type helium_solvent_type without initializer https://cp2k.org/conv#c016
-helium_types.F: Found type helium_vector_type without initializer https://cp2k.org/conv#c016
-helium_types.F: Found type int_arr_ptr without initializer https://cp2k.org/conv#c016
-helium_types.F: Found type real_arr_ptr without initializer https://cp2k.org/conv#c016
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
 hfx_types.F: Found type hfx_2d_map without initializer https://cp2k.org/conv#c016

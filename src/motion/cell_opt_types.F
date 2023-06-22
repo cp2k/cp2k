@@ -58,13 +58,13 @@ MODULE cell_opt_types
 ! **************************************************************************************************
    TYPE cell_opt_env_type
       ! Simulation cell optimization parameters
-      INTEGER                                    :: constraint_id
-      LOGICAL                                    :: keep_angles, &
-                                                    keep_symmetry
-      REAL(KIND=dp)                              :: pres_ext, pres_int, pres_tol, pres_constr
-      REAL(KIND=dp), DIMENSION(3, 3)             :: mtrx
-      REAL(KIND=dp), DIMENSION(3, 3)             :: rot_matrix
-      TYPE(cell_type), POINTER                   :: ref_cell
+      INTEGER                                    :: constraint_id = fix_none
+      LOGICAL                                    :: keep_angles = .FALSE., &
+                                                    keep_symmetry = .FALSE.
+      REAL(KIND=dp)                              :: pres_ext = 0.0_dp, pres_int = 0.0_dp, pres_tol = 0.0_dp, pres_constr = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)             :: mtrx = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)             :: rot_matrix = 0.0_dp
+      TYPE(cell_type), POINTER                   :: ref_cell => NULL()
    END TYPE cell_opt_env_type
 
 CONTAINS
