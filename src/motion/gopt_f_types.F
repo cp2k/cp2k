@@ -58,22 +58,22 @@ MODULE gopt_f_types
 !>      none
 ! **************************************************************************************************
    TYPE gopt_f_type
-      INTEGER                                  :: ref_count
-      INTEGER                                  :: nfree
-      INTEGER                                  :: type_id, ts_method_id, cell_method_id, shellcore_method_id
-      LOGICAL                                  :: dimer_rotation, do_line_search, eval_opt_geo
-      CHARACTER(LEN=default_string_length)     :: label, tag
-      TYPE(force_env_type), POINTER            :: force_env
-      TYPE(global_environment_type), POINTER   :: globenv
+      INTEGER                                  :: ref_count = 0
+      INTEGER                                  :: nfree = 0
+ INTEGER                                  :: type_id=default_cell_method_id, ts_method_id=0, cell_method_id=0, shellcore_method_id=0
+      LOGICAL                                  :: dimer_rotation = .FALSE., do_line_search = .FALSE., eval_opt_geo = .FALSE.
+      CHARACTER(LEN=default_string_length)     :: label = "", tag = ""
+      TYPE(force_env_type), POINTER            :: force_env => NULL()
+      TYPE(global_environment_type), POINTER   :: globenv => NULL()
       ! Motion section must be references only for IO of the MOTION%PRINT..
-      TYPE(section_vals_type), POINTER         :: motion_section, geo_section
-      TYPE(dimer_env_type), POINTER            :: dimer_env
-      TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
-      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
-      TYPE(cell_opt_env_type), POINTER         :: cell_env
-      TYPE(spgr_type), POINTER                 :: spgr
-      REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
-      LOGICAL                                  :: require_consistent_energy_force
+      TYPE(section_vals_type), POINTER         :: motion_section => NULL(), geo_section => NULL()
+      TYPE(dimer_env_type), POINTER            :: dimer_env => NULL()
+      TYPE(gopt_f_type), POINTER               :: gopt_dimer_env => NULL()
+      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param => NULL()
+      TYPE(cell_opt_env_type), POINTER         :: cell_env => NULL()
+      TYPE(spgr_type), POINTER                 :: spgr => NULL()
+      REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref = 0.0_dp
+      LOGICAL                                  :: require_consistent_energy_force = .FALSE.
    END TYPE gopt_f_type
 
 CONTAINS

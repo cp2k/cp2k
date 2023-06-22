@@ -129,17 +129,17 @@ MODULE cp_lbfgs_optimizer_gopt
 !>      @version 2.2002
 ! **************************************************************************************************
    TYPE cp_lbfgs_opt_gopt_type
-      CHARACTER(len=60) :: task
-      CHARACTER(len=60) :: csave
-      LOGICAL :: lsave(4)
-      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
-      INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
-      REAL(kind=dp) :: f, wanted_relative_f_delta, wanted_projected_gradient, &
-                       last_f, projected_gradient, eold, emin, trust_radius
-      REAL(kind=dp), DIMENSION(:), POINTER :: x, lower_bound, upper_bound, &
-                                              gradient, dsave, work_array
-      TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(gopt_f_type), POINTER :: obj_funct
+      CHARACTER(len=60) :: task = ""
+      CHARACTER(len=60) :: csave = ""
+      LOGICAL :: lsave(4) = .FALSE.
+      INTEGER :: m = 0, print_every = 0, master = 0, max_f_per_iter = 0, status = 0, n_iter = 0
+      INTEGER, DIMENSION(:), POINTER :: kind_of_bound => NULL(), i_work_array => NULL(), isave => NULL()
+      REAL(kind=dp) :: f = 0.0_dp, wanted_relative_f_delta = 0.0_dp, wanted_projected_gradient = 0.0_dp, &
+                       last_f = 0.0_dp, projected_gradient = 0.0_dp, eold = 0.0_dp, emin = 0.0_dp, trust_radius = 0.0_dp
+      REAL(kind=dp), DIMENSION(:), POINTER :: x => NULL(), lower_bound => NULL(), upper_bound => NULL(), &
+                                              gradient => NULL(), dsave => NULL(), work_array => NULL()
+      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
+      TYPE(gopt_f_type), POINTER :: obj_funct => NULL()
    END TYPE cp_lbfgs_opt_gopt_type
 
 CONTAINS

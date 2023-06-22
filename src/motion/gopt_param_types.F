@@ -47,23 +47,23 @@ MODULE gopt_param_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cg_ls_param_type
-      INTEGER         :: brent_max_iter, type_id
-      REAL(KIND=dp) :: brent_tol, brack_limit, initial_step, max_step
-      LOGICAL         :: grad_only
+      INTEGER         :: brent_max_iter = 0, type_id = default_cell_method_id
+      REAL(KIND=dp) :: brent_tol = 0.0_dp, brack_limit = 0.0_dp, initial_step = 0.0_dp, max_step = 0.0_dp
+      LOGICAL         :: grad_only = .FALSE.
    END TYPE cg_ls_param_type
 
 ! **************************************************************************************************
    TYPE gopt_param_type
-      LOGICAL                  :: Fletcher_Reeves
-      INTEGER                  :: method_id, type_id
-      INTEGER                  :: ts_method_id, cell_method_id, shellcore_method_id
-      INTEGER                  :: max_f_per_iter, max_iter, max_h_rank
-      INTEGER                  :: max_steep_steps
-      REAL(KIND=dp)          :: restart_limit
-      REAL(KIND=dp)          :: wanted_proj_gradient, wanted_rel_f_error
-      REAL(KIND=dp)          :: max_dr, max_force, rms_dr, rms_force
-      REAL(KIND=dp)          :: dimer_angle_tol
-      TYPE(cg_ls_param_type)   :: cg_ls
+      LOGICAL                  :: Fletcher_Reeves = .FALSE.
+      INTEGER                  :: method_id = default_cell_method_id, type_id = default_cell_method_id
+      INTEGER                  :: ts_method_id = 0, cell_method_id = 0, shellcore_method_id = 0
+      INTEGER                  :: max_f_per_iter = 0, max_iter = 0, max_h_rank = 0
+      INTEGER                  :: max_steep_steps = 0
+      REAL(KIND=dp)          :: restart_limit = 0.0_dp
+      REAL(KIND=dp)          :: wanted_proj_gradient = 0.0_dp, wanted_rel_f_error = 0.0_dp
+      REAL(KIND=dp)          :: max_dr = 0.0_dp, max_force = 0.0_dp, rms_dr = 0.0_dp, rms_force = 0.0_dp
+      REAL(KIND=dp)          :: dimer_angle_tol = 0.0_dp
+      TYPE(cg_ls_param_type)   :: cg_ls = cg_ls_param_type()
    END TYPE gopt_param_type
 
 CONTAINS
