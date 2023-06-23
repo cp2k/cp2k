@@ -36,7 +36,7 @@ MODULE md_ener_types
       REAL(KIND=dp) :: thermostat_baro_kin = 0.0_dp, thermostat_baro_pot = 0.0_dp
       REAL(KIND=dp) :: thermostat_coef_kin = 0.0_dp, thermostat_coef_pot = 0.0_dp
       REAL(KIND=dp) :: thermostat_shell_kin = 0.0_dp, thermostat_shell_pot = 0.0_dp
-      REAL(KIND=dp) :: baro_kin, baro_pot = 0.0_dp
+      REAL(KIND=dp) :: baro_kin = 0.0_dp, baro_pot = 0.0_dp
       REAL(KIND=dp) :: vcom(3) = 0.0_dp, total_mass = 0.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind => NULL()
