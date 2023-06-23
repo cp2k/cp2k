@@ -87,7 +87,7 @@ MODULE input_keyword_types
 ! **************************************************************************************************
    TYPE keyword_type
       INTEGER :: ref_count = 0
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names => NULL()
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: names => NULL()
       CHARACTER(LEN=usage_string_length) :: location = ""
       CHARACTER(LEN=usage_string_length) :: usage = ""
       CHARACTER, DIMENSION(:), POINTER :: description => null()

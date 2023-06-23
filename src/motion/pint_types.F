@@ -281,7 +281,7 @@ MODULE pint_types
       INTEGER                                    :: nf = 0
       REAL(KIND=dp)                              :: thermostat_energy = 0.0_dp
       TYPE(rng_stream_type)                      :: gaussian_rng_stream = rng_stream_type()
-      CHARACTER(LEN=rng_record_length), DIMENSION(:), POINTER :: rng_status
+      CHARACTER(LEN=rng_record_length), DIMENSION(:), POINTER :: rng_status => NULL()
    END TYPE qtb_therm_type
 
    ! ***************************************************************************
