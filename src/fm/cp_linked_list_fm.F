@@ -22,7 +22,8 @@ MODULE cp_linked_list_fm
       #:set type1arrayEl = ['type(cp_fm_p_type)']
       #:set arrayEl = ['%matrix']
       #:set private_routines = ''
+      #:set default_init = [' => NULL()']
    #:endmute
 
-   $:inst(nametype1, type1, type1in, type1out, eq, arrayeq, type1arrayEl, arrayEl, private_routines)
+   $:inst(nametype1, type1, type1in, type1out, eq, arrayeq, type1arrayEl, arrayEl, private_routines, default_init)
 END MODULE

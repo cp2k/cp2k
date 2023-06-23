@@ -5,7 +5,7 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-   #:def inst(nametype1, type1, type1in, type1out, eq, arrayeq, type1arrayEl, arrayEl, private_routines)
+   #:def inst(nametype1, type1, type1in, type1out, eq, arrayeq, type1arrayEl, arrayEl, private_routines, default_init)
 ! **************************************************************************************************
 !> \brief describes a generic linked list template.
 !>      Linked list are supposed to always use pointers to the nodes for
@@ -163,8 +163,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
          TYPE cp_sll_${nametype1[i]}$_type
-            ${type1[i]}$ :: first_el
-            TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: rest
+            ${type1[i]}$ :: first_el ${default_init[i]}$
+            TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: rest => NULL()
          END TYPE cp_sll_${nametype1[i]}$_type
       #:endfor
 
@@ -177,7 +177,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
          TYPE cp_sll_${nametype1[i]}$_p_type
-            TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: list
+            TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: list => NULL()
          END TYPE cp_sll_${nametype1[i]}$_p_type
       #:endfor
 
