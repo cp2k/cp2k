@@ -26,9 +26,12 @@ MODULE admm_types
                                               cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
-   USE input_constants,                 ONLY: do_admm_blocked_projection,&
+   USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              do_admm_blocked_projection,&
                                               do_admm_blocking_purify_full,&
-                                              do_admm_charge_constrained_projection
+                                              do_admm_charge_constrained_projection,&
+                                              do_admm_exch_scaling_none,&
+                                              do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -61,7 +64,7 @@ MODULE admm_types
    END TYPE
 
    TYPE eigvals_p_type
-      TYPE(eigvals_type), POINTER              :: eigvals
+      TYPE(eigvals_type), POINTER              :: eigvals => NULL()
    END TYPE
 
 ! **************************************************************************************************
@@ -155,32 +158,32 @@ MODULE admm_types
       REAL(KIND=dp)                            :: gsi(3) = 0.0_dp, &
                                                   lambda_merlot(2) = 0.0_dp, &
                                                   n_large_basis(3) = 0.0_dp
-      INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
-      INTEGER                                  :: purification_method
+      INTEGER                                  :: nao_orb = 0, nao_aux_fit = 0, nmo(2) = 0
+      INTEGER                                  :: purification_method = do_admm_purify_none
       LOGICAL                                  :: charge_constrain = .FALSE.
-      INTEGER                                  :: scaling_model, &
-                                                  aux_exch_func
-      LOGICAL                                  :: aux_exch_func_param
-      REAL(KIND=dp), DIMENSION(3)              :: aux_x_param
+      INTEGER                                  :: scaling_model = do_admm_exch_scaling_none, &
+                                                  aux_exch_func = do_admm_aux_exch_func_none
+      LOGICAL                                  :: aux_exch_func_param = .FALSE.
+      REAL(KIND=dp), DIMENSION(3)              :: aux_x_param = 0.0_dp
       LOGICAL                                  :: block_dm = .FALSE.
       LOGICAL                                  :: block_fit = .FALSE.
       INTEGER, DIMENSION(:, :), POINTER        :: block_map => Null()
-      TYPE(admm_gapw_type), POINTER            :: admm_gapw_env
+      TYPE(admm_gapw_type), POINTER            :: admm_gapw_env => NULL()
       LOGICAL                                  :: do_gapw = .FALSE.
       TYPE(admm_dm_type), POINTER              :: admm_dm => Null()
 
       TYPE(mo_set_type), DIMENSION(:), &
-         POINTER                               :: mos_aux_fit
+         POINTER                               :: mos_aux_fit => NULL()
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                 :: sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb
+         DIMENSION(:), POINTER                 :: sab_aux_fit => NULL(), sab_aux_fit_asymm => NULL(), sab_aux_fit_vs_orb => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                               :: matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
-                                                  matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
-                                                  matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
-      TYPE(qs_rho_type), POINTER               :: rho_aux_fit, rho_aux_fit_buffer
-      TYPE(task_list_type), POINTER            :: task_list_aux_fit
+         POINTER                               :: matrix_ks_aux_fit => NULL(), matrix_ks_aux_fit_im => NULL(), &
+                                                  matrix_ks_aux_fit_dft => NULL(), matrix_ks_aux_fit_hfx => NULL(), &
+                                                  matrix_s_aux_fit => NULL(), matrix_s_aux_fit_vs_orb => NULL()
+      TYPE(qs_rho_type), POINTER               :: rho_aux_fit => NULL(), rho_aux_fit_buffer => NULL()
+      TYPE(task_list_type), POINTER            :: task_list_aux_fit => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                               :: mo_derivs_aux_fit
+         POINTER                               :: mo_derivs_aux_fit => NULL()
 
    END TYPE
 

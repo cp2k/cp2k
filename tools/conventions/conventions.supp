@@ -1,6 +1,3 @@
-admm_types.F: Found type admm_type without initializer https://cp2k.org/conv#c016
-admm_types.F: Found type eigvals_p_type without initializer https://cp2k.org/conv#c016
-admm_types.F: Found type eigvals_type without initializer https://cp2k.org/conv#c016
 almo_scf_diis_types.F: Found type almo_scf_diis_type without initializer https://cp2k.org/conv#c016
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
 almo_scf_lbfgs_types.F: Found type lbfgs_history_type without initializer https://cp2k.org/conv#c016
