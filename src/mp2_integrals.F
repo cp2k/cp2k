@@ -379,7 +379,7 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,T61,F20.10)') &
                   "RI_INFO| Omega:     ", ri_metric%omega
             CASE (do_potential_id)
-               WRITE (unit_nr, FMT="(T3,A,T73,A)") &
+               WRITE (unit_nr, FMT="(T3,A,T74,A)") &
                   "RI_INFO| RI metric: ", "OVERLAP"
             CASE (do_potential_truncated)
                WRITE (unit_nr, FMT="(T3,A,T64,A)") &

@@ -1068,7 +1068,10 @@ MODULE input_constants
                                                kp_weights_W_uniform = 12, &
                                                kp_weights_W_tailored = 13, &
                                                gw_gf_mic = 14, &
-                                               gw_gf_gamma = 15
+                                               gw_gf_gamma = 15, &
+                                               soc_none = 16, &
+                                               soc_lda = 17, &
+                                               soc_pbe = 18
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

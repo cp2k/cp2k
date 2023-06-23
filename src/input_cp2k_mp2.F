@@ -33,8 +33,9 @@ MODULE input_cp2k_mp2
         mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
-        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
-        wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, z_solver_sd
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
+        wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
+        z_solver_sd
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -928,6 +929,32 @@ CONTAINS
                           "grids with 20 or more points and a small range.", &
                           usage="REGULARIZATION_MINIMAX 1.0E-6", &
                           default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", &
+                          description="Calculate the spin-orbit splitting of the eigenvalues/band structure "// &
+                          "using the spin-orbit part of the GTH pseudos parametrized in Hartwigsen, Goedecker, "// &
+                          "Hutter, Phys. Rev. B 58, 3641 (1998), Eq. 19, "// &
+                          "parameters in Table I.", &
+                          usage="SOC", &
+                          enum_c_vals=s2a("NONE", "LDA", "PBE"), &
+                          enum_i_vals=(/soc_none, soc_lda, soc_pbe/), &
+                          enum_desc=s2a("No SOC.", &
+                                        "Use parameters from LDA (PADE) pseudopotential.", &
+                                        "Use parameters from PBE pseudopotential."), &
+                          default_i_val=soc_none)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_ENERGY_WINDOW", &
+                          description="For perturbative SOC calculation, only "// &
+                          "take frontier levels in an energy window "// &
+                          "[E_HOMO - SOC_ENERGY_WINDOW/2 , E_LUMO + SOC_ENERGY_WINDOW/2 "// &
+                          "into account for the diagonalization of H^GW,SOC.", &
+                          usage="SOC_ENERGY_WINDOW 20.0_eV", &
+                          default_r_val=cp_unit_to_cp2k(value=50.0_dp, unit_str="eV"), &
+                          unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

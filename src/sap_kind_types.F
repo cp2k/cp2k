@@ -49,6 +49,8 @@ MODULE sap_kind_types
       REAL(KIND=dp), DIMENSION(3)                :: rac
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: acint
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: achint
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: alint
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: alkint
    END TYPE clist_type
 
    TYPE alist_type
@@ -99,6 +101,12 @@ CONTAINS
                      END IF
                      IF (ASSOCIATED(clist%achint)) THEN
                         DEALLOCATE (clist%achint)
+                     END IF
+                     IF (ASSOCIATED(clist%alint)) THEN
+                        DEALLOCATE (clist%alint)
+                     END IF
+                     IF (ASSOCIATED(clist%alkint)) THEN
+                        DEALLOCATE (clist%alkint)
                      END IF
                   END DO
                   DEALLOCATE (sap_int(i)%alist(j)%clist)

@@ -6,4 +6,5 @@ G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX_ADMM.inp  98      1e-04 
 G0W0_kpoints_in_self_energy_gap_printing.inp                      98      1e-03       18.721
 G0W0_kpoints_in_self_energy_open_shell.inp                       101      1e-04       14.060
 G0W0_kpoints_in_self_energy_open_shell.inp                       102      1e-04       27.637
+G0W0_IH_SOC.inp                                                  103      1e-04       17.2636
 #EOF

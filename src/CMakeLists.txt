@@ -1180,6 +1180,7 @@ list(
   subsys/cp_subsys_types.F
   subsys/damping_dipole_types.F
   subsys/external_potential_types.F
+  subsys/external_potential_soc_parameters.F
   subsys/force_field_kind_types.F
   subsys/molecule_kind_list_types.F
   subsys/molecule_kind_types.F
