@@ -116,6 +116,7 @@ CONTAINS
 !> \param ei_scale14 ...
 !> \param vdw_scale14 ...
 !> \param shift_cutoff ...
+!> \param do_es ...
 !> \param r_last_update ...
 !> \param r_last_update_pbc ...
 !> \param rshell_last_update_pbc ...
@@ -138,7 +139,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fist_nonbond_env_get(fist_nonbond_env, potparm14, potparm, &
                                    nonbonded, rlist_cut, rlist_lowsq, aup, lup, ei_scale14, vdw_scale14, &
-                                   shift_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
+                                   shift_cutoff, do_es, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
                                    counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, &
                                    quip_data, nequip_data, allegro_data, charges)
@@ -148,7 +149,7 @@ CONTAINS
       TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rlist_cut, rlist_lowsq
       REAL(KIND=dp), OPTIONAL                            :: aup, lup, ei_scale14, vdw_scale14
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: shift_cutoff
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: shift_cutoff, do_es
       TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER    :: r_last_update, r_last_update_pbc, &
                                                             rshell_last_update_pbc, &
                                                             rcore_last_update_pbc
@@ -190,6 +191,7 @@ CONTAINS
       IF (PRESENT(vdw_scale14)) vdw_scale14 = fist_nonbond_env%vdw_scale14
       IF (PRESENT(shift_cutoff)) &
          shift_cutoff = fist_nonbond_env%shift_cutoff
+      IF (PRESENT(do_es)) do_es = fist_nonbond_env%do_es
       IF (PRESENT(natom_types)) natom_types = fist_nonbond_env%natom_types
       IF (PRESENT(counter)) counter = fist_nonbond_env%counter
       IF (PRESENT(last_update)) last_update = fist_nonbond_env%last_update
@@ -211,6 +213,7 @@ CONTAINS
 !> \param ei_scale14 ...
 !> \param vdw_scale14 ...
 !> \param shift_cutoff ...
+!> \param do_es ...
 !> \param r_last_update ...
 !> \param r_last_update_pbc ...
 !> \param rshell_last_update_pbc ...
@@ -232,7 +235,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fist_nonbond_env_set(fist_nonbond_env, potparm14, potparm, &
                                    rlist_cut, rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
-                                   shift_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
+                                   shift_cutoff, do_es, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
                                    counter, natom_types, long_range_correction, eam_data, quip_data, &
                                    nequip_data, allegro_data, charges)
@@ -242,7 +245,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rlist_cut, rlist_lowsq
       TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
       REAL(KIND=dp), OPTIONAL                            :: aup, lup, ei_scale14, vdw_scale14
-      LOGICAL, INTENT(IN), OPTIONAL                      :: shift_cutoff
+      LOGICAL, INTENT(IN), OPTIONAL                      :: shift_cutoff, do_es
       TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER    :: r_last_update, r_last_update_pbc, &
                                                             rshell_last_update_pbc, &
                                                             rcore_last_update_pbc
@@ -282,6 +285,7 @@ CONTAINS
       IF (PRESENT(vdw_scale14)) fist_nonbond_env%vdw_scale14 = vdw_scale14
       IF (PRESENT(shift_cutoff)) &
          fist_nonbond_env%shift_cutoff = shift_cutoff
+      IF (PRESENT(do_es)) fist_nonbond_env%do_es = do_es
       IF (PRESENT(natom_types)) fist_nonbond_env%natom_types = natom_types
       IF (PRESENT(counter)) fist_nonbond_env%counter = counter
       IF (PRESENT(last_update)) fist_nonbond_env%last_update = last_update
@@ -394,7 +398,7 @@ CONTAINS
       fist_nonbond_env%last_update = 0
       fist_nonbond_env%num_update = 0
       fist_nonbond_env%long_range_correction = 0
-      IF (do_nonbonded .OR. do_es) THEN
+      IF (do_nonbonded) THEN
          natom_types = 1
          ! Determine size of kind arrays
          natom_types = SIZE(atomic_kind_set)

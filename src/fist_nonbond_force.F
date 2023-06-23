@@ -97,8 +97,8 @@ CONTAINS
       INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ikind, ilist, ipair, istart, &
          j, kind_a, kind_b, nkind, npairs, shell_a, shell_b, shell_type
       INTEGER, DIMENSION(:, :), POINTER                  :: list
-      LOGICAL                                            :: all_terms, do_multipoles, &
-                                                            full_nl, shell_present
+      LOGICAL                                            :: all_terms, do_multipoles, full_nl, &
+                                                            shell_present
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_shell_kind
       REAL(KIND=dp) :: alpha, beta, beta_a, beta_b, energy, etot, fac_ei, fac_kind, fac_vdw, &
          fscalar, mm_radius_a, mm_radius_b, qcore_a, qcore_b, qeff_a, qeff_b, qshell_a, qshell_b, &
