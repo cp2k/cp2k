@@ -9,6 +9,7 @@
 # 4. To run a calculation: no module has to be loaded
 #
 # \
+  module load cray/21.12 ; \
   module load cpeGNU/21.12 ; \
   module load \
       cray-fftw \
