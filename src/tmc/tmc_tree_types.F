@@ -157,7 +157,7 @@ MODULE tmc_tree_types
       !   to be acc/rej (which branch is followed at the last modification of the conf of this temp.
       !TODO store conf_n_acc in a bitshifted array to decrease the size (1Logical = 1Byte)
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: conf_n_acc
-      INTEGER :: nr ! tree node number
+      INTEGER :: nr = 0 ! tree node number
       REAL(KIND=dp), DIMENSION(3, 2, 3)            :: rng_seed = 0.0_dp ! random seed for childs
       !-- random number for acceptance check
       REAL(KIND=dp)                                :: rnd_nr = 0.0_dp
