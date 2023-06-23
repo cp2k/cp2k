@@ -243,6 +243,7 @@ hfx_types.F: Found type pair_set_list_type without initializer https://cp2k.org/
 hirshfeld_types.F: Found type hirshfeld_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type shape_fn without initializer https://cp2k.org/conv#c016
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
+input_keyword_types.F: Found type keyword_type without initializer https://cp2k.org/conv#c016
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
 integration_grid_types.F: Found type grid_batch_info_type without initializer https://cp2k.org/conv#c016
 integration_grid_types.F: Found type grid_batch_val_1d_type without initializer https://cp2k.org/conv#c016
@@ -666,6 +667,7 @@ tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_dot_color" 
 tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_global_tree_dot_color" https://cp2k.org/conv#c012
 tmc_messages.F: Found WRITE statement with hardcoded unit in "read_energy_result_message" https://cp2k.org/conv#c012
 tmc_messages.F: Found WRITE statement with hardcoded unit in "tmc_message" https://cp2k.org/conv#c012
+tmc_tree_types.F: Found type global_tree_type without initializer https://cp2k.org/conv#c016
 topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lcolv" https://cp2k.org/conv#c012
 topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lg3x3" https://cp2k.org/conv#c012
 topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_lg4x6" https://cp2k.org/conv#c012
