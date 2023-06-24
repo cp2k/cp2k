@@ -558,8 +558,6 @@ qs_o3c_types.F: Found type o3c_int_type without initializer https://cp2k.org/con
 qs_o3c_types.F: Found type o3c_iterator_type without initializer https://cp2k.org/conv#c016
 qs_o3c_types.F: Found type o3c_pair_type without initializer https://cp2k.org/conv#c016
 qs_o3c_types.F: Found type o3c_vec_type without initializer https://cp2k.org/conv#c016
-qs_oce_types.F: Found type oce_matrix_type without initializer https://cp2k.org/conv#c016
-qs_oce_types.F: Found type qlist_type without initializer https://cp2k.org/conv#c016
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation" https://cp2k.org/conv#c012
 qs_ot_types.F: Found type qs_ot_settings_type without initializer https://cp2k.org/conv#c016
 qs_ot_types.F: Found type qs_ot_type without initializer https://cp2k.org/conv#c016
@@ -604,9 +602,6 @@ routine_map.F: Found type routine_map_item_type without initializer https://cp2k
 rpa_grad.F: Found type rpa_grad_type without initializer https://cp2k.org/conv#c016
 rpa_grad.F: Found type rpa_grad_work_type without initializer https://cp2k.org/conv#c016
 rpa_im_time_force_types.F: Found type im_time_force_type without initializer https://cp2k.org/conv#c016
-sap_kind_types.F: Found type alist_type without initializer https://cp2k.org/conv#c016
-sap_kind_types.F: Found type clist_type without initializer https://cp2k.org/conv#c016
-sap_kind_types.F: Found type sap_int_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type diagonalization_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type scf_control_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type smear_type without initializer https://cp2k.org/conv#c016

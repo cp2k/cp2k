@@ -41,29 +41,33 @@ MODULE sap_kind_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sap_kind_types'
 
    TYPE clist_type
-      INTEGER                                    :: catom, nsgf_cnt
-      INTEGER, DIMENSION(:), POINTER             :: sgf_list
-      INTEGER, DIMENSION(3)                      :: cell
-      LOGICAL                                    :: sgf_soft_only
-      REAL(KIND=dp)                              :: maxac, maxach
-      REAL(KIND=dp), DIMENSION(3)                :: rac
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: acint
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: achint
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: alint
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: alkint
+      INTEGER                                    :: catom = -1
+      INTEGER                                    :: nsgf_cnt = -1
+      INTEGER, DIMENSION(:), POINTER             :: sgf_list => NULL()
+      INTEGER, DIMENSION(3)                      :: cell = -1
+      LOGICAL                                    :: sgf_soft_only = .FALSE.
+      REAL(KIND=dp)                              :: maxac = 0.0_dp
+      REAL(KIND=dp)                              :: maxach = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                :: rac = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: acint => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: achint => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: alint => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: alkint => NULL()
    END TYPE clist_type
 
    TYPE alist_type
-      INTEGER                                    :: aatom
-      INTEGER                                    :: nclist
-      TYPE(clist_type), DIMENSION(:), POINTER    :: clist
+      INTEGER                                    :: aatom = -1
+      INTEGER                                    :: nclist = -1
+      TYPE(clist_type), DIMENSION(:), POINTER    :: clist => NULL()
    END TYPE alist_type
 
    TYPE sap_int_type
-      INTEGER                                    :: a_kind, p_kind
-      INTEGER                                    :: nalist
-      TYPE(alist_type), DIMENSION(:), POINTER    :: alist
-      INTEGER, DIMENSION(:), POINTER             :: asort, aindex
+      INTEGER                                    :: a_kind = -1
+      INTEGER                                    :: p_kind = -1
+      INTEGER                                    :: nalist = -1
+      TYPE(alist_type), DIMENSION(:), POINTER    :: alist => NULL()
+      INTEGER, DIMENSION(:), POINTER             :: asort => NULL()
+      INTEGER, DIMENSION(:), POINTER             :: aindex => NULL()
    END TYPE sap_int_type
 
    PUBLIC :: sap_int_type, clist_type, alist_type, &
