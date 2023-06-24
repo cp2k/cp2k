@@ -25,16 +25,17 @@ MODULE qs_oce_types
 
 ! **************************************************************************************************
    TYPE qlist_type
-      TYPE(block_p_type), DIMENSION(:), POINTER :: sac
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: r2
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r
-      INTEGER                                   :: n
-      INTEGER, DIMENSION(:), POINTER            :: index_list, list
+      TYPE(block_p_type), DIMENSION(:), POINTER :: sac => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: r2 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r => NULL()
+      INTEGER                                   :: n = -1
+      INTEGER, DIMENSION(:), POINTER            :: index_list => NULL()
+      INTEGER, DIMENSION(:), POINTER            :: list => NULL()
    END TYPE qlist_type
 
 ! **************************************************************************************************
    TYPE oce_matrix_type
-      TYPE(sap_int_type), DIMENSION(:), POINTER        :: intac
+      TYPE(sap_int_type), DIMENSION(:), POINTER        :: intac => NULL()
    END TYPE
 
 ! *** Public data types ***
