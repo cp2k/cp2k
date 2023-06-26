@@ -164,7 +164,7 @@ CONTAINS
 
       CALL section_vals_val_get(ff_section, "MULTIPLE_POTENTIAL", l_val=ff_type%multiple_potential)
       CALL section_vals_val_get(ff_section, "DO_NONBONDED", l_val=ff_type%do_nonbonded)
-      CALL section_vals_val_get(ff_section, "DO_ELECTROSTATICS", l_val=ff_type%do_es)
+      CALL section_vals_val_get(ff_section, "DO_ELECTROSTATICS", l_val=ff_type%do_electrostatics)
       tmp_section => section_vals_get_subs_vals(ff_section, "NONBONDED")
       CALL section_vals_get(tmp_section, explicit=explicit)
       IF (explicit .AND. ff_type%do_nonbonded) THEN
