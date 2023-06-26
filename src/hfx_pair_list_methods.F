@@ -464,7 +464,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: natom
       TYPE(pair_list_type), INTENT(OUT)                  :: list
-      TYPE(pair_set_list_type), DIMENSION(*), &
+      TYPE(pair_set_list_type), DIMENSION(:), &
          INTENT(OUT)                                     :: set_list
       INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end
       INTEGER                                            :: kind_of(*)
@@ -641,7 +641,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: natom
       TYPE(pair_list_type_mp2)                           :: list
-      TYPE(pair_set_list_type), DIMENSION(*), &
+      TYPE(pair_set_list_type), DIMENSION(:), &
          INTENT(OUT)                                     :: set_list
       INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end
       INTEGER                                            :: kind_of(*)
