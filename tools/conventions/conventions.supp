@@ -87,6 +87,7 @@ cp_ddapc_types.F: Found type cp_ddapc_type without initializer https://cp2k.org/
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge" https://cp2k.org/conv#c012
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix" https://cp2k.org/conv#c012
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector" https://cp2k.org/conv#c012
+cp_eri_mme_interface.F: Found type cp_eri_mme_param without initializer https://cp2k.org/conv#c016
 cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler" https://cp2k.org/conv#c103
 cp_files.F: Found CLOSE statement in procedure "close_file" https://cp2k.org/conv#c204
 cp_files.F: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#c203
