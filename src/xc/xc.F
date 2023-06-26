@@ -2623,7 +2623,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: gradient_f, lsd, my_compute_virial, &
                                                             my_gapw, tau_f, laplace_f, rho_f
-      REAL(KIND=dp)                                      :: fac, gradient_cut, tmp
+      REAL(KIND=dp)                                      :: fac, gradient_cut, tmp, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, e_drhoa, e_drhob, &
                                                             e_drho, norm_drho, norm_drhoa, &
@@ -2661,7 +2661,9 @@ CONTAINS
       nspins = SIZE(v_xc)
       lsd = ASSOCIATED(rho_set%rhoa)
       fac = 0.0_dp
+      factor2 = 1.0_dp
       IF (PRESENT(tddfpt_fac)) fac = tddfpt_fac
+      IF (PRESENT(tddfpt_fac)) factor2 = tddfpt_fac
 
       bo = rho_set%local_bounds
 
@@ -2938,12 +2940,12 @@ CONTAINS
 
                DO idir = 1, 3
 !$OMP               PARALLEL DO PRIVATE(ia,ir) DEFAULT(NONE) &
-!$OMP               SHARED(bo,vxg,drho,v_drho,e_drho,drho1,idir) COLLAPSE(2)
+!$OMP               SHARED(bo,vxg,drho,v_drho,e_drho,drho1,idir,factor2) COLLAPSE(2)
                   DO ia = bo(1, 1), bo(2, 1)
                      DO ir = bo(1, 2), bo(2, 2)
                         vxg(idir, ia, ir, 1) = -drho(idir)%array(ia, ir, 1)*v_drho(1)%cr3d(ia, ir, 1)
                         IF (ASSOCIATED(e_drho)) THEN
-                           vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + drho1(idir)%array(ia, ir, 1)*e_drho(ia, ir, 1)
+                           vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) + factor2*drho1(idir)%array(ia, ir, 1)*e_drho(ia, ir, 1)
                         END IF
                      END DO
                   END DO
@@ -3401,7 +3403,7 @@ CONTAINS
    SUBROUTINE prepare_dr1dr_ab(dr1dr, drhoa, drhob, drho1a, drho1b, fac)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: dr1dr
-      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob, drho1a, drho1b
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)    :: drhoa, drhob, drho1a, drho1b
       REAL(KIND=dp), INTENT(IN)                          :: fac
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr_ab'

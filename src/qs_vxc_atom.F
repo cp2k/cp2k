@@ -546,6 +546,7 @@ CONTAINS
          CALL section_vals_val_get(input, "DFT%TDDFPT%RES_ETYPE", &
                                    i_val=res_etype)
       END IF
+
       xc_fun_section => section_vals_get_subs_vals(xc_section, &
                                                    "XC_FUNCTIONAL")
       IF (lsd) THEN
@@ -710,11 +711,11 @@ CONTAINS
             CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                    rho_set=rho_set_h, rho1_set=rho1_set_h, &
                                    deriv_set=deriv_set, &
-                                   w=weight, vxc=vxc_h, vxg=vxg_h)
+                                   w=weight, vxc=vxc_h, vxg=vxg_h, do_triplet=do_triplet)
             CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                    rho_set=rho_set_s, rho1_set=rho1_set_s, &
                                    deriv_set=deriv_set, &
-                                   w=weight, vxc=vxc_s, vxg=vxg_s)
+                                   w=weight, vxc=vxc_s, vxg=vxg_s, do_triplet=do_triplet)
 
             CALL get_rho_atom(rho_atom=rho1_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
             IF (gradient_functional) THEN

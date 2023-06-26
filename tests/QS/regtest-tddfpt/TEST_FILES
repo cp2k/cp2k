@@ -24,4 +24,6 @@ H2O_GAPW_4.inp                                        37    4.0E-06             
 H2O_GAPW_XC_1.inp                                     37    4.0E-06                   0.619451E+00
 H2O_GAPW_XC_2.inp                                     37    4.0E-06                   0.812642E+00
 H2O_GAPW_XC_3.inp                                     37    4.0E-06                   0.836577E+00
+H2O_GAPW_1_triplet.inp                                37    4.0E-06                   0.505991E+00
+Ne_GAPW_triplet.inp                                   37    4.0E-06                   0.168075E+01
 #EOF
