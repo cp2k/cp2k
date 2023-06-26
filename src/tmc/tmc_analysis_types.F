@@ -199,6 +199,8 @@ CONTAINS
 
       ALLOCATE (ana_dens%sum_density(nr_bins(1), nr_bins(2), nr_bins(3)))
       ALLOCATE (ana_dens%sum_dens2(nr_bins(1), nr_bins(2), nr_bins(3)))
+      ana_dens%sum_density = 0.0_dp
+      ana_dens%sum_dens2 = 0.0_dp
    END SUBROUTINE tmc_ana_density_create
 
 ! **************************************************************************************************
@@ -357,9 +359,13 @@ CONTAINS
       ALLOCATE (ana_dip_ana)
 
       ALLOCATE (ana_dip_ana%mu_psv(3))
+      ana_dip_ana%mu_psv = 0.0_dp
       ALLOCATE (ana_dip_ana%mu_pv(3))
+      ana_dip_ana%mu_pv = 0.0_dp
       ALLOCATE (ana_dip_ana%mu2_pv(3))
+      ana_dip_ana%mu2_pv = 0.0_dp
       ALLOCATE (ana_dip_ana%mu2_pv_mat(3, 3))
+      ana_dip_ana%mu2_pv_mat = 0.0_dp
    END SUBROUTINE tmc_ana_dipole_analysis_create
 
 ! **************************************************************************************************
