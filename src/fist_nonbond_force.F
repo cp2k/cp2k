@@ -234,8 +234,8 @@ CONTAINS
                   fac_ei = 0.5_dp*fac_ei
                   fac_vdw = 0.5_dp*fac_vdw
                END IF
-               ! decide which interactions to compute
-               IF (do_multipoles) THEN
+               ! decide which interactions to compute\b
+               IF (do_multipoles .OR. (.NOT. fist_nonbond_env%do_electrostatics)) THEN
                   fac_ei = 0.0_dp
                END IF
                IF (ipair <= neighbor_kind_pair%nscale) THEN

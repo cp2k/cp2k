@@ -278,6 +278,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DO_ELECTROSTATICS", &
+                          description="Controls the computation of all the real-space "// &
+                          "(short-range) electrostatics interactions. This does not "// &
+                          "affect the QM/MM electrostatic coupling when turned off.", &
+                          usage="DO_ELECTROSTATICS T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="IGNORE_MISSING_CRITICAL_PARAMS", &
                           description="Do not abort when critical force-field parameters "// &
                           "are missing. CP2K will run as if the terms containing the "// &

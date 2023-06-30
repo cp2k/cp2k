@@ -321,7 +321,7 @@ CONTAINS
       ALLOCATE (fist_nonbond_env)
       CALL fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
                                    potparm_nonbond14, potparm_nonbond, ff_type%do_nonbonded, &
-                                   verlet_skin, ewald_rcut, ff_type%ei_scale14, &
+                                   ff_type%do_electrostatics, verlet_skin, ewald_rcut, ff_type%ei_scale14, &
                                    ff_type%vdw_scale14, ff_type%shift_cutoff)
       CALL fist_nonbond_env_set(fist_nonbond_env, charges=charges)
       ! Compute the electrostatic interaction cutoffs.
