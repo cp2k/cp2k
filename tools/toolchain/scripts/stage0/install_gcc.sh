@@ -192,10 +192,6 @@ leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leak related to mpi or scalapack  triggers sometimes for regtest-kp-2/cc2.inp
 leak:Cblacs_gridmap
 leak:blacs_gridmap_
-# leaks related to PEXSI
-leak:PPEXSIDFTDriver
-# leaks in SuperLU
-leak:symbfact_distributeMatrix
 # leak due to compiler bug triggered by combination of OOP and ALLOCATABLE
 leak:__dbcsr_tensor_types_MOD___copy_dbcsr_tensor_types_Dbcsr_tas_dist_t
 leak:__dbcsr_tensor_types_MOD___copy_dbcsr_tensor_types_Dbcsr_tas_blk_size_t
