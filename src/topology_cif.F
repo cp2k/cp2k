@@ -163,8 +163,13 @@ CONTAINS
       ifield = 0
       ii = 1
       ifield(ii) = 0
-      CALL parser_get_next_line(parser, 1)
+      CALL parser_search_string(parser, "_atom_site_", ignore_case=.FALSE., found=found, &
+                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
       DO WHILE (INDEX(parser%input_line, "_atom_site_") /= 0)
+         IF (INDEX(parser%input_line, "_atom_site_label") /= 0) THEN
+            CALL parser_get_next_line(parser, 1)
+            CYCLE
+         END IF
          ii = ii + 1
          CPASSERT(ii <= 20)
 
