@@ -1,0 +1,43 @@
+data_image0
+_chemical_formula_structural       HOHOPOH2C2HSHCH3
+_chemical_formula_sum              "H9 O3 P1 C3 S1"
+_cell_length_a       14.1406
+_cell_length_b       16.8139
+_cell_length_c       15.3143
+_cell_angle_alpha    90
+_cell_angle_beta     90
+_cell_angle_gamma    90
+
+_space_group_name_H-M_alt    "P 1"
+_space_group_IT_number       1
+
+loop_
+  _space_group_symop_operation_xyz
+  'x, y, z'
+
+loop_
+  _atom_site_type_symbol
+  _atom_site_label
+  _atom_site_symmetry_multiplicity
+  _atom_site_fract_x
+  _atom_site_fract_y
+  _atom_site_fract_z
+  _atom_site_occupancy
+  H   H1        1.0  0.57589  0.38395  0.32649  1.0000
+  O   O1        1.0  0.56043  0.42448  0.36966  1.0000
+  H   H2        1.0  0.35359  0.37510  0.42040  1.0000
+  O   O2        1.0  0.39597  0.41781  0.43809  1.0000
+  P   P1        1.0  0.50243  0.38506  0.44926  1.0000
+  O   O3        1.0  0.50948  0.29737  0.45290  1.0000
+  H   H3        1.0  0.57283  0.55133  0.47263  1.0000
+  H   H4        1.0  0.45927  0.54690  0.52055  1.0000
+  C   C1        1.0  0.53401  0.53128  0.53085  1.0000
+  C   C2        1.0  0.54379  0.44141  0.54076  1.0000
+  H   H5        1.0  0.61810  0.42395  0.55022  1.0000
+  S   S1        1.0  0.55889  0.68038  0.59528  1.0000
+  H   H6        1.0  0.50396  0.41959  0.59768  1.0000
+  C   C3        1.0  0.57147  0.57364  0.61129  1.0000
+  H   H7        1.0  0.64641  0.55897  0.62155  1.0000
+  H   H8        1.0  0.53135  0.55537  0.66936  1.0000
+  H   H9        1.0  0.59449  0.70263  0.67351  1.0000
+
