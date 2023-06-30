@@ -132,9 +132,14 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PEXSI_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${PEXSI_LIBS}|) \${CP_LIBS}"
 EOF
   cat << EOF >> ${INSTALLDIR}/lsan.supp
-# leaks related to PEXSI using GNU 10.3.0 and MPICH 3.3.2 on Merlin
+# leaks related to PEXSI
+leak:PPEXSIDFTDriver
+# leaks in MPICH triggered by PEXSI
 leak:MPIR_Dataloop_alloc_and_copy
 leak:MPIR_Type_contiguous_impl
+leak:MPIR_Typerep_init
+# leaks in SuperLU triggered by PEXSI
+leak:symbfact_distributeMatrix
 EOF
 fi
 
