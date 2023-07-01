@@ -61,10 +61,11 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             img = "ubuntu:22.04" if gcc_version > 8 else "ubuntu:20.04"
             f.write(toolchain_ubuntu_nompi(base_image=img, gcc_version=gcc_version))
-            f.write(regtest("ssmp"))
+            # Skip some tests because of bug in LDA_C_PMGB06 functional in libxc <5.2.0.
+            f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:11", libvori=False))
+        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:12", libvori=False))
         f.write(regtest("ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
@@ -436,10 +437,10 @@ def toolchain_full(
 # ======================================================================================
 def toolchain_ubuntu_nompi(
     base_image: str = "ubuntu:22.04",
-    gcc_version: int = 10,
+    gcc_version: int = 12,
     libvori: bool = True,
 ) -> str:
-    return rf"""
+    output = rf"""
 FROM {base_image}
 
 # Install Ubuntu packages.
@@ -449,18 +450,24 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     gcc-{gcc_version} \
     g++-{gcc_version} \
     gfortran-{gcc_version} \
-    fftw3-dev \
+    libfftw3-dev \
     libopenblas-dev \
     libgsl-dev \
     libhdf5-dev \
-   && rm -rf /var/lib/apt/lists/*
+"""
+    if gcc_version > 8:
+        output += "    libint2-dev \\\n"
+        output += "    libxc-dev \\\n"
+
+    output += rf"""   && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
-""" + install_toolchain(
+"""
+    output += install_toolchain(
         base_image="ubuntu",
         mpi_mode="no",
         with_gcc="system",
@@ -469,11 +476,12 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_openblas="system",
         with_gsl="system",
         with_hdf5="system",
-        with_libxc="install",
+        with_libint=("system" if gcc_version > 8 else "install"),
+        with_libxc=("system" if gcc_version > 8 else "install"),
         with_libxsmm="install",
-        with_libint="install",
         with_libvori=("install" if libvori else "no"),
     )
+    return output
 
 
 # ======================================================================================

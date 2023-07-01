@@ -12,10 +12,12 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     gcc-12 \
     g++-12 \
     gfortran-12 \
-    fftw3-dev \
+    libfftw3-dev \
     libopenblas-dev \
     libgsl-dev \
     libhdf5-dev \
+    libint2-dev \
+    libxc-dev \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
@@ -46,9 +48,9 @@ RUN ./install_cp2k_toolchain.sh \
     --with-openblas=system \
     --with-gsl=system \
     --with-hdf5=system \
-    --with-libxc=install \
+    --with-libint=system \
+    --with-libxc=system \
     --with-libxsmm=install \
-    --with-libint=install \
     --with-libvori=install \
     --dry-run
 
@@ -104,7 +106,7 @@ COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
 
 # Run regression tests.
-ARG TESTOPTS=""
+ARG TESTOPTS="--skipdir=QS/regtest-rs-dhft"
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS="${TESTOPTS}" \
