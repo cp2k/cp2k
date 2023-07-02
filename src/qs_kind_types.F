@@ -1847,7 +1847,7 @@ CONTAINS
                   END IF
                END IF
             END IF
-            !Beta spin
+            ! Beta spin
             NULLIFY (spin_section)
             spin_section => section_vals_get_subs_vals(bs_section, "BETA")
             CALL section_vals_get(spin_section, explicit=explicit)

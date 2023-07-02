@@ -11,6 +11,7 @@
 !>      01.2006 [created] Teodoro Laino
 ! **************************************************************************************************
 MODULE input_cp2k_restarts
+
    USE al_system_types,                 ONLY: al_system_type
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
    USE averages_types,                  ONLY: average_quantities_type
@@ -497,6 +498,7 @@ CONTAINS
    SUBROUTINE update_motion(motion_section, md_env, force_env, logger, &
                             coords, vels, pint_env, helium_env, save_mem, &
                             write_binary_restart_file)
+
       TYPE(section_vals_type), POINTER                   :: motion_section
       TYPE(md_environment_type), OPTIONAL, POINTER       :: md_env
       TYPE(force_env_type), POINTER                      :: force_env
@@ -1511,6 +1513,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE dump_csvr_restart_info(csvr, para_env, csvr_section)
+
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: csvr_section
@@ -1575,6 +1578,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE dump_al_restart_info(al, para_env, al_section)
+
       TYPE(al_system_type), POINTER                      :: al
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: al_section
@@ -1629,6 +1633,7 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE dump_gle_restart_info(gle, para_env, gle_section)
+
       TYPE(gle_type), POINTER                            :: gle
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: gle_section
@@ -1747,6 +1752,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc)
+
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta, veta, fnhc, mnhc
@@ -1976,7 +1982,9 @@ CONTAINS
          END IF
          NULLIFY (my_val)
       END DO
+
       coord_section%values(ik, 1)%list => vals
+
    END SUBROUTINE section_neb_coord_val_set
 
 ! **************************************************************************************************
@@ -1991,6 +1999,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE set_template_restart(work_section, eta, veta, fnhc, mnhc)
+
       TYPE(section_vals_type), POINTER                   :: work_section
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eta, veta, fnhc, mnhc
 
@@ -2097,7 +2106,9 @@ CONTAINS
          END IF
          NULLIFY (my_val)
       END DO
+
       ss_section%values(ik, 1)%list => vals
+
    END SUBROUTINE meta_hills_val_set_ss
 
 ! **************************************************************************************************
@@ -2165,7 +2176,9 @@ CONTAINS
          END IF
          NULLIFY (my_val)
       END DO
+
       ds_section%values(ik, 1)%list => vals
+
    END SUBROUTINE meta_hills_val_set_ds
 
 ! **************************************************************************************************
@@ -2229,7 +2242,9 @@ CONTAINS
          END IF
          NULLIFY (my_val)
       END DO
+
       ww_section%values(ik, 1)%list => vals
+
    END SUBROUTINE meta_hills_val_set_ww
 
 ! **************************************************************************************************
@@ -2850,6 +2865,7 @@ CONTAINS
 !>      unit_number: Logical unit number of the file written to
 ! **************************************************************************************************
    SUBROUTINE stop_write(object, unit_number)
+
       CHARACTER(LEN=*), INTENT(IN)                       :: object
       INTEGER, INTENT(IN)                                :: unit_number
 
