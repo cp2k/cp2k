@@ -114,6 +114,10 @@ case "$with_sirius" in
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
 
+      # GCC 13 stopped including some common headers.
+      # https://github.com/electronic-structure/SIRIUS/issues/854
+      sed -i '1 i\#include <cstdint>' src/*.hpp
+
       rm -Rf build
       mkdir build
       cd build
