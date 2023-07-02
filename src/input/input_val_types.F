@@ -12,6 +12,7 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_val_types
+
    USE cp_parser_types,                 ONLY: default_continuation_character
    USE cp_units,                        ONLY: cp_unit_create,&
                                               cp_unit_desc,&
@@ -36,7 +37,6 @@ MODULE input_val_types
    PUBLIC :: val_p_type, val_type
    PUBLIC :: val_create, val_retain, val_release, val_get, val_write, &
              val_write_internal, val_duplicate
-!***
 
    INTEGER, PARAMETER, PUBLIC :: no_t = 0, logical_t = 1, &
                                  integer_t = 2, real_t = 3, char_t = 4, enum_t = 5, lchar_t = 6
@@ -100,6 +100,7 @@ CONTAINS
    SUBROUTINE val_create(val, l_val, l_vals, l_vals_ptr, i_val, i_vals, i_vals_ptr, &
                          r_val, r_vals, r_vals_ptr, c_val, c_vals, c_vals_ptr, lc_val, lc_vals, &
                          lc_vals_ptr, enum)
+
       TYPE(val_type), POINTER                            :: val
       LOGICAL, INTENT(in), OPTIONAL                      :: l_val
       LOGICAL, DIMENSION(:), INTENT(in), OPTIONAL        :: l_vals
@@ -247,7 +248,9 @@ CONTAINS
             END IF
          END IF
       END IF
+
       CPASSERT(ASSOCIATED(val%enum) .EQV. val%type_of_var == enum_t)
+
    END SUBROUTINE val_create
 
 ! **************************************************************************************************
@@ -256,6 +259,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE val_release(val)
+
       TYPE(val_type), POINTER                            :: val
 
       IF (ASSOCIATED(val)) THEN
@@ -279,7 +283,9 @@ CONTAINS
             DEALLOCATE (val)
          END IF
       END IF
+
       NULLIFY (val)
+
    END SUBROUTINE val_release
 
 ! **************************************************************************************************
@@ -288,11 +294,13 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE val_retain(val)
+
       TYPE(val_type), POINTER                            :: val
 
       CPASSERT(ASSOCIATED(val))
       CPASSERT(val%ref_count > 0)
       val%ref_count = val%ref_count + 1
+
    END SUBROUTINE val_retain
 
 ! **************************************************************************************************
@@ -323,6 +331,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE val_get(val, has_l, has_i, has_r, has_lc, has_c, l_val, l_vals, i_val, &
                       i_vals, r_val, r_vals, c_val, c_vals, len_c, type_of_var, enum)
+
       TYPE(val_type), POINTER                            :: val
       LOGICAL, INTENT(out), OPTIONAL                     :: has_l, has_i, has_r, has_lc, has_c, l_val
       LOGICAL, DIMENSION(:), OPTIONAL, POINTER           :: l_vals
@@ -453,7 +462,7 @@ CONTAINS
    END SUBROUTINE val_get
 
 ! **************************************************************************************************
-!> \brief writes out the valuse stored in the val
+!> \brief writes out the values stored in the val
 !> \param val the val to write
 !> \param unit_nr the number of the unit to write to
 !> \param unit the unit of mesure in which the output should be written
@@ -465,6 +474,7 @@ CONTAINS
 !>      unit of mesure used only for reals
 ! **************************************************************************************************
    SUBROUTINE val_write(val, unit_nr, unit, unit_str, fmt)
+
       TYPE(val_type), POINTER                            :: val
       INTEGER, INTENT(in)                                :: unit_nr
       TYPE(cp_unit_type), OPTIONAL, POINTER              :: unit
@@ -478,6 +488,7 @@ CONTAINS
       NULLIFY (my_unit)
       myfmt = ""
       owns_unit = .FALSE.
+
       IF (PRESENT(fmt)) myfmt = fmt
       IF (PRESENT(unit)) my_unit => unit
       IF (.NOT. ASSOCIATED(my_unit) .AND. PRESENT(unit_str)) THEN
@@ -485,20 +496,21 @@ CONTAINS
          CALL cp_unit_create(my_unit, unit_str)
          owns_unit = .TRUE.
       END IF
+
       IF (ASSOCIATED(val)) THEN
          SELECT CASE (val%type_of_var)
          CASE (logical_t)
             IF (ASSOCIATED(val%l_val)) THEN
                DO i = 1, SIZE(val%l_val)
                   IF (MODULO(i, 20) == 0) THEN
-                     WRITE (unit=unit_nr, fmt="(' ',A)") default_continuation_character
-                     WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
+                     WRITE (UNIT=unit_nr, FMT="(1X,A1)") default_continuation_character
+                     WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                   END IF
-                  WRITE (unit=unit_nr, fmt="(' ',l1)", advance="NO") &
+                  WRITE (UNIT=unit_nr, FMT="(1X,L1)", ADVANCE="NO") &
                      val%l_val(i)
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Input value of type <logical_t> not associated")
             END IF
          CASE (integer_t)
             IF (ASSOCIATED(val%i_val)) THEN
@@ -529,59 +541,65 @@ CONTAINS
                   i = i + 1
                END DO loop_i
             ELSE
-               CPABORT("")
+               CPABORT("Input value of type <integer_t> not associated")
             END IF
          CASE (real_t)
             IF (ASSOCIATED(val%r_val)) THEN
                DO i = 1, SIZE(val%r_val)
                   IF (MODULO(i, 5) == 0) THEN
-                     WRITE (unit=unit_nr, fmt="(' ',A)") default_continuation_character
-                     WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
+                     WRITE (UNIT=unit_nr, FMT="(1X,A)") default_continuation_character
+                     WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                   END IF
                   IF (ASSOCIATED(my_unit)) THEN
-                     WRITE (rcval, "(ES25.16)") cp_unit_from_cp2k1(val%r_val(i), my_unit)
+                     WRITE (UNIT=rcval, FMT="(ES25.16E3)") &
+                        cp_unit_from_cp2k1(val%r_val(i), my_unit)
                   ELSE
-                     WRITE (rcval, "(ES25.16)") val%r_val(i)
+                     WRITE (UNIT=rcval, FMT="(ES25.16E3)") val%r_val(i)
                   END IF
-                  WRITE (unit=unit_nr, fmt="(' ',A)", advance="NO") TRIM(rcval)
+                  WRITE (UNIT=unit_nr, FMT="(A)", ADVANCE="NO") TRIM(rcval)
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Input value of type <real_t> not associated")
             END IF
          CASE (char_t)
             IF (ASSOCIATED(val%c_val)) THEN
                l = 0
                DO i = 1, SIZE(val%c_val)
-                  IF (i > 1) WRITE (unit=unit_nr, fmt="(' ')", advance="NO")
                   l = l + 1
                   IF (l > 10 .AND. l + LEN_TRIM(val%c_val(i)) > 76) THEN
-                     WRITE (unit=unit_nr, fmt="('\')")
-                     WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
+                     WRITE (UNIT=unit_nr, FMT="(A1)") default_continuation_character
+                     WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                      l = 0
-                     WRITE (unit=unit_nr, fmt='(a)', advance="NO") TRIM(val%c_val(i))
+                     WRITE (UNIT=unit_nr, FMT="(1X,A)", ADVANCE="NO") """"//TRIM(val%c_val(i))//""""
                      l = l + LEN_TRIM(val%c_val(i)) + 3
                   ELSE IF (LEN_TRIM(val%c_val(i)) > 0) THEN
                      l = l + LEN_TRIM(val%c_val(i))
-                     WRITE (unit=unit_nr, fmt='(a)', advance="NO") TRIM(val%c_val(i))
+                     WRITE (UNIT=unit_nr, FMT="(1X,A)", ADVANCE="NO") """"//TRIM(val%c_val(i))//""""
                   ELSE
                      l = l + 3
-                     WRITE (unit=unit_nr, fmt="(a)", advance="NO") '" "'
+                     WRITE (UNIT=unit_nr, FMT="(1X,A)", ADVANCE="NO") '""'
                   END IF
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Input value of type <char_t> not associated")
             END IF
          CASE (lchar_t)
             IF (ASSOCIATED(val%c_val)) THEN
-               l = 0
-               DO i = 1, SIZE(val%c_val) - 1
-                  WRITE (unit=unit_nr, fmt='(a)', advance="NO") val%c_val(i)
-               END DO
-               IF (SIZE(val%c_val) > 0) THEN
-                  WRITE (unit=unit_nr, fmt='(a)', advance="NO") TRIM(val%c_val(SIZE(val%c_val)))
-               END IF
+               SELECT CASE (SIZE(val%c_val))
+               CASE (1)
+                  WRITE (UNIT=unit_nr, FMT='(1X,A)', ADVANCE="NO") TRIM(val%c_val(1))
+               CASE (2)
+                  WRITE (UNIT=unit_nr, FMT='(1X,A)', ADVANCE="NO") val%c_val(1)
+                  WRITE (UNIT=unit_nr, FMT='(A)', ADVANCE="NO") TRIM(val%c_val(2))
+               CASE (3:)
+                  WRITE (UNIT=unit_nr, FMT='(1X,A)', ADVANCE="NO") val%c_val(1)
+                  DO i = 2, SIZE(val%c_val) - 1
+                     WRITE (UNIT=unit_nr, FMT="(A)", ADVANCE="NO") val%c_val(i)
+                  END DO
+                  WRITE (UNIT=unit_nr, FMT='(A)', ADVANCE="NO") TRIM(val%c_val(SIZE(val%c_val)))
+               END SELECT
             ELSE
-               CPABORT("")
+               CPABORT("Input value of type <lchar_t> not associated")
             END IF
          CASE (enum_t)
             IF (ASSOCIATED(val%i_val)) THEN
@@ -589,31 +607,33 @@ CONTAINS
                DO i = 1, SIZE(val%i_val)
                   c_string = enum_i2c(val%enum, val%i_val(i))
                   IF (l > 10 .AND. l + LEN_TRIM(c_string) > 76) THEN
-                     WRITE (unit=unit_nr, fmt="(' ',A)") default_continuation_character
-                     WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
+                     WRITE (UNIT=unit_nr, FMT="(1X,A)") default_continuation_character
+                     WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                      l = 0
                   ELSE
                      l = l + LEN_TRIM(c_string) + 3
                   END IF
-                  WRITE (unit=unit_nr, fmt="(' ',a)", advance="NO") TRIM(c_string)
+                  WRITE (UNIT=unit_nr, FMT="(1X,A)", ADVANCE="NO") TRIM(c_string)
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Input value of type <enum_t> not associated")
             END IF
-
          CASE (no_t)
-            WRITE (unit=unit_nr, fmt="(' *empty*')", advance="NO")
+            WRITE (UNIT=unit_nr, FMT="(' *empty*')", ADVANCE="NO")
          CASE default
-            CPABORT("unexpected type_of_var for val ")
+            CPABORT("Unexpected type_of_var for val")
          END SELECT
       ELSE
-         WRITE (unit=unit_nr, fmt="(' *null*')", advance="NO")
+         WRITE (UNIT=unit_nr, FMT="(1X,A)", ADVANCE="NO") "NULL()"
       END IF
+
       IF (owns_unit) THEN
          CALL cp_unit_release(my_unit)
          DEALLOCATE (my_unit)
       END IF
-      WRITE (unit=unit_nr, fmt="()")
+
+      WRITE (UNIT=unit_nr, FMT="()")
+
    END SUBROUTINE val_write
 
 ! **************************************************************************************************
@@ -637,8 +657,6 @@ CONTAINS
       INTEGER                                            :: i, ipos
       REAL(KIND=dp)                                      :: value
 
-! -------------------------------------------------------------------------
-
       string = ""
 
       IF (ASSOCIATED(val)) THEN
@@ -647,7 +665,7 @@ CONTAINS
          CASE (logical_t)
             IF (ASSOCIATED(val%l_val)) THEN
                DO i = 1, SIZE(val%l_val)
-                  WRITE (UNIT=string(2*i - 1:), FMT="(L2)") val%l_val(i)
+                  WRITE (UNIT=string(2*i - 1:), FMT="(1X,L1)") val%l_val(i)
                END DO
             ELSE
                CPABORT("")
@@ -716,6 +734,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE val_duplicate(val_in, val_out)
+
       TYPE(val_type), POINTER                            :: val_in, val_out
 
       CPASSERT(ASSOCIATED(val_in))
@@ -743,6 +762,7 @@ CONTAINS
          ALLOCATE (val_out%c_val(SIZE(val_in%c_val)))
          val_out%c_val = val_in%c_val
       END IF
+
    END SUBROUTINE val_duplicate
 
 END MODULE input_val_types

@@ -119,7 +119,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: do_dR, do_soc, dogth, dokp, found, &
+      LOGICAL                                            :: do_dR, do_gth, do_kp, do_soc, found, &
                                                             ppnl_present
       LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
@@ -171,9 +171,9 @@ CONTAINS
          nkind = SIZE(atomic_kind_set)
          natom = SIZE(particle_set)
 
-         dokp = (nimages > 1)
+         do_kp = (nimages > 1)
 
-         IF (dokp) THEN
+         IF (do_kp) THEN
             CPASSERT(PRESENT(cell_to_index) .AND. ASSOCIATED(cell_to_index))
          END IF
 
@@ -204,14 +204,14 @@ CONTAINS
          ldsab = MAX(maxco, ncoset(maxlppnl), maxsgf, maxppnl)
          ldai = ncoset(maxl + nder + 1)
 
-         !sap_int needs to be shared as multiple threads need to access this
+         ! sap_int needs to be shared as multiple threads need to access this
          ALLOCATE (sap_int(nkind*nkind))
          DO i = 1, nkind*nkind
             NULLIFY (sap_int(i)%alist, sap_int(i)%asort, sap_int(i)%aindex)
             sap_int(i)%nalist = 0
          END DO
 
-         !set up direct access to basis and potential
+         ! Set up direct access to basis and potential
          ALLOCATE (basis_set(nkind), gpotential(nkind), spotential(nkind))
          DO ikind = 1, nkind
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
@@ -225,12 +225,15 @@ CONTAINS
             NULLIFY (spotential(ikind)%sgp_potential)
             IF (ASSOCIATED(gth_potential)) THEN
                gpotential(ikind)%gth_potential => gth_potential
+               IF (do_soc .AND. (.NOT. gth_potential%soc)) THEN
+                  CPWARN("Spin-orbit coupling selected, but GTH potential without SOC parameters provided")
+               END IF
             ELSE IF (ASSOCIATED(sgp_potential)) THEN
                spotential(ikind)%sgp_potential => sgp_potential
             END IF
          END DO
 
-         !allocate sap int
+         ! Allocate sap int
          DO slot = 1, sap_ppnl(1)%nl_size
 
             ikind = sap_ppnl(1)%nlist_task(slot)%ikind
@@ -266,7 +269,7 @@ CONTAINS
             END IF
          END DO
 
-         !calculate the overlap integrals <a|p>
+         ! Calculate the overlap integrals <a|p>
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (basis_set, gpotential, spotential, maxder, ncoset, &
@@ -275,7 +278,7 @@ CONTAINS
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
 !$OMP          slot, sphi_a, zeta, cprj, hprj, lppnl, nppnl, nprj_ppnl, &
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, work_l, sab, lab, ai_work, nprjc, &
-!$OMP          ppnl_radius, ncoc, rpgfa, first_col, vprj_ppnl, wprj_ppnl, i, j, l, dogth, &
+!$OMP          ppnl_radius, ncoc, rpgfa, first_col, vprj_ppnl, wprj_ppnl, i, j, l, do_gth, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
 !$OMP          na, nb, np, nnl, is_nonlocal, a_nl, h_nl, c_nl, radp, i_dim, ib, jb)
 
@@ -304,7 +307,7 @@ CONTAINS
 
             iac = ikind + nkind*(kkind - 1)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
-            ! get definition of basis set
+            ! Get definition of basis set
             first_sgfa => basis_set(ikind)%gto_basis_set%first_sgf
             la_max => basis_set(ikind)%gto_basis_set%lmax
             la_min => basis_set(ikind)%gto_basis_set%lmin
@@ -316,10 +319,10 @@ CONTAINS
             set_radius_a => basis_set(ikind)%gto_basis_set%set_radius
             sphi_a => basis_set(ikind)%gto_basis_set%sphi
             zeta => basis_set(ikind)%gto_basis_set%zet
-            ! get definition of PP projectors
+            ! Get definition of PP projectors
             IF (ASSOCIATED(gpotential(kkind)%gth_potential)) THEN
                ! GTH potential
-               dogth = .TRUE.
+               do_gth = .TRUE.
                alpha_ppnl => gpotential(kkind)%gth_potential%alpha_ppnl
                cprj => gpotential(kkind)%gth_potential%cprj
                lppnl = gpotential(kkind)%gth_potential%lppnl
@@ -330,7 +333,7 @@ CONTAINS
                wprj_ppnl => gpotential(kkind)%gth_potential%wprj_ppnl
             ELSE IF (ASSOCIATED(spotential(kkind)%sgp_potential)) THEN
                ! SGP potential
-               dogth = .FALSE.
+               do_gth = .FALSE.
                nprjc = spotential(kkind)%sgp_potential%nppnl
                IF (nprjc == 0) CYCLE
                nnl = spotential(kkind)%sgp_potential%n_nonlocal
@@ -359,20 +362,20 @@ CONTAINS
                       clist%achint(nsgfa, nppnl, maxder), &
                       clist%alint(nsgfa, nppnl, 3), &
                       clist%alkint(nsgfa, nppnl, 3))
-            clist%acint = 0._dp
-            clist%achint = 0._dp
-            clist%alint = 0._dp
-            clist%alkint = 0._dp
+            clist%acint = 0.0_dp
+            clist%achint = 0.0_dp
+            clist%alint = 0.0_dp
+            clist%alkint = 0.0_dp
 
             clist%nsgf_cnt = 0
             NULLIFY (clist%sgf_list)
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
-               IF (dogth) THEN
+               IF (do_gth) THEN
                   ! GTH potential
                   prjc = 1
-                  work = 0._dp
+                  work = 0.0_dp
                   DO l = 0, lppnl
                      nprjc = nprj_ppnl(l)*nco(l)
                      IF (nprjc == 0) CYCLE
@@ -383,23 +386,23 @@ CONTAINS
                      zetc(1) = alpha_ppnl(l)
                      ncoc = ncoset(lc_max)
 
-                     ! *** Calculate the primitive overlap integrals ***
+                     ! Calculate the primitive overlap integrals
                      CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                   lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
-                     ! *** Transformation step projector functions (cartesian->spherical) ***
+                     ! Transformation step projector functions (Cartesian -> spherical)
                      na = ncoa
                      nb = nprjc
                      np = ncoc
                      DO i = 1, maxder
                         first_col = (i - 1)*ldsab
-!                       CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, first_col + 1), SIZE(sab, 1), &
-!                                  cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, first_col + prjc), ldsab)
+                        ! CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, first_col + 1), SIZE(sab, 1), &
+                        !            cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, first_col + prjc), ldsab)
                         work(1:na, first_col + prjc:first_col + prjc + nb - 1) = &
                            MATMUL(sab(1:na, first_col + 1:first_col + np), cprj(1:np, prjc:prjc + nb - 1))
                      END DO
 
                      IF (do_soc) THEN
-                        ! *** Calculate the primitive angular momentum integrals needed for spin-orbit coupling ***
+                        ! Calculate the primitive angular momentum integrals needed for spin-orbit coupling
                         lab = 0.0_dp
                         CALL angmom(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                                     lc_max, 1, zetc, rprjc, -rac, (/0._dp, 0._dp, 0._dp/), lab)
@@ -417,18 +420,16 @@ CONTAINS
                   np = ncoa
                   DO i = 1, maxder
                      first_col = (i - 1)*ldsab + 1
-                     ! *** Contraction step (basis functions) ***
-!                    CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-!                               work(1, first_col), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     ! Contraction step (basis functions)
+                     ! CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                     !           work(1, first_col), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
                      clist%acint(sgfa:sgfa + na - 1, 1:nb, i) = &
                         MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work(1:np, first_col:first_col + nb - 1))
-
-                     ! *** Multiply with interaction matrix(h) ***
-!                    CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
-!                               vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
+                     ! Multiply with interaction matrix(h)
+                     ! CALL dgemm("N", "N", nsgf_seta(iset), nppnl, nppnl, 1.0_dp, clist%acint(sgfa, 1, i), nsgfa, &
+                     !            vprj_ppnl(1, 1), SIZE(vprj_ppnl, 1), 0.0_dp, clist%achint(sgfa, 1, i), nsgfa)
                      clist%achint(sgfa:sgfa + na - 1, 1:nb, i) = &
                         MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, i), vprj_ppnl(1:nb, 1:nb))
-
                   END DO
                   IF (do_soc) THEN
                      DO i_dim = 1, 3
@@ -440,7 +441,7 @@ CONTAINS
                   END IF
                ELSE
                   ! SGP potential
-                  ! *** Calculate the primitive overlap integrals ***
+                  ! Calculate the primitive overlap integrals
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
                   na = nsgf_seta(iset)
@@ -448,13 +449,13 @@ CONTAINS
                   np = ncoa
                   DO i = 1, maxder
                      first_col = (i - 1)*ldsab + 1
-                     ! *** Transformation step projector functions (cartesian->spherical) ***
-!                    CALL dgemm("N", "N", ncoa, nppnl, nprjc, 1.0_dp, sab(1, first_col), ldsab, &
-!                               cprj(1, 1), SIZE(cprj, 1), 0.0_dp, work(1, 1), ldsab)
+                     ! Transformation step projector functions (cartesian->spherical)
+                     ! CALL dgemm("N", "N", ncoa, nppnl, nprjc, 1.0_dp, sab(1, first_col), ldsab, &
+                     !            cprj(1, 1), SIZE(cprj, 1), 0.0_dp, work(1, 1), ldsab)
                      work(1:np, 1:nb) = MATMUL(sab(1:np, first_col:first_col + nprjc - 1), cprj(1:nprjc, 1:nb))
-                     ! *** Contraction step (basis functions) ***
-!                    CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-!                               work(1, 1), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
+                     ! Contraction step (basis functions)
+                     ! CALL dgemm("T", "N", nsgf_seta(iset), nppnl, ncoa, 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                     !            work(1, 1), ldsab, 0.0_dp, clist%acint(sgfa, 1, i), nsgfa)
                      clist%acint(sgfa:sgfa + na - 1, 1:nb, i) = &
                         MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work(1:np, 1:nb))
                      ! *** Multiply with interaction matrix(h) ***
@@ -467,24 +468,24 @@ CONTAINS
             END DO
             clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
             clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
-            IF (.NOT. dogth) DEALLOCATE (radp)
+            IF (.NOT. do_gth) DEALLOCATE (radp)
          END DO
 
          DEALLOCATE (sab, ai_work, work)
          IF (do_soc) DEALLOCATE (lab, work_l)
 !$OMP END PARALLEL
 
-         ! *** Set up a sorting index
+         ! Set up a sorting index
          CALL sap_sort(sap_int)
-         ! *** All integrals needed have been calculated and stored in sap_int
-         ! *** We now calculate the Hamiltonian matrix elements
+         ! All integrals needed have been calculated and stored in sap_int
+         ! We now calculate the Hamiltonian matrix elements
 
          force_thread = 0.0_dp
          pv_thread = 0.0_dp
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (dokp, basis_set, matrix_h, matrix_l, cell_to_index,&
+!$OMP SHARED  (do_kp, basis_set, matrix_h, matrix_l, cell_to_index,&
 !$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
 !$OMP          do_dR, deltaR, maxder, nder, &
 !$OMP          locks, virial, use_virial, calculate_forces, do_soc) &
@@ -523,20 +524,20 @@ CONTAINS
 
             iab = ikind + nkind*(jkind - 1)
 
-            ! *** Use the symmetry of the first derivatives ***
+            ! Use the symmetry of the first derivatives
             IF (iatom == jatom) THEN
                f0 = 1.0_dp
             ELSE
                f0 = 2.0_dp
             END IF
 
-            IF (dokp) THEN
+            IF (do_kp) THEN
                img = cell_to_index(cell_b(1), cell_b(2), cell_b(3))
             ELSE
                img = 1
             END IF
 
-            ! *** Create matrix blocks for a new matrix block column ***
+            ! Create matrix blocks for a new matrix block column
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
@@ -753,8 +754,8 @@ CONTAINS
          END IF
 
          IF (calculate_forces) THEN
-            ! *** If LSD, then recover alpha density and beta density     ***
-            ! *** from the total density (1) and the spin density (2)     ***
+            ! If LSD, then recover alpha density and beta density
+            ! from the total density (1) and the spin density (2)
             IF (SIZE(matrix_p, 1) == 2) THEN
                DO img = 1, nimages
                   CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
@@ -770,7 +771,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_core_ppnl
-
-! **************************************************************************************************
 
 END MODULE core_ppnl

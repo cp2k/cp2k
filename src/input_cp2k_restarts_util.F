@@ -112,9 +112,11 @@ CONTAINS
          END IF
          NULLIFY (my_val)
       END DO
+
       velocity_section%values(ik, 1)%list => vals
 
       CALL timestop(handle)
+
    END SUBROUTINE section_velocity_val_set
 
 END MODULE input_cp2k_restarts_util

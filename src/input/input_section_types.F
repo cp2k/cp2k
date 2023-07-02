@@ -13,11 +13,13 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_section_types
+
    USE cp_linked_list_input,            ONLY: &
         cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, cp_sll_val_get_length, &
         cp_sll_val_get_rest, cp_sll_val_insert_el_at, cp_sll_val_next, cp_sll_val_p_type, &
         cp_sll_val_rm_el_at, cp_sll_val_set_el_at, cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_parser_types,                 ONLY: default_section_character
    USE input_keyword_types,             ONLY: keyword_describe,&
                                               keyword_p_type,&
                                               keyword_release,&
@@ -39,7 +41,6 @@ MODULE input_section_types
    USE print_messages,                  ONLY: print_message
    USE reference_manager,               ONLY: get_citation_key
    USE string_utilities,                ONLY: a2s,&
-                                              compress,&
                                               substitute_special_xml_tokens,&
                                               typo_match,&
                                               uppercase
@@ -152,6 +153,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_create(section, location, name, description, n_keywords, &
                              n_subsections, repeats, citations)
+
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: location, name, description
       INTEGER, INTENT(in), OPTIONAL                      :: n_keywords, n_subsections
@@ -202,6 +204,7 @@ CONTAINS
       DO i = 1, my_n_subsections
          NULLIFY (section%subsections(i)%section)
       END DO
+
    END SUBROUTINE section_create
 
 ! **************************************************************************************************
@@ -210,11 +213,13 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_retain(section)
+
       TYPE(section_type), POINTER                        :: section
 
       CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)
       section%ref_count = section%ref_count + 1
+
    END SUBROUTINE section_retain
 
 ! **************************************************************************************************
@@ -223,6 +228,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_release(section)
+
       TYPE(section_type), POINTER                        :: section
 
       INTEGER                                            :: i
@@ -252,6 +258,7 @@ CONTAINS
          END IF
          NULLIFY (section)
       END IF
+
    END SUBROUTINE section_release
 
 ! **************************************************************************************************
@@ -261,6 +268,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION get_section_info(section) RESULT(message)
+
       TYPE(section_type), INTENT(IN)                     :: section
       CHARACTER(LEN=default_path_length)                 :: message
 
@@ -293,6 +301,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurse)
+
       TYPE(section_type), INTENT(IN), POINTER            :: section
       INTEGER, INTENT(in)                                :: unit_nr, level
       LOGICAL, INTENT(in), OPTIONAL                      :: hide_root
@@ -311,7 +320,7 @@ CONTAINS
             CPASSERT(section%ref_count > 0)
 
             IF (.NOT. my_hide_root) &
-               WRITE (unit_nr, "('*** section &',a,' ***')") TRIM(section%name)
+               WRITE (UNIT=unit_nr, FMT="('*** section &',A,' ***')") TRIM(ADJUSTL(section%name))
             IF (level > 1) THEN
                message = get_section_info(section)
                CALL print_message(TRIM(a2s(section%description))//TRIM(message), unit_nr, 0, 0, 0)
@@ -332,22 +341,23 @@ CONTAINS
             END IF
             IF (section%n_subsections > 0 .AND. my_recurse >= 0) THEN
                IF (.NOT. my_hide_root) &
-                  WRITE (unit_nr, "('** subsections **')")
+                  WRITE (UNIT=unit_nr, FMT="('** subsections **')")
                DO isub = 1, section%n_subsections
                   IF (my_recurse > 0) THEN
                      CALL section_describe(section%subsections(isub)%section, unit_nr, &
                                            level, recurse=my_recurse - 1)
                   ELSE
-                     WRITE (unit_nr, "(' ',a)") section%subsections(isub)%section%name
+                     WRITE (UNIT=unit_nr, FMT="(1X,A)") section%subsections(isub)%section%name
                   END IF
                END DO
             END IF
             IF (.NOT. my_hide_root) &
-               WRITE (unit_nr, "('*** &end section ',a,' ***')") TRIM(section%name)
+               WRITE (UNIT=unit_nr, FMT="('*** &end section ',A,' ***')") TRIM(ADJUSTL(section%name))
          ELSE
             WRITE (unit_nr, "(a)") '<section *null*>'
          END IF
       END IF
+
    END SUBROUTINE section_describe
 
 ! **************************************************************************************************
@@ -360,6 +370,7 @@ CONTAINS
 !>      private utility function
 ! **************************************************************************************************
    FUNCTION section_get_subsection_index(section, subsection_name) RESULT(res)
+
       TYPE(section_type), INTENT(IN)                     :: section
       CHARACTER(len=*), INTENT(IN)                       :: subsection_name
       INTEGER                                            :: res
@@ -378,6 +389,7 @@ CONTAINS
             EXIT
          END IF
       END DO
+
    END FUNCTION section_get_subsection_index
 
 ! **************************************************************************************************
@@ -388,6 +400,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION section_get_subsection(section, subsection_name) RESULT(res)
+
       TYPE(section_type), INTENT(IN)                     :: section
       CHARACTER(len=*), INTENT(IN)                       :: subsection_name
       TYPE(section_type), POINTER                        :: res
@@ -400,6 +413,7 @@ CONTAINS
       ELSE
          NULLIFY (res)
       END IF
+
    END FUNCTION section_get_subsection
 
 ! **************************************************************************************************
@@ -412,6 +426,7 @@ CONTAINS
 !>      private utility function
 ! **************************************************************************************************
    FUNCTION section_get_keyword_index(section, keyword_name) RESULT(res)
+
       TYPE(section_type), INTENT(IN)                     :: section
       CHARACTER(len=*), INTENT(IN)                       :: keyword_name
       INTEGER                                            :: res
@@ -442,6 +457,7 @@ CONTAINS
             END DO
          END DO k_search_loop
       END IF
+
    END FUNCTION section_get_keyword_index
 
 ! **************************************************************************************************
@@ -452,6 +468,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE FUNCTION section_get_keyword(section, keyword_name) RESULT(res)
+
       TYPE(section_type), INTENT(IN)                     :: section
       CHARACTER(len=*), INTENT(IN)                       :: keyword_name
       TYPE(keyword_type), POINTER                        :: res
@@ -474,6 +491,7 @@ CONTAINS
             res => section%keywords(ik)%keyword
          END IF
       END IF
+
    END FUNCTION section_get_keyword
 
 ! **************************************************************************************************
@@ -483,6 +501,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_add_keyword(section, keyword)
+
       TYPE(section_type), INTENT(INOUT)                  :: section
       TYPE(keyword_type), INTENT(IN), POINTER            :: keyword
 
@@ -528,6 +547,7 @@ CONTAINS
          section%n_keywords = section%n_keywords + 1
          section%keywords(section%n_keywords)%keyword => keyword
       END IF
+
    END SUBROUTINE section_add_keyword
 
 ! **************************************************************************************************
@@ -537,6 +557,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_add_subsection(section, subsection)
+
       TYPE(section_type), INTENT(INOUT)                  :: section
       TYPE(section_type), INTENT(IN), POINTER            :: subsection
 
@@ -567,6 +588,7 @@ CONTAINS
       CALL section_retain(subsection)
       section%n_subsections = section%n_subsections + 1
       section%subsections(section%n_subsections)%section => subsection
+
    END SUBROUTINE section_add_subsection
 
 ! **************************************************************************************************
@@ -576,6 +598,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_vals_create(section_vals, section)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
       TYPE(section_type), POINTER                        :: section
 
@@ -594,7 +617,9 @@ CONTAINS
          CALL section_vals_create(section_vals%subs_vals(i, 1)%section_vals, &
                                   section=section%subsections(i)%section)
       END DO
+
       NULLIFY (section_vals%ibackup)
+
    END SUBROUTINE section_vals_create
 
 ! **************************************************************************************************
@@ -603,11 +628,13 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_vals_retain(section_vals)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
 
       CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
       section_vals%ref_count = section_vals%ref_count + 1
+
    END SUBROUTINE section_vals_retain
 
 ! **************************************************************************************************
@@ -616,6 +643,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_vals_release(section_vals)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
 
       INTEGER                                            :: i, j
@@ -649,6 +677,7 @@ CONTAINS
             DEALLOCATE (section_vals)
          END IF
       END IF
+
    END SUBROUTINE section_vals_release
 
 ! **************************************************************************************************
@@ -665,6 +694,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_vals_get(section_vals, ref_count, n_repetition, &
                                n_subs_vals_rep, section, explicit)
+
       TYPE(section_vals_type), INTENT(IN)                :: section_vals
       INTEGER, INTENT(out), OPTIONAL                     :: ref_count, n_repetition, n_subs_vals_rep
       TYPE(section_type), OPTIONAL, POINTER              :: section
@@ -676,6 +706,7 @@ CONTAINS
       IF (PRESENT(n_repetition)) n_repetition = SIZE(section_vals%values, 2)
       IF (PRESENT(n_subs_vals_rep)) n_subs_vals_rep = SIZE(section_vals%subs_vals, 2)
       IF (PRESENT(explicit)) explicit = (SIZE(section_vals%values, 2) > 0)
+
    END SUBROUTINE section_vals_get
 
 ! **************************************************************************************************
@@ -690,6 +721,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals, subsection_name, &
                                                  i_rep_section, can_return_null) RESULT(res)
+
       TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(IN)                       :: subsection_name
       INTEGER, INTENT(IN), OPTIONAL                      :: i_rep_section
@@ -744,6 +776,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION section_vals_get_subs_vals2(section_vals, i_section, i_rep_section) RESULT(res)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
       INTEGER, INTENT(in)                                :: i_section
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section
@@ -781,6 +814,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_vals_get_subs_vals3(section_vals, subsection_name, &
                                         i_rep_section) RESULT(res)
+
       TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(LEN=*), INTENT(IN)                       :: subsection_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section
@@ -795,6 +829,7 @@ CONTAINS
       CPASSERT(irep <= SIZE(section_vals%subs_vals, 2))
       i_section = section_get_subsection_index(section_vals%section, subsection_name)
       res => section_vals%subs_vals(i_section, irep)%section_vals
+
    END FUNCTION section_vals_get_subs_vals3
 
 ! **************************************************************************************************
@@ -803,6 +838,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_vals_add_values(section_vals)
+
       TYPE(section_vals_type), INTENT(INOUT)             :: section_vals
 
       INTEGER                                            :: i, j
@@ -841,6 +877,7 @@ CONTAINS
                                      section=section_vals%section%subsections(i)%section)
          END DO
       END IF
+
    END SUBROUTINE section_vals_add_values
 
 ! **************************************************************************************************
@@ -849,6 +886,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_vals_remove_values(section_vals)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
 
       INTEGER                                            :: i, j
@@ -874,12 +912,8 @@ CONTAINS
          DEALLOCATE (section_vals%values)
          section_vals%values => new_values
       END IF
-   END SUBROUTINE section_vals_remove_values
 
-! These accessor functions can be used instead of passing a variable
-! in the parameter list of a subroutine call. This should make the
-! code a lot simpler. See xc_rho_set_and_dset_create in xc.F as
-! an example.
+   END SUBROUTINE section_vals_remove_values
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1003,6 +1037,7 @@ CONTAINS
    SUBROUTINE section_vals_val_get(section_vals, keyword_name, i_rep_section, &
                                    i_rep_val, n_rep_val, val, l_val, i_val, r_val, c_val, l_vals, i_vals, r_vals, &
                                    c_vals, explicit)
+
       TYPE(section_vals_type), INTENT(IN), TARGET        :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section, i_rep_val
@@ -1111,6 +1146,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_vals_list_get(section_vals, keyword_name, i_rep_section, &
                                     list)
+
       TYPE(section_vals_type), INTENT(IN), POINTER       :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, OPTIONAL                                  :: i_rep_section
@@ -1177,6 +1213,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_vals_val_set(section_vals, keyword_name, i_rep_section, i_rep_val, &
                                    val, l_val, i_val, r_val, c_val, l_vals_ptr, i_vals_ptr, r_vals_ptr, c_vals_ptr)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section, i_rep_val
@@ -1306,8 +1343,8 @@ CONTAINS
 !>        (defaults to 1)
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE section_vals_val_unset(section_vals, keyword_name, i_rep_section, &
-                                     i_rep_val)
+   SUBROUTINE section_vals_val_unset(section_vals, keyword_name, i_rep_section, i_rep_val)
+
       TYPE(section_vals_type), POINTER                   :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section, i_rep_val
@@ -1379,9 +1416,12 @@ CONTAINS
 !>      skips required sections which weren't read
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_vals_write(section_vals, unit_nr, hide_root, hide_defaults)
+
       TYPE(section_vals_type), INTENT(IN)                :: section_vals
       INTEGER, INTENT(in)                                :: unit_nr
       LOGICAL, INTENT(in), OPTIONAL                      :: hide_root, hide_defaults
+
+      INTEGER, PARAMETER                                 :: incr = 2
 
       CHARACTER(len=default_string_length)               :: myfmt
       INTEGER                                            :: i_rep_s, ik, isec, ival, nr, nval
@@ -1405,19 +1445,19 @@ CONTAINS
          IF (explicit .OR. (.NOT. my_hide_defaults)) THEN
             DO i_rep_s = 1, nr
                IF (.NOT. my_hide_root) THEN
-                  WRITE (myfmt, *) indent, "X"
-                  CALL compress(myfmt, full=.TRUE.)
+                  WRITE (UNIT=myfmt, FMT="(I0,A1)") indent, "X"
                   IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-                     WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//",'&',a,' ')", advance="NO") TRIM(section%name)
+                     WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//",A)", ADVANCE="NO") &
+                        default_section_character//TRIM(ADJUSTL(section%name))
                   ELSE
-                     WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//",'&',a)") TRIM(section%name)
+                     WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//",A)") &
+                        default_section_character//TRIM(ADJUSTL(section%name))
                   END IF
                END IF
                defaultSection = (SIZE(section_vals%values, 2) == 0)
                IF (.NOT. defaultSection) THEN
-                  IF (.NOT. my_hide_root) indent = indent + 2
-                  WRITE (myfmt, *) indent, "X"
-                  CALL compress(myfmt, full=.TRUE.)
+                  IF (.NOT. my_hide_root) indent = indent + incr
+                  WRITE (UNIT=myfmt, FMT="(I0,A1)") indent, "X"
                   DO ik = -1, section%n_keywords
                      keyword => section%keywords(ik)%keyword
                      IF (ASSOCIATED(keyword)) THEN
@@ -1444,29 +1484,27 @@ CONTAINS
                                  END IF
                                  IF (keyword%names(1) /= '_DEFAULT_KEYWORD_' .AND. &
                                      keyword%names(1) /= '_SECTION_PARAMETERS_') THEN
-                                    WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//",a,' ')", advance="NO") &
+                                    WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//",A)", ADVANCE="NO") &
                                        TRIM(keyword%names(1))
-                                 ELSEIF (keyword%names(1) == '_DEFAULT_KEYWORD_' .AND. &
-                                         keyword%type_of_var /= lchar_t) THEN
-                                    WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
+                                 ELSE IF (keyword%names(1) == '_DEFAULT_KEYWORD_' .AND. &
+                                          keyword%type_of_var /= lchar_t) THEN
+                                    WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                                  END IF
-                                 CALL val_write(val, unit_nr=unit_nr, unit=keyword%unit, &
-                                                fmt=myfmt)
+                                 CALL val_write(val, unit_nr=unit_nr, unit=keyword%unit, fmt=myfmt)
                               END DO
-                           ELSEIF (ASSOCIATED(keyword%default_value)) THEN
+                           ELSE IF (ASSOCIATED(keyword%default_value)) THEN
                               ! Section was not parsed but default for the keywords may exist
                               IF (my_hide_defaults) CYCLE
                               val => keyword%default_value
                               IF (keyword%names(1) /= '_DEFAULT_KEYWORD_' .AND. &
                                   keyword%names(1) /= '_SECTION_PARAMETERS_') THEN
-                                 WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//",a,' ')", advance="NO") &
+                                 WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//",A)", ADVANCE="NO") &
                                     TRIM(keyword%names(1))
-                              ELSEIF (keyword%names(1) == '_DEFAULT_KEYWORD_' .AND. &
-                                      keyword%type_of_var /= lchar_t) THEN
-                                 WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
+                              ELSE IF (keyword%names(1) == '_DEFAULT_KEYWORD_' .AND. &
+                                       keyword%type_of_var /= lchar_t) THEN
+                                 WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                               END IF
-                              CALL val_write(val, unit_nr=unit_nr, unit=keyword%unit, &
-                                             fmt=myfmt)
+                              CALL val_write(val, unit_nr=unit_nr, unit=keyword%unit, fmt=myfmt)
                            END IF
                         END IF
                      END IF
@@ -1481,9 +1519,10 @@ CONTAINS
                   END IF
                END IF
                IF (.NOT. my_hide_root) THEN
-                  indent = indent - 2
-                  WRITE (UNIT=unit_nr, FMT="(A)") &
-                     REPEAT(" ", indent)//"&END "//TRIM(section%name)
+                  indent = indent - incr
+                  WRITE (UNIT=myfmt, FMT="(I0,A1)") indent, "X"
+                  WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//",A)") &
+                     default_section_character//"END "//TRIM(ADJUSTL(section%name))
                END IF
             END DO
          END IF
@@ -1588,7 +1627,9 @@ CONTAINS
          imatch = typo_match(TRIM(section%name), TRIM(unknown_string))
          IF (imatch > 0) THEN
             imatch = imatch + bonus
-            WRITE (line, '(T2,A)') " subsection "//TRIM(section%name)//" in section "//TRIM(location_string)
+            WRITE (UNIT=line, FMT='(T2,A)') &
+               " subsection "//TRIM(ADJUSTL(section%name))// &
+               " in section "//TRIM(ADJUSTL(location_string))
             imax = SIZE(matching_rank, 1)
             irank = imax + 1
             DO I = imax, 1, -1
@@ -1761,6 +1802,7 @@ CONTAINS
                                    section_vals_out%subs_vals(isec, irep - istart + 1)%section_vals)
          END DO
       END DO
+
    END SUBROUTINE section_vals_copy
 
 END MODULE input_section_types

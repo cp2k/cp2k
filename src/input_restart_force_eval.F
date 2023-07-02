@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE input_restart_force_eval
+
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
@@ -82,6 +83,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE update_force_eval(force_env, root_section, &
                                 write_binary_restart_file, respa)
+
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
@@ -200,6 +202,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE update_qmmm(qmmm_section, force_env)
+
       TYPE(section_vals_type), POINTER                   :: qmmm_section
       TYPE(force_env_type), POINTER                      :: force_env
 
@@ -288,6 +291,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE update_subsys(subsys_section, force_env, skip_vel_section, &
                             write_binary_restart_file)
+
       TYPE(section_vals_type), POINTER                   :: subsys_section
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: skip_vel_section, &
@@ -429,7 +433,9 @@ CONTAINS
             CALL update_quadrupoles_section(multipoles%quadrupoles, work_section)
          END IF
       END IF
+
       CALL timestop(handle)
+
    END SUBROUTINE update_subsys
 
 ! **************************************************************************************************
@@ -439,6 +445,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE update_cell_section(cell, cell_section)
+
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: cell_section
 
@@ -476,6 +483,7 @@ CONTAINS
       CALL section_vals_val_unset(cell_section, "ALPHA_BETA_GAMMA")
 
       CALL timestop(handle)
+
    END SUBROUTINE update_cell_section
 
 ! **************************************************************************************************
@@ -493,6 +501,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor, &
                                     scale, cell, shell)
+
       TYPE(section_vals_type), POINTER                   :: coord_section
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(molecule_list_type), POINTER                  :: molecules
@@ -548,8 +557,8 @@ CONTAINS
             ELSE
                s = s*conv_factor
             END IF
-            WRITE (UNIT=line, FMT="(A,3(1X,ES25.16),1X,I0)") &
-               TRIM(name), s(1:3), particles%els(irk)%atom_index
+            WRITE (UNIT=line, FMT="(T7,A,3ES25.16E3,1X,I0)") &
+               TRIM(ADJUSTL(name)), s(1:3), particles%els(irk)%atom_index
             CALL val_create(my_val, lc_val=line)
             IF (Nlist /= 0) THEN
                IF (irk == 1) THEN
@@ -591,11 +600,11 @@ CONTAINS
                s = s*conv_factor
             END IF
             IF (LEN_TRIM(my_tag) > 0) THEN
-               WRITE (UNIT=line, FMT="(A,3(1X,ES25.16),1X,A,1X,I0)") &
-                  TRIM(name), s(1:3), TRIM(my_tag), imol
+               WRITE (UNIT=line, FMT="(T7,A,3ES25.16E3,1X,A,1X,I0)") &
+                  TRIM(ADJUSTL(name)), s(1:3), TRIM(my_tag), imol
             ELSE
-               WRITE (UNIT=line, FMT="(A,3(1X,ES25.16))") &
-                  TRIM(name), s(1:3)
+               WRITE (UNIT=line, FMT="(T7,A,3ES25.16E3)") &
+                  TRIM(ADJUSTL(name)), s(1:3)
             END IF
             CALL val_create(my_val, lc_val=line)
 
@@ -622,9 +631,11 @@ CONTAINS
             NULLIFY (my_val)
          END IF
       END DO
+
       coord_section%values(ik, 1)%list => vals
 
       CALL timestop(handle)
+
    END SUBROUTINE section_coord_val_set
 
 ! **************************************************************************************************
@@ -701,6 +712,7 @@ CONTAINS
       dipoles_section%values(ik, 1)%list => vals
 
       CALL timestop(handle)
+
    END SUBROUTINE update_dipoles_section
 
 ! **************************************************************************************************
@@ -780,9 +792,11 @@ CONTAINS
          END IF
          NULLIFY (my_val)
       END DO
+
       quadrupoles_section%values(ik, 1)%list => vals
 
       CALL timestop(handle)
+
    END SUBROUTINE update_quadrupoles_section
 
 ! **************************************************************************************************
@@ -855,14 +869,14 @@ CONTAINS
             r(1:3) = particles%els(iparticle)%r(1:3)*conv_factor
          END IF
          IF (core_or_shell) THEN
-            WRITE (UNIT=output_unit, FMT="(A,3(1X,ES25.16),1X,I0)") &
+            WRITE (UNIT=output_unit, FMT="(A,3ES25.16E3,1X,I0)") &
                TRIM(ADJUSTL(kind_name)), r(1:3), particles%els(iparticle)%atom_index
          ELSE
             IF (LEN_TRIM(tag) > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(A,3(1X,ES25.16),1X,A,1X,I0)") &
+               WRITE (UNIT=output_unit, FMT="(A,3ES25.16E3,1X,A,1X,I0)") &
                   TRIM(ADJUSTL(kind_name)), r(1:3), TRIM(tag), imolecule
             ELSE
-               WRITE (UNIT=output_unit, FMT="(A,3(1X,ES25.16))") &
+               WRITE (UNIT=output_unit, FMT="(A,3ES25.16E3)") &
                   TRIM(ADJUSTL(kind_name)), r(1:3)
             END IF
          END IF

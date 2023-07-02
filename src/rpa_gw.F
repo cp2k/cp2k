@@ -67,8 +67,6 @@ MODULE rpa_gw
         dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, &
         dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, &
         dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
-   USE external_potential_soc_parameters,ONLY: get_kprj_SOC_parameters
-   USE external_potential_types,        ONLY: gth_potential_type
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
@@ -77,9 +75,7 @@ MODULE rpa_gw
                                               ri_rpa_g0w0_crossing_bisection,&
                                               ri_rpa_g0w0_crossing_newton,&
                                               ri_rpa_g0w0_crossing_z_shot,&
-                                              soc_lda,&
-                                              soc_none,&
-                                              soc_pbe
+                                              soc_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -1525,9 +1521,9 @@ CONTAINS
 
          END IF
 
-         ! decide whether to add spin-orbit splitting of bands, spin-orbit coupling strength comes from
+         ! Decide whether to add spin-orbit splitting of bands, spin-orbit coupling strength comes from
          ! Hartwigsen parametrization (1999) of GTH pseudopotentials
-         IF (mp2_env%ri_g0w0%soc_type .NE. soc_none) THEN
+         IF (mp2_env%ri_g0w0%soc_type /= soc_none) THEN
             CALL calculate_and_print_soc(qs_env, Eigenval_scf, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
                                          homo, unit_nr, do_soc_gw=.FALSE., do_soc_scf=.TRUE.)
             CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -1589,9 +1585,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_and_print_soc'
 
-      CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER :: handle, i_dim, i_glob, i_row, ikind, ikp, j_col, j_glob, n_level_gw, nao, &
-         ncol_local, nder, nkind, nkp_self_energy, nrow_local, periodic(3), size_real_space
+      INTEGER :: handle, i_dim, i_glob, i_row, ikp, j_col, j_glob, n_level_gw, nao, ncol_local, &
+         nder, nkind, nkp_self_energy, nrow_local, periodic(3), size_real_space
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: calculate_forces, use_virial
@@ -1611,7 +1606,6 @@ CONTAINS
                                                             matrix_dummy, matrix_l, &
                                                             matrix_pot_dummy
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1638,30 +1632,6 @@ CONTAINS
                       cell=cell, &
                       nkind=nkind, &
                       scf_control=scf_control)
-
-      DO ikind = 1, nkind
-
-         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, element_symbol=element_symbol)
-
-         IF (.NOT. ASSOCIATED(gth_potential%kprj_ppnl)) THEN
-            ! write SOC parameters to gth_potential%kprj_ppnl
-            ALLOCATE (gth_potential%kprj_ppnl(0:6, 0:6, 0:6))
-            gth_potential%kprj_ppnl(:, :, :) = 0.0_dp
-
-            ALLOCATE (gth_potential%wprj_ppnl(0:100, 0:100))
-            gth_potential%wprj_ppnl(:, :) = 0.0_dp
-         END IF
-
-         SELECT CASE (qs_env%mp2_env%ri_g0w0%soc_type)
-         CASE (soc_lda)
-            CALL get_kprj_SOC_parameters(gth_potential, "LDA", element_symbol)
-         CASE (soc_pbe)
-            CALL get_kprj_SOC_parameters(gth_potential, "PBE", element_symbol)
-         CASE DEFAULT
-            CPABORT("Unknown SOC type.")
-         END SELECT
-
-      END DO
 
       calculate_forces = .FALSE.
       use_virial = .FALSE.
@@ -1910,22 +1880,6 @@ CONTAINS
       CALL cp_cfm_release(cfm_mat_h_ks)
       CALL cp_cfm_release(cfm_mat_work_double)
       DEALLOCATE (eigenvalues)
-
-! JW FOR LATER: READING SOC PARAMETERS FROM FILE
-!
-!      CALL init_potential(qs_kind%gth_potential)
-!      CALL allocate_potential(qs_kind%gth_potential)
-!      CALL read_potential(qs_kind%element_symbol, potential_name, &
-!                          qs_kind%gth_potential, zeff_correction, para_env, &
-!                          potential_file_name, potential_section, update_input)
-!
-!         nkind = SIZE(qs_kind_set)
-!
-!         DO ikind = 1, nkind
-!            IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
-!               CALL deallocate_potential(qs_kind_set(ikind)%gth_potential)
-!            END IF
-!         END DO
 
       CALL timestop(handle)
 
