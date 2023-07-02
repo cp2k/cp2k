@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-gcc_ver="12.3.0"
-gcc_sha256="11275aa7bb34cd8ab101d01b341015499f8d9466342a2574ece93f954d92273b"
+gcc_ver="13.1.0"
+gcc_sha256="bacd4c614d8bd5983404585e53478d467a254249e0f1bb747c8bc6d787bd4fa2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
