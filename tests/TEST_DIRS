@@ -149,6 +149,7 @@ QMMM/SE/regtest
 QS/regtest-hfx-periodic                                     libint
 QS/regtest-tddfpt-stda                                      libint
 QS/regtest-tddfpt-lri                                       libint
+QS/regtest-tddfpt-force-gapw                                libint
 Fist/regtest-opt
 QS/regtest-nmr-6
 QS/regtest-gpw-1                                            libint libvori
@@ -345,4 +346,4 @@ Fist/regtest-nequip                                         libtorch
 Fist/regtest-allegro                                        libtorch
 Fist/regtest-16
 DFTB/regtest-vdw
-QS/regtest-tddfpt-force-gapw
+QS/regtest-ed

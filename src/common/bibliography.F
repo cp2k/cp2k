@@ -90,7 +90,7 @@ MODULE bibliography
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023, Knizia2013, Musaelian2023
+                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020
 
 CONTAINS
 
@@ -4840,6 +4840,18 @@ CONTAINS
                          "AR 579", &
                          "ER"), &
                          DOI="10.1038/s41467-023-36329-y")
+
+      CALL add_reference(key=Eriksen2020, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Eriksen, JJ", &
+                         "TI Mean-Field density matrix decompositions", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2020", &
+                         "VL 153", &
+                         "AR 214109", &
+                         "ER"), &
+                         DOI="10.1063/5.0030764")
 
    END SUBROUTINE add_all_references
 

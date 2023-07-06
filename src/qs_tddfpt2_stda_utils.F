@@ -11,7 +11,6 @@ MODULE qs_tddfpt2_stda_utils
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: stda_control_type,&
@@ -530,7 +529,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gab, pblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstructjspin
       TYPE(cp_fm_type)                                   :: cvec, cvecjspin
@@ -636,13 +634,13 @@ CONTAINS
                ewald_env => work%ewald_env
                ewald_pw => work%ewald_pw
                CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
-               CALL get_qs_env(qs_env=qs_env, virial=virial, atprop=atprop)
+               CALL get_qs_env(qs_env=qs_env, virial=virial)
                use_virial = .FALSE.
                calculate_forces = .FALSE.
                n_list => sub_env%sab_orb
-               CALL tb_ewald_overlap(gtcharge, tcharge, alpha, n_list, virial, use_virial, atprop)
+               CALL tb_ewald_overlap(gtcharge, tcharge, alpha, n_list, virial, use_virial)
                CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                     gtcharge, tcharge, calculate_forces, virial, use_virial, atprop)
+                                     gtcharge, tcharge, calculate_forces, virial, use_virial)
                ! add self charge interaction contribution
                IF (para_env%is_source()) THEN
                   gtcharge(:, 1) = gtcharge(:, 1) - 2._dp*alpha*oorootpi*tcharge(:)

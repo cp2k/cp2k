@@ -128,6 +128,7 @@ list(
   ec_env_types.F
   ec_methods.F
   ec_orth_solver.F
+  ed_analysis.F
   efield_tb_methods.F
   efield_utils.F
   eip_environment.F

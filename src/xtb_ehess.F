@@ -12,7 +12,6 @@
 MODULE xtb_ehess
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
@@ -98,7 +97,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(5)                        :: kappaa, kappab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ksblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
@@ -183,13 +181,13 @@ CONTAINS
          IF (do_ewald) THEN
             ! Ewald sum
             NULLIFY (ewald_env, ewald_pw)
-            NULLIFY (virial, atprop)
+            NULLIFY (virial)
             CALL get_qs_env(qs_env=qs_env, &
                             ewald_env=ewald_env, ewald_pw=ewald_pw)
             CALL get_cell(cell=cell, periodic=periodic, deth=deth)
             CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
             CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
-            CALL tb_ewald_overlap(gmcharge, mcharge1, alpha, n_list, virial, .FALSE., atprop)
+            CALL tb_ewald_overlap(gmcharge, mcharge1, alpha, n_list, virial, .FALSE.)
             SELECT CASE (ewald_type)
             CASE DEFAULT
                CPABORT("Invalid Ewald type")
@@ -201,7 +199,7 @@ CONTAINS
                CPABORT("PME not implemented in DFTB")
             CASE (do_ewald_spme)
                CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                     gmcharge, mcharge1, .FALSE., virial, .FALSE., atprop)
+                                     gmcharge, mcharge1, .FALSE., virial, .FALSE.)
             END SELECT
          ELSE
             ! direct sum

@@ -152,9 +152,8 @@ CONTAINS
                                                             nref, nsgf, nspin, nvec, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(2)                              :: nocc
-      LOGICAL                                            :: cubes_iao, cubes_ibo, do_bondorbitals, &
-                                                            molden_iao, molden_ibo, &
-                                                            uniform_occupation
+      LOGICAL                                            :: cubes_iao, cubes_ibo, molden_iao, &
+                                                            molden_ibo, uniform_occupation
       REAL(KIND=dp)                                      :: trace, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
@@ -364,7 +363,7 @@ CONTAINS
       CALL cp_fm_release(p_ref_orb)
       CALL cp_fm_release(p_orb_ref)
       CALL cp_fm_release(cvec)
-      DEALLOCATE (ref_basis_set_list, orb_basis_set_list)
+      DEALLOCATE (orb_basis_set_list)
       !
       IF (iao_env%do_oce) THEN
          ! generate OCE basis
@@ -470,7 +469,7 @@ CONTAINS
       END IF
       !
       ! Intrinsic bond orbitals
-      IF (do_bondorbitals) THEN
+      IF (iao_env%do_bondorbitals) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T2,A)') 'Intrinsic Bond Orbital Generation'
          END IF
@@ -626,6 +625,7 @@ CONTAINS
          END IF
          CALL cp_fm_release(c_loc_orb)
       END IF
+      DEALLOCATE (ref_basis_set_list)
 
       IF (PRESENT(c_iao_coef)) THEN
          CALL cp_fm_release(c_iao_coef)

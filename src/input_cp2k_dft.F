@@ -17,12 +17,13 @@ MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
         Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
-        Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, Heinzmann1976, &
-        Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Knizia2013, &
-        Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, &
-        Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Shigeta2001, &
-        Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, VandeVondele2003, &
-        VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017
+        Ehrhardt1985, Eriksen2020, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
+        Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
+        Knizia2013, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
+        Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
+        Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
+        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+        Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -1798,6 +1799,16 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, sub_print_key)
       CALL section_release(sub_print_key)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      !Energy Decomposition Analysis
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY_DECOMPOSITION_ANALYSIS", &
+                                       description="Controls energy decomposition analysis", &
+                                       print_level=debug_print_level, filename="__STD_OUT__", &
+                                       common_iter_levels=1, &
+                                       citations=(/Eriksen2020/))
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
