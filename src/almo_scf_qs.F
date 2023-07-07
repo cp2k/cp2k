@@ -945,7 +945,7 @@ CONTAINS
 
       CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), distribution=dist)
       CALL dbcsr_distribution_get(dist, numnodes=nNodes, group=GroupID, mynode=mynode)
-      CALL group%set_handle(groupid)
+      CALL group%set_handle(INT(groupid))
 
       ! create global atom neighbor list from the local lists
       ! first, calculate number of local pairs

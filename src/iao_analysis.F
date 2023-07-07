@@ -855,7 +855,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
       CALL dbcsr_get_info(p_matrix, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       CALL group%sum(charges)
 
@@ -1327,7 +1327,7 @@ CONTAINS
          CALL invmat_symm(sinv_kind(ikind)%array)
       END DO
       CALL dbcsr_get_info(iao_vec, group=para_group_handle)
-      CALL para_type%set_handle(para_group_handle)
+      CALL para_type%set_handle(INT(para_group_handle))
 
       nspin = SIZE(iao_coef, 1)
       ALLOCATE (oce_comp(natom, nspin))

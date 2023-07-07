@@ -177,7 +177,7 @@ CONTAINS
                          row_blk_size=this%row_blk_size, col_blk_size=this%col_blk_size, group=group_handle, distribution=this%dist)
       CALL dbcsr_distribution_get(dist=this%dist, mynode=this%myrank, numnodes=this%numnodes)
 
-      CALL this%group%set_handle(group_handle)
+      CALL this%group%set_handle(INT(group_handle))
 
       IF (this%nblkcols .NE. this%nblkrows) THEN
          CPABORT("Number of block rows and cols need to be identical")

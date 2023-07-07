@@ -120,7 +120,7 @@ CONTAINS
          TYPE(mp_comm_type) :: group
          INTEGER :: group_handle
          CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL group%set_handle(INT(group_handle))
          ALLOCATE (diagonal(nsize))
          CALL dbcsr_get_diag(matrix, diagonal)
          CALL group%sum(diagonal)
@@ -1468,7 +1468,7 @@ CONTAINS
       CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group_handle)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
 
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)

@@ -214,7 +214,7 @@ CONTAINS
          IF (MODULO(size_of_z, num_entries_line) /= 0) &
             num_linebreak = num_linebreak + 1
          msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
-         CALL mp_unit%set_handle(unit_nr)
+         CALL mp_unit%set_handle(INT(unit_nr))
          CALL pw_to_cube_parallel(pw, mp_unit, title, particles_r, particles_z, my_stride, my_zero_tails, msglen)
       END IF
 

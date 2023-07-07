@@ -609,7 +609,7 @@ CONTAINS
          CALL dbcsr_get_info(matrix, distribution=dist)
          CALL dbcsr_distribution_get(dist, prow_group=prow_handle, myprow=myprow, mypcol=mypcol)
 
-         CALL prow_group%set_handle(prow_handle)
+         CALL prow_group%set_handle(INT(prow_handle))
 
          CALL create_fast_row_vec_access(work_row, fast_vec_row)
          CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -724,8 +724,8 @@ CONTAINS
          CALL dbcsr_get_info(matrix, distribution=dist)
          CALL dbcsr_distribution_get(dist, prow_group=prow_handle, pcol_group=pcol_handle, myprow=myprow, mypcol=mypcol)
 
-         CALL prow_group%set_handle(prow_handle)
-         CALL pcol_group%set_handle(pcol_handle)
+         CALL prow_group%set_handle(INT(prow_handle))
+         CALL pcol_group%set_handle(INT(pcol_handle))
 
          CALL create_fast_row_vec_access(work_row, fast_vec_row)
          CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -835,8 +835,8 @@ CONTAINS
                                      myprow=myprow, &
                                      mypcol=mypcol)
 
-         CALL prow_group%set_handle(prow_handle)
-         CALL pcol_group%set_handle(pcol_handle)
+         CALL prow_group%set_handle(INT(prow_handle))
+         CALL pcol_group%set_handle(INT(pcol_handle))
 
 ! Get the vector which tells us which blocks are local to which processor row in the col vec
          CALL dbcsr_get_info(rep_col_vec, distribution=dist_rep_col)
@@ -908,7 +908,7 @@ CONTAINS
                                      myprow=myprow, &
                                      mypcol=mypcol)
 
-         CALL prow_group%set_handle(prow_handle)
+         CALL prow_group%set_handle(INT(prow_handle))
 
 ! Get the vector which tells us which blocks are local to which processor col in the row vec
          CALL dbcsr_get_info(matrix=rep_row_vec, distribution=dist_rep_row)
@@ -1085,7 +1085,7 @@ CONTAINS
          CALL dbcsr_get_info(matrix=matrix, distribution=dist)
          CALL dbcsr_distribution_get(dist, pcol_group=pcol_handle, myprow=myprow, mypcol=mypcol)
 
-         CALL pcol_group%set_handle(pcol_handle)
+         CALL pcol_group%set_handle(INT(pcol_handle))
 
          CALL create_fast_row_vec_access(work_row, fast_vec_row)
          CALL create_fast_col_vec_access(work_col, fast_vec_col)

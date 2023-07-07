@@ -228,7 +228,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       CALL dbcsr_get_info(matrix_U, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       CALL group%max(delta_max)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked unitaryness, max delta:', delta_max

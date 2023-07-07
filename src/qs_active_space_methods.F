@@ -1376,7 +1376,7 @@ CONTAINS
       rho_r%cr3d = 0.0D0
       CALL pw_transfer(rho_r, rho_g)
       dvol = rho_r%pw_grid%dvol
-      CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group)
+      CALL mp_group%set_handle(INT(eri_env%eri(1)%csr_mat%mp_group))
 
       ! calculate the integrals
       intcount = 0
@@ -2110,7 +2110,7 @@ CONTAINS
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      CALL mp_group%set_handle(eri%mp_group)
+      CALL mp_group%set_handle(INT(eri%mp_group))
       irange = get_irange_csr(nindex, mp_group)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
@@ -2190,7 +2190,7 @@ CONTAINS
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      CALL mp_group%set_handle(eri_aa%mp_group)
+      CALL mp_group%set_handle(INT(eri_aa%mp_group))
       irange = get_irange_csr(nindex, mp_group)
       IF (tr_mixed_eri) THEN
          spin1 = 2
@@ -2240,7 +2240,7 @@ CONTAINS
       END DO
       !
 
-      CALL mp_group%set_handle(eri_ab%mp_group)
+      CALL mp_group%set_handle(INT(eri_ab%mp_group))
       irange = get_irange_csr(nindex, mp_group)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
@@ -2274,7 +2274,7 @@ CONTAINS
             ks_a_ref(i2, i1) = ks_a_ref(i1, i2)
          END DO
       END DO
-      CALL mp_group%set_handle(eri_aa%mp_group)
+      CALL mp_group%set_handle(INT(eri_aa%mp_group))
       CALL mp_group%sum(ks_a_ref)
 
    END SUBROUTINE build_subspace_spin_fock_matrix

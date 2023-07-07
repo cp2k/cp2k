@@ -428,7 +428,7 @@ CONTAINS
       gaps(:) = HUGE(1.0_dp)
       regu_energy = 0.0_dp
       CALL dbcsr_get_info(matrix_U, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       CALL dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (dbcsr_iterator_blocks_left(iter))

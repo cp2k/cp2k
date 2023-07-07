@@ -3244,7 +3244,7 @@ CONTAINS
 
       ndomains = dbcsr_nblkcols_total(dpattern)
       CALL dbcsr_get_info(dpattern, group=GroupID)
-      CALL group%set_handle(groupid)
+      CALL group%set_handle(INT(groupid))
 
       ALLOCATE (subm_no(ndomains), subm_nn(ndomains))
       CALL init_submatrices(subm_no)

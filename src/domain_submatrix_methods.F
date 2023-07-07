@@ -879,7 +879,7 @@ CONTAINS
       CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
       CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
 
-      CALL group%set_handle(groupid)
+      CALL group%set_handle(INT(groupid))
 
       matrix_type = dbcsr_get_matrix_type(matrix)
 
@@ -1382,7 +1382,7 @@ CONTAINS
       CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
       CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
 
-      CALL group%set_handle(GroupID)
+      CALL group%set_handle(INT(GroupID))
 
       matrix_type = dbcsr_get_matrix_type(matrix)
       IF (matrix_type .NE. dbcsr_type_no_symmetry) THEN

@@ -1223,7 +1223,7 @@ CONTAINS
             CALL dbcsr_get_info(matrix_in, distribution=matrix_dist)
             CALL dbcsr_distribution_get(matrix_dist, group=comm_2d_handle, row_dist=row_dist, col_dist=col_dist, &
                                         nprows=pdims_2d(1), npcols=pdims_2d(2))
-            CALL comm_2d%set_handle(comm_2d_handle)
+            CALL comm_2d%set_handle(INT(comm_2d_handle))
             comm_nd = dbt_nd_mp_comm(comm_2d, [order_in(1)], [order_in(2)], pdims_2d=pdims_2d)
 
             CALL dbt_distribution_new_expert( &

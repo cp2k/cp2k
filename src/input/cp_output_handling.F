@@ -1045,7 +1045,7 @@ CONTAINS
             IF (.NOT. my_mpi_io) THEN
                CALL close_file(unit_nr, "KEEP")
             ELSE
-               CALL mp_unit%set_handle(unit_nr)
+               CALL mp_unit%set_handle(INT(unit_nr))
                CALL mp_unit%close()
             END IF
             unit_nr = -1

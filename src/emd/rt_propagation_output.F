@@ -517,7 +517,7 @@ CONTAINS
          CALL dbcsr_iterator_stop(iter)
       END DO
       CALL dbcsr_get_info(delta_P(1)%matrix, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
       CALL group%max(max_alpha)
       delta_eps = SQRT(max_alpha)
       CALL dbcsr_deallocate_matrix(tmp)

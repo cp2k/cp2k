@@ -334,7 +334,7 @@ CONTAINS
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) THEN
          CALL dbcsr_get_info(pao%matrix_X, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL group%set_handle(INT(group_handle))
          CALL group%sum(penalty)
       END IF
 

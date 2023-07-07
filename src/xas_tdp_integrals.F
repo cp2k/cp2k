@@ -163,7 +163,7 @@ CONTAINS
       !get 2D distribution info from matrix_dist
       CALL dbcsr_distribution_get(matrix_dist, pgrid=mat_pgrid, group=group_handle, &
                                   row_dist=row_dist, col_dist=col_dist)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       !create the corresponding tensor proc grid and dist
       pdims(1) = SIZE(mat_pgrid, 1); pdims(2) = SIZE(mat_pgrid, 2); pdims(3) = 1

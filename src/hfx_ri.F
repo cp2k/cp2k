@@ -1141,7 +1141,7 @@ CONTAINS
       CALL dbcsr_get_info(ks_matrix(1, 1)%matrix, distribution=ks_dist)
       CALL dbcsr_distribution_get(ks_dist, group=comm_2d_handle, nprows=pdims_2d(1), npcols=pdims_2d(2))
 
-      CALL comm_2d%set_handle(comm_2d_handle)
+      CALL comm_2d%set_handle(INT(comm_2d_handle))
       pgrid_2d = dbt_nd_mp_comm(comm_2d, [1], [2], pdims_2d=pdims_2d)
 
       CALL create_2c_tensor(ks_t, dist1, dist2, pgrid_2d, ri_data%bsizes_AO_fit, ri_data%bsizes_AO_fit, &

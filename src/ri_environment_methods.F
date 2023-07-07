@@ -603,7 +603,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL dbcsr_get_info(mat, matrix_type=matrix_type, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_no_symmetry)

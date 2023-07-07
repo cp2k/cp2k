@@ -122,8 +122,8 @@ CONTAINS
                                   subgroups_defined=subgroups_defined, &
                                   pcol_group=pcol_handle)
 
-      CALL control%mp_group%set_handle(group_handle)
-      CALL control%pcol_group%set_handle(pcol_handle)
+      CALL control%mp_group%set_handle(INT(group_handle))
+      CALL control%pcol_group%set_handle(INT(pcol_handle))
 
       IF (.NOT. subgroups_defined) &
          CPABORT("arnoldi only with subgroups")

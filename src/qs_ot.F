@@ -153,7 +153,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_get_info(C, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
       CALL group%sum(f2)
       !
       !

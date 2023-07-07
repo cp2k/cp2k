@@ -143,7 +143,7 @@ CONTAINS
 
       IF (eps1 < 10.0_dp) THEN
          CALL dbcsr_get_info(mao_coef, row_blk_size=row_blk_sizes, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL group%set_handle(INT(group_handle))
          ALLOCATE (row_blk(nblk), mao_blk(nblk))
          mao_blk = 0
          row_blk = row_blk_sizes
@@ -185,7 +185,7 @@ CONTAINS
       IF (iolevel > 2) THEN
          CALL dbcsr_get_info(mao_coef, col_blk_size=col_blk_sizes, &
                              row_blk_size=row_blk_sizes, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL group%set_handle(INT(group_handle))
          DO iatom = 1, nblk
             n = row_blk_sizes(iatom)
             m = col_blk_sizes(iatom)
@@ -425,7 +425,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
       CALL dbcsr_get_info(fmat1, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
       CALL group%sum(spro)
 
    END FUNCTION mao_scalar_product

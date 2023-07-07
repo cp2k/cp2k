@@ -2031,7 +2031,7 @@ CONTAINS
             CALL dbcsr_get_info(matrix_t_tmp(ispin), group=para_group_handle, &
                                 nfullrows_total=Nrows, &
                                 nfullcols_total=Ncols)
-            CALL para_group%set_handle(para_group_handle)
+            CALL para_group%set_handle(INT(para_group_handle))
             CALL para_group%sum(retained(ispin))
 
             !devide by the total no. elements

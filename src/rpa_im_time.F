@@ -251,7 +251,7 @@ CONTAINS
          ALLOCATE (t_dm_occ(num_cells_dm))
          CALL dbcsr_get_info(mat_P_global%matrix, distribution=dist_P)
          CALL dbcsr_distribution_get(dist_P, group=comm_2d_handle, nprows=pdims_2d(1), npcols=pdims_2d(2))
-         CALL comm_2d%set_handle(comm_2d_handle)
+         CALL comm_2d%set_handle(INT(comm_2d_handle))
 
          pgrid_2d = dbt_nd_mp_comm(comm_2d, [1], [2], pdims_2d=pdims_2d)
          ALLOCATE (size_P(dbt_nblks_total(t_3c_M, 1)))

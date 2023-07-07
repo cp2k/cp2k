@@ -705,7 +705,7 @@ CONTAINS
 
       !Create the ri_sinv matrix based on some arbitrary dbcsr_dist
       CALL dbcsr_distribution_get(dbcsr_dist, group=group_handle, pgrid=pgrid, nprows=nprows, npcols=npcols)
-      CALL group%set_handle(group_handle)
+      CALL group%set_handle(INT(group_handle))
 
       ALLOCATE (row_dist(nnb), col_dist(nnb))
       DO inb = 1, nnb

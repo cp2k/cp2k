@@ -335,7 +335,7 @@ CONTAINS
 
       ASSOCIATE (eri => this%eri(nspin)%csr_mat, norb => this%norb)
          nindex = (norb*(norb + 1))/2
-         CALL mp_group%set_handle(eri%mp_group)
+         CALL mp_group%set_handle(INT(eri%mp_group))
          irange = get_irange_csr(nindex, mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 

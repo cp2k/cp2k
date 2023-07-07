@@ -1317,7 +1317,7 @@ CONTAINS
                   ALLOCATE (reim_diag(nmo))
 
                   CALL dbcsr_get_info(tempOccOcc(ispin), group=para_group_handle)
-                  CALL para_group%set_handle(para_group_handle)
+                  CALL para_group%set_handle(INT(para_group_handle))
 
                   DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
 
@@ -2417,7 +2417,7 @@ CONTAINS
             DO ispin = 1, nspins
 
                CALL dbcsr_get_info(m_sig_sqrti_ii(ispin), group=para_group_handle)
-               CALL para_group%set_handle(para_group_handle)
+               CALL para_group%set_handle(INT(para_group_handle))
 
                ! compute diagonal (a^t.sigma0.a)^(-1/2)
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
@@ -6503,7 +6503,7 @@ CONTAINS
       ALLOCATE (reim_diag(nocc))
 
       CALL dbcsr_get_info(tempOccOcc2, group=para_group_handle)
-      CALL para_group%set_handle(para_group_handle)
+      CALL para_group%set_handle(INT(para_group_handle))
 
       DO idim0 = 1, SIZE(m_B0, 2) ! this loop is over miller ind
 
