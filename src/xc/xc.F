@@ -82,6 +82,7 @@ MODULE xc
              xc_exc_calc, xc_calc_2nd_deriv_analytical, xc_calc_2nd_deriv_numerical, &
              xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho, smooth_cutoff, &
              xc_uses_kinetic_energy_density, xc_uses_norm_drho
+   PUBLIC :: calc_xc_density
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
@@ -1061,6 +1062,44 @@ CONTAINS
          END IF
       END IF
    END SUBROUTINE smooth_cutoff
+
+   SUBROUTINE calc_xc_density(pot, rho, rho_cutoff)
+      TYPE(pw_type), INTENT(INOUT)                       :: pot
+      TYPE(pw_type), DIMENSION(:), INTENT(INOUT)         :: rho
+      REAL(kind=dp), INTENT(in)                          :: rho_cutoff
+
+      INTEGER                                            :: i, j, k, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      REAL(kind=dp)                                      :: eps1, eps2, my_rho, my_pot
+
+      bo(1, :) = LBOUND(pot%cr3d)
+      bo(2, :) = UBOUND(pot%cr3d)
+      nspins = SIZE(rho)
+
+      eps1 = rho_cutoff*1.E-4_dp
+      eps2 = rho_cutoff
+
+      DO k = bo(1, 3), bo(2, 3)
+         DO j = bo(1, 2), bo(2, 2)
+            DO i = bo(1, 1), bo(2, 1)
+               my_pot = pot%cr3d(i, j, k)
+               IF (nspins == 2) THEN
+                  my_rho = rho(1)%cr3d(i, j, k) + rho(2)%cr3d(i, j, k)
+               ELSE
+                  my_rho = rho(1)%cr3d(i, j, k)
+               END IF
+               IF (my_rho > eps1) THEN
+                  pot%cr3d(i, j, k) = my_pot/my_rho
+               ELSE IF (my_rho < eps2) THEN
+                  pot%cr3d(i, j, k) = 0.0_dp
+               ELSE
+                  pot%cr3d(i, j, k) = MIN(my_pot/my_rho, my_rho**(1._dp/3._dp))
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE calc_xc_density
 
 ! **************************************************************************************************
 !> \brief Exchange and Correlation functional calculations

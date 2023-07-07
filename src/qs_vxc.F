@@ -15,8 +15,15 @@
 ! **************************************************************************************************
 MODULE qs_vxc
 
+   USE atprop_types,                    ONLY: atprop_array_init,&
+                                              atprop_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_set
    USE input_constants,                 ONLY: sic_ad,&
                                               sic_eo,&
                                               sic_mauri_spz,&
@@ -24,10 +31,12 @@ MODULE qs_vxc
                                               sic_none,&
                                               xc_none,&
                                               xc_vdw_fun_nonloc
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE mulliken,                        ONLY: atom_trace
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -48,12 +57,16 @@ MODULE qs_vxc
                                               pw_type
    USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE virial_types,                    ONLY: virial_type
-   USE xc,                              ONLY: xc_exc_calc,&
+   USE xc,                              ONLY: calc_xc_density,&
+                                              xc_exc_calc,&
                                               xc_vxc_pw_create1
 #include "./base/base_uses.f90"
 
@@ -63,6 +76,7 @@ MODULE qs_vxc
 
    ! *** Public subroutines ***
    PUBLIC :: qs_vxc_create, qs_xc_density
+   PUBLIC :: ks_xc_correction
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc'
 
@@ -584,25 +598,29 @@ CONTAINS
    END SUBROUTINE qs_vxc_create
 
 ! **************************************************************************************************
-!> \brief calculates the XC density: E_xc(r) - V_xc(r)*rho(r)
+!> \brief calculates the XC density: E_xc(r) - V_xc(r)*rho(r)  or  E_xc(r)/rho(r)
 !> \param ks_env to get all the needed things
 !> \param rho_struct density
 !> \param xc_section ...
-!> \param xc_den will contain the xc energy density
+!> \param xc_ener will contain the xc energy density E_xc(r) - V_xc(r)*rho(r)
+!> \param xc_den will contain the xc energy density E_xc(r)/rho(r)
+!> \param vxc ...
+!> \param vtau ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, xc_den)
+   SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, xc_ener, xc_den, vxc, vtau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_type), INTENT(INOUT)                       :: xc_den
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: xc_ener, xc_den
+      TYPE(pw_type), DIMENSION(:), OPTIONAL              :: vxc, vtau
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
       INTEGER                                            :: handle, ispin, myfun, nspins, vdw
       LOGICAL                                            :: rho_g_valid, tau_r_valid, uf_grid, vdW_nl
-      REAL(KIND=dp)                                      :: exc, factor, ovol
+      REAL(KIND=dp)                                      :: exc, factor, rho_cutoff
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -613,8 +631,6 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
 
       CALL timeset(routineN, handle)
-
-      CALL pw_zero(xc_den)
 
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
@@ -629,12 +645,15 @@ CONTAINS
                       rho_r=rho_r, &
                       rho_g=rho_g, &
                       tau_r=tau_r)
+      nspins = dft_control%nspins
 
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
       CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=vdw)
       vdW_nl = (vdw == xc_vdw_fun_nonloc)
-      IF (tau_r_valid) THEN
-         CALL cp_warn(__LOCATION__, "Tau contribution will not be correctly handled")
+      IF (PRESENT(xc_ener)) THEN
+         IF (tau_r_valid) THEN
+            CALL cp_warn(__LOCATION__, "Tau contribution will not be correctly handled")
+         END IF
       END IF
       IF (vdW_nl) THEN
          CALL cp_warn(__LOCATION__, "vdW functional contribution will be ignored")
@@ -647,12 +666,28 @@ CONTAINS
          CPABORT("Fine Grid in Local Energy")
       END IF
 
+      IF (PRESENT(xc_ener)) THEN
+         CALL pw_zero(xc_ener)
+      END IF
+      IF (PRESENT(xc_den)) THEN
+         CALL pw_zero(xc_den)
+      END IF
+      IF (PRESENT(vxc)) THEN
+         DO ispin = 1, nspins
+            CALL pw_zero(vxc(ispin))
+         END DO
+      END IF
+      IF (PRESENT(vtau)) THEN
+         DO ispin = 1, nspins
+            CALL pw_zero(vtau(ispin))
+         END DO
+      END IF
+
       IF (myfun /= xc_none) THEN
 
          CPASSERT(ASSOCIATED(rho_struct))
          CPASSERT(dft_control%sic_method_id == sic_none)
 
-         nspins = dft_control%nspins
          ! add the nlcc densities
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
@@ -678,17 +713,40 @@ CONTAINS
             END DO
          END IF
          !
-         ovol = 1.0_dp/xc_den%pw_grid%dvol
-         CALL pw_copy(exc_r, xc_den)
-         DO ispin = 1, nspins
-!deb        CALL pw_multiply(xc_den, vxc_rho(ispin), rho_r(ispin), alpha=-ovol)
-            CALL pw_multiply(xc_den, vxc_rho(ispin), rho_r(ispin), alpha=-1.0_dp)
-         END DO
+         IF (PRESENT(xc_den)) THEN
+            CALL pw_copy(exc_r, xc_den)
+            rho_cutoff = 1.E-14_dp
+            CALL calc_xc_density(xc_den, rho_r, rho_cutoff)
+         END IF
+         IF (PRESENT(xc_ener)) THEN
+            CALL pw_copy(exc_r, xc_ener)
+            DO ispin = 1, nspins
+               CALL pw_multiply(xc_ener, vxc_rho(ispin), rho_r(ispin), alpha=-1.0_dp)
+            END DO
+         END IF
+         IF (PRESENT(vxc)) THEN
+            DO ispin = 1, nspins
+               CALL pw_copy(vxc_rho(ispin), vxc(ispin))
+            END DO
+         END IF
+         IF (PRESENT(vtau)) THEN
+            DO ispin = 1, nspins
+               CALL pw_copy(vxc_tau(ispin), vtau(ispin))
+            END DO
+         END IF
          ! remove arrays
-         DO ispin = 1, nspins
-            CALL pw_release(vxc_rho(ispin))
-         END DO
-         DEALLOCATE (vxc_rho)
+         IF (ASSOCIATED(vxc_rho)) THEN
+            DO ispin = 1, nspins
+               CALL pw_release(vxc_rho(ispin))
+            END DO
+            DEALLOCATE (vxc_rho)
+         END IF
+         IF (ASSOCIATED(vxc_tau)) THEN
+            DO ispin = 1, nspins
+               CALL pw_release(vxc_tau(ispin))
+            END DO
+            DEALLOCATE (vxc_tau)
+         END IF
          CALL pw_release(exc_r)
          !
       END IF
@@ -696,5 +754,74 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_xc_density
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE ks_xc_correction(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ks_xc_correction'
+
+      INTEGER                                            :: handle, ispin, natom, nspins
+      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(dbcsr_p_type)                                 :: xcmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: xc_den
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(section_vals_type), POINTER                   :: xc_section
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, ks_env=ks_env, &
+                      dft_control=dft_control, pw_env=pw_env, &
+                      rho=rho_struct, atprop=atprop)
+
+      nspins = dft_control%nspins
+      xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
+
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
+                             use_data=REALDATA3D, in_space=REALSPACE)
+      ALLOCATE (vxc(nspins))
+      DO ispin = 1, nspins
+         CALL pw_pool_create_pw(auxbas_pw_pool, vxc(ispin), &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+      END DO
+
+      IF (atprop%energy) THEN
+         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+         CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
+         CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s)
+         CALL atprop_array_init(atprop%atexc, natom)
+         DO ispin = 1, nspins
+            ALLOCATE (xcmat%matrix)
+            CALL dbcsr_create(xcmat%matrix, template=matrix_s(1)%matrix)
+            CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
+            CALL dbcsr_set(xcmat%matrix, 0.0_dp)
+            CALL pw_scale(vxc(ispin), -0.5_dp)
+            CALL pw_axpy(xc_den, vxc(ispin))
+            CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), hmat=xcmat, &
+                                    calculate_forces=.FALSE.)
+            CALL atom_trace(xcmat%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
+            CALL dbcsr_release(xcmat%matrix)
+         END DO
+      END IF
+
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ks_xc_correction
 
 END MODULE qs_vxc
