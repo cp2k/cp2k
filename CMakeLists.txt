@@ -306,6 +306,10 @@ endif()
 
 set(__cp2k_cmake_name "cmake_build_cpu")
 
+string(TOUPPER ${CP2K_USE_ACCEL} cp2k_tmp)
+set(CP2K_USE_ACCEL ${cp2k_tmp})
+unset(cp2k_tmp)
+
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set(__cp2k_cmake_name "cmake_build_cuda")
 endif()
