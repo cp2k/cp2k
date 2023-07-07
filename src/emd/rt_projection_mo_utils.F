@@ -531,13 +531,13 @@ CONTAINS
             "Projection on all the required MO number from the reference file "// &
             TRIM(proj_mo%ref_mo_file_name)
          IF (proj_mo%sum_on_all_td) THEN
-            WRITE (print_unit, "(T3, A, E16.8)") &
+            WRITE (print_unit, "(T3, A, E20.12)") &
                "The sum over all the TD MOs population:", popu_tot
          ELSE
             WRITE (print_unit, "(T3,A)") &
                "For each TD MOs required is printed: Population "
             DO j_td = 1, SIZE(popu)
-               WRITE (print_unit, "(T5,1(E16.8, 1X))") popu(j_td)
+               WRITE (print_unit, "(T5,1(E20.12, 1X))") popu(j_td)
             END DO
          END IF
       ELSE
@@ -548,13 +548,13 @@ CONTAINS
             TRIM(proj_mo%ref_mo_file_name)
 
          IF (proj_mo%sum_on_all_td) THEN
-            WRITE (print_unit, "(T3, A, E16.8)") &
+            WRITE (print_unit, "(T3, A, E20.12)") &
                "The sum over all the TD MOs population:", popu_tot
          ELSE
             WRITE (print_unit, "(T3,A)") &
                "For each TD MOs required is printed: Population & Phase [rad] "
             DO j_td = 1, SIZE(popu)
-               WRITE (print_unit, "(T5,2(E16.8, E16.8, 1X))") popu(j_td), phase(j_td)
+               WRITE (print_unit, "(T5,2(E20.12, E16.8, 1X))") popu(j_td), phase(j_td)
             END DO
          END IF
       END IF
