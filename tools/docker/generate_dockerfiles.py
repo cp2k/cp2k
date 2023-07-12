@@ -57,7 +57,7 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
             f.write(toolchain_full() + coverage(version))
 
-    for gcc_version in 7, 8, 9, 10, 11, 12:
+    for gcc_version in 8, 9, 10, 11, 12:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             img = "ubuntu:22.04" if gcc_version > 8 else "ubuntu:20.04"
             f.write(toolchain_ubuntu_nompi(base_image=img, gcc_version=gcc_version))
