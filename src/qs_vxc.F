@@ -15,15 +15,8 @@
 ! **************************************************************************************************
 MODULE qs_vxc
 
-   USE atprop_types,                    ONLY: atprop_array_init,&
-                                              atprop_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_set
    USE input_constants,                 ONLY: sic_ad,&
                                               sic_eo,&
                                               sic_mauri_spz,&
@@ -31,12 +24,10 @@ MODULE qs_vxc
                                               sic_none,&
                                               xc_none,&
                                               xc_vdw_fun_nonloc
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mulliken,                        ONLY: atom_trace
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -57,9 +48,6 @@ MODULE qs_vxc
                                               pw_type
    USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -76,7 +64,6 @@ MODULE qs_vxc
 
    ! *** Public subroutines ***
    PUBLIC :: qs_vxc_create, qs_xc_density
-   PUBLIC :: ks_xc_correction
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc'
 
@@ -754,74 +741,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_xc_density
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE ks_xc_correction(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ks_xc_correction'
-
-      INTEGER                                            :: handle, ispin, natom, nspins
-      TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(dbcsr_p_type)                                 :: xcmat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: xc_den
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho_struct
-      TYPE(section_vals_type), POINTER                   :: xc_section
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, ks_env=ks_env, &
-                      dft_control=dft_control, pw_env=pw_env, &
-                      rho=rho_struct, atprop=atprop)
-
-      nspins = dft_control%nspins
-      xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
-
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      ALLOCATE (vxc(nspins))
-      DO ispin = 1, nspins
-         CALL pw_pool_create_pw(auxbas_pw_pool, vxc(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-      END DO
-
-      IF (atprop%energy) THEN
-         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
-         CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
-         CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s)
-         CALL atprop_array_init(atprop%atexc, natom)
-         DO ispin = 1, nspins
-            ALLOCATE (xcmat%matrix)
-            CALL dbcsr_create(xcmat%matrix, template=matrix_s(1)%matrix)
-            CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(xcmat%matrix, 0.0_dp)
-            CALL pw_scale(vxc(ispin), -0.5_dp)
-            CALL pw_axpy(xc_den, vxc(ispin))
-            CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), hmat=xcmat, &
-                                    calculate_forces=.FALSE.)
-            CALL atom_trace(xcmat%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
-            CALL dbcsr_release(xcmat%matrix)
-         END DO
-      END IF
-
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE ks_xc_correction
 
 END MODULE qs_vxc

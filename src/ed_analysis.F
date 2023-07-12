@@ -12,30 +12,70 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE ed_analysis
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE bibliography,                    ONLY: Eriksen2020,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+                                              cp_dbcsr_sm_fm_multiply
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
-   USE iao_analysis,                    ONLY: iao_wfn_analysis
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_info, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
+        dbcsr_type, dbcsr_type_symmetric
+   USE iao_analysis,                    ONLY: iao_calculate_dmat,&
+                                              iao_charges,&
+                                              iao_wfn_analysis
    USE iao_types,                       ONLY: iao_env_type,&
                                               iao_set_default
    USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_methods,                ONLY: get_particle_set
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_scale
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_type
+   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+                                              calculate_ecore_self
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+                                              integrate_v_rspace
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_rho_types,                    ONLY: qs_rho_type
+   USE qs_vxc,                          ONLY: qs_xc_density
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-
-   TYPE block_type
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: mat
-   END TYPE block_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ed_analysis'
 
@@ -58,13 +98,35 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'edmf_analysis'
 
-      INTEGER                                            :: handle, ispin, nimages, nspin
-      LOGICAL                                            :: explicit
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: c_iao_coef, c_loc_coef
+      INTEGER                                            :: handle, iatom, ikind, iorb, ispin, nao, &
+                                                            natom, nimages, nkind, norb, nref, &
+                                                            nspin
+      INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
+      LOGICAL                                            :: explicit, uniform_occupation
+      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, focc, sum_energy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atecc, ateks, atener
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: cvec, smo
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: c_iao_coef, c_loc_coef, ciao, orb_weight
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: ks_mat, vhxc_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, matrix_s
+      TYPE(dbcsr_type)                                   :: dkmat, dmat
+      TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: ref_basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: refbasis
       TYPE(iao_env_type)                                 :: iao_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_comm_type)                                 :: group
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL section_vals_get(input_section, explicit=explicit)
       IF (.NOT. explicit) RETURN
@@ -93,24 +155,287 @@ CONTAINS
       nspin = dft_control%nspins
       ALLOCATE (c_loc_coef(nspin))
 
+      ! perform IAO analysis
       CALL iao_set_default(iao_env)
       iao_env%do_iao = .TRUE.
+      iao_env%do_charges = .TRUE.
       iao_env%do_bondorbitals = .TRUE.
       DO ispin = 1, nspin
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_create(c_loc_coef(ispin), mo_coeff%matrix_struct)
+         CALL cp_fm_to_fm(mo_coeff, c_loc_coef(ispin))
       END DO
       CALL iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef)
+      ! localized orbitals in IAO basis => CIAO
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
+      smat => matrix_s(1)%matrix
+      ALLOCATE (ciao(nspin))
+      DO ispin = 1, nspin
+         CALL cp_fm_get_info(c_loc_coef(ispin), nrow_global=nao, ncol_global=norb)
+         CALL cp_fm_get_info(c_iao_coef(ispin), ncol_global=nref)
+         CALL cp_fm_create(smo, c_loc_coef(ispin)%matrix_struct)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nref, &
+                                  template_fmstruct=c_loc_coef(ispin)%matrix_struct)
+         CALL cp_fm_create(ciao(ispin), fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+         ! CIAO = A(T)*S*C
+         CALL cp_dbcsr_sm_fm_multiply(smat, c_loc_coef(ispin), smo, ncol=norb)
+         CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, c_iao_coef(ispin), &
+                            smo, 0.0_dp, ciao(ispin))
+         CALL cp_fm_release(smo)
+      END DO
+      ! Reference basis set
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+      nkind = SIZE(qs_kind_set)
+      ALLOCATE (ref_basis_set_list(nkind))
+      DO ikind = 1, nkind
+         qs_kind => qs_kind_set(ikind)
+         NULLIFY (ref_basis_set_list(ikind)%gto_basis_set)
+         NULLIFY (refbasis)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
+         IF (ASSOCIATED(refbasis)) ref_basis_set_list(ikind)%gto_basis_set => refbasis
+      END DO
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, natom=natom)
+      ALLOCATE (refbas_blk_sizes(natom))
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=refbas_blk_sizes, &
+                            basis=ref_basis_set_list)
+      ! Atomic orbital weights
+      ALLOCATE (orb_weight(nspin))
+      ALLOCATE (mcharge(natom, 1))
+      DO ispin = 1, nspin
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=natom, &
+                                  template_fmstruct=c_loc_coef(ispin)%matrix_struct)
+         CALL cp_fm_create(orb_weight(ispin), fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+      END DO
+      ! diagonal block matrix
+      CALL dbcsr_get_info(smat, distribution=dbcsr_dist)
+      CALL dbcsr_create(matrix=dmat, name="DMAT", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                        row_blk_size=refbas_blk_sizes, col_blk_size=refbas_blk_sizes, &
+                        nze=0)
+      CALL dbcsr_reserve_diag_blocks(dmat)
+      !
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, ncol_global=1, &
+                               template_fmstruct=ciao(1)%matrix_struct)
+      CALL cp_fm_create(cvec, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+      !
+      DO ispin = 1, nspin
+         CALL get_mo_set(mos(ispin), &
+                         uniform_occupation=uniform_occupation, &
+                         occupation_numbers=occupation_numbers)
+         CALL cp_fm_get_info(c_loc_coef(ispin), ncol_global=norb)
+         DO iorb = 1, norb
+            CALL cp_fm_to_fm(ciao(ispin), cvec, ncol=1, source_start=iorb, target_start=1)
+            focc = occupation_numbers(iorb)
+            CALL dbcsr_set(dmat, 0.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(dmat, cvec, ncol=1, alpha=focc)
+            CALL iao_charges(dmat, mcharge(:, 1))
+            CALL cp_fm_set_submatrix(orb_weight(ispin), mcharge, start_row=1, &
+                                     start_col=iorb, n_rows=natom, n_cols=1)
+            checksum = SUM(mcharge(:, 1))
+            IF (ABS(focc - checksum) > 1.E-6_dp) THEN
+               CALL cp_warn(__LOCATION__, "Sum of atomic orbital weights is incorrect")
+               IF (unit_nr > 0) THEN
+                  WRITE (6, '(T2,A,F10.6,T40,A,F10.6)') "Orbital occupation:", focc, &
+                     "Sum of atomic orbital weights:", checksum
+               END IF
+            END IF
+         END DO
+      END DO
+      DEALLOCATE (mcharge)
+      CALL dbcsr_release(dmat)
+      CALL cp_fm_release(cvec)
+      ! energy arrays
+      ALLOCATE (atener(natom), ateks(natom), atecc(natom))
+      atener = 0.0_dp
+      ateks = 0.0_dp
+      atecc = 0.0_dp
+      ! atom dependent density matrix
+      CALL dbcsr_create(dkmat, template=smat)
+      CALL dbcsr_copy(dkmat, smat)
+      CALL dbcsr_set(dkmat, 0.0_dp)
+      ! KS matrix + correction
+      CALL get_qs_env(qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks)
+      ALLOCATE (ks_mat(nspin), vhxc_mat(nspin))
+      DO ispin = 1, nspin
+         ALLOCATE (ks_mat(ispin)%matrix, vhxc_mat(ispin)%matrix)
+         CALL dbcsr_create(ks_mat(ispin)%matrix, template=matrix_h(1)%matrix)
+         CALL dbcsr_copy(ks_mat(ispin)%matrix, matrix_h(1)%matrix)
+         CALL dbcsr_add(ks_mat(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_scale(ks_mat(ispin)%matrix, 0.5_dp)
+         !
+         CALL dbcsr_create(vhxc_mat(ispin)%matrix, template=smat)
+         CALL dbcsr_copy(vhxc_mat(ispin)%matrix, smat)
+         CALL dbcsr_set(vhxc_mat(ispin)%matrix, 0.0_dp)
+      END DO
+      !
+      CALL vhxc_correction(qs_env, vhxc_mat, atecc)
+      DO ispin = 1, nspin
+         CALL dbcsr_add(ks_mat(ispin)%matrix, vhxc_mat(ispin)%matrix, 1.0_dp, 1.0_dp)
+      END DO
+      ! Loop over spins and atoms
+      DO ispin = 1, nspin
+         CALL cp_fm_get_info(c_loc_coef(ispin), ncol_global=norb)
+         ALLOCATE (mweight(1, norb))
+         DO iatom = 1, natom
+            CALL cp_fm_get_submatrix(orb_weight(ispin), mweight, start_row=iatom, &
+                                     start_col=1, n_rows=1, n_cols=norb)
+            CALL iao_calculate_dmat(c_loc_coef(ispin), dkmat, mweight(1, :), .FALSE.)
+            CALL dbcsr_dot(dkmat, ks_mat(ispin)%matrix, ateks(iatom))
+         END DO
+         DEALLOCATE (mweight)
+      END DO
+      !
+      CALL dbcsr_release(dkmat)
+      DO ispin = 1, nspin
+         CALL dbcsr_release(ks_mat(ispin)%matrix)
+         CALL dbcsr_release(vhxc_mat(ispin)%matrix)
+      END DO
+      DEALLOCATE (refbas_blk_sizes)
+      DEALLOCATE (ref_basis_set_list)
+      CALL cp_fm_release(orb_weight)
+      CALL cp_fm_release(ciao)
       CALL cp_fm_release(c_iao_coef)
       CALL cp_fm_release(c_loc_coef)
+
+      atener = ateks + atecc
+      ! core energy corrections
+      CALL get_qs_env(qs_env, para_env=para_env)
+      group = para_env
+      atecc = 0.0_dp
+      CALL calculate_ecore_overlap(qs_env, para_env, .FALSE., atecc=atecc)
+      CALL group%sum(atecc)
+      atecc = 0.0_dp
+      CALL calculate_ecore_self(qs_env, atecc=atecc)
+      CALL group%sum(atecc)
+      atener = atener + atecc
+
+      IF (unit_nr > 0) THEN
+         CALL get_qs_env(qs_env, energy=energy)
+         e_pot = energy%total
+         ateps = 1.E-6_dp
+         CALL write_atener(unit_nr, particle_set, atener, "Atomic Energy Decomposition")
+         sum_energy = SUM(atener(:))
+         checksum = ABS(e_pot - sum_energy)
+         WRITE (UNIT=unit_nr, FMT="(/,(T2,A,T56,F25.13))") &
+            "Potential energy (Atomic):", sum_energy, &
+            "Potential energy (Total) :", e_pot, &
+            "Difference               :", checksum
+         CPASSERT((checksum < ateps*ABS(e_pot)))
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(/,T2,A)') &
             '!----------------------------END OF ED ANALYSIS-------------------------------!'
       END IF
+      DEALLOCATE (atener, ateks, atecc)
 
       CALL timestop(handle)
 
    END SUBROUTINE edmf_analysis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param vhxc_mat ...
+!> \param atecc ...
+! **************************************************************************************************
+   SUBROUTINE vhxc_correction(qs_env, vhxc_mat, atecc)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: vhxc_mat
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: atecc
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'vhxc_correction'
+
+      INTEGER                                            :: handle, ispin, nspins
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: xc_den
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(section_vals_type), POINTER                   :: xc_section
+
+      CALL timeset(routineN, handle)
+
+      MARK_USED(vhxc_mat)
+
+      CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control, pw_env=pw_env)
+
+      nspins = dft_control%nspins
+      xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
+
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
+                             use_data=REALDATA3D, in_space=REALSPACE)
+      ALLOCATE (vxc(nspins))
+      DO ispin = 1, nspins
+         CALL pw_pool_create_pw(auxbas_pw_pool, vxc(ispin), &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+      END DO
+
+      ! Nuclear charge correction
+      CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
+      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env, atecc=atecc)
+
+      CALL get_qs_env(qs_env, rho=rho_struct)
+      CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+      DO ispin = 1, nspins
+         CALL pw_scale(vxc(ispin), -0.5_dp)
+         CALL pw_axpy(xc_den, vxc(ispin))
+         CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
+         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), &
+                                 hmat=vhxc_mat(ispin), calculate_forces=.FALSE.)
+      END DO
+
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE vhxc_correction
+
+! **************************************************************************************************
+!> \brief Write the atomic coordinates, types, and energies
+!> \param iounit ...
+!> \param particle_set ...
+!> \param atener ...
+!> \param label ...
+!> \date    05.06.2023
+!> \author  JGH
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE write_atener(iounit, particle_set, atener, label)
+
+      INTEGER, INTENT(IN)                                :: iounit
+      TYPE(particle_type), DIMENSION(:)                  :: particle_set
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: atener
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+
+      INTEGER                                            :: i, natom
+
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") TRIM(label)
+         WRITE (UNIT=iounit, FMT="(T4,A,T30,A,T42,A,T54,A,T69,A)") &
+            "Atom  Element", "X", "Y", "Z", "Energy[a.u.]"
+         natom = SIZE(atener)
+         DO i = 1, natom
+            WRITE (iounit, "(I6,T12,A2,T24,3F12.6,F21.10)") i, &
+               TRIM(ADJUSTL(particle_set(i)%atomic_kind%element_symbol)), &
+               particle_set(i)%r(1:3)*angstrom, atener(i)
+         END DO
+         WRITE (iounit, "(A)") ""
+      END IF
+
+   END SUBROUTINE write_atener
 
 END MODULE ed_analysis

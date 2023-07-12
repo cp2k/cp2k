@@ -182,6 +182,7 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param molecular ...
 !> \param E_overlap_core ...
+!> \param atecc ...
 !> \date    30.04.2001
 !> \par History
 !>       - Force calculation added (03.06.2002,MK)
@@ -192,12 +193,13 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE calculate_ecore_overlap(qs_env, para_env, calculate_forces, molecular, &
-                                      E_overlap_core)
+                                      E_overlap_core, atecc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_overlap_core
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 
@@ -301,6 +303,10 @@ CONTAINS
                atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*f*eab
                atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*f*eab
             END IF
+            IF (PRESENT(atecc)) THEN
+               atecc(iatom) = atecc(iatom) + 0.5_dp*f*eab
+               atecc(jatom) = atecc(jatom) + 0.5_dp*f*eab
+            END IF
             IF (calculate_forces) THEN
                deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
                atom_a = atom_of_kind(iatom)
@@ -340,13 +346,15 @@ CONTAINS
 !> \brief   Calculate the self energy of the core charge distribution.
 !> \param qs_env ...
 !> \param E_self_core ...
+!> \param atecc ...
 !> \date    27.04.2001
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_ecore_self(qs_env, E_self_core)
+   SUBROUTINE calculate_ecore_self(qs_env, E_self_core, atecc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_self_core
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self'
 
@@ -399,6 +407,21 @@ CONTAINS
                END DO
             END DO
          END IF
+      END IF
+      IF (PRESENT(atecc)) THEN
+         ! atomic energy
+         CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, &
+                         local_particles=local_particles)
+         natom = SIZE(particle_set)
+         DO ikind = 1, SIZE(atomic_kind_set)
+            nparticle_local = local_particles%n_el(ikind)
+            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
+            es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
+            DO iparticle_local = 1, nparticle_local
+               iatom = local_particles%list(ikind)%array(iparticle_local)
+               atecc(iatom) = atecc(iatom) - es
+            END DO
+         END DO
       END IF
 
       CALL timestop(handle)

@@ -31,6 +31,7 @@ MODULE force_env_utils
    USE molecule_types,                  ONLY: global_constraint_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: update_particle_set
+   USE physcon,                         ONLY: angstrom
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -42,6 +43,7 @@ MODULE force_env_utils
    PUBLIC :: force_env_shake, &
              force_env_rattle, &
              rescale_forces, &
+             write_atener, &
              write_forces
 
 CONTAINS
@@ -474,5 +476,39 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_forces
+
+! **************************************************************************************************
+!> \brief Write the atomic coordinates, types, and energies
+!> \param iounit ...
+!> \param particles ...
+!> \param atener ...
+!> \param label ...
+!> \date    05.06.2023
+!> \author  JGH
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE write_atener(iounit, particles, atener, label)
+
+      INTEGER, INTENT(IN)                                :: iounit
+      TYPE(particle_list_type), POINTER                  :: particles
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: atener
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+
+      INTEGER                                            :: i, natom
+
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") TRIM(label)
+         WRITE (UNIT=iounit, FMT="(T4,A,T30,A,T42,A,T54,A,T69,A)") &
+            "Atom  Element", "X", "Y", "Z", "Energy[a.u.]"
+         natom = particles%n_els
+         DO i = 1, natom
+            WRITE (iounit, "(I6,T12,A2,T24,3F12.6,F21.10)") i, &
+               TRIM(ADJUSTL(particles%els(i)%atomic_kind%element_symbol)), &
+               particles%els(i)%r(1:3)*angstrom, atener(i)
+         END DO
+         WRITE (iounit, "(A)") ""
+      END IF
+
+   END SUBROUTINE write_atener
 
 END MODULE force_env_utils

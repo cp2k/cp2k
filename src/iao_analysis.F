@@ -121,7 +121,7 @@ MODULE iao_analysis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iao_analysis'
 
-   PUBLIC ::  iao_wfn_analysis
+   PUBLIC ::  iao_wfn_analysis, iao_charges, iao_calculate_dmat
 
 ! **************************************************************************************************
 
@@ -341,7 +341,7 @@ CONTAINS
             CALL dbcsr_create(dmat, template=sref(1)%matrix)
             CALL dbcsr_reserve_diag_blocks(dmat)
             !
-            CALL calculate_dmat(ciao(ispin), dmat, occupation_numbers, uniform_occupation)
+            CALL iao_calculate_dmat(ciao(ispin), dmat, occupation_numbers, uniform_occupation)
             CALL dbcsr_trace(dmat, trace)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,I2,T66,F15.4)') 'Number of Electrons: Trace(Piao) Spin ', ispin, trace
@@ -786,14 +786,14 @@ CONTAINS
 !> \param occupation ...
 !> \param uniform_occupation ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dmat(cvec, density_matrix, occupation, uniform_occupation)
+   SUBROUTINE iao_calculate_dmat(cvec, density_matrix, occupation, uniform_occupation)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: cvec
       TYPE(dbcsr_type)                                   :: density_matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
       LOGICAL, INTENT(IN)                                :: uniform_occupation
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dmat'
+      CHARACTER(len=*), PARAMETER :: routineN = 'iao_calculate_dmat'
 
       INTEGER                                            :: handle, ncol
       REAL(KIND=dp)                                      :: alpha
@@ -821,7 +821,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_dmat
+   END SUBROUTINE iao_calculate_dmat
 
 ! **************************************************************************************************
 !> \brief compute the atomic charges (orthogonal basis)
