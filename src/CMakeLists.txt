@@ -947,6 +947,7 @@ list(
   fm/cp_cfm_types.F
   fm/cp_fm_basic_linalg.F
   fm/cp_fm_cholesky.F
+  fm/cp_fm_cusolver_api.F
   fm/cp_fm_diag.F
   fm/cp_fm_diag_utils.F
   fm/cp_fm_elpa.F
@@ -954,6 +955,8 @@ list(
   fm/cp_fm_types.F
   fm/cp_fm_struct.F
   fm/cp_linked_list_fm.F)
+
+list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c)
 
 list(APPEND CP2K_SRCS_F hfxbase/hfx_compression_core_methods.F
      hfxbase/hfx_contract_block.F hfxbase/hfx_contraction_methods.F)
@@ -1416,8 +1419,9 @@ if(CP2K_USE_CUDA)
     target_link_libraries(cp2k_cuda_libs INTERFACE NVHPC::MATH NVHPC::CUDA)
   else()
     target_link_libraries(
-      cp2k_cuda_libs INTERFACE CUDA::cufft CUDA::cufftw CUDA::cublas
-                               CUDA::cudart CUDA::cuda_driver)
+      cp2k_cuda_libs
+      INTERFACE $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:CUDA::cusolver> CUDA::cufft
+                CUDA::cufftw CUDA::cublas CUDA::cudart CUDA::cuda_driver)
   endif()
 endif()
 
@@ -1578,6 +1582,7 @@ target_compile_definitions(
          $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
          $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
          $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
+         $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
          $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
          $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
          $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__

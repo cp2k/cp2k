@@ -1,6 +1,6 @@
 {
     "description": "Full Matrices",
-    "requires": ["../common", "../base", "../mpiwrap"],
+    "requires": ["../common", "../base", "../mpiwrap", "../offload"],
     "implicit": (
         "^(BLACS_.*|IGSUM2D"  # BLACS
         # ScaLAPACK

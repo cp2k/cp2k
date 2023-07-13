@@ -243,7 +243,17 @@ Library ELPA for the solution of the eigenvalue problem
 - For specific architectures it can be better to install specifically optimized
   kernels (see BG) and/or employ a higher optimization level to compile it.
 
-### 2l. PEXSI (optional, low scaling SCF method)
+### 2l. cuSOLVERMp (experimental, improved performance for diagonalization on Nvidia GPUs)
+
+NVIDIA cuSOLVERMp is a high-performance, distributed-memory, GPU-accelerated library
+that provides tools for the solution of dense linear systems and eigenvalue problems.
+
+- cuSOLVERMp replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
+- A version of cuSOLVERMp can be downloaded from <https://docs.nvidia.com/hpc-sdk/cusolvermp>.
+- Add `-D__CUSOLVERMP` to `DFLAGS`
+- Add `-lcusolverMp -lcusolver -lcal -lnvidia-ml` to `LIBS`
+
+### 2m. PEXSI (optional, low scaling SCF method)
 
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI
 library and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
@@ -275,27 +285,27 @@ METISLIB = -lscotchmetis -lscotch -lscotcherr
 PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 ```
 
-### 2m. QUIP (optional, wider range of interaction potentials)
+### 2n. QUIP (optional, wider range of interaction potentials)
 
 QUIP - QUantum mechanics and Interatomic Potentials Support for QUIP can be
 enabled via the flag `-D__QUIP`.
 
 For more information see <http://www.libatoms.org>.
 
-### 2n. PLUMED (optional, enables various enhanced sampling methods)
+### 2o. PLUMED (optional, enables various enhanced sampling methods)
 
 CP2K can be compiled with PLUMED 2.x (`-D__PLUMED2`).
 
 See <https://cp2k.org/howto:install_with_plumed> for full instructions.
 
-### 2o. spglib (optional, crystal symmetries tools)
+### 2p. spglib (optional, crystal symmetries tools)
 
 A library for finding and handling crystal symmetries
 
 - The spglib can be downloaded from <https://github.com/atztogo/spglib>
 - For building CP2K with the spglib add `-D__SPGLIB` to DFLAGS
 
-### 2p. SIRIUS (optional, plane wave calculations)
+### 2q. SIRIUS (optional, plane wave calculations)
 
 SIRIUS is a domain specific library for electronic structure calculations.
 
@@ -304,7 +314,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - Add `-D__LIBVDWXC` if support is activated in SIRIUS.
 - See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.
 
-### 2q. FPGA (optional, plane wave FFT calculations)
+### 2r. FPGA (optional, plane wave FFT calculations)
 
 - Use `-D__PW_FPGA` to enable FPGA support for PW (fft) calculations.
   Currently tested only for Intel Stratix 10 and Arria 10 GX1150 FPGAs.
@@ -323,14 +333,14 @@ SIRIUS is a domain specific library for electronic structure calculations.
   aocl linker flags to `LDFLAGS` and aocl libs to `LIBS`.
 - When building FPGA and OFFLOAD together then `-D__NO_OFFLOAD_PW` must be used.
 
-### 2r. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
+### 2s. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
 
 - COSMA is an alternative for the pdgemm routine included in ScaLAPACK.
   The library supports both CPU and GPUs.
 - Add `-D__COSMA` to the DFLAGS to enable support for COSMA.
 - See <https://github.com/eth-cscs/COSMA> for more information.
 
-### 2s. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
+### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
 
 - LibVori is a library which enables the calculation of electrostatic properties
   (charge, dipole vector, quadrupole tensor, etc.) via integration of the total
@@ -341,12 +351,12 @@ SIRIUS is a domain specific library for electronic structure calculations.
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
-### 2t. Torch (Machine Learning Framework needed for NequIP)
+### 2u. Torch (Machine Learning Framework needed for NequIP)
 
 - The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
 - Add `-D__LIBTORCH` to the DFLAGS to enable support for libtorch.
 
-### 2u. ROCM/HIP (Support for AMD GPU)
+### 2v. ROCM/HIP (Support for AMD GPU)
 
 The code for the HIP based grid backend was developed and tested on Mi100 but
 should work out of the box on Nvidia hardware as well.
@@ -375,7 +385,7 @@ should work out of the box on Nvidia hardware as well.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
   It requires to link `-lroctx64 -lroctracer64`.
 
-### 2v. OpenCL Devices
+### 2w. OpenCL Devices
 
 OpenCL devices are currently supported for DBCSR and can cover GPUs and other devices.
 Kernels can be automatically tuned like for the CUDA/HIP backend in DBCSR.
@@ -420,7 +430,7 @@ Note: the OpenCL backend uses some functionality from LIBXSMM (dependency).
 - Refer to <https://cp2k.github.io/dbcsr/> for, e.g., environment variables,
   or how to tune kernels (auto tuned parameters).
 
-### 2w. matrix-matrix multiplication offloading on GPU using SPLA
+### 2x. matrix-matrix multiplication offloading on GPU using SPLA
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a
 standalone library. It provides a generic interface to the blas gemm family with
@@ -434,7 +444,7 @@ internal criteria to decide if it is worth to do the operation on GPU or not.
 Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 
 <!---
-### 2x. LibMaxwell (External Maxwell Solver)
+### 2y. LibMaxwell (External Maxwell Solver)
 
 - LibMaxwell is a library to solve the time-dependent Maxwell equations
   and use the resulting electric field in MD runs or real-time propagation.

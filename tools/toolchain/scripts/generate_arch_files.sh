@@ -151,6 +151,10 @@ fi
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
   CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
+  if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
+    CUDA_LIBS+=" -lcusolverMp -lcusolver -lcal -lnvidia-ml"
+    CUDA_DFLAGS+=" -D__CUSOLVERMP"
+  fi
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
   NVFLAGS="-g -arch sm_${ARCH_NUM} -O3 -allow-unsupported-compiler -Xcompiler='-fopenmp -Wall -Wextra -Werror' --std=c++11 \$(DFLAGS)"

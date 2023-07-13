@@ -239,6 +239,10 @@ CONTAINS
       flags = TRIM(flags)//" spla_gemm_offloading"
 #endif
 
+#if defined(__CUSOLVERMP)
+      flags = TRIM(flags)//" cusolvermp"
+#endif
+
 #if defined(__LIBVDWXC)
       flags = TRIM(flags)//" libvdwxc"
 #endif

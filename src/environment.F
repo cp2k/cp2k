@@ -25,7 +25,10 @@ MODULE environment
    USE cp_files,                        ONLY: close_file,&
                                               get_data_dir,&
                                               open_file
-   USE cp_fm_diag,                      ONLY: diag_finalize,&
+   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
+                                              FM_DIAG_TYPE_ELPA,&
+                                              FM_DIAG_TYPE_SCALAPACK,&
+                                              diag_finalize,&
                                               diag_init,&
                                               eps_check_diag_default
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
@@ -59,9 +62,9 @@ MODULE environment
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
-        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, &
-        do_diag_elpa, do_diag_scalapack, do_eip, do_farming, do_fft_fftw3, do_fft_sg, do_fist, &
-        do_qs, do_scalapack, do_sirius, do_test, energy_run, mol_dyn_run, none_run
+        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
+        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
+        energy_run, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -590,11 +593,13 @@ CONTAINS
       CALL section_vals_val_get(global_section, "TIMINGS%TIME_MPI", l_val=mp_collect_timings)
 
       SELECT CASE (i_diag)
-      CASE (do_diag_scalapack)
+      CASE (FM_DIAG_TYPE_SCALAPACK)
          globenv%diag_library = "ScaLAPACK"
-      CASE (do_diag_elpa)
+      CASE (FM_DIAG_TYPE_ELPA)
          globenv%diag_library = "ELPA"
          CALL cite_reference(Marek2014)
+      CASE (FM_DIAG_TYPE_CUSOLVER)
+         globenv%diag_library = "cuSOLVER"
       CASE DEFAULT
          CPABORT("Unknown diagonalization library specified")
       END SELECT
