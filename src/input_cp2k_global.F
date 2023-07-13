@@ -16,12 +16,15 @@
 MODULE input_cp2k_global
    USE bibliography,                    ONLY: Ceriotti2014,&
                                               Frigo2005,&
-                                              Marek2014,&
                                               Schonherr2014
    USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
                                               BLACS_GRID_ROW,&
                                               BLACS_GRID_SQUARE
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
+   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
+                                              FM_DIAG_TYPE_DEFAULT,&
+                                              FM_DIAG_TYPE_ELPA,&
+                                              FM_DIAG_TYPE_SCALAPACK
    USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
                                               elpa_kernel_ids,&
                                               elpa_kernel_names
@@ -40,13 +43,12 @@ MODULE input_cp2k_global
                                               GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_diag_elpa, &
-        do_diag_scalapack, do_farming, do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, &
-        do_scalapack, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, &
-        ehrenfest, electronic_spectra_run, energy_force_run, energy_run, fftw_plan_estimate, &
-        fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
-        linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
-        real_time_propagation, tree_mc_run, vib_anal
+        do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
+        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
+        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
+        energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
+        fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
+        negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -81,7 +83,7 @@ CONTAINS
    SUBROUTINE create_global_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      INTEGER                                            :: default_dgemm, default_diag
+      INTEGER                                            :: default_dgemm
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
@@ -111,20 +113,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-#if defined(__ELPA)
-      default_diag = do_diag_elpa
-#else
-      default_diag = do_diag_scalapack
-#endif
       CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
                           description="Specifies the diagonalization library to be used. If not available, "// &
                           "the ScaLAPACK library is used", &
                           usage="PREFERRED_DIAG_LIBRARY ELPA", &
-                          default_i_val=default_diag, &
-                          enum_i_vals=(/do_diag_elpa, do_diag_scalapack, do_diag_scalapack/), &
-                          enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL"), &
-                          enum_desc=s2a("ELPA library", "ScaLAPACK library", "ScaLAPACK library"), &
-                          citations=(/Marek2014/))
+                          enum_i_vals=(/FM_DIAG_TYPE_ELPA, &
+                                        FM_DIAG_TYPE_SCALAPACK, &
+                                        FM_DIAG_TYPE_SCALAPACK, &
+                                        FM_DIAG_TYPE_CUSOLVER/), &
+                          enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL", "CUSOLVER"), &
+                          enum_desc=s2a("ELPA library", &
+                                        "ScaLAPACK library", &
+                                        "ScaLAPACK library (shorthand)", &
+                                        "cuSOLVER (CUDA GPU library)"), &
+                          default_i_val=FM_DIAG_TYPE_DEFAULT)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

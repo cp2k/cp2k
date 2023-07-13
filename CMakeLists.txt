@@ -133,6 +133,11 @@ cmake_dependent_option(
   "CP2K_BUILD_DBCSR"
   OFF)
 
+cmake_dependent_option(
+  CP2K_USE_CUSOLVER_MP
+  "Use Nvidia gpu accelerated eigensolver. Only active when CUDA is ON" OFF
+  "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
+
 set(CP2K_BLAS_VENDOR
     "auto"
     CACHE STRING "Blas library for computations on host")

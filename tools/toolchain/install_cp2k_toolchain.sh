@@ -190,6 +190,8 @@ The --with-PKG options follow the rules:
   --with-elpa             Eigenvalue SoLvers for Petaflop-Applications library.
                           Fast library for large parallel jobs.
                           Default = install
+  --with-cusolvermp       NVIDIA cusolverMp: CUDA library for distributed dense linear algebra.
+                          Default = no
   --with-ptscotch         PT-SCOTCH, only used if PEXSI is used
                           Default = no
   --with-superlu          SuperLU DIST, used only if PEXSI is used
@@ -257,7 +259,7 @@ EOF
 tool_list="gcc intel cmake"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc libxsmm cosma scalapack elpa plumed \
+lib_list="fftw libint libxc libxsmm cosma scalapack elpa cusolvermp plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
           libvori libtorch"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
@@ -300,6 +302,7 @@ with_gsl="__DONTUSE__"
 with_spglib="__INSTALL__"
 with_hdf5="__DONTUSE__"
 with_elpa="__INSTALL__"
+with_cusolvermp="__DONTUSE__"
 with_libvdwxc="__DONTUSE__"
 with_spfft="__DONTUSE__"
 with_spla="__DONTUSE__"
@@ -586,6 +589,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-elpa*)
       with_elpa=$(read_with "${1}")
+      ;;
+    --with-cusolvermp*)
+      with_cusolvermp=$(read_with "${1}")
       ;;
     --with-ptscotch*)
       with_ptscotch=$(read_with "${1}")

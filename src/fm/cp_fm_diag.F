@@ -34,6 +34,7 @@ MODULE cp_fm_diag
                          set_elpa_kernel, &
                          set_elpa_print, &
                          set_elpa_qr
+   USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
                           cp_fm_to_fm, &
@@ -75,8 +76,16 @@ MODULE cp_fm_diag
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
 
    ! Constants for the diag_type above
-   INTEGER, PARAMETER  :: DIAG_TYPE_SCALAPACK = 1, &
-                          DIAG_TYPE_ELPA = 2
+   INTEGER, PARAMETER, PUBLIC  :: FM_DIAG_TYPE_SCALAPACK = 101, &
+                                  FM_DIAG_TYPE_ELPA = 102, &
+                                  FM_DIAG_TYPE_CUSOLVER = 103
+#if defined(__CUSOLVERMP)
+   INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_CUSOLVER
+#elif defined(__ELPA)
+   INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_ELPA
+#else
+   INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_SCALAPACK
+#endif
 
    ! Public subroutines
    PUBLIC :: choose_eigv_solver, &
@@ -117,22 +126,24 @@ CONTAINS
       fallback_applied = .FALSE.
 
       IF (diag_lib == "ScaLAPACK") THEN
-         diag_type = DIAG_TYPE_SCALAPACK
+         diag_type = FM_DIAG_TYPE_SCALAPACK
       ELSE IF (diag_lib == "ELPA") THEN
 #if defined (__ELPA)
          ! ELPA is requested and available
-         diag_type = DIAG_TYPE_ELPA
+         diag_type = FM_DIAG_TYPE_ELPA
 #else
          ! ELPA library requested but not linked, switch back to SL
-         diag_type = DIAG_TYPE_SCALAPACK
+         diag_type = FM_DIAG_TYPE_SCALAPACK
          fallback_applied = .TRUE.
 #endif
+      ELSE IF (diag_lib == "cuSOLVER") THEN
+         diag_type = FM_DIAG_TYPE_CUSOLVER
       ELSE
          CPABORT("ERROR in diag_init: Initialization of unknown diagonalization library requested")
       END IF
 
       ! Initialization of requested diagonalization library:
-      IF (diag_type == DIAG_TYPE_ELPA) THEN
+      IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
          CALL initialize_elpa_library()
          CALL set_elpa_kernel(elpa_kernel)
          CALL set_elpa_qr(elpa_qr, elpa_qr_unsafe)
@@ -149,7 +160,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE diag_finalize()
 #if defined (__ELPA)
-      IF (diag_type == DIAG_TYPE_ELPA) &
+      IF (diag_type == FM_DIAG_TYPE_ELPA) &
          CALL finalize_elpa_library()
 #endif
    END SUBROUTINE diag_finalize
@@ -175,30 +186,33 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'choose_eigv_solver'
 
-      INTEGER                                            :: myinfo, nmo
-
-      myinfo = 0
-
-      nmo = SIZE(eigenvalues, 1)
-
       ! Sample peak memory
       CALL m_memory()
 
-      IF ((nmo < elpa_neigvec_min) .OR. (diag_type == DIAG_TYPE_SCALAPACK)) THEN
-         IF (PRESENT(info)) THEN
-            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
+      IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
+         CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
+
+      ELSE IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
+         IF (SIZE(eigenvalues) < elpa_neigvec_min) THEN
+            ! We don't trust ELPA with very small matrices.
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
-            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues)
+            CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
          END IF
-      ELSE IF (diag_type == DIAG_TYPE_ELPA) THEN
-         CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
+
+      ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
+         IF (SIZE(eigenvalues) < 64) THEN
+            ! We don't trust cuSolver with very small matrices.
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
+         ELSE
+            CALL cp_fm_diag_cusolver(matrix, eigenvectors, eigenvalues)
+         END IF
+
       ELSE
          CPABORT("ERROR in "//routineN//": Invalid diagonalization type requested")
       END IF
 
-      CALL check_diag(matrix, eigenvectors, nmo)
-
-      IF (PRESENT(info)) info = myinfo
+      CALL check_diag(matrix, eigenvectors, nvec=SIZE(eigenvalues))
 
    END SUBROUTINE choose_eigv_solver
 
@@ -214,9 +228,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nvec
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_diag'
-      CHARACTER(LEN=5), DIMENSION(2), PARAMETER          :: diag_driver = (/"SYEVD", &
-                                                                            "ELPA "/)
 
+      CHARACTER(LEN=default_string_length)               :: diag_type_name
       REAL(KIND=dp)                                      :: eps_abort, eps_warning
       INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
       LOGICAL                                            :: check_eigenvectors
@@ -228,6 +241,16 @@ CONTAINS
 #endif
 
       CALL timeset(routineN, handle)
+
+      IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
+         diag_type_name = "SYEVD"
+      ELSE IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
+         diag_type_name = "ELPA"
+      ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
+         diag_type_name = "CUSOLVER"
+      ELSE
+         CPABORT("Unknown diag_type")
+      END IF
 
       output_unit = default_output_unit
 
@@ -265,7 +288,7 @@ CONTAINS
                   IF (i == j) THEN
                      IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps_warning) THEN
                         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,ES10.3)") &
-                           "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                           "The eigenvectors returned by "//TRIM(diag_type_name)//" are not orthonormal", &
                            "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
                            "The deviation from the expected value 1 is", ABS(matrix%local_data(il, jl) - 1.0_dp)
                         IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps_abort) THEN
@@ -277,7 +300,7 @@ CONTAINS
                   ELSE
                      IF (ABS(matrix%local_data(il, jl)) > eps_warning) THEN
                         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,ES10.3)") &
-                           "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                           "The eigenvectors returned by "//TRIM(diag_type_name)//" are not orthonormal", &
                            "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
                            "The deviation from the expected value 0 is", ABS(matrix%local_data(il, jl))
                         IF (ABS(matrix%local_data(il, jl)) > eps_abort) THEN
@@ -302,7 +325,7 @@ CONTAINS
                IF (i == j) THEN
                   IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps_warning) THEN
                      WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,ES10.3)") &
-                        "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                        "The eigenvectors returned by "//TRIM(diag_type_name)//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
                         "The deviation from the expected value 1 is", ABS(matrix%local_data(i, j) - 1.0_dp)
                      IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps_abort) THEN
@@ -314,7 +337,7 @@ CONTAINS
                ELSE
                   IF (ABS(matrix%local_data(i, j)) > eps_warning) THEN
                      WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,ES10.3)") &
-                        "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
+                        "The eigenvectors returned by "//TRIM(diag_type_name)//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
                         "The deviation from the expected value 0 is", ABS(matrix%local_data(i, j))
                      IF (ABS(matrix%local_data(i, j)) > eps_abort) THEN
