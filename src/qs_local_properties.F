@@ -345,7 +345,7 @@ CONTAINS
       CALL get_qs_env(qs_env, ks_env=ks_env, input=input, rho=rho_struct)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       !
-      CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_density)
+      CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_ener=xc_density)
 
       ! Electrical field terms
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)

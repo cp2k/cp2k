@@ -134,22 +134,24 @@ CONTAINS
 !> \param unit_nr ...
 !> \param c_iao_coef ...
 !> \param c_loc_coef ...
+!> \param bond_centers ...
 ! **************************************************************************************************
-   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef)
+   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef, bond_centers)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(iao_env_type), INTENT(IN)                     :: iao_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          OPTIONAL                                        :: c_iao_coef
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL           :: c_loc_coef
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: bond_centers
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_wfn_analysis'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
       INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
-                                                            nao, natom, nimages, nkind, norb, &
-                                                            nref, nsgf, nspin, nvec, sweeps
+                                                            nao, natom, nimages, nkind, no, norb, &
+                                                            nref, ns, nsgf, nspin, nvec, nx, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(2)                              :: nocc
       LOGICAL                                            :: cubes_iao, cubes_ibo, molden_iao, &
@@ -582,6 +584,16 @@ CONTAINS
             !
             CALL print_center_spread(moments, nocc, ibo_cc_section)
             !
+            IF (PRESENT(bond_centers)) THEN
+               nx = SIZE(bond_centers, 1)
+               no = SIZE(bond_centers, 2)
+               ns = SIZE(bond_centers, 3)
+               CPASSERT(no >= nvec)
+               CPASSERT(ns == nspin)
+               CPASSERT(nx >= 3)
+               nx = MIN(nx, 5)
+               bond_centers(1:nx, 1:nvec, 1:ns) = moments(1:nx, 1:nvec, 1:ns)
+            END IF
             DEALLOCATE (moments)
          END IF
          !

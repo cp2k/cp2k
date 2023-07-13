@@ -55,6 +55,8 @@ MODULE qs_energy_utils
    USE tip_scan_methods,                ONLY: tip_scanning
    USE xas_methods,                     ONLY: xas
    USE xas_tdp_methods,                 ONLY: xas_tdp
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -236,10 +238,11 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: xc_den
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
+      TYPE(xc_rho_cflags_type)                           :: needs
 
       CALL timeset(routineN, handle)
 
@@ -247,20 +250,35 @@ CONTAINS
                       dft_control=dft_control, pw_env=pw_env, &
                       rho=rho_struct, atprop=atprop)
 
-      nspins = dft_control%nspins
-      xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
-
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      ALLOCATE (vxc(nspins))
-      DO ispin = 1, nspins
-         CALL pw_pool_create_pw(auxbas_pw_pool, vxc(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-      END DO
-
       IF (atprop%energy) THEN
-         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+
+         nspins = dft_control%nspins
+         xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
+         xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+         needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
+
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         ALLOCATE (vxc(nspins))
+         DO ispin = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, vxc(ispin), &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+         END DO
+         IF (needs%tau .OR. needs%tau_spin) THEN
+            ALLOCATE (vtau(nspins))
+            DO ispin = 1, nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, vtau(ispin), &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+            END DO
+         END IF
+
+         IF (needs%tau .OR. needs%tau_spin) THEN
+            CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, &
+                               vxc=vxc, vtau=vtau)
+         ELSE
+            CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+         END IF
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
          CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s)
          CALL atprop_array_init(atprop%atexc, natom)
@@ -274,15 +292,26 @@ CONTAINS
             CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), hmat=xcmat, &
                                     calculate_forces=.FALSE.)
+            IF (needs%tau .OR. needs%tau_spin) THEN
+               CALL pw_scale(vtau(ispin), -0.5_dp*vtau(ispin)%pw_grid%dvol)
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vtau(ispin), &
+                                       hmat=xcmat, calculate_forces=.FALSE., compute_tau=.TRUE.)
+            END IF
             CALL atom_trace(xcmat%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
             CALL dbcsr_release(xcmat%matrix)
          END DO
-      END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
-      END DO
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
+         END DO
+         IF (needs%tau .OR. needs%tau_spin) THEN
+            DO ispin = 1, nspins
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau(ispin))
+            END DO
+         END IF
+
+      END IF
 
       CALL timestop(handle)
 

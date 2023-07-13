@@ -72,6 +72,8 @@ MODULE ed_analysis
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -357,20 +359,21 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: xc_den
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
+      TYPE(xc_rho_cflags_type)                           :: needs
 
       CALL timeset(routineN, handle)
-
-      MARK_USED(vhxc_mat)
 
       CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control, pw_env=pw_env)
 
       nspins = dft_control%nspins
       xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
@@ -380,25 +383,48 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, vxc(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
+      IF (needs%tau .OR. needs%tau_spin) THEN
+         ALLOCATE (vtau(nspins))
+         DO ispin = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, vtau(ispin), &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+         END DO
+      END IF
 
       ! Nuclear charge correction
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env, atecc=atecc)
 
       CALL get_qs_env(qs_env, rho=rho_struct)
-      CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+      IF (needs%tau .OR. needs%tau_spin) THEN
+         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, &
+                            vxc=vxc, vtau=vtau)
+      ELSE
+         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+      END IF
       DO ispin = 1, nspins
          CALL pw_scale(vxc(ispin), -0.5_dp)
          CALL pw_axpy(xc_den, vxc(ispin))
          CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
          CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), &
                                  hmat=vhxc_mat(ispin), calculate_forces=.FALSE.)
+         IF (needs%tau .OR. needs%tau_spin) THEN
+            CALL pw_scale(vtau(ispin), -0.5_dp*vtau(ispin)%pw_grid%dvol)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vtau(ispin), &
+                                    hmat=vhxc_mat(ispin), calculate_forces=.FALSE., &
+                                    compute_tau=.TRUE.)
+         END IF
       END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
       END DO
+      IF (needs%tau .OR. needs%tau_spin) THEN
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau(ispin))
+         END DO
+      END IF
 
       CALL timestop(handle)
 
