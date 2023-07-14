@@ -102,6 +102,7 @@ CONTAINS
 
       ! create cp_subsys%cell
       !TODO: moved to cp_subsys_create(), needs further disentanglement of cell_ref.
+      use_ref_cell = .FALSE.
       IF (PRESENT(cell)) THEN
          my_cell => cell
          IF (PRESENT(cell_ref)) THEN
@@ -110,7 +111,6 @@ CONTAINS
          ELSE
             CALL cell_create(my_cell_ref)
             CALL cell_clone(my_cell, my_cell_ref, tag="CELL_REF")
-            use_ref_cell = .FALSE.
          END IF
       ELSE
          cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
