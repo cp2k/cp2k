@@ -653,6 +653,9 @@ list(
   qs_tddfpt2_operators.F
   qs_tddfpt2_properties.F
   qs_tddfpt2_restart.F
+  qs_tddfpt2_soc.F
+  qs_tddfpt2_soc_utils.F
+  qs_tddfpt2_soc_types.F
   qs_tddfpt2_stda_types.F
   qs_tddfpt2_stda_utils.F
   qs_tddfpt2_subgroups.F

@@ -46,7 +46,7 @@ MODULE qs_tddfpt2_soc_types
 ! \param soc_osc: ozillatorstrength of soc-corrected excitations
 !*************************************************************************************************
    TYPE soc_env_type
-      !! a :: singlett or spin-conservm b :: triplett or spin flip
+      !! a :: singlet or spin-conserving b :: triplet or spin flip
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: orb_soc
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat
       REAL(dp), POINTER, DIMENSION(:)                 :: evals_a, &
@@ -84,9 +84,9 @@ CONTAINS
       TYPE(soc_env_type), TARGET                         :: soc_env
 
       NULLIFY (soc_env%orb_soc)
-      NULLIFY (soc_env%dipmat)
       NULLIFY (soc_env%evals_a)
       NULLIFY (soc_env%evals_b)
+      NULLIFY (soc_env%dipmat)
 
    END SUBROUTINE soc_env_create
 
@@ -116,7 +116,7 @@ CONTAINS
             CALL dbcsr_release(soc_env%dipmat(i)%matrix)
             DEALLOCATE (soc_env%dipmat(i)%matrix)
          END DO
-         NULLIFY (soc_env%dipmat)
+         DEALLOCATE (soc_env%dipmat)
       END IF
       IF (ALLOCATED(soc_env%soc_evals)) DEALLOCATE (soc_env%soc_evals)
       IF (ALLOCATED(soc_env%soc_osc)) DEALLOCATE (soc_env%soc_osc)

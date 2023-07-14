@@ -266,11 +266,11 @@ CONTAINS
       CALL section_vals_val_get(soc_section, "EPS_FILTER", r_val=eps_filter)
 
       nsg = SIZE(evals_sing)   ! Number of excited singlet states
-      ntp = SIZE(evals_trip)   ! Number of excited triplett states
+      ntp = SIZE(evals_trip)   ! Number of excited triplet states
       nex = nsg                ! Number of excited states of each multiplicity
       ntot = 1 + nsg + 3*ntp ! Number of (GS + S + T^-1 + T^0 + T^1)
 
-      ! Initzialize Working envirment
+      ! Initzialize Working environment
       CALL inititialize_soc(qs_env, soc_atom_env, soc_env, &
                             evects_sing, evects_trip, dipole_form)
 
@@ -394,7 +394,7 @@ CONTAINS
       !! Prefactor due to rcs.
       !! The excitation is presented as a linear combination of
       !! alpha and beta, where dalpha=-dbeta for triplet exc.
-      !! and dalpha=dbeta for the singlett case
+      !! and dalpha=dbeta for the singlet case
       sqrt2 = SQRT(2.0_dp)
 
       !! Precompute the <phi_i^0|H^SOC|phi_j^0> matrix elements
@@ -1026,7 +1026,17 @@ CONTAINS
          END IF
          WRITE (log_unit, '(A)') "------------------------------------------------------------------------"
          DO WHILE (iex <= SIZE(soc_env%soc_evals))
-            IF (evals_sing(isg) < evals_trip(itp) .OR. itp > SIZE(evals_trip)) THEN
+            IF (itp < SIZE(evals_trip) .AND. isg < SIZE(evals_sing)) THEN
+               IF (evals_sing(isg) < evals_trip(itp)) THEN
+                  tmp = soc_env%soc_evals(iex) - evals_sing(isg)
+                  mult = "S"
+                  isg = isg + 1
+               ELSE
+                  tmp = soc_env%soc_evals(iex) - evals_trip(itp)
+                  mult = "T"
+                  itp = itp + 1
+               END IF
+            ELSE IF (itp > SIZE(evals_trip)) THEN
                tmp = soc_env%soc_evals(iex) - evals_sing(isg)
                mult = "S"
                isg = isg + 1
@@ -1075,18 +1085,6 @@ CONTAINS
 
    END SUBROUTINE tddfpt_soc_rcs
 
-!******************************************************************************
-! \brief: This routine will be handling some nessesary initalizations for the
-!         soc calcualtions
-! \param qs_env: ...
-! \param soc_atom_env: This type will contain information to calculate the
-!                      ZORA-operator within the atomic grid
-! \param soc_env: this structure will transfer different matrices realted to
-!                 the SOC-calculation
-! \param evects_a: Eigenvector of the singlet or spin-conserving excitation
-! \param evects_b: Eigenvector of the triplet or spin-flip excitation
-!******************************************************************************
-
 ! **************************************************************************************************
 !> \brief Some additional initalizations
 !> \param qs_env Quickstep environment
@@ -1109,9 +1107,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'inititialize_soc'
 
       CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER                           :: k_list
+         ALLOCATABLE, DIMENSION(:, :)                    :: grid_info
       CHARACTER(len=default_string_length), &
-         DIMENSION(:, :), POINTER                        :: grid_info
+         DIMENSION(:), POINTER                           :: k_list
       INTEGER                                            :: handle, i, ikind, irep, ispin, nactive, &
                                                             nao, natom, nkind, nrep, nspins, &
                                                             nstates
@@ -1131,7 +1129,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set, particle_set, blacs_env, para_env, &
-               a_coeff, b_coeff, grid_info, tddfpt_control)
+               a_coeff, b_coeff, tddfpt_control)
 
       !! Open_shell is not implemented yet
       do_os = .FALSE.
@@ -1214,6 +1212,8 @@ CONTAINS
          CALL compute_sphi_so(ikind, "ORB", soc_atom_env%orb_sphi_so(ikind)%array, qs_env)
       END DO !ikind
 
+      DEALLOCATE (grid_info)
+
       CALL timestop(handle)
 
    END SUBROUTINE inititialize_soc
@@ -1229,7 +1229,7 @@ CONTAINS
 
       TYPE(soc_atom_env_type)                            :: soc_atom_env
       CHARACTER(len=default_string_length), &
-         DIMENSION(:, :), POINTER                        :: grid_info
+         ALLOCATABLE, DIMENSION(:, :)                    :: grid_info
       TYPE(qs_environment_type)                          :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_atom_grid'

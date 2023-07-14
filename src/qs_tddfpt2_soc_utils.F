@@ -90,7 +90,7 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
 
-      NULLIFY (dipmat)
+      !NULLIFY (dipmat)
       ALLOCATE (dipmat(dim_op))
       DO i_dim = 1, dim_op
          ALLOCATE (dipmat(i_dim)%matrix)

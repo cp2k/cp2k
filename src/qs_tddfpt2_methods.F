@@ -1226,8 +1226,8 @@ CONTAINS
       END IF
 
       ! deallocate the additional multiplicity
-      DO istate = 1, SIZE(evects_mult, 1)
-         DO ispin = 1, SIZE(evects_mult, 2)
+      DO ispin = 1, SIZE(evects_mult, 1)
+         DO istate = 1, SIZE(evects_mult, 2)
             CALL cp_fm_release(evects_mult(ispin, istate))
          END DO
       END DO
