@@ -231,6 +231,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ks_xc_correction'
 
       INTEGER                                            :: handle, ispin, natom, nspins
+      LOGICAL                                            :: gapw, gapw_xc
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dbcsr_p_type)                                 :: xcmat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
@@ -256,6 +257,8 @@ CONTAINS
          xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
          xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
          needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
+         gapw = dft_control%qs_control%gapw
+         gapw_xc = dft_control%qs_control%gapw_xc
 
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
@@ -291,11 +294,12 @@ CONTAINS
             CALL pw_axpy(xc_den, vxc(ispin))
             CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), hmat=xcmat, &
-                                    calculate_forces=.FALSE.)
+                                    calculate_forces=.FALSE., gapw=(gapw .OR. gapw_xc))
             IF (needs%tau .OR. needs%tau_spin) THEN
                CALL pw_scale(vtau(ispin), -0.5_dp*vtau(ispin)%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vtau(ispin), &
-                                       hmat=xcmat, calculate_forces=.FALSE., compute_tau=.TRUE.)
+                                       hmat=xcmat, calculate_forces=.FALSE., &
+                                       gapw=(gapw .OR. gapw_xc), compute_tau=.TRUE.)
             END IF
             CALL atom_trace(xcmat%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
             CALL dbcsr_release(xcmat%matrix)

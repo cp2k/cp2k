@@ -12,6 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE ed_analysis
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Eriksen2020,&
@@ -63,15 +64,26 @@ MODULE ed_analysis
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
+                                              local_rho_set_release,&
+                                              local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_rho_types,                    ONLY: qs_rho_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_types,                    ONLY: oce_matrix_type
+   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
+                                              calculate_rho_atom_coeff
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
+   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "./base/base_uses.f90"
@@ -355,12 +367,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vhxc_correction'
 
       INTEGER                                            :: handle, ispin, nspins
+      LOGICAL                                            :: gapw, gapw_xc
+      REAL(KIND=dp)                                      :: exc1
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab
+      TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: xc_den
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
@@ -374,6 +396,8 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
@@ -394,6 +418,8 @@ CONTAINS
       ! Nuclear charge correction
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env, atecc=atecc)
+!deb        CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace, para_env, calculate_forces=.TRUE., &
+!deb                                   local_rho_set=local_rho_set)
 
       CALL get_qs_env(qs_env, rho=rho_struct)
       IF (needs%tau .OR. needs%tau_spin) THEN
@@ -407,14 +433,36 @@ CONTAINS
          CALL pw_axpy(xc_den, vxc(ispin))
          CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
          CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), &
-                                 hmat=vhxc_mat(ispin), calculate_forces=.FALSE.)
+                                 hmat=vhxc_mat(ispin), calculate_forces=.FALSE., &
+                                 gapw=(gapw .OR. gapw_xc))
          IF (needs%tau .OR. needs%tau_spin) THEN
             CALL pw_scale(vtau(ispin), -0.5_dp*vtau(ispin)%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vtau(ispin), &
                                     hmat=vhxc_mat(ispin), calculate_forces=.FALSE., &
-                                    compute_tau=.TRUE.)
+                                    compute_tau=.TRUE., gapw=(gapw .OR. gapw_xc))
          END IF
       END DO
+
+      NULLIFY (local_rho_set)
+      IF (gapw .OR. gapw_xc) THEN
+         CALL get_qs_env(qs_env, para_env=para_env, oce=oce, sab_orb=sab, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=matrix_p)
+         CALL local_rho_set_create(local_rho_set)
+         CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, para_env)
+         CALL calculate_rho_atom_coeff(qs_env, matrix_p, local_rho_set%rho_atom_set, &
+                                       qs_kind_set, oce, sab, para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=.FALSE.)
+         CALL local_rho_set_release(local_rho_set)
+         !
+         ! Exc/rho is still missing!
+         CALL calculate_vxc_atom(qs_env, energy_only=.FALSE., exc1=exc1)
+         !
+         CALL update_ks_atom(qs_env, vhxc_mat, matrix_p, forces=.FALSE., &
+                             rho_atom_external=local_rho_set%rho_atom_set, kscale=-0.5_dp)
+      END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
       DO ispin = 1, nspins
