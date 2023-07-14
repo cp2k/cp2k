@@ -189,6 +189,8 @@ CONTAINS
       ! Sample peak memory
       CALL m_memory()
 
+      IF (PRESENT(info)) info = 0 ! Default for solvers that do not return an info.
+
       IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
          CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
 
