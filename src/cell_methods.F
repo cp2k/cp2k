@@ -271,7 +271,7 @@ CONTAINS
                                   check_for_ref, para_env)
 
       TYPE(cell_type), POINTER                           :: cell, cell_ref
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_ref_cell
+      LOGICAL, INTENT(INOUT), OPTIONAL                   :: use_ref_cell
       TYPE(section_vals_type), OPTIONAL, POINTER         :: cell_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -374,15 +374,18 @@ CONTAINS
       ! Initialize cell
       CALL init_cell(cell)
 
-      IF (.NOT. my_check) RETURN
-      cell_ref_section => section_vals_get_subs_vals(cell_section, "CELL_REF")
-      IF (parsed_cp2k_input(cell_ref_section, check_this_section=.TRUE.)) THEN
-         IF (PRESENT(use_ref_cell)) use_ref_cell = .TRUE.
-         CALL read_cell(cell_ref, cell_ref, use_ref_cell, cell_section=cell_ref_section, &
-                        check_for_ref=.FALSE., para_env=para_env)
-      ELSE
-         CALL cell_clone(cell, cell_ref, tag="CELL_REF")
-         IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
+      IF (my_check) THEN
+         ! Recursive check for reference cell requested
+         cell_ref_section => section_vals_get_subs_vals(cell_section, "CELL_REF")
+         IF (parsed_cp2k_input(cell_ref_section, check_this_section=.TRUE.)) THEN
+            IF (PRESENT(use_ref_cell)) use_ref_cell = .TRUE.
+            CALL read_cell(cell_ref, cell_ref, use_ref_cell=use_ref_cell, &
+                           cell_section=cell_ref_section, check_for_ref=.FALSE., &
+                           para_env=para_env)
+         ELSE
+            CALL cell_clone(cell, cell_ref, tag="CELL_REF")
+            IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
+         END IF
       END IF
 
    END SUBROUTINE read_cell
