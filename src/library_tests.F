@@ -41,7 +41,7 @@ MODULE library_tests
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_type, cp_fm_pilaenv
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -1255,7 +1255,7 @@ CONTAINS
       CHARACTER(LEN=1)                         :: transa, transb
       INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, &
                  ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
-                 nrow_global
+                 nrow_global, np
       INTEGER, DIMENSION(:), POINTER           :: grid_2d
       LOGICAL                                  :: force_blocksize, row_major, &
                                                   transa_p, transb_p
@@ -1263,10 +1263,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER         :: blacs_env
       TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
                                                   fmstruct_c
-      TYPE(cp_fm_type)               :: matrix_a, matrix_b, matrix_c
-#if defined(__SCALAPACK)
-      INTEGER                                  :: pilaenv
-#endif
+      TYPE(cp_fm_type)                         :: matrix_a, matrix_b, matrix_c
 
       CALL section_vals_get(cp_fm_gemm_test_section, n_repetition=n_rep)
       DO i_rep = 1, n_rep
@@ -1309,9 +1306,10 @@ CONTAINS
             WRITE (iw, '(T2,A,T50,2I7)') 'GRID_2D ', grid_2d
             WRITE (iw, '(T2,A,T50,L5)') 'Force blocksize ', force_blocksize
             ! check the return value of pilaenv, too small values limit the performance (assuming pdgemm is the vanilla variant)
-#if defined(__SCALAPACK)
-            WRITE (iw, '(T2,A,T50,I5)') 'PILAENV blocksize', pilaenv(0, 'D')
-#endif
+            np = cp_fm_pilaenv(0, 'D')
+            IF(np > 0) THEN
+               WRITE (iw, '(T2,A,T50,I5)') 'PILAENV blocksize', np
+            END IF
          END IF
 
          NULLIFY (blacs_env)
