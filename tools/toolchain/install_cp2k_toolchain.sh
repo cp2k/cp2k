@@ -456,7 +456,7 @@ while [ $# -ge 1 ]; do
     --gpu-ver=*)
       user_input="${1#*=}"
       case "${user_input}" in
-        K20X | K40 | K80 | P100 | V100 | A100 | Mi50 | Mi100 | Mi250 | no)
+        K20X | K40 | K80 | P100 | V100 | A100 | GH100 |  Mi50 | Mi100 | Mi250 | no)
           export GPUVER="${user_input}"
           ;;
         *)
@@ -931,6 +931,9 @@ case ${GPUVER} in
     ;;
   A100)
     export ARCH_NUM="80"
+    ;;
+  GH100)
+    export ARCH_NUM="75"
     ;;
   Mi50)
     # TODO: export ARCH_NUM=
