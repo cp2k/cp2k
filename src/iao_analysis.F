@@ -582,7 +582,9 @@ CONTAINS
                CALL center_spread_loc(qs_env, c_loc_orb, moments)
             END IF
             !
-            CALL print_center_spread(moments, nocc, ibo_cc_section)
+            IF (ASSOCIATED(ibo_cc_section)) THEN
+               CALL print_center_spread(moments, nocc, ibo_cc_section)
+            END IF
             !
             IF (PRESENT(bond_centers)) THEN
                nx = SIZE(bond_centers, 1)
@@ -632,7 +634,8 @@ CONTAINS
          IF (PRESENT(c_loc_coef)) THEN
             ! c_loc_orb -> c_loc_coef
             DO ispin = 1, nspin
-               CALL cp_fm_to_fm(c_loc_orb(ispin), c_loc_coef(ispin))
+               CALL cp_fm_get_info(c_loc_orb(ispin), ncol_global=norb)
+               CALL cp_fm_to_fm(c_loc_orb(ispin), c_loc_coef(ispin), ncol=norb)
             END DO
          END IF
          CALL cp_fm_release(c_loc_orb)

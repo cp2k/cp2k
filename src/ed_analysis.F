@@ -113,13 +113,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'edmf_analysis'
 
       INTEGER                                            :: handle, iatom, ikind, iorb, ispin, nao, &
-                                                            natom, nimages, nkind, norb, nref, &
+                                                            natom, nimages, nkind, no, norb, nref, &
                                                             nspin
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
       LOGICAL                                            :: explicit, uniform_occupation
       REAL(KIND=dp)                                      :: ateps, checksum, e_pot, focc, sum_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atecc, ateks, atener
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: cvec, smo
@@ -174,12 +175,16 @@ CONTAINS
       iao_env%do_iao = .TRUE.
       iao_env%do_charges = .TRUE.
       iao_env%do_bondorbitals = .TRUE.
+      iao_env%do_center = .TRUE.
+      no = 0
       DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=norb)
+         no = MAX(no, norb)
          CALL cp_fm_create(c_loc_coef(ispin), mo_coeff%matrix_struct)
          CALL cp_fm_to_fm(mo_coeff, c_loc_coef(ispin))
       END DO
-      CALL iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef)
+      ALLOCATE (bcenter(5, no, nspin))
+      CALL iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef, bcenter)
       ! localized orbitals in IAO basis => CIAO
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       smat => matrix_s(1)%matrix
@@ -317,13 +322,17 @@ CONTAINS
       CALL cp_fm_release(c_iao_coef)
       CALL cp_fm_release(c_loc_coef)
 
-      atener = ateks + atecc
-      ! core energy corrections
       CALL get_qs_env(qs_env, para_env=para_env)
       group = para_env
+      ! KS energy
+      atener = ateks
+      ! core energy corrections
+      CALL group%sum(atecc)
+      atener = atener + atecc
       atecc = 0.0_dp
       CALL calculate_ecore_overlap(qs_env, para_env, .FALSE., atecc=atecc)
       CALL group%sum(atecc)
+      atener = atener + atecc
       atecc = 0.0_dp
       CALL calculate_ecore_self(qs_env, atecc=atecc)
       CALL group%sum(atecc)
@@ -347,6 +356,7 @@ CONTAINS
          WRITE (unit_nr, '(/,T2,A)') &
             '!----------------------------END OF ED ANALYSIS-------------------------------!'
       END IF
+      DEALLOCATE (bcenter)
       DEALLOCATE (atener, ateks, atecc)
 
       CALL timestop(handle)
