@@ -89,7 +89,7 @@ CONTAINS
          my_n = n
       END IF
 
-      CALL cp_fm_potrf(fm_matrix, n)
+      CALL cp_fm_potrf(fm_matrix, my_n)
 
       CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
@@ -143,7 +143,7 @@ CONTAINS
          my_n = n
       END IF
 
-      CALL cp_fm_potri(fm_matrix, n)
+      CALL cp_fm_potri(fm_matrix, my_n)
 
       IF (upper_to_full) THEN
          CALL cp_fm_create(fm_matrix_tmp, fm_matrix%matrix_struct, name="fm_matrix_tmp")
