@@ -589,17 +589,20 @@ CONTAINS
 !> \param ks_env to get all the needed things
 !> \param rho_struct density
 !> \param xc_section ...
+!> \param dispersion_env ...
 !> \param xc_ener will contain the xc energy density E_xc(r) - V_xc(r)*rho(r)
 !> \param xc_den will contain the xc energy density E_xc(r)/rho(r)
 !> \param vxc ...
 !> \param vtau ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, xc_ener, xc_den, vxc, vtau)
+   SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env, &
+                            xc_ener, xc_den, vxc, vtau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: xc_ener, xc_den
       TYPE(pw_type), DIMENSION(:), OPTIONAL              :: vxc, vtau
 
@@ -607,12 +610,13 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, myfun, nspins, vdw
       LOGICAL                                            :: rho_g_valid, tau_r_valid, uf_grid, vdW_nl
-      REAL(KIND=dp)                                      :: exc, factor, rho_cutoff
+      REAL(KIND=dp)                                      :: edisp, exc, factor, rho_cutoff
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
@@ -691,6 +695,20 @@ CONTAINS
                                 compute_virial=.FALSE., &
                                 virial_xc=vdum, &
                                 exc_r=exc_r)
+         ! calclulate non-local vdW functional
+         ! only if this XC_SECTION has it
+         ! if yes, we use the dispersion_env from ks_env
+         ! this is dangerous, as it assumes a special connection xc_section -> qs_env
+         IF (vdW_nl) THEN
+            CALL get_ks_env(ks_env=ks_env, para_env=para_env)
+            ! no SIC functionals allowed
+            CPASSERT(dft_control%sic_method_id == sic_none)
+            !
+            CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
+            CALL calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edisp, dispersion_env, &
+                                             .FALSE., vdw_pw_pool, xc_pw_pool, para_env)
+         END IF
+
          ! remove the nlcc densities (keep stuff in original state)
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp

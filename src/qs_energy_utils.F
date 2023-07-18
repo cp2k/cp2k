@@ -39,6 +39,7 @@ MODULE qs_energy_utils
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -240,6 +241,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: xc_den
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
@@ -276,11 +278,13 @@ CONTAINS
             END DO
          END IF
 
+         CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
          IF (needs%tau .OR. needs%tau_spin) THEN
-            CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, &
-                               vxc=vxc, vtau=vtau)
+            CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
+                               xc_den=xc_den, vxc=vxc, vtau=vtau)
          ELSE
-            CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+            CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
+                               xc_den=xc_den, vxc=vxc)
          END IF
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
          CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s)

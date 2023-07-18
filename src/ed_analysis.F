@@ -61,6 +61,7 @@ MODULE ed_analysis
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -117,7 +118,8 @@ CONTAINS
                                                             nspin
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
       LOGICAL                                            :: explicit, uniform_occupation
-      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, focc, sum_energy
+      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, focc, &
+                                                            sum_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atecc, ateks, atener
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
@@ -305,7 +307,8 @@ CONTAINS
             CALL cp_fm_get_submatrix(orb_weight(ispin), mweight, start_row=iatom, &
                                      start_col=1, n_rows=1, n_cols=norb)
             CALL iao_calculate_dmat(c_loc_coef(ispin), dkmat, mweight(1, :), .FALSE.)
-            CALL dbcsr_dot(dkmat, ks_mat(ispin)%matrix, ateks(iatom))
+            CALL dbcsr_dot(dkmat, ks_mat(ispin)%matrix, ecc)
+            ateks(iatom) = ateks(iatom) + ecc
          END DO
          DEALLOCATE (mweight)
       END DO
@@ -392,6 +395,7 @@ CONTAINS
       TYPE(pw_type)                                      :: xc_den
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -431,12 +435,13 @@ CONTAINS
 !deb        CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace, para_env, calculate_forces=.TRUE., &
 !deb                                   local_rho_set=local_rho_set)
 
-      CALL get_qs_env(qs_env, rho=rho_struct)
+      CALL get_qs_env(qs_env, rho=rho_struct, dispersion_env=dispersion_env)
       IF (needs%tau .OR. needs%tau_spin) THEN
-         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, &
-                            vxc=vxc, vtau=vtau)
+         CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
+                            xc_den=xc_den, vxc=vxc, vtau=vtau)
       ELSE
-         CALL qs_xc_density(ks_env, rho_struct, xc_section, xc_den=xc_den, vxc=vxc)
+         CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
+                            xc_den=xc_den, vxc=vxc)
       END IF
       DO ispin = 1, nspins
          CALL pw_scale(vxc(ispin), -0.5_dp)

@@ -481,7 +481,7 @@ CONTAINS
             DO ispin = 1, nspin
                CALL cp_fm_get_info(c_loc_coef(ispin), nrow_global=nao, ncol_global=norb)
                nocc(ispin) = norb
-               CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+               CALL cp_fm_create(smo, c_loc_coef(ispin)%matrix_struct)
                NULLIFY (fm_struct)
                CALL cp_fm_struct_create(fm_struct, nrow_global=nref, &
                                         template_fmstruct=c_loc_coef(ispin)%matrix_struct)
