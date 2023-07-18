@@ -2627,20 +2627,22 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param ictxt ...
+!> \param prec ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_fm_pilaenv( ictxt, prec ) RESULT(res)
+   FUNCTION cp_fm_pilaenv(ictxt, prec) RESULT(res)
       INTEGER                                            :: ictxt
       CHARACTER(LEN=1)                                   :: prec
       INTEGER                                            :: res
-#if defined(__SCALAPACK)                
+#if defined(__SCALAPACK)
       INTEGER                                            :: pilaenv
-      res = pilaenv( ictxt, prec)
+      res = pilaenv(ictxt, prec)
 #else
       MARK_USED(ictxt)
       MARK_USED(prec)
       res = -1
-#endif                                        
+#endif
 
    END FUNCTION
 

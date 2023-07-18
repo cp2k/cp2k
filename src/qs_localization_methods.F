@@ -19,6 +19,8 @@ MODULE qs_localization_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_rot_cols,&
+                                              cp_cfm_rot_rows,&
                                               cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_schur_product,&
@@ -1262,35 +1264,19 @@ CONTAINS
 !> \param zij ...
 ! **************************************************************************************************
    SUBROUTINE rotate_zij(istate, jstate, st, ct, zij)
-      INTEGER, INTENT(IN) :: istate, jstate
-      TYPE(cp_cfm_type) :: zij(:)
-      REAL(KIND=dp), INTENT(IN) :: st, ct
-      ! Locals
-      INTEGER :: idim, nstate
-      COMPLEX(KIND=dp) :: st_cmplx
-#if defined(__SCALAPACK)
-      INTEGER, DIMENSION(9) :: desc
-#else
-      INTEGER :: stride
-#endif
+      INTEGER, INTENT(IN)                                :: istate, jstate
+      REAL(KIND=dp), INTENT(IN)                          :: st, ct
+      TYPE(cp_cfm_type)                                  :: zij(:)
 
-      st_cmplx = CMPLX(st, 0.0_dp, dp)
-      CALL cp_cfm_get_info(zij(1), nrow_global=nstate)
-      DO idim = 1, SIZE(zij, 1)
-#if defined(__SCALAPACK)
-         desc(:) = zij(idim)%matrix_struct%descriptor(:)
-         CALL pzrot(nstate, zij(idim)%local_data(1, 1), 1, istate, desc, 1, &
-                    zij(idim)%local_data(1, 1), 1, jstate, desc, 1, ct, st_cmplx)
-         CALL pzrot(nstate, zij(idim)%local_data(1, 1), istate, 1, desc, nstate, &
-                    zij(idim)%local_data(1, 1), jstate, 1, desc, nstate, ct, st_cmplx)
-#else
-         CALL zrot(nstate, zij(idim)%local_data(1, istate), 1, &
-                   zij(idim)%local_data(1, jstate), 1, ct, st_cmplx)
-         stride = SIZE(zij(idim)%local_data, 1)
-         CALL zrot(nstate, zij(idim)%local_data(istate, 1), stride, &
-                   zij(idim)%local_data(jstate, 1), stride, ct, st_cmplx)
-#endif
+      INTEGER                                            :: id
+
+! Locals
+
+      DO id = 1, SIZE(zij, 1)
+         CALL cp_cfm_rot_cols(zij(id), istate, jstate, ct, st)
+         CALL cp_cfm_rot_rows(zij(id), istate, jstate, ct, st)
       END DO
+
    END SUBROUTINE rotate_zij
 ! **************************************************************************************************
 !> \brief ...
@@ -1301,26 +1287,12 @@ CONTAINS
 !> \param rmat ...
 ! **************************************************************************************************
    SUBROUTINE rotate_rmat(istate, jstate, st, ct, rmat)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: istate, jstate
-      TYPE(cp_cfm_type), INTENT(IN) :: rmat
-      REAL(KIND=dp), INTENT(IN) :: ct, st
-! Locals
-      INTEGER :: nstate
-      COMPLEX(KIND=dp) :: st_cmplx
-#if defined(__SCALAPACK)
-      INTEGER, DIMENSION(9) :: desc
-#endif
+      INTEGER, INTENT(IN)                                :: istate, jstate
+      REAL(KIND=dp), INTENT(IN)                          :: st, ct
+      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat
 
-      st_cmplx = CMPLX(st, 0.0_dp, dp)
-      CALL cp_cfm_get_info(rmat, nrow_global=nstate)
-#if defined(__SCALAPACK)
-      desc(:) = rmat%matrix_struct%descriptor(:)
-      CALL pzrot(nstate, rmat%local_data(1, 1), 1, istate, desc, 1, &
-                 rmat%local_data(1, 1), 1, jstate, desc, 1, ct, st_cmplx)
-#else
-      CALL zrot(nstate, rmat%local_data(1, istate), 1, rmat%local_data(1, jstate), 1, ct, st_cmplx)
-#endif
+      CALL cp_cfm_rot_cols(rmat, istate, jstate, ct, st)
+
    END SUBROUTINE rotate_rmat
 ! **************************************************************************************************
 !> \brief ...
@@ -3060,7 +3032,7 @@ CONTAINS
 
       CALL cp_fm_transpose(vectors, CTp)
 
-      ! Call SCALAPACK routine to get QR decomposition of CTs
+      ! Get QR decomposition of CTs
       CALL cp_fm_pdgeqpf(CTp, tau, nrowT, ncolT, 1, 1)
 
       ! Construction of Q from the scalapack output
@@ -3071,7 +3043,7 @@ CONTAINS
       CALL cp_fm_struct_release(cstruct)
       CALL cp_fm_to_fm_submat(CTp, Qf, nrowT, nrowT, 1, 1, 1, 1)
 
-      ! Call SCALAPACK routine to get Q
+      ! Get Q
       CALL cp_fm_pdorgqr(Qf, tau, nrowT, 1, 1)
 
       ! Transform original coefficient matrix vectors
