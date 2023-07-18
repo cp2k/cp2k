@@ -1089,6 +1089,7 @@ CONTAINS
       int1 = fourpi*integrate_grid(density, grid)
       int2 = 0._dp
       cpot(nc:) = int1/r(nc:)
+      !   IF (log_unit>0) WRITE(log_unit,"(A,2F10.8)") "r", int1, cpot(nc:)
 
       ! test that grid is decreasing
       CPASSERT(r(1) > r(nc))

@@ -97,6 +97,7 @@ QS/regtest-pao-2
 QS/regtest-tddfpt-2                                         libint
 QS/regtest-tddfpt-3                                         libint
 QS/regtest-tddfpt-4                                         libint
+QS/regtest-tddfpt-soc                                       libint
 QS/regtest-stda                                             libint
 QS/regtest-p-efield
 QS/regtest-mp2-stress                                       libint

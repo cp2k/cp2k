@@ -148,7 +148,7 @@ MODULE xas_tdp_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_methods'
 
-   PUBLIC :: xas_tdp
+   PUBLIC :: xas_tdp, xas_tdp_init
 
 CONTAINS
 
@@ -335,7 +335,7 @@ CONTAINS
          END IF
 
          IF (xas_tdp_control%do_soc .OR. xas_tdp_control%do_gw2x) THEN
-            CALL integrate_soc_atoms(xas_tdp_env%orb_soc, xas_atom_env, qs_env)
+            CALL integrate_soc_atoms(xas_tdp_env%orb_soc, xas_atom_env=xas_atom_env, qs_env=qs_env)
          END IF
 
          CALL xas_atom_env_release(xas_atom_env)

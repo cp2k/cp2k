@@ -227,6 +227,7 @@ CONTAINS
       lri_env%soo_list => soo_list
 
       CALL atom2d_cleanup(atom2d)
+
       DEALLOCATE (orb_present, orb_radius, pair_radius)
 
       ! calculate LRI integrals

@@ -1289,7 +1289,8 @@ CONTAINS
                                                             multigrid_set
       REAL(KIND=dp)                                      :: filter, fval, hfx
       TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, &
-                                                            stda_section, xc_func, xc_section
+                                                            soc_section, stda_section, xc_func, &
+                                                            xc_section
 
       CALL timeset(routineN, handle)
 
@@ -1369,6 +1370,13 @@ CONTAINS
          IF (t_control%dipole_form == tddfpt_dipole_length .AND. t_control%dipole_reference == use_mom_ref_user) THEN
             CPABORT("User-defined reference point should be given explicitly")
          END IF
+      END IF
+
+      !SOC subsection
+      soc_section => section_vals_get_subs_vals(t_section, "SOC")
+      CALL section_vals_get(soc_section, explicit=explicit)
+      IF (explicit) THEN
+         t_control%do_soc = .TRUE.
       END IF
 
       ! MGRID subsection
