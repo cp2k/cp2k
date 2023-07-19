@@ -35,6 +35,8 @@ case "${with_spfft}" in
       fi
       if [ "${MATH_MODE}" = "mkl" ]; then
         EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=ON -DSPFFT_FFTW_LIB=MKL"
+      elif [ "${WITH_FFTW}" != "no" && "${WITH_FFTW}" != "__DONTUSE__" ]; then
+        EXTRA_CMAKE_FLAGS="-DSPFFT_FFTW=ON -DSPFFT_FFTW_LIB=FFTW"
       else
         EXTRA_CMAKE_FLAGS=""
       fi
