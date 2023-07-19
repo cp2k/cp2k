@@ -30,13 +30,9 @@ MODULE et_coupling_proj
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type,&
-                                              cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, &
+        cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -400,66 +396,6 @@ CONTAINS
    END SUBROUTINE set_fermi
 
 ! **************************************************************************************************
-!> \brief copy full-matrix elements to real array on local core
-!> \param mat the full matrix
-!> \param arr the array for the matrix elements
-!> \author Z. Futera (02.2017)
-! **************************************************************************************************
-   SUBROUTINE get_fm_matrix_array(mat, arr)
-
-      ! Routine arguments
-      TYPE(cp_fm_type), INTENT(IN)                        :: mat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: arr
-
-      ! Routine name for debug purposes
-
-      ! Local variables
-      INTEGER                                            :: i, j
-
-#if defined(__SCALAPACK)
-
-      INTEGER                                            :: c_row, c_col, c_row_f, c_col_f
-      INTEGER                                            :: i_p_row, i_p_col
-      INTEGER                                            :: n_p_rows, n_p_cols
-
-      n_p_rows = mat%matrix_struct%context%num_pe(1)
-      n_p_cols = mat%matrix_struct%context%num_pe(2)
-
-      c_row = mat%matrix_struct%context%mepos(1)
-      c_col = mat%matrix_struct%context%mepos(2)
-
-      DO i = 1, mat%matrix_struct%nrow_global
-         DO j = 1, mat%matrix_struct%ncol_global
-
-            CALL infog2l(i, j, mat%matrix_struct%descriptor, &
-                         n_p_rows, n_p_cols, &
-                         c_row, c_col, &
-                         i_p_row, i_p_col, &
-                         c_row_f, c_col_f)
-
-            IF ((c_row_f == c_row) .AND. (c_col_f == c_col)) THEN
-               arr(i, j) = mat%local_data(i_p_row, i_p_col)
-               CALL mat%matrix_struct%context%dgebs2d('All', ' ', 1, 1, arr(i, j), 1)
-            ELSE
-               CALL mat%matrix_struct%context%dgebr2d('All', ' ', 1, 1, arr(i, j), 1, c_row_f, c_col_f)
-            END IF
-
-         END DO
-      END DO
-
-#else
-
-      DO i = 1, mat%matrix_struct%nrow_global
-         DO j = 1, mat%matrix_struct%ncol_global
-            arr(i, j) = mat%local_data(i, j)
-         END DO
-      END DO
-
-#endif
-
-   END SUBROUTINE get_fm_matrix_array
-
-! **************************************************************************************************
 !> \brief reorder Hamiltonian matrix according to defined atomic blocks
 !> \param ec electronic coupling data structure
 !> \param mat_h the Hamiltonian matrix
@@ -470,35 +406,16 @@ CONTAINS
 
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
-      TYPE(cp_fm_type), INTENT(IN)                       :: mat_h
-      TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_h, mat_w
 
-      ! Routine name for debug purposes
-
-      ! Local variables
-      INTEGER                                            :: ir, ic, jr, jc, kr, kc, nr, nc
-#if defined(__SCALAPACK)
-      INTEGER                                            :: iw_p_row, iw_p_col, ih_p_row, ih_p_col
-      INTEGER                                            :: nw_p_rows, nw_p_cols, nh_p_rows, nh_p_cols
-      INTEGER                                            :: cw_row, cw_col, ch_row, ch_col
-      INTEGER                                            :: cw_row_f, cw_col_f, ch_row_f, ch_col_f
+      INTEGER                                            :: ic, ir, jc, jr, kc, kr, mc, mr, nc, nr
       REAL(KIND=dp)                                      :: xh
+
+! Routine name for debug purposes
+! Local variables
 
       IF (.NOT. cp_fm_struct_equivalent(mat_h%matrix_struct, mat_w%matrix_struct)) &
          CPABORT('cannot reorder Hamiltonian, working-matrix structure is not equivalent')
-
-      ! number of processors
-      nw_p_rows = mat_w%matrix_struct%context%num_pe(1)
-      nw_p_cols = mat_w%matrix_struct%context%num_pe(2)
-      nh_p_rows = mat_h%matrix_struct%context%num_pe(1)
-      nh_p_cols = mat_h%matrix_struct%context%num_pe(2)
-
-      ! position of processors
-      cw_row = mat_w%matrix_struct%context%mepos(1)
-      cw_col = mat_w%matrix_struct%context%mepos(2)
-      ch_row = mat_h%matrix_struct%context%mepos(1)
-      ch_col = mat_h%matrix_struct%context%mepos(2)
-#endif
 
       ! Matrix-element reordering
       nr = 1
@@ -511,36 +428,10 @@ CONTAINS
                DO ic = 1, ec%n_blocks
                   DO jc = 1, ec%block(ic)%n_atoms
                      DO kc = 1, ec%block(ic)%atom(jc)%n_ao
-#if defined(__SCALAPACK)
-                        CALL infog2l(nr, nc, mat_w%matrix_struct%descriptor, &
-                                     nw_p_rows, nw_p_cols, cw_row, cw_col, &
-                                     iw_p_row, iw_p_col, cw_row_f, cw_col_f)
-                        CALL infog2l( &
-                           ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
-                           ec%block(ic)%atom(jc)%ao_pos + kc - 1, &
-                           mat_h%matrix_struct%descriptor, &
-                           nh_p_rows, nh_p_cols, ch_row, ch_col, &
-                           ih_p_row, ih_p_col, ch_row_f, ch_col_f)
-                        ! Local H element
-                        IF ((ch_row_f == ch_row) .AND. (ch_col_f == ch_col)) THEN
-                           xh = mat_h%local_data(ih_p_row, ih_p_col)
-                           CALL mat_h%matrix_struct%context%dgebs2d('All', ' ', 1, 1, xh, 1)
-                           IF ((cw_row_f == cw_row) .AND. (cw_col_f == cw_col)) THEN
-                              mat_w%local_data(iw_p_row, iw_p_col) = xh
-                           END IF
-                           ! Remote H element
-                        ELSE
-                           CALL mat_h%matrix_struct%context%dgebr2d( &
-                              'All', ' ', 1, 1, xh, 1, ch_row_f, ch_col_f)
-                           IF ((cw_row_f == cw_row) .AND. (cw_col_f == cw_col)) THEN
-                              mat_w%local_data(iw_p_row, iw_p_col) = xh
-                           END IF
-                        END IF
-#else
-                        mat_w%local_data(nr, nc) = mat_h%local_data( &
-                                                   ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
-                                                   ec%block(ic)%atom(jc)%ao_pos + kc - 1)
-#endif
+                        mr = ec%block(ir)%atom(jr)%ao_pos + kr - 1
+                        mc = ec%block(ic)%atom(jc)%ao_pos + kc - 1
+                        CALL cp_fm_get_element(mat_h, nr, nc, xh)
+                        CALL cp_fm_set_element(mat_w, nr, nc, xh)
                         nc = nc + 1
                      END DO
                   END DO
@@ -806,29 +697,15 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: mo
       INTEGER, INTENT(IN)                                :: id
       INTEGER, DIMENSION(:), POINTER                     :: atom
-
-      ! Returning value
       REAL(KIND=dp)                                      :: c2
 
-      ! Routine name for debug purposes
-
-      ! Local variables
+      INTEGER                                            :: i, ir, j, k
       LOGICAL                                            :: found
-      INTEGER                                            :: i, j, k
       REAL(KIND=dp)                                      :: c
-#if defined(__SCALAPACK)
-      INTEGER                                            :: c_row, c_col, c_row_f, c_col_f
-      INTEGER                                            :: i_p_row, i_p_col
-      INTEGER                                            :: n_p_rows, n_p_cols
 
-      ! number of processors
-      n_p_rows = mo%matrix_struct%context%num_pe(1)
-      n_p_cols = mo%matrix_struct%context%num_pe(2)
-
-      ! position of processors
-      c_row = mo%matrix_struct%context%mepos(1)
-      c_col = mo%matrix_struct%context%mepos(2)
-#endif
+! Returning value
+! Routine name for debug purposes
+! Local variables
 
       ! initialization
       c2 = 0.0d0
@@ -850,22 +727,8 @@ CONTAINS
 
          ! sum MO coefficients from the atom
          DO k = 1, blk_at(j)%n_ao
-#if defined(__SCALAPACK)
-            c = 0.0_dp
-            CALL infog2l(blk_at(j)%ao_pos + k - 1, id, mo%matrix_struct%descriptor, &
-                         n_p_rows, n_p_cols, c_row, c_col, &
-                         i_p_row, i_p_col, c_row_f, c_col_f)
-            ! local element
-            IF ((c_row_f == c_row) .AND. (c_col_f == c_col)) THEN
-               c = mo%local_data(i_p_row, i_p_col)
-               CALL mo%matrix_struct%context%dgebs2d('All', ' ', 1, 1, c, 1)
-               ! remote element
-            ELSE
-               CALL mo%matrix_struct%context%dgebr2d('All', ' ', 1, 1, c, 1, c_row_f, c_col_f)
-            END IF
-#else
-            c = mo%local_data(blk_at(j)%ao_pos + k - 1, id)
-#endif
+            ir = blk_at(j)%ao_pos + k - 1
+            CALL cp_fm_get_element(mo, ir, id, c)
             c2 = c2 + c*c
          END DO
 
@@ -1091,23 +954,20 @@ CONTAINS
 
       ! Routine arguments
       TYPE(section_vals_type), POINTER                   :: ec_sec
-      INTEGER, INTENT(IN)                                           :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo
 
-      ! Routine name for debug purposes
-
-      ! Local variables
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos, title
-      INTEGER                                            :: i, j, k, l, nspins, unit_nr
-      INTEGER                                            :: n_states(2)
-#if defined(__SCALAPACK)
-      INTEGER                                            :: nr, nc
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: w1, w2
-#endif
+      INTEGER                                            :: i, j, k, l, n_states(2), nc, nr, nspins, &
+                                                            unit_nr
       LOGICAL                                            :: append
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: w1, w2
       TYPE(section_vals_type), POINTER                   :: print_key
+
+! Routine name for debug purposes
+! Local variables
 
       n_states = 0
       DO i = 1, SIZE(mo)
@@ -1131,8 +991,6 @@ CONTAINS
          IF (output_unit > 0) &
             WRITE (output_unit, '(/,T3,A/)') 'Printing coupling elements to output files'
 
-#if defined(__SCALAPACK)
-
          DO i = 1, ec%n_blocks
             DO j = i + 1, ec%n_blocks
 
@@ -1141,11 +999,11 @@ CONTAINS
 
                ALLOCATE (w1(nr, nc))
                CPASSERT(ASSOCIATED(w1))
-               CALL get_fm_matrix_array(ec%block(i)%hab(1, j), w1)
+               CALL cp_fm_get_submatrix(ec%block(i)%hab(1, j), w1)
                IF (nspins > 1) THEN
                   ALLOCATE (w2(nr, nc))
                   CPASSERT(ASSOCIATED(w2))
-                  CALL get_fm_matrix_array(ec%block(i)%hab(2, j), w2)
+                  CALL cp_fm_get_submatrix(ec%block(i)%hab(2, j), w2)
                END IF
 
                IF (output_unit > 0) THEN
@@ -1190,68 +1048,11 @@ CONTAINS
 
                END IF
 
-               IF (ASSOCIATED(w1)) &
-                  DEALLOCATE (w1)
-               IF (ASSOCIATED(w2)) &
-                  DEALLOCATE (w2)
+               IF (ASSOCIATED(w1)) DEALLOCATE (w1)
+               IF (ASSOCIATED(w2)) DEALLOCATE (w2)
 
             END DO
          END DO
-
-#else
-
-         IF (output_unit > 0) THEN
-
-            DO i = 1, ec%n_blocks
-               DO j = i + 1, ec%n_blocks
-
-                  WRITE (filename, '(a5,I1.1,a1,I1.1)') "ET_BL_", i, "-", j
-                  unit_nr = cp_print_key_unit_nr(logger, ec_sec, "PRINT%COUPLINGS", extension=".elcoup", &
-                                                 middle_name=TRIM(filename), file_position=my_pos, log_filename=.FALSE.)
-
-                  WRITE (title, *) 'Coupling elements [meV] between blocks:', i, j
-
-                  WRITE (unit_nr, *) TRIM(title)
-                  IF (nspins > 1) THEN
-                     WRITE (unit_nr, '(T3,A8,T13,A8,T28,A,A)') 'State A', 'State B', 'Coupling spin 1', '  Coupling spin 2'
-                  ELSE
-                     WRITE (unit_nr, '(T3,A8,T13,A8,T28,A)') 'State A', 'State B', 'Coupling'
-                  END IF
-
-                  DO k = 1, MIN(ec%block(i)%n_ao, n_states(1))
-                     DO l = 1, MIN(ec%block(j)%n_ao, n_states(1))
-
-                        IF (nspins > 1) THEN
-
-                           WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)', ADVANCE='no') &
-                              k, l, &
-                              ec%block(i)%hab(1, j)%local_data(k, l)*evolt*1000.0_dp
-                           IF ((k <= n_states(2)) .AND. (l <= n_states(2))) THEN
-                              WRITE (unit_nr, '(E20.6)') &
-                                 ec%block(i)%hab(2, j)%local_data(k, l)*evolt*1000.0_dp
-                           ELSE
-                              WRITE (unit_nr, *)
-                           END IF
-
-                        ELSE
-
-                           WRITE (unit_nr, '(T3,I5,T13,I5,T22,E20.6)') &
-                              k, l, &
-                              ec%block(i)%hab(1, j)%local_data(k, l)*evolt*1000.0_dp
-
-                        END IF
-
-                     END DO
-                     WRITE (unit_nr, *)
-                  END DO
-
-                  CALL cp_print_key_finished_output(unit_nr, logger, ec_sec, "PRINT%COUPLINGS")
-               END DO
-            END DO
-
-         END IF
-
-#endif
 
       END IF
    END SUBROUTINE print_couplings
@@ -1332,46 +1133,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_mo_coefficients(qs_env, ec, id, mo, mat_u, n_ao, n_mo)
 
-      IMPLICIT NONE
-
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      INTEGER, INTENT(IN)                                            :: id
+      INTEGER, INTENT(IN)                                :: id
       TYPE(mo_set_type), POINTER                         :: mo
       TYPE(cp_fm_type), INTENT(IN)                       :: mat_u
-      INTEGER, INTENT(IN)                                :: n_ao
-      INTEGER, INTENT(IN)                     :: n_mo
+      INTEGER, INTENT(IN)                                :: n_ao, n_mo
 
-      ! Routine name for debug purposes
-
-      ! Local variables
-      INTEGER                                            :: ir, ic, jr, jc, nr, nc
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type)                          :: mat_w
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-#if defined(__SCALAPACK)
-      INTEGER                                            :: is_p_row, is_p_col, iu_p_row, iu_p_col
-      INTEGER                                            :: ns_p_rows, ns_p_cols, nu_p_rows, nu_p_cols
-      INTEGER                                            :: cs_row, cs_col, cu_row, cu_col
-      INTEGER                                            :: cs_row_f, cs_col_f, cu_row_f, cu_col_f
+      INTEGER                                            :: ic, ir, jc, jr, mr, nc, nr
       REAL(KIND=dp)                                      :: xu
+      TYPE(cp_fm_type)                                   :: mat_w
 
-      ! number of processors
-      ns_p_rows = mo%mo_coeff%matrix_struct%context%num_pe(1)
-      ns_p_cols = mo%mo_coeff%matrix_struct%context%num_pe(2)
-      nu_p_rows = mat_u%matrix_struct%context%num_pe(1)
-      nu_p_cols = mat_u%matrix_struct%context%num_pe(2)
-
-      ! position of processors
-      cs_row = mo%mo_coeff%matrix_struct%context%mepos(1)
-      cs_col = mo%mo_coeff%matrix_struct%context%mepos(2)
-      cu_row = mat_u%matrix_struct%context%mepos(1)
-      cu_col = mat_u%matrix_struct%context%mepos(2)
-#endif
-
-      NULLIFY (blacs_env)
-      NULLIFY (para_env)
+! Routine name for debug purposes
+! Local variables
 
       ! Working matrix
       CALL cp_fm_create(matrix=mat_w, matrix_struct=mo%mo_coeff%matrix_struct, &
@@ -1387,33 +1162,9 @@ CONTAINS
             nc = 1
             DO ic = 1, ec%block(id)%n_atoms
                DO jc = 1, ec%block(id)%atom(ic)%n_ao
-#if defined(__SCALAPACK)
-                  CALL infog2l(ec%block(id)%atom(ir)%ao_pos + jr - 1, nc, &
-                               mat_w%matrix_struct%descriptor, &
-                               ns_p_rows, ns_p_cols, cs_row, cs_col, &
-                               is_p_row, is_p_col, cs_row_f, cs_col_f)
-                  CALL infog2l(nr, nc, mat_u%matrix_struct%descriptor, &
-                               nu_p_rows, nu_p_cols, cu_row, cu_col, &
-                               iu_p_row, iu_p_col, cu_row_f, cu_col_f)
-                  ! Local U element
-                  IF ((cu_row_f == cu_row) .AND. (cu_col_f == cu_col)) THEN
-                     xu = mat_u%local_data(iu_p_row, iu_p_col)
-                     CALL mat_u%matrix_struct%context%dgebs2d('All', ' ', 1, 1, xu, 1)
-                     IF ((cs_row_f == cs_row) .AND. (cs_col_f == cs_col)) THEN
-                        mat_w%local_data(is_p_row, is_p_col) = xu
-                     END IF
-                     ! Remote U element
-                  ELSE
-                     CALL mat_u%matrix_struct%context%dgebr2d( &
-                        'All', ' ', 1, 1, xu, 1, cu_row_f, cu_col_f)
-                     IF ((cs_row_f == cs_row) .AND. (cs_col_f == cs_col)) THEN
-                        mat_w%local_data(is_p_row, is_p_col) = xu
-                     END IF
-                  END IF
-#else
-                  mat_w%local_data(ec%block(id)%atom(ir)%ao_pos + jr - 1, nc) = &
-                     mat_u%local_data(nr, nc)
-#endif
+                  mr = ec%block(id)%atom(ir)%ao_pos + jr - 1
+                  CALL cp_fm_get_element(mat_u, nr, nc, xu)
+                  CALL cp_fm_set_element(mat_w, mr, nc, xu)
                   nc = nc + 1
                END DO
             END DO

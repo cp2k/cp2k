@@ -1004,12 +1004,13 @@ CONTAINS
                       "Skipping TDDFPT wavefunction optimization")
       END IF
 
-      IF (ASSOCIATED(matrix_ks_oep) &
-          .AND. tddfpt_control%dipole_form == tddfpt_dipole_velocity) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "Transition dipole moments and oscillator strengths are likely to be incorrect "// &
-                      "when computed using an orbital energy correction XC-potential together with "// &
-                      "the velocity form of dipole transition integrals")
+      IF (ASSOCIATED(matrix_ks_oep)) THEN
+         IF (tddfpt_control%dipole_form == tddfpt_dipole_velocity) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Transition dipole moments and oscillator strengths are likely to be incorrect "// &
+                         "when computed using an orbital energy correction XC-potential together with "// &
+                         "the velocity form of dipole transition integrals")
+         END IF
       END IF
 
       ! *** print summary information ***
