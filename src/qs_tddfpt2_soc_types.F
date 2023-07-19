@@ -27,11 +27,11 @@ MODULE qs_tddfpt2_soc_types
 
    !! Helper copied from xas_tdp_types
    TYPE grid_atom_p_type
-      TYPE(grid_atom_type), POINTER                   :: grid_atom
+      TYPE(grid_atom_type), POINTER                   :: grid_atom => Null()
    END TYPE grid_atom_p_type
 
    TYPE harmonics_atom_p_type
-      TYPE(harmonics_atom_type), POINTER              :: harmonics_atom
+      TYPE(harmonics_atom_type), POINTER              :: harmonics_atom => Null()
    END TYPE harmonics_atom_p_type
 
 !*************************************************************************************************
@@ -47,10 +47,10 @@ MODULE qs_tddfpt2_soc_types
 !*************************************************************************************************
    TYPE soc_env_type
       !! a :: singlet or spin-conserving b :: triplet or spin flip
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: orb_soc
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat
-      REAL(dp), POINTER, DIMENSION(:)                 :: evals_a, &
-                                                         evals_b
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: orb_soc => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat => Null()
+      REAL(dp), POINTER, DIMENSION(:)                 :: evals_a => Null(), &
+                                                         evals_b => Null()
       TYPE(cp_fm_type)                                :: a_coeff, &
                                                          b_coeff
       REAL(dp), ALLOCATABLE, DIMENSION(:)             :: soc_evals, &
@@ -66,11 +66,10 @@ MODULE qs_tddfpt2_soc_types
 ! \param orb_sphi_so contains the coefficient for direct contraction from so to sgf, for the orb basis
 !*************************************************************************************************
    TYPE soc_atom_env_type
-      INTEGER                                           :: nspins
-      TYPE(grid_atom_p_type), DIMENSION(:), POINTER     :: grid_atom_set
-      TYPE(harmonics_atom_p_type), DIMENSION(:), &
-         POINTER                                           :: harmonics_atom_set
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER       :: orb_sphi_so
+      INTEGER                                            :: nspins = -1
+      TYPE(grid_atom_p_type), DIMENSION(:), POINTER      :: grid_atom_set => Null()
+      TYPE(harmonics_atom_p_type), DIMENSION(:), POINTER :: harmonics_atom_set => Null()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: orb_sphi_so => Null()
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: vppl, vppnl
    END TYPE
 
