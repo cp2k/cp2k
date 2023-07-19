@@ -68,6 +68,9 @@ case "${with_spfft}" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
+        if [ "${WITH_FFTW}" != "no" && "${WITH_FFTW}" != "__DONTUSE__" ]; then
+          EXTRA_CMAKE_FLAGS="-DSPFFT_FFTW=ON -DSPFFT_FFTW_LIB=FFTW"
+        fi   
         cmake \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR=lib \
