@@ -44,14 +44,14 @@ MODULE qs_tddfpt2_soc_utils
 
    !A helper type for SOC
    TYPE dbcsr_soc_package_type
-      TYPE(dbcsr_type), POINTER     :: dbcsr_sg
-      TYPE(dbcsr_type), POINTER     :: dbcsr_tp
-      TYPE(dbcsr_type), POINTER     :: dbcsr_sc
-      TYPE(dbcsr_type), POINTER     :: dbcsr_sf
-      TYPE(dbcsr_type), POINTER     :: dbcsr_prod
-      TYPE(dbcsr_type), POINTER     :: dbcsr_ovlp
-      TYPE(dbcsr_type), POINTER     :: dbcsr_tmp
-      TYPE(dbcsr_type), POINTER     :: dbcsr_work
+      TYPE(dbcsr_type), POINTER     :: dbcsr_sg => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_tp => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_sc => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_sf => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_prod => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_ovlp => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_tmp => Null()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_work => Null()
    END TYPE dbcsr_soc_package_type
 
 CONTAINS

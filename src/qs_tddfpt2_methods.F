@@ -792,7 +792,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (admm_env)
+      NULLIFY (admm_env, matrix_ks_oep)
       do_admm = tddfpt_control%do_admm
       IF (do_admm) CALL get_qs_env(qs_env, admm_env=admm_env)
 
