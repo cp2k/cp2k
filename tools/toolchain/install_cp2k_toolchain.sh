@@ -562,6 +562,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-fftw*)
       with_fftw=$(read_with "${1}")
+      if [ "${with_fftw}" != "__DONTUSE__" ]; then
+        export WITH_FFTW="fftw"
+      fi
       ;;
     --with-mkl*)
       with_mkl=$(read_with "${1}" "__SYSTEM__")
