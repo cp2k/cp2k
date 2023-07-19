@@ -14,6 +14,10 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
+#FFTW3 and compilation bugs when this is set, so unsetting since, spfft has its own mechanism of detecting it
+unset FFTW_ROOT
+unset CPATH
+
 [ -f "${BUILDDIR}/setup_SpFFT" ] && rm "${BUILDDIR}/setup_SpFFT"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
@@ -35,7 +39,7 @@ case "${with_spfft}" in
       fi
       if [ "${MATH_MODE}" = "mkl" ]; then
         EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=ON -DSPFFT_FFTW_LIB=MKL"
-      elif [ "${WITH_FFTW}" != "no" && "${WITH_FFTW}" != "__DONTUSE__" ]; then
+      elif [ "${WITH_FFTW}" == "fftw" ]; then
         EXTRA_CMAKE_FLAGS="-DSPFFT_FFTW=ON -DSPFFT_FFTW_LIB=FFTW"
       else
         EXTRA_CMAKE_FLAGS=""
@@ -68,9 +72,6 @@ case "${with_spfft}" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
-        if [ "${WITH_FFTW}" != "no" && "${WITH_FFTW}" != "__DONTUSE__" ]; then
-          EXTRA_CMAKE_FLAGS="-DSPFFT_FFTW=ON -DSPFFT_FFTW_LIB=FFTW"
-        fi   
         cmake \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR=lib \
