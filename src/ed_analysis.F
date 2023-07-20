@@ -65,6 +65,10 @@ MODULE ed_analysis
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
+   USE qs_gcp_types,                    ONLY: qs_gcp_type
+   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
@@ -119,7 +123,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
       LOGICAL                                            :: explicit, uniform_occupation
       REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, focc, &
-                                                            sum_energy
+                                                            sum_energy, evdw, egcp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atecc, ateks, atener
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
@@ -141,7 +145,9 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -338,6 +344,17 @@ CONTAINS
       atener = atener + atecc
       atecc = 0.0_dp
       CALL calculate_ecore_self(qs_env, atecc=atecc)
+      CALL group%sum(atecc)
+      atener = atener + atecc
+      ! vdW pair-potentials
+      atecc = 0.0_dp
+      CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
+      CALL calculate_dispersion_pairpot(qs_env, dispersion_env, evdw, .FALSE., atevdw=atecc)
+      ! Pair potential gCP energy 
+      CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env)
+      IF (ASSOCIATED(gcp_env)) THEN
+         CALL calculate_gcp_pairpot(qs_env, gcp_env, egcp, .FALSE., ategcp=atecc)
+      END IF
       CALL group%sum(atecc)
       atener = atener + atecc
 

@@ -8,4 +8,6 @@ H2O_hyb.inp                                            0
 #H2O_gapw.inp                                           0
 H2O_at.inp                                             0
 H2O_at_2.inp                                           0
+H2O_D3.inp                                             0
+H2O_cc.inp                                             0
 #EOF
