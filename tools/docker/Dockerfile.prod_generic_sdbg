@@ -88,7 +88,7 @@ COPY ./tools/regtesting ./tools/regtesting
 ARG TESTOPTS
 RUN /bin/bash -c " \
     source /opt/cp2k-toolchain/install/setup && \
-    ./tools/regtesting/do_regtest.py 'local' 'sdbg' "${TESTOPTS}" |& tee regtests.log && \
+    ./tools/regtesting/do_regtest.py 'local' 'sdbg' --skipdir=UNIT/libcp2k_unittest "${TESTOPTS}" |& tee regtests.log && \
     rm -rf regtesting"
 
 # Setup entry point for production.

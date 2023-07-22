@@ -324,7 +324,7 @@ def production(version: str, arch: str = "local", intel: bool = False) -> str:
 ARG TESTOPTS
 RUN /bin/bash -c " \
     source /opt/cp2k-toolchain/install/setup && \
-    ./tools/regtesting/do_regtest.py '{arch}' '{version}' "${{TESTOPTS}}" |& tee regtests.log && \
+    ./tools/regtesting/do_regtest.py '{arch}' '{version}' --skipdir=UNIT/libcp2k_unittest "${{TESTOPTS}}" |& tee regtests.log && \
     rm -rf regtesting"
 
 # Setup entry point for production.
@@ -380,6 +380,7 @@ def install_cp2k(
         run_lines.append(f"ln -sf ./graph.{version} ./exe/{arch}/graph")
         run_lines.append(f"ln -sf ./dumpdcd.{version} ./exe/{arch}/dumpdcd")
         run_lines.append(f"ln -sf ./xyz2dcd.{version} ./exe/{arch}/xyz2dcd")
+        # Remove libcp2k_unittest to reduce image size.
         run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
     else:
         run_lines.append(f"( {build_command} &> /dev/null || true )")
