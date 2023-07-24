@@ -53,8 +53,10 @@ MODULE xas_tdp_methods
                                               cp_print_key_unit_nr,&
                                               debug_print_level
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type_no_symmetry
+        dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         do_admm_purify_cauchy_subspace, do_admm_purify_mo_diag, do_admm_purify_none, do_loc_none, &
         do_potential_coulomb, do_potential_id, do_potential_short, do_potential_truncated, &
@@ -571,6 +573,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
+      TYPE(dbcsr_type)                                   :: matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -832,8 +835,18 @@ CONTAINS
       ALLOCATE (xas_tdp_env%dipmat(3))
       DO i = 1, 3
          ALLOCATE (xas_tdp_env%dipmat(i)%matrix)
-         CALL dbcsr_copy(xas_tdp_env%dipmat(i)%matrix, matrix_s(1)%matrix, name="XAS TDP dipole matrix")
+         CALL dbcsr_copy(matrix_tmp, matrix_s(1)%matrix, name="XAS TDP dipole matrix")
+         IF (xas_tdp_control%dipole_form == xas_dip_vel) THEN
+            CALL dbcsr_create(xas_tdp_env%dipmat(i)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL dbcsr_complete_redistribute(matrix_tmp, xas_tdp_env%dipmat(i)%matrix)
+         ELSE
+            CALL dbcsr_create(xas_tdp_env%dipmat(i)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_symmetric)
+            CALL dbcsr_copy(xas_tdp_env%dipmat(i)%matrix, matrix_tmp)
+         END IF
          CALL dbcsr_set(xas_tdp_env%dipmat(i)%matrix, 0.0_dp)
+         CALL dbcsr_release(matrix_tmp)
       END DO
 
 !  Create the structure for the electric quadrupole in the AO basis, if required
