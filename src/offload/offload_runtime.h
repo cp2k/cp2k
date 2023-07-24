@@ -338,7 +338,7 @@ static inline void offloadEnsureMallocHeapSize(const size_t required_size) {
   if (current_size < required_size) {
     OFFLOAD_CHECK(cudaDeviceSetLimit(cudaLimitMallocHeapSize, required_size));
   }
-#elif defined(__OFFLOAD_HIP)
+#elif defined(__OFFLOAD_HIP) && (HIP_VERSION > 50200000)
   OFFLOAD_CHECK(hipDeviceGetLimit(&current_size, hipLimitMallocHeapSize));
   if (current_size < required_size) {
     OFFLOAD_CHECK(hipDeviceSetLimit(hipLimitMallocHeapSize, required_size));
