@@ -289,6 +289,9 @@ CONTAINS
             END DO
          END IF
          nocc(ispin) = nvec
+!deb
+         WRITE (6, *) "OCCUPATION    ", ispin, nocc(ispin), norb
+!deb
       END DO
       ! generate IAOs
       ALLOCATE (iao_coef(nspin), cvec(nspin))

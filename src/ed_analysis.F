@@ -179,6 +179,7 @@ CONTAINS
       iao_env%do_charges = .TRUE.
       iao_env%do_bondorbitals = .TRUE.
       iao_env%do_center = .TRUE.
+      iao_env%eps_occ = 1.0E-4_dp
       no = 0
       DO ispin = 1, nspin
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=norb)
@@ -335,6 +336,7 @@ CONTAINS
       CALL group%sum(atecc)
       atener = atener + atecc
       ! one center terms (GAPW)
+      CALL group%sum(ate1c)
       atener = atener + ate1c
       ! core correction
       atecc = 0.0_dp

@@ -24,8 +24,10 @@ MODULE hartree_local_types
 ! **************************************************************************************************
    TYPE ecoul_1center_type
       TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
-      REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
-                                         ecoul_1_z, ecoul_1_0
+      REAL(dp)                        :: ecoul_1_h = 0.0_dp, &
+                                         ecoul_1_s = 0.0_dp, &
+                                         ecoul_1_z = 0.0_dp, &
+                                         ecoul_1_0 = 0.0_dp
    END TYPE ecoul_1center_type
 
 ! **************************************************************************************************
