@@ -64,6 +64,7 @@ QS/regtest-cdft-hirshfeld
 SIRIUS/regtest-1                                            sirius
 QS/regtest-embed                                            libint
 QS/regtest-pod
+QS/regtest-tddfpt                                           libint
 QS/regtest-tddfpt-admm                                      libint
 QS/regtest-debug-1
 QS/regtest-debug-2                                          libint
@@ -218,7 +219,6 @@ QS/regtest-nmr-5
 QS/regtest-hole-funct
 QS/regtest-sccs-1
 QS/regtest-bs
-QS/regtest-tddfpt                                           libint
 QMMM/QS/regtest-3
 QS/regtest-sccs-3
 ATOM/regtest-1
@@ -265,6 +265,7 @@ QS/regtest-double-hybrid-1                                  libint
 QS/regtest-nlmo
 QMMM/QS/regtest-4
 Fist/regtest-8
+QS/regtest-lsroks                                           libint
 QS/regtest-cdft-4-1
 QMMM/SE/regtest_2
 QS/regtest-mp2-1                                            libint
@@ -304,7 +305,6 @@ QS/regtest-sym-1
 QS/regtest-sym-2
 QS/regtest-ot-refine-2
 NEB/regtest-2
-QS/regtest-lsroks                                           libint
 QS/regtest-nmr-2
 QS/regtest-cdft-3-1
 QS/regtest-optbas

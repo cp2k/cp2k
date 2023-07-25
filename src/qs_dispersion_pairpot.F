@@ -1236,7 +1236,7 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param energy ...
 !> \param calculate_forces ...
-!> \param atevd ...
+!> \param atevdw ...
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_pairpot(qs_env, dispersion_env, energy, calculate_forces, atevdw)
 
@@ -1254,8 +1254,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL :: atenergy, atex, atstress, debug, debugall, debugx, domol, exclude_pair, floating_a, &
-         floating_b, floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
+      LOGICAL :: atenergy, atex, atstress, debug, debugall, debugx, domol, exclude_pair, &
+         floating_a, floating_b, floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
          dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dd, de6, de8, de91, &
@@ -1330,7 +1330,7 @@ CONTAINS
       atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
-      IF(PRESENT(atevdw)) THEN
+      IF (PRESENT(atevdw)) THEN
          atex = .TRUE.
       END IF
 

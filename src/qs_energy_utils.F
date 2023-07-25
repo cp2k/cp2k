@@ -12,6 +12,7 @@
 !> \author MK (29.10.2002)
 ! **************************************************************************************************
 MODULE qs_energy_utils
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE atprop_types,                    ONLY: atprop_array_add,&
                                               atprop_array_init,&
                                               atprop_type
@@ -24,10 +25,13 @@ MODULE qs_energy_utils
                                               dbcsr_set
    USE et_coupling,                     ONLY: calc_et_coupling
    USE et_coupling_proj,                ONLY: calc_et_coupling_proj
+   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+   USE hartree_local_types,             ONLY: ecoul_1center_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: atom_trace
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -45,14 +49,20 @@ MODULE qs_energy_utils
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_module,                ONLY: linres_calculation_low
+   USE qs_local_rho_types,              ONLY: local_rho_type
+   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf,                          ONLY: scf
    USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE qs_vxc,                          ONLY: qs_xc_density
+   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE tip_scan_methods,                ONLY: tip_scanning
    USE xas_methods,                     ONLY: xas
    USE xas_tdp_methods,                 ONLY: xas_tdp
@@ -231,19 +241,27 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ks_xc_correction'
 
-      INTEGER                                            :: handle, ispin, natom, nspins
+      INTEGER                                            :: handle, iatom, ispin, natom, nspins
       LOGICAL                                            :: gapw, gapw_xc
+      REAL(KIND=dp)                                      :: eh1, exc1
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(dbcsr_p_type)                                 :: xcmat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao, xcmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: xc_den
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
 
@@ -261,6 +279,27 @@ CONTAINS
          needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
          gapw = dft_control%qs_control%gapw
          gapw_xc = dft_control%qs_control%gapw_xc
+
+         ! Nuclear charge correction
+         CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
+         IF (gapw .OR. gapw_xc) THEN
+            CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, &
+                            ecoul_1c=ecoul_1c, para_env=para_env, natom=natom)
+            CALL calculate_vxc_atom(qs_env, .FALSE., exc1)
+            CALL Vh_1c_gg_integrals(qs_env, eh1, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+            atprop%ate1c = 0.0_dp
+            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+                            qs_kind_set=qs_kind_set, para_env=para_env)
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set, atener=atprop%ate1c)
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
+            DO iatom = 1, natom
+               atprop%ate1c(iatom) = atprop%ate1c(iatom) + &
+                                     rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s + &
+                                     ecoul_1c(iatom)%ecoul_1_h - ecoul_1c(iatom)%ecoul_1_s + &
+                                     ecoul_1c(iatom)%ecoul_1_z - ecoul_1c(iatom)%ecoul_1_0
+            END DO
+         END IF
 
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
@@ -289,25 +328,34 @@ CONTAINS
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
          CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s)
          CALL atprop_array_init(atprop%atexc, natom)
+         ALLOCATE (xcmat(nspins))
          DO ispin = 1, nspins
-            ALLOCATE (xcmat%matrix)
-            CALL dbcsr_create(xcmat%matrix, template=matrix_s(1)%matrix)
-            CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(xcmat%matrix, 0.0_dp)
+            ALLOCATE (xcmat(ispin)%matrix)
+            CALL dbcsr_create(xcmat(ispin)%matrix, template=matrix_s(1)%matrix)
+            CALL dbcsr_copy(xcmat(ispin)%matrix, matrix_s(1)%matrix)
+            CALL dbcsr_set(xcmat(ispin)%matrix, 0.0_dp)
             CALL pw_scale(vxc(ispin), -0.5_dp)
             CALL pw_axpy(xc_den, vxc(ispin))
             CALL pw_scale(vxc(ispin), vxc(ispin)%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), hmat=xcmat, &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vxc(ispin), hmat=xcmat(ispin), &
                                     calculate_forces=.FALSE., gapw=(gapw .OR. gapw_xc))
             IF (needs%tau .OR. needs%tau_spin) THEN
                CALL pw_scale(vtau(ispin), -0.5_dp*vtau(ispin)%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=vtau(ispin), &
-                                       hmat=xcmat, calculate_forces=.FALSE., &
+                                       hmat=xcmat(ispin), calculate_forces=.FALSE., &
                                        gapw=(gapw .OR. gapw_xc), compute_tau=.TRUE.)
             END IF
-            CALL atom_trace(xcmat%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
-            CALL dbcsr_release(xcmat%matrix)
          END DO
+         IF (gapw .OR. gapw_xc) THEN
+            ! remove one-center potential matrix part
+            NULLIFY (matrix_p)
+            CALL update_ks_atom(qs_env, xcmat, matrix_p, forces=.FALSE., kscale=-0.25_dp)
+         END IF
+         DO ispin = 1, nspins
+            CALL atom_trace(xcmat(ispin)%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
+            CALL dbcsr_release(xcmat(ispin)%matrix)
+         END DO
+         DEALLOCATE (xcmat)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)
          DO ispin = 1, nspins

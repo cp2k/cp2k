@@ -73,7 +73,8 @@ CONTAINS
                                                             jatom, jkind, mepos, natom, nkind, &
                                                             nsto, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, ngcpat
-      LOGICAL                                            :: atenergy, atex, atstress, use_virial, verbose
+      LOGICAL                                            :: atenergy, atex, atstress, use_virial, &
+                                                            verbose
       REAL(KIND=dp)                                      :: eama, eamb, egcp, expab, fac, fda, fdb, &
                                                             gnorm, nvirta, nvirtb, rcc, sint, sqa, &
                                                             sqb
@@ -128,7 +129,7 @@ CONTAINS
       atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
-      IF(PRESENT(ategcp)) atex = .TRUE.
+      IF (PRESENT(ategcp)) atex = .TRUE.
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)

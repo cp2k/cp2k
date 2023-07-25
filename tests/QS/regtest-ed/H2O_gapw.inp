@@ -1,9 +1,9 @@
 &FORCE_EVAL
   METHOD Quickstep
   &PROPERTIES
-    &ATOMIC
-      ENERGY T
-    &END
+   &ATOMIC
+     ENERGY T
+   &END
   &END PROPERTIES
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
@@ -16,7 +16,7 @@
       EPS_DEFAULT 1.E-10
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
+      EPS_SCF 1.0E-8
       SCF_GUESS ATOMIC  
     &END
     &XC
@@ -30,12 +30,12 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
+      ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O     0.000000     0.000000     0.000000    H2O1
-    H     0.000000     0.000000     1.000000    H2O1
-    H     0.942809     0.000000    -0.333333    H2O1
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET ORB DZVP-GTH-BLYP

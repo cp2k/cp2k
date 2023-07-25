@@ -34,6 +34,8 @@ MODULE ed_analysis
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_info, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
         dbcsr_type, dbcsr_type_symmetric
+   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+   USE hartree_local_types,             ONLY: ecoul_1center_type
    USE iao_analysis,                    ONLY: iao_calculate_dmat,&
                                               iao_charges,&
                                               iao_wfn_analysis
@@ -61,32 +63,25 @@ MODULE ed_analysis
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
+   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
    USE qs_gcp_types,                    ONLY: qs_gcp_type
-   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
-   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
-                                              local_rho_set_release,&
-                                              local_rho_type
+   USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_oce_types,                    ONLY: oce_matrix_type
-   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
-                                              calculate_rho_atom_coeff
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
+   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_types,                    ONLY: qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
@@ -122,9 +117,9 @@ CONTAINS
                                                             nspin
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
       LOGICAL                                            :: explicit, uniform_occupation
-      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, focc, &
-                                                            sum_energy, evdw, egcp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atecc, ateks, atener
+      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, egcp, evdw, &
+                                                            focc, sum_energy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1c, atecc, ateks, atener
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
@@ -145,9 +140,9 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_gcp_type), POINTER                         :: gcp_env
-      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -278,10 +273,11 @@ CONTAINS
       CALL dbcsr_release(dmat)
       CALL cp_fm_release(cvec)
       ! energy arrays
-      ALLOCATE (atener(natom), ateks(natom), atecc(natom))
+      ALLOCATE (atener(natom), ateks(natom), atecc(natom), ate1c(natom))
       atener = 0.0_dp
       ateks = 0.0_dp
       atecc = 0.0_dp
+      ate1c = 0.0_dp
       ! atom dependent density matrix
       CALL dbcsr_create(dkmat, template=smat)
       CALL dbcsr_copy(dkmat, smat)
@@ -301,7 +297,7 @@ CONTAINS
          CALL dbcsr_set(vhxc_mat(ispin)%matrix, 0.0_dp)
       END DO
       !
-      CALL vhxc_correction(qs_env, vhxc_mat, atecc)
+      CALL vhxc_correction(qs_env, vhxc_mat, atecc, ate1c)
       DO ispin = 1, nspin
          CALL dbcsr_add(ks_mat(ispin)%matrix, vhxc_mat(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
@@ -338,6 +334,9 @@ CONTAINS
       ! core energy corrections
       CALL group%sum(atecc)
       atener = atener + atecc
+      ! one center terms (GAPW)
+      atener = atener + ate1c
+      ! core correction
       atecc = 0.0_dp
       CALL calculate_ecore_overlap(qs_env, para_env, .FALSE., atecc=atecc)
       CALL group%sum(atecc)
@@ -350,7 +349,7 @@ CONTAINS
       atecc = 0.0_dp
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, evdw, .FALSE., atevdw=atecc)
-      ! Pair potential gCP energy 
+      ! Pair potential gCP energy
       CALL get_qs_env(qs_env=qs_env, gcp_env=gcp_env)
       IF (ASSOCIATED(gcp_env)) THEN
          CALL calculate_gcp_pairpot(qs_env, gcp_env, egcp, .FALSE., ategcp=atecc)
@@ -377,7 +376,7 @@ CONTAINS
             '!----------------------------END OF ED ANALYSIS-------------------------------!'
       END IF
       DEALLOCATE (bcenter)
-      DEALLOCATE (atener, ateks, atecc)
+      DEALLOCATE (atener, ateks, atecc, ate1c)
 
       CALL timestop(handle)
 
@@ -388,25 +387,24 @@ CONTAINS
 !> \param qs_env ...
 !> \param vhxc_mat ...
 !> \param atecc ...
+!> \param ate1c ...
 ! **************************************************************************************************
-   SUBROUTINE vhxc_correction(qs_env, vhxc_mat, atecc)
+   SUBROUTINE vhxc_correction(qs_env, vhxc_mat, atecc, ate1c)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: vhxc_mat
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: atecc
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: atecc, ate1c
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vhxc_correction'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, iatom, ispin, natom, nspins
       LOGICAL                                            :: gapw, gapw_xc
-      REAL(KIND=dp)                                      :: exc1
+      REAL(KIND=dp)                                      :: eh1, exc1
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab
-      TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: xc_den
@@ -416,6 +414,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
 
@@ -449,8 +448,16 @@ CONTAINS
       ! Nuclear charge correction
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env, atecc=atecc)
-!deb        CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace, para_env, calculate_forces=.TRUE., &
-!deb                                   local_rho_set=local_rho_set)
+      IF (gapw) THEN
+         CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, &
+                         ecoul_1c=ecoul_1c, para_env=para_env)
+         CALL calculate_vxc_atom(qs_env, .FALSE., exc1)
+         CALL Vh_1c_gg_integrals(qs_env, eh1, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set, para_env=para_env)
+         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
+                                    local_rho_set=local_rho_set, atener=atecc)
+      END IF
 
       CALL get_qs_env(qs_env, rho=rho_struct, dispersion_env=dispersion_env)
       IF (needs%tau .OR. needs%tau_spin) THEN
@@ -475,25 +482,18 @@ CONTAINS
          END IF
       END DO
 
-      NULLIFY (local_rho_set)
       IF (gapw .OR. gapw_xc) THEN
-         CALL get_qs_env(qs_env, para_env=para_env, oce=oce, sab_orb=sab, &
-                         atomic_kind_set=atomic_kind_set, &
-                         qs_kind_set=qs_kind_set)
-         CALL qs_rho_get(rho_struct, rho_ao_kp=matrix_p)
-         CALL local_rho_set_create(local_rho_set)
-         CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
-                                          qs_kind_set, dft_control, para_env)
-         CALL calculate_rho_atom_coeff(qs_env, matrix_p, local_rho_set%rho_atom_set, &
-                                       qs_kind_set, oce, sab, para_env)
-         CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=.FALSE.)
-         CALL local_rho_set_release(local_rho_set)
+         ! remove one-center potential matrix part
+         NULLIFY (matrix_p)
+         CALL update_ks_atom(qs_env, vhxc_mat, matrix_p, forces=.FALSE., kscale=-0.5_dp)
+         CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, rho_atom_set=rho_atom_set, natom=natom)
          !
-         ! Exc/rho is still missing!
-         CALL calculate_vxc_atom(qs_env, energy_only=.FALSE., exc1=exc1)
-         !
-         CALL update_ks_atom(qs_env, vhxc_mat, matrix_p, forces=.FALSE., &
-                             rho_atom_external=local_rho_set%rho_atom_set, kscale=-0.5_dp)
+         DO iatom = 1, natom
+            ate1c(iatom) = ate1c(iatom) + &
+                           rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s + &
+                           ecoul_1c(iatom)%ecoul_1_h - ecoul_1c(iatom)%ecoul_1_s + &
+                           ecoul_1c(iatom)%ecoul_1_z - ecoul_1c(iatom)%ecoul_1_0
+         END DO
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)

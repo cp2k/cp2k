@@ -252,7 +252,7 @@ CONTAINS
             weight => grid_atom%weight
             CALL reallocate(vxc_h, 1, na, 1, nr, 1, nspins)
             CALL reallocate(vxc_s, 1, na, 1, nr, 1, nspins)
-
+            !
             IF (gradient_f) THEN
                CALL reallocate(drho_h, 1, 4, 1, na, 1, nr, 1, nspins)
                CALL reallocate(drho_s, 1, 4, 1, na, 1, nr, 1, nspins)
@@ -402,47 +402,23 @@ CONTAINS
 
          CALL para_env%sum(exc1)
 
-         IF (ASSOCIATED(rho_h)) THEN
-            DEALLOCATE (rho_h)
-         END IF
-         IF (ASSOCIATED(rho_s)) THEN
-            DEALLOCATE (rho_s)
-         END IF
-         IF (ASSOCIATED(vxc_h)) THEN
-            DEALLOCATE (vxc_h)
-         END IF
-         IF (ASSOCIATED(vxc_s)) THEN
-            DEALLOCATE (vxc_s)
-         END IF
+         IF (ASSOCIATED(rho_h)) DEALLOCATE (rho_h)
+         IF (ASSOCIATED(rho_s)) DEALLOCATE (rho_s)
+         IF (ASSOCIATED(vxc_h)) DEALLOCATE (vxc_h)
+         IF (ASSOCIATED(vxc_s)) DEALLOCATE (vxc_s)
 
          IF (gradient_f) THEN
-            IF (ASSOCIATED(drho_h)) THEN
-               DEALLOCATE (drho_h)
-            END IF
-            IF (ASSOCIATED(drho_s)) THEN
-               DEALLOCATE (drho_s)
-            END IF
-            IF (ASSOCIATED(vxg_h)) THEN
-               DEALLOCATE (vxg_h)
-            END IF
-            IF (ASSOCIATED(vxg_s)) THEN
-               DEALLOCATE (vxg_s)
-            END IF
+            IF (ASSOCIATED(drho_h)) DEALLOCATE (drho_h)
+            IF (ASSOCIATED(drho_s)) DEALLOCATE (drho_s)
+            IF (ASSOCIATED(vxg_h)) DEALLOCATE (vxg_h)
+            IF (ASSOCIATED(vxg_s)) DEALLOCATE (vxg_s)
          END IF
 
          IF (tau_f) THEN
-            IF (ASSOCIATED(tau_h)) THEN
-               DEALLOCATE (tau_h)
-            END IF
-            IF (ASSOCIATED(tau_s)) THEN
-               DEALLOCATE (tau_s)
-            END IF
-            IF (ASSOCIATED(vtau_h)) THEN
-               DEALLOCATE (vtau_h)
-            END IF
-            IF (ASSOCIATED(vtau_s)) THEN
-               DEALLOCATE (vtau_s)
-            END IF
+            IF (ASSOCIATED(tau_h)) DEALLOCATE (tau_h)
+            IF (ASSOCIATED(tau_s)) DEALLOCATE (tau_s)
+            IF (ASSOCIATED(vtau_h)) DEALLOCATE (vtau_h)
+            IF (ASSOCIATED(vtau_s)) DEALLOCATE (vtau_s)
          END IF
 
       END IF !xc_none
