@@ -1,0 +1,46 @@
+#
+# This file was created by generate_apptainer_def_file.py
+#
+# Usage: apptainer build -B $PWD:/mnt cp2k-2023.1_mpich_znver2_psmp.sif 2023.1_mpich_znver2_psmp.def | tee cp2k-2023.1_mpich_znver2_psmp.log
+
+Bootstrap: docker
+From: ubuntu:22.04
+
+%environment
+ export CP2K_DATA_DIR=/opt/cp2k/data
+ export OMP_STACKSIZE=16M
+ 
+%post
+ apt-get update -qq && apt-get install -qq --no-install-recommends \
+  bzip2 ca-certificates g++ gcc gfortran git make openssh-client patch pkg-config python3 unzip wget zlib1g-dev
+ git clone --recursive -b support/v2023.1 https://github.com/cp2k/cp2k.git /opt/cp2k
+ cd /opt/cp2k/tools/toolchain && ./install_cp2k_toolchain.sh -j 8 \
+  --install-all \
+  --target-cpu=znver2 \
+  --with-gcc=system \
+  --with-mpich=install --with-mpich-device=ch4:ucx
+ cd /opt/cp2k && cp ./tools/toolchain/install/arch/local.psmp arch/
+ bash -c -o pipefail \
+ "source ./tools/toolchain/install/setup && \
+  make -j 8 ARCH=local VERSION=psmp && \
+  for binary in cp2k cp2k_shell dumpdcd graph xyz2dcd; do \
+     ln -sf /opt/cp2k/exe/local/\${binary}.psmp /usr/local/bin/\${binary}; \
+  done && \
+  make -j 8 ARCH=local VERSION=psmp clean"
+ cat ./tools/toolchain/install/setup >>$APPTAINER_ENVIRONMENT
+ rm -rf ./tools/toolchain/build ./lib/local/psmp/*.a ./exe/local/libcp2k_unittest.psmp ./.git
+
+%test
+ #!/bin/bash
+ export OMP_STACKSIZE=16M
+ ulimit -c 0 -s unlimited
+ /opt/cp2k/tools/regtesting/do_regtest.py --keepalive --maxtasks 8 --skipdir UNIT/libcp2k_unittest --workbasedir /mnt local psmp
+
+%runscript
+ #!/bin/bash
+ ulimit -c 0 -s unlimited
+ "$@"
+
+%labels
+ Author CP2K developer team
+ Version v0.2
