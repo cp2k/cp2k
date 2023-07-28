@@ -2,12 +2,12 @@
 #
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
-# Tested with: GNU 12.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 13.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.2.2, OpenBLAS 0.3.23, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 21.06.2023
+# Last update: 27.07.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -158,6 +158,6 @@ else
    LDFLAGS        += $(FCFLAGS) -static
 endif
 
-LIBS           += -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -ldl -lstdc++
+LIBS           += -Wl,--whole-archive -lpthread -ldl -Wl,--no-whole-archive -lstdc++
 
 # End
