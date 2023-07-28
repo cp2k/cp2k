@@ -2,7 +2,7 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 12.3.0, MPICH 4.0.3 and OpenMPI 4.1.4,
+# Tested with: GNU 13.1.0, MPICH 4.0.3 and OpenMPI 4.1.5,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.23, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 6.2.2, ELPA 2022.11.001, PLUMED 2.8.2, SPGLIB 1.16.2,
 #              LIBVORI 220621, GSL 2.7, COSMA 2.6.6, SIRIUS 7.4.3, LIBTORCH 1.12.1
@@ -13,7 +13,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 21.05.2023
+# Last update: 27.07.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
