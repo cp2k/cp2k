@@ -80,7 +80,8 @@ MODULE ed_analysis
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
-   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type,&
+                                              zero_rho_atom_integrals
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
@@ -450,18 +451,25 @@ CONTAINS
       ! Nuclear charge correction
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env, atecc=atecc)
-      IF (gapw) THEN
+      IF (gapw .OR. gapw_xc) THEN
          CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, &
-                         ecoul_1c=ecoul_1c, para_env=para_env)
+                         rho_atom_set=rho_atom_set, ecoul_1c=ecoul_1c, &
+                         natom=natom, para_env=para_env)
+         CALL zero_rho_atom_integrals(rho_atom_set)
          CALL calculate_vxc_atom(qs_env, .FALSE., exc1)
-         CALL Vh_1c_gg_integrals(qs_env, eh1, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
-         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
-                         qs_kind_set=qs_kind_set, para_env=para_env)
-         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
-                                    local_rho_set=local_rho_set, atener=atecc)
+         IF (gapw) THEN
+            CALL Vh_1c_gg_integrals(qs_env, eh1, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set, atener=atecc)
+         END IF
       END IF
 
-      CALL get_qs_env(qs_env, rho=rho_struct, dispersion_env=dispersion_env)
+      IF (gapw_xc) THEN
+         CALL get_qs_env(qs_env, rho_xc=rho_struct, dispersion_env=dispersion_env)
+      ELSE
+         CALL get_qs_env(qs_env, rho=rho_struct, dispersion_env=dispersion_env)
+      END IF
       IF (needs%tau .OR. needs%tau_spin) THEN
          CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
                             xc_den=xc_den, vxc=vxc, vtau=vtau)
@@ -488,14 +496,18 @@ CONTAINS
          ! remove one-center potential matrix part
          NULLIFY (matrix_p)
          CALL update_ks_atom(qs_env, vhxc_mat, matrix_p, forces=.FALSE., kscale=-0.5_dp)
-         CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, rho_atom_set=rho_atom_set, natom=natom)
          !
          DO iatom = 1, natom
             ate1c(iatom) = ate1c(iatom) + &
-                           rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s + &
-                           ecoul_1c(iatom)%ecoul_1_h - ecoul_1c(iatom)%ecoul_1_s + &
-                           ecoul_1c(iatom)%ecoul_1_z - ecoul_1c(iatom)%ecoul_1_0
+                           rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s
          END DO
+         IF (gapw) THEN
+            DO iatom = 1, natom
+               ate1c(iatom) = ate1c(iatom) + &
+                              ecoul_1c(iatom)%ecoul_1_h - ecoul_1c(iatom)%ecoul_1_s + &
+                              ecoul_1c(iatom)%ecoul_1_z - ecoul_1c(iatom)%ecoul_1_0
+            END DO
+         END IF
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_den)

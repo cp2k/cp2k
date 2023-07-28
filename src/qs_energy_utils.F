@@ -56,7 +56,8 @@ MODULE qs_energy_utils
    USE qs_linres_module,                ONLY: linres_calculation_low
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
-   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type,&
+                                              zero_rho_atom_integrals
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf,                          ONLY: scf
@@ -97,7 +98,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, natom
       LOGICAL                                            :: do_et, do_et_proj, do_tip_scan
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -125,6 +126,10 @@ CONTAINS
              .NOT. dft_control%qs_control%dftb) THEN
             ! Nuclear charge correction
             CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+            IF (.NOT. ASSOCIATED(atprop%ateb)) THEN
+               CALL get_qs_env(qs_env, natom=natom)
+               CALL atprop_array_init(atprop%ateb, natom)
+            END IF
             ! Kohn-Sham Functional corrections
             CALL ks_xc_correction(qs_env)
          END IF
@@ -267,9 +272,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, ks_env=ks_env, &
-                      dft_control=dft_control, pw_env=pw_env, &
-                      rho=rho_struct, atprop=atprop)
+      CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control, pw_env=pw_env, atprop=atprop)
 
       IF (atprop%energy) THEN
 
@@ -284,21 +287,16 @@ CONTAINS
          CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
          IF (gapw .OR. gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, &
-                            ecoul_1c=ecoul_1c, para_env=para_env, natom=natom)
+                            rho_atom_set=rho_atom_set, ecoul_1c=ecoul_1c, &
+                            natom=natom, para_env=para_env)
+            CALL zero_rho_atom_integrals(rho_atom_set)
             CALL calculate_vxc_atom(qs_env, .FALSE., exc1)
-            CALL Vh_1c_gg_integrals(qs_env, eh1, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
-            atprop%ate1c = 0.0_dp
-            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
-                            qs_kind_set=qs_kind_set, para_env=para_env)
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
-                                       local_rho_set=local_rho_set, atener=atprop%ate1c)
-            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
-            DO iatom = 1, natom
-               atprop%ate1c(iatom) = atprop%ate1c(iatom) + &
-                                     rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s + &
-                                     ecoul_1c(iatom)%ecoul_1_h - ecoul_1c(iatom)%ecoul_1_s + &
-                                     ecoul_1c(iatom)%ecoul_1_z - ecoul_1c(iatom)%ecoul_1_0
-            END DO
+            IF (gapw) THEN
+               CALL Vh_1c_gg_integrals(qs_env, eh1, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+               CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+               CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
+                                          local_rho_set=local_rho_set, atener=atprop%ateb)
+            END IF
          END IF
 
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -317,7 +315,11 @@ CONTAINS
             END DO
          END IF
 
-         CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
+         IF (gapw_xc) THEN
+            CALL get_qs_env(qs_env, rho_xc=rho_struct, dispersion_env=dispersion_env)
+         ELSE
+            CALL get_qs_env(qs_env, rho=rho_struct, dispersion_env=dispersion_env)
+         END IF
          IF (needs%tau .OR. needs%tau_spin) THEN
             CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
                                xc_den=xc_den, vxc=vxc, vtau=vtau)
@@ -325,6 +327,7 @@ CONTAINS
             CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
                                xc_den=xc_den, vxc=vxc)
          END IF
+         CALL get_qs_env(qs_env, rho=rho_struct)
          CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
          CALL get_qs_env(qs_env, natom=natom, matrix_s=matrix_s)
          CALL atprop_array_init(atprop%atexc, natom)
@@ -349,7 +352,22 @@ CONTAINS
          IF (gapw .OR. gapw_xc) THEN
             ! remove one-center potential matrix part
             NULLIFY (matrix_p)
-            CALL update_ks_atom(qs_env, xcmat, matrix_p, forces=.FALSE., kscale=-0.25_dp)
+            CALL update_ks_atom(qs_env, xcmat, matrix_p, forces=.FALSE., kscale=-0.5_dp)
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
+            CALL atprop_array_init(atprop%ate1c, natom)
+            atprop%ate1c = 0.0_dp
+            DO iatom = 1, natom
+               atprop%ate1c(iatom) = atprop%ate1c(iatom) + &
+                                     rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s
+            END DO
+            IF (gapw) THEN
+               CALL get_qs_env(qs_env=qs_env, ecoul_1c=ecoul_1c)
+               DO iatom = 1, natom
+                  atprop%ate1c(iatom) = atprop%ate1c(iatom) + &
+                                        ecoul_1c(iatom)%ecoul_1_h - ecoul_1c(iatom)%ecoul_1_s + &
+                                        ecoul_1c(iatom)%ecoul_1_z - ecoul_1c(iatom)%ecoul_1_0
+               END DO
+            END IF
          END IF
          DO ispin = 1, nspins
             CALL atom_trace(xcmat(ispin)%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)

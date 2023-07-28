@@ -255,16 +255,16 @@ CONTAINS
       !
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
-      CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=nref, nfullcols_total=norb)
+      CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=nref, nfullcols_total=nao)
 
       ! Projectors
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=nref, &
-                               ncol_global=norb, para_env=mo_coeff%matrix_struct%para_env)
+                               ncol_global=nao, para_env=mo_coeff%matrix_struct%para_env)
       CALL cp_fm_create(p_ref_orb, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=norb, &
+      CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=nao, &
                                ncol_global=nref, para_env=mo_coeff%matrix_struct%para_env)
       CALL cp_fm_create(p_orb_ref, fm_struct)
       CALL cp_fm_struct_release(fm_struct)

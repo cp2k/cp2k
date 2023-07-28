@@ -978,11 +978,15 @@ CONTAINS
                       rho_atom_set(iatom)%drho_rad_s(nspins), &
                       rho_atom_set(iatom)%rho_rad_h_d(3, nspins), &
                       rho_atom_set(iatom)%rho_rad_s_d(3, nspins))
+            ALLOCATE (rho_atom_set(iatom)%int_scr_h(nspins), &
+                      rho_atom_set(iatom)%int_scr_s(nspins))
 
             IF (paw_atom) THEN
                DO ispin = 1, nspins
                   ALLOCATE (rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
                             rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsatbas, 1:nsatbas))
+                  ALLOCATE (rho_atom_set(iatom)%int_scr_h(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
+                            rho_atom_set(iatom)%int_scr_s(ispin)%r_coef(1:nsatbas, 1:nsatbas))
 
                   rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                   rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
