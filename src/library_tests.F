@@ -37,6 +37,7 @@ MODULE library_tests
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_pilaenv,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
@@ -1248,25 +1249,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_gemm_test(para_env, iw, cp_fm_gemm_test_section)
 
-      TYPE(mp_para_env_type), POINTER          :: para_env
-      INTEGER                                  :: iw
-      TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: iw
+      TYPE(section_vals_type), POINTER                   :: cp_fm_gemm_test_section
 
-      CHARACTER(LEN=1)                         :: transa, transb
-      INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, &
-                 ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
-                 nrow_global
-      INTEGER, DIMENSION(:), POINTER           :: grid_2d
-      LOGICAL                                  :: force_blocksize, row_major, &
-                                                  transa_p, transb_p
-      REAL(KIND=dp)                            :: t1, t2, t3, t4
-      TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
-                                                  fmstruct_c
-      TYPE(cp_fm_type)               :: matrix_a, matrix_b, matrix_c
-#if defined(__SCALAPACK)
-      INTEGER                                  :: pilaenv
-#endif
+      CHARACTER(LEN=1)                                   :: transa, transb
+      INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, ncol_block_actual, &
+         ncol_global, np, nrow_block, nrow_block_actual, nrow_global
+      INTEGER, DIMENSION(:), POINTER                     :: grid_2d
+      LOGICAL                                            :: force_blocksize, row_major, transa_p, &
+                                                            transb_p
+      REAL(KIND=dp)                                      :: t1, t2, t3, t4
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_a, fmstruct_b, fmstruct_c
+      TYPE(cp_fm_type)                                   :: matrix_a, matrix_b, matrix_c
 
       CALL section_vals_get(cp_fm_gemm_test_section, n_repetition=n_rep)
       DO i_rep = 1, n_rep
@@ -1309,9 +1305,10 @@ CONTAINS
             WRITE (iw, '(T2,A,T50,2I7)') 'GRID_2D ', grid_2d
             WRITE (iw, '(T2,A,T50,L5)') 'Force blocksize ', force_blocksize
             ! check the return value of pilaenv, too small values limit the performance (assuming pdgemm is the vanilla variant)
-#if defined(__SCALAPACK)
-            WRITE (iw, '(T2,A,T50,I5)') 'PILAENV blocksize', pilaenv(0, 'D')
-#endif
+            np = cp_fm_pilaenv(0, 'D')
+            IF (np > 0) THEN
+               WRITE (iw, '(T2,A,T50,I5)') 'PILAENV blocksize', np
+            END IF
          END IF
 
          NULLIFY (blacs_env)

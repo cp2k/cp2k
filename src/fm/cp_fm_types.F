@@ -79,7 +79,8 @@ MODULE cp_fm_types
 
    PUBLIC :: cp_fm_indxg2p, &
              cp_fm_indxg2l, &
-             cp_fm_indxl2g
+             cp_fm_indxl2g, &
+             cp_fm_pilaenv
 
    INTERFACE cp_fm_to_fm
       MODULE PROCEDURE cp_fm_to_fm_matrix, & ! a full matrix
@@ -2622,6 +2623,27 @@ CONTAINS
       INTEGER                                            :: res
 
       res = mm_type
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ictxt ...
+!> \param prec ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_fm_pilaenv(ictxt, prec) RESULT(res)
+      INTEGER                                            :: ictxt
+      CHARACTER(LEN=1)                                   :: prec
+      INTEGER                                            :: res
+#if defined(__SCALAPACK)
+      INTEGER                                            :: pilaenv
+      res = pilaenv(ictxt, prec)
+#else
+      MARK_USED(ictxt)
+      MARK_USED(prec)
+      res = -1
+#endif
+
    END FUNCTION
 
 END MODULE cp_fm_types

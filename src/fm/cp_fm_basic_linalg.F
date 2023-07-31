@@ -60,8 +60,11 @@ MODULE cp_fm_basic_linalg
              cp_fm_solve, & ! solves the equation  A*B=C A and C are input
              cp_fm_pdgeqpf, & ! compute a QR factorization with column pivoting of a M-by-N distributed matrix
              cp_fm_pdorgqr, & ! generates an M-by-N as first N columns of a product of K elementary reflectors
+             cp_fm_potrf, & ! Cholesky decomposition
+             cp_fm_potri, & ! Invert triangular matrix
              cp_fm_rot_rows, & ! rotates two rows
              cp_fm_rot_cols, & ! rotates two columns
+             cp_fm_cholesky_restore, & ! apply Cholesky decomposition
              cp_fm_Gram_Schmidt_orthonorm ! Gram-Schmidt orthonormalization of columns of a full matrix
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
@@ -2531,5 +2534,167 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_Gram_Schmidt_orthonorm
+
+! **************************************************************************************************
+!> \brief Cholesky decomposition
+!> \param fm_matrix ...
+!> \param n ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_potrf(fm_matrix, n)
+      TYPE(cp_fm_type)                         :: fm_matrix
+      INTEGER, INTENT(in)                      :: n
+
+      INTEGER                                  :: info
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9)                    :: desca
+#endif
+
+      a => fm_matrix%local_data
+      a_sp => fm_matrix%local_data_sp
+#if defined(__SCALAPACK)
+      desca(:) = fm_matrix%matrix_struct%descriptor(:)
+      IF (fm_matrix%use_sp) THEN
+         CALL pspotrf('U', n, a_sp(1, 1), 1, 1, desca, info)
+      ELSE
+         CALL pdpotrf('U', n, a(1, 1), 1, 1, desca, info)
+      END IF
+#else
+      IF (fm_matrix%use_sp) THEN
+         CALL spotrf('U', n, a_sp(1, 1), SIZE(a_sp, 1), info)
+      ELSE
+         CALL dpotrf('U', n, a(1, 1), SIZE(a, 1), info)
+      END IF
+#endif
+      IF (info /= 0) &
+         CPABORT("Cholesky decomposition failed. Matrix ill conditioned ?")
+
+   END SUBROUTINE cp_fm_potrf
+
+! **************************************************************************************************
+!> \brief Invert trianguar matrix
+!> \param fm_matrix the matrix to invert (must be an upper triangular matrix)
+!> \param n size of the matrix to invert
+! **************************************************************************************************
+   SUBROUTINE cp_fm_potri(fm_matrix, n)
+      TYPE(cp_fm_type)                          :: fm_matrix
+      INTEGER, INTENT(in)                       :: n
+
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a
+      REAL(KIND=sp), DIMENSION(:, :), POINTER   :: a_sp
+      INTEGER                                   :: info
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9)                     :: desca
+#endif
+
+      a => fm_matrix%local_data
+      a_sp => fm_matrix%local_data_sp
+#if defined(__SCALAPACK)
+      desca(:) = fm_matrix%matrix_struct%descriptor(:)
+      IF (fm_matrix%use_sp) THEN
+         CALL pspotri('U', n, a_sp(1, 1), 1, 1, desca, info)
+      ELSE
+         CALL pdpotri('U', n, a(1, 1), 1, 1, desca, info)
+      END IF
+#else
+      IF (fm_matrix%use_sp) THEN
+         CALL spotri('U', n, a_sp(1, 1), SIZE(a_sp, 1), info)
+      ELSE
+         CALL dpotri('U', n, a(1, 1), SIZE(a, 1), info)
+      END IF
+#endif
+      CPASSERT(info == 0)
+   END SUBROUTINE cp_fm_potri
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_matrix ...
+!> \param neig ...
+!> \param fm_matrixb ...
+!> \param fm_matrixout ...
+!> \param op ...
+!> \param pos ...
+!> \param transa ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_cholesky_restore(fm_matrix, neig, fm_matrixb, fm_matrixout, op, pos, transa)
+      TYPE(cp_fm_type)                               :: fm_matrix
+      TYPE(cp_fm_type)                               :: fm_matrixb
+      TYPE(cp_fm_type)                               :: fm_matrixout
+      INTEGER, INTENT(IN)                            :: neig
+      CHARACTER(LEN=*), INTENT(IN)                   :: op
+      CHARACTER(LEN=*), INTENT(IN)                   :: pos
+      CHARACTER(LEN=*), INTENT(IN)                   :: transa
+
+      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: a, b, outm
+      REAL(KIND=sp), DIMENSION(:, :), POINTER        :: a_sp, b_sp, outm_sp
+      INTEGER                                        :: n, itype
+      REAL(KIND=dp)                                  :: alpha
+#if defined(__SCALAPACK)
+      INTEGER                                        :: i
+      INTEGER, DIMENSION(9)                          :: desca, descb, descout
+#endif
+
+      ! notice b is the cholesky guy
+      a => fm_matrix%local_data
+      b => fm_matrixb%local_data
+      outm => fm_matrixout%local_data
+      a_sp => fm_matrix%local_data_sp
+      b_sp => fm_matrixb%local_data_sp
+      outm_sp => fm_matrixout%local_data_sp
+
+      n = fm_matrix%matrix_struct%nrow_global
+      itype = 1
+
+#if defined(__SCALAPACK)
+      desca(:) = fm_matrix%matrix_struct%descriptor(:)
+      descb(:) = fm_matrixb%matrix_struct%descriptor(:)
+      descout(:) = fm_matrixout%matrix_struct%descriptor(:)
+      alpha = 1.0_dp
+      DO i = 1, neig
+         IF (fm_matrix%use_sp) THEN
+            CALL pscopy(n, a_sp(1, 1), 1, i, desca, 1, outm_sp(1, 1), 1, i, descout, 1)
+         ELSE
+            CALL pdcopy(n, a(1, 1), 1, i, desca, 1, outm(1, 1), 1, i, descout, 1)
+         END IF
+      END DO
+      IF (op .EQ. "SOLVE") THEN
+         IF (fm_matrix%use_sp) THEN
+            CALL pstrsm(pos, 'U', transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), 1, 1, descb, &
+                        outm_sp(1, 1), 1, 1, descout)
+         ELSE
+            CALL pdtrsm(pos, 'U', transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, outm(1, 1), 1, 1, descout)
+         END IF
+      ELSE
+         IF (fm_matrix%use_sp) THEN
+            CALL pstrmm(pos, 'U', transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), 1, 1, descb, &
+                        outm_sp(1, 1), 1, 1, descout)
+         ELSE
+            CALL pdtrmm(pos, 'U', transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, outm(1, 1), 1, 1, descout)
+         END IF
+      END IF
+#else
+      alpha = 1.0_dp
+      IF (fm_matrix%use_sp) THEN
+         CALL scopy(neig*n, a_sp(1, 1), 1, outm_sp(1, 1), 1)
+      ELSE
+         CALL dcopy(neig*n, a(1, 1), 1, outm(1, 1), 1)
+      END IF
+      IF (op .EQ. "SOLVE") THEN
+         IF (fm_matrix%use_sp) THEN
+            CALL strsm(pos, 'U', transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, 1), outm_sp(1, 1), n)
+         ELSE
+            CALL dtrsm(pos, 'U', transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, 1), outm(1, 1), n)
+         END IF
+      ELSE
+         IF (fm_matrix%use_sp) THEN
+            CALL strmm(pos, 'U', transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), n, outm_sp(1, 1), n)
+         ELSE
+            CALL dtrmm(pos, 'U', transa, 'N', n, neig, alpha, b(1, 1), n, outm(1, 1), n)
+         END IF
+      END IF
+#endif
+
+   END SUBROUTINE cp_fm_cholesky_restore
 
 END MODULE cp_fm_basic_linalg

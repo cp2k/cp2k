@@ -369,6 +369,8 @@ CONTAINS
          res = (fmstruct1%context == fmstruct2%context) .AND. &
                (fmstruct1%nrow_global == fmstruct2%nrow_global) .AND. &
                (fmstruct1%ncol_global == fmstruct2%ncol_global) .AND. &
+               (fmstruct1%nrow_block == fmstruct2%nrow_block) .AND. &
+               (fmstruct1%ncol_block == fmstruct2%ncol_block) .AND. &
                (fmstruct1%local_leading_dimension == &
                 fmstruct2%local_leading_dimension)
          DO i = 1, 9

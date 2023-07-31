@@ -35,14 +35,9 @@ MODULE qs_linres_op
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_set_submatrix,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_indxl2g, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -1206,23 +1201,17 @@ CONTAINS
 !> \author vw
 ! **************************************************************************************************
    SUBROUTINE fm_scale_by_pbc_AC(matrix, ra, rc, cell, ixyz)
-      TYPE(cp_fm_type), INTENT(IN)             :: matrix
-      REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(in)                            :: ra, rc
-      TYPE(cell_type), POINTER                 :: cell
-      INTEGER, INTENT(IN)                      :: ixyz
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: ra, rc
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: ixyz
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_scale_by_pbc_AC'
 
-      INTEGER :: handle, icol_local, irow_local, m, mypcol, myprow, n, &
-                 ncol_block, ncol_global, ncol_local, npcol, nprow, nrow_block, &
-                 nrow_global, nrow_local
-      REAL(KIND=dp)                            :: dist(3), rra(3), rrc(3)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-#if defined(__SCALAPACK)
-      INTEGER                                  :: icol_global, irow_global
-      INTEGER, EXTERNAL                        :: indxl2g
-#endif
+      INTEGER :: handle, icol_global, icol_local, irow_global, irow_local, m, mypcol, myprow, n, &
+         ncol_block, ncol_global, ncol_local, npcol, nprow, nrow_block, nrow_global, nrow_local
+      REAL(KIND=dp)                                      :: dist(3), rra(3), rrc(3)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
 
       CALL timeset(routineN, handle)
 
@@ -1242,31 +1231,20 @@ CONTAINS
       m = SIZE(ra, 2)
 
       a => matrix%local_data
-#if defined(__SCALAPACK)
       DO icol_local = 1, ncol_local
-         icol_global = indxl2g(icol_local, ncol_block, mypcol, &
-                               matrix%matrix_struct%first_p_pos(2), npcol)
+         icol_global = cp_fm_indxl2g(icol_local, ncol_block, mypcol, &
+                                     matrix%matrix_struct%first_p_pos(2), npcol)
          IF (icol_global .GT. n) CYCLE
          rrc = rc(:, icol_global)
          DO irow_local = 1, nrow_local
-            irow_global = indxl2g(irow_local, nrow_block, myprow, &
-                                  matrix%matrix_struct%first_p_pos(1), nprow)
+            irow_global = cp_fm_indxl2g(irow_local, nrow_block, myprow, &
+                                        matrix%matrix_struct%first_p_pos(1), nprow)
             IF (irow_global .GT. m) CYCLE
             rra = ra(:, irow_global)
             dist = pbc(rrc, rra, cell)
             a(irow_local, icol_local) = a(irow_local, icol_local)*dist(ixyz)
          END DO
       END DO
-#else
-      DO icol_local = 1, MIN(n, ncol_global)
-         rrc = rc(:, icol_local)
-         DO irow_local = 1, MIN(m, nrow_global)
-            rra = ra(:, irow_local)
-            dist = pbc(rrc, rra, cell)
-            a(irow_local, icol_local) = a(irow_local, icol_local)*dist(ixyz)
-         END DO
-      END DO
-#endif
 
       CALL timestop(handle)
 
