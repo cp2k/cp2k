@@ -33,6 +33,7 @@ suppress_warnings = ["app", "ref", "index"]
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_favicon = "_static/favicon.png"
 
 # add_module_names = False
 
