@@ -32,6 +32,9 @@ def main() -> None:
         f.write(toolchain_full(mpi_mode="openmpi", with_gcc="install"))
         f.write(regtest("psmp"))
 
+    with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
+        f.write(toolchain_full(base_image="fedora:33") + regtest("psmp"))
+
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
         f.write(toolchain_intel() + regtest("psmp", intel=True))
 
