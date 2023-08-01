@@ -343,6 +343,9 @@ static inline void offloadEnsureMallocHeapSize(const size_t required_size) {
   if (current_size < required_size) {
     OFFLOAD_CHECK(hipDeviceSetLimit(hipLimitMallocHeapSize, required_size));
   }
+#else
+  (void)required_size; // mark used
+  (void)current_size;
 #endif
 }
 
