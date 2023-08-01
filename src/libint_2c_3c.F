@@ -48,28 +48,28 @@ MODULE libint_2c_3c
    REAL(KIND=dp), PARAMETER :: cutoff_screen_factor = 1.0001_dp
 
    TYPE :: params_2c
-      INTEGER                               :: m_max
-      REAL(dp)                              :: ZetaInv, EtaInv, ZetapEtaInv, Rho
-      REAL(dp), DIMENSION(3)                :: W
-      REAL(dp), DIMENSION(prim_data_f_size) :: Fm
+      INTEGER                               :: m_max = 0
+      REAL(dp)                              :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
+      REAL(dp), DIMENSION(3)                :: W = 0.0_dp
+      REAL(dp), DIMENSION(prim_data_f_size) :: Fm = 0.0_dp
    END TYPE
 
    TYPE :: params_3c
-      INTEGER                               :: m_max
-      REAL(dp)                              :: ZetaInv, EtaInv, ZetapEtaInv, Rho
-      REAL(dp), DIMENSION(3)                :: Q, W
-      REAL(dp), DIMENSION(prim_data_f_size) :: Fm
+      INTEGER                               :: m_max = 0
+      REAL(dp)                              :: ZetaInv = 0.0_dp, EtaInv = 0.0_dp, ZetapEtaInv = 0.0_dp, Rho = 0.0_dp
+      REAL(dp), DIMENSION(3)                :: Q = 0.0_dp, W = 0.0_dp
+      REAL(dp), DIMENSION(prim_data_f_size) :: Fm = 0.0_dp
    END TYPE
 
    ! A potential type based on the hfx_potential_type concept, but only for implemented
    ! 2- and 3-center operators
    TYPE :: libint_potential_type
-      INTEGER                               :: potential_type
-      REAL(dp)                              :: omega !SR: erfc(w*r)/r
-      REAL(dp)                              :: cutoff_radius !TC cutoff/effective SR range
-      CHARACTER(default_path_length)        :: filename
-      REAL(dp)                              :: scale_coulomb ! Only, for WFC methods
-      REAL(dp)                              :: scale_longrange ! Only, for WFC methods
+      INTEGER                               :: potential_type = do_potential_coulomb
+      REAL(dp)                              :: omega = 0.0_dp !SR: erfc(w*r)/r
+      REAL(dp)                              :: cutoff_radius = 0.0_dp !TC cutoff/effective SR range
+      CHARACTER(default_path_length)        :: filename = ""
+      REAL(dp)                              :: scale_coulomb = 0.0_dp ! Only, for WFC methods
+      REAL(dp)                              :: scale_longrange = 0.0_dp ! Only, for WFC methods
    END TYPE
 
 CONTAINS

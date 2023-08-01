@@ -1,6 +1,3 @@
-admm_types.F: Found type admm_type without initializer https://cp2k.org/conv#c016
-admm_types.F: Found type eigvals_p_type without initializer https://cp2k.org/conv#c016
-admm_types.F: Found type eigvals_type without initializer https://cp2k.org/conv#c016
 almo_scf_diis_types.F: Found type almo_scf_diis_type without initializer https://cp2k.org/conv#c016
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
 almo_scf_lbfgs_types.F: Found type lbfgs_history_type without initializer https://cp2k.org/conv#c016
@@ -213,33 +210,7 @@ hartree_local_types.F: Found type ecoul_1center_type without initializer https:/
 hartree_local_types.F: Found type hartree_local_type without initializer https://cp2k.org/conv#c016
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
-hfx_types.F: Found type hfx_2d_map without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_basis_info_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_basis_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_block_range_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_cache_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_cell_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_compression_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_container_node without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_container_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_distribution without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_general_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_load_balance_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_memory_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_periodic_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_pgf_image without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_pgf_list without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_pgf_product_list without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_p_kind without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_potential_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_ri_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_screen_coeff_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_screening_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type hfx_task_list_type without initializer https://cp2k.org/conv#c016
 hfx_types.F: Found type hfx_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type pair_list_element_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type pair_list_type without initializer https://cp2k.org/conv#c016
-hfx_types.F: Found type pair_set_list_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type hirshfeld_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type shape_fn without initializer https://cp2k.org/conv#c016
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
@@ -586,9 +557,6 @@ qs_tddfpt2_types.F: Found type tddfpt_ground_state_mos without initializer https
 qs_tddfpt2_types.F: Found type tddfpt_work_matrices without initializer https://cp2k.org/conv#c016
 qs_tddfpt_types.F: Found type tddfpt_env_type without initializer https://cp2k.org/conv#c016
 qs_tddfpt_utils.F: Found type simple_solution_sorter without initializer https://cp2k.org/conv#c016
-qs_tensors_types.F: Found type distribution_3d_type without initializer https://cp2k.org/conv#c016
-qs_tensors_types.F: Found type neighbor_list_3c_iterator_type without initializer https://cp2k.org/conv#c016
-qs_tensors_types.F: Found type neighbor_list_3c_type without initializer https://cp2k.org/conv#c016
 qs_wannier90.F: Found type berry_matrix_type without initializer https://cp2k.org/conv#c016
 qs_wf_history_types.F: Found type qs_wf_history_p_type without initializer https://cp2k.org/conv#c016
 qs_wf_history_types.F: Found type qs_wf_history_type without initializer https://cp2k.org/conv#c016

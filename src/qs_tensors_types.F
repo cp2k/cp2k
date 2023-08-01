@@ -56,23 +56,23 @@ MODULE qs_tensors_types
 
    TYPE distribution_3d_type
       TYPE(distribution_2d_type), POINTER :: dist_2d_1 => NULL(), dist_2d_2 => NULL()
-      TYPE(mp_comm_type) :: comm_3d, comm_2d_1, comm_2d_2
-      LOGICAL :: owns_comm
+      TYPE(mp_comm_type) :: comm_3d = mp_comm_type(), comm_2d_1 = mp_comm_type(), comm_2d_2 = mp_comm_type()
+      LOGICAL :: owns_comm = .FALSE.
    END TYPE distribution_3d_type
 
    TYPE neighbor_list_3c_type
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ij_list => NULL(), jk_list => NULL()
-      INTEGER :: sym
-      TYPE(distribution_3d_type) :: dist_3d
-      LOGICAL :: owns_dist
+      INTEGER :: sym = symmetric_none
+      TYPE(distribution_3d_type) :: dist_3d = distribution_3d_type()
+      LOGICAL :: owns_dist = .FALSE.
    END TYPE
 
    TYPE neighbor_list_3c_iterator_type
       TYPE(neighbor_list_iterator_p_type), DIMENSION(:), POINTER :: iter_ij => NULL()
       TYPE(neighbor_list_iterator_p_type), DIMENSION(:), POINTER :: iter_jk => NULL()
-      INTEGER                                                    :: iter_level
-      TYPE(neighbor_list_3c_type)                                :: ijk_nl
-      INTEGER, DIMENSION(2)                                      :: bounds_i, bounds_j, bounds_k
+      INTEGER                                                    :: iter_level = 0
+      TYPE(neighbor_list_3c_type)                                :: ijk_nl = neighbor_list_3c_type()
+      INTEGER, DIMENSION(2)                                      :: bounds_i = 0, bounds_j = 0, bounds_k = 0
    END TYPE
 
 CONTAINS

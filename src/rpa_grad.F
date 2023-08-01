@@ -89,17 +89,17 @@ MODULE rpa_grad
    END TYPE
 
    TYPE rpa_grad_work_type
-      TYPE(cp_fm_type) :: fm_mat_Q_copy
+      TYPE(cp_fm_type) :: fm_mat_Q_copy = cp_fm_type()
       TYPE(one_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2send
       TYPE(two_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2recv
       TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE :: gd_homo, gd_virtual
-      INTEGER, DIMENSION(2) :: grid, mepos
+      INTEGER, DIMENSION(2) :: grid = -1, mepos = -1
       TYPE(two_dim_real_array), DIMENSION(:), ALLOCATABLE :: P_ij, P_ab
    END TYPE
 
    TYPE rpa_grad_type
       PRIVATE
-      TYPE(cp_fm_type) :: fm_Gamma_PQ
+      TYPE(cp_fm_type) :: fm_Gamma_PQ = cp_fm_type()
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE :: fm_Y
       TYPE(sos_mp2_grad_work_type), ALLOCATABLE, DIMENSION(:) :: sos_mp2_work_occ, sos_mp2_work_virt
       TYPE(rpa_grad_work_type) :: rpa_work
