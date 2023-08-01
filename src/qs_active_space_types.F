@@ -320,7 +320,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)     :: active_orbitals
       INTEGER, OPTIONAL                        :: spin1, spin2
       INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, m1, m2, m3, m4, &
-                                                  irange(2), irptr, nspin, nindex, nmo
+                                                  irange(2), irptr, nspin, nindex, nmo, group_handle
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
       REAL(KIND=dp)                            :: erint
@@ -335,7 +335,8 @@ CONTAINS
 
       ASSOCIATE (eri => this%eri(nspin)%csr_mat, norb => this%norb)
          nindex = (norb*(norb + 1))/2
-         CALL mp_group%set_handle(eri%mp_group%get_handle())
+         group_handle = eri%mp_group%get_handle()
+         CALL mp_group%set_handle(group_handle)
          irange = get_irange_csr(nindex, mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 
