@@ -20,7 +20,11 @@ fi
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
-apt-get install -qq --no-install-recommends python3 python3-pip
+apt-get install -qq --no-install-recommends \
+  default-jre-headless \
+  libsaxonhe-java \
+  python3 \
+  python3-pip
 rm -rf /var/lib/apt/lists/*
 
 pip3 install --quiet sphinx myst-parser sphinx_rtd_theme lxml
@@ -33,9 +37,6 @@ cd /workspace/artifacts/manual
 /opt/cp2k/exe/local/cp2k.psmp --version
 /opt/cp2k/exe/local/cp2k.psmp --xml
 
-TOOLS=/opt/cp2k/tools
-cp ${TOOLS}/manual/favicon.png .
-
 set +e # disable error trapping for remainder of script
 (
   set -e # abort if error is encountered
@@ -46,6 +47,20 @@ set +e # disable error trapping for remainder of script
 EXIT_CODE=$?
 if ((EXIT_CODE)); then
   echo -e "\nSummary: Sphinx build failed"
+  echo -e "Status: FAILED\n"
+  exit
+fi
+
+echo -e "\n========== Generating VIM Plugin =========="
+(
+  set -e                            # abort if error is encountered
+  sed -i 's/\x0/?/g' cp2k_input.xml # replace null bytes which would crash saxon
+  SAXON="java -jar /usr/share/java/Saxon-HE.jar"
+  $SAXON -o:cp2k.vim ./cp2k_input.xml /opt/cp2k/tools/input_editing/vim/vim.xsl
+)
+EXIT_CODE=$?
+if ((EXIT_CODE)); then
+  echo -e "\nSummary: Saxon run failed."
   echo -e "Status: FAILED\n"
   exit
 fi
