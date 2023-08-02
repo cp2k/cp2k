@@ -112,10 +112,10 @@ MODULE mp2_integrals
 
    TYPE intermediate_matrix_type
       TYPE(dbcsr_type) :: matrix_ia_jnu, matrix_ia_jb
-      INTEGER :: max_row_col_local
+      INTEGER :: max_row_col_local = 0
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info
-      TYPE(cp_fm_type) :: fm_BIb_jb
-      CHARACTER(LEN=default_string_length) :: descr
+      TYPE(cp_fm_type) :: fm_BIb_jb = cp_fm_type()
+      CHARACTER(LEN=default_string_length) :: descr = ""
    END TYPE intermediate_matrix_type
 
 CONTAINS

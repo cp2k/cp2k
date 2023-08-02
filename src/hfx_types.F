@@ -265,7 +265,7 @@ MODULE hfx_types
       INTEGER, DIMENSION(:), POINTER           :: nsgf => NULL()
       INTEGER, DIMENSION(:, :), POINTER         :: first_sgf => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: sphi => NULL()
-      INTEGER                                  :: nsgf_total
+      INTEGER                                  :: nsgf_total = 0
       INTEGER, DIMENSION(:, :), POINTER         :: nl => NULL()
       INTEGER, DIMENSION(:, :), POINTER         :: nsgfl => NULL()
       INTEGER, DIMENSION(:), POINTER           :: nshell => NULL()
@@ -379,7 +379,7 @@ MODULE hfx_types
       REAL(KIND=dp) :: eps_schwarz = 0.0_dp ! integral screening threshold
       REAL(KIND=dp) :: eps_schwarz_forces = 0.0_dp ! integral derivatives screening threshold
 
-      LOGICAL :: same_op ! whether RI operator is same as HF potential
+      LOGICAL :: same_op = .FALSE. ! whether RI operator is same as HF potential
 
       ! default process grid used for 3c tensors
       TYPE(dbt_pgrid_type), POINTER :: pgrid => NULL()
@@ -387,7 +387,7 @@ MODULE hfx_types
 
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
       TYPE(distribution_3d_type) :: dist_3d = distribution_3d_type()
-      TYPE(dbt_distribution_type) :: dist = dbt_distribution_type()
+      TYPE(dbt_distribution_type) :: dist
 
       ! block sizes for RI and AO tensor dimensions (split)
       INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split, &
