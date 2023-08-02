@@ -17,10 +17,10 @@
        INTENSITY 0.01
     &END
     &QS
-      EPS_DEFAULT 1.0E-14
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
       SCF_GUESS ATOMIC
       MAX_SCF 10
       &OT
@@ -28,6 +28,7 @@
          PRECONDITIONER FULL_ALL
       &END
       &OUTER_SCF
+        EPS_SCF 1.0E-7
         MAX_SCF 50
       &END
     &END SCF
@@ -38,9 +39,9 @@
   &END DFT
   &SUBSYS
     &CELL
-      A  6.0  0.0  0.0
-      B  0.0  6.0  0.0
-      C  0.0  0.0  6.0
+      A  7.0  0.0  0.0
+      B  0.0  7.0  0.0
+      C  0.0  0.0  7.0
     &END CELL
     &COORD
     H   0.000000    0.000000    0.000000
@@ -65,5 +66,5 @@
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
    STOP_ON_MISMATCH T
-   DX 0.0001
+   DX 0.001
 &END DEBUG

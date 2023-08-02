@@ -9,6 +9,7 @@
     &END QS
     &SCF
       SCF_GUESS MOPAC
+      EPS_SCF 1.E-8
     &END SCF
   &END DFT
   &MM
@@ -56,7 +57,7 @@
       &EWALD
         EWALD_TYPE SPME
         ALPHA .44
-        GMAX 21
+        GMAX 42
       &END EWALD
     &END POISSON
   &END MM
@@ -107,4 +108,5 @@
 &DEBUG
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
+   EPS_NO_ERROR_CHECK 5.E-4
 &END

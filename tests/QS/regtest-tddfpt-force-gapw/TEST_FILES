@@ -12,4 +12,12 @@ ch2o_f01_pbe_gapwxc.inp                  37    1.0E-4              0.138361E+00
 ch2o_f01_pbe.inp                         37    1.0E-4              0.145756E+00
 ch2o_f02_coulomb_only.inp                37    1.0E-4              0.202091E+00
 #ch2o_f01_pbe.inp                         8    1.0E-07     
+h2o_t01.inp                              0
+h2o_t02.inp                              0
+h2o_t03.inp                              0
+h2o_t04.inp                              0
+#h2o_t05.inp                              0
+#h2o_t06.inp                              0
+#h2o_t07.inp                              0
+#h2o_t08.inp                              0
 #EOF

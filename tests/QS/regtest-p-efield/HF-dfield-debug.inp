@@ -20,13 +20,14 @@
       EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
       SCF_GUESS ATOMIC
       MAX_SCF 100
       &OT
          MINIMIZER DIIS
       &END
       &OUTER_SCF
+        EPS_SCF 1.0E-7
         MAX_SCF 50
       &END
     &END SCF
@@ -64,5 +65,5 @@
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
    STOP_ON_MISMATCH T
-   DX 0.0001
+   DX 0.001
 &END DEBUG

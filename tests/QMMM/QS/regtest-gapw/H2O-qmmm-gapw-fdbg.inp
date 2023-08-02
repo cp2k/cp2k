@@ -22,6 +22,7 @@
     &END QS
     &SCF
       SCF_GUESS atomic
+      EPS_SCF 1.E-8
     &END SCF
     &XC
       &XC_FUNCTIONAL pade
@@ -73,14 +74,14 @@
       &EWALD
         EWALD_TYPE ewald
         ALPHA .44
-        GMAX 21
+        GMAX 31
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 7.0 7.0 7.0
     &END CELL
     ECOUPL GAUSS
     CENTER SETUP_ONLY

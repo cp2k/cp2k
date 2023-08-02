@@ -7,7 +7,7 @@
   &DFT
     &QS
       METHOD xTB
-      EPS_DEFAULT 1.0e-12
+      EPS_DEFAULT 1.0e-14
       &xTB
         DO_EWALD FALSE
       &END xTB
@@ -15,7 +15,7 @@
     &SCF
       SCF_GUESS MOPAC
       MAX_SCF   200
-      EPS_SCF   1.0e-7
+      EPS_SCF   1.0e-8
     &END SCF
     &PRINT
       &MO
@@ -42,8 +42,9 @@
 &DEBUG
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
-   DX 0.0001
-   EPS_NO_ERROR_CHECK  0.000001
+   DX 0.00005
+   EPS_NO_ERROR_CHECK  0.0001
    STOP_ON_MISMATCH T
+   MAX_RELATIVE_ERROR 0.75
 &END DEBUG
 

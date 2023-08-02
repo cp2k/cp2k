@@ -25,7 +25,7 @@
     &END QS
     &SCF
       MAX_SCF 100
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-8
       SCF_GUESS ATOMIC
       &MIXING
           METHOD DIRECT_P_MIXING
@@ -36,7 +36,7 @@
         PRECONDITIONER NONE
       &END
       &OUTER_SCF
-        EPS_SCF 1.0E-6
+        EPS_SCF 1.0E-8
         MAX_SCF 10
       &END
       &PRINT

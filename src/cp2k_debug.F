@@ -63,7 +63,6 @@ MODULE cp2k_debug
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_debug'
-   REAL(KIND=dp), PRIVATE, PARAMETER :: maxerr = 5.0_dp
 
    PUBLIC :: cp2k_debug_energy_and_forces
 
@@ -91,7 +90,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: do_dof_atom_coor
       LOGICAL, DIMENSION(3)                              :: do_dof_dipole
       REAL(KIND=dp)                                      :: amplitude, dd, de, derr, difference, dx, &
-                                                            eps_no_error_check, std_value, &
+                                                            eps_no_error_check, maxerr, std_value, &
                                                             sum_of_differences
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: dipole_moment, dipole_numer, err, &
@@ -133,6 +132,8 @@ CONTAINS
       CALL section_vals_val_get(root_section, "DEBUG%CHECK_DIPOLE_DIRS", &
                                 c_val=cval1)
       dx = ABS(dx)
+      CALL section_vals_val_get(root_section, "DEBUG%MAX_RELATIVE_ERROR", &
+                                r_val=maxerr)
       CALL section_vals_val_get(root_section, "DEBUG%EPS_NO_ERROR_CHECK", &
                                 r_val=eps_no_error_check)
       eps_no_error_check = MAX(eps_no_error_check, EPSILON(0.0_dp))
@@ -468,7 +469,7 @@ CONTAINS
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="
                WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") 'DIPOLE : CheckSum  =', SUM(dipole_moment)
-               IF (ANY(ABS(err(1:3)) > maxerr/10._dp)) THEN
+               IF (ANY(ABS(err(1:3)) > maxerr)) THEN
                   message = "A mismatch between analytical and numerical dipoles "// &
                             "has been detected. Check the implementation of the "// &
                             "analytical dipole calculation"

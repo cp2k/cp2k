@@ -20,7 +20,7 @@ Pt-cis-2xpet3Cl2-si.inp                                3      3e-14            -
 Pt-cis-2xpet3Cl2-si-noc.inp                            3      8e-14           -3116.62376488246764
 #covering all special core-core PM6 interactions
 CH3Cl2.inp                                             3    1.0E-14            -675.24590158166950
-c2h5cl.inp                                             3      1e-14            -567.95662868872830
+c2h5cl.inp                                             3      1e-14            -567.95662869040734
 sio2.inp                                               3    1.0E-14            -655.26147156431921
 #S=1 preconditioners
 stp1.inp                                               3    1.0E-14           -1789.84713338782581
