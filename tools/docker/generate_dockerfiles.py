@@ -230,9 +230,8 @@ def manual() -> str:
         install_cp2k(version="psmp", arch="local", revision=True)
         + rf"""
 # Generate manual.
-COPY ./tools/manual ./tools/manual
-COPY ./tools/input_editing ./tools/input_editing
 COPY ./docs ./docs
+COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
 ARG ADD_EDIT_LINKS=yes
 RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
