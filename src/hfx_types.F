@@ -387,7 +387,7 @@ MODULE hfx_types
 
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
       TYPE(distribution_3d_type) :: dist_3d = distribution_3d_type()
-      TYPE(dbt_distribution_type) :: dist = dbt_distribution_type()
+      TYPE(dbt_distribution_type) :: dist
 
       ! block sizes for RI and AO tensor dimensions (split)
       INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split, &

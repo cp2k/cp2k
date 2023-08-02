@@ -52,13 +52,13 @@ MODULE rpa_im_time_force_types
       TYPE(dbcsr_type) :: inv_ovlp, G_PQ
 
       !The occupied and virtual density matrices (standard block size, one for each spin)
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: P_occ, P_virt
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: P_occ => NULL(), P_virt => NULL()
 
       !The weighted sum of the O(tau) matrices for thre response
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: sum_O_tau
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: sum_O_tau => NULL()
 
       !The weigthed sum of the YP matrices for the trace with the Fockian derivative
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: sum_YP_tau
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: sum_YP_tau => NULL()
 
       !Split block size info
       INTEGER, DIMENSION(:), ALLOCATABLE  :: bsizes_RI_split, bsizes_AO_split
@@ -67,7 +67,7 @@ MODULE rpa_im_time_force_types
       INTEGER, DIMENSION(:), ALLOCATABLE  :: idx_to_at_AO, idx_to_at_RI
 
       !Is it a periodic calculation
-      LOGICAL :: do_periodic
+      LOGICAL :: do_periodic = .FALSE.
 
       !Necessary stuff for the on-the fly calculation of the virial
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nl_2c_ovlp => Null(), &
