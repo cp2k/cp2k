@@ -22,27 +22,6 @@ block_p_types.F: Found type block_p_type without initializer https://cp2k.org/co
 callgraph.F: Found type callgraph_item_type without initializer https://cp2k.org/conv#c016
 callgraph.F: Found type private_item_type without initializer https://cp2k.org/conv#c016
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test" https://cp2k.org/conv#c012
-cp2k_shell.F: Found type cp2k_shell_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type admm_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type ddapc_restraint_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type dftb_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type dft_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type efield_p_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type efield_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type expot_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type gapw_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type maxwell_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type mulliken_restraint_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type period_efield_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type pw_grid_option without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type qs_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type rtp_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type s2_restraint_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type semi_empirical_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type stda_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type tddfpt2_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type tddfpt_control_type without initializer https://cp2k.org/conv#c016
-cp_control_types.F: Found type xtb_control_type without initializer https://cp2k.org/conv#c016
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c101
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution" https://cp2k.org/conv#c012
