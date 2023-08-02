@@ -341,7 +341,8 @@ CONTAINS
          CALL exstate_potential_release(ex_env)
          CALL ks_ref_potential(qs_env, ex_env%vh_rspace, ex_env%vxc_rspace, &
                                ex_env%vtau_rspace, ex_env%vadmm_rspace, ehartree, exc)
-         CALL ks_ref_potential_atom(qs_env, ex_env%local_rho_set, ex_env%local_rho_set_admm)
+         CALL ks_ref_potential_atom(qs_env, ex_env%local_rho_set, ex_env%local_rho_set_admm, &
+                                    ex_env%vh_rspace)
          CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, &
                                   work_matrices, debug_forces)
       END IF
