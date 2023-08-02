@@ -7,8 +7,6 @@ almo_scf_types.F: Found type almo_scf_history_type without initializer https://c
 almo_scf_types.F: Found type optimizer_options_type without initializer https://cp2k.org/conv#c016
 almo_scf_types.F: Found type penalty_type without initializer https://cp2k.org/conv#c016
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
-al_system_types.F: Found type al_system_type without initializer https://cp2k.org/conv#c016
-al_system_types.F: Found type al_thermo_type without initializer https://cp2k.org/conv#c016
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
 base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
 base_hooks.F: Found STOP statement in procedure "cp__a" https://cp2k.org/conv#c205
@@ -18,7 +16,6 @@ base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint" https://cp2
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn" https://cp2k.org/conv#c012
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio" https://cp2k.org/conv#c201
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt" https://cp2k.org/conv#c201
-block_p_types.F: Found type block_p_type without initializer https://cp2k.org/conv#c016
 callgraph.F: Found type callgraph_item_type without initializer https://cp2k.org/conv#c016
 callgraph.F: Found type private_item_type without initializer https://cp2k.org/conv#c016
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test" https://cp2k.org/conv#c012

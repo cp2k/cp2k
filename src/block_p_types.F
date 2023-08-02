@@ -21,6 +21,6 @@ MODULE block_p_types
    PUBLIC :: block_p_type
 ! **************************************************************************************************
    TYPE block_p_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: block => NULL()
    END TYPE block_p_type
 END MODULE block_p_types
