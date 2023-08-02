@@ -16,7 +16,9 @@ MODULE callgraph
 
    #:call hash_map(prefix='callgraph', &
       key_type='INTEGER(kind=int_4), DIMENSION(2)', &
-      value_type='TYPE(call_stat_type), POINTER')
+      value_type='TYPE(call_stat_type), POINTER', &
+      key_default_init=' = 0_int_4', &
+      value_default_init=' => NULL()')
    #:endcall hash_map
 
 ! **************************************************************************************************

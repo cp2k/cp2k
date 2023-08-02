@@ -16,8 +16,6 @@ base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint" https://cp2
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn" https://cp2k.org/conv#c012
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio" https://cp2k.org/conv#c201
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt" https://cp2k.org/conv#c201
-callgraph.F: Found type callgraph_item_type without initializer https://cp2k.org/conv#c016
-callgraph.F: Found type private_item_type without initializer https://cp2k.org/conv#c016
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test" https://cp2k.org/conv#c012
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c101
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
@@ -489,8 +487,6 @@ qs_wf_history_types.F: Found type qs_wf_snapshot_type without initializer https:
 rel_control_types.F: Found type rel_control_type without initializer https://cp2k.org/conv#c016
 replica_types.F: Found type replica_env_p_type without initializer https://cp2k.org/conv#c016
 replica_types.F: Found type replica_env_type without initializer https://cp2k.org/conv#c016
-routine_map.F: Found type private_item_type without initializer https://cp2k.org/conv#c016
-routine_map.F: Found type routine_map_item_type without initializer https://cp2k.org/conv#c016
 rpa_im_time_force_types.F: Found type im_time_force_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type diagonalization_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type scf_control_type without initializer https://cp2k.org/conv#c016

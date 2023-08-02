@@ -5,7 +5,7 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-   #:def hash_map(prefix, key_type, value_type)
+   #:def hash_map(prefix, key_type, value_type, key_default_init, value_default_init)
 ! **************************************************************************************************
 !> \brief A hash map (also known as hashtable or dictionary).
 !>        Internally the hash map uses an array to holds its data.
@@ -33,9 +33,9 @@
 !for use during change_capacity().
       TYPE private_item_type
          PRIVATE
-         ${key_type}$                                :: key
-         ${value_type}$                              :: value
-         INTEGER(KIND=int_8)                         :: hash
+         ${key_type}$                                :: key ${key_default_init}$
+         ${value_type}$                              :: value ${value_default_init}$
+         INTEGER(KIND=int_8)                         :: hash = 0_int_8
          TYPE(private_item_type), POINTER            :: next => Null()
       END TYPE private_item_type
 
@@ -54,8 +54,8 @@
 
 ! this is a public type, its returned by  ${prefix}$_items()
       TYPE ${prefix}$_item_type
-         ${key_type}$        :: key
-         ${value_type}$      :: value
+         ${key_type}$        :: key ${key_default_init}$
+         ${value_type}$      :: value ${value_default_init}$
       END TYPE ${prefix}$_item_type
 
       CONTAINS
