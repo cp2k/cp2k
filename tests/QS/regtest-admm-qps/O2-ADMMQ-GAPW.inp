@@ -1,0 +1,65 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+        BASIS_SET_FILE_NAME BASIS_ADMM_UZH
+        POTENTIAL_FILE_NAME POTENTIAL_UZH
+        &MGRID
+            CUTOFF 200
+            REL_CUTOFF 40
+        &END MGRID
+        &AUXILIARY_DENSITY_MATRIX_METHOD
+            ADMM_PURIFICATION_METHOD NONE
+            METHOD CHARGE_CONSTRAINED_PROJECTION
+            EXCH_SCALING_MODEL NONE
+        &END
+        &POISSON
+            POISSON_SOLVER MT
+            PERIODIC NONE
+        &END
+        LSD
+        MULTIPLICITY 3
+        &QS
+            EPS_DEFAULT 1.0E-12
+            METHOD GAPW
+        &END
+        &SCF
+            SCF_GUESS ATOMIC
+            MAX_SCF 5
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL NONE
+            &END XC_FUNCTIONAL
+            &HF
+                FRACTION 1.0
+            &END
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 6.0 6.0 6.0
+            PERIODIC NONE
+        &END CELL
+        &TOPOLOGY
+        &END
+        &COORD
+            O   0.000000    0.000000    0.000000
+            O   0.000000    0.000000    1.160000
+        &END COORD
+        &KIND H
+            BASIS_SET ccGRB-D-q1
+            BASIS_SET AUX_FIT admm-dz-q1
+            POTENTIAL GTH-HYB-q1
+        &END KIND
+        &KIND O
+            BASIS_SET ccGRB-D-q6
+            BASIS_SET AUX_FIT admm-dz-q6
+            POTENTIAL GTH-HYB-q6
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT O2-ADMMQ-GAPW
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL

@@ -1,0 +1,66 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+        BASIS_SET_FILE_NAME BASIS_ADMM_UZH
+        POTENTIAL_FILE_NAME POTENTIAL_UZH
+        &MGRID
+            CUTOFF 200
+            REL_CUTOFF 40
+        &END MGRID
+        &AUXILIARY_DENSITY_MATRIX_METHOD
+            ADMM_PURIFICATION_METHOD NONE
+            METHOD CHARGE_CONSTRAINED_PROJECTION
+            EXCH_SCALING_MODEL MERLOT
+        &END
+        &QS
+            EPS_DEFAULT 1.0E-12
+            METHOD GPW
+        &END
+        &SCF
+            SCF_GUESS ATOMIC
+            MAX_SCF 5
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL
+               &PBE
+                  SCALE_X 0.55
+               &END
+            &END XC_FUNCTIONAL
+            &HF
+                FRACTION 0.45
+                &INTERACTION_POTENTIAL
+                  POTENTIAL_TYPE TRUNCATED
+                  CUTOFF_RADIUS 2.0
+                &END
+            &END
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 4.5 4.5 4.5
+        &END CELL
+        &TOPOLOGY
+        &END
+        &COORD
+            O   0.000000    0.000000   -0.065587                                                     
+            H   0.000000   -0.757136    0.520545                                                     
+            H   0.000000    0.757136    0.520545
+        &END COORD
+        &KIND H
+            BASIS_SET ccGRB-D-q1
+            BASIS_SET AUX_FIT admm-dz-q1
+            POTENTIAL GTH-HYB-q1
+        &END KIND
+        &KIND O
+            BASIS_SET ccGRB-D-q6
+            BASIS_SET AUX_FIT admm-dz-q6
+            POTENTIAL GTH-HYB-q6
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT H2O-ADMMS-HYB
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL

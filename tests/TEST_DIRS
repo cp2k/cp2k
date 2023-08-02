@@ -112,6 +112,7 @@ QS/regtest-hfx                                              libint
 QS/regtest-rel
 QS/regtest-ls-rtp
 QS/regtest-admm-qps                                         libint
+QS/regtest-admm-qps-2                                       libint
 ATOM/regtest-pseudo
 Fist/regtest-7-1
 QMMM/SE/regtest-force-mixing

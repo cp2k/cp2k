@@ -57,9 +57,8 @@ MODULE qs_ks_utils
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
-        cdft_magnetization_constraint, do_admm_aux_exch_func_none, do_admm_exch_scaling_merlot, &
-        do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, &
-        sic_none
+        cdft_magnetization_constraint, do_admm_aux_exch_func_none, do_ppl_grid, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1653,11 +1652,9 @@ CONTAINS
                   END IF
                   fadm = 1.0_dp
                   ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
-                  IF ((.NOT. admm_env%charge_constrain) .AND. &
-                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+                  IF (admm_env%do_admmp) THEN
                      fadm = admm_env%gsi(ispin)**2
-                  ELSE IF (admm_env%charge_constrain .AND. &
-                           (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+                  ELSE IF (admm_env%do_admms) THEN
                      fadm = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
                   END IF
 

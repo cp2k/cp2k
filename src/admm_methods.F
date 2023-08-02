@@ -51,11 +51,10 @@ MODULE admm_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
-   USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
-                                              do_admm_exch_scaling_none,&
-                                              do_admm_purify_cauchy,&
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
+   USE input_constants,                 ONLY: do_admm_purify_cauchy,&
                                               do_admm_purify_cauchy_subspace,&
                                               do_admm_purify_mo_diag,&
                                               do_admm_purify_mo_no_diag,&
@@ -101,7 +100,6 @@ MODULE admm_methods
              admm_mo_merge_derivs, &
              admm_aux_response_density, &
              calc_mixed_overlap_force, &
-             calc_aux_mo_derivs_none, &
              scale_dm, &
              admm_fit_mo_coeffs, &
              admm_update_ks_atom, &
@@ -261,6 +259,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_update_ks_atom'
 
       INTEGER                                            :: handle, ispin
+      REAL(dp)                                           :: force_fac(2)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_dft, &
@@ -279,11 +278,23 @@ CONTAINS
                         matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
       CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
 
+      !In case of ADMMS or ADMMP, need to scale the forces stemming from DFT exchagne correction
+      force_fac = 1.0_dp
+      IF (admm_env%do_admms) THEN
+         DO ispin = 1, dft_control%nspins
+            force_fac(ispin) = admm_env%gsi(ispin)**(2.0_dp/3.0_dp)
+         END DO
+      ELSE IF (admm_env%do_admmp) THEN
+         DO ispin = 1, dft_control%nspins
+            force_fac(ispin) = admm_env%gsi(ispin)**2
+         END DO
+      END IF
+
       CALL update_ks_atom(qs_env, matrix_ks_aux_fit, rho_ao_aux, calculate_forces, tddft=.FALSE., &
                           rho_atom_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
                           kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                           oce_external=admm_env%admm_gapw_env%oce, &
-                          sab_external=admm_env%sab_aux_fit)
+                          sab_external=admm_env%sab_aux_fit, fscale=force_fac)
 
       !Following the logic of sum_up_and_integrate to recover the pure DFT exchange contribution
       DO ispin = 1, dft_control%nspins
@@ -1289,8 +1300,7 @@ CONTAINS
             nmo = admm_env%nmo(ispin)
 
             ! ADMMS: different matrix for calculating A^(T)*K*A, see Eq. (37) Merlot
-            IF (admm_env%charge_constrain .AND. &
-                (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+            IF (admm_env%do_admms) THEN
                NULLIFY (matrix_ks_aux_fit_admms_tmp)
                ALLOCATE (matrix_ks_aux_fit_admms_tmp)
                CALL dbcsr_create(matrix_ks_aux_fit_admms_tmp, template=matrix_ks_aux_fit(ispin)%matrix, &
@@ -1328,13 +1338,12 @@ CONTAINS
 
             ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces separately
             ! Scale matrix_K_tilde by gsi for ADMMQ and ADMMS (Eqs. (27), (37) in Merlot, 2014)
-            IF (admm_env%charge_constrain) THEN
+            IF (admm_env%do_admmq .OR. admm_env%do_admms) THEN
                CALL dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin))
             END IF
 
             ! Scale matrix_K_tilde by gsi^2 for ADMMP (Eq. (35) in Merlot, 2014)
-            IF ((.NOT. admm_env%charge_constrain) .AND. &
-                (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+            IF (admm_env%do_admmp) THEN
                gsi_square = (admm_env%gsi(ispin))*(admm_env%gsi(ispin))
                CALL dbcsr_scale(matrix_k_tilde, gsi_square)
             END IF
@@ -1342,16 +1351,14 @@ CONTAINS
             admm_env%lambda_merlot(ispin) = 0
 
             ! Calculate LAMBDA according to Merlot, 1. IF: ADMMQ, 2. IF: ADMMP, 3. IF: ADMMS,
-            IF (admm_env%charge_constrain .AND. &
-                (admm_env%scaling_model == do_admm_exch_scaling_none)) THEN
+            IF (admm_env%do_admmq) THEN
                CALL dbcsr_dot(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
 
                ! Factor of 2 is missing compared to Eq. 28 in Merlot due to
                ! Tr(ds) = N in the code \neq 2N in Merlot
                admm_env%lambda_merlot(ispin) = trace_tmp/(admm_env%n_large_basis(ispin))
 
-            ELSE IF ((.NOT. admm_env%charge_constrain) .AND. &
-                     (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+            ELSE IF (admm_env%do_admmp) THEN
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
                                                    ener_x_ispin=ener_x(ispin), ener_x1_ispin=ener_x1(ispin), &
@@ -1366,8 +1373,7 @@ CONTAINS
                                                   /(admm_env%n_large_basis(ispin))
                END IF
 
-            ELSE IF (admm_env%charge_constrain .AND. &
-                     (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+            ELSE IF (admm_env%do_admms) THEN
                CALL dbcsr_dot(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
                CALL dbcsr_dot(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp_two)
                ! For ADMMS open-shell case we need k and x (Merlot) separately since gsi(a)\=gsi(b)
@@ -1390,8 +1396,7 @@ CONTAINS
             ! Calculate variational distribution to KS matrix according
             ! to Eqs. (27), (35) and (37) in Merlot, 2014
 
-            IF (admm_env%charge_constrain .OR. &
-                (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+            IF (admm_env%do_admmp .OR. admm_env%do_admmq .OR. admm_env%do_admms) THEN
 
                !! T^T*s_aux*T in (27) Merlot (T=A), as calculating A^T*K*A few lines above
                CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix, admm_env%work_aux_aux4)
@@ -1416,11 +1421,8 @@ CONTAINS
 
                !Add -(gsi)*Lambda*TtsT and Lambda*S to the KS matrix according to Merlot2014
 
-               IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .OR. &
-                   admm_env%charge_constrain) THEN
-                  CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_TtsT, 1.0_dp, &
-                                 (-admm_env%lambda_merlot(ispin))*admm_env%gsi(ispin))
-               END IF
+               CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_TtsT, 1.0_dp, &
+                              (-admm_env%lambda_merlot(ispin))*admm_env%gsi(ispin))
 
                CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, 1.0_dp, admm_env%lambda_merlot(ispin))
 
@@ -1436,38 +1438,36 @@ CONTAINS
       END DO !spin loop
 
       ! Scale energy for ADMMP and ADMMS
-      IF (admm_env%scaling_model == do_admm_exch_scaling_merlot) THEN
-         IF (.NOT. admm_env%charge_constrain) THEN
-            !       ener_k = ener_k*(admm_env%gsi(1))*(admm_env%gsi(1))
-            !       ener_x = ener_x*(admm_env%gsi(1))*(admm_env%gsi(1))
-            !        PRINT *, 'energy%ex = ', energy%ex
-            IF (dft_control%nspins == 2) THEN
-               energy%exc_aux_fit = 0.0_dp
-               energy%exc1_aux_fit = 0.0_dp
-               energy%ex = 0.0_dp
-               DO ispin = 1, dft_control%nspins
-                  energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x(ispin)
-                  energy%exc1_aux_fit = energy%exc1_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x1(ispin)
-                  energy%ex = energy%ex + (admm_env%gsi(ispin))**2.0_dp*ener_k(ispin)
-               END DO
-            ELSE
-               energy%exc_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc_aux_fit
-               energy%exc1_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc1_aux_fit
-               energy%ex = (admm_env%gsi(1))**2.0_dp*energy%ex
-            END IF
+      IF (admm_env%do_admmp) THEN
+         !       ener_k = ener_k*(admm_env%gsi(1))*(admm_env%gsi(1))
+         !       ener_x = ener_x*(admm_env%gsi(1))*(admm_env%gsi(1))
+         !        PRINT *, 'energy%ex = ', energy%ex
+         IF (dft_control%nspins == 2) THEN
+            energy%exc_aux_fit = 0.0_dp
+            energy%exc1_aux_fit = 0.0_dp
+            energy%ex = 0.0_dp
+            DO ispin = 1, dft_control%nspins
+               energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x(ispin)
+               energy%exc1_aux_fit = energy%exc1_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x1(ispin)
+               energy%ex = energy%ex + (admm_env%gsi(ispin))**2.0_dp*ener_k(ispin)
+            END DO
+         ELSE
+            energy%exc_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc_aux_fit
+            energy%exc1_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc1_aux_fit
+            energy%ex = (admm_env%gsi(1))**2.0_dp*energy%ex
+         END IF
 
-         ELSE IF (admm_env%charge_constrain) THEN
-            IF (dft_control%nspins == 2) THEN
-               energy%exc_aux_fit = 0.0_dp
-               energy%exc1_aux_fit = 0.0_dp
-               DO ispin = 1, dft_control%nspins
-                  energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x(ispin)
-                  energy%exc1_aux_fit = energy%exc1_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x1(ispin)
-               END DO
-            ELSE
-               energy%exc_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc_aux_fit
-               energy%exc1_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc1_aux_fit
-            END IF
+      ELSE IF (admm_env%do_admms) THEN
+         IF (dft_control%nspins == 2) THEN
+            energy%exc_aux_fit = 0.0_dp
+            energy%exc1_aux_fit = 0.0_dp
+            DO ispin = 1, dft_control%nspins
+               energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x(ispin)
+               energy%exc1_aux_fit = energy%exc1_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x1(ispin)
+            END DO
+         ELSE
+            energy%exc_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc_aux_fit
+            energy%exc1_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc1_aux_fit
          END IF
       END IF
 
@@ -1648,8 +1648,7 @@ CONTAINS
                       dft_control=dft_control)
 
       ! only for ADMMP
-      IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
-          .NOT. admm_env%charge_constrain) THEN
+      IF (admm_env%do_admmp) THEN
          DO ispin = 1, dft_control%nspins
             DO img = 1, dft_control%nimages
                IF (scale_back) THEN
@@ -1671,20 +1670,23 @@ CONTAINS
 !> \param admm_env ...
 !> \param mo_set ...
 !> \param mo_coeff_aux_fit ...
-!> \param matrix_ks_aux_fit ...
 ! **************************************************************************************************
-   SUBROUTINE calc_aux_mo_derivs_none(ispin, admm_env, mo_set, mo_coeff_aux_fit, &
-                                      matrix_ks_aux_fit)
+   SUBROUTINE calc_aux_mo_derivs_none(ispin, admm_env, mo_set, mo_coeff_aux_fit)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff_aux_fit
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none'
 
       INTEGER                                            :: handle, nao_aux_fit, nao_orb, nmo
       REAL(dp), DIMENSION(:), POINTER                    :: occupation_numbers, scaling_factor
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, &
+                                                            matrix_ks_aux_fit_dft, &
+                                                            matrix_ks_aux_fit_hfx
+      TYPE(dbcsr_type)                                   :: dbcsr_work
+
+      NULLIFY (matrix_ks_aux_fit, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx)
 
       CALL timeset(routineN, handle)
 
@@ -1692,13 +1694,26 @@ CONTAINS
       nao_orb = admm_env%nao_orb
       nmo = admm_env%nmo(ispin)
 
+      CALL get_admm_env(admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, &
+                        matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, &
+                        matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft)
+
       ! just calculate the mo derivs in the aux basis
       ! only needs to be done on the converged ks matrix for the force calc
       ! Note with OT and purification NONE, the merging of the derivs
       ! happens implicitly because the KS matrices have been already been merged
       ! and adding them here would be double counting.
 
-      CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
+      IF (admm_env%do_admms) THEN
+         !In ADMMS, we use the K matrix defined as K_hf - gsi^2/3*K_dft
+         CALL dbcsr_create(dbcsr_work, template=matrix_ks_aux_fit(ispin)%matrix)
+         CALL dbcsr_copy(dbcsr_work, matrix_ks_aux_fit_hfx(ispin)%matrix)
+         CALL dbcsr_add(dbcsr_work, matrix_ks_aux_fit_dft(ispin)%matrix, 1.0_dp, -admm_env%gsi(ispin)**(2.0_dp/3.0_dp))
+         CALL copy_dbcsr_to_fm(dbcsr_work, admm_env%K(ispin))
+         CALL dbcsr_release(dbcsr_work)
+      ELSE
+         CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
+      END IF
       CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
       CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
@@ -1841,8 +1856,7 @@ CONTAINS
       INTEGER                                            :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mo_set_type), POINTER                         :: mo_set
@@ -1853,21 +1867,19 @@ CONTAINS
          CPABORT("Forces with ADMM DM methods not implemented")
       END IF
       IF (dft_control%do_admm_mo .AND. .NOT. qs_env%run_rtp) THEN
-         NULLIFY (matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_ks_aux_fit, &
-                  mos_aux_fit, mos, admm_env)
+         NULLIFY (matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, mos_aux_fit, mos, admm_env)
          CALL get_qs_env(qs_env=qs_env, &
                          mos=mos, &
                          admm_env=admm_env)
          CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit, mos_aux_fit=mos_aux_fit, &
-                           matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, matrix_ks_aux_fit=matrix_ks_aux_fit)
+                           matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
          DO ispin = 1, dft_control%nspins
             mo_set => mos(ispin)
             CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff)
             ! if no purification we need to calculate the H matrix for forces
             IF (admm_env%purification_method == do_admm_purify_none) THEN
                CALL get_mo_set(mo_set=mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
-               CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
-                                            mo_coeff_aux_fit, matrix_ks_aux_fit)
+               CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, mo_coeff_aux_fit)
             END IF
          END DO
          CALL calc_mixed_overlap_force(qs_env)
@@ -2141,11 +2153,9 @@ CONTAINS
          ! Add derivative contribution matrix*dQ/dR in additional last term in
          ! Eq. (26,32, 33) in Merlot2014 to the force
          ! ADMMS
-         IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
-             admm_env%charge_constrain) THEN
+         IF (admm_env%do_admms) THEN
             ! *** scale admm_env%work_aux_orb by gsi due to inner derivative
             CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb)
-            ! ***  as in ADMMP only with different sign
             CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
                                4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
                                mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
@@ -2156,11 +2166,11 @@ CONTAINS
                                admm_env%work_aux_orb)
 
             ! ADMMP
-         ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
-                  .NOT. admm_env%charge_constrain) THEN
+         ELSE IF (admm_env%do_admmp) THEN
+            CALL cp_fm_scale(admm_env%gsi(ispin)**2, admm_env%work_aux_orb)
             ! *** prefactor*C*C^(T), nspins since 2/n_spin*C*C^(T)=P
             CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                               -4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
+                               4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
                                mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
 
             ! *** prefactor*A*C*C^(T) Add to work aux_orb
@@ -2169,11 +2179,9 @@ CONTAINS
                                admm_env%work_aux_orb)
 
             ! ADMMQ
-         ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_none .AND. &
-                  admm_env%charge_constrain) THEN
+         ELSE IF (admm_env%do_admmq) THEN
             ! *** scale admm_env%work_aux_orb by gsi due to inner derivative
             CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb)
-            ! ***  as in ADMMP only with different sign
             CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
                                4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
                                mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
@@ -2202,8 +2210,7 @@ CONTAINS
          CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
 
          ! Add derivative of Eq. (33) with respect to s_aux Merlot2014 to the force
-         IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .OR. &
-             admm_env%charge_constrain) THEN
+         IF (admm_env%do_admmp .OR. admm_env%do_admmq .OR. admm_env%do_admms) THEN
 
             !Create desymmetrized auxiliary density matrix
             NULLIFY (matrix_rho_aux_desymm_tmp)
@@ -2214,28 +2221,19 @@ CONTAINS
 
             CALL dbcsr_desymmetrize(rho_ao_aux(ispin)%matrix, matrix_rho_aux_desymm_tmp)
 
-            ! ADMMS 1. scale original matrix_w_s by gsi due to inner deriv.
+            ! ADMMS/Q 1. scale original matrix_w_s by gsi due to inner deriv.
             !       2. add derivative of variational term with resp. to s
-            IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
-                admm_env%charge_constrain) THEN
+            IF (admm_env%do_admms .OR. admm_env%do_admmq) THEN
                CALL dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
                CALL dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
                               -admm_env%lambda_merlot(ispin))
 
-               ! ADMMP add derivative of variational term with resp. to s
-            ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
-                     .NOT. admm_env%charge_constrain) THEN
+               ! ADMMP scale by gsi^2 and add derivative of variational term with resp. to s
+            ELSE IF (admm_env%do_admmp) THEN
 
+               CALL dbcsr_scale(matrix_w_s, admm_env%gsi(ispin)**2)
                CALL dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                              (admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin))
-
-               ! ADMMQ 1. scale original matrix_w_s by gsi due to inner deriv.
-               !       2. add derivative of variational term with resp. to s
-            ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_none .AND. &
-                     admm_env%charge_constrain) THEN
-               CALL dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
-               CALL dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                              -admm_env%lambda_merlot(ispin))
+                              (-admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin))
 
             END IF
 
@@ -2254,26 +2252,8 @@ CONTAINS
                                   basis_type_a="AUX_FIT", basis_type_b="ORB", &
                                   sab_nl=admm_env%sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
 
-         ! Add contribution of original basis set for ADMMQ
-         IF (.NOT. admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain) THEN
-            CALL dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
-            CALL build_overlap_force(ks_env, admm_force, &
-                                     basis_type_a="ORB", basis_type_b="ORB", &
-                                     sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
-            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
-         END IF
-
-         ! Add contribution of original basis set for ADMMP
-         IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. .NOT. admm_env%charge_constrain) THEN
-            CALL dbcsr_scale(rho_ao(ispin)%matrix, admm_env%lambda_merlot(ispin))
-            CALL build_overlap_force(ks_env, admm_force, &
-                                     basis_type_a="ORB", basis_type_b="ORB", &
-                                     sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
-            CALL dbcsr_scale(rho_ao(ispin)%matrix, 1.0_dp/admm_env%lambda_merlot(ispin))
-         END IF
-
-         ! Add contribution of original basis set for ADMMS
-         IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain) THEN
+         ! Add contribution of original basis set for ADMMQ, P, S
+         IF (admm_env%do_admmq .OR. admm_env%do_admmp .OR. admm_env%do_admms) THEN
             CALL dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
             CALL build_overlap_force(ks_env, admm_force, &
                                      basis_type_a="ORB", basis_type_b="ORB", &
@@ -2376,7 +2356,7 @@ CONTAINS
       !  The following IF checks whether gsi needs to be calculated. This is the case if
       !   the auxiliary density matrix gets scaled
       !   according to Eq. 22 (Merlot) or a scaling of exchange_correction is employed, Eq. 35 (Merlot).
-      IF (admm_env%charge_constrain .OR. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
+      IF (admm_env%do_admmp .OR. admm_env%do_admmq .OR. admm_env%do_admms) THEN
 
          CALL cite_reference(Merlot2014)
 
@@ -2390,7 +2370,7 @@ CONTAINS
          CALL dbcsr_dot(density_matrix, overlap_matrix, nel_tmp_aux)
          admm_env%gsi(ispin) = admm_env%n_large_basis(ispin)/nel_tmp_aux
 
-         IF (admm_env%charge_constrain) THEN
+         IF (admm_env%do_admmq .OR. admm_env%do_admms) THEN
             ! multiply aux. DM with gsi to get the scaled DM (Merlot, Eq. 21)
             CALL dbcsr_scale(density_matrix, admm_env%gsi(ispin))
          END IF
