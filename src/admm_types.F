@@ -30,6 +30,7 @@ MODULE admm_types
                                               do_admm_blocked_projection,&
                                               do_admm_blocking_purify_full,&
                                               do_admm_charge_constrained_projection,&
+                                              do_admm_exch_scaling_merlot,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_release,&
@@ -160,7 +161,8 @@ MODULE admm_types
                                                   n_large_basis(3) = 0.0_dp
       INTEGER                                  :: nao_orb = 0, nao_aux_fit = 0, nmo(2) = 0
       INTEGER                                  :: purification_method = do_admm_purify_none
-      LOGICAL                                  :: charge_constrain = .FALSE.
+      LOGICAL                                  :: charge_constrain = .FALSE., do_admmp = .FALSE., &
+                                                  do_admmq = .FALSE., do_admms = .FALSE.
       INTEGER                                  :: scaling_model = do_admm_exch_scaling_none, &
                                                   aux_exch_func = do_admm_aux_exch_func_none
       LOGICAL                                  :: aux_exch_func_param = .FALSE.
@@ -367,6 +369,14 @@ CONTAINS
       admm_env%block_fit = admm_control%method == do_admm_blocked_projection
       admm_env%aux_exch_func_param = admm_control%aux_exch_func_param
       admm_env%aux_x_param(:) = admm_control%aux_x_param(:)
+
+      !ADMMP, ADMMQ, ADMMS
+      IF ((.NOT. admm_env%charge_constrain) .AND. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) &
+         admm_env%do_admmp = .TRUE.
+      IF (admm_env%charge_constrain .AND. (admm_env%scaling_model == do_admm_exch_scaling_none)) &
+         admm_env%do_admmq = .TRUE.
+      IF (admm_env%charge_constrain .AND. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) &
+         admm_env%do_admms = .TRUE.
 
       IF ((admm_control%method == do_admm_blocking_purify_full) .OR. &
           (admm_control%method == do_admm_blocked_projection)) THEN

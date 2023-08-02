@@ -152,7 +152,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, n_rep_hf, nao_aux_fit, &
                                                             natoms, nelectron, nmo
-      LOGICAL                                            :: s_mstruct_changed
+      LOGICAL                                            :: s_mstruct_changed, use_virial
       REAL(dp)                                           :: maxocc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -166,9 +166,10 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (admm_env, hfx_sections, mos, mos_aux_fit, para_env, &
+      NULLIFY (admm_env, hfx_sections, mos, mos_aux_fit, para_env, virial, &
                mo_coeff_aux_fit, xc_section, rho, ks_env, dft_control, input, &
                qs_kind_set, mo_coeff_b, aux_fit_fm_struct, blacs_env)
 
@@ -181,7 +182,8 @@ CONTAINS
                       rho=rho, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
-                      input=input)
+                      input=input, &
+                      virial=virial)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
@@ -268,6 +270,16 @@ CONTAINS
 
       IF (admm_env%do_gapw .AND. dft_control%do_admm_dm) THEN
          CPABORT("GAPW ADMM not implemented for MCWEENY or NONE_DM purification.")
+      END IF
+
+      !ADMMS and ADMMP stress tensors only available for close-shell systesms, because virial cannot
+      !be scaled by gsi spin component wise
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (use_virial .AND. admm_env%do_admms .AND. dft_control%nspins == 2) THEN
+         CPABORT("ADMMS stress tensor is only available for closed-shell systems")
+      END IF
+      IF (use_virial .AND. admm_env%do_admmp .AND. dft_control%nspins == 2) THEN
+         CPABORT("ADMMP stress tensor is only available for closed-shell systems")
       END IF
 
       IF (dft_control%do_admm_dm .AND. .NOT. ASSOCIATED(admm_env%admm_dm)) THEN

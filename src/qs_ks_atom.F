@@ -94,6 +94,7 @@ CONTAINS
 !> \param oce_external ...
 !> \param sab_external ...
 !> \param kscale ...
+!> \param fscale ...
 !> \par History
 !>      created [MI]
 !>      the loop over the spins is done internally [03-05,MI]
@@ -102,7 +103,7 @@ CONTAINS
 !>      Allow for external kind_set, rho_atom_set, oce, sab 12.2019 (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE update_ks_atom(qs_env, ksmat, pmat, forces, tddft, rho_atom_external, &
-                             kind_set_external, oce_external, sab_external, kscale)
+                             kind_set_external, oce_external, sab_external, kscale, fscale)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(*), INTENT(INOUT)    :: ksmat, pmat
@@ -115,7 +116,7 @@ CONTAINS
       TYPE(oce_matrix_type), OPTIONAL, POINTER           :: oce_external
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_external
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kscale
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kscale, fscale(2)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
@@ -133,7 +134,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
-      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
+      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2, force_fac(2)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
@@ -196,6 +197,9 @@ CONTAINS
          factor1 = factor1*kscale
          factor2 = factor2*kscale
       END IF
+
+      force_fac = 1.0_dp
+      IF (PRESENT(fscale)) force_fac(:) = fscale(:)
 
       IF (PRESENT(rho_atom_external)) my_rho_atom => rho_atom_external
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
@@ -296,7 +300,7 @@ CONTAINS
 !$OMP                 , basis_set_list, nimages, cell_to_index       &
 !$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce &
 !$OMP                 , my_rho_atom, factor1, factor2, use_virial    &
-!$OMP                 , atom_of_kind, ldCPC, force, locks            &
+!$OMP                 , atom_of_kind, ldCPC, force, locks, force_fac &
 !$OMP                 )                                              &
 !$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
 !$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
@@ -464,7 +468,7 @@ CONTAINS
                                  CALL add_vhxca_forces(mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
                                                        rho_at, force_tmp, nspins, iatom, jatom, nsoctot, &
                                                        list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, &
-                                                       PC_h, PC_s, p_matrix)
+                                                       PC_h, PC_s, p_matrix, force_fac)
                                  force_tmp = factor2*force_tmp
 !$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
                                  force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
@@ -483,7 +487,7 @@ CONTAINS
                                  CALL add_vhxca_forces(mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
                                                        rho_at, force_tmp, nspins, jatom, iatom, nsoctot, &
                                                        list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, &
-                                                       PC_h, PC_s, p_matrix)
+                                                       PC_h, PC_s, p_matrix, force_fac)
                                  force_tmp = factor2*force_tmp
 !$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
                                  force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
@@ -726,10 +730,11 @@ CONTAINS
 !> \param PC_h ...
 !> \param PC_s ...
 !> \param p_matrix ...
+!> \param force_scaling ...
 ! **************************************************************************************************
    SUBROUTINE add_vhxca_forces(mat_p, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
                                rho_atom, force, nspins, ia, ja, nsp, lista, nconta, listb, ncontb, &
-                               dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix)
+                               dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix, force_scaling)
       TYPE(cp_2d_r_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: mat_p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: C_hh_a, C_hh_b, C_ss_a, C_ss_b
@@ -744,6 +749,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldCPC
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: PC_h, PC_s
       REAL(KIND=dp), DIMENSION(:, :)                     :: p_matrix
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: force_scaling
 
       INTEGER                                            :: dir, ispin
       REAL(dp), DIMENSION(:, :), POINTER                 :: int_hard, int_soft
@@ -781,15 +787,15 @@ CONTAINS
                        C_hh_a(:, :, dir), SIZE(C_hh_a, 1), &
                        0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
             trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace
-            force(dir - 1, 1) = force(dir - 1, 1) - ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace*force_scaling(ispin)
+            force(dir - 1, 1) = force(dir - 1, 1) - ieqj*trace*force_scaling(ispin)
 
             CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
                        C_ss_a(:, :, dir), SIZE(C_ss_a, 1), &
                        0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
             trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace
-            force(dir - 1, 1) = force(dir - 1, 1) + ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace*force_scaling(ispin)
+            force(dir - 1, 1) = force(dir - 1, 1) + ieqj*trace*force_scaling(ispin)
          END DO
 
          ! j-k contributions
@@ -805,15 +811,15 @@ CONTAINS
                        C_hh_b(:, :, dir), SIZE(C_hh_b, 1), &
                        0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
             trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace
-            force(dir - 1, 2) = force(dir - 1, 2) - ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace*force_scaling(ispin)
+            force(dir - 1, 2) = force(dir - 1, 2) - ieqj*trace*force_scaling(ispin)
 
             CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
                        C_ss_b(:, :, dir), SIZE(C_ss_b, 1), &
                        0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
             trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
-            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace
-            force(dir - 1, 2) = force(dir - 1, 2) + ieqj*trace
+            force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace*force_scaling(ispin)
+            force(dir - 1, 2) = force(dir - 1, 2) + ieqj*trace*force_scaling(ispin)
          END DO
 
       END DO !ispin

@@ -185,7 +185,7 @@ CONTAINS
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
-                                                            mulliken_order_p
+                                                            mulliken_order_p, vscale
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -538,8 +538,12 @@ CONTAINS
          NULLIFY (rho_struct)
 
          IF (use_virial .AND. calculate_forces) THEN
-            virial%pv_exc = virial%pv_exc - virial%pv_xc
-            virial%pv_virial = virial%pv_virial - virial%pv_xc
+            vscale = 1.0_dp
+            !Note: ADMMS and ADMMP stress tensor only for closed-shell calculations
+            IF (admm_env%do_admms) vscale = admm_env%gsi(1)**(2.0_dp/3.0_dp)
+            IF (admm_env%do_admmp) vscale = admm_env%gsi(1)**2
+            virial%pv_exc = virial%pv_exc - vscale*virial%pv_xc
+            virial%pv_virial = virial%pv_virial - vscale*virial%pv_xc
             ! virial%pv_xc will be zeroed in the xc routines
          END IF
          xc_section => admm_env%xc_section_primary
