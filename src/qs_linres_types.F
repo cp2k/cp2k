@@ -103,10 +103,10 @@ MODULE qs_linres_types
       LOGICAL                                             :: all_pert_op_done = .FALSE.
       LOGICAL, DIMENSION(:, :), POINTER                   :: full_done => NULL()
       INTEGER                                             :: nao = HUGE(1)
-      INTEGER                                             :: nstates(2) = HUGE(1)
+      INTEGER, DIMENSION(2)                               :: nstates = HUGE(1)
       INTEGER                                             :: gauge = HUGE(1)
       INTEGER                                             :: orb_center = HUGE(1)
-      INTEGER                                             :: nbr_center(2) = HUGE(1)
+      INTEGER, DIMENSION(2)                               :: nbr_center = HUGE(1)
       INTEGER, DIMENSION(:), POINTER                      :: list_cubes => NULL()
       INTEGER, DIMENSION(:), POINTER                      :: selected_states_on_atom_list => NULL()
       INTEGER, DIMENSION(:, :, :), POINTER                :: statetrueindex => NULL()
