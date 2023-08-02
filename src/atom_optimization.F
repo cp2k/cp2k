@@ -21,21 +21,21 @@ MODULE atom_optimization
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_optimization'
 
    TYPE hmat_type
-      REAL(dp)                                  :: energy
-      REAL(dp)                                  :: error
-      REAL(dp), DIMENSION(:, :, :), POINTER     :: emat
-      REAL(dp), DIMENSION(:, :, :), POINTER     :: fmat
-      REAL(dp), DIMENSION(:, :, :), POINTER     :: pmat
+      REAL(dp)                                  :: energy = 0.0_dp
+      REAL(dp)                                  :: error = 0.0_dp
+      REAL(dp), DIMENSION(:, :, :), POINTER     :: emat => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER     :: fmat => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER     :: pmat => NULL()
    END TYPE hmat_type
 
    TYPE atom_history_type
-      INTEGER                                  :: max_history
-      INTEGER                                  :: hlen
-      INTEGER                                  :: hpos
-      REAL(dp)                                 :: damping
-      REAL(dp)                                 :: eps_diis
-      REAL(dp), DIMENSION(:, :), POINTER       :: dmat
-      TYPE(hmat_type), DIMENSION(:), POINTER   :: hmat
+      INTEGER                                  :: max_history = 0
+      INTEGER                                  :: hlen = 0
+      INTEGER                                  :: hpos = 0
+      REAL(dp)                                 :: damping = 0.0_dp
+      REAL(dp)                                 :: eps_diis = 0.0_dp
+      REAL(dp), DIMENSION(:, :), POINTER       :: dmat => NULL()
+      TYPE(hmat_type), DIMENSION(:), POINTER   :: hmat => NULL()
    END TYPE atom_history_type
 
    PUBLIC :: atom_opt_fmat, &

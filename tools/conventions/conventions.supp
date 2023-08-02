@@ -9,28 +9,6 @@ almo_scf_types.F: Found type penalty_type without initializer https://cp2k.org/c
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
 al_system_types.F: Found type al_system_type without initializer https://cp2k.org/conv#c016
 al_system_types.F: Found type al_thermo_type without initializer https://cp2k.org/conv#c016
-atom_fit.F: Found type wfn_init without initializer https://cp2k.org/conv#c016
-atom_grb.F: Found type basis_p_type without initializer https://cp2k.org/conv#c016
-atom_optimization.F: Found type atom_history_type without initializer https://cp2k.org/conv#c016
-atom_optimization.F: Found type hmat_type without initializer https://cp2k.org/conv#c016
-atom_sgp.F: Found type atom_sgp_potential_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_basis_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_ecppot_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_energy_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_gthpot_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_hfx_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_integrals without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_optimization_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_orbitals without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_potential_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_p_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_sgppot_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_state without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type atom_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type eri without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type opgrid_type without initializer https://cp2k.org/conv#c016
-atom_types.F: Found type opmat_type without initializer https://cp2k.org/conv#c016
-atom_upf.F: Found type atom_upfpot_type without initializer https://cp2k.org/conv#c016
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
 base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
 base_hooks.F: Found STOP statement in procedure "cp__a" https://cp2k.org/conv#c205

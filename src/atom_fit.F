@@ -58,7 +58,7 @@ MODULE atom_fit
    PUBLIC :: atom_fit_density, atom_fit_basis, atom_fit_pseudo, atom_fit_kgpot
 
    TYPE wfn_init
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER       :: wfn
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER       :: wfn => NULL()
    END TYPE wfn_init
 
 CONTAINS
