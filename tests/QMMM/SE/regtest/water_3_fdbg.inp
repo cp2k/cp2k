@@ -33,7 +33,7 @@
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
-        GMAX 30
+        GMAX 42
       &END EWALD
     &END POISSON
   &END MM

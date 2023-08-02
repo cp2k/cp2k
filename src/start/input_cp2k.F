@@ -349,6 +349,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_RELATIVE_ERROR", &
+                          description="The maximum relative error that will be "// &
+                          "flagged [in percent]. ", &
+                          usage="MAX_RELATIVE_ERROR {REAL}", default_r_val=0.2_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_NO_ERROR_CHECK", &
                           description="The mismatch between the numerical and the "// &
                           "analytical value is not checked for analytical "// &

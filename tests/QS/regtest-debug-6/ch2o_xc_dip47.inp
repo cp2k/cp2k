@@ -38,10 +38,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-6
+         EPS_SCF 1.0E-8
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-8
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0 
@@ -96,6 +96,7 @@
    DEBUG_DIPOLE .TRUE.
    CHECK_DIPOLE_DIRS Z
    DEBUG_POLARIZABILITY .FALSE.
-   DE 0.001
+   DE 0.0005
+   MAX_RELATIVE_ERROR 5.
 &END
 

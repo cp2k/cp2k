@@ -30,15 +30,15 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-8
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-8
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 8.0 8.0 8.0
       PERIODIC NONE
     &END
     &COORD
@@ -68,6 +68,6 @@
    DEBUG_DIPOLE .FALSE.
    DEBUG_POLARIZABILITY .FALSE.
    STOP_ON_MISMATCH T
-   DE 0.0002
+   DE 0.0005
 &END
 

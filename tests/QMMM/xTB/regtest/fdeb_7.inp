@@ -6,6 +6,7 @@
     &END QS
     &SCF
       SCF_GUESS MOPAC
+      EPS_SCF 1.E-8
     &END SCF
   &END DFT
   &MM
@@ -59,7 +60,7 @@
   &END MM
   &QMMM
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 8.0 8.0 8.0
     &END CELL
     ECOUPL POINT_CHARGE
     CENTER SETUP_ONLY
@@ -113,4 +114,5 @@
 &DEBUG
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
+   EPS_NO_ERROR_CHECK 5.E-4
 &END

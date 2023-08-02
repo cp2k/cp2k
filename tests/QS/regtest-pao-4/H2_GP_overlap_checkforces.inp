@@ -40,7 +40,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 4.0 4.0 4.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD
@@ -72,6 +72,7 @@
 &DEBUG
   DEBUG_FORCES YES
   STOP_ON_MISMATCH YES
+  MAX_RELATIVE_ERROR  1.0
 &END DEBUG
 &GLOBAL
   PROJECT H2_GP_overlap_checkforces

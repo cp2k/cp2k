@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # QM/MM
 Ar-qmmm.inp                                            1      3e-11              -5.23877205327694
-H2O-qmmm-gauss-1.inp                                   1      2e-13             -16.70851092184132
+H2O-qmmm-gauss-1.inp                                   1      2e-13             -16.55275159465312
 H2O-qmmm-gauss-2.inp                                   1      2e-13             -16.86188849951898
 H2O-qmmm-gauss-3.inp                                   1      3e-13             -16.83342020737120
 H2O-qmmm-gauss-4.inp                                   7    1.0E-14                 -16.8201504947

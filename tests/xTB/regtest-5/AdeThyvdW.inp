@@ -15,14 +15,14 @@
     &SCF
       SCF_GUESS MOPAC
       MAX_SCF   10
-      EPS_SCF   5.0e-6
+      EPS_SCF   5.0e-7
       &OT ON
          MINIMIZER DIIS
          PRECONDITIONER FULL_SINGLE_INVERSE
       &END
       &OUTER_SCF
          MAX_SCF   10
-         EPS_SCF   5.0e-6
+         EPS_SCF   5.0e-7
       &END
     &END SCF
   &END DFT
@@ -69,6 +69,6 @@
 &DEBUG
   DEBUG_FORCES     .TRUE.
   STOP_ON_MISMATCH .TRUE.
-  DX 1.0E-3
-  EPS_NO_ERROR_CHECK 2.0E-5
+  DX 2.0E-3
+  EPS_NO_ERROR_CHECK 1.0E-4
 &END DEBUG

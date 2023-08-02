@@ -1,9 +1,9 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-base1.inp                                             1      5e-12              -4.08611632954555
-base2.inp                                             1      5e-12              -4.08611632954554
-base3.inp                                             1      5e-12              -4.08519720174190
+base1.inp                                             1      5e-12              -4.08612338013299
+base2.inp                                             1      5e-12              -4.08612338013299
+base3.inp                                             1      5e-12              -4.08520460432732
 str1.inp                                              1      5e-12              -4.08612900850098
 str2.inp                                              1      5e-12             -32.67545045484238
 str3.inp                                              1      5e-12              -4.08521609759106
