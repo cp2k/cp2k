@@ -1,11 +1,4 @@
-almo_scf_diis_types.F: Found type almo_scf_diis_type without initializer https://cp2k.org/conv#c016
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
-almo_scf_lbfgs_types.F: Found type lbfgs_history_type without initializer https://cp2k.org/conv#c016
-almo_scf_types.F: Found type almo_analysis_type without initializer https://cp2k.org/conv#c016
-almo_scf_types.F: Found type almo_scf_env_type without initializer https://cp2k.org/conv#c016
-almo_scf_types.F: Found type almo_scf_history_type without initializer https://cp2k.org/conv#c016
-almo_scf_types.F: Found type optimizer_options_type without initializer https://cp2k.org/conv#c016
-almo_scf_types.F: Found type penalty_type without initializer https://cp2k.org/conv#c016
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
 base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
@@ -21,8 +14,6 @@ cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t" https://cp2k.org/conv#c012
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution" https://cp2k.org/conv#c012
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic" https://cp2k.org/conv#c012
-cp_ddapc_types.F: Found type cp_ddapc_ewald_type without initializer https://cp2k.org/conv#c016
-cp_ddapc_types.F: Found type cp_ddapc_type without initializer https://cp2k.org/conv#c016
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge" https://cp2k.org/conv#c012
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix" https://cp2k.org/conv#c012
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector" https://cp2k.org/conv#c012
@@ -44,7 +35,6 @@ cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_strin
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
-cryssym.F: Found type csym_type without initializer https://cp2k.org/conv#c016
 csvr_system_types.F: Found type csvr_system_type without initializer https://cp2k.org/conv#c016
 csvr_system_types.F: Found type csvr_thermo_type without initializer https://cp2k.org/conv#c016
 ct_types.F: Found type ct_step_env_type without initializer https://cp2k.org/conv#c016

@@ -48,11 +48,11 @@ MODULE almo_scf_types
    ! methods that add penalty terms to the energy functional
    TYPE penalty_type
 
-      REAL(KIND=dp)      :: final_determinant, penalty_strength, &
-                            determinant_tolerance, penalty_strength_dec_factor, &
-                            compactification_filter_start
-      INTEGER            :: operator_type
-      LOGICAL            :: virtual_nlmos
+      REAL(KIND=dp)      :: final_determinant = 0.0_dp, penalty_strength = 0.0_dp, &
+                            determinant_tolerance = 0.0_dp, penalty_strength_dec_factor = 0.0_dp, &
+                            compactification_filter_start = 0.0_dp
+      INTEGER            :: operator_type = 0
+      LOGICAL            :: virtual_nlmos = .FALSE.
 
    END TYPE penalty_type
 
@@ -60,41 +60,41 @@ MODULE almo_scf_types
    TYPE almo_analysis_type
 
       ! switch analysis on/off
-      LOGICAL :: do_analysis
+      LOGICAL :: do_analysis = .FALSE.
 
-      INTEGER :: frozen_mo_energy_term
+      INTEGER :: frozen_mo_energy_term = 0
 
    END TYPE almo_analysis_type
 
    TYPE optimizer_options_type
 
-      REAL(KIND=dp)  :: eps_error, &
-                        eps_error_early, &
-                        lin_search_eps_error, &
-                        lin_search_step_size_guess, &
-                        rho_do_not_update, &
-                        model_grad_norm_ratio, &
-                        initial_trust_radius, &
-                        max_trust_radius, &
-                        neglect_threshold
+      REAL(KIND=dp)  :: eps_error = 0.0_dp, &
+                        eps_error_early = 0.0_dp, &
+                        lin_search_eps_error = 0.0_dp, &
+                        lin_search_step_size_guess = 0.0_dp, &
+                        rho_do_not_update = 0.0_dp, &
+                        model_grad_norm_ratio = 0.0_dp, &
+                        initial_trust_radius = 0.0_dp, &
+                        max_trust_radius = 0.0_dp, &
+                        neglect_threshold = 0.0_dp
 
-      INTEGER        :: optimizer_type ! diis, pcg, etc.
-      TYPE(penalty_type)  :: opt_penalty
+      INTEGER        :: optimizer_type = 0 ! diis, pcg, etc.
+      TYPE(penalty_type)  :: opt_penalty = penalty_type()
 
-      INTEGER        :: preconditioner, & ! preconditioner type
-                        conjugator, & ! conjugator type
-                        max_iter, &
-                        max_iter_early, &
-                        max_iter_outer_loop, &
-                        trustr_algorithm, &
-                        ndiis ! diis history length
+      INTEGER        :: preconditioner = 0, & ! preconditioner type
+                        conjugator = 0, & ! conjugator type
+                        max_iter = 0, &
+                        max_iter_early = 0, &
+                        max_iter_outer_loop = 0, &
+                        trustr_algorithm = 0, &
+                        ndiis = 0 ! diis history length
 
       LOGICAL        :: early_stopping_on = .FALSE.
 
    END TYPE optimizer_options_type
 
    TYPE almo_scf_history_type
-      INTEGER :: istore, nstore
+      INTEGER :: istore = 0, nstore = 0
       TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_p_up_down
       !TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_x
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
@@ -103,12 +103,12 @@ MODULE almo_scf_types
    ! the structure contains general info about the system
    TYPE almo_scf_env_type
 
-      TYPE(mp_para_env_type), POINTER  :: para_env
-      TYPE(cp_blacs_env_type), POINTER  :: blacs_env
+      TYPE(mp_para_env_type), POINTER  :: para_env => NULL()
+      TYPE(cp_blacs_env_type), POINTER  :: blacs_env => NULL()
 
-      INTEGER :: nspins, nelectrons_total, naos
-      INTEGER :: natoms, nmolecules
-      INTEGER, DIMENSION(2) :: nelectrons_spin
+      INTEGER :: nspins = 0, nelectrons_total = 0, naos = 0
+      INTEGER :: natoms = 0, nmolecules = 0
+      INTEGER, DIMENSION(2) :: nelectrons_spin = 0
 
       ! Definitions:
       ! I.  Domain - a subset of basis functions (e.g. AOs),
@@ -123,7 +123,7 @@ MODULE almo_scf_types
       ! It follows that the number of domains is equal to the number of groups
       !
       ! Number of domains
-      INTEGER :: ndomains
+      INTEGER :: ndomains = 0
 
       ! List of atoms, whose basis functions are included into the domain.
       ! It is assumed that:
@@ -177,9 +177,9 @@ MODULE almo_scf_types
       ! 2. Electrons can be grouped into:
       !    a. molecular sets
       !    b. atomic sets
-      INTEGER :: domain_layout_mos, domain_layout_aos
+      INTEGER :: domain_layout_mos = 0, domain_layout_aos = 0
       ! ALMO  constraint type.
-      INTEGER :: constraint_type
+      INTEGER :: constraint_type = 0
 
       ! Desciptors of molecules
       !INTEGER, DIMENSION(:), ALLOCATABLE        :: molecule_index_of_atom
@@ -201,25 +201,25 @@ MODULE almo_scf_types
       ! molecular blocks. Domain blocks should be equal or larger than
       ! the distribution blocks (otherwise retain_sparsity does not work).
       ! Possible values: almo_mat_distr_atomic, almo_mat_distr_molecular
-      INTEGER :: mat_distr_aos, mat_distr_mos
+      INTEGER :: mat_distr_aos = 0, mat_distr_mos = 0
       ! Define mappping from a distribution block to a domain
       INTEGER, DIMENSION(:), ALLOCATABLE :: domain_index_of_ao_block
       INTEGER, DIMENSION(:), ALLOCATABLE :: domain_index_of_mo_block
 
-      LOGICAL              :: need_previous_ks
-      LOGICAL              :: need_virtuals
-      LOGICAL              :: need_orbital_energies
-      LOGICAL              :: s_inv_done
-      LOGICAL              :: s_sqrt_done
-      REAL(KIND=dp)        :: almo_scf_energy
-      LOGICAL              :: orthogonal_basis, fixed_mu
-      LOGICAL              :: return_orthogonalized_mos, construct_nlmos
+      LOGICAL              :: need_previous_ks = .FALSE.
+      LOGICAL              :: need_virtuals = .FALSE.
+      LOGICAL              :: need_orbital_energies = .FALSE.
+      LOGICAL              :: s_inv_done = .FALSE.
+      LOGICAL              :: s_sqrt_done = .FALSE.
+      REAL(KIND=dp)        :: almo_scf_energy = 0.0_dp
+      LOGICAL              :: orthogonal_basis = .FALSE., fixed_mu = .FALSE.
+      LOGICAL              :: return_orthogonalized_mos = .FALSE., construct_nlmos = .FALSE.
 
       !! Smearing control
       !! smear flag allow to retrieve eigenvalues in almo_scf with diag algorithm and create occupation-scaled ALMO orbitals
-      LOGICAL               :: smear
+      LOGICAL               :: smear = .FALSE.
       !! store relevant smearing parameters
-      REAL(KIND=dp)         :: smear_e_temp !! electronic temperature, required for Fermi-Dirac
+      REAL(KIND=dp)         :: smear_e_temp = 0.0_dp !! electronic temperature, required for Fermi-Dirac
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE    :: kTS !! electronic entropy contribution of each spin system
       !! mo_energies(imo, ispin) stores the eigenvalue corresponding to the orbital imo with spin ispin
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: mo_energies
@@ -228,45 +228,45 @@ MODULE almo_scf_types
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: real_ne_of_domain
 
       ! Controls for the SCF procedure
-      REAL(KIND=dp)         :: eps_filter
-      INTEGER               :: xalmo_trial_wf
-      INTEGER               :: almo_scf_guess
-      REAL(KIND=dp)         :: eps_prev_guess
-      INTEGER               :: order_lanczos
-      REAL(KIND=dp)         :: matrix_iter_eps_error_factor
-      REAL(KIND=dp)         :: eps_lanczos
-      INTEGER               :: max_iter_lanczos
-      REAL(KIND=dp)         :: mixing_fraction
-      REAL(KIND=dp)         :: mu
+      REAL(KIND=dp)         :: eps_filter = 0.0_dp
+      INTEGER               :: xalmo_trial_wf = 0
+      INTEGER               :: almo_scf_guess = 0
+      REAL(KIND=dp)         :: eps_prev_guess = 0.0_dp
+      INTEGER               :: order_lanczos = 0
+      REAL(KIND=dp)         :: matrix_iter_eps_error_factor = 0.0_dp
+      REAL(KIND=dp)         :: eps_lanczos = 0.0_dp
+      INTEGER               :: max_iter_lanczos = 0
+      REAL(KIND=dp)         :: mixing_fraction = 0.0_dp
+      REAL(KIND=dp)         :: mu = 0.0_dp
       ! SCF procedure for the block-diagonal ALMOs
-      INTEGER               :: almo_update_algorithm
+      INTEGER               :: almo_update_algorithm = 0
       ! SCF procedure for the quenched ALMOs (xALMOs)
-      INTEGER               :: xalmo_update_algorithm
+      INTEGER               :: xalmo_update_algorithm = 0
       ! mo overlap inversion algorithm
-      INTEGER               :: sigma_inv_algorithm
+      INTEGER               :: sigma_inv_algorithm = 0
 
       ! Determinant of the ALMO overlap matrix
-      REAL(KIND=dp)         :: overlap_determinant
+      REAL(KIND=dp)         :: overlap_determinant = 0.0_dp
 
       ! ALMO SCF delocalization control
-      LOGICAL               :: perturbative_delocalization
-      INTEGER               :: quencher_radius_type
-      REAL(KIND=dp)         :: quencher_r0_factor, &
-                               quencher_r1_factor, &
+      LOGICAL               :: perturbative_delocalization = .FALSE.
+      INTEGER               :: quencher_radius_type = 0
+      REAL(KIND=dp)         :: quencher_r0_factor = 0.0_dp, &
+                               quencher_r1_factor = 0.0_dp, &
                                !quencher_r0_shift,&
                                !quencher_r1_shift,&
-                               quencher_s0, &
-                               quencher_s1, &
-                               envelope_amplitude
+                               quencher_s0 = 0.0_dp, &
+                               quencher_s1 = 0.0_dp, &
+                               envelope_amplitude = 0.0_dp
 
       ! guess options
-      TYPE(almo_scf_history_type) :: almo_history
-      TYPE(almo_scf_history_type) :: xalmo_history
-      INTEGER :: almo_extrapolation_order
-      INTEGER :: xalmo_extrapolation_order
+      TYPE(almo_scf_history_type) :: almo_history = almo_scf_history_type()
+      TYPE(almo_scf_history_type) :: xalmo_history = almo_scf_history_type()
+      INTEGER :: almo_extrapolation_order = 0
+      INTEGER :: xalmo_extrapolation_order = 0
 
       ! forces
-      LOGICAL :: calc_forces
+      LOGICAL :: calc_forces = .FALSE.
 
       !!!!!!!!!!!!!!!!!!!!!!!
       !!!!!! MATRICES !!!!!!!
@@ -362,63 +362,63 @@ MODULE almo_scf_types
       INTEGER, DIMENSION(:), ALLOCATABLE                       :: cpu_of_domain
 
       ! Options for various subsection options collected neatly
-      TYPE(almo_analysis_type)                       :: almo_analysis
+      TYPE(almo_analysis_type)                       :: almo_analysis = almo_analysis_type()
 
       ! Options for various optimizers collected neatly
-      TYPE(optimizer_options_type)                   :: opt_block_diag_diis
-      TYPE(optimizer_options_type)                   :: opt_block_diag_pcg
-      TYPE(optimizer_options_type)                   :: opt_xalmo_diis
-      TYPE(optimizer_options_type)                   :: opt_xalmo_pcg
-      TYPE(optimizer_options_type)                   :: opt_xalmo_trustr
-      TYPE(optimizer_options_type)                   :: opt_nlmo_pcg
-      TYPE(optimizer_options_type)                   :: opt_block_diag_trustr
-      TYPE(optimizer_options_type)                   :: opt_xalmo_newton_pcg_solver
-      TYPE(optimizer_options_type)                   :: opt_k_pcg
+      TYPE(optimizer_options_type)                   :: opt_block_diag_diis = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_block_diag_pcg = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_xalmo_diis = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_xalmo_pcg = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_xalmo_trustr = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_nlmo_pcg = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_block_diag_trustr = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_xalmo_newton_pcg_solver = optimizer_options_type()
+      TYPE(optimizer_options_type)                   :: opt_k_pcg = optimizer_options_type()
 
       ! keywords that control electron delocalization treatment
       ! RZK-warning: many of these varibles should be collected
       !  into an optimizer_options_type variable
-      INTEGER         :: deloc_method
-      LOGICAL         :: deloc_use_occ_orbs
-      LOGICAL         :: deloc_cayley_use_virt_orbs
-      INTEGER         :: deloc_cayley_tensor_type
-      LOGICAL         :: deloc_cayley_linear
-      INTEGER         :: deloc_cayley_conjugator
-      REAL(KIND=dp)   :: deloc_cayley_eps_convergence
-      INTEGER         :: deloc_cayley_max_iter
-      INTEGER         :: deloc_truncate_virt
-      INTEGER         :: deloc_virt_per_domain
-      LOGICAL         :: deloc_cayley_occ_precond
-      LOGICAL         :: deloc_cayley_vir_precond
+      INTEGER         :: deloc_method = 0
+      LOGICAL         :: deloc_use_occ_orbs = .FALSE.
+      LOGICAL         :: deloc_cayley_use_virt_orbs = .FALSE.
+      INTEGER         :: deloc_cayley_tensor_type = 0
+      LOGICAL         :: deloc_cayley_linear = .FALSE.
+      INTEGER         :: deloc_cayley_conjugator = 0
+      REAL(KIND=dp)   :: deloc_cayley_eps_convergence = 0.0_dp
+      INTEGER         :: deloc_cayley_max_iter = 0
+      INTEGER         :: deloc_truncate_virt = 0
+      INTEGER         :: deloc_virt_per_domain = 0
+      LOGICAL         :: deloc_cayley_occ_precond = .FALSE.
+      LOGICAL         :: deloc_cayley_vir_precond = .FALSE.
 
       !! keywords that control optimization of retained orbitals
-      INTEGER         :: opt_k_conjugator !-> conjugartor
-      REAL(KIND=dp)   :: opt_k_eps_convergence !-> eps_error
-      REAL(KIND=dp)   :: opt_k_trial_step_size !-> lin_search_step_size_guess
-      INTEGER         :: opt_k_max_iter !-> max_iter
-      INTEGER         :: opt_k_outer_max_iter !-> max_iter for a separate 'outer' optimizer
-      REAL(KIND=dp)   :: opt_k_trial_step_size_multiplier !-> ?
-      INTEGER         :: opt_k_conj_iter_start !-> ?
-      INTEGER         :: opt_k_prec_iter_start !-> ?
-      INTEGER         :: opt_k_conj_iter_freq !-> ?
-      INTEGER         :: opt_k_prec_iter_freq !-> ?
+      INTEGER         :: opt_k_conjugator = 0 !-> conjugartor
+      REAL(KIND=dp)   :: opt_k_eps_convergence = 0.0_dp !-> eps_error
+      REAL(KIND=dp)   :: opt_k_trial_step_size = 0.0_dp !-> lin_search_step_size_guess
+      INTEGER         :: opt_k_max_iter = 0 !-> max_iter
+      INTEGER         :: opt_k_outer_max_iter = 0 !-> max_iter for a separate 'outer' optimizer
+      REAL(KIND=dp)   :: opt_k_trial_step_size_multiplier = 0.0_dp !-> ?
+      INTEGER         :: opt_k_conj_iter_start = 0 !-> ?
+      INTEGER         :: opt_k_prec_iter_start = 0 !-> ?
+      INTEGER         :: opt_k_conj_iter_freq = 0 !-> ?
+      INTEGER         :: opt_k_prec_iter_freq = 0 !-> ?
 
       ! development keywords
-      INTEGER         :: integer01
-      INTEGER         :: integer02
-      INTEGER         :: integer03
-      INTEGER         :: integer04
-      INTEGER         :: integer05
-      REAL(KIND=dp)   :: real01
-      REAL(KIND=dp)   :: real02
-      REAL(KIND=dp)   :: real03
-      REAL(KIND=dp)   :: real04
-      REAL(KIND=dp)   :: real05
-      LOGICAL         :: logical01
-      LOGICAL         :: logical02
-      LOGICAL         :: logical03
-      LOGICAL         :: logical04
-      LOGICAL         :: logical05
+      INTEGER         :: integer01 = 0
+      INTEGER         :: integer02 = 0
+      INTEGER         :: integer03 = 0
+      INTEGER         :: integer04 = 0
+      INTEGER         :: integer05 = 0
+      REAL(KIND=dp)   :: real01 = 0.0_dp
+      REAL(KIND=dp)   :: real02 = 0.0_dp
+      REAL(KIND=dp)   :: real03 = 0.0_dp
+      REAL(KIND=dp)   :: real04 = 0.0_dp
+      REAL(KIND=dp)   :: real05 = 0.0_dp
+      LOGICAL         :: logical01 = .FALSE.
+      LOGICAL         :: logical02 = .FALSE.
+      LOGICAL         :: logical03 = .FALSE.
+      LOGICAL         :: logical04 = .FALSE.
+      LOGICAL         :: logical05 = .FALSE.
 
    END TYPE almo_scf_env_type
 
