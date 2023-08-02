@@ -92,6 +92,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: amplitude, dd, de, derr, difference, dx, &
                                                             eps_no_error_check, maxerr, std_value, &
                                                             sum_of_differences
+      REAL(KIND=dp)                                      :: maxerr
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: dipole_moment, dipole_numer, err, &
                                                             my_maxerr, poldir
