@@ -60,7 +60,7 @@ MODULE admm_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
    TYPE eigvals_type
-      REAL(dp), DIMENSION(:), POINTER          :: DATA
+      REAL(dp), DIMENSION(:), POINTER          :: DATA => NULL()
    END TYPE
 
    TYPE eigvals_p_type
