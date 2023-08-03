@@ -1,0 +1,76 @@
+&GLOBAL
+  PROJECT si8_pmix
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &PROPERTIES
+    &ATOMIC
+      ENERGY T
+    &END
+  &END PROPERTIES
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 120
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF   50
+      EPS_SCF 1.0e-8
+      EPS_DIIS 1.0e-2
+      &SMEAR
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE   5000.
+      &END
+      &MIXING
+          METHOD BROYDEN_MIXING
+          ALPHA   0.6
+          BETA   1.0
+          NBROYDEN 15
+      &END
+      ADDED_MOS   20 20
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+#     &ENERGY_DECOMPOSITION_ANALYSIS
+#     &END ENERGY_DECOMPOSITION_ANALYSIS
+      &MO
+        &EACH
+          QS_SCF 100
+        &END
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+       ABC   5.42858871335 5.42858871335 5.42858871335
+    &END CELL
+    &KIND  Si
+      BASIS_SET  DZVP-GTH
+      POTENTIAL  GTH-PBE-q4
+    &END
+    &COORD
+        Si       0.00000       0.00000       0.00000
+        Si       1.35715       1.35715       1.35715
+        Si       0.00000       2.71429       2.71429
+        Si       1.35715       4.07144       4.07144
+        Si       2.71429       0.00000       2.71429
+        Si       4.07144       1.35715       4.07144
+        Si       2.71429       2.71429       0.00000
+        Si       4.07144       4.07144       1.35715
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+

@@ -99,6 +99,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
       INTEGER                                            :: handle, natom
+      REAL(KIND=dp)                                      :: ekts
       LOGICAL                                            :: do_et, do_et_proj, do_tip_scan
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -121,13 +122,13 @@ CONTAINS
                       pw_env=pw_env)
       IF (atprop%energy) THEN
          CALL qs_energies_mulliken(qs_env)
+         CALL get_qs_env(qs_env, natom=natom)
          IF (.NOT. dft_control%qs_control%semi_empirical .AND. &
              .NOT. dft_control%qs_control%xtb .AND. &
              .NOT. dft_control%qs_control%dftb) THEN
             ! Nuclear charge correction
             CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
             IF (.NOT. ASSOCIATED(atprop%ateb)) THEN
-               CALL get_qs_env(qs_env, natom=natom)
                CALL atprop_array_init(atprop%ateb, natom)
             END IF
             ! Kohn-Sham Functional corrections
@@ -141,6 +142,9 @@ CONTAINS
          CALL atprop_array_add(atprop%atener, atprop%ategcp)
          CALL atprop_array_add(atprop%atener, atprop%atecc)
          CALL atprop_array_add(atprop%atener, atprop%ate1c)
+         ! entropic energy
+         ekts = energy%kts/REAL(natom,KIND=dp)
+         atprop%atener(:) = atprop%atener(:) + ekts
       END IF
 
       ! ET coupling - projection-operator approach

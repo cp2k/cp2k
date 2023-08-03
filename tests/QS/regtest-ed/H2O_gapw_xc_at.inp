@@ -20,7 +20,7 @@
       SCF_GUESS ATOMIC  
     &END
     &XC
-      &XC_FUNCTIONAL TPSS
+      &XC_FUNCTIONAL PBE
       &END
     &END XC
   &END DFT

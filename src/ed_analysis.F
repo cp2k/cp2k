@@ -17,19 +17,17 @@ MODULE ed_analysis
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Eriksen2020,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_submatrix,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+        cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
+        cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_info, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
@@ -77,7 +75,9 @@ MODULE ed_analysis
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
+   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                              duplicate_mo_set,&
+                                              get_mo_set,&
                                               mo_set_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_atom_types,               ONLY: rho_atom_type,&
@@ -113,21 +113,23 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'edmf_analysis'
 
-      INTEGER                                            :: handle, iatom, ikind, iorb, ispin, nao, &
-                                                            natom, nimages, nkind, no, norb, nref, &
-                                                            nspin
+      INTEGER                                            :: handle, iatom, ikind, iorb, ispin, jorb, &
+                                                            nao, natom, nimages, nkind, no, norb, &
+                                                            nref, nspin
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
-      LOGICAL                                            :: explicit, uniform_occupation
+      LOGICAL                                            :: explicit, uniform_occupation, uocc
       REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, egcp, evdw, &
-                                                            focc, sum_energy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1c, atecc, ateks, atener
+                                                            focc, sum_energy, ekts
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1c, atecc, ateks, atener, odiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: cvec, smo
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: c_iao_coef, c_loc_coef, ciao, orb_weight
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type)                                   :: cvec, cvec2, smo
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: c_iao_coef, ciao, fij_mat, orb_weight, &
+                                                            rotmat
+      TYPE(cp_fm_type), POINTER                          :: cloc, moref
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: ks_mat, vhxc_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, matrix_s
@@ -137,7 +139,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: ref_basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: refbasis
       TYPE(iao_env_type)                                 :: iao_env
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_loc
       TYPE(mp_comm_type)                                 :: group
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -172,7 +174,23 @@ CONTAINS
 
       CALL get_qs_env(qs_env, mos=mos)
       nspin = dft_control%nspins
-      ALLOCATE (c_loc_coef(nspin))
+      ALLOCATE (mos_loc(nspin))
+
+      ! do we have a uniform occupation
+      uocc = .TRUE.
+      DO ispin = 1, nspin
+         CALL get_mo_set(mos(ispin), uniform_occupation=uniform_occupation)
+         IF (.NOT. uniform_occupation) uocc = .FALSE.
+      END DO
+      IF (unit_nr > 0) THEN
+         IF (uocc) THEN
+            WRITE (UNIT=unit_nr, FMT="(T2,A)") &
+               "MO's have a uniform occupation pattern"
+         ELSE
+            WRITE (UNIT=unit_nr, FMT="(T2,A)") &
+               "MO's have varying occupations"
+         END IF
+      END IF
 
       ! perform IAO analysis
       CALL iao_set_default(iao_env)
@@ -181,34 +199,79 @@ CONTAINS
       iao_env%do_bondorbitals = .TRUE.
       iao_env%do_center = .TRUE.
       iao_env%eps_occ = 1.0E-4_dp
+      CALL get_qs_env(qs_env, cell=cell)
+      iao_env%pos_periodic = .NOT. ALL(cell%perd == 0)
       no = 0
       DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=norb)
+         CALL duplicate_mo_set(mos_loc(ispin), mos(ispin))
+         CALL get_mo_set(mos_loc(ispin), nmo=norb)
          no = MAX(no, norb)
-         CALL cp_fm_create(c_loc_coef(ispin), mo_coeff%matrix_struct)
-         CALL cp_fm_to_fm(mo_coeff, c_loc_coef(ispin))
       END DO
       ALLOCATE (bcenter(5, no, nspin))
-      CALL iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef, bcenter)
-      ! localized orbitals in IAO basis => CIAO
+      CALL iao_wfn_analysis(qs_env, iao_env, unit_nr, &
+                            c_iao_coef=c_iao_coef, mos=mos_loc, bond_centers=bcenter)
+
+      ! Calculate orbital rotation matrix
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       smat => matrix_s(1)%matrix
+      ALLOCATE (rotmat(nspin))
+      DO ispin = 1, nspin
+         CALL get_mo_set(mos_loc(ispin), mo_coeff=cloc)
+         CALL get_mo_set(mos(ispin), mo_coeff=moref)
+         CALL cp_fm_get_info(cloc, nrow_global=nao, ncol_global=norb)
+         CALL cp_fm_create(smo, cloc%matrix_struct)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=norb, ncol_global=norb, &
+                                  template_fmstruct=cloc%matrix_struct)
+         CALL cp_fm_create(rotmat(ispin), fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+         ! ROTMAT = Cref(T)*S*Cloc
+         CALL cp_dbcsr_sm_fm_multiply(smat, cloc, smo, ncol=norb)
+         CALL parallel_gemm('T', 'N', norb, norb, nao, 1.0_dp, moref, &
+                            smo, 0.0_dp, rotmat(ispin))
+         CALL cp_fm_release(smo)
+      END DO
+
+      ! calculate occupation matrix
+      IF (.NOT. uocc) THEN
+         ALLOCATE (fij_mat(nspin))
+         DO ispin = 1, nspin
+            CALL cp_fm_create(fij_mat(ispin), rotmat(ispin)%matrix_struct)
+            CALL cp_fm_set_all(fij_mat(ispin), 0.0_dp)
+            CALL cp_fm_create(smo, rotmat(ispin)%matrix_struct)
+            ! fii = f
+            CALL get_mo_set(mos(ispin), nmo=norb, occupation_numbers=occupation_numbers)
+            DO iorb = 1, norb
+               CALL cp_fm_set_element(fij_mat(ispin), iorb, iorb, occupation_numbers(iorb))
+            END DO
+            ! fij = U(T)*f*U
+            CALL parallel_gemm('N', 'N', norb, norb, norb, 1.0_dp, fij_mat(ispin), &
+                               rotmat(ispin), 0.0_dp, smo)
+            CALL parallel_gemm('T', 'N', norb, norb, norb, 1.0_dp, rotmat(ispin), &
+                               smo, 0.0_dp, fij_mat(ispin))
+            CALL cp_fm_release(smo)
+         END DO
+      END IF
+
+      ! localized orbitals in IAO basis => CIAO
       ALLOCATE (ciao(nspin))
       DO ispin = 1, nspin
-         CALL cp_fm_get_info(c_loc_coef(ispin), nrow_global=nao, ncol_global=norb)
+         CALL get_mo_set(mos_loc(ispin), mo_coeff=cloc)
+         CALL cp_fm_get_info(cloc, nrow_global=nao, ncol_global=norb)
          CALL cp_fm_get_info(c_iao_coef(ispin), ncol_global=nref)
-         CALL cp_fm_create(smo, c_loc_coef(ispin)%matrix_struct)
+         CALL cp_fm_create(smo, cloc%matrix_struct)
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nref, &
-                                  template_fmstruct=c_loc_coef(ispin)%matrix_struct)
+                                  template_fmstruct=cloc%matrix_struct)
          CALL cp_fm_create(ciao(ispin), fm_struct)
          CALL cp_fm_struct_release(fm_struct)
          ! CIAO = A(T)*S*C
-         CALL cp_dbcsr_sm_fm_multiply(smat, c_loc_coef(ispin), smo, ncol=norb)
+         CALL cp_dbcsr_sm_fm_multiply(smat, cloc, smo, ncol=norb)
          CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, c_iao_coef(ispin), &
                             smo, 0.0_dp, ciao(ispin))
          CALL cp_fm_release(smo)
       END DO
+
       ! Reference basis set
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       nkind = SIZE(qs_kind_set)
@@ -224,17 +287,20 @@ CONTAINS
       ALLOCATE (refbas_blk_sizes(natom))
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=refbas_blk_sizes, &
                             basis=ref_basis_set_list)
+
       ! Atomic orbital weights
       ALLOCATE (orb_weight(nspin))
       ALLOCATE (mcharge(natom, 1))
       DO ispin = 1, nspin
+         CALL get_mo_set(mos_loc(ispin), mo_coeff=cloc)
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=natom, &
-                                  template_fmstruct=c_loc_coef(ispin)%matrix_struct)
+                                  template_fmstruct=cloc%matrix_struct)
          CALL cp_fm_create(orb_weight(ispin), fm_struct)
          CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_set_all(orb_weight(ispin), 0.0_dp)
       END DO
-      ! diagonal block matrix
+      !
       CALL dbcsr_get_info(smat, distribution=dbcsr_dist)
       CALL dbcsr_create(matrix=dmat, name="DMAT", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
@@ -246,34 +312,68 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, ncol_global=1, &
                                template_fmstruct=ciao(1)%matrix_struct)
       CALL cp_fm_create(cvec, fm_struct)
+      CALL cp_fm_create(cvec2, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       !
       DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin), &
-                         uniform_occupation=uniform_occupation, &
+         CALL get_mo_set(mos_loc(ispin), &
+                         mo_coeff=cloc, nmo=norb, &
                          occupation_numbers=occupation_numbers)
-         CALL cp_fm_get_info(c_loc_coef(ispin), ncol_global=norb)
-         DO iorb = 1, norb
-            CALL cp_fm_to_fm(ciao(ispin), cvec, ncol=1, source_start=iorb, target_start=1)
-            focc = occupation_numbers(iorb)
-            CALL dbcsr_set(dmat, 0.0_dp)
-            CALL cp_dbcsr_plus_fm_fm_t(dmat, cvec, ncol=1, alpha=focc)
-            CALL iao_charges(dmat, mcharge(:, 1))
-            CALL cp_fm_set_submatrix(orb_weight(ispin), mcharge, start_row=1, &
-                                     start_col=iorb, n_rows=natom, n_cols=1)
-            checksum = SUM(mcharge(:, 1))
-            IF (ABS(focc - checksum) > 1.E-6_dp) THEN
-               CALL cp_warn(__LOCATION__, "Sum of atomic orbital weights is incorrect")
-               IF (unit_nr > 0) THEN
-                  WRITE (6, '(T2,A,F10.6,T40,A,F10.6)') "Orbital occupation:", focc, &
-                     "Sum of atomic orbital weights:", checksum
+         IF (uocc) THEN
+            ! uniform occupation
+            DO iorb = 1, norb
+               CALL cp_fm_to_fm(ciao(ispin), cvec, ncol=1, source_start=iorb, target_start=1)
+               focc = occupation_numbers(iorb)
+               CALL dbcsr_set(dmat, 0.0_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(dmat, cvec, ncol=1, alpha=focc)
+               CALL iao_charges(dmat, mcharge(:, 1))
+               CALL cp_fm_set_submatrix(orb_weight(ispin), mcharge, start_row=1, &
+                                        start_col=iorb, n_rows=natom, n_cols=1)
+               checksum = SUM(mcharge(:, 1))
+               IF (ABS(focc - checksum) > 1.E-6_dp) THEN
+                  CALL cp_warn(__LOCATION__, "Sum of atomic orbital weights is incorrect")
+                  IF (unit_nr > 0) THEN
+                     WRITE (6, '(T2,A,F10.6,T40,A,F10.6)') "Orbital occupation:", focc, &
+                        "Sum of atomic orbital weights:", checksum
+                  END IF
                END IF
-            END IF
-         END DO
+            END DO
+         ELSE
+            ! non-diagonal occupation matrix
+            ALLOCATE (odiag(norb))
+            CALL cp_fm_get_diag(fij_mat(ispin), odiag)
+            DO iorb = 1, norb
+               IF (odiag(iorb) < 1.E-8_dp) CYCLE
+               CALL dbcsr_set(dmat, 0.0_dp)
+               CALL cp_fm_to_fm(ciao(ispin), cvec, ncol=1, source_start=iorb, target_start=1)
+               DO jorb = 1, norb
+                  CALL cp_fm_get_element(fij_mat(ispin), iorb, jorb, focc)
+                  IF (focc < 1.E-12_dp) CYCLE
+                  CALL cp_fm_to_fm(ciao(ispin), cvec2, ncol=1, source_start=jorb, target_start=1)
+                  CALL cp_dbcsr_plus_fm_fm_t(dmat, cvec, cvec2, 1, alpha=focc, symmetry_mode=1)
+               END DO
+               CALL iao_charges(dmat, mcharge(:, 1))
+               checksum = SUM(mcharge(:, 1))
+               focc = odiag(iorb)
+               IF (ABS(focc - checksum) > 1.E-6_dp) THEN
+                  CALL cp_warn(__LOCATION__, "Sum of atomic orbital weights is incorrect")
+                  IF (unit_nr > 0) THEN
+                     WRITE (6, '(T2,A,F10.6,T40,A,F10.6)') "Orbital occupation:", focc, &
+                        "Sum of atomic orbital weights:", checksum
+                  END IF
+               END IF
+               mcharge(:, 1) = mcharge(:, 1)/focc
+               CALL cp_fm_set_submatrix(orb_weight(ispin), mcharge, start_row=1, &
+                                        start_col=iorb, n_rows=natom, n_cols=1)
+            END DO
+            DEALLOCATE (odiag)
+         END IF
       END DO
       DEALLOCATE (mcharge)
       CALL dbcsr_release(dmat)
       CALL cp_fm_release(cvec)
+      CALL cp_fm_release(cvec2)
+
       ! energy arrays
       ALLOCATE (atener(natom), ateks(natom), atecc(natom), ate1c(natom))
       atener = 0.0_dp
@@ -305,12 +405,16 @@ CONTAINS
       END DO
       ! Loop over spins and atoms
       DO ispin = 1, nspin
-         CALL cp_fm_get_info(c_loc_coef(ispin), ncol_global=norb)
+         CALL get_mo_set(mos_loc(ispin), mo_coeff=cloc, nmo=norb)
          ALLOCATE (mweight(1, norb))
          DO iatom = 1, natom
             CALL cp_fm_get_submatrix(orb_weight(ispin), mweight, start_row=iatom, &
                                      start_col=1, n_rows=1, n_cols=norb)
-            CALL iao_calculate_dmat(c_loc_coef(ispin), dkmat, mweight(1, :), .FALSE.)
+            IF (uocc) THEN
+               CALL iao_calculate_dmat(cloc, dkmat, mweight(1, :), .FALSE.)
+            ELSE
+               CALL iao_calculate_dmat(cloc, dkmat, mweight(1, :), fij_mat(ispin))
+            END IF
             CALL dbcsr_dot(dkmat, ks_mat(ispin)%matrix, ecc)
             ateks(iatom) = ateks(iatom) + ecc
          END DO
@@ -321,35 +425,41 @@ CONTAINS
       DO ispin = 1, nspin
          CALL dbcsr_release(ks_mat(ispin)%matrix)
          CALL dbcsr_release(vhxc_mat(ispin)%matrix)
+         CALL deallocate_mo_set(mos_loc(ispin))
       END DO
+      DEALLOCATE (ks_mat, vhxc_mat)
+      DEALLOCATE (mos_loc)
       DEALLOCATE (refbas_blk_sizes)
       DEALLOCATE (ref_basis_set_list)
       CALL cp_fm_release(orb_weight)
       CALL cp_fm_release(ciao)
+      CALL cp_fm_release(rotmat)
       CALL cp_fm_release(c_iao_coef)
-      CALL cp_fm_release(c_loc_coef)
+      IF (.NOT. uocc) THEN
+         CALL cp_fm_release(fij_mat)
+      END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)
       group = para_env
       ! KS energy
-      atener = ateks
+      atener(1:natom) = ateks(1:natom)
       ! core energy corrections
       CALL group%sum(atecc)
-      atener = atener + atecc
+      atener(1:natom) = atener(1:natom) + atecc(1:natom)
       ! one center terms (GAPW)
       CALL group%sum(ate1c)
-      atener = atener + ate1c
+      atener(1:natom) = atener(1:natom) + ate1c(1:natom)
       ! core correction
-      atecc = 0.0_dp
+      atecc(1:natom) = 0.0_dp
       CALL calculate_ecore_overlap(qs_env, para_env, .FALSE., atecc=atecc)
       CALL group%sum(atecc)
-      atener = atener + atecc
-      atecc = 0.0_dp
+      atener(1:natom) = atener(1:natom) + atecc(1:natom)
+      atecc(1:natom) = 0.0_dp
       CALL calculate_ecore_self(qs_env, atecc=atecc)
       CALL group%sum(atecc)
-      atener = atener + atecc
+      atener(1:natom) = atener(1:natom) + atecc(1:natom)
       ! vdW pair-potentials
-      atecc = 0.0_dp
+      atecc(1:natom) = 0.0_dp
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, evdw, .FALSE., atevdw=atecc)
       ! Pair potential gCP energy
@@ -358,10 +468,13 @@ CONTAINS
          CALL calculate_gcp_pairpot(qs_env, gcp_env, egcp, .FALSE., ategcp=atecc)
       END IF
       CALL group%sum(atecc)
-      atener = atener + atecc
+      atener(1:natom) = atener(1:natom) + atecc(1:natom)
+      ! distribute the entropic energy
+      CALL get_qs_env(qs_env, energy=energy)
+      ekts = energy%kts/REAL(natom,KIND=dp)
+      atener(1:natom) = atener(1:natom) + ekts
 
       IF (unit_nr > 0) THEN
-         CALL get_qs_env(qs_env, energy=energy)
          e_pot = energy%total
          ateps = 1.E-6_dp
          CALL write_atener(unit_nr, particle_set, atener, "Atomic Energy Decomposition")
