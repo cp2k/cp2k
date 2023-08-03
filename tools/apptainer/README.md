@@ -26,7 +26,7 @@ and `skylake-avx512`
 wget https://gitlab.psi.ch/krack/cp2k/-/raw/master/apptainer/download/cp2k-2023.2_mpich_skylake-avx512_psmp.sif
 ```
 
-available. After the download, use the command `chmod a+x` to make the `sif` file executable, e.g.
+are available. After the download, use the command `chmod a+x` to make the `sif` file executable, e.g.
 
 ```
 chmod a+x cp2k-2023.2_mpich_generic_psmp.sif
