@@ -43,22 +43,18 @@ dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2
 dm_ls_scf_types.F: Found type ls_mstruct_type without initializer https://cp2k.org/conv#c016
 dm_ls_scf_types.F: Found type ls_scf_env_type without initializer https://cp2k.org/conv#c016
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
-domain_submatrix_types.F: Found type domain_submatrix_type without initializer https://cp2k.org/conv#c016
 dumpdcd.F: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c204
 dumpdcd.F: Found OPEN statement in procedure "dumpdcd" https://cp2k.org/conv#c203
 dumpdcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
 dumpdcd.F: Found STOP statement in procedure "dumpdcd" https://cp2k.org/conv#c205
 dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
 dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
-ec_env_types.F: Found type energy_correction_type without initializer https://cp2k.org/conv#c016
-eip_environment_types.F: Found type eip_environment_type without initializer https://cp2k.org/conv#c016
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon" https://cp2k.org/conv#c203
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon" https://cp2k.org/conv#c203
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
-environment.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 et_coupling_proj.F: Found type et_cpl_atom without initializer https://cp2k.org/conv#c016
 et_coupling_proj.F: Found type et_cpl_block without initializer https://cp2k.org/conv#c016
 et_coupling_proj.F: Found type et_cpl without initializer https://cp2k.org/conv#c016

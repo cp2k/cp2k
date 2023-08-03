@@ -81,20 +81,20 @@ MODULE eip_environment_types
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! **************************************************************************************************
    TYPE eip_environment_type
-      INTEGER                                          :: eip_model
-      REAL(KIND=dp)                                    :: eip_energy, &
-                                                          eip_kinetic_energy, &
-                                                          eip_potential_energy, &
-                                                          eip_energy_var
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: eip_forces
-      REAL(KIND=dp)                                    :: coord_avg, &
-                                                          coord_var, &
-                                                          count
-      TYPE(cp_subsys_type), POINTER                    :: subsys
-      TYPE(section_vals_type), POINTER                 :: eip_input, &
-                                                          force_env_input
-      TYPE(cell_type), POINTER                         :: cell_ref
-      LOGICAL                                          :: use_ref_cell
+      INTEGER                                          :: eip_model = 0
+      REAL(KIND=dp)                                    :: eip_energy = 0.0_dp, &
+                                                          eip_kinetic_energy = 0.0_dp, &
+                                                          eip_potential_energy = 0.0_dp, &
+                                                          eip_energy_var = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: eip_forces => Null()
+      REAL(KIND=dp)                                    :: coord_avg = 0.0_dp, &
+                                                          coord_var = 0.0_dp, &
+                                                          count = 0.0_dp
+      TYPE(cp_subsys_type), POINTER                    :: subsys => Null()
+      TYPE(section_vals_type), POINTER                 :: eip_input => Null(), &
+                                                          force_env_input => Null()
+      TYPE(cell_type), POINTER                         :: cell_ref => Null()
+      LOGICAL                                          :: use_ref_cell = .FALSE.
    END TYPE eip_environment_type
 
 CONTAINS
