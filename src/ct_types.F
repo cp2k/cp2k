@@ -39,32 +39,32 @@ MODULE ct_types
       ! this type contains options for cayley transformation routines
 
       ! use orbitals or projectors?
-      LOGICAL :: use_occ_orbs, use_virt_orbs
-      LOGICAL :: occ_orbs_orthogonal, virt_orbs_orthogonal
+      LOGICAL :: use_occ_orbs = .FALSE., use_virt_orbs = .FALSE.
+      LOGICAL :: occ_orbs_orthogonal = .FALSE., virt_orbs_orthogonal = .FALSE.
       ! tensor properties of matrix indeces:
       ! tensor_up_down, tensor_orthogonal
-      INTEGER :: tensor_type
+      INTEGER :: tensor_type = 0
       ! neglect the quadratic term in riccati equations?
-      LOGICAL :: neglect_quadratic_term
+      LOGICAL :: neglect_quadratic_term = .FALSE.
       ! what kind of output do we produce?
-      LOGICAL :: update_p, update_q, calculate_energy_corr
+      LOGICAL :: update_p = .FALSE., update_q = .FALSE., calculate_energy_corr = .FALSE.
       ! variety of conjugate gradient
-      INTEGER :: conjugator
+      INTEGER :: conjugator = 0
 
       ! type of preconditioner
-      LOGICAL :: pp_preconditioner_full, &
-                 qq_preconditioner_full
+      LOGICAL :: pp_preconditioner_full = .FALSE., &
+                 qq_preconditioner_full = .FALSE.
 
-      REAL(KIND=dp)         :: eps_convergence
-      REAL(KIND=dp)         :: eps_filter
-      INTEGER               :: max_iter
+      REAL(KIND=dp)         :: eps_convergence = 0.0_dp
+      REAL(KIND=dp)         :: eps_filter = 0.0_dp
+      INTEGER               :: max_iter = 0
       !INTEGER               :: nspins
-      LOGICAL               :: converged
-      INTEGER               :: order_lanczos
-      REAL(KIND=dp)         :: eps_lancsoz
-      INTEGER               :: max_iter_lanczos
+      LOGICAL               :: converged = .FALSE.
+      INTEGER               :: order_lanczos = 0
+      REAL(KIND=dp)         :: eps_lancsoz = 0.0_dp
+      INTEGER               :: max_iter_lanczos = 0
 
-      REAL(KIND=dp)         :: energy_correction
+      REAL(KIND=dp)         :: energy_correction = 0.0_dp
 
 !SPIN!!!    ! metric matrices for covariant to contravariant transformations
 !SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: p_index_up=>NULL()

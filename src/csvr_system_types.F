@@ -35,19 +35,19 @@ MODULE csvr_system_types
 
 ! **************************************************************************************************
    TYPE csvr_thermo_type
-      INTEGER                                 :: degrees_of_freedom
-      REAL(KIND=dp)                           :: nkt
-      REAL(KIND=dp)                           :: thermostat_energy
-      REAL(KIND=dp)                           :: region_kin_energy
-      TYPE(rng_stream_type)                   :: gaussian_rng_stream
+      INTEGER                                 :: degrees_of_freedom = 0
+      REAL(KIND=dp)                           :: nkt = 0.0_dp
+      REAL(KIND=dp)                           :: thermostat_energy = 0.0_dp
+      REAL(KIND=dp)                           :: region_kin_energy = 0.0_dp
+      TYPE(rng_stream_type)                   :: gaussian_rng_stream = rng_stream_type()
    END TYPE csvr_thermo_type
 
 ! **************************************************************************************************
    TYPE csvr_system_type
-      INTEGER                                 :: region, glob_num_csvr, loc_num_csvr
-      REAL(KIND=dp)                           :: tau_csvr, dt_fact
-      TYPE(csvr_thermo_type), POINTER         :: nvt(:)
-      TYPE(map_info_type), POINTER            :: map_info
+      INTEGER                                 :: region = 0, glob_num_csvr = 0, loc_num_csvr = 0
+      REAL(KIND=dp)                           :: tau_csvr = 0.0_dp, dt_fact = 0.0_dp
+      TYPE(csvr_thermo_type), POINTER         :: nvt(:) => NULL()
+      TYPE(map_info_type), POINTER            :: map_info => NULL()
    END TYPE csvr_system_type
 
 ! *** Global parameters ***

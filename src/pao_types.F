@@ -29,7 +29,7 @@ MODULE pao_types
    PUBLIC :: pao_env_type, training_matrix_type, pao_finalize
 
    TYPE filename_type
-      CHARACTER(LEN=default_path_length) :: fn
+      CHARACTER(LEN=default_path_length) :: fn = ""
    END TYPE filename_type
 
 ! **************************************************************************************************
@@ -172,7 +172,7 @@ MODULE pao_types
       REAL(KIND=dp)                    :: energy_prev = 0.0_dp
       REAL(KIND=dp)                    :: step_start_time = 0.0_dp
       REAL(KIND=dp)                    :: norm_G = 0.0_dp
-      TYPE(linesearch_type)            :: linesearch
+      TYPE(linesearch_type)            :: linesearch = linesearch_type()
       LOGICAL                          :: matrix_X_ready = .FALSE.
       LOGICAL                          :: matrix_P_ready = .FALSE.
       LOGICAL                          :: constants_ready = .FALSE.

@@ -64,7 +64,7 @@ MODULE dbcsr_vector
    END TYPE ele_type
 
    TYPE hash_table_type
-      TYPE(ele_type), DIMENSION(:), POINTER :: table
+      TYPE(ele_type), DIMENSION(:), POINTER :: table => NULL()
       INTEGER :: nele = 0
       INTEGER :: nmax = 0
       INTEGER :: prime = 0
@@ -75,23 +75,23 @@ MODULE dbcsr_vector
 ! **************************************************************************************************
    TYPE block_ptr_d
       REAL(real_8), DIMENSION(:, :), POINTER          :: ptr => NULL()
-      INTEGER                                         :: assigned_thread
+      INTEGER                                         :: assigned_thread = -1
    END TYPE
    TYPE block_ptr_s
       REAL(real_4), DIMENSION(:, :), POINTER          :: ptr => NULL()
-      INTEGER                                         :: assigned_thread
+      INTEGER                                         :: assigned_thread = -1
    END TYPE
    TYPE block_ptr_c
       COMPLEX(real_4), DIMENSION(:, :), POINTER       :: ptr => NULL()
-      INTEGER                                         :: assigned_thread
+      INTEGER                                         :: assigned_thread = -1
    END TYPE
    TYPE block_ptr_z
       COMPLEX(real_8), DIMENSION(:, :), POINTER       :: ptr => NULL()
-      INTEGER                                         :: assigned_thread
+      INTEGER                                         :: assigned_thread = -1
    END TYPE
 
    TYPE fast_vec_access_type
-      TYPE(hash_table_type) :: hash_table
+      TYPE(hash_table_type) :: hash_table = hash_table_type()
       TYPE(block_ptr_d), DIMENSION(:), ALLOCATABLE :: blk_map_d
       TYPE(block_ptr_s), DIMENSION(:), ALLOCATABLE :: blk_map_s
       TYPE(block_ptr_c), DIMENSION(:), ALLOCATABLE :: blk_map_c
