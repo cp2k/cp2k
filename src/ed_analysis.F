@@ -118,8 +118,8 @@ CONTAINS
                                                             nref, nspin
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
       LOGICAL                                            :: explicit, uniform_occupation, uocc
-      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, egcp, evdw, &
-                                                            focc, sum_energy, ekts
+      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, egcp, ekts, &
+                                                            evdw, focc, sum_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1c, atecc, ateks, atener, odiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
@@ -471,7 +471,7 @@ CONTAINS
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
       ! distribute the entropic energy
       CALL get_qs_env(qs_env, energy=energy)
-      ekts = energy%kts/REAL(natom,KIND=dp)
+      ekts = energy%kts/REAL(natom, KIND=dp)
       atener(1:natom) = atener(1:natom) + ekts
 
       IF (unit_nr > 0) THEN

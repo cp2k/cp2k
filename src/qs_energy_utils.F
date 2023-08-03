@@ -99,8 +99,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
       INTEGER                                            :: handle, natom
-      REAL(KIND=dp)                                      :: ekts
       LOGICAL                                            :: do_et, do_et_proj, do_tip_scan
+      REAL(KIND=dp)                                      :: ekts
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -143,7 +143,7 @@ CONTAINS
          CALL atprop_array_add(atprop%atener, atprop%atecc)
          CALL atprop_array_add(atprop%atener, atprop%ate1c)
          ! entropic energy
-         ekts = energy%kts/REAL(natom,KIND=dp)
+         ekts = energy%kts/REAL(natom, KIND=dp)
          atprop%atener(:) = atprop%atener(:) + ekts
       END IF
 
