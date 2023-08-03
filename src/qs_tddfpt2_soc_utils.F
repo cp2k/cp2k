@@ -13,24 +13,36 @@
 ! **************************************************************************************************
 
 MODULE qs_tddfpt2_soc_utils
-   USE cp_control_types,                ONLY: tddfpt2_control_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE core_ppnl,                       ONLY: build_core_ppnl
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              qs_control_type,&
+                                              tddfpt2_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_get_info,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_info, dbcsr_p_type, &
+        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: tddfpt_dipole_berry,&
                                               tddfpt_dipole_length,&
                                               tddfpt_dipole_velocity
    USE kinds,                           ONLY: dp
    USE moments_utils,                   ONLY: get_reference_point
+   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                               rRc_xyz_ao
+   USE qs_tddfpt2_soc_types,            ONLY: soc_atom_env_type
+   USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -40,7 +52,7 @@ MODULE qs_tddfpt2_soc_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_soc_utils'
 
-   PUBLIC :: soc_dipole_operator, soc_contract_evect
+   PUBLIC :: soc_dipole_operator, soc_contract_evect, atomic_pseudopotential
 
    !A helper type for SOC
    TYPE dbcsr_soc_package_type
@@ -124,11 +136,120 @@ CONTAINS
    END SUBROUTINE soc_dipole_operator
 
 !******************************************************************************
-! \brief Will write the tddft Excitation vectors into a single fm
-!          It was optaint as a nspin x nstat matrix of fms
-! \param fm_start a nspin x nstat Matrix of matries
-! \param fm_res one output matrix with the dimensions nao x nocc*nspin*nstat
-!******************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param soc_atom_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE atomic_pseudopotential(soc_atom_env, qs_env)
+
+      TYPE(soc_atom_env_type)                            :: soc_atom_env
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'atomic_pseudopotential'
+
+      INTEGER                                            :: handle, i_dim, nder, nkind
+      LOGICAL                                            :: calculate_forces, use_virial
+      REAL(KIND=dp)                                      :: eps_ppnl
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_dummy, matrix_l, matrix_l_ladder, &
+                                                            matrix_l_nosymm, matrix_pot_dummy
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_control_type), POINTER                     :: qs_control
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(virial_type), POINTER                         :: virial
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (qs_kind_set, dft_control, qs_control)
+
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
+      qs_control => dft_control%qs_control
+      nkind = SIZE(qs_kind_set)
+
+      ! SOC correction for PP contribution analogously to calculate_and_print_soc in rpa_gw
+      ! get matrix s
+      NULLIFY (sab_orb, sap_ppnl, particle_set, atomic_kind_set)
+      CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
+                      atomic_kind_set=atomic_kind_set, &
+                      particle_set=particle_set, &
+                      sab_orb=sab_orb, sap_ppnl=sap_ppnl)
+
+      eps_ppnl = dft_control%qs_control%eps_ppnl
+
+      NULLIFY (matrix_l)
+      CALL dbcsr_allocate_matrix_set(matrix_l, 3, 1)
+      DO i_dim = 1, 3
+         ALLOCATE (matrix_l(i_dim, 1)%matrix)
+         CALL dbcsr_create(matrix_l(i_dim, 1)%matrix, template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_l(i_dim, 1)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_l(i_dim, 1)%matrix, 0.0_dp)
+      END DO
+
+      ! get matrix l
+      IF (ASSOCIATED(sap_ppnl)) THEN
+         nder = 0
+         use_virial = .FALSE.
+         calculate_forces = .FALSE.
+
+         NULLIFY (matrix_pot_dummy)
+         CALL dbcsr_allocate_matrix_set(matrix_pot_dummy, 1, 1)
+         ALLOCATE (matrix_pot_dummy(1, 1)%matrix)
+         CALL dbcsr_create(matrix_pot_dummy(1, 1)%matrix, template=matrix_s(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_pot_dummy(1, 1)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_pot_dummy(1, 1)%matrix, 0.0_dp)
+
+         CALL build_core_ppnl(matrix_pot_dummy, matrix_dummy, force, virial, &
+                              calculate_forces, use_virial, nder, &
+                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
+                              nimages=1, basis_type="ORB", matrix_l=matrix_l)
+
+         NULLIFY (matrix_l_nosymm)
+         CALL dbcsr_allocate_matrix_set(matrix_l_nosymm, 3, 1)
+         DO i_dim = 1, 3
+            ALLOCATE (matrix_l_nosymm(i_dim, 1)%matrix)
+            CALL dbcsr_create(matrix_l_nosymm(i_dim, 1)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_desymmetrize(matrix_l(i_dim, 1)%matrix, matrix_l_nosymm(i_dim, 1)%matrix)
+         END DO
+
+         CALL dbcsr_deallocate_matrix_set(matrix_pot_dummy)
+      END IF
+      !
+      NULLIFY (matrix_l_ladder)
+      CALL dbcsr_allocate_matrix_set(matrix_l_ladder, 3, 1)
+      DO i_dim = 1, 3
+         ALLOCATE (matrix_l_ladder(i_dim, 1)%matrix)
+         CALL dbcsr_create(matrix_l_ladder(i_dim, 1)%matrix, template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_l_ladder(i_dim, 1)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_l_ladder(i_dim, 1)%matrix, 0.0_dp)
+      END DO
+      !
+      NULLIFY (soc_atom_env%soc_pp)
+      CALL dbcsr_allocate_matrix_set(soc_atom_env%soc_pp, 3, 1)
+      DO i_dim = 1, 3
+         ALLOCATE (soc_atom_env%soc_pp(i_dim, 1)%matrix)
+         CALL dbcsr_create(soc_atom_env%soc_pp(i_dim, 1)%matrix, template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL cp_dbcsr_alloc_block_from_nbl(soc_atom_env%soc_pp(i_dim, 1)%matrix, sab_orb)
+         CALL dbcsr_add(soc_atom_env%soc_pp(i_dim, 1)%matrix, matrix_l_nosymm(i_dim, 1)%matrix, 0.0_dp, 0.5_dp)
+      END DO
+
+      CALL dbcsr_deallocate_matrix_set(matrix_l_nosymm)
+      CALL dbcsr_deallocate_matrix_set(matrix_l)
+      CALL dbcsr_deallocate_matrix_set(matrix_l_ladder)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE atomic_pseudopotential
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_start ...
