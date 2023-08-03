@@ -78,7 +78,8 @@ MODULE qs_tddfpt2_soc
                                               soc_env_create,&
                                               soc_env_release,&
                                               soc_env_type
-   USE qs_tddfpt2_soc_utils,            ONLY: soc_contract_evect,&
+   USE qs_tddfpt2_soc_utils,            ONLY: atomic_pseudopotential,&
+                                              soc_contract_evect,&
                                               soc_dipole_operator
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE spherical_harmonics,             ONLY: clebsch_gordon,&
@@ -428,7 +429,7 @@ CONTAINS
       !  Can only fill upper half
 
       IF (log_unit > 0 .AND. debug_this_module) THEN
-         WRITE (log_unit, '(A)') "Startung Ground-State contributions..."
+         WRITE (log_unit, '(A)') "Starting Ground-State contributions..."
       END IF
       !Start with the ground state/triplet SOC, SOC*gs_coeffs already computed above
       !note: we are computing <0|H|T>, but have SOC*gs_coeffs instead of gs_coeffs*SOC in store.
@@ -1113,7 +1114,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ikind, irep, ispin, nactive, &
                                                             nao, natom, nkind, nrep, nspins, &
                                                             nstates
-      LOGICAL                                            :: do_os
+      LOGICAL                                            :: all_potential_present, do_os
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: a_coeff, b_coeff
@@ -1203,6 +1204,12 @@ CONTAINS
       ALLOCATE (soc_atom_env%harmonics_atom_set(nkind))
       ALLOCATE (soc_atom_env%orb_sphi_so(nkind))
 
+      CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
+      IF (.NOT. all_potential_present) THEN
+         CALL atomic_pseudopotential(soc_atom_env, qs_env)
+      END IF
+
+      !  IF (all_potential_present) THEN
       !! Prepare the atomic grid we need to calculate the SOC Operator in an Atomic basis
       !! copied from init_xas_atom_grid_harmo for convenience
       CALL init_atom_grid(soc_atom_env, grid_info, qs_env)
@@ -1211,6 +1218,7 @@ CONTAINS
          NULLIFY (soc_atom_env%orb_sphi_so(ikind)%array)
          CALL compute_sphi_so(ikind, "ORB", soc_atom_env%orb_sphi_so(ikind)%array, qs_env)
       END DO !ikind
+      !  ENDIF
 
       DEALLOCATE (grid_info)
 

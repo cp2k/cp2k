@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE qs_tddfpt2_soc_types
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
@@ -70,7 +71,7 @@ MODULE qs_tddfpt2_soc_types
       TYPE(grid_atom_p_type), DIMENSION(:), POINTER      :: grid_atom_set => Null()
       TYPE(harmonics_atom_p_type), DIMENSION(:), POINTER :: harmonics_atom_set => Null()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: orb_sphi_so => Null()
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: vppl, vppnl
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: soc_pp
    END TYPE
 
 CONTAINS
@@ -138,6 +139,7 @@ CONTAINS
       NULLIFY (soc_atom_env%grid_atom_set)
       NULLIFY (soc_atom_env%harmonics_atom_set)
       NULLIFY (soc_atom_env%orb_sphi_so)
+      NULLIFY (soc_atom_env%soc_pp)
 
    END SUBROUTINE soc_atom_create
 
@@ -177,8 +179,7 @@ CONTAINS
          DEALLOCATE (soc_atom_env%orb_sphi_so)
       END IF
 
-      IF (ALLOCATED(soc_atom_env%vppl)) DEALLOCATE (soc_atom_env%vppl)
-      IF (ALLOCATED(soc_atom_env%vppnl)) DEALLOCATE (soc_atom_env%vppnl)
+      IF (ASSOCIATED(soc_atom_env%soc_pp)) CALL dbcsr_deallocate_matrix_set(soc_atom_env%soc_pp)
 
       !Clean-up libint
       CALL cp_libint_static_cleanup()

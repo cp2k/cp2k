@@ -6,4 +6,6 @@
 regtest-Ar-S.inp              104    4.0E-06           20.8357607201
 regtest-Ar-T.inp              104    4.0E-06           20.8357607201
 regtest-Ne-S.inp              104    4.0E-06           45.3245164440
+regtest-Ne-PPs-GAPW.inp       105    1.0E-05           148.205584
+#regtest-Ne-PPs-GPW.inp        105    1.0E-01           92.832116
 #EOF

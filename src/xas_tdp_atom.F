@@ -32,12 +32,12 @@ MODULE xas_tdp_atom
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_get_block,&
                                               dbt_iterator_blocks_left,&
@@ -3376,6 +3376,7 @@ CONTAINS
 
       INTEGER                                            :: blk, handle, i, iat, ikind, ir, jat, &
                                                             maxso, na, nkind, nr, nset, nsgf
+      LOGICAL                                            :: all_potential_present
       REAL(dp)                                           :: zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Vr
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: V
@@ -3390,17 +3391,21 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
+!!DEBUG
+      CALL timeset(routineN, handle)
+
       NULLIFY (int_soc, basis, qs_kind_set, sphi_so, matrix_s, grid)
       NULLIFY (particle_set)
-
-      CALL timeset(routineN, handle)
 
 !  Initialization
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, matrix_s=matrix_s, &
                       particle_set=particle_set)
-      ALLOCATE (int_soc(nkind))
+
+!  all_potential_present
+      CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
 
 !  Loop over the kinds to compute the integrals
+      ALLOCATE (int_soc(nkind))
       DO ikind = 1, nkind
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB", zeff=zeff)
          IF (PRESENT(soc_atom_env)) THEN
@@ -3454,6 +3459,7 @@ CONTAINS
       END DO !ikind
 
 !  Build the matrix_soc based on the matrix_s (but anti-symmetric)
+      IF ((PRESENT(xas_atom_env)) .OR. all_potential_present) THEN
       DO i = 1, 3
          CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
                            matrix_type=dbcsr_type_antisymmetric)
@@ -3468,12 +3474,21 @@ CONTAINS
          ikind = particle_set(iat)%atomic_kind%kind_number
 
          DO i = 1, 3
-            !!! iat iat !!! DEBUG
             CALL dbcsr_put_block(matrix_soc(i)%matrix, iat, iat, int_soc(ikind)%array(:, :, i))
          END DO
 
       END DO !iat
       CALL dbcsr_iterator_stop(iter)
+
+      ELSE  ! pseudopotentials here
+      DO i = 1, 3
+         CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_set(matrix_soc(i)%matrix, 0.0_dp)
+         CALL dbcsr_copy(matrix_soc(i)%matrix, soc_atom_env%soc_pp(i, 1)%matrix)
+      END DO
+      END IF
+
       DO i = 1, 3
          CALL dbcsr_finalize(matrix_soc(i)%matrix)
       END DO
