@@ -10,7 +10,7 @@ import os
 
 # ------------------------------------------------------------------------------
 
-cp2k_release_list = ["master", "2023.1"]  # append new releases to list
+cp2k_release_list = ["master", "2023.1", "2023.2"]  # append new releases to list
 mpi_implementation_list = ["mpich", "openmpi"]
 mpich_device_list = ["ch3", "ch4", "ch4:ucx"]
 target_cpu_list = ["generic", "haswell", "skylake-avx512", "native", "znver2", "znver3"]
