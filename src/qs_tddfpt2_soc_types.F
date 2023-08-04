@@ -52,8 +52,8 @@ MODULE qs_tddfpt2_soc_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat => Null()
       REAL(dp), POINTER, DIMENSION(:)                 :: evals_a => Null(), &
                                                          evals_b => Null()
-      TYPE(cp_fm_type)                                :: a_coeff, &
-                                                         b_coeff
+      TYPE(cp_fm_type)                                :: a_coeff = cp_fm_type(), &
+                                                         b_coeff = cp_fm_type()
       REAL(dp), ALLOCATABLE, DIMENSION(:)             :: soc_evals, &
                                                          soc_osc
    END TYPE
@@ -71,7 +71,7 @@ MODULE qs_tddfpt2_soc_types
       TYPE(grid_atom_p_type), DIMENSION(:), POINTER      :: grid_atom_set => Null()
       TYPE(harmonics_atom_p_type), DIMENSION(:), POINTER :: harmonics_atom_set => Null()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: orb_sphi_so => Null()
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: soc_pp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: soc_pp => Null()
    END TYPE
 
 CONTAINS

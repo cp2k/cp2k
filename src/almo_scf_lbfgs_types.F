@@ -39,11 +39,11 @@ MODULE almo_scf_lbfgs_types
              lbfgs_history_type
 
    TYPE lbfgs_history_type
-      INTEGER :: nstore
+      INTEGER :: nstore = 0
       ! istore counts the total number of action=2 pushes
       ! istore is designed to become more than nstore eventually
       ! there are two counters: the main variable and gradient
-      INTEGER, DIMENSION(2) :: istore
+      INTEGER, DIMENSION(2) :: istore = 0
       TYPE(dbcsr_type), DIMENSION(:, :, :), ALLOCATABLE :: matrix
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: rho
    END TYPE lbfgs_history_type

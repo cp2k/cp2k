@@ -77,7 +77,7 @@ MODULE cp2k_shell
       TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
       CHARACTER(LEN=5)                                   :: units = "au"
       INTEGER                                            :: env_id = -1
-      INTEGER                                            :: iw
+      INTEGER                                            :: iw = -1
    END TYPE cp2k_shell_type
 
    PUBLIC :: launch_cp2k_shell

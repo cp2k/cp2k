@@ -15,7 +15,9 @@ MODULE routine_map
 
    #:call hash_map(prefix='routine_map', &
       key_type='CHARACTER(LEN=default_string_length)', &
-      value_type='INTEGER(kind=int_4)')
+      value_type='INTEGER(kind=int_4)', &
+      key_default_init=' = ""', &
+      value_default_init=' = 0_int_4')
    #:endcall hash_map
 
 ! **************************************************************************************************

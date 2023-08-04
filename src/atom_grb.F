@@ -55,7 +55,7 @@ MODULE atom_grb
    IMPLICIT NONE
 
    TYPE basis_p_type
-      TYPE(atom_basis_type), POINTER                :: basis
+      TYPE(atom_basis_type), POINTER                :: basis => NULL()
    END TYPE basis_p_type
 
    PRIVATE

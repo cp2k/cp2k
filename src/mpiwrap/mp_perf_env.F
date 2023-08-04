@@ -13,6 +13,8 @@ MODULE mp_perf_env
    USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
+   PRIVATE
+
    PUBLIC :: mp_perf_env_type
    PUBLIC :: mp_perf_env_retain, mp_perf_env_release
    PUBLIC :: add_mp_perf_env, rm_mp_perf_env, get_mp_perf_env, describe_mp_perf_env

@@ -137,24 +137,24 @@ MODULE force_env_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE force_env_type
-      INTEGER :: ref_count, in_use, method_name_id
-      REAL(KIND=dp)                                    :: additional_potential
-      TYPE(fist_environment_type), POINTER             :: fist_env
-      TYPE(meta_env_type), POINTER                     :: meta_env
-      TYPE(fp_type), POINTER                           :: fp_env
-      TYPE(qs_environment_type), POINTER               :: qs_env
-      TYPE(eip_environment_type), POINTER              :: eip_env
-      TYPE(pwdft_environment_type), POINTER            :: pwdft_env
-      TYPE(global_environment_type), POINTER           :: globenv
-      TYPE(mp_para_env_type), POINTER                  :: para_env
-      TYPE(force_env_p_type), DIMENSION(:), POINTER    :: sub_force_env
-      TYPE(qmmm_env_type), POINTER                     :: qmmm_env
-      TYPE(qmmmx_env_type), POINTER                    :: qmmmx_env
-      TYPE(mixed_environment_type), POINTER            :: mixed_env
-      TYPE(nnp_type), POINTER                          :: nnp_env
-      TYPE(embed_env_type), POINTER                    :: embed_env
-      TYPE(section_vals_type), POINTER                 :: force_env_section
-      TYPE(section_vals_type), POINTER                 :: root_section
+      INTEGER :: ref_count = 0, in_use = 0, method_name_id = 0
+      REAL(KIND=dp)                                    :: additional_potential = 0.0_dp
+      TYPE(fist_environment_type), POINTER             :: fist_env => NULL()
+      TYPE(meta_env_type), POINTER                     :: meta_env => NULL()
+      TYPE(fp_type), POINTER                           :: fp_env => NULL()
+      TYPE(qs_environment_type), POINTER               :: qs_env => NULL()
+      TYPE(eip_environment_type), POINTER              :: eip_env => NULL()
+      TYPE(pwdft_environment_type), POINTER            :: pwdft_env => NULL()
+      TYPE(global_environment_type), POINTER           :: globenv => NULL()
+      TYPE(mp_para_env_type), POINTER                  :: para_env => NULL()
+      TYPE(force_env_p_type), DIMENSION(:), POINTER    :: sub_force_env => NULL()
+      TYPE(qmmm_env_type), POINTER                     :: qmmm_env => NULL()
+      TYPE(qmmmx_env_type), POINTER                    :: qmmmx_env => NULL()
+      TYPE(mixed_environment_type), POINTER            :: mixed_env => NULL()
+      TYPE(nnp_type), POINTER                          :: nnp_env => NULL()
+      TYPE(embed_env_type), POINTER                    :: embed_env => NULL()
+      TYPE(section_vals_type), POINTER                 :: force_env_section => NULL()
+      TYPE(section_vals_type), POINTER                 :: root_section => NULL()
    END TYPE force_env_type
 
 ! **************************************************************************************************
@@ -165,7 +165,7 @@ MODULE force_env_types
 !> \author MJM
 ! **************************************************************************************************
    TYPE force_env_p_type
-      TYPE(force_env_type), POINTER :: force_env
+      TYPE(force_env_type), POINTER :: force_env => NULL()
    END TYPE force_env_p_type
 
 CONTAINS

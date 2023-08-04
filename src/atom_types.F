@@ -30,10 +30,10 @@ MODULE atom_types
                                               parser_create,&
                                               parser_release
    USE input_constants,                 ONLY: &
-        barrier_conf, contracted_gto, do_gapw_log, do_numeric, do_potential_coulomb, &
-        do_potential_long, do_potential_mix_cl, do_potential_short, do_semi_analytic, ecp_pseudo, &
-        gaussian, geometrical_gto, gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, &
-        sgp_pseudo, slater, upf_pseudo
+        barrier_conf, contracted_gto, do_analytic, do_gapw_log, do_nonrel_atom, do_numeric, &
+        do_potential_coulomb, do_potential_long, do_potential_mix_cl, do_potential_short, &
+        do_rks_atom, do_semi_analytic, ecp_pseudo, gaussian, geometrical_gto, gth_pseudo, no_conf, &
+        no_pseudo, numerical, poly_conf, sgp_pseudo, slater, upf_pseudo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_list_get,&
@@ -76,118 +76,118 @@ MODULE atom_types
 !> \brief Provides all information about a basis set
 ! **************************************************************************************************
    TYPE atom_basis_type
-      INTEGER                                       :: basis_type
-      INTEGER, DIMENSION(0:lmat)                    :: nbas
-      INTEGER, DIMENSION(0:lmat)                    :: nprim
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: am !GTO exponents
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: cm !Contraction coeffs
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: as !STO exponents
-      INTEGER, DIMENSION(:, :), POINTER             :: ns !STO n-quantum numbers
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: bf !num. bsf
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: dbf !derivatives (num)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ddbf !2nd derivatives (num)
-      REAL(KIND=dp)                                 :: eps_eig
-      TYPE(grid_atom_type), POINTER                 :: grid
-      LOGICAL                                       :: geometrical
-      REAL(KIND=dp)                                 :: aval, cval
-      INTEGER, DIMENSION(0:lmat)                    :: start
+      INTEGER                                       :: basis_type = GTO_BASIS
+      INTEGER, DIMENSION(0:lmat)                    :: nbas = 0
+      INTEGER, DIMENSION(0:lmat)                    :: nprim = 0
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: am => NULL() !GTO exponents
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: cm => NULL() !Contraction coeffs
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: as => NULL() !STO exponents
+      INTEGER, DIMENSION(:, :), POINTER             :: ns => NULL() !STO n-quantum numbers
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: bf => NULL() !num. bsf
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: dbf => NULL() !derivatives (num)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ddbf => NULL() !2nd derivatives (num)
+      REAL(KIND=dp)                                 :: eps_eig = 0.0_dp
+      TYPE(grid_atom_type), POINTER                 :: grid => NULL()
+      LOGICAL                                       :: geometrical = .FALSE.
+      REAL(KIND=dp)                                 :: aval = 0.0_dp, cval = 0.0_dp
+      INTEGER, DIMENSION(0:lmat)                    :: start = 0
    END TYPE atom_basis_type
 
 !> \brief Provides all information about a pseudopotential
 ! **************************************************************************************************
    TYPE atom_gthpot_type
-      CHARACTER(LEN=2)                              :: symbol
-      CHARACTER(LEN=default_string_length)          :: pname
-      INTEGER, DIMENSION(0:lmat)                    :: econf
-      REAL(dp)                                      :: zion
-      REAL(dp)                                      :: rc
-      INTEGER                                       :: ncl
-      REAL(dp), DIMENSION(5)                        :: cl
-      INTEGER, DIMENSION(0:lmat)                    :: nl
-      REAL(dp), DIMENSION(0:lmat)                   :: rcnl
-      REAL(dp), DIMENSION(4, 4, 0:lmat)             :: hnl
+      CHARACTER(LEN=2)                              :: symbol = ""
+      CHARACTER(LEN=default_string_length)          :: pname = ""
+      INTEGER, DIMENSION(0:lmat)                    :: econf = 0
+      REAL(dp)                                      :: zion = 0.0_dp
+      REAL(dp)                                      :: rc = 0.0_dp
+      INTEGER                                       :: ncl = 0
+      REAL(dp), DIMENSION(5)                        :: cl = 0.0_dp
+      INTEGER, DIMENSION(0:lmat)                    :: nl = 0
+      REAL(dp), DIMENSION(0:lmat)                   :: rcnl = 0.0_dp
+      REAL(dp), DIMENSION(4, 4, 0:lmat)             :: hnl = 0.0_dp
       ! type extensions
       ! NLCC
-      LOGICAL                                       :: nlcc
-      INTEGER                                       :: nexp_nlcc
-      REAL(KIND=dp), DIMENSION(10)                  :: alpha_nlcc
-      INTEGER, DIMENSION(10)                        :: nct_nlcc
-      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_nlcc
+      LOGICAL                                       :: nlcc = .FALSE.
+      INTEGER                                       :: nexp_nlcc = 0
+      REAL(KIND=dp), DIMENSION(10)                  :: alpha_nlcc = 0.0_dp
+      INTEGER, DIMENSION(10)                        :: nct_nlcc = 0
+      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_nlcc = 0.0_dp
       ! LSD potential
-      LOGICAL                                       :: lsdpot
-      INTEGER                                       :: nexp_lsd
-      REAL(KIND=dp), DIMENSION(10)                  :: alpha_lsd
-      INTEGER, DIMENSION(10)                        :: nct_lsd
-      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_lsd
+      LOGICAL                                       :: lsdpot = .FALSE.
+      INTEGER                                       :: nexp_lsd = 0
+      REAL(KIND=dp), DIMENSION(10)                  :: alpha_lsd = 0.0_dp
+      INTEGER, DIMENSION(10)                        :: nct_lsd = 0
+      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_lsd = 0.0_dp
       ! extended local potential
-      LOGICAL                                       :: lpotextended
-      INTEGER                                       :: nexp_lpot
-      REAL(KIND=dp), DIMENSION(10)                  :: alpha_lpot
-      INTEGER, DIMENSION(10)                        :: nct_lpot
-      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_lpot
+      LOGICAL                                       :: lpotextended = .FALSE.
+      INTEGER                                       :: nexp_lpot = 0
+      REAL(KIND=dp), DIMENSION(10)                  :: alpha_lpot = 0.0_dp
+      INTEGER, DIMENSION(10)                        :: nct_lpot = 0
+      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_lpot = 0.0_dp
    END TYPE atom_gthpot_type
 
    TYPE atom_ecppot_type
-      CHARACTER(LEN=2)                              :: symbol
-      CHARACTER(LEN=default_string_length)          :: pname
-      INTEGER, DIMENSION(0:lmat)                    :: econf
-      REAL(dp)                                      :: zion
-      INTEGER                                       :: lmax
-      INTEGER                                       :: nloc ! # terms
-      INTEGER, DIMENSION(1:10)                      :: nrloc ! r**(n-2)
-      REAL(dp), DIMENSION(1:10)                     :: aloc ! coefficient
-      REAL(dp), DIMENSION(1:10)                     :: bloc ! exponent
-      INTEGER, DIMENSION(0:10)                      :: npot ! # terms
-      INTEGER, DIMENSION(1:10, 0:10)                :: nrpot ! r**(n-2)
-      REAL(dp), DIMENSION(1:10, 0:10)               :: apot ! coefficient
-      REAL(dp), DIMENSION(1:10, 0:10)               :: bpot ! exponent
+      CHARACTER(LEN=2)                              :: symbol = ""
+      CHARACTER(LEN=default_string_length)          :: pname = ""
+      INTEGER, DIMENSION(0:lmat)                    :: econf = 0
+      REAL(dp)                                      :: zion = 0.0_dp
+      INTEGER                                       :: lmax = 0
+      INTEGER                                       :: nloc = 0 ! # terms
+      INTEGER, DIMENSION(1:10)                      :: nrloc = 0 ! r**(n-2)
+      REAL(dp), DIMENSION(1:10)                     :: aloc = 0.0_dp ! coefficient
+      REAL(dp), DIMENSION(1:10)                     :: bloc = 0.0_dp ! exponent
+      INTEGER, DIMENSION(0:10)                      :: npot = 0 ! # terms
+      INTEGER, DIMENSION(1:10, 0:10)                :: nrpot = 0 ! r**(n-2)
+      REAL(dp), DIMENSION(1:10, 0:10)               :: apot = 0.0_dp ! coefficient
+      REAL(dp), DIMENSION(1:10, 0:10)               :: bpot = 0.0_dp ! exponent
    END TYPE atom_ecppot_type
 
    TYPE atom_sgppot_type
-      CHARACTER(LEN=2)                              :: symbol
-      CHARACTER(LEN=default_string_length)          :: pname
-      INTEGER, DIMENSION(0:lmat)                    :: econf
-      REAL(dp)                                      :: zion
-      INTEGER                                       :: lmax
-      LOGICAL                                       :: has_nonlocal
-      INTEGER                                       :: n_nonlocal
+      CHARACTER(LEN=2)                              :: symbol = ""
+      CHARACTER(LEN=default_string_length)          :: pname = ""
+      INTEGER, DIMENSION(0:lmat)                    :: econf = 0
+      REAL(dp)                                      :: zion = 0.0_dp
+      INTEGER                                       :: lmax = 0
+      LOGICAL                                       :: has_nonlocal = .FALSE.
+      INTEGER                                       :: n_nonlocal = 0
       LOGICAL, DIMENSION(0:5)                       :: is_nonlocal = .FALSE.
-      REAL(KIND=dp), DIMENSION(nmax)                :: a_nonlocal
-      REAL(KIND=dp), DIMENSION(nmax, 0:lmat)        :: h_nonlocal
-      REAL(KIND=dp), DIMENSION(nmax, nmax, 0:lmat)  :: c_nonlocal
-      INTEGER                                       :: n_local
-      REAL(KIND=dp)                                 :: ac_local
-      REAL(KIND=dp), DIMENSION(nmax)                :: a_local
-      REAL(KIND=dp), DIMENSION(nmax)                :: c_local
-      LOGICAL                                       :: has_nlcc
-      INTEGER                                       :: n_nlcc
-      REAL(KIND=dp), DIMENSION(nmax)                :: a_nlcc
-      REAL(KIND=dp), DIMENSION(nmax)                :: c_nlcc
+      REAL(KIND=dp), DIMENSION(nmax)                :: a_nonlocal = 0.0_dp
+      REAL(KIND=dp), DIMENSION(nmax, 0:lmat)        :: h_nonlocal = 0.0_dp
+      REAL(KIND=dp), DIMENSION(nmax, nmax, 0:lmat)  :: c_nonlocal = 0.0_dp
+      INTEGER                                       :: n_local = 0
+      REAL(KIND=dp)                                 :: ac_local = 0.0_dp
+      REAL(KIND=dp), DIMENSION(nmax)                :: a_local = 0.0_dp
+      REAL(KIND=dp), DIMENSION(nmax)                :: c_local = 0.0_dp
+      LOGICAL                                       :: has_nlcc = .FALSE.
+      INTEGER                                       :: n_nlcc = 0
+      REAL(KIND=dp), DIMENSION(nmax)                :: a_nlcc = 0.0_dp
+      REAL(KIND=dp), DIMENSION(nmax)                :: c_nlcc = 0.0_dp
    END TYPE atom_sgppot_type
 
    TYPE atom_potential_type
-      INTEGER                                       :: ppot_type
-      LOGICAL                                       :: confinement
-      INTEGER                                       :: conf_type
-      REAL(dp)                                      :: acon
-      REAL(dp)                                      :: rcon
-      REAL(dp)                                      :: scon
-      TYPE(atom_gthpot_type)                        :: gth_pot
-      TYPE(atom_ecppot_type)                        :: ecp_pot
-      TYPE(atom_upfpot_type)                        :: upf_pot
-      TYPE(atom_sgppot_type)                        :: sgp_pot
+      INTEGER                                       :: ppot_type = 0
+      LOGICAL                                       :: confinement = .FALSE.
+      INTEGER                                       :: conf_type = 0
+      REAL(dp)                                      :: acon = 0.0_dp
+      REAL(dp)                                      :: rcon = 0.0_dp
+      REAL(dp)                                      :: scon = 0.0_dp
+      TYPE(atom_gthpot_type)                        :: gth_pot = atom_gthpot_type()
+      TYPE(atom_ecppot_type)                        :: ecp_pot = atom_ecppot_type()
+      TYPE(atom_upfpot_type)                        :: upf_pot = atom_upfpot_type()
+      TYPE(atom_sgppot_type)                        :: sgp_pot = atom_sgppot_type()
    END TYPE atom_potential_type
 
 !> \brief Provides info about hartree-fock exchange (For now, we only support potentials that can be represented
 !>        with Coulomb and longrange-coulomb potential)
 ! **************************************************************************************************
    TYPE atom_hfx_type
-      REAL(KIND=dp)                                 :: scale_coulomb
-      REAL(KIND=dp)                                 :: scale_longrange
-      REAL(KIND=dp)                                 :: omega
+      REAL(KIND=dp)                                 :: scale_coulomb = 0.0_dp
+      REAL(KIND=dp)                                 :: scale_longrange = 0.0_dp
+      REAL(KIND=dp)                                 :: omega = 0.0_dp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: kernel
-      LOGICAL                                       :: do_gh
-      INTEGER                                       :: nr_gh
+      LOGICAL                                       :: do_gh = .FALSE.
+      INTEGER                                       :: nr_gh = 0
    END TYPE atom_hfx_type
 
 !> \brief Provides all information on states and occupation
@@ -196,129 +196,129 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occ = 0.0_dp
       REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: core = 0.0_dp
       REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occupation = 0.0_dp
-      INTEGER                                       :: maxl_occ
+      INTEGER                                       :: maxl_occ = 0
       INTEGER, DIMENSION(0:lmat)                    :: maxn_occ = 0
-      INTEGER                                       :: maxl_calc
+      INTEGER                                       :: maxl_calc = 0
       INTEGER, DIMENSION(0:lmat)                    :: maxn_calc = 0
-      INTEGER                                       :: multiplicity
+      INTEGER                                       :: multiplicity = 0
       REAL(KIND=dp), DIMENSION(0:lmat, 10)          :: occa = 0.0_dp, occb = 0.0_dp
    END TYPE atom_state
 
 !> \brief Holds atomic integrals
 ! **************************************************************************************************
    TYPE eri
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: int
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: int => NULL()
    END TYPE eri
 
    TYPE atom_integrals
       INTEGER                                       :: status = 0
       INTEGER                                       :: ppstat = 0
-      LOGICAL                                       :: eri_coulomb
-      LOGICAL                                       :: eri_exchange
-      LOGICAL                                       :: all_nu
-      INTEGER, DIMENSION(0:lmat)                    :: n, nne
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ovlp, kin, core, clsd
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: utrans, uptrans
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hnl
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: conf
-      TYPE(eri), DIMENSION(100)                     :: ceri
-      TYPE(eri), DIMENSION(100)                     :: eeri
+      LOGICAL                                       :: eri_coulomb = .FALSE.
+      LOGICAL                                       :: eri_exchange = .FALSE.
+      LOGICAL                                       :: all_nu = .FALSE.
+      INTEGER, DIMENSION(0:lmat)                    :: n = 0, nne = 0
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ovlp => NULL(), kin => NULL(), core => NULL(), clsd => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: utrans => NULL(), uptrans => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hnl => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: conf => NULL()
+      TYPE(eri), DIMENSION(100)                     :: ceri = eri()
+      TYPE(eri), DIMENSION(100)                     :: eeri = eri()
       INTEGER                                       :: dkhstat = 0
       INTEGER                                       :: zorastat = 0
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: tzora
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hdkh
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: tzora => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hdkh => NULL()
    END TYPE atom_integrals
 
 !> \brief Holds atomic orbitals and energies
 ! **************************************************************************************************
    TYPE atom_orbitals
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wfn, wfna, wfnb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: pmat, pmata, pmatb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: ener, enera, enerb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: refene, refchg, refnod
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wrefene, wrefchg, wrefnod
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: crefene, crefchg, crefnod
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: wpsir0, tpsir0
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rcmax
-      CHARACTER(LEN=2), DIMENSION(:, :, :), POINTER :: reftype
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wfn => NULL(), wfna => NULL(), wfnb => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: pmat => NULL(), pmata => NULL(), pmatb => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: ener => NULL(), enera => NULL(), enerb => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: refene => NULL(), refchg => NULL(), refnod => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wrefene => NULL(), wrefchg => NULL(), wrefnod => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: crefene => NULL(), crefchg => NULL(), crefnod => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: wpsir0 => NULL(), tpsir0 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rcmax => NULL()
+      CHARACTER(LEN=2), DIMENSION(:, :, :), POINTER :: reftype => NULL()
    END TYPE atom_orbitals
 
 !> \brief Operator matrices
 ! **************************************************************************************************
    TYPE opmat_type
-      INTEGER, DIMENSION(0:lmat)                    :: n
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: op
+      INTEGER, DIMENSION(0:lmat)                    :: n = 0
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: op => NULL()
    END TYPE opmat_type
 
 !> \brief Operator grids
 ! **************************************************************************************************
    TYPE opgrid_type
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: op
-      TYPE(grid_atom_type), POINTER                 :: grid
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: op => NULL()
+      TYPE(grid_atom_type), POINTER                 :: grid => NULL()
    END TYPE opgrid_type
 
 !> \brief All energies
 ! **************************************************************************************************
    TYPE atom_energy_type
-      REAL(KIND=dp)                                 :: etot
-      REAL(KIND=dp)                                 :: eband
-      REAL(KIND=dp)                                 :: ekin
-      REAL(KIND=dp)                                 :: epot
-      REAL(KIND=dp)                                 :: ecore
-      REAL(KIND=dp)                                 :: elsd
-      REAL(KIND=dp)                                 :: epseudo
-      REAL(KIND=dp)                                 :: eploc
-      REAL(KIND=dp)                                 :: epnl
-      REAL(KIND=dp)                                 :: exc
-      REAL(KIND=dp)                                 :: ecoulomb
-      REAL(KIND=dp)                                 :: eexchange
-      REAL(KIND=dp)                                 :: econfinement
+      REAL(KIND=dp)                                 :: etot = 0.0_dp
+      REAL(KIND=dp)                                 :: eband = 0.0_dp
+      REAL(KIND=dp)                                 :: ekin = 0.0_dp
+      REAL(KIND=dp)                                 :: epot = 0.0_dp
+      REAL(KIND=dp)                                 :: ecore = 0.0_dp
+      REAL(KIND=dp)                                 :: elsd = 0.0_dp
+      REAL(KIND=dp)                                 :: epseudo = 0.0_dp
+      REAL(KIND=dp)                                 :: eploc = 0.0_dp
+      REAL(KIND=dp)                                 :: epnl = 0.0_dp
+      REAL(KIND=dp)                                 :: exc = 0.0_dp
+      REAL(KIND=dp)                                 :: ecoulomb = 0.0_dp
+      REAL(KIND=dp)                                 :: eexchange = 0.0_dp
+      REAL(KIND=dp)                                 :: econfinement = 0.0_dp
    END TYPE atom_energy_type
 
 !> \brief Information on optimization procedure
 ! **************************************************************************************************
    TYPE atom_optimization_type
-      REAL(KIND=dp)                                 :: damping
-      REAL(KIND=dp)                                 :: eps_scf
-      REAL(KIND=dp)                                 :: eps_diis
-      INTEGER                                       :: max_iter
-      INTEGER                                       :: n_diis
+      REAL(KIND=dp)                                 :: damping = 0.0_dp
+      REAL(KIND=dp)                                 :: eps_scf = 0.0_dp
+      REAL(KIND=dp)                                 :: eps_diis = 0.0_dp
+      INTEGER                                       :: max_iter = 0
+      INTEGER                                       :: n_diis = 0
    END TYPE atom_optimization_type
 
 !> \brief Provides all information about an atomic kind
 ! **************************************************************************************************
    TYPE atom_type
-      INTEGER                                       :: z
-      INTEGER                                       :: zcore
-      LOGICAL                                       :: pp_calc
+      INTEGER                                       :: z = 0
+      INTEGER                                       :: zcore = 0
+      LOGICAL                                       :: pp_calc = .FALSE.
 ! ZMP adding in type some variables
-      LOGICAL                                       :: do_zmp, doread, read_vxc, dm
-      CHARACTER(LEN=default_string_length)          :: ext_file, ext_vxc_file, &
-                                                       zmp_restart_file
+      LOGICAL                                       :: do_zmp = .FALSE., doread = .FALSE., read_vxc = .FALSE., dm = .FALSE.
+      CHARACTER(LEN=default_string_length)          :: ext_file = "", ext_vxc_file = "", &
+                                                       zmp_restart_file = ""
 !
-      INTEGER                                       :: method_type
-      INTEGER                                       :: relativistic
-      INTEGER                                       :: coulomb_integral_type
-      INTEGER                                       :: exchange_integral_type
+      INTEGER                                       :: method_type = do_rks_atom
+      INTEGER                                       :: relativistic = do_nonrel_atom
+      INTEGER                                       :: coulomb_integral_type = do_analytic
+      INTEGER                                       :: exchange_integral_type = do_analytic
 ! ZMP
-      REAL(KIND=dp)                                 :: lambda
-      REAL(KIND=dp)                                 :: rho_diff_integral
-      REAL(KIND=dp)                                 :: weight, zmpgrid_tol, zmpvxcgrid_tol
+      REAL(KIND=dp)                                 :: lambda = 0.0_dp
+      REAL(KIND=dp)                                 :: rho_diff_integral = 0.0_dp
+      REAL(KIND=dp)                                 :: weight = 0.0_dp, zmpgrid_tol = 0.0_dp, zmpvxcgrid_tol = 0.0_dp
 !
-      TYPE(atom_basis_type), POINTER                :: basis
-      TYPE(atom_potential_type), POINTER            :: potential
-      TYPE(atom_state), POINTER                     :: state
-      TYPE(atom_integrals), POINTER                 :: integrals
-      TYPE(atom_orbitals), POINTER                  :: orbitals
-      TYPE(atom_energy_type)                        :: energy
-      TYPE(atom_optimization_type)                  :: optimization
-      TYPE(section_vals_type), POINTER              :: xc_section, zmp_section
-      TYPE(opmat_type), POINTER                     :: fmat
-      TYPE(atom_hfx_type)                           :: hfx_pot
+      TYPE(atom_basis_type), POINTER                :: basis => NULL()
+      TYPE(atom_potential_type), POINTER            :: potential => NULL()
+      TYPE(atom_state), POINTER                     :: state => NULL()
+      TYPE(atom_integrals), POINTER                 :: integrals => NULL()
+      TYPE(atom_orbitals), POINTER                  :: orbitals => NULL()
+      TYPE(atom_energy_type)                        :: energy = atom_energy_type()
+      TYPE(atom_optimization_type)                  :: optimization = atom_optimization_type()
+      TYPE(section_vals_type), POINTER              :: xc_section => NULL(), zmp_section => NULL()
+      TYPE(opmat_type), POINTER                     :: fmat => NULL()
+      TYPE(atom_hfx_type)                           :: hfx_pot = atom_hfx_type()
    END TYPE atom_type
 ! **************************************************************************************************
    TYPE atom_p_type
-      TYPE(atom_type), POINTER                      :: atom
+      TYPE(atom_type), POINTER                      :: atom => NULL()
    END TYPE atom_p_type
 
    PUBLIC :: lmat

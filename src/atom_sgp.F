@@ -36,21 +36,21 @@ MODULE atom_sgp
    IMPLICIT NONE
 
    TYPE atom_sgp_potential_type
-      LOGICAL                                  :: has_nonlocal
-      INTEGER                                  :: n_nonlocal
-      INTEGER                                  :: lmax
+      LOGICAL                                  :: has_nonlocal = .FALSE.
+      INTEGER                                  :: n_nonlocal = 0
+      INTEGER                                  :: lmax = 0
       LOGICAL, DIMENSION(0:5)                  :: is_nonlocal = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER     :: a_nonlocal => Null()
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_nonlocal => Null()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: c_nonlocal => Null()
-      LOGICAL                                  :: has_local
-      INTEGER                                  :: n_local
-      REAL(KIND=dp)                            :: zval
-      REAL(KIND=dp)                            :: ac_local
+      LOGICAL                                  :: has_local = .FALSE.
+      INTEGER                                  :: n_local = 0
+      REAL(KIND=dp)                            :: zval = 0.0_dp
+      REAL(KIND=dp)                            :: ac_local = 0.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER     :: a_local => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: c_local => Null()
-      LOGICAL                                  :: has_nlcc
-      INTEGER                                  :: n_nlcc
+      LOGICAL                                  :: has_nlcc = .FALSE.
+      INTEGER                                  :: n_nlcc = 0
       REAL(KIND=dp), DIMENSION(:), POINTER     :: a_nlcc => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: c_nlcc => Null()
    END TYPE

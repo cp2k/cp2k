@@ -40,16 +40,16 @@ MODULE dm_ls_scf_types
              ls_scf_curvy_type
 
    TYPE ls_mstruct_type
-      INTEGER :: cluster_type
-      LOGICAL :: single_precision
-      LOGICAL :: do_pao
+      INTEGER :: cluster_type = -1
+      LOGICAL :: single_precision = .FALSE.
+      LOGICAL :: do_pao = .FALSE.
       INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
       TYPE(dbcsr_type)                :: matrix_A
       TYPE(dbcsr_type)                :: matrix_B
    END TYPE
 
    TYPE ls_mat_history_type
-      INTEGER :: istore, nstore
+      INTEGER :: istore = 0, nstore = 0
       TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix
    END TYPE
 
@@ -58,28 +58,28 @@ MODULE dm_ls_scf_types
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
       TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_psave
       TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_BCH
-      REAL(KIND=dp)                                    :: step_size(2)
-      REAL(KIND=dp)                                    :: shift(2)
-      REAL(KIND=dp)                                    :: cg_denom(2)
-      REAL(KIND=dp)                                    :: cg_numer(2)
-      REAL(KIND=dp), DIMENSION(6)                      :: energies
-      INTEGER                                          :: line_search_step
-      INTEGER                                          :: BCH_saved(2)
-      LOGICAL                                          :: double_step_size
-      LOGICAL                                          :: fix_shift(2)
+      REAL(KIND=dp), DIMENSION(2)                      :: step_size = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                      :: shift = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                      :: cg_denom = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                      :: cg_numer = 0.0_dp
+      REAL(KIND=dp), DIMENSION(6)                      :: energies = 0.0_dp
+      INTEGER                                          :: line_search_step = 0
+      INTEGER, DIMENSION(2)                            :: BCH_saved = 0
+      LOGICAL                                          :: double_step_size = .FALSE.
+      LOGICAL, DIMENSION(2)                            :: fix_shift = .FALSE.
 
-      INTEGER                                          :: line_search_type
-      INTEGER                                          :: n_bch_hist
-      REAL(KIND=dp)                                    :: scale_filter
-      REAL(KIND=dp)                                    :: filter_factor
-      REAL(KIND=dp)                                    :: min_shift
-      REAL(KIND=dp)                                    :: min_filter
+      INTEGER                                          :: line_search_type = 0
+      INTEGER                                          :: n_bch_hist = 0
+      REAL(KIND=dp)                                    :: scale_filter = 0.0_dp
+      REAL(KIND=dp)                                    :: filter_factor = 0.0_dp
+      REAL(KIND=dp)                                    :: min_shift = 0.0_dp
+      REAL(KIND=dp)                                    :: min_filter = 0.0_dp
    END TYPE
 
    TYPE chebyshev_type
-      LOGICAL :: compute_chebyshev
-      INTEGER :: n_chebyshev
-      INTEGER :: n_gridpoint_dos
+      LOGICAL :: compute_chebyshev = .FALSE.
+      INTEGER :: n_chebyshev = 0
+      INTEGER :: n_gridpoint_dos = 0
       REAL(KIND=dp), DIMENSION(:), POINTER :: min_energy => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER :: max_energy => NULL()
       TYPE(section_vals_type), POINTER :: print_key_dos => NULL()
@@ -87,43 +87,44 @@ MODULE dm_ls_scf_types
    END TYPE
 
    TYPE ls_scf_env_type
-      INTEGER               :: nspins, natoms
-      INTEGER               :: nelectron_total
-      INTEGER, DIMENSION(2) :: nelectron_spin
-      REAL(KIND=dp), DIMENSION(2) ::  mu_spin
-      REAL(KIND=dp), DIMENSION(2) ::  homo_spin
-      REAL(KIND=dp), DIMENSION(2) ::  lumo_spin
+      INTEGER               :: nspins = 0, natoms = 0
+      INTEGER               :: nelectron_total = 0
+      INTEGER, DIMENSION(2) :: nelectron_spin = 0
+      REAL(KIND=dp), DIMENSION(2) ::  mu_spin = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2) ::  homo_spin = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2) ::  lumo_spin = 0.0_dp
 
-      TYPE(ls_mat_history_type) :: scf_history
-      INTEGER :: extrapolation_order
+      TYPE(ls_mat_history_type) :: scf_history = ls_mat_history_type()
+      INTEGER :: extrapolation_order = -1
 
-      LOGICAL :: has_unit_metric
+      LOGICAL :: has_unit_metric = .FALSE.
 
-      LOGICAL :: curvy_steps
-      INTEGER :: s_preconditioner_type
-      INTEGER :: s_inversion_type
-      INTEGER :: purification_method
-      INTEGER :: sign_method
-      INTEGER :: sign_order
-      LOGICAL :: sign_symmetric
-      INTEGER :: submatrix_sign_method
-      INTEGER :: s_sqrt_method
-      INTEGER :: s_sqrt_order
+      LOGICAL :: curvy_steps = .FALSE.
+      INTEGER :: s_preconditioner_type = 0
+      INTEGER :: s_inversion_type = 0
+      INTEGER :: purification_method = 0
+      INTEGER :: sign_method = 0
+      INTEGER :: sign_order = 0
+      LOGICAL :: sign_symmetric = .FALSE.
+      INTEGER :: submatrix_sign_method = -1
+      INTEGER :: s_sqrt_method = 0
+      INTEGER :: s_sqrt_order = 0
 
-      LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu, dynamic_threshold, check_s_inv
-      LOGICAL               :: restart_read, restart_write, non_monotonic
-      REAL(KIND=dp)         :: eps_filter, eps_scf
+      LOGICAL               :: needs_s_inv = .FALSE., has_s_preconditioner = .FALSE., fixed_mu = .FALSE., &
+                               dynamic_threshold = .FALSE., check_s_inv = .FALSE.
+      LOGICAL               :: restart_read = .FALSE., restart_write = .FALSE., non_monotonic = .FALSE.
+      REAL(KIND=dp)         :: eps_filter = 0.0_dp, eps_scf = 0.0_dp
 
-      REAL(KIND=dp)         :: eps_lanczos
-      INTEGER               :: max_iter_lanczos
+      REAL(KIND=dp)         :: eps_lanczos = 0.0_dp
+      INTEGER               :: max_iter_lanczos = 0
 
-      REAL(KIND=dp)         :: mixing_fraction
-      INTEGER               :: max_scf
-      LOGICAL               :: ls_diis
-      INTEGER               :: iter_ini_diis
-      INTEGER               :: nmixing, max_diis
-      REAL(KIND=dp)         :: eps_diis
-      REAL(KIND=dp)         :: energy_init
+      REAL(KIND=dp)         :: mixing_fraction = 0.0_dp
+      INTEGER               :: max_scf = 0
+      LOGICAL               :: ls_diis = .FALSE.
+      INTEGER               :: iter_ini_diis = 0
+      INTEGER               :: nmixing = 0, max_diis = 0
+      REAL(KIND=dp)         :: eps_diis = 0.0_dp
+      REAL(KIND=dp)         :: energy_init = 0.0_dp
 
       TYPE(dbcsr_type)   :: matrix_s_inv
       TYPE(dbcsr_type)   :: matrix_s
@@ -132,25 +133,25 @@ MODULE dm_ls_scf_types
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
 
-      LOGICAL  :: report_all_sparsities, perform_mu_scan, use_s_sqrt
+      LOGICAL  :: report_all_sparsities = .FALSE., perform_mu_scan = .FALSE., use_s_sqrt = .FALSE.
 
       TYPE(ls_mstruct_type) :: ls_mstruct
-      TYPE(ls_scf_curvy_type) :: curvy_data
+      TYPE(ls_scf_curvy_type) :: curvy_data = ls_scf_curvy_type()
 
-      TYPE(chebyshev_type) :: chebyshev
+      TYPE(chebyshev_type) :: chebyshev = chebyshev_type()
 
-      LOGICAL :: do_rho_mixing
-      INTEGER :: density_mixing_method
-      TYPE(mixing_storage_type), POINTER :: mixing_store
+      LOGICAL :: do_rho_mixing = .FALSE.
+      INTEGER :: density_mixing_method = 0
+      TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
 
-      LOGICAL :: do_transport
-      LOGICAL :: do_pexsi
+      LOGICAL :: do_transport = .FALSE.
+      LOGICAL :: do_pexsi = .FALSE.
 
-      LOGICAL :: calculate_forces
+      LOGICAL :: calculate_forces = .FALSE.
 
       TYPE(lib_pexsi_env) :: pexsi
 
-      TYPE(mp_para_env_type), POINTER :: para_env
+      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
       LOGICAL                 :: do_pao = .FALSE.
       TYPE(pao_env_type)      :: pao_env
    END TYPE ls_scf_env_type

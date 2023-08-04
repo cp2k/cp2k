@@ -53,7 +53,7 @@ MODULE pwdft_environment_types
 !> \author JHU
 ! **************************************************************************************************
    TYPE pwdft_energy_type
-      REAL(KIND=dp)                                    :: etotal
+      REAL(KIND=dp)                                    :: etotal = 0.0_dp
    END TYPE pwdft_energy_type
 
 ! **************************************************************************************************
@@ -70,17 +70,17 @@ MODULE pwdft_environment_types
       TYPE(section_vals_type), POINTER                 :: xc_input => NULL()
       TYPE(pwdft_energy_type), POINTER                 :: energy => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: forces => NULL()
-      REAL(KIND=dp), DIMENSION(3, 3)                   :: stress
+      REAL(KIND=dp), DIMENSION(3, 3)                   :: stress = 0.0_dp
 !     16 different functionals should be enough
-      CHARACTER(len=80)                                :: xc_func(16)
+      CHARACTER(len=80), DIMENSION(16)                 :: xc_func = ""
 #if defined(__SIRIUS)
       TYPE(sirius_context_handler)                     :: sctx
       TYPE(sirius_ground_state_handler)                :: gs_handler
       TYPE(sirius_kpoint_set_handler)                  :: ks_handler
 #else
-      TYPE(C_PTR)                                      :: sctx
-      TYPE(C_PTR)                                      :: gs_handler
-      TYPE(C_PTR)                                      :: ks_handler
+      TYPE(C_PTR)                                      :: sctx = C_NULL_PTR
+      TYPE(C_PTR)                                      :: gs_handler = C_NULL_PTR
+      TYPE(C_PTR)                                      :: ks_handler = C_NULL_PTR
 #endif
 
    END TYPE pwdft_environment_type

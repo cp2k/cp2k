@@ -28,11 +28,13 @@ MODULE mp_perf_test
 
 #if defined(__parallel)
 #if defined(__MPI_F08)
-   USE mpi_f08
+   USE mpi_f08, ONLY: mpi_wtime
 #else
-   USE mpi
+   USE mpi, ONLY: mpi_wtime
 #endif
 #endif
+
+   PRIVATE
 
    PUBLIC :: mpi_perf_test
 

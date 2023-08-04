@@ -52,69 +52,71 @@ MODULE ec_env_types
 !> \author JGH
 ! *****************************************************************************
    TYPE energy_correction_type
-      CHARACTER(len=20)                                :: ec_name
-      INTEGER                                          :: energy_functional
-      INTEGER                                          :: ks_solver
-      INTEGER                                          :: factorization
-      INTEGER                                          :: ec_initial_guess
-      REAL(KIND=dp)                                    :: eps_default
-      LOGICAL                                          :: do_ec_admm
-      LOGICAL                                          :: do_ec_hfx
-      LOGICAL                                          :: should_update
-      LOGICAL                                          :: use_ls_solver
-      LOGICAL                                          :: reuse_hfx
-      LOGICAL                                          :: basis_inconsistent
+      CHARACTER(len=20)                                :: ec_name = ""
+      INTEGER                                          :: energy_functional = 0
+      INTEGER                                          :: ks_solver = 0
+      INTEGER                                          :: factorization = 0
+      INTEGER                                          :: ec_initial_guess = 0
+      REAL(KIND=dp)                                    :: eps_default = 0.0_dp
+      LOGICAL                                          :: do_ec_admm = .FALSE.
+      LOGICAL                                          :: do_ec_hfx = .FALSE.
+      LOGICAL                                          :: should_update = .FALSE.
+      LOGICAL                                          :: use_ls_solver = .FALSE.
+      LOGICAL                                          :: reuse_hfx = .FALSE.
+      LOGICAL                                          :: basis_inconsistent = .FALSE.
       ! debug
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.
       ! basis set
-      CHARACTER(len=20)                                :: basis
-      LOGICAL                                          :: mao
+      CHARACTER(len=20)                                :: basis = ""
+      LOGICAL                                          :: mao = .FALSE.
       ! Skip EC calculation if ground-state didnt converge
-      LOGICAL                                          :: do_skip, skip_ec
-      INTEGER                                          :: mao_max_iter
-      REAL(KIND=dp)                                    :: mao_eps_grad
-      REAL(KIND=dp)                                    :: mao_eps1
-      INTEGER                                          :: mao_iolevel
+      LOGICAL                                          :: do_skip = .FALSE., skip_ec = .FALSE.
+      INTEGER                                          :: mao_max_iter = 0
+      REAL(KIND=dp)                                    :: mao_eps_grad = 0.0_dp
+      REAL(KIND=dp)                                    :: mao_eps1 = 0.0_dp
+      INTEGER                                          :: mao_iolevel = 0
       ! energy components
-      REAL(KIND=dp)                                    :: etotal, old_etotal
-      REAL(KIND=dp)                                    :: eband, ecore, exc, ehartree, vhxc
-      REAL(KIND=dp)                                    :: edispersion, efield_elec, &
-                                                          efield_nuclear, ex, exc_aux_fit
+      REAL(KIND=dp)                                    :: etotal = 0.0_dp, old_etotal = 0.0_dp
+      REAL(KIND=dp)                                    :: eband = 0.0_dp, ecore = 0.0_dp, exc = 0.0_dp, &
+                                                          ehartree = 0.0_dp, vhxc = 0.0_dp
+      REAL(KIND=dp)                                    :: edispersion = 0.0_dp, efield_elec = 0.0_dp, &
+                                                          efield_nuclear = 0.0_dp, ex = 0.0_dp, exc_aux_fit = 0.0_dp
       ! forces
       TYPE(qs_force_type), DIMENSION(:), POINTER       :: force => Null()
       ! full neighbor lists and corresponding task list
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                         :: sab_orb, sac_ppl, sap_ppnl
-      TYPE(task_list_type), POINTER                    :: task_list
+         DIMENSION(:), POINTER                         :: sab_orb => Null(), sac_ppl => Null(), sap_ppnl => Null()
+      TYPE(task_list_type), POINTER                    :: task_list => Null()
       ! the XC function to be used for the correction, dispersion info
-      TYPE(section_vals_type), POINTER                 :: xc_section
-      TYPE(qs_dispersion_type), POINTER                :: dispersion_env
+      TYPE(section_vals_type), POINTER                 :: xc_section => Null()
+      TYPE(qs_dispersion_type), POINTER                :: dispersion_env => Null()
       ! matrices in complete basis
       ! KS: Kohn-Sham; H: Core; S: overlap; T: kinetic energy;
       ! P: Harris density, W: Harris energy weighted density
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_ks, &
-                                                          matrix_h, &
-                                                          matrix_s, &
-                                                          matrix_t, &
-                                                          matrix_p, &
-                                                          matrix_w
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_ks => Null(), &
+                                                          matrix_h => Null(), &
+                                                          matrix_s => Null(), &
+                                                          matrix_t => Null(), &
+                                                          matrix_p => Null(), &
+                                                          matrix_w => Null()
       ! reduce basis
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef => Null()
       ! CP equations
-      TYPE(qs_p_env_type), POINTER                     :: p_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_wz, matrix_z, z_admm
+      TYPE(qs_p_env_type), POINTER                     :: p_env => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz => Null(), matrix_wz => Null(), &
+                                                          matrix_z => Null(), z_admm => Null()
       ! Harris (rhoout), and response density (rhoz) on grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: rhoout_r, rhoz_r
+      TYPE(pw_type), DIMENSION(:), POINTER             :: rhoout_r => Null(), rhoz_r => Null()
       ! potentials from input density
-      TYPE(pw_type)                                    :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
+      TYPE(pw_type)                                    :: vh_rspace = pw_type()
+      TYPE(pw_type), DIMENSION(:), POINTER             :: vxc_rspace => Null(), vtau_rspace => Null(), vadmm_rspace => Null()
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
       ! LS matrices and types
-      TYPE(ls_scf_env_type), POINTER                   :: ls_env
+      TYPE(ls_scf_env_type), POINTER                   :: ls_env => Null()
       ! Environment for Hartree-Fock exchange
-      TYPE(hfx_type), DIMENSION(:, :), POINTER         :: x_data
+      TYPE(hfx_type), DIMENSION(:, :), POINTER         :: x_data => Null()
       ! ADMM XC environments
       TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(), &
                                                   xc_section_aux => Null()

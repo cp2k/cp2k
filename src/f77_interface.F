@@ -149,17 +149,17 @@ MODULE f77_interface
 
 ! **************************************************************************************************
    TYPE f_env_p_type
-      TYPE(f_env_type), POINTER :: f_env
+      TYPE(f_env_type), POINTER :: f_env => NULL()
    END TYPE f_env_p_type
 
 ! **************************************************************************************************
    TYPE f_env_type
-      INTEGER :: id_nr
-      TYPE(force_env_type), POINTER      :: force_env
-      TYPE(cp_logger_type), POINTER      :: logger
-      TYPE(timer_env_type), POINTER      :: timer_env
-      TYPE(mp_perf_env_type), POINTER    :: mp_perf_env
-      CHARACTER(len=default_path_length) :: my_path, old_path
+      INTEGER :: id_nr = 0
+      TYPE(force_env_type), POINTER      :: force_env => NULL()
+      TYPE(cp_logger_type), POINTER      :: logger => NULL()
+      TYPE(timer_env_type), POINTER      :: timer_env => NULL()
+      TYPE(mp_perf_env_type), POINTER    :: mp_perf_env => NULL()
+      CHARACTER(len=default_path_length) :: my_path = "", old_path = ""
    END TYPE f_env_type
 
    TYPE(f_env_p_type), DIMENSION(:), POINTER, SAVE :: f_envs

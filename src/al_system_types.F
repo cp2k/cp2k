@@ -31,20 +31,20 @@ MODULE al_system_types
 
 ! **************************************************************************************************
    TYPE al_thermo_type
-      INTEGER                                 :: degrees_of_freedom
-      REAL(KIND=dp)                           :: nkt
-      REAL(KIND=dp)                           :: chi
-      REAL(KIND=dp)                           :: mass
-      REAL(KIND=dp)                           :: region_kin_energy
+      INTEGER                                 :: degrees_of_freedom = 0
+      REAL(KIND=dp)                           :: nkt = 0.0_dp
+      REAL(KIND=dp)                           :: chi = 0.0_dp
+      REAL(KIND=dp)                           :: mass = 0.0_dp
+      REAL(KIND=dp)                           :: region_kin_energy = 0.0_dp
    END TYPE al_thermo_type
 
 ! **************************************************************************************************
    TYPE al_system_type
-      INTEGER                                 :: region, glob_num_al, loc_num_al
-      REAL(KIND=dp)                           :: tau_nh, tau_langevin, dt_fact
-      REAL(KIND=dp)                           :: dt
-      TYPE(al_thermo_type), POINTER           :: nvt(:)
-      TYPE(map_info_type), POINTER            :: map_info
+      INTEGER                                 :: region = 0, glob_num_al = 0, loc_num_al = 0
+      REAL(KIND=dp)                           :: tau_nh = 0.0_dp, tau_langevin = 0.0_dp, dt_fact = 0.0_dp
+      REAL(KIND=dp)                           :: dt = 0.0_dp
+      TYPE(al_thermo_type), POINTER           :: nvt(:) => NULL()
+      TYPE(map_info_type), POINTER            :: map_info => NULL()
    END TYPE al_system_type
 
 ! *** Global parameters ***

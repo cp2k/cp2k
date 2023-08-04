@@ -30,24 +30,24 @@ MODULE atom_upf
    INTEGER, PARAMETER                                :: lmat = 3
 
    TYPE atom_upfpot_type
-      CHARACTER(LEN=2)                               :: symbol
+      CHARACTER(LEN=2)                               :: symbol = ""
       CHARACTER(LEN=default_string_length)           :: pname = ""
       INTEGER, DIMENSION(0:lmat)                     :: econf = 0
-      REAL(dp)                                       :: zion
-      CHARACTER(LEN=default_string_length)           :: version
+      REAL(dp)                                       :: zion = 0.0_dp
+      CHARACTER(LEN=default_string_length)           :: version = ""
       CHARACTER(LEN=default_string_length)           :: filename = ""
       ! <INFO>
       INTEGER                                        :: maxinfo = 100
       CHARACTER(LEN=default_string_length), DIMENSION(100) &
-         :: info
+         :: info = ""
       ! <HEADER>
-      CHARACTER(LEN=default_string_length)           :: generated
-      CHARACTER(LEN=default_string_length)           :: author
-      CHARACTER(LEN=default_string_length)           :: date
-      CHARACTER(LEN=default_string_length)           :: comment
-      CHARACTER(LEN=4)                               :: pseudo_type
-      CHARACTER(LEN=15)                              :: relativistic
-      CHARACTER(LEN=default_string_length)           :: functional
+      CHARACTER(LEN=default_string_length)           :: generated = ""
+      CHARACTER(LEN=default_string_length)           :: author = ""
+      CHARACTER(LEN=default_string_length)           :: date = ""
+      CHARACTER(LEN=default_string_length)           :: comment = ""
+      CHARACTER(LEN=4)                               :: pseudo_type = ""
+      CHARACTER(LEN=15)                              :: relativistic = ""
+      CHARACTER(LEN=default_string_length)           :: functional = ""
       LOGICAL                                        :: is_ultrasoft = .FALSE.
       LOGICAL                                        :: is_paw = .FALSE.
       LOGICAL                                        :: is_coulomb = .FALSE.
@@ -56,20 +56,20 @@ MODULE atom_upf
       LOGICAL                                        :: has_gipaw = .FALSE.
       LOGICAL                                        :: paw_as_gipaw = .FALSE.
       LOGICAL                                        :: core_correction = .FALSE.
-      REAL(dp)                                       :: total_psenergy
-      REAL(dp)                                       :: wfc_cutoff
-      REAL(dp)                                       :: rho_cutoff
+      REAL(dp)                                       :: total_psenergy = 0.0_dp
+      REAL(dp)                                       :: wfc_cutoff = 0.0_dp
+      REAL(dp)                                       :: rho_cutoff = 0.0_dp
       INTEGER                                        :: l_max = -100
-      INTEGER                                        :: l_max_rho
-      INTEGER                                        :: l_local
-      INTEGER                                        :: mesh_size
-      INTEGER                                        :: number_of_wfc
-      INTEGER                                        :: number_of_proj
+      INTEGER                                        :: l_max_rho = -1
+      INTEGER                                        :: l_local = -1
+      INTEGER                                        :: mesh_size = -1
+      INTEGER                                        :: number_of_wfc = -1
+      INTEGER                                        :: number_of_proj = -1
       ! <MESH>
-      REAL(dp)                                       :: dx
-      REAL(dp)                                       :: xmin
-      REAL(dp)                                       :: rmax
-      REAL(dp)                                       :: zmesh
+      REAL(dp)                                       :: dx = 0.0_dp
+      REAL(dp)                                       :: xmin = 0.0_dp
+      REAL(dp)                                       :: rmax = 0.0_dp
+      REAL(dp)                                       :: zmesh = 0.0_dp
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: r, rab
       ! <NLCC>
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: rho_nlcc

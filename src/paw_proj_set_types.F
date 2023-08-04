@@ -50,25 +50,25 @@ MODULE paw_proj_set_types
    ! Define the projector types
 
    TYPE paw_proj_set_type
-      INTEGER                                            :: maxl, ncgauprj, nsgauprj
-      INTEGER, DIMENSION(:), POINTER                     :: nprj ! 0:maxl
-      INTEGER, DIMENSION(:), POINTER                     :: lx, ly, lz ! ncgauprj
-      INTEGER, DIMENSION(:), POINTER                     :: ll, m ! nsgauprj
-      INTEGER, DIMENSION(:), POINTER                     :: first_prj, last_prj ! 0:maxl
-      INTEGER, DIMENSION(:), POINTER                     :: first_prjs ! 0:maxl
-      REAL(KIND=dp)                                      :: rcprj
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: zisomin
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetprj ! maxnprj,0:maxl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rzetprj ! maxnprj,0:maxl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: csprj ! ncgauprj, np_so
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chprj ! ncgauprj, np_so
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_oce_sphi_h, local_oce_sphi_s ! maxco,nsgf
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sphi_h, sphi_s
-      LOGICAL, DIMENSION(:, :), POINTER                  :: isoprj ! maxnprj,0:maxl
-      INTEGER                                            :: nsatbas
-      INTEGER                                            :: nsotot
-      INTEGER, DIMENSION(:), POINTER                     :: o2nindex ! maxso*nset
-      INTEGER, DIMENSION(:), POINTER                     :: n2oindex ! maxso*nset
+      INTEGER                                            :: maxl = -1, ncgauprj = -1, nsgauprj = -1
+      INTEGER, DIMENSION(:), POINTER                     :: nprj => NULL() ! 0:maxl
+      INTEGER, DIMENSION(:), POINTER                     :: lx => NULL(), ly => NULL(), lz => NULL() ! ncgauprj
+      INTEGER, DIMENSION(:), POINTER                     :: ll => NULL(), m => NULL() ! nsgauprj
+      INTEGER, DIMENSION(:), POINTER                     :: first_prj => NULL(), last_prj => NULL() ! 0:maxl
+      INTEGER, DIMENSION(:), POINTER                     :: first_prjs => NULL() ! 0:maxl
+      REAL(KIND=dp)                                      :: rcprj = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: zisomin => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetprj => NULL() ! maxnprj,0:maxl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rzetprj => NULL() ! maxnprj,0:maxl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: csprj => NULL() ! ncgauprj, np_so
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chprj => NULL() ! ncgauprj, np_so
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_oce_sphi_h => NULL(), local_oce_sphi_s => NULL() ! maxco,nsgf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sphi_h => NULL(), sphi_s => NULL()
+      LOGICAL, DIMENSION(:, :), POINTER                  :: isoprj => NULL() ! maxnprj,0:maxl
+      INTEGER                                            :: nsatbas = -1
+      INTEGER                                            :: nsotot = -1
+      INTEGER, DIMENSION(:), POINTER                     :: o2nindex => NULL() ! maxso*nset
+      INTEGER, DIMENSION(:), POINTER                     :: n2oindex => NULL() ! maxso*nset
 
    END TYPE paw_proj_set_type
 

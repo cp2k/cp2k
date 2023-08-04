@@ -33,10 +33,10 @@ MODULE cp_control_types
 ! \brief Control parameters for pw grids
 ! **************************************************************************************************
    TYPE pw_grid_option
-      LOGICAL                              :: spherical
-      LOGICAL                              :: fullspace
-      INTEGER, DIMENSION(2)                :: distribution_layout
-      INTEGER                              :: blocked
+      LOGICAL                              :: spherical = .FALSE.
+      LOGICAL                              :: fullspace = .FALSE.
+      INTEGER, DIMENSION(2)                :: distribution_layout = 0
+      INTEGER                              :: blocked = 0
    END TYPE pw_grid_option
 ! **************************************************************************************************
 ! \brief parameters for EMD/RTP calculations involving MO projections
@@ -60,32 +60,32 @@ MODULE cp_control_types
 ! \brief Control parameters for REAL_TIME_PROPAGATION calculations
 ! **************************************************************************************************
    TYPE rtp_control_type
-      LOGICAL                              :: converged
-      REAL(KIND=dp)                        :: eps_ener
-      INTEGER                              :: max_iter
-      INTEGER                              :: mat_exp
-      INTEGER                              :: propagator
-      LOGICAL                              :: fixed_ions
-      INTEGER                              :: initial_wfn
-      REAL(dp)                             :: eps_exp
-      LOGICAL                              :: initial_step
-      LOGICAL                              :: hfx_redistribute
-      INTEGER                              :: aspc_order
-      INTEGER                              :: sc_check_start
-      LOGICAL                              :: apply_delta_pulse
-      LOGICAL                              :: apply_delta_pulse_mag
-      LOGICAL                              :: periodic
-      LOGICAL                              :: linear_scaling
-      LOGICAL                              :: write_restart
-      INTEGER                              :: mcweeny_max_iter
-      INTEGER                              :: acc_ref
-      REAL(dp)                             :: mcweeny_eps
-      INTEGER, DIMENSION(3)                :: delta_pulse_direction
-      REAL(KIND=dp)                        :: delta_pulse_scale
-      LOGICAL                              :: velocity_gauge
-      REAL(KIND=dp), DIMENSION(3)          :: vec_pot
-      LOGICAL                              :: nl_gauge_transform
-      LOGICAL                              :: is_proj_mo
+      LOGICAL                              :: converged = .FALSE.
+      REAL(KIND=dp)                        :: eps_ener = 0.0_dp
+      INTEGER                              :: max_iter = 0
+      INTEGER                              :: mat_exp = 0
+      INTEGER                              :: propagator = 0
+      LOGICAL                              :: fixed_ions = .FALSE.
+      INTEGER                              :: initial_wfn = 0
+      REAL(dp)                             :: eps_exp = 0.0_dp
+      LOGICAL                              :: initial_step = .FALSE.
+      LOGICAL                              :: hfx_redistribute = .FALSE.
+      INTEGER                              :: aspc_order = 0
+      INTEGER                              :: sc_check_start = 0
+      LOGICAL                              :: apply_delta_pulse = .FALSE.
+      LOGICAL                              :: apply_delta_pulse_mag = .FALSE.
+      LOGICAL                              :: periodic = .FALSE.
+      LOGICAL                              :: linear_scaling = .FALSE.
+      LOGICAL                              :: write_restart = .FALSE.
+      INTEGER                              :: mcweeny_max_iter = 0
+      INTEGER                              :: acc_ref = 0
+      REAL(dp)                             :: mcweeny_eps = 0.0_dp
+      INTEGER, DIMENSION(3)                :: delta_pulse_direction = 0
+      REAL(KIND=dp)                        :: delta_pulse_scale = 0.0_dp
+      LOGICAL                              :: velocity_gauge = .FALSE.
+      REAL(KIND=dp), DIMENSION(3)          :: vec_pot = 0.0_dp
+      LOGICAL                              :: nl_gauge_transform = .FALSE.
+      LOGICAL                              :: is_proj_mo = .FALSE.
       TYPE(proj_mo_p_type), DIMENSION(:), &
          POINTER                :: proj_mo_list => NULL()
    END TYPE rtp_control_type
@@ -93,27 +93,27 @@ MODULE cp_control_types
 ! \brief Control parameters for DFTB calculations
 ! **************************************************************************************************
    TYPE dftb_control_type
-      LOGICAL                              :: self_consistent
-      LOGICAL                              :: orthogonal_basis
-      LOGICAL                              :: dispersion
-      INTEGER                              :: dispersion_type
-      LOGICAL                              :: dftb3_diagonal
-      LOGICAL                              :: hb_sr_damp
-      REAL(KIND=dp)                        :: hb_sr_para
-      REAL(KIND=dp)                        :: eps_disp
-      REAL(KIND=dp)                        :: epscn
-      REAL(KIND=dp)                        :: exp_pre
-      REAL(KIND=dp)                        :: scaling
-      REAL(KIND=dp)                        :: rcdisp
-      REAL(KIND=dp), DIMENSION(3)          :: sd3
-      REAL(KIND=dp), DIMENSION(4)          :: sd3bj
-      LOGICAL                              :: do_ewald
-      CHARACTER(LEN=default_path_length)   :: sk_file_path
-      CHARACTER(LEN=default_path_length)   :: sk_file_list
+      LOGICAL                              :: self_consistent = .FALSE.
+      LOGICAL                              :: orthogonal_basis = .FALSE.
+      LOGICAL                              :: dispersion = .FALSE.
+      INTEGER                              :: dispersion_type = 0
+      LOGICAL                              :: dftb3_diagonal = .FALSE.
+      LOGICAL                              :: hb_sr_damp = .FALSE.
+      REAL(KIND=dp)                        :: hb_sr_para = 0.0_dp
+      REAL(KIND=dp)                        :: eps_disp = 0.0_dp
+      REAL(KIND=dp)                        :: epscn = 0.0_dp
+      REAL(KIND=dp)                        :: exp_pre = 0.0_dp
+      REAL(KIND=dp)                        :: scaling = 0.0_dp
+      REAL(KIND=dp)                        :: rcdisp = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)          :: sd3 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(4)          :: sd3bj = 0.0_dp
+      LOGICAL                              :: do_ewald = .FALSE.
+      CHARACTER(LEN=default_path_length)   :: sk_file_path = ""
+      CHARACTER(LEN=default_path_length)   :: sk_file_list = ""
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:, :), POINTER          :: sk_pair_list
-      CHARACTER(LEN=default_path_length)   :: uff_force_field
-      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
+         DIMENSION(:, :), POINTER          :: sk_pair_list => NULL()
+      CHARACTER(LEN=default_path_length)   :: uff_force_field = ""
+      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file = ""
    END TYPE dftb_control_type
 
 ! **************************************************************************************************
@@ -121,155 +121,155 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE xtb_control_type
       !
-      LOGICAL                              :: do_ewald
+      LOGICAL                              :: do_ewald = .FALSE.
       !
-      INTEGER                              :: sto_ng
-      INTEGER                              :: h_sto_ng
+      INTEGER                              :: sto_ng = 0
+      INTEGER                              :: h_sto_ng = 0
       !
-      CHARACTER(LEN=default_path_length)   :: parameter_file_path
-      CHARACTER(LEN=default_path_length)   :: parameter_file_name
+      CHARACTER(LEN=default_path_length)   :: parameter_file_path = ""
+      CHARACTER(LEN=default_path_length)   :: parameter_file_name = ""
       !
-      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
-      REAL(KIND=dp)                        :: epscn
-      REAL(KIND=dp)                        :: rcdisp
-      REAL(KIND=dp)                        :: s6, s8
-      REAL(KIND=dp)                        :: a1, a2
+      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file = ""
+      REAL(KIND=dp)                        :: epscn = 0.0_dp
+      REAL(KIND=dp)                        :: rcdisp = 0.0_dp
+      REAL(KIND=dp)                        :: s6 = 0.0_dp, s8 = 0.0_dp
+      REAL(KIND=dp)                        :: a1 = 0.0_dp, a2 = 0.0_dp
       !
-      REAL(KIND=dp)                        :: ks, kp, kd, ksp, k2sh
-      REAL(KIND=dp)                        :: kg, kf
-      REAL(KIND=dp)                        :: kcns, kcnp, kcnd
-      REAL(KIND=dp)                        :: ken
-      REAL(KIND=dp)                        :: kxr, kx2
+      REAL(KIND=dp)                        :: ks = 0.0_dp, kp = 0.0_dp, kd = 0.0_dp, ksp = 0.0_dp, k2sh = 0.0_dp
+      REAL(KIND=dp)                        :: kg = 0.0_dp, kf = 0.0_dp
+      REAL(KIND=dp)                        :: kcns = 0.0_dp, kcnp = 0.0_dp, kcnd = 0.0_dp
+      REAL(KIND=dp)                        :: ken = 0.0_dp
+      REAL(KIND=dp)                        :: kxr = 0.0_dp, kx2 = 0.0_dp
       !
-      LOGICAL                              :: xb_interaction
-      LOGICAL                              :: do_nonbonded
-      LOGICAL                              :: coulomb_interaction
-      LOGICAL                              :: coulomb_lr
-      LOGICAL                              :: tb3_interaction
-      LOGICAL                              :: check_atomic_charges
-      LOGICAL                              :: old_coulomb_damping
+      LOGICAL                              :: xb_interaction = .FALSE.
+      LOGICAL                              :: do_nonbonded = .FALSE.
+      LOGICAL                              :: coulomb_interaction = .FALSE.
+      LOGICAL                              :: coulomb_lr = .FALSE.
+      LOGICAL                              :: tb3_interaction = .FALSE.
+      LOGICAL                              :: check_atomic_charges = .FALSE.
+      LOGICAL                              :: old_coulomb_damping = .FALSE.
       !
-      REAL(KIND=dp)                        :: xb_radius
-      REAL(KIND=dp)                        :: coulomb_sr_cut
-      REAL(KIND=dp)                        :: coulomb_sr_eps
+      REAL(KIND=dp)                        :: xb_radius = 0.0_dp
+      REAL(KIND=dp)                        :: coulomb_sr_cut = 0.0_dp
+      REAL(KIND=dp)                        :: coulomb_sr_eps = 0.0_dp
       !
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:, :), POINTER          :: kab_param
-      INTEGER, DIMENSION(:, :), POINTER    :: kab_types
-      INTEGER                              :: kab_nval
-      REAL, DIMENSION(:), POINTER          :: kab_vals
+         DIMENSION(:, :), POINTER          :: kab_param => NULL()
+      INTEGER, DIMENSION(:, :), POINTER    :: kab_types => NULL()
+      INTEGER                              :: kab_nval = 0
+      REAL, DIMENSION(:), POINTER          :: kab_vals => NULL()
       !
-      TYPE(pair_potential_p_type), POINTER :: nonbonded
+      TYPE(pair_potential_p_type), POINTER :: nonbonded => NULL()
    END TYPE xtb_control_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for semi empirical calculations
 ! **************************************************************************************************
    TYPE semi_empirical_control_type
-      LOGICAL                              :: orthogonal_basis
-      LOGICAL                              :: analytical_gradients
-      LOGICAL                              :: force_kdsod_EX
-      LOGICAL                              :: do_ewald, do_ewald_r3, do_ewald_gks
-      INTEGER                              :: integral_screening, periodic_type
-      INTEGER                              :: max_multipole
-      INTEGER                              :: ga_ncells
-      REAL(KIND=dp)                        :: delta
+      LOGICAL                              :: orthogonal_basis = .FALSE.
+      LOGICAL                              :: analytical_gradients = .FALSE.
+      LOGICAL                              :: force_kdsod_EX = .FALSE.
+      LOGICAL                              :: do_ewald = .FALSE., do_ewald_r3 = .FALSE., do_ewald_gks = .FALSE.
+      INTEGER                              :: integral_screening = 0, periodic_type = 0
+      INTEGER                              :: max_multipole = 0
+      INTEGER                              :: ga_ncells = 0
+      REAL(KIND=dp)                        :: delta = 0.0_dp
       ! Dispersion pair potential
-      LOGICAL                              :: dispersion
-      REAL(KIND=dp)                        :: rcdisp
-      REAL(KIND=dp)                        :: epscn
-      REAL(KIND=dp), DIMENSION(3)          :: sd3
-      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
+      LOGICAL                              :: dispersion = .FALSE.
+      REAL(KIND=dp)                        :: rcdisp = 0.0_dp
+      REAL(KIND=dp)                        :: epscn = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)          :: sd3 = 0.0_dp
+      CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file = ""
       ! Parameters controlling the evaluation of the integrals
-      REAL(KIND=dp)                        :: cutoff_lrc, taper_lrc, range_lrc
-      REAL(KIND=dp)                        :: cutoff_cou, taper_cou, range_cou
-      REAL(KIND=dp)                        :: cutoff_exc, taper_exc, range_exc
-      REAL(KIND=dp)                        :: taper_scr, range_scr
+      REAL(KIND=dp)                        :: cutoff_lrc = 0.0_dp, taper_lrc = 0.0_dp, range_lrc = 0.0_dp
+      REAL(KIND=dp)                        :: cutoff_cou = 0.0_dp, taper_cou = 0.0_dp, range_cou = 0.0_dp
+      REAL(KIND=dp)                        :: cutoff_exc = 0.0_dp, taper_exc = 0.0_dp, range_exc = 0.0_dp
+      REAL(KIND=dp)                        :: taper_scr = 0.0_dp, range_scr = 0.0_dp
    END TYPE semi_empirical_control_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for GAPW method within QUICKSTEP ***
 ! **************************************************************************************************
    TYPE gapw_control_type
-      INTEGER                              :: basis_1c
-      REAL(KIND=dp)                        :: eps_fit, &
-                                              eps_iso, &
-                                              eps_Vrho0, &
-                                              eps_svd, &
-                                              eps_cpc
-      INTEGER                              :: ladd_rho0, &
-                                              lmax_rho0, &
-                                              lmax_sphere, &
-                                              quadrature
-      LOGICAL                              :: lrho1_eq_lrho0
-      LOGICAL                              :: alpha0_hard_from_input, &
-                                              force_paw, &
-                                              non_paw_atoms, &
-                                              nopaw_as_gpw
-      REAL(KIND=dp)                        :: alpha0_hard
-      REAL(KIND=dp)                        :: max_rad_local
+      INTEGER                              :: basis_1c = 0
+      REAL(KIND=dp)                        :: eps_fit = 0.0_dp, &
+                                              eps_iso = 0.0_dp, &
+                                              eps_Vrho0 = 0.0_dp, &
+                                              eps_svd = 0.0_dp, &
+                                              eps_cpc = 0.0_dp
+      INTEGER                              :: ladd_rho0 = 0, &
+                                              lmax_rho0 = 0, &
+                                              lmax_sphere = 0, &
+                                              quadrature = 0
+      LOGICAL                              :: lrho1_eq_lrho0 = .FALSE.
+      LOGICAL                              :: alpha0_hard_from_input = .FALSE., &
+                                              force_paw = .FALSE., &
+                                              non_paw_atoms = .FALSE., &
+                                              nopaw_as_gpw = .FALSE.
+      REAL(KIND=dp)                        :: alpha0_hard = 0.0_dp
+      REAL(KIND=dp)                        :: max_rad_local = 0.0_dp
    END TYPE gapw_control_type
 ! **************************************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! **************************************************************************************************
    TYPE efield_type
-      REAL(KIND=dp)                        :: actual_time
+      REAL(KIND=dp)                        :: actual_time = 0.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER :: polarisation => NULL()
-      INTEGER                              :: envelop_id
+      INTEGER                              :: envelop_id = 0
       REAL(KIND=dp), DIMENSION(:), POINTER :: envelop_r_vars => NULL()
-      INTEGER, DIMENSION(:), POINTER       :: envelop_i_vars
-      REAL(KIND=dp)                        :: strength
-      REAL(KIND=dp)                        :: phase_offset
-      REAL(KIND=dp)                        :: wavelength
+      INTEGER, DIMENSION(:), POINTER       :: envelop_i_vars => NULL()
+      REAL(KIND=dp)                        :: strength = 0.0_dp
+      REAL(KIND=dp)                        :: phase_offset = 0.0_dp
+      REAL(KIND=dp)                        :: wavelength = 0.0_dp
       REAL(KIND=dp), DIMENSION(3)          :: vec_pot_initial = 0.0_dp
    END TYPE efield_type
 
    TYPE efield_p_type
-      TYPE(efield_type), POINTER           :: efield
+      TYPE(efield_type), POINTER           :: efield => NULL()
    END TYPE efield_p_type
 ! **************************************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! **************************************************************************************************
    TYPE period_efield_type
-      LOGICAL                              :: displacement_field
-      REAL(KIND=dp), DIMENSION(3)          :: polarisation
-      REAL(KIND=dp), DIMENSION(3)          :: d_filter
-      REAL(KIND=dp)                        :: strength
+      LOGICAL                              :: displacement_field = .FALSE.
+      REAL(KIND=dp), DIMENSION(3)          :: polarisation = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)          :: d_filter = 0.0_dp
+      REAL(KIND=dp)                        :: strength = 0.0_dp
    END TYPE period_efield_type
 
 ! **************************************************************************************************
 ! \brief some parameters useful for mulliken_restraints
 ! **************************************************************************************************
    TYPE mulliken_restraint_type
-      REAL(KIND=dp)                        :: strength
-      REAL(KIND=dp)                        :: TARGET
-      INTEGER                              :: natoms
-      INTEGER, POINTER, DIMENSION(:)       :: atoms
+      REAL(KIND=dp)                        :: strength = 0.0_dp
+      REAL(KIND=dp)                        :: TARGET = 0.0_dp
+      INTEGER                              :: natoms = 0
+      INTEGER, POINTER, DIMENSION(:)       :: atoms => NULL()
    END TYPE mulliken_restraint_type
 
 ! **************************************************************************************************
 ! \brief some parameters useful for ddapc_restraints
 ! **************************************************************************************************
    TYPE ddapc_restraint_type
-      INTEGER                              :: ref_count
-      REAL(KIND=dp)                        :: strength
-      REAL(KIND=dp)                        :: TARGET
-      REAL(KIND=dp)                        :: ddapc_order_p
-      INTEGER                              :: functional_form
-      INTEGER                              :: natoms
-      INTEGER, POINTER, DIMENSION(:)       :: atoms
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: coeff
-      INTEGER                              :: density_type
+      INTEGER                              :: ref_count = 0
+      REAL(KIND=dp)                        :: strength = 0.0_dp
+      REAL(KIND=dp)                        :: TARGET = 0.0_dp
+      REAL(KIND=dp)                        :: ddapc_order_p = 0.0_dp
+      INTEGER                              :: functional_form = 0
+      INTEGER                              :: natoms = 0
+      INTEGER, POINTER, DIMENSION(:)       :: atoms => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: coeff => NULL()
+      INTEGER                              :: density_type = 0
    END TYPE ddapc_restraint_type
 
 ! **************************************************************************************************
 ! \brief some parameters useful for s2_restraints
 ! **************************************************************************************************
    TYPE s2_restraint_type
-      REAL(KIND=dp)                        :: strength
-      REAL(KIND=dp)                        :: TARGET
-      REAL(KIND=dp)                        :: s2_order_p
-      INTEGER                              :: functional_form
+      REAL(KIND=dp)                        :: strength = 0.0_dp
+      REAL(KIND=dp)                        :: TARGET = 0.0_dp
+      REAL(KIND=dp)                        :: s2_order_p = 0.0_dp
+      INTEGER                              :: functional_form = 0
    END TYPE s2_restraint_type
 
 ! **************************************************************************************************
@@ -280,14 +280,14 @@ MODULE cp_control_types
    END TYPE admm_block_type
 
    TYPE admm_control_type
-      REAL(KIND=dp)                        :: eps_filter
-      INTEGER                              :: purification_method
-      INTEGER                              :: method
-      LOGICAL                              :: charge_constrain
-      INTEGER                              :: scaling_model
-      INTEGER                              :: aux_exch_func
-      LOGICAL                              :: aux_exch_func_param
-      REAL(KIND=dp), DIMENSION(3)          :: aux_x_param
+      REAL(KIND=dp)                        :: eps_filter = 0.0_dp
+      INTEGER                              :: purification_method = 0
+      INTEGER                              :: method = 0
+      LOGICAL                              :: charge_constrain = .FALSE.
+      INTEGER                              :: scaling_model = 0
+      INTEGER                              :: aux_exch_func = 0
+      LOGICAL                              :: aux_exch_func_param = .FALSE.
+      REAL(KIND=dp), DIMENSION(3)          :: aux_x_param = 0.0_dp
       TYPE(admm_block_type), DIMENSION(:), &
          ALLOCATABLE                       :: blocks
    END TYPE admm_control_type
@@ -296,19 +296,19 @@ MODULE cp_control_types
 ! \brief Parameters for external potential
 ! **************************************************************************************************
    TYPE expot_control_type
-      LOGICAL                              :: read_from_cube
-      LOGICAL                              :: maxwell_solver
-      LOGICAL                              :: static
-      REAL(KIND=dp)                        :: scaling_factor
+      LOGICAL                              :: read_from_cube = .FALSE.
+      LOGICAL                              :: maxwell_solver = .FALSE.
+      LOGICAL                              :: static = .FALSE.
+      REAL(KIND=dp)                        :: scaling_factor = 0.0_dp
    END TYPE expot_control_type
 
 ! **************************************************************************************************
 ! \brief Parameters useful for Maxwell equation evaluation of external potential
 ! **************************************************************************************************
    TYPE maxwell_control_type
-      LOGICAL                              :: log_test
-      INTEGER                              :: int_test
-      REAL(KIND=dp)                        :: real_test
+      LOGICAL                              :: log_test = .FALSE.
+      INTEGER                              :: int_test = 0
+      REAL(KIND=dp)                        :: real_test = 0.0_dp
    END TYPE maxwell_control_type
 
 ! **************************************************************************************************
@@ -317,63 +317,63 @@ MODULE cp_control_types
 !                     Gaussian-type functions (primitive basis functions).
 ! **************************************************************************************************
    TYPE qs_control_type
-      INTEGER                              :: method_id
-      REAL(KIND=dp)                        :: eps_core_charge, &
-                                              eps_kg_orb, &
-                                              eps_pgf_orb, &
-                                              eps_ppl, &
-                                              eps_ppnl, &
-                                              eps_rho_gspace, &
-                                              eps_rho_rspace, &
-                                              eps_filter_matrix, &
-                                              eps_gvg_rspace, &
-                                              progression_factor, &
-                                              relative_cutoff
-      LOGICAL                              :: do_almo_scf
-      LOGICAL                              :: do_ls_scf
-      LOGICAL                              :: do_kg
-      LOGICAL                              :: commensurate_mgrids
-      LOGICAL                              :: realspace_mgrids
-      LOGICAL                              :: gapw, gapw_xc, gpw, pao
-      LOGICAL                              :: lrigpw, rigpw
-      LOGICAL                              :: lri_optbas
-      LOGICAL                              :: ofgpw
-      LOGICAL                              :: dftb
-      LOGICAL                              :: xtb
-      LOGICAL                              :: semi_empirical
-      LOGICAL                              :: mulliken_restraint
-      LOGICAL                              :: ddapc_restraint
-      LOGICAL                              :: ddapc_restraint_is_spin
-      LOGICAL                              :: ddapc_explicit_potential
-      LOGICAL                              :: cdft
-      LOGICAL                              :: et_coupling_calc
-      LOGICAL                              :: s2_restraint
-      INTEGER                              :: do_ppl_method
-      INTEGER                              :: wf_interpolation_method_nr
-      INTEGER                              :: wf_extrapolation_order
-      INTEGER                              :: periodicity
-      REAL(KIND=dp)                        :: pairlist_radius
-      REAL(KIND=dp)                        :: cutoff
-      REAL(KIND=dp), DIMENSION(:), POINTER :: e_cutoff
+      INTEGER                              :: method_id = 0
+      REAL(KIND=dp)                        :: eps_core_charge = 0.0_dp, &
+                                              eps_kg_orb = 0.0_dp, &
+                                              eps_pgf_orb = 0.0_dp, &
+                                              eps_ppl = 0.0_dp, &
+                                              eps_ppnl = 0.0_dp, &
+                                              eps_rho_gspace = 0.0_dp, &
+                                              eps_rho_rspace = 0.0_dp, &
+                                              eps_filter_matrix = 0.0_dp, &
+                                              eps_gvg_rspace = 0.0_dp, &
+                                              progression_factor = 0.0_dp, &
+                                              relative_cutoff = 0.0_dp
+      LOGICAL                              :: do_almo_scf = .FALSE.
+      LOGICAL                              :: do_ls_scf = .FALSE.
+      LOGICAL                              :: do_kg = .FALSE.
+      LOGICAL                              :: commensurate_mgrids = .FALSE.
+      LOGICAL                              :: realspace_mgrids = .FALSE.
+      LOGICAL                              :: gapw = .FALSE., gapw_xc = .FALSE., gpw = .FALSE., pao = .FALSE.
+      LOGICAL                              :: lrigpw = .FALSE., rigpw = .FALSE.
+      LOGICAL                              :: lri_optbas = .FALSE.
+      LOGICAL                              :: ofgpw = .FALSE.
+      LOGICAL                              :: dftb = .FALSE.
+      LOGICAL                              :: xtb = .FALSE.
+      LOGICAL                              :: semi_empirical = .FALSE.
+      LOGICAL                              :: mulliken_restraint = .FALSE.
+      LOGICAL                              :: ddapc_restraint = .FALSE.
+      LOGICAL                              :: ddapc_restraint_is_spin = .FALSE.
+      LOGICAL                              :: ddapc_explicit_potential = .FALSE.
+      LOGICAL                              :: cdft = .FALSE.
+      LOGICAL                              :: et_coupling_calc = .FALSE.
+      LOGICAL                              :: s2_restraint = .FALSE.
+      INTEGER                              :: do_ppl_method = 0
+      INTEGER                              :: wf_interpolation_method_nr = 0
+      INTEGER                              :: wf_extrapolation_order = 0
+      INTEGER                              :: periodicity = 0
+      REAL(KIND=dp)                        :: pairlist_radius = 0.0_dp
+      REAL(KIND=dp)                        :: cutoff = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: e_cutoff => NULL()
       TYPE(mulliken_restraint_type), &
-         POINTER                           :: mulliken_restraint_control
+         POINTER                           :: mulliken_restraint_control => NULL()
       TYPE(ddapc_restraint_type), &
-         DIMENSION(:), POINTER             :: ddapc_restraint_control
-      TYPE(cdft_control_type), POINTER     :: cdft_control
-      TYPE(s2_restraint_type), POINTER     :: s2_restraint_control
-      TYPE(dftb_control_type), POINTER     :: dftb_control
-      TYPE(xtb_control_type), POINTER      :: xtb_control
+         DIMENSION(:), POINTER             :: ddapc_restraint_control => NULL()
+      TYPE(cdft_control_type), POINTER     :: cdft_control => NULL()
+      TYPE(s2_restraint_type), POINTER     :: s2_restraint_control => NULL()
+      TYPE(dftb_control_type), POINTER     :: dftb_control => NULL()
+      TYPE(xtb_control_type), POINTER      :: xtb_control => NULL()
       TYPE(semi_empirical_control_type), &
-         POINTER                           :: se_control
-      TYPE(gapw_control_type), POINTER     :: gapw_control
-      TYPE(pw_grid_option)                 :: pw_grid_opt
-      LOGICAL                              :: skip_load_balance_distributed
+         POINTER                           :: se_control => NULL()
+      TYPE(gapw_control_type), POINTER     :: gapw_control => NULL()
+      TYPE(pw_grid_option)                 :: pw_grid_opt = pw_grid_option()
+      LOGICAL                              :: skip_load_balance_distributed = .FALSE.
       ! Types of subsystems for embedding
-      LOGICAL                              :: ref_embed_subsys
-      LOGICAL                              :: cluster_embed_subsys
-      LOGICAL                              :: high_level_embed_subsys
-      LOGICAL                              :: dfet_embedded
-      LOGICAL                              :: dmfet_embedded
+      LOGICAL                              :: ref_embed_subsys = .FALSE.
+      LOGICAL                              :: cluster_embed_subsys = .FALSE.
+      LOGICAL                              :: high_level_embed_subsys = .FALSE.
+      LOGICAL                              :: dfet_embedded = .FALSE.
+      LOGICAL                              :: dmfet_embedded = .FALSE.
    END TYPE qs_control_type
 
 ! **************************************************************************************************
@@ -415,26 +415,26 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE tddfpt_control_type
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                           :: lumos
-      REAL(KIND=dp)                        :: tolerance
-      INTEGER                              :: n_ev
-      INTEGER                              :: max_kv
-      INTEGER                              :: n_restarts
-      INTEGER                              :: n_reortho
-      LOGICAL                              :: do_kernel
-      LOGICAL                              :: lsd_singlets
-      LOGICAL                              :: invert_S
-      LOGICAL                              :: precond
-      LOGICAL                              :: drho_by_collocation
-      LOGICAL                              :: use_kinetic_energy_density
-      INTEGER                              :: res_etype
-      INTEGER                              :: diag_method
-      INTEGER                              :: oe_corr
-      INTEGER                              :: sic_method_id
-      INTEGER                              :: sic_list_id
-      REAL(KIND=dp)                        :: sic_scaling_a, sic_scaling_b
+         POINTER                           :: lumos => NULL()
+      REAL(KIND=dp)                        :: tolerance = 0.0_dp
+      INTEGER                              :: n_ev = 0
+      INTEGER                              :: max_kv = 0
+      INTEGER                              :: n_restarts = 0
+      INTEGER                              :: n_reortho = 0
+      LOGICAL                              :: do_kernel = .FALSE.
+      LOGICAL                              :: lsd_singlets = .FALSE.
+      LOGICAL                              :: invert_S = .FALSE.
+      LOGICAL                              :: precond = .FALSE.
+      LOGICAL                              :: drho_by_collocation = .FALSE.
+      LOGICAL                              :: use_kinetic_energy_density = .FALSE.
+      INTEGER                              :: res_etype = 0
+      INTEGER                              :: diag_method = 0
+      INTEGER                              :: oe_corr = 0
+      INTEGER                              :: sic_method_id = 0
+      INTEGER                              :: sic_list_id = 0
+      REAL(KIND=dp)                        :: sic_scaling_a = 0.0_dp, sic_scaling_b = 0.0_dp
       REAL(KIND=dp), DIMENSION(:, :), &
-         POINTER                           :: lumos_eigenvalues
+         POINTER                           :: lumos_eigenvalues => NULL()
    END TYPE tddfpt_control_type
 
 ! **************************************************************************************************
@@ -443,14 +443,14 @@ MODULE cp_control_types
 ! \par  NOTES
 ! **************************************************************************************************
    TYPE stda_control_type
-      LOGICAL                                :: do_ewald
-      LOGICAL                                :: do_exchange
-      REAL(KIND=dp)                          :: hfx_fraction
-      REAL(KIND=dp)                          :: eps_td_filter
-      REAL(KIND=dp)                          :: mn_alpha
-      REAL(KIND=dp)                          :: mn_beta
-      REAL(KIND=dp)                          :: coulomb_sr_cut
-      REAL(KIND=dp)                          :: coulomb_sr_eps
+      LOGICAL                                :: do_ewald = .FALSE.
+      LOGICAL                                :: do_exchange = .FALSE.
+      REAL(KIND=dp)                          :: hfx_fraction = 0.0_dp
+      REAL(KIND=dp)                          :: eps_td_filter = 0.0_dp
+      REAL(KIND=dp)                          :: mn_alpha = 0.0_dp
+      REAL(KIND=dp)                          :: mn_beta = 0.0_dp
+      REAL(KIND=dp)                          :: coulomb_sr_cut = 0.0_dp
+      REAL(KIND=dp)                          :: coulomb_sr_eps = 0.0_dp
    END TYPE stda_control_type
 
 ! **************************************************************************************************
@@ -458,87 +458,87 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE tddfpt2_control_type
       !> compute TDDFPT excitation energies and oscillator strengths
-      LOGICAL                              :: enabled
+      LOGICAL                              :: enabled = .FALSE.
       !> number of excited states to converge
-      INTEGER                              :: nstates
+      INTEGER                              :: nstates = 0
       !> maximal number of iterations to be performed
-      INTEGER                              :: niters
+      INTEGER                              :: niters = 0
       !> maximal number of Krylov space vectors
-      INTEGER                              :: nkvs
+      INTEGER                              :: nkvs = 0
       !> number of unoccupied (virtual) molecular orbitals to consider
-      INTEGER                              :: nlumo
+      INTEGER                              :: nlumo = 0
       !> minimal number of MPI processes to be used per excited state
-      INTEGER                              :: nprocs
+      INTEGER                              :: nprocs = 0
       !> type of kernel function/approximation to use
-      INTEGER                              :: kernel
+      INTEGER                              :: kernel = 0
       !> for full kernel, do we have HFX/ADMM
-      LOGICAL                              :: do_hfx
-      LOGICAL                              :: do_admm
+      LOGICAL                              :: do_hfx = .FALSE.
+      LOGICAL                              :: do_admm = .FALSE.
       !> for full kernel, do we have long-range HFX and/or Kxc potential
-      LOGICAL                              :: do_hfxlr
-      LOGICAL                              :: do_exck
+      LOGICAL                              :: do_hfxlr = .FALSE.
+      LOGICAL                              :: do_exck = .FALSE.
       !> options used in sTDA calculation (Kernel)
-      TYPE(stda_control_type)              :: stda_control
+      TYPE(stda_control_type)              :: stda_control = stda_control_type()
       !> algorithm to correct orbital energies
-      INTEGER                              :: oe_corr
+      INTEGER                              :: oe_corr = 0
       !> eigenvalue shifts
-      REAL(KIND=dp)                        :: ev_shift, eos_shift
+      REAL(KIND=dp)                        :: ev_shift = 0.0_dp, eos_shift = 0.0_dp
       !> target accuracy
-      REAL(kind=dp)                        :: conv
+      REAL(kind=dp)                        :: conv = 0.0_dp
       !> the smallest excitation amplitude to print
-      REAL(kind=dp)                        :: min_excitation_amplitude
+      REAL(kind=dp)                        :: min_excitation_amplitude = 0.0_dp
       !> threshold which controls when two wave functions considered to be orthogonal:
       !> maxabs(Ci^T * S * Cj) <= orthogonal_eps
-      REAL(kind=dp)                        :: orthogonal_eps
+      REAL(kind=dp)                        :: orthogonal_eps = 0.0_dp
       !> read guess wave functions from restart file if exists
-      LOGICAL                              :: is_restart
+      LOGICAL                              :: is_restart = .FALSE.
       !> compute triplet excited states using spin-unpolarised molecular orbitals
-      LOGICAL                              :: rks_triplets
+      LOGICAL                              :: rks_triplets = .FALSE.
       !> local resolution of identity for Coulomb contribution
-      LOGICAL                              :: do_lrigpw
+      LOGICAL                              :: do_lrigpw = .FALSE.
       ! automatic generation of auxiliary basis for LRI-TDDFT
       INTEGER                              :: auto_basis_p_lri_aux = 1
       !> use symmetric definition of ADMM Kernel correction
-      LOGICAL                              :: admm_symm
+      LOGICAL                              :: admm_symm = .FALSE.
       !> Use/Ignore possible ADMM Kernel XC correction
-      LOGICAL                              :: admm_xc_correction
+      LOGICAL                              :: admm_xc_correction = .FALSE.
       !
       ! DIPOLE_MOMENTS subsection
       !
       ! form of the dipole operator used to compute oscillator strengths
-      INTEGER                              :: dipole_form
+      INTEGER                              :: dipole_form = 0
       !> type of the reference point used for calculation of electrostatic dipole moments
-      INTEGER                              :: dipole_reference
+      INTEGER                              :: dipole_reference = 0
       !> user-defined reference point
-      REAL(kind=dp), DIMENSION(:), POINTER :: dipole_ref_point
+      REAL(kind=dp), DIMENSION(:), POINTER :: dipole_ref_point => NULL()
       !
       ! SOC subsection
-      LOGICAL                              :: do_soc
+      LOGICAL                              :: do_soc = .FALSE.
       !
       ! MGRID subsection
       !
       !> number of plain-wave grids
-      INTEGER                              :: mgrid_ngrids
+      INTEGER                              :: mgrid_ngrids = 0
       !> create commensurate grids (progression factor and cutoff values of sub-grids will be ignored)
-      LOGICAL                              :: mgrid_commensurate_mgrids
+      LOGICAL                              :: mgrid_commensurate_mgrids = .FALSE.
       !> signals that MGRID section has been explicitly given. Other mgrid_* variables
       !> are not initialised when it is equal to .FALSE. as in this case the default
       !> set of plain-wave grids will be used
-      LOGICAL                              :: mgrid_is_explicit
+      LOGICAL                              :: mgrid_is_explicit = .FALSE.
       !> same as qs_control%realspace_mgrids
-      LOGICAL                              :: mgrid_realspace_mgrids
+      LOGICAL                              :: mgrid_realspace_mgrids = .FALSE.
       !> do not perform load balancing
-      LOGICAL                              :: mgrid_skip_load_balance
+      LOGICAL                              :: mgrid_skip_load_balance = .FALSE.
       !> cutoff value at the finest grid level
-      REAL(kind=dp)                        :: mgrid_cutoff
+      REAL(kind=dp)                        :: mgrid_cutoff = 0.0_dp
       !> cutoff at the next grid level will be smaller then the cutoff
       !> at the current grid by this number of times
-      REAL(kind=dp)                        :: mgrid_progression_factor
+      REAL(kind=dp)                        :: mgrid_progression_factor = 0.0_dp
       !> cutoff that determines to which grid a particular Gaussian function will be mapped
-      REAL(kind=dp)                        :: mgrid_relative_cutoff
+      REAL(kind=dp)                        :: mgrid_relative_cutoff = 0.0_dp
       !> manually provided the list of cutoff values for each grid level
       !> (when it is null(), the cutoff values will be assigned automatically)
-      REAL(kind=dp), DIMENSION(:), POINTER :: mgrid_e_cutoff
+      REAL(kind=dp), DIMENSION(:), POINTER :: mgrid_e_cutoff => NULL()
    END TYPE tddfpt2_control_type
 
 ! **************************************************************************************************
@@ -547,26 +547,26 @@ MODULE cp_control_types
 !      10.2019 added variables related to surface dipole correction [Soumya Ghosh]
 ! **************************************************************************************************
    TYPE dft_control_type
-      TYPE(admm_control_type), POINTER     :: admm_control
-      TYPE(period_efield_type), POINTER    :: period_efield
-      TYPE(qs_control_type), POINTER       :: qs_control
-      TYPE(rtp_control_type), POINTER      :: rtp_control
-      TYPE(sccs_control_type), POINTER     :: sccs_control
-      TYPE(tddfpt_control_type), POINTER   :: tddfpt_control
-      TYPE(tddfpt2_control_type), POINTER  :: tddfpt2_control
-      TYPE(xas_control_type), POINTER      :: xas_control
-      TYPE(expot_control_type), POINTER    :: expot_control
-      TYPE(maxwell_control_type), POINTER  :: maxwell_control
+      TYPE(admm_control_type), POINTER     :: admm_control => NULL()
+      TYPE(period_efield_type), POINTER    :: period_efield => NULL()
+      TYPE(qs_control_type), POINTER       :: qs_control => NULL()
+      TYPE(rtp_control_type), POINTER      :: rtp_control => NULL()
+      TYPE(sccs_control_type), POINTER     :: sccs_control => NULL()
+      TYPE(tddfpt_control_type), POINTER   :: tddfpt_control => NULL()
+      TYPE(tddfpt2_control_type), POINTER  :: tddfpt2_control => NULL()
+      TYPE(xas_control_type), POINTER      :: xas_control => NULL()
+      TYPE(expot_control_type), POINTER    :: expot_control => NULL()
+      TYPE(maxwell_control_type), POINTER  :: maxwell_control => NULL()
       TYPE(efield_p_type), POINTER, &
-         DIMENSION(:)                      :: efield_fields
-      INTEGER                              :: nspins, &
-                                              charge, &
-                                              multiplicity, &
-                                              sic_method_id, &
-                                              plus_u_method_id, &
-                                              dir_surf_dip, &
+         DIMENSION(:)                      :: efield_fields => NULL()
+      INTEGER                              :: nspins = 0, &
+                                              charge = 0, &
+                                              multiplicity = 0, &
+                                              sic_method_id = 0, &
+                                              plus_u_method_id = 0, &
+                                              dir_surf_dip = 0, &
                                               nimages = 1
-      INTEGER                              :: sic_list_id
+      INTEGER                              :: sic_list_id = 0
       INTEGER                              :: auto_basis_ri_aux = 1, &
                                               auto_basis_aux_fit = 1, &
                                               auto_basis_lri_aux = 1, &
@@ -574,42 +574,42 @@ MODULE cp_control_types
                                               auto_basis_ri_hxc = 1, &
                                               auto_basis_ri_xas = 1, &
                                               auto_basis_ri_hfx = 1
-      REAL(KIND=dp)                        :: relax_multiplicity, &
-                                              sic_scaling_a, &
-                                              sic_scaling_b, &
-                                              pos_dir_surf_dip
-      LOGICAL                              :: do_tddfpt_calculation, &
-                                              do_xas_calculation, &
-                                              do_xas_tdp_calculation, &
-                                              drho_by_collocation, &
-                                              use_kinetic_energy_density, &
-                                              restricted, &
-                                              roks, &
-                                              uks, &
-                                              lsd, &
-                                              dft_plus_u, &
-                                              apply_efield, &
-                                              apply_efield_field, &
-                                              apply_vector_potential, &
-                                              apply_period_efield, &
-                                              apply_external_potential, &
-                                              eval_external_potential, &
-                                              do_admm, &
-                                              do_admm_dm, &
-                                              do_admm_mo, &
-                                              smear, &
-                                              low_spin_roks, &
-                                              apply_external_density, &
-                                              read_external_density, &
-                                              apply_external_vxc, &
-                                              read_external_vxc, &
-                                              correct_surf_dip, &
-                                              surf_dip_correct_switch, &
-                                              switch_surf_dip, &
-                                              correct_el_density_dip, &
-                                              do_sccs, &
-                                              apply_embed_pot, &
-                                              apply_dmfet_pot
+      REAL(KIND=dp)                        :: relax_multiplicity = 0.0_dp, &
+                                              sic_scaling_a = 0.0_dp, &
+                                              sic_scaling_b = 0.0_dp, &
+                                              pos_dir_surf_dip = 0.0_dp
+      LOGICAL                              :: do_tddfpt_calculation = .FALSE., &
+                                              do_xas_calculation = .FALSE., &
+                                              do_xas_tdp_calculation = .FALSE., &
+                                              drho_by_collocation = .FALSE., &
+                                              use_kinetic_energy_density = .FALSE., &
+                                              restricted = .FALSE., &
+                                              roks = .FALSE., &
+                                              uks = .FALSE., &
+                                              lsd = .FALSE., &
+                                              dft_plus_u = .FALSE., &
+                                              apply_efield = .FALSE., &
+                                              apply_efield_field = .FALSE., &
+                                              apply_vector_potential = .FALSE., &
+                                              apply_period_efield = .FALSE., &
+                                              apply_external_potential = .FALSE., &
+                                              eval_external_potential = .FALSE., &
+                                              do_admm = .FALSE., &
+                                              do_admm_dm = .FALSE., &
+                                              do_admm_mo = .FALSE., &
+                                              smear = .FALSE., &
+                                              low_spin_roks = .FALSE., &
+                                              apply_external_density = .FALSE., &
+                                              read_external_density = .FALSE., &
+                                              apply_external_vxc = .FALSE., &
+                                              read_external_vxc = .FALSE., &
+                                              correct_surf_dip = .FALSE., &
+                                              surf_dip_correct_switch = .FALSE., &
+                                              switch_surf_dip = .FALSE., &
+                                              correct_el_density_dip = .FALSE., &
+                                              do_sccs = .FALSE., &
+                                              apply_embed_pot = .FALSE., &
+                                              apply_dmfet_pot = .FALSE.
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

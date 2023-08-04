@@ -100,12 +100,12 @@ MODULE et_coupling_proj
    ! m_transf_inv - inversion transformation matrix
    ! block        - atomic data blocks
    TYPE et_cpl
-      INTEGER                                            :: n_atoms
-      INTEGER                                            :: n_blocks
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: fermi
-      TYPE(cp_fm_type), POINTER                          :: m_transf
-      TYPE(cp_fm_type), POINTER                          :: m_transf_inv
-      TYPE(et_cpl_block), DIMENSION(:), POINTER          :: block
+      INTEGER                                            :: n_atoms = 0
+      INTEGER                                            :: n_blocks = 0
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: fermi => NULL()
+      TYPE(cp_fm_type), POINTER                          :: m_transf => NULL()
+      TYPE(cp_fm_type), POINTER                          :: m_transf_inv => NULL()
+      TYPE(et_cpl_block), DIMENSION(:), POINTER          :: block => NULL()
    END TYPE et_cpl
 
    ! Electronic-coupling data block
@@ -117,12 +117,12 @@ MODULE et_coupling_proj
    ! mo          - electronic states
    ! hab         - electronic-coupling elements
    TYPE et_cpl_block
-      INTEGER                                            :: n_atoms
-      INTEGER                                            :: n_electrons
-      INTEGER                                            :: n_ao
-      TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: atom
-      TYPE(mo_set_type), DIMENSION(:), POINTER         :: mo
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: hab
+      INTEGER                                            :: n_atoms = 0
+      INTEGER                                            :: n_electrons = 0
+      INTEGER                                            :: n_ao = 0
+      TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: atom => NULL()
+      TYPE(mo_set_type), DIMENSION(:), POINTER         :: mo => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: hab => NULL()
    END TYPE et_cpl_block
 
    ! Electronic-coupling block-atom data
@@ -130,9 +130,9 @@ MODULE et_coupling_proj
    ! n_ao   - number of AO basis functions
    ! ao_pos - position of atom in array of AO functions
    TYPE et_cpl_atom
-      INTEGER                                            :: id
-      INTEGER                                            :: n_ao
-      INTEGER                                            :: ao_pos
+      INTEGER                                            :: id = 0
+      INTEGER                                            :: n_ao = 0
+      INTEGER                                            :: ao_pos = 0
    END TYPE et_cpl_atom
 
    PUBLIC :: calc_et_coupling_proj

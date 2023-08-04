@@ -60,18 +60,18 @@ MODULE distribution_2d_types
 !> \author Joost & Fawzi
 ! **************************************************************************************************
    TYPE distribution_2d_type
-      INTEGER, DIMENSION(:, :), POINTER     :: row_distribution
-      INTEGER, DIMENSION(:, :), POINTER     :: col_distribution
-      INTEGER                              :: n_row_distribution
-      INTEGER                              :: n_col_distribution
-      INTEGER, DIMENSION(:), POINTER       :: n_local_rows
-      INTEGER, DIMENSION(:), POINTER       :: n_local_cols
-      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_rows
-      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_cols
-      INTEGER, DIMENSION(:), POINTER       :: flat_local_rows
-      INTEGER, DIMENSION(:), POINTER       :: flat_local_cols
-      TYPE(cp_blacs_env_type), POINTER     :: blacs_env
-      INTEGER                              :: ref_count
+      INTEGER, DIMENSION(:, :), POINTER     :: row_distribution => NULL()
+      INTEGER, DIMENSION(:, :), POINTER     :: col_distribution => NULL()
+      INTEGER                              :: n_row_distribution = 0
+      INTEGER                              :: n_col_distribution = 0
+      INTEGER, DIMENSION(:), POINTER       :: n_local_rows => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: n_local_cols => NULL()
+      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_rows => NULL()
+      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_cols => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: flat_local_rows => NULL()
+      INTEGER, DIMENSION(:), POINTER       :: flat_local_cols => NULL()
+      TYPE(cp_blacs_env_type), POINTER     :: blacs_env => NULL()
+      INTEGER                              :: ref_count = 0
    END TYPE distribution_2d_type
 
 CONTAINS

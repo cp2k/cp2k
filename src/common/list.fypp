@@ -36,7 +36,7 @@
 !this is an internal type
       TYPE private_item_type_${valuetype}$
          PRIVATE
-         ${valuetype_out}$                   :: value
+         ${valuetype_out}$                   :: value #{if valuetype_out.endswith("POINTER")}#=> NULL()#{else}#= ${valuetype_out[5:-1]}$()#{endif}#
       END TYPE private_item_type_${valuetype}$
 
 !this is an internal type

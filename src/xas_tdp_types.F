@@ -100,57 +100,57 @@ MODULE xas_tdp_types
 !> \param ot_eps_iter convergence threshold for OT diagonalization
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
-      INTEGER                                 :: define_excited
-      INTEGER                                 :: dipole_form
-      INTEGER                                 :: n_search
-      INTEGER                                 :: n_excited
-      INTEGER                                 :: ot_max_iter
-      REAL(dp)                                :: e_range
-      REAL(dp)                                :: sx
-      REAL(dp)                                :: eps_range
-      REAL(dp)                                :: eps_screen
-      REAL(dp)                                :: eps_pgf
-      REAL(dp)                                :: eps_filter
-      REAL(dp)                                :: ot_eps_iter
-      TYPE(libint_potential_type)             :: x_potential
-      TYPE(libint_potential_type)             :: ri_m_potential
-      REAL(dp)                                :: ri_radius
-      LOGICAL                                 :: do_ot
-      LOGICAL                                 :: do_hfx
-      LOGICAL                                 :: do_xc
-      LOGICAL                                 :: do_coulomb
-      LOGICAL                                 :: do_ri_metric
-      LOGICAL                                 :: check_only
-      LOGICAL                                 :: tamm_dancoff
-      LOGICAL                                 :: do_quad
-      LOGICAL                                 :: xyz_dip
-      LOGICAL                                 :: do_loc
-      LOGICAL                                 :: do_uks
-      LOGICAL                                 :: do_roks
-      LOGICAL                                 :: do_soc
-      LOGICAL                                 :: do_singlet
-      LOGICAL                                 :: do_triplet
-      LOGICAL                                 :: do_spin_cons
-      LOGICAL                                 :: do_spin_flip
-      LOGICAL                                 :: is_periodic
-      INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms
+      INTEGER                                 :: define_excited = 0
+      INTEGER                                 :: dipole_form = 0
+      INTEGER                                 :: n_search = 0
+      INTEGER                                 :: n_excited = 0
+      INTEGER                                 :: ot_max_iter = 0
+      REAL(dp)                                :: e_range = 0.0_dp
+      REAL(dp)                                :: sx = 0.0_dp
+      REAL(dp)                                :: eps_range = 0.0_dp
+      REAL(dp)                                :: eps_screen = 0.0_dp
+      REAL(dp)                                :: eps_pgf = 0.0_dp
+      REAL(dp)                                :: eps_filter = 0.0_dp
+      REAL(dp)                                :: ot_eps_iter = 0.0_dp
+      TYPE(libint_potential_type)             :: x_potential = libint_potential_type()
+      TYPE(libint_potential_type)             :: ri_m_potential = libint_potential_type()
+      REAL(dp)                                :: ri_radius = 0.0_dp
+      LOGICAL                                 :: do_ot = .FALSE.
+      LOGICAL                                 :: do_hfx = .FALSE.
+      LOGICAL                                 :: do_xc = .FALSE.
+      LOGICAL                                 :: do_coulomb = .FALSE.
+      LOGICAL                                 :: do_ri_metric = .FALSE.
+      LOGICAL                                 :: check_only = .FALSE.
+      LOGICAL                                 :: tamm_dancoff = .FALSE.
+      LOGICAL                                 :: do_quad = .FALSE.
+      LOGICAL                                 :: xyz_dip = .FALSE.
+      LOGICAL                                 :: do_loc = .FALSE.
+      LOGICAL                                 :: do_uks = .FALSE.
+      LOGICAL                                 :: do_roks = .FALSE.
+      LOGICAL                                 :: do_soc = .FALSE.
+      LOGICAL                                 :: do_singlet = .FALSE.
+      LOGICAL                                 :: do_triplet = .FALSE.
+      LOGICAL                                 :: do_spin_cons = .FALSE.
+      LOGICAL                                 :: do_spin_flip = .FALSE.
+      LOGICAL                                 :: is_periodic = .FALSE.
+      INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms => NULL()
       CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER    :: list_ex_kinds
-      INTEGER, DIMENSION(:, :), POINTER        :: state_types
-      TYPE(section_vals_type), POINTER        :: loc_subsection
-      TYPE(section_vals_type), POINTER        :: print_loc_subsection
+         DIMENSION(:), POINTER    :: list_ex_kinds => NULL()
+      INTEGER, DIMENSION(:, :), POINTER        :: state_types => NULL()
+      TYPE(section_vals_type), POINTER        :: loc_subsection => NULL()
+      TYPE(section_vals_type), POINTER        :: print_loc_subsection => NULL()
       CHARACTER(len=default_string_length), &
-         DIMENSION(:, :), POINTER  :: grid_info
-      TYPE(qs_ot_settings_type), POINTER      :: ot_settings
+         DIMENSION(:, :), POINTER  :: grid_info => NULL()
+      TYPE(qs_ot_settings_type), POINTER      :: ot_settings => NULL()
 
-      LOGICAL                                 :: do_gw2x
-      LOGICAL                                 :: xps_only
-      REAL(dp)                                :: gw2x_eps
-      LOGICAL                                 :: pseudo_canonical
-      INTEGER                                 :: max_gw2x_iter
-      REAL(dp)                                :: c_os
-      REAL(dp)                                :: c_ss
-      INTEGER                                 :: batch_size
+      LOGICAL                                 :: do_gw2x = .FALSE.
+      LOGICAL                                 :: xps_only = .FALSE.
+      REAL(dp)                                :: gw2x_eps = 0.0_dp
+      LOGICAL                                 :: pseudo_canonical = .FALSE.
+      INTEGER                                 :: max_gw2x_iter = 0
+      REAL(dp)                                :: c_os = 0.0_dp
+      REAL(dp)                                :: c_ss = 0.0_dp
+      INTEGER                                 :: batch_size = 0
 
    END TYPE xas_tdp_control_type
 
@@ -192,44 +192,44 @@ MODULE xas_tdp_types
 !> \param lumo_evals the associated LUMO evals
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
-      CHARACTER(len=2), DIMENSION(3)          :: state_type_char
-      INTEGER                                 :: nex_atoms
-      INTEGER                                 :: nex_kinds
-      INTEGER, DIMENSION(:), POINTER          :: ex_atom_indices
-      INTEGER, DIMENSION(:), POINTER          :: ex_kind_indices
-      INTEGER, DIMENSION(:, :), POINTER       :: state_types
-      TYPE(dbt_type), POINTER             :: ri_3c_coul
-      TYPE(dbt_type), POINTER             :: ri_3c_ex
+      CHARACTER(len=2), DIMENSION(3)          :: state_type_char = ""
+      INTEGER                                 :: nex_atoms = 0
+      INTEGER                                 :: nex_kinds = 0
+      INTEGER, DIMENSION(:), POINTER          :: ex_atom_indices => NULL()
+      INTEGER, DIMENSION(:), POINTER          :: ex_kind_indices => NULL()
+      INTEGER, DIMENSION(:, :), POINTER       :: state_types => NULL()
+      TYPE(dbt_type), POINTER             :: ri_3c_coul => NULL()
+      TYPE(dbt_type), POINTER             :: ri_3c_ex => NULL()
       TYPE(donor_state_type), DIMENSION(:), &
-         POINTER   :: donor_states
-      INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms
-      TYPE(qs_loc_env_type), POINTER       :: qs_loc_env
-      REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul
-      REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex
-      TYPE(distribution_2d_type), POINTER      :: opt_dist2d_coul
-      TYPE(distribution_2d_type), POINTER      :: opt_dist2d_ex
+         POINTER   :: donor_states => NULL()
+      INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms => NULL()
+      TYPE(qs_loc_env_type), POINTER       :: qs_loc_env => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex => NULL()
+      TYPE(distribution_2d_type), POINTER      :: opt_dist2d_coul => NULL()
+      TYPE(distribution_2d_type), POINTER      :: opt_dist2d_ex => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: q_projector
+         POINTER   :: q_projector => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: dipmat
+         POINTER   :: dipmat => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: quadmat
+         POINTER   :: quadmat => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), &
-         POINTER   :: ri_fxc
-      LOGICAL                                 :: fxc_avail
+         POINTER   :: ri_fxc => NULL()
+      LOGICAL                                 :: fxc_avail = .FALSE.
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: orb_soc
-      TYPE(cp_fm_type), POINTER               :: matrix_shalf
+         POINTER   :: orb_soc => NULL()
+      TYPE(cp_fm_type), POINTER               :: matrix_shalf => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                              :: lumo_evecs
+         POINTER                              :: lumo_evecs => NULL()
 
       TYPE(cp_1d_r_p_type), DIMENSION(:), &
-         POINTER                              :: lumo_evals
+         POINTER                              :: lumo_evals => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                              :: ot_prec
+         POINTER                              :: ot_prec => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                              :: fock_matrix
-      TYPE(cp_fm_type), POINTER               :: lumo_coeffs
+         POINTER                              :: fock_matrix => NULL()
+      TYPE(cp_fm_type), POINTER               :: lumo_coeffs => NULL()
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
@@ -267,59 +267,59 @@ MODULE xas_tdp_types
 !> \param dbcsr_dist the distribution of the dbcsr matrices
 !> *************************************************************************************************
    TYPE donor_state_type
-      INTEGER                                 :: at_index
-      INTEGER                                 :: kind_index
-      INTEGER                                 :: ndo_mo
-      CHARACTER(LEN=default_string_length)    :: at_symbol
-      INTEGER                                 :: state_type
-      INTEGER, DIMENSION(:), POINTER          :: blk_size
-      REAL(dp), DIMENSION(:, :), POINTER      :: energy_evals
-      REAL(dp), DIMENSION(:, :), POINTER      :: gw2x_evals
-      INTEGER, DIMENSION(:, :), POINTER       :: mo_indices
-      TYPE(cp_fm_type), POINTER               :: sc_coeffs
-      TYPE(cp_fm_type), POINTER               :: sf_coeffs
-      TYPE(cp_fm_type), POINTER               :: sg_coeffs
-      TYPE(cp_fm_type), POINTER               :: tp_coeffs
-      TYPE(cp_fm_type), POINTER               :: gs_coeffs
-      REAL(dp), DIMENSION(:, :), POINTER      :: contract_coeffs
-      REAL(dp), DIMENSION(:), POINTER         :: sc_evals
-      REAL(dp), DIMENSION(:), POINTER         :: sf_evals
-      REAL(dp), DIMENSION(:), POINTER         :: sg_evals
-      REAL(dp), DIMENSION(:), POINTER         :: tp_evals
-      REAL(dp), DIMENSION(:), POINTER         :: soc_evals
-      REAL(dp), DIMENSION(:, :), POINTER      :: osc_str
-      REAL(dp), DIMENSION(:, :), POINTER      :: soc_osc_str
-      REAL(dp), DIMENSION(:), POINTER         :: quad_osc_str
-      REAL(dp), DIMENSION(:), POINTER         :: soc_quad_osc_str
-      TYPE(dbcsr_type), POINTER               :: sc_matrix_tdp
-      TYPE(dbcsr_type), POINTER               :: sf_matrix_tdp
-      TYPE(dbcsr_type), POINTER               :: sg_matrix_tdp
-      TYPE(dbcsr_type), POINTER               :: tp_matrix_tdp
+      INTEGER                                 :: at_index = 0
+      INTEGER                                 :: kind_index = 0
+      INTEGER                                 :: ndo_mo = 0
+      CHARACTER(LEN=default_string_length)    :: at_symbol = ""
+      INTEGER                                 :: state_type = 0
+      INTEGER, DIMENSION(:), POINTER          :: blk_size => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER      :: energy_evals => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER      :: gw2x_evals => NULL()
+      INTEGER, DIMENSION(:, :), POINTER       :: mo_indices => NULL()
+      TYPE(cp_fm_type), POINTER               :: sc_coeffs => NULL()
+      TYPE(cp_fm_type), POINTER               :: sf_coeffs => NULL()
+      TYPE(cp_fm_type), POINTER               :: sg_coeffs => NULL()
+      TYPE(cp_fm_type), POINTER               :: tp_coeffs => NULL()
+      TYPE(cp_fm_type), POINTER               :: gs_coeffs => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER      :: contract_coeffs => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: sc_evals => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: sf_evals => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: sg_evals => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: tp_evals => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: soc_evals => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER      :: osc_str => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER      :: soc_osc_str => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: quad_osc_str => NULL()
+      REAL(dp), DIMENSION(:), POINTER         :: soc_quad_osc_str => NULL()
+      TYPE(dbcsr_type), POINTER               :: sc_matrix_tdp => NULL()
+      TYPE(dbcsr_type), POINTER               :: sf_matrix_tdp => NULL()
+      TYPE(dbcsr_type), POINTER               :: sg_matrix_tdp => NULL()
+      TYPE(dbcsr_type), POINTER               :: tp_matrix_tdp => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER   :: metric
-      TYPE(dbcsr_type), POINTER               :: matrix_aux
-      TYPE(dbcsr_distribution_type), POINTER  :: dbcsr_dist
+         POINTER   :: metric => NULL()
+      TYPE(dbcsr_type), POINTER               :: matrix_aux => NULL()
+      TYPE(dbcsr_distribution_type), POINTER  :: dbcsr_dist => NULL()
 
    END TYPE donor_state_type
 
 !  Some helper types for xas_tdp_atom
    TYPE grid_atom_p_type
-      TYPE(grid_atom_type), POINTER                   :: grid_atom
+      TYPE(grid_atom_type), POINTER                   :: grid_atom => NULL()
    END TYPE grid_atom_p_type
 
    TYPE harmonics_atom_p_type
-      TYPE(harmonics_atom_type), POINTER              :: harmonics_atom
+      TYPE(harmonics_atom_type), POINTER              :: harmonics_atom => NULL()
    END TYPE harmonics_atom_p_type
 
    TYPE batch_info_type
-      TYPE(mp_para_env_type)             :: para_env
-      INTEGER                                     :: batch_size
-      INTEGER                                     :: nbatch
-      INTEGER                                     :: ibatch
-      INTEGER                                     :: ipe
+      TYPE(mp_para_env_type)             :: para_env = mp_para_env_type()
+      INTEGER                                     :: batch_size = 0
+      INTEGER                                     :: nbatch = 0
+      INTEGER                                     :: ibatch = 0
+      INTEGER                                     :: ipe = 0
       INTEGER, DIMENSION(:), ALLOCATABLE          :: nso_proc
       INTEGER, DIMENSION(:, :), ALLOCATABLE       :: so_bo
-      TYPE(cp_2d_i_p_type), POINTER, DIMENSION(:) :: so_proc_info
+      TYPE(cp_2d_i_p_type), POINTER, DIMENSION(:) :: so_proc_info => NULL()
    END TYPE batch_info_type
 
 ! **************************************************************************************************
@@ -341,20 +341,20 @@ MODULE xas_tdp_types
 !> \param dga2 second angular part of the gradient of the RI spherical gaussians
 !> *************************************************************************************************
    TYPE xas_atom_env_type
-      INTEGER                                         :: nspins
-      REAL(dp)                                        :: ri_radius
-      INTEGER, DIMENSION(:), POINTER                  :: excited_atoms
-      INTEGER, DIMENSION(:), POINTER                  :: excited_kinds
-      INTEGER, DIMENSION(:), POINTER                  :: proc_of_exat
-      TYPE(grid_atom_p_type), DIMENSION(:), POINTER   :: grid_atom_set
+      INTEGER                                         :: nspins = 0
+      REAL(dp)                                        :: ri_radius = 0.0_dp
+      INTEGER, DIMENSION(:), POINTER                  :: excited_atoms => NULL()
+      INTEGER, DIMENSION(:), POINTER                  :: excited_kinds => NULL()
+      INTEGER, DIMENSION(:), POINTER                  :: proc_of_exat => NULL()
+      TYPE(grid_atom_p_type), DIMENSION(:), POINTER   :: grid_atom_set => NULL()
       TYPE(harmonics_atom_p_type), DIMENSION(:), &
-         POINTER  :: harmonics_atom_set
-      TYPE(cp_1d_r_p_type), DIMENSION(:, :, :), POINTER :: ri_dcoeff
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: ri_sphi_so
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: orb_sphi_so
-      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER     :: exat_neighbors
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: ga, gr, dgr1, dgr2
-      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER     :: dga1, dga2
+         POINTER  :: harmonics_atom_set => NULL()
+      TYPE(cp_1d_r_p_type), DIMENSION(:, :, :), POINTER :: ri_dcoeff => NULL()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: ri_sphi_so => NULL()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: orb_sphi_so => NULL()
+      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER     :: exat_neighbors => NULL()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER     :: ga => NULL(), gr => NULL(), dgr1 => NULL(), dgr2 => NULL()
+      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER     :: dga1 => NULL(), dga2 => NULL()
    END TYPE xas_atom_env_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_types'

@@ -51,27 +51,27 @@ MODULE cp_ddapc_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE cp_ddapc_type
-      REAL(KIND=dp) :: c0
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: AmI
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Md ! decoupling
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Mr ! recoupling
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Mt ! decoupling+recoupling
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Ms ! solvation
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)  :: gfunc
-      REAL(KIND=dp), POINTER, DIMENSION(:)    :: w
+      REAL(KIND=dp) :: c0 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: AmI => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Md => NULL() ! decoupling
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Mr => NULL() ! recoupling
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Mt => NULL() ! decoupling+recoupling
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: Ms => NULL() ! solvation
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)  :: gfunc => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)    :: w => NULL()
    END TYPE cp_ddapc_type
 
 ! **************************************************************************************************
    TYPE cp_ddapc_ewald_type
-      LOGICAL                                    :: do_decoupling
-      LOGICAL                                    :: do_qmmm_periodic_decpl
-      LOGICAL                                    :: do_solvation
-      LOGICAL                                    :: do_property
-      LOGICAL                                    :: do_restraint
-      TYPE(section_vals_type), POINTER :: ewald_section
-      TYPE(pw_pool_type), POINTER :: pw_pool_qm, pw_pool_mm
-      TYPE(pw_grid_type), POINTER :: pw_grid_qm, pw_grid_mm
-      TYPE(pw_type), POINTER :: coeff_qm, coeff_mm
+      LOGICAL                                    :: do_decoupling = .FALSE.
+      LOGICAL                                    :: do_qmmm_periodic_decpl = .FALSE.
+      LOGICAL                                    :: do_solvation = .FALSE.
+      LOGICAL                                    :: do_property = .FALSE.
+      LOGICAL                                    :: do_restraint = .FALSE.
+      TYPE(section_vals_type), POINTER :: ewald_section => NULL()
+      TYPE(pw_pool_type), POINTER :: pw_pool_qm => NULL(), pw_pool_mm => NULL()
+      TYPE(pw_grid_type), POINTER :: pw_grid_qm => NULL(), pw_grid_mm => NULL()
+      TYPE(pw_type), POINTER :: coeff_qm => NULL(), coeff_mm => NULL()
    END TYPE cp_ddapc_ewald_type
 
 CONTAINS
