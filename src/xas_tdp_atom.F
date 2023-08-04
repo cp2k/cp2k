@@ -3397,14 +3397,14 @@ CONTAINS
       NULLIFY (int_soc, basis, qs_kind_set, sphi_so, matrix_s, grid)
       NULLIFY (particle_set)
 
-!  Initialization
+      !  Initialization
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, matrix_s=matrix_s, &
                       particle_set=particle_set)
 
-!  all_potential_present
+      ! all_potential_present
       CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
 
-!  Loop over the kinds to compute the integrals
+      ! Loop over the kinds to compute the integrals
       ALLOCATE (int_soc(nkind))
       DO ikind = 1, nkind
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB", zeff=zeff)
@@ -3423,7 +3423,7 @@ CONTAINS
          ALLOCATE (Vr(nr))
          CALL calculate_model_potential(Vr, grid, zeff)
 
-         !Compute V/(4c^2-2V) and weight it
+         ! Compute V/(4c^2-2V) and weight it
          ALLOCATE (V(na, nr))
          V = 0.0_dp
          DO ir = 1, nr
@@ -3458,42 +3458,40 @@ CONTAINS
          DEALLOCATE (intso)
       END DO !ikind
 
-!  Build the matrix_soc based on the matrix_s (but anti-symmetric)
+      ! Build the matrix_soc based on the matrix_s (but anti-symmetric)
       IF ((PRESENT(xas_atom_env)) .OR. all_potential_present) THEN
-      DO i = 1, 3
-         CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-      END DO
-
-!  Iterate over its diagonal blocks and fill=it
-      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-         CALL dbcsr_iterator_next_block(iter, row=iat, column=jat, blk=blk)
-         IF (.NOT. iat == jat) CYCLE
-         ikind = particle_set(iat)%atomic_kind%kind_number
-
          DO i = 1, 3
-            CALL dbcsr_put_block(matrix_soc(i)%matrix, iat, iat, int_soc(ikind)%array(:, :, i))
+            CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
          END DO
+         !  Iterate over its diagonal blocks and fill=it
+         CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-      END DO !iat
-      CALL dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_next_block(iter, row=iat, column=jat, blk=blk)
+            IF (.NOT. iat == jat) CYCLE
+            ikind = particle_set(iat)%atomic_kind%kind_number
 
+            DO i = 1, 3
+               CALL dbcsr_put_block(matrix_soc(i)%matrix, iat, iat, int_soc(ikind)%array(:, :, i))
+            END DO
+
+         END DO !iat
+         CALL dbcsr_iterator_stop(iter)
       ELSE  ! pseudopotentials here
-      DO i = 1, 3
-         CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_set(matrix_soc(i)%matrix, 0.0_dp)
-         CALL dbcsr_copy(matrix_soc(i)%matrix, soc_atom_env%soc_pp(i, 1)%matrix)
-      END DO
+         DO i = 1, 3
+            CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_set(matrix_soc(i)%matrix, 0.0_dp)
+            CALL dbcsr_copy(matrix_soc(i)%matrix, soc_atom_env%soc_pp(i, 1)%matrix)
+         END DO
       END IF
 
       DO i = 1, 3
          CALL dbcsr_finalize(matrix_soc(i)%matrix)
       END DO
 
-! Clean-up
+      ! Clean-up
       DO ikind = 1, nkind
          DEALLOCATE (int_soc(ikind)%array)
       END DO
