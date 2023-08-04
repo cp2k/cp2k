@@ -55,10 +55,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
-et_coupling_proj.F: Found type et_cpl_atom without initializer https://cp2k.org/conv#c016
-et_coupling_proj.F: Found type et_cpl_block without initializer https://cp2k.org/conv#c016
-et_coupling_proj.F: Found type et_cpl without initializer https://cp2k.org/conv#c016
-et_coupling_types.F: Found type et_coupling_type without initializer https://cp2k.org/conv#c016
 ewald_environment_types.F: Found type ewald_environment_type without initializer https://cp2k.org/conv#c016
 ewald_pw_types.F: Found type ewald_pw_type without initializer https://cp2k.org/conv#c016
 exclusion_types.F: Found type exclusion_type without initializer https://cp2k.org/conv#c016
@@ -70,9 +66,6 @@ extended_system_types.F: Found type map_info_type without initializer https://cp
 extended_system_types.F: Found type nhc_info_type without initializer https://cp2k.org/conv#c016
 extended_system_types.F: Found type npt_info_type without initializer https://cp2k.org/conv#c016
 extended_system_types.F: Found type point_info_type without initializer https://cp2k.org/conv#c016
-f77_interface.F: Found type f_env_p_type without initializer https://cp2k.org/conv#c016
-f77_interface.F: Found type f_env_type without initializer https://cp2k.org/conv#c016
-f77_interface.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
 farming_types.F: Found type farming_env_type without initializer https://cp2k.org/conv#c016
@@ -88,8 +81,6 @@ fist_force.F: Found type debug_variables_type without initializer https://cp2k.o
 fist_neighbor_lists.F: Found type local_atoms_type without initializer https://cp2k.org/conv#c016
 fist_neighbor_list_types.F: Found type fist_neighbor_type without initializer https://cp2k.org/conv#c016
 fist_neighbor_list_types.F: Found type neighbor_kind_pairs_type without initializer https://cp2k.org/conv#c016
-force_env_types.F: Found type force_env_p_type without initializer https://cp2k.org/conv#c016
-force_env_types.F: Found type force_env_type without initializer https://cp2k.org/conv#c016
 force_field_types.F: Found type amber_info_type without initializer https://cp2k.org/conv#c016
 force_field_types.F: Found type charmm_info_type without initializer https://cp2k.org/conv#c016
 force_field_types.F: Found type force_field_type without initializer https://cp2k.org/conv#c016
@@ -148,15 +139,10 @@ kpoint_types.F: Found type kpoint_env_type without initializer https://cp2k.org/
 kpoint_types.F: Found type kpoint_sym_p_type without initializer https://cp2k.org/conv#c016
 kpoint_types.F: Found type kpoint_sym_type without initializer https://cp2k.org/conv#c016
 kpoint_types.F: Found type kpoint_type without initializer https://cp2k.org/conv#c016
-libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
-library_tests.F: Module "mp_perf_test" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-list_routinereport.F: Found type private_item_type_routinereport without initializer https://cp2k.org/conv#c016
-list_routinestat.F: Found type private_item_type_routinestat without initializer https://cp2k.org/conv#c016
-list_timerenv.F: Found type private_item_type_timerenv without initializer https://cp2k.org/conv#c016
 lri_environment_types.F: Found type carray without initializer https://cp2k.org/conv#c016
 lri_environment_types.F: Found type int_container without initializer https://cp2k.org/conv#c016
 lri_environment_types.F: Found type lri_bas_type without initializer https://cp2k.org/conv#c016
@@ -511,7 +497,6 @@ swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
 taper_types.F: Found type taper_type without initializer https://cp2k.org/conv#c016
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
-task_list_types.F: Found type task_list_type without initializer https://cp2k.org/conv#c016
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
 tip_scan_types.F: Found type scanning_type without initializer https://cp2k.org/conv#c016
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012

@@ -50,8 +50,8 @@ MODULE libcp2k
    PRIVATE
 
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri2array
-      INTEGER(C_INT), POINTER :: coords(:)
-      REAL(C_DOUBLE), POINTER :: values(:)
+      INTEGER(C_INT), POINTER :: coords(:) => NULL()
+      REAL(C_DOUBLE), POINTER :: values(:) => NULL()
       INTEGER                 :: idx = 1
    CONTAINS
       PROCEDURE :: func => eri2array_func
