@@ -1,3 +1,13 @@
+#
+#  PBE ENERGY  : -76.3600550759
+#  TDA Triplets
+#   Excited State   1:      Triplet-B1     6.5020 eV  190.69 nm  f=0.0000  <S**2>=2.000
+#      5 ->  6         0.70683
+#   Excited State   2:      Triplet-A1     8.5315 eV  145.32 nm  f=0.0000  <S**2>=2.000
+#      4 ->  6         0.70572
+#   Excited State   3:      Triplet-A2     8.5956 eV  144.24 nm  f=0.0000  <S**2>=2.000
+#      5 ->  7         0.70664
+#
 &GLOBAL
   PROJECT H2O_GAPW
   RUN_TYPE ENERGY
@@ -47,9 +57,9 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+    O   0.000000    0.000000    0.117226 H2O
+    H   0.000000   -0.757136   -0.468906 H2O
+    H   0.000000    0.757136   -0.468906 H2O
     &END COORD
     &TOPOLOGY
      &CENTER_COORDINATES

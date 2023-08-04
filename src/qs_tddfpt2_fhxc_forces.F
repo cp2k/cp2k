@@ -434,8 +434,8 @@ CONTAINS
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]PAWg0", fodeb
             END IF
             IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
-            CALL update_ks_atom(qs_env, matrix_hx, matrix_px1, forces=.TRUE., tddft=.TRUE., &
-                                rho_atom_external=local_rho_set%rho_atom_set, kscale=0.5_dp)
+            CALL update_ks_atom(qs_env, matrix_hx, matrix_px1, forces=.TRUE., &
+                                rho_atom_external=local_rho_set%rho_atom_set)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)

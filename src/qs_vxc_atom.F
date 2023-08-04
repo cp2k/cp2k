@@ -377,7 +377,6 @@ CONTAINS
 
                IF (.NOT. energy_only) THEN
                   NULLIFY (int_hh, int_ss)
-                  rho_atom => my_rho_atom_set(iatom)
                   CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, int_hh, int_ss, &
@@ -532,15 +531,6 @@ CONTAINS
       ELSE
          nspins = 1
       END IF
-      needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, &
-                                       calc_potential=.TRUE.)
-      gradient_functional = needs%drho .OR. needs%drho_spin
-      tau_f = (needs%tau .OR. needs%tau_spin)
-      IF (tau_f) THEN
-         CPABORT("Tau functionals not implemented for GAPW 2nd derivatives")
-      ELSE
-         rtau = 0.0_dp
-      END IF
 
       IF (my_tddft) THEN
          IF (excitations == tddfpt_excitations) THEN
@@ -552,6 +542,16 @@ CONTAINS
          IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
       ELSEIF (PRESENT(do_triplet)) THEN
          IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
+      END IF
+
+      needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, &
+                                       calc_potential=.TRUE.)
+      gradient_functional = needs%drho .OR. needs%drho_spin
+      tau_f = (needs%tau .OR. needs%tau_spin)
+      IF (tau_f) THEN
+         CPABORT("Tau functionals not implemented for GAPW 2nd derivatives")
+      ELSE
+         rtau = 0.0_dp
       END IF
 
       !  Here starts the loop over all the atoms
