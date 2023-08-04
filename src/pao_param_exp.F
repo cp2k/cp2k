@@ -340,7 +340,7 @@ CONTAINS
       RMR = MATMUL(RM, R)
       F = RMR*D !Hadamard product
       RF = MATMUL(R, F)
-      RFR = REAL(MATMUL(RF, TRANSPOSE(CONJG(R))))
+      RFR = REAL(MATMUL(RF, TRANSPOSE(CONJG(R))), dp)
 
       ! gradient dE/dX has to be anti-symmetric
       G = 0.5_dp*(TRANSPOSE(RFR) - RFR)
@@ -408,8 +408,8 @@ CONTAINS
 
       CALL ZHEEVD('V', 'U', n, A(1, 1), n, eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-      lwork = INT(REAL(work(1)))
-      lrwork = INT(REAL(rwork(1)))
+      lwork = INT(REAL(work(1), dp))
+      lrwork = INT(REAL(rwork(1), dp))
       liwork = iwork(1)
 
       DEALLOCATE (iwork, rwork, work)

@@ -38,26 +38,26 @@ MODULE xas_control
 !> \brief A type that holds controlling information for a xas calculation
 ! **************************************************************************************************
    TYPE xas_control_type
-      INTEGER                             :: nexc_atoms
-      INTEGER                             :: nexc_search
-      INTEGER                             :: spin_channel
-      INTEGER                             :: state_type
-      INTEGER                             :: xas_method
-      INTEGER                             :: dipole_form
-      INTEGER                             :: added_mos
-      INTEGER                             :: max_iter_added
-      INTEGER                             :: ngauss
-      INTEGER                             :: stride
-      INTEGER, DIMENSION(:), POINTER      :: exc_atoms
-      INTEGER, DIMENSION(:), POINTER      :: orbital_list
-      LOGICAL                             :: cubes, do_centers
-      LOGICAL                             :: xas_restart
-      INTEGER, DIMENSION(:), POINTER      :: list_cubes
+      INTEGER                             :: nexc_atoms = 0
+      INTEGER                             :: nexc_search = 0
+      INTEGER                             :: spin_channel = 0
+      INTEGER                             :: state_type = 0
+      INTEGER                             :: xas_method = 0
+      INTEGER                             :: dipole_form = 0
+      INTEGER                             :: added_mos = 0
+      INTEGER                             :: max_iter_added = 0
+      INTEGER                             :: ngauss = 0
+      INTEGER                             :: stride = 0
+      INTEGER, DIMENSION(:), POINTER      :: exc_atoms => NULL()
+      INTEGER, DIMENSION(:), POINTER      :: orbital_list => NULL()
+      LOGICAL                             :: cubes = .FALSE., do_centers = .FALSE.
+      LOGICAL                             :: xas_restart = .FALSE.
+      INTEGER, DIMENSION(:), POINTER      :: list_cubes => NULL()
 !
-      REAL(dp)                            :: eps_added, overlap_threshold
-      REAL(dp)                            :: xes_core_occupation
-      REAL(dp)                            :: xes_homo_occupation
-      REAL(dp)                            :: nel_tot, xas_core_occupation
+      REAL(dp)                            :: eps_added = 0.0_dp, overlap_threshold = 0.0_dp
+      REAL(dp)                            :: xes_core_occupation = 0.0_dp
+      REAL(dp)                            :: xes_homo_occupation = 0.0_dp
+      REAL(dp)                            :: nel_tot = 0.0_dp, xas_core_occupation = 0.0_dp
    END TYPE xas_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'

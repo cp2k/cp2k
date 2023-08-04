@@ -67,39 +67,39 @@ MODULE xas_env_types
 !> \author MI
 ! **************************************************************************************************
    TYPE xas_environment_type
-      INTEGER :: nao, exc_state, xas_estate
-      INTEGER :: nexc_search, nexc_atoms
-      INTEGER :: spin_channel
-      INTEGER :: nvirtual, nvirtual2
-      INTEGER :: unoccupied_max_iter
+      INTEGER :: nao = 0, exc_state = 0, xas_estate = 0
+      INTEGER :: nexc_search = 0, nexc_atoms = 0
+      INTEGER :: spin_channel = 0
+      INTEGER :: nvirtual = 0, nvirtual2 = 0
+      INTEGER :: unoccupied_max_iter = 0
 
-      INTEGER, DIMENSION(:), POINTER :: atom_of_state
-      INTEGER, DIMENSION(:), POINTER :: type_of_state
-      INTEGER, DIMENSION(:), POINTER :: mykind_of_atom
-      INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
-      INTEGER, DIMENSION(:), POINTER :: exc_atoms
-      INTEGER, DIMENSION(:), POINTER :: nexc_states
-      INTEGER, DIMENSION(:, :), POINTER :: state_of_atom
+      INTEGER, DIMENSION(:), POINTER :: atom_of_state => NULL()
+      INTEGER, DIMENSION(:), POINTER :: type_of_state => NULL()
+      INTEGER, DIMENSION(:), POINTER :: mykind_of_atom => NULL()
+      INTEGER, DIMENSION(:), POINTER :: mykind_of_kind => NULL()
+      INTEGER, DIMENSION(:), POINTER :: exc_atoms => NULL()
+      INTEGER, DIMENSION(:), POINTER :: nexc_states => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: state_of_atom => NULL()
 
-      REAL(dp) :: ip_energy, occ_estate, unoccupied_eps, xas_nelectron, homo_occ
-      REAL(dp), DIMENSION(:), POINTER :: all_evals
-      REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
-      REAL(dp), DIMENSION(:, :), POINTER :: spectrum
-      REAL(dp), DIMENSION(:, :), POINTER :: centers_wfn
-      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: my_gto_basis
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: groundstate_coeff
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: dip_fm_set
+      REAL(dp) :: ip_energy = 0.0_dp, occ_estate = 0.0_dp, unoccupied_eps = 0.0_dp, xas_nelectron = 0.0_dp, homo_occ = 0.0_dp
+      REAL(dp), DIMENSION(:), POINTER :: all_evals => NULL()
+      REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER :: spectrum => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER :: centers_wfn => NULL()
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap => NULL()
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: my_gto_basis => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: groundstate_coeff => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: dip_fm_set => NULL()
       TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-         POINTER                                   :: ao_mo_fm_pools
-      TYPE(cp_fm_type), POINTER :: excvec_coeff
-      TYPE(cp_fm_type), POINTER :: excvec_overlap
-      TYPE(cp_fm_type), POINTER :: unoccupied_orbs
-      TYPE(cp_fm_type), POINTER :: all_vectors
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: ostrength_sm
-      TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-      TYPE(qs_scf_env_type), POINTER                        :: scf_env
-      TYPE(scf_control_type), POINTER          :: scf_control
+         POINTER                                   :: ao_mo_fm_pools => NULL()
+      TYPE(cp_fm_type), POINTER :: excvec_coeff => NULL()
+      TYPE(cp_fm_type), POINTER :: excvec_overlap => NULL()
+      TYPE(cp_fm_type), POINTER :: unoccupied_orbs => NULL()
+      TYPE(cp_fm_type), POINTER :: all_vectors => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: ostrength_sm => NULL()
+      TYPE(qs_loc_env_type), POINTER :: qs_loc_env => NULL()
+      TYPE(qs_scf_env_type), POINTER                        :: scf_env => NULL()
+      TYPE(scf_control_type), POINTER          :: scf_control => NULL()
 
    END TYPE xas_environment_type
 

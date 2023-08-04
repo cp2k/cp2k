@@ -30,7 +30,7 @@ MODULE pair_potential_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_types'
 
    PRIVATE
-   ! when adding a new nonbonedd potential please update also the list_pot
+   ! when adding a new nonbonded potential please update also the list_pot
    ! used for the linear scaling screening of potential calculation
    INTEGER, PUBLIC, PARAMETER :: multi_type = -1, &
                                  nn_type = 0, &
@@ -119,64 +119,64 @@ MODULE pair_potential_types
 
 ! **************************************************************************************************
    TYPE ipbv_pot_type
-      REAL(KIND=dp), DIMENSION(2:15) :: a
-      REAL(KIND=dp) :: rcore
-      REAL(KIND=dp) :: m
-      REAL(KIND=dp) :: b
+      REAL(KIND=dp), DIMENSION(2:15) :: a = 0.0_dp
+      REAL(KIND=dp) :: rcore = 0.0_dp
+      REAL(KIND=dp) :: m = 0.0_dp
+      REAL(KIND=dp) :: b = 0.0_dp
    END TYPE ipbv_pot_type
 
 ! **************************************************************************************************
    TYPE lj_pot_type
-      REAL(KIND=dp) :: epsilon
-      REAL(KIND=dp) :: sigma6
-      REAL(KIND=dp) :: sigma12
+      REAL(KIND=dp) :: epsilon = 0.0_dp
+      REAL(KIND=dp) :: sigma6 = 0.0_dp
+      REAL(KIND=dp) :: sigma12 = 0.0_dp
    END TYPE Lj_pot_type
 
 ! **************************************************************************************************
    TYPE ft_pot_type
-      REAL(KIND=dp) :: A
-      REAL(KIND=dp) :: B
-      REAL(KIND=dp) :: C
-      REAL(KIND=dp) :: D
+      REAL(KIND=dp) :: A = 0.0_dp
+      REAL(KIND=dp) :: B = 0.0_dp
+      REAL(KIND=dp) :: C = 0.0_dp
+      REAL(KIND=dp) :: D = 0.0_dp
    END TYPE ft_pot_type
 
 ! **************************************************************************************************
    TYPE ftd_pot_type
-      REAL(KIND=dp) :: A
-      REAL(KIND=dp) :: B
-      REAL(KIND=dp) :: C
-      REAL(KIND=dp) :: D
-      REAL(KIND=dp), DIMENSION(2) :: BD
+      REAL(KIND=dp) :: A = 0.0_dp
+      REAL(KIND=dp) :: B = 0.0_dp
+      REAL(KIND=dp) :: C = 0.0_dp
+      REAL(KIND=dp) :: D = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2) :: BD = 0.0_dp
    END TYPE ftd_pot_type
 
 ! **************************************************************************************************
    TYPE williams_pot_type
-      REAL(KIND=dp) :: a
-      REAL(KIND=dp) :: b
-      REAL(KIND=dp) :: c
+      REAL(KIND=dp) :: a = 0.0_dp
+      REAL(KIND=dp) :: b = 0.0_dp
+      REAL(KIND=dp) :: c = 0.0_dp
    END TYPE williams_pot_type
 
 ! **************************************************************************************************
    TYPE goodwin_pot_type
-      REAL(KIND=dp) :: vr0
-      REAL(KIND=dp) :: m, mc
-      REAL(KIND=dp) :: d, dc
+      REAL(KIND=dp) :: vr0 = 0.0_dp
+      REAL(KIND=dp) :: m = 0.0_dp, mc = 0.0_dp
+      REAL(KIND=dp) :: d = 0.0_dp, dc = 0.0_dp
    END TYPE goodwin_pot_type
 
 ! **************************************************************************************************
    TYPE eam_pot_type
-      CHARACTER(LEN=default_path_length)     :: eam_file_name
-      INTEGER                                 :: npoints
-      REAL(KIND=dp)                          :: drar, drhoar, acutal
-      REAL(KIND=dp), POINTER, DIMENSION(:)    :: rho, phi, frho, rhoval, rval
-      REAL(KIND=dp), POINTER, DIMENSION(:)    :: rhop, phip, frhop
+      CHARACTER(LEN=default_path_length)     :: eam_file_name = ""
+      INTEGER                                 :: npoints = 0
+      REAL(KIND=dp)                          :: drar = 0.0_dp, drhoar = 0.0_dp, acutal = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:)    :: rho => NULL(), phi => NULL(), frho => NULL(), rhoval => NULL(), rval => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)    :: rhop => NULL(), phip => NULL(), frhop => NULL()
    END TYPE eam_pot_type
 
 ! **************************************************************************************************
    TYPE quip_pot_type
-      CHARACTER(LEN=default_path_length)     :: quip_file_name
-      CHARACTER(LEN=1024)                    :: init_args
-      CHARACTER(LEN=1024)                    :: calc_args
+      CHARACTER(LEN=default_path_length)     :: quip_file_name = ""
+      CHARACTER(LEN=1024)                    :: init_args = ""
+      CHARACTER(LEN=1024)                    :: calc_args = ""
    END TYPE quip_pot_type
 
 ! **************************************************************************************************
@@ -203,204 +203,204 @@ MODULE pair_potential_types
 
 ! **************************************************************************************************
    TYPE buck4ran_pot_type
-      REAL(KIND=dp) :: a
-      REAL(KIND=dp) :: b
-      REAL(KIND=dp) :: c
-      REAL(KIND=dp) :: r1
-      REAL(KIND=dp) :: r2
-      REAL(KIND=dp) :: r3
-      INTEGER :: npoly1, npoly2
-      REAL(KIND=dp), DIMENSION(0:10) :: poly1
-      REAL(KIND=dp), DIMENSION(0:10) :: poly2
+      REAL(KIND=dp) :: a = 0.0_dp
+      REAL(KIND=dp) :: b = 0.0_dp
+      REAL(KIND=dp) :: c = 0.0_dp
+      REAL(KIND=dp) :: r1 = 0.0_dp
+      REAL(KIND=dp) :: r2 = 0.0_dp
+      REAL(KIND=dp) :: r3 = 0.0_dp
+      INTEGER :: npoly1 = 0, npoly2 = 0
+      REAL(KIND=dp), DIMENSION(0:10) :: poly1 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(0:10) :: poly2 = 0.0_dp
    END TYPE buck4ran_pot_type
 
 ! **************************************************************************************************
    TYPE buckmorse_pot_type
-      REAL(KIND=dp) :: f0
-      REAL(KIND=dp) :: a1
-      REAL(KIND=dp) :: a2
-      REAL(KIND=dp) :: b1
-      REAL(KIND=dp) :: b2
-      REAL(KIND=dp) :: c
-      REAL(KIND=dp) :: d
-      REAL(KIND=dp) :: r0
-      REAL(KIND=dp) :: beta
+      REAL(KIND=dp) :: f0 = 0.0_dp
+      REAL(KIND=dp) :: a1 = 0.0_dp
+      REAL(KIND=dp) :: a2 = 0.0_dp
+      REAL(KIND=dp) :: b1 = 0.0_dp
+      REAL(KIND=dp) :: b2 = 0.0_dp
+      REAL(KIND=dp) :: c = 0.0_dp
+      REAL(KIND=dp) :: d = 0.0_dp
+      REAL(KIND=dp) :: r0 = 0.0_dp
+      REAL(KIND=dp) :: beta = 0.0_dp
    END TYPE buckmorse_pot_type
 
 ! **************************************************************************************************
    TYPE gp_pot_type
-      INTEGER                                   :: myid
-      CHARACTER(LEN=default_path_length)       :: potential
+      INTEGER                                   :: myid = 0
+      CHARACTER(LEN=default_path_length)       :: potential = ""
       CHARACTER(LEN=default_string_length), &
-         POINTER, DIMENSION(:)                   :: parameters, units
-      CHARACTER(LEN=default_string_length)     :: variables
-      REAL(KIND=dp), DIMENSION(:), POINTER      :: values
+         POINTER, DIMENSION(:)                   :: parameters => NULL(), units => NULL()
+      CHARACTER(LEN=default_string_length)     :: variables = ""
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: values => NULL()
    END TYPE gp_pot_type
 
 ! **************************************************************************************************
    TYPE tersoff_pot_type
       ! Get this stuff from the PRB V38, N14 9902 (1988) by Tersoff
-      REAL(KIND=dp) :: A
-      REAL(KIND=dp) :: B
-      REAL(KIND=dp) :: lambda1
-      REAL(KIND=dp) :: lambda2
-      REAL(KIND=dp) :: alpha
-      REAL(KIND=dp) :: beta
-      REAL(KIND=dp) :: n
-      REAL(KIND=dp) :: c
-      REAL(KIND=dp) :: d
-      REAL(KIND=dp) :: h
-      REAL(KIND=dp) :: lambda3
-      REAL(KIND=dp) :: bigR ! Used to be R = Rij + D
-      REAL(KIND=dp) :: bigD ! Used to be D = Rij - D
-      REAL(KIND=dp) :: rcutsq ! Always set to (bigR+bigD)^2
+      REAL(KIND=dp) :: A = 0.0_dp
+      REAL(KIND=dp) :: B = 0.0_dp
+      REAL(KIND=dp) :: lambda1 = 0.0_dp
+      REAL(KIND=dp) :: lambda2 = 0.0_dp
+      REAL(KIND=dp) :: alpha = 0.0_dp
+      REAL(KIND=dp) :: beta = 0.0_dp
+      REAL(KIND=dp) :: n = 0.0_dp
+      REAL(KIND=dp) :: c = 0.0_dp
+      REAL(KIND=dp) :: d = 0.0_dp
+      REAL(KIND=dp) :: h = 0.0_dp
+      REAL(KIND=dp) :: lambda3 = 0.0_dp
+      REAL(KIND=dp) :: bigR = 0.0_dp ! Used to be R = Rij + D
+      REAL(KIND=dp) :: bigD = 0.0_dp ! Used to be D = Rij - D
+      REAL(KIND=dp) :: rcutsq = 0.0_dp ! Always set to (bigR+bigD)^2
    END TYPE tersoff_pot_type
 
 ! **************************************************************************************************
    TYPE siepmann_pot_type
-      REAL(KIND=dp) :: B
-      REAL(KIND=dp) :: D
-      REAL(KIND=dp) :: E
-      REAL(KIND=dp) :: F
-      REAL(KIND=dp) :: beta
-      REAL(KIND=dp) :: rcutsq
-      LOGICAL        :: allow_oh_formation
-      LOGICAL        :: allow_h3o_formation
-      LOGICAL        :: allow_o_formation
+      REAL(KIND=dp) :: B = 0.0_dp
+      REAL(KIND=dp) :: D = 0.0_dp
+      REAL(KIND=dp) :: E = 0.0_dp
+      REAL(KIND=dp) :: F = 0.0_dp
+      REAL(KIND=dp) :: beta = 0.0_dp
+      REAL(KIND=dp) :: rcutsq = 0.0_dp
+      LOGICAL        :: allow_oh_formation = .FALSE.
+      LOGICAL        :: allow_h3o_formation = .FALSE.
+      LOGICAL        :: allow_o_formation = .FALSE.
    END TYPE siepmann_pot_type
 
 ! **************************************************************************************************
    TYPE gal_pot_type
-      CHARACTER(LEN=2) :: met1
-      CHARACTER(LEN=2) :: met2
-      REAL(KIND=dp) :: epsilon
-      REAL(KIND=dp) :: bxy
-      REAL(KIND=dp) :: bz
-      REAL(KIND=dp) :: r1
-      REAL(KIND=dp) :: r2
-      REAL(KIND=dp) :: a1
-      REAL(KIND=dp) :: a2
-      REAL(KIND=dp) :: a3
-      REAL(KIND=dp) :: a4
-      REAL(KIND=dp) :: a
-      REAL(KIND=dp) :: b
-      REAL(KIND=dp) :: c
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: gcn
+      CHARACTER(LEN=2) :: met1 = ""
+      CHARACTER(LEN=2) :: met2 = ""
+      REAL(KIND=dp) :: epsilon = 0.0_dp
+      REAL(KIND=dp) :: bxy = 0.0_dp
+      REAL(KIND=dp) :: bz = 0.0_dp
+      REAL(KIND=dp) :: r1 = 0.0_dp
+      REAL(KIND=dp) :: r2 = 0.0_dp
+      REAL(KIND=dp) :: a1 = 0.0_dp
+      REAL(KIND=dp) :: a2 = 0.0_dp
+      REAL(KIND=dp) :: a3 = 0.0_dp
+      REAL(KIND=dp) :: a4 = 0.0_dp
+      REAL(KIND=dp) :: a = 0.0_dp
+      REAL(KIND=dp) :: b = 0.0_dp
+      REAL(KIND=dp) :: c = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: gcn => NULL()
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)    :: n_vectors
-      REAL(KIND=dp)  :: rcutsq
-      LOGICAL        :: express
+      REAL(KIND=dp)  :: rcutsq = 0.0_dp
+      LOGICAL        :: express = .FALSE.
    END TYPE gal_pot_type
 
 ! **************************************************************************************************
 
    TYPE gal21_pot_type
-      CHARACTER(LEN=2) :: met1
-      CHARACTER(LEN=2) :: met2
-      REAL(KIND=dp) :: epsilon1
-      REAL(KIND=dp) :: epsilon2
-      REAL(KIND=dp) :: epsilon3
-      REAL(KIND=dp) :: bxy1
-      REAL(KIND=dp) :: bxy2
-      REAL(KIND=dp) :: bz1
-      REAL(KIND=dp) :: bz2
-      REAL(KIND=dp) :: r1
-      REAL(KIND=dp) :: r2
-      REAL(KIND=dp) :: a11
-      REAL(KIND=dp) :: a12
-      REAL(KIND=dp) :: a13
-      REAL(KIND=dp) :: a21
-      REAL(KIND=dp) :: a22
-      REAL(KIND=dp) :: a23
-      REAL(KIND=dp) :: a31
-      REAL(KIND=dp) :: a32
-      REAL(KIND=dp) :: a33
-      REAL(KIND=dp) :: a41
-      REAL(KIND=dp) :: a42
-      REAL(KIND=dp) :: a43
-      REAL(KIND=dp) :: AO1
-      REAL(KIND=dp) :: AO2
-      REAL(KIND=dp) :: BO1
-      REAL(KIND=dp) :: BO2
-      REAL(KIND=dp) :: c
-      REAL(KIND=dp) :: AH1
-      REAL(KIND=dp) :: AH2
-      REAL(KIND=dp) :: BH1
-      REAL(KIND=dp) :: BH2
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: gcn
+      CHARACTER(LEN=2) :: met1 = ""
+      CHARACTER(LEN=2) :: met2 = ""
+      REAL(KIND=dp) :: epsilon1 = 0.0_dp
+      REAL(KIND=dp) :: epsilon2 = 0.0_dp
+      REAL(KIND=dp) :: epsilon3 = 0.0_dp
+      REAL(KIND=dp) :: bxy1 = 0.0_dp
+      REAL(KIND=dp) :: bxy2 = 0.0_dp
+      REAL(KIND=dp) :: bz1 = 0.0_dp
+      REAL(KIND=dp) :: bz2 = 0.0_dp
+      REAL(KIND=dp) :: r1 = 0.0_dp
+      REAL(KIND=dp) :: r2 = 0.0_dp
+      REAL(KIND=dp) :: a11 = 0.0_dp
+      REAL(KIND=dp) :: a12 = 0.0_dp
+      REAL(KIND=dp) :: a13 = 0.0_dp
+      REAL(KIND=dp) :: a21 = 0.0_dp
+      REAL(KIND=dp) :: a22 = 0.0_dp
+      REAL(KIND=dp) :: a23 = 0.0_dp
+      REAL(KIND=dp) :: a31 = 0.0_dp
+      REAL(KIND=dp) :: a32 = 0.0_dp
+      REAL(KIND=dp) :: a33 = 0.0_dp
+      REAL(KIND=dp) :: a41 = 0.0_dp
+      REAL(KIND=dp) :: a42 = 0.0_dp
+      REAL(KIND=dp) :: a43 = 0.0_dp
+      REAL(KIND=dp) :: AO1 = 0.0_dp
+      REAL(KIND=dp) :: AO2 = 0.0_dp
+      REAL(KIND=dp) :: BO1 = 0.0_dp
+      REAL(KIND=dp) :: BO2 = 0.0_dp
+      REAL(KIND=dp) :: c = 0.0_dp
+      REAL(KIND=dp) :: AH1 = 0.0_dp
+      REAL(KIND=dp) :: AH2 = 0.0_dp
+      REAL(KIND=dp) :: BH1 = 0.0_dp
+      REAL(KIND=dp) :: BH2 = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: gcn => NULL()
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)    :: n_vectors
-      REAL(KIND=dp)  :: rcutsq
-      LOGICAL        :: express
+      REAL(KIND=dp)  :: rcutsq = 0.0_dp
+      LOGICAL        :: express = .FALSE.
    END TYPE gal21_pot_type
 
 ! **************************************************************************************************
 
    TYPE tab_pot_type
-      CHARACTER(LEN=default_path_length)      :: tabpot_file_name
-      INTEGER                                 :: npoints, index
-      REAL(KIND=dp)                           :: dr, rcut
-      REAL(KIND=dp), POINTER, DIMENSION(:)    :: r, e, f
+      CHARACTER(LEN=default_path_length)      :: tabpot_file_name = ""
+      INTEGER                                 :: npoints = 0, index = 0
+      REAL(KIND=dp)                           :: dr = 0.0_dp, rcut = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:)    :: r => NULL(), e => NULL(), f => NULL()
    END TYPE tab_pot_type
 
 ! **************************************************************************************************
 
    TYPE pot_set_type
-      REAL(KIND=dp)                      :: rmin, rmax
-      TYPE(ipbv_pot_type), POINTER :: ipbv
-      TYPE(gp_pot_type), POINTER :: gp
-      TYPE(lj_pot_type), POINTER :: lj
-      TYPE(ft_pot_type), POINTER :: ft
-      TYPE(williams_pot_type), POINTER :: willis
-      TYPE(goodwin_pot_type), POINTER :: goodwin
-      TYPE(eam_pot_type), POINTER :: eam
-      TYPE(quip_pot_type), POINTER :: quip
-      TYPE(nequip_pot_type), POINTER :: nequip
-      TYPE(allegro_pot_type), POINTER :: allegro
-      TYPE(buck4ran_pot_type), POINTER :: buck4r
-      TYPE(buckmorse_pot_type), POINTER :: buckmo
-      TYPE(tersoff_pot_type), POINTER :: tersoff
-      TYPE(siepmann_pot_type), POINTER :: siepmann
-      TYPE(gal_pot_type), POINTER :: gal
-      TYPE(gal21_pot_type), POINTER :: gal21
-      TYPE(ftd_pot_type), POINTER :: ftd
-      TYPE(tab_pot_type), POINTER :: tab
+      REAL(KIND=dp)                      :: rmin = 0.0_dp, rmax = 0.0_dp
+      TYPE(ipbv_pot_type), POINTER :: ipbv => NULL()
+      TYPE(gp_pot_type), POINTER :: gp => NULL()
+      TYPE(lj_pot_type), POINTER :: lj => NULL()
+      TYPE(ft_pot_type), POINTER :: ft => NULL()
+      TYPE(williams_pot_type), POINTER :: willis => NULL()
+      TYPE(goodwin_pot_type), POINTER :: goodwin => NULL()
+      TYPE(eam_pot_type), POINTER :: eam => NULL()
+      TYPE(quip_pot_type), POINTER :: quip => NULL()
+      TYPE(nequip_pot_type), POINTER :: nequip => NULL()
+      TYPE(allegro_pot_type), POINTER :: allegro => NULL()
+      TYPE(buck4ran_pot_type), POINTER :: buck4r => NULL()
+      TYPE(buckmorse_pot_type), POINTER :: buckmo => NULL()
+      TYPE(tersoff_pot_type), POINTER :: tersoff => NULL()
+      TYPE(siepmann_pot_type), POINTER :: siepmann => NULL()
+      TYPE(gal_pot_type), POINTER :: gal => NULL()
+      TYPE(gal21_pot_type), POINTER :: gal21 => NULL()
+      TYPE(ftd_pot_type), POINTER :: ftd => NULL()
+      TYPE(tab_pot_type), POINTER :: tab => NULL()
    END TYPE pot_set_type
 
 ! **************************************************************************************************
    TYPE pair_potential_single_type
-      REAL(KIND=dp) :: rcutsq
-      REAL(KIND=dp) :: e_fac
-      REAL(KIND=dp) :: e_fcc
-      REAL(KIND=dp) :: e_fcs
-      REAL(KIND=dp) :: e_fsc
-      REAL(KIND=dp) :: z1
-      REAL(KIND=dp) :: z2
-      REAL(KIND=dp) :: zbl_poly(0:5)
-      REAL(KIND=dp) :: zbl_rcut(2)
-      LOGICAL        :: undef, & ! non-bonding interaction not defined
-                        no_mb, & ! no many-body potential
-                        no_pp ! no pair (=two-body) potential
-      INTEGER        :: shell_type
-      CHARACTER(LEN=default_string_length)   :: at1
-      CHARACTER(LEN=default_string_length)   :: at2
-      INTEGER, POINTER, DIMENSION(:)              :: TYPE
-      TYPE(pot_set_type), POINTER, DIMENSION(:) :: set
-      TYPE(spline_data_p_type), POINTER, DIMENSION(:) :: pair_spline_data
-      TYPE(spline_factor_type), POINTER :: spl_f
+      REAL(KIND=dp) :: rcutsq = 0.0_dp
+      REAL(KIND=dp) :: e_fac = 0.0_dp
+      REAL(KIND=dp) :: e_fcc = 0.0_dp
+      REAL(KIND=dp) :: e_fcs = 0.0_dp
+      REAL(KIND=dp) :: e_fsc = 0.0_dp
+      REAL(KIND=dp) :: z1 = 0.0_dp
+      REAL(KIND=dp) :: z2 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(0:5) :: zbl_poly = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2) :: zbl_rcut = 0.0_dp
+      LOGICAL        :: undef = .FALSE., & ! non-bonding interaction not defined
+                        no_mb = .FALSE., & ! no many-body potential
+                        no_pp = .FALSE. ! no pair (=two-body) potential
+      INTEGER        :: shell_type = 0
+      CHARACTER(LEN=default_string_length)   :: at1 = ""
+      CHARACTER(LEN=default_string_length)   :: at2 = ""
+      INTEGER, POINTER, DIMENSION(:)              :: TYPE => NULL()
+      TYPE(pot_set_type), POINTER, DIMENSION(:) :: set => NULL()
+      TYPE(spline_data_p_type), POINTER, DIMENSION(:) :: pair_spline_data => NULL()
+      TYPE(spline_factor_type), POINTER :: spl_f => NULL()
    END TYPE pair_potential_single_type
 
 ! **************************************************************************************************
    TYPE pair_potential_type
-      TYPE(pair_potential_single_type), POINTER :: pot
+      TYPE(pair_potential_single_type), POINTER :: pot => NULL()
    END TYPE pair_potential_type
 
 ! **************************************************************************************************
    TYPE pair_potential_p_type
-      TYPE(pair_potential_type), DIMENSION(:), POINTER :: pot
+      TYPE(pair_potential_type), DIMENSION(:), POINTER :: pot => NULL()
    END TYPE pair_potential_p_type
 
 ! **************************************************************************************************
    TYPE pair_potential_pp_type
-      TYPE(pair_potential_type), DIMENSION(:, :), POINTER :: pot
+      TYPE(pair_potential_type), DIMENSION(:, :), POINTER :: pot => NULL()
    END TYPE pair_potential_pp_type
 
 CONTAINS

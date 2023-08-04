@@ -91,14 +91,14 @@ MODULE xas_tdp_utils
 
    !A helper type for SOC
    TYPE dbcsr_soc_package_type
-      TYPE(dbcsr_type), POINTER     :: dbcsr_sg
-      TYPE(dbcsr_type), POINTER     :: dbcsr_tp
-      TYPE(dbcsr_type), POINTER     :: dbcsr_sc
-      TYPE(dbcsr_type), POINTER     :: dbcsr_sf
-      TYPE(dbcsr_type), POINTER     :: dbcsr_prod
-      TYPE(dbcsr_type), POINTER     :: dbcsr_ovlp
-      TYPE(dbcsr_type), POINTER     :: dbcsr_tmp
-      TYPE(dbcsr_type), POINTER     :: dbcsr_work
+      TYPE(dbcsr_type), POINTER     :: dbcsr_sg => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_tp => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_sc => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_sf => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_prod => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_ovlp => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_tmp => NULL()
+      TYPE(dbcsr_type), POINTER     :: dbcsr_work => NULL()
    END TYPE dbcsr_soc_package_type
 
 CONTAINS
