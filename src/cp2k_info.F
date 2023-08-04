@@ -254,39 +254,29 @@ CONTAINS
 !> \param iunit ...
 ! **************************************************************************************************
    SUBROUTINE print_cp2k_license(iunit)
+
       INTEGER                                            :: iunit
 
-      WRITE (iunit, '(T2,A)') '!-----------------------------------------------------------------------------!'
-      WRITE (iunit, '(T2,A)') '!                                                                             !'
-      WRITE (iunit, '(T2,A)') '!   CP2K: A general program to perform molecular dynamics simulations         !'
-      WRITE (iunit, '(T2,A)') '!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !'
-      WRITE (iunit, '(T2,A)') '!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !'
-      WRITE (iunit, '(T2,A)') '!   Copyright (C) 2008, 2009, 2010, 2011  CP2K developers group               !'
-      WRITE (iunit, '(T2,A)') '!   Copyright (C) 2012, 2013, 2014, 2015  CP2K developers group               !'
-      WRITE (iunit, '(T2,A)') '!   Copyright (C) 2016, 2017, 2018, 2019  CP2K developers group               !'
-      WRITE (iunit, '(T2,A)') '!   Copyright (C) 2020                    CP2K developers group               !'
-      WRITE (iunit, '(T2,A)') '!                                                                             !'
-      WRITE (iunit, '(T2,A)') '!   This program is free software; you can redistribute it and/or modify      !'
-      WRITE (iunit, '(T2,A)') '!   it under the terms of the GNU General Public License as published by      !'
-      WRITE (iunit, '(T2,A)') '!   the Free Software Foundation; either version 2 of the License, or         !'
-      WRITE (iunit, '(T2,A)') '!   (at your option) any later version.                                       !'
-      WRITE (iunit, '(T2,A)') '!                                                                             !'
-      WRITE (iunit, '(T2,A)') '!   This program is distributed in the hope that it will be useful,           !'
-      WRITE (iunit, '(T2,A)') '!   but WITHOUT ANY WARRANTY; without even the implied warranty of            !'
-      WRITE (iunit, '(T2,A)') '!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             !'
-      WRITE (iunit, '(T2,A)') '!   GNU General Public License for more details.                              !'
-      WRITE (iunit, '(T2,A)') '!                                                                             !'
-      WRITE (iunit, '(T2,A)') '!   You should have received a copy of the GNU General Public License         !'
-      WRITE (iunit, '(T2,A)') '!   along with this program; if not, write to the Free Software               !'
-      WRITE (iunit, '(T2,A)') '!   Foundation, Inc., 51 Franklin Street, Fifth Floor,                        !'
-      WRITE (iunit, '(T2,A)') '!   Boston, MA  02110-1301, USA.                                              !'
-      WRITE (iunit, '(T2,A)') '!                                                                             !'
-      WRITE (iunit, '(T2,A)') '!   See also https://www.fsf.org/licensing/licenses/gpl.html                  !'
-      WRITE (iunit, '(T2,A)') '!                                                                             !'
-      WRITE (iunit, '(T2,A)') '!-----------------------------------------------------------------------------!'
-      WRITE (iunit, '(T2,A)') '!   CP2K, including its sources and pointers to the authors                   !'
-      WRITE (iunit, '(T2,A)') '!   can be found at  https://www.cp2k.org/                                    !'
-      WRITE (iunit, '(T2,A)') '!-----------------------------------------------------------------------------!'
+      WRITE (UNIT=iunit, FMT="(T2,A)") &
+         "******************************************************************************", &
+         "*                                                                            *", &
+         "*   CP2K: A general program to perform molecular dynamics simulations        *", &
+         "*   Copyright (C) 2000-2023  CP2K developer group <https://www.cp2k.org/>    *", &
+         "*                                                                            *", &
+         "*   This program is free software: you can redistribute it and/or modify     *", &
+         "*   it under the terms of the GNU General Public License as published by     *", &
+         "*   the Free Software Foundation, either version 2 of the License, or        *", &
+         "*   (at your option) any later version.                                      *", &
+         "*                                                                            *", &
+         "*   This program is distributed in the hope that it will be useful,          *", &
+         "*   but WITHOUT ANY WARRANTY; without even the implied warranty of           *", &
+         "*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *", &
+         "*   GNU General Public License for more details.                             *", &
+         "*                                                                            *", &
+         "*   You should have received a copy of the GNU General Public License        *", &
+         "*   along with this program.  If not, see <https://www.gnu.org/licenses/>.   *", &
+         "*                                                                            *", &
+         "******************************************************************************"
 
    END SUBROUTINE print_cp2k_license
 
