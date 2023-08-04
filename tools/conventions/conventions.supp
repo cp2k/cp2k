@@ -35,12 +35,10 @@ cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_strin
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
-ct_types.F: Found type ct_step_env_type without initializer https://cp2k.org/conv#c016
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho" https://cp2k.org/conv#c012
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
-dm_ls_scf_types.F: Found type ls_mstruct_type without initializer https://cp2k.org/conv#c016
 dm_ls_scf_types.F: Found type ls_scf_env_type without initializer https://cp2k.org/conv#c016
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
 dumpdcd.F: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c204
@@ -116,7 +114,6 @@ hartree_local_types.F: Found type ecoul_1center_type without initializer https:/
 hartree_local_types.F: Found type hartree_local_type without initializer https://cp2k.org/conv#c016
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
-hfx_types.F: Found type hfx_ri_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type hirshfeld_type without initializer https://cp2k.org/conv#c016
 hirshfeld_types.F: Found type shape_fn without initializer https://cp2k.org/conv#c016
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
@@ -139,6 +136,7 @@ kpoint_types.F: Found type kpoint_env_type without initializer https://cp2k.org/
 kpoint_types.F: Found type kpoint_sym_p_type without initializer https://cp2k.org/conv#c016
 kpoint_types.F: Found type kpoint_sym_type without initializer https://cp2k.org/conv#c016
 kpoint_types.F: Found type kpoint_type without initializer https://cp2k.org/conv#c016
+libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
@@ -191,7 +189,6 @@ message_passing.F: Found OPEN statement in procedure "mp_file_open" https://cp2k
 message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
-message_passing.F: Module "mp_perf_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)
@@ -217,8 +214,6 @@ mm_mapping_library.F: Found type ff_map_type without initializer https://cp2k.or
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
 mode_selective.F: Found type ms_vib_type without initializer https://cp2k.org/conv#c016
 molsym.F: Found type molsym_type without initializer https://cp2k.org/conv#c016
-mp_perf_test.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
-mp2_integrals.F: Found type intermediate_matrix_type without initializer https://cp2k.org/conv#c016
 mscfg_types.F: Found type molecular_scf_guess_env_type without initializer https://cp2k.org/conv#c016
 negf_atom_map.F: Found type negf_atom_map_type without initializer https://cp2k.org/conv#c016
 negf_control_types.F: Found type negf_control_contact_type without initializer https://cp2k.org/conv#c016
@@ -251,7 +246,6 @@ optimize_input.F: Found type oi_env_type without initializer https://cp2k.org/co
 optimize_input.F: Found type variable_type without initializer https://cp2k.org/conv#c016
 outer_scf_control_types.F: Found type outer_scf_control_type without initializer https://cp2k.org/conv#c016
 outer_scf_control_types.F: Found type qs_outer_scf_type without initializer https://cp2k.org/conv#c016
-pao_types.F: Found type filename_type without initializer https://cp2k.org/conv#c016
 parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c101
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check" https://cp2k.org/conv#c012
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test" https://cp2k.org/conv#c012
@@ -273,7 +267,6 @@ ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "sca
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wavelet_function" https://cp2k.org/conv#c012
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions" https://cp2k.org/conv#c012
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions" https://cp2k.org/conv#c012
-pwdft_environment_types.F: Found type pwdft_environment_type without initializer https://cp2k.org/conv#c016
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
 qmmm_gaussian_types.F: Found type qmmm_gaussian_p_type without initializer https://cp2k.org/conv#c016
 qmmm_gaussian_types.F: Found type qmmm_gaussian_type without initializer https://cp2k.org/conv#c016
@@ -295,9 +288,6 @@ qmmm_types_low.F: Found type qmmm_pseudo_link_p_type without initializer https:/
 qmmm_types_low.F: Found type qmmm_pseudo_link_type without initializer https://cp2k.org/conv#c016
 qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
 qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
-qs_active_space_types.F: Found type active_space_type without initializer https://cp2k.org/conv#c016
-qs_active_space_types.F: Found type eri_gpw_type without initializer https://cp2k.org/conv#c016
-qs_active_space_types.F: Found type eri_type without initializer https://cp2k.org/conv#c016
 qs_atomic_block.F: Found type atom_matrix_type without initializer https://cp2k.org/conv#c016
 qs_block_davidson_types.F: Found type davidson_type without initializer https://cp2k.org/conv#c016
 qs_cdft_opt_types.F: Found type cdft_opt_type without initializer https://cp2k.org/conv#c016
@@ -423,7 +413,6 @@ qs_wf_history_types.F: Found type qs_wf_snapshot_type without initializer https:
 rel_control_types.F: Found type rel_control_type without initializer https://cp2k.org/conv#c016
 replica_types.F: Found type replica_env_p_type without initializer https://cp2k.org/conv#c016
 replica_types.F: Found type replica_env_type without initializer https://cp2k.org/conv#c016
-rpa_im_time_force_types.F: Found type im_time_force_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type diagonalization_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type scf_control_type without initializer https://cp2k.org/conv#c016
 scf_control_types.F: Found type smear_type without initializer https://cp2k.org/conv#c016

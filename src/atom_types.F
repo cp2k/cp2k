@@ -30,10 +30,10 @@ MODULE atom_types
                                               parser_create,&
                                               parser_release
    USE input_constants,                 ONLY: &
-        barrier_conf, contracted_gto, do_analytic, do_gapw_log, do_numeric, do_nonrel_atom, do_potential_coulomb, &
-        do_potential_long, do_potential_mix_cl, do_potential_short, do_rks_atom, do_semi_analytic, ecp_pseudo, &
-        gaussian, geometrical_gto, gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, &
-        sgp_pseudo, slater, upf_pseudo
+        barrier_conf, contracted_gto, do_analytic, do_gapw_log, do_nonrel_atom, do_numeric, &
+        do_potential_coulomb, do_potential_long, do_potential_mix_cl, do_potential_short, &
+        do_rks_atom, do_semi_analytic, ecp_pseudo, gaussian, geometrical_gto, gth_pseudo, no_conf, &
+        no_pseudo, numerical, poly_conf, sgp_pseudo, slater, upf_pseudo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_list_get,&

@@ -40,25 +40,25 @@ MODULE qs_active_space_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE eri_gpw_type
-      LOGICAL                       :: redo_poisson
-      REAL(KIND=dp)                 :: cutoff
-      REAL(KIND=dp)                 :: rel_cutoff
-      REAL(KIND=dp)                 :: eps_grid
-      INTEGER                       :: print_level
-      LOGICAL                       :: store_wfn
+      LOGICAL                       :: redo_poisson = .FALSE.
+      REAL(KIND=dp)                 :: cutoff = 0.0_dp
+      REAL(KIND=dp)                 :: rel_cutoff = 0.0_dp
+      REAL(KIND=dp)                 :: eps_grid = 0.0_dp
+      INTEGER                       :: print_level = 0
+      LOGICAL                       :: store_wfn = .FALSE.
    END TYPE eri_gpw_type
 
    TYPE eri_type
-      INTEGER                       :: method
-      INTEGER                       :: OPERATOR
-      REAL(KIND=dp)                 :: operator_parameter
-      INTEGER, DIMENSION(3)         :: periodicity
-      REAL(KIND=dp)                 :: cutoff_radius
-      REAL(KIND=dp)                 :: eps_integral
-      TYPE(eri_gpw_type)            :: eri_gpw
+      INTEGER                       :: method = 0
+      INTEGER                       :: OPERATOR = 0
+      REAL(KIND=dp)                 :: operator_parameter = 0.0_dp
+      INTEGER, DIMENSION(3)         :: periodicity = 0
+      REAL(KIND=dp)                 :: cutoff_radius = 0.0_dp
+      REAL(KIND=dp)                 :: eps_integral = 0.0_dp
+      TYPE(eri_gpw_type)            :: eri_gpw = eri_gpw_type()
       TYPE(dbcsr_csr_p_type), &
          DIMENSION(:), POINTER      :: eri => NULL()
-      INTEGER                       :: norb
+      INTEGER                       :: norb = 0
 
    CONTAINS
       PROCEDURE :: eri_foreach => eri_type_eri_foreach
@@ -73,31 +73,31 @@ MODULE qs_active_space_types
    END TYPE eri_type_eri_element_func
 
    TYPE active_space_type
-      INTEGER                       :: nelec_active
-      INTEGER, POINTER, DIMENSION(:, :):: active_orbitals
-      INTEGER, POINTER, DIMENSION(:, :):: inactive_orbitals
-      INTEGER                       :: nelec_inactive
-      INTEGER, DIMENSION(2)         :: nelec_inactive_spinwise
-      INTEGER, DIMENSION(2)         :: nelec_total
-      INTEGER                       :: multiplicity
-      INTEGER                       :: nspins
-      LOGICAL                       :: molecule
-      INTEGER                       :: model
-      REAL(KIND=dp)                 :: energy_total
-      REAL(KIND=dp)                 :: energy_ref
-      REAL(KIND=dp)                 :: energy_inactive
-      REAL(KIND=dp)                 :: energy_active
-      LOGICAL                       :: read_p_act
-      CHARACTER(LEN=default_path_length)                 :: p_act_filename
-      TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_active
-      TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_inactive
-      TYPE(eri_type)                :: eri
-      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: p_active
-      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: ks_sub
-      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: vxc_sub
-      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: h_sub
-      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: fock_sub
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
+      INTEGER                       :: nelec_active = 0
+      INTEGER, POINTER, DIMENSION(:, :) :: active_orbitals => NULL()
+      INTEGER, POINTER, DIMENSION(:, :) :: inactive_orbitals => NULL()
+      INTEGER                       :: nelec_inactive = 0
+      INTEGER, DIMENSION(2)         :: nelec_inactive_spinwise = 0
+      INTEGER, DIMENSION(2)         :: nelec_total = 0
+      INTEGER                       :: multiplicity = 0
+      INTEGER                       :: nspins = 0
+      LOGICAL                       :: molecule = .FALSE.
+      INTEGER                       :: model = 0
+      REAL(KIND=dp)                 :: energy_total = 0.0_dp
+      REAL(KIND=dp)                 :: energy_ref = 0.0_dp
+      REAL(KIND=dp)                 :: energy_inactive = 0.0_dp
+      REAL(KIND=dp)                 :: energy_active = 0.0_dp
+      LOGICAL                       :: read_p_act = .FALSE.
+      CHARACTER(LEN=default_path_length)        :: p_act_filename = ""
+      TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_active => NULL()
+      TYPE(mo_set_type), DIMENSION(:), POINTER  :: mos_inactive => NULL()
+      TYPE(eri_type)                            :: eri = eri_type()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: p_active => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: ks_sub => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: vxc_sub => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: h_sub => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER   :: fock_sub => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: pmat_inactive => NULL()
    END TYPE active_space_type
 
    ABSTRACT INTERFACE

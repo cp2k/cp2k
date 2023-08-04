@@ -135,7 +135,7 @@ MODULE dm_ls_scf_types
 
       LOGICAL  :: report_all_sparsities = .FALSE., perform_mu_scan = .FALSE., use_s_sqrt = .FALSE.
 
-      TYPE(ls_mstruct_type) :: ls_mstruct = ls_mstruct_type()
+      TYPE(ls_mstruct_type) :: ls_mstruct
       TYPE(ls_scf_curvy_type) :: curvy_data = ls_scf_curvy_type()
 
       TYPE(chebyshev_type) :: chebyshev = chebyshev_type()
