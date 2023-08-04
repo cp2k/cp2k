@@ -199,8 +199,8 @@ From: {distro}:{distro_version}
      ln -sf /opt/cp2k/exe/{arch}/\${{binary}}.{version} /usr/{arch}/bin/\${{binary}}; \
   done && \
   make -j {ncores} ARCH={arch} VERSION={version} clean"
- cat ./tools/toolchain/install/setup >>$APPTAINER_ENVIRONMENT
- rm -rf ./tools/toolchain/build ./lib/{arch}/{version}/*.a ./exe/local/libcp2k_unittest.psmp ./.git
+ cat ./tools/toolchain/install/setup >>${{APPTAINER_ENVIRONMENT}}
+ rm -rf ./tools/toolchain/build ./exe/{arch}/libcp2k_unittest.{version} ./.git
 
 %test
  #!/bin/bash
@@ -214,8 +214,10 @@ From: {distro}:{distro_version}
  "$@"
 
 %labels
- Author CP2K developer team
- Version v0.2
+ author CP2K developer team
+ version 0.3
+
+# EOF
 """
 
 
@@ -229,7 +231,7 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(
-            f"# This file was created by generate_apptainer_def_file.py\n"
+            f"# This file was created by generate_apptainer_def_files.py\n"
         )
         self.content.write(f"#")
 

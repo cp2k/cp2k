@@ -1,5 +1,5 @@
 #
-# This file was created by generate_apptainer_def_file.py
+# This file was created by generate_apptainer_def_files.py
 #
 # Usage: apptainer build -B $PWD:/mnt cp2k-2023.1_openmpi_znver2_psmp.sif 2023.1_openmpi_znver2_psmp.def | tee cp2k-2023.1_openmpi_znver2_psmp.log
 
@@ -28,8 +28,8 @@ From: ubuntu:22.04
      ln -sf /opt/cp2k/exe/local/\${binary}.psmp /usr/local/bin/\${binary}; \
   done && \
   make -j 8 ARCH=local VERSION=psmp clean"
- cat ./tools/toolchain/install/setup >>$APPTAINER_ENVIRONMENT
- rm -rf ./tools/toolchain/build ./lib/local/psmp/*.a ./exe/local/libcp2k_unittest.psmp ./.git
+ cat ./tools/toolchain/install/setup >>${APPTAINER_ENVIRONMENT}
+ rm -rf ./tools/toolchain/build ./exe/local/libcp2k_unittest.psmp ./.git
 
 %test
  #!/bin/bash
@@ -43,5 +43,7 @@ From: ubuntu:22.04
  "$@"
 
 %labels
- Author CP2K developer team
- Version v0.2
+ author CP2K developer team
+ version 0.3
+
+# EOF
