@@ -103,6 +103,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ekts
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -119,6 +120,7 @@ CONTAINS
                       atprop=atprop, &
                       energy=energy, &
                       v_hartree_rspace=v_hartree_rspace, &
+                      para_env=para_env, &
                       pw_env=pw_env)
       IF (atprop%energy) THEN
          CALL qs_energies_mulliken(qs_env)
@@ -143,7 +145,7 @@ CONTAINS
          CALL atprop_array_add(atprop%atener, atprop%atecc)
          CALL atprop_array_add(atprop%atener, atprop%ate1c)
          ! entropic energy
-         ekts = energy%kts/REAL(natom, KIND=dp)
+         ekts = energy%kts/REAL(natom, KIND=dp)/REAL(para_env%num_pe, KIND=dp)
          atprop%atener(:) = atprop%atener(:) + ekts
       END IF
 
