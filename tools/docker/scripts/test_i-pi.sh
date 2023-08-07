@@ -34,7 +34,7 @@ pip3 install --quiet .
 
 echo -e "\n========== Running i-Pi Tests =========="
 
-cd /opt/i-pi/examples/cp2k/nvt-cl
+cd /opt/i-pi/examples/clients/cp2k/nvt-cl
 set +e # disable error trapping for remainder of script
 
 TIMEOUT_SEC="300"
