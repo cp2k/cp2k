@@ -35,6 +35,10 @@
             &END XC_FUNCTIONAL
             &HF
                 FRACTION 0.45
+                &SCREENING
+                   EPS_SCHWARZ 1.0E-10
+                   EPS_SCHWARZ_FORCES 1.0E-10
+                &END
             &END
         &END XC
     &END DFT

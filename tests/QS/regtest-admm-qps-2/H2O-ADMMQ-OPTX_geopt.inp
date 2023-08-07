@@ -5,7 +5,7 @@
         BASIS_SET_FILE_NAME BASIS_ADMM_UZH
         POTENTIAL_FILE_NAME POTENTIAL_UZH
         &MGRID
-            CUTOFF 200
+            CUTOFF 240
             REL_CUTOFF 40
         &END MGRID
         &AUXILIARY_DENSITY_MATRIX_METHOD
@@ -30,6 +30,10 @@
                 &INTERACTION_POTENTIAL
                   POTENTIAL_TYPE TRUNCATED
                   CUTOFF_RADIUS 2.0
+                &END
+                &SCREENING
+                   EPS_SCHWARZ 1.0E-10
+                   EPS_SCHWARZ_FORCES 1.0E-10
                 &END
             &END
         &END XC
