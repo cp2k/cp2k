@@ -113,7 +113,7 @@ def process_section(
     section_name = section_path[-1]  # section.find("NAME") doesn't work for root
 
     # Find section references.
-    references = [get_text(ref.find("NAME")) for ref in section.findall("REFERENCE")]
+    references = [get_name(ref) for ref in section.findall("REFERENCE")]
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
@@ -122,10 +122,7 @@ def process_section(
         output += ["**Section can be repeated.**", ""]
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
-        output += [
-            f"**References:** {citations}",
-            "",
-        ]
+        output += [f"**References:** {citations}", ""]
     output += [f"{escape_markdown(description)} {github_link(location)}", ""]
 
     # Render TOC for subsections
@@ -138,23 +135,19 @@ def process_section(
         output += [f"{section_name}/*"]  # TODO maybe list subsection explicitly.
         output += ["```", ""]
 
-    # Collect keywords
-    keywords = section.findall("KEYWORD")
-    # Sort keywords
-    keywords[:] = sorted(keywords, key=get_name)
-    # Prepend special keywords
+    # Collect and sort keywords
     keywords = (
         section.findall("SECTION_PARAMETERS")
         + section.findall("DEFAULT_KEYWORD")
-        + keywords
+        + sorted(section.findall("KEYWORD"), key=get_name)
     )
 
+    # Render keywords
     if keywords:
         # Render TOC for keywords
         output += ["## Keywords", ""]
         for keyword in keywords:
-            keyword_name = get_name(keyword)
-            output += [f"* {keyword_name}"]  # TODO cross-links with description
+            output += [f"* {get_name(keyword)}"]  # TODO cross-links with description
         output += [""]
         # Render keywords
         output += ["## Keyword descriptions", ""]
@@ -170,18 +163,10 @@ def process_section(
 
     # Process subsections
     for subsection in section.findall("SECTION"):
-        subsection.find("NAME")
-        subsection_name = get_text(subsection.find("NAME"))
-        subsection_path = (*section_path, subsection_name)
+        subsection_path = (*section_path, get_name(subsection))
         num_files_written += process_section(subsection, subsection_path, output_dir)
 
     return num_files_written
-
-
-# ======================================================================================
-def get_name(keyword: lxml.etree._Element) -> str:
-    name = get_text(keyword.find("NAME"))
-    return name
 
 
 # ======================================================================================
@@ -219,7 +204,7 @@ def render_keyword(
     n_var = int(get_text(data_type_element.find("N_VAR")))
 
     # Find keyword references.
-    references = [get_text(ref.find("NAME")) for ref in keyword.findall("REFERENCE")]
+    references = [get_name(ref) for ref in keyword.findall("REFERENCE")]
 
     # Skip removed keywords.
     if keyword.attrib.get("removed", "no") == "yes":
@@ -250,9 +235,8 @@ def render_keyword(
     if data_type == "enum":
         output += ["**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
-            item_name = get_text(item.find("NAME"))
             item_description = get_text(item.find("DESCRIPTION"))
-            output += [f"* `{item_name}` {escape_markdown(item_description)}"]
+            output += [f"* `{get_name(item)}` {escape_markdown(item_description)}"]
         output += [""]
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
@@ -262,6 +246,11 @@ def render_keyword(
     output += ["```", ""]  # Close py:data directive.
 
     return output
+
+
+# ======================================================================================
+def get_name(element: lxml.etree._Element) -> str:
+    return get_text(element.find("NAME"))
 
 
 # ======================================================================================
