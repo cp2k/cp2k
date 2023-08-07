@@ -1,0 +1,88 @@
+number_of_elements 3
+elements O H He
+global_hidden_layers_short 2
+global_nodes_short 25 25
+global_activation_short t t l
+cutoff_type 1
+
+# radial H H
+symfunction_short H 2 H 0.00000 0.0 6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.01284 0.0 6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.04711 0.0 6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.11421 0.0 6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.38554 0.0 6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 1.14214 0.0 6.000  ! eta rshift funccutoff
+
+# radial H O / O H
+symfunction_short H 2 O 0.00000 0.0 4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.01284 0.0 4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.04711 0.0 4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.11421 0.0 4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.38554 0.0 4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 1.14214 0.0 4.000  ! eta rshift funccutoff
+
+symfunction_short O 2 H 0.00000 0.0 4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.01284 0.0 4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.04711 0.0 4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.11421 0.0 4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.38554 0.0 4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 1.14214 0.0 4.000  ! eta rshift funccutoff
+#
+# radial H He / He H
+symfunction_short H 2 He 0.00000 0.0 22.000  ! eta rshift funccutoff
+symfunction_short H 2 He 0.01284 0.0 22.000  ! eta rshift funccutoff
+symfunction_short H 2 He 0.04711 0.0 22.000  ! eta rshift funccutoff
+symfunction_short H 2 He 0.11421 0.0 22.000  ! eta rshift funccutoff
+symfunction_short H 2 He 0.38554 0.0 22.000  ! eta rshift funccutoff
+#
+symfunction_short He 2 H 0.00000 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 H 0.01284 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 H 0.04711 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 H 0.11421 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 H 0.38554 0.0 22.000  ! eta rshift funccutoff
+#
+# radial O He / He O
+symfunction_short O 2 He 0.00000 0.0 22.000  ! eta rshift funccutoff
+symfunction_short O 2 He 0.01284 0.0 22.000  ! eta rshift funccutoff
+symfunction_short O 2 He 0.04711 0.0 22.000  ! eta rshift funccutoff
+symfunction_short O 2 He 0.11421 0.0 22.000  ! eta rshift funccutoff
+symfunction_short O 2 He 0.38554 0.0 22.000  ! eta rshift funccutoff
+#
+symfunction_short He 2 O 0.00000 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 O 0.01284 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 O 0.04711 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 O 0.11421 0.0 22.000  ! eta rshift funccutoff
+symfunction_short He 2 O 0.38554 0.0 22.000  ! eta rshift funccutoff
+#
+# angular
+symfunction_short H 3 H He 0.0 1.0 2.0    22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H He 0.0 1.0 16.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H He 0.0 -1.0 2.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H He 0.0 -1.0 16.0  22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short O 3 H H 0.0 1.0 2.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.0 -1.0 2.0   6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.0 -1.0 16.0  6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short O 3 He H 0.0 1.0 2.0    22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 He H 0.0 1.0 16.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 He H 0.0 -1.0 2.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 He H 0.0 -1.0 16.0  22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 O H 0.0 1.0 2.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 O H 0.0 1.0 16.0   6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 O H 0.0 -1.0 2.0   6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+
+symfunction_short He 3 O H 0.0 1.0 2.0    22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short He 3 O H 0.0 1.0 16.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short He 3 O H 0.0 -1.0 2.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+
+symfunction_short He 3 H H 0.0 1.0 2.0    22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short He 3 H H 0.0 1.0 16.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short He 3 H H 0.0 -1.0 2.0   22.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+scale_symmetry_functions
+center_symmetry_functions
+#normalize_nodes

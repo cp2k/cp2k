@@ -623,10 +623,12 @@ CONTAINS
       pint_env%beadwise_constraints = .FALSE.
       CALL section_vals_val_get(constraint_section, "PIMD_BEADWISE_CONSTRAINT", &
                                 l_val=pint_env%beadwise_constraints)
-      IF (pint_env%beadwise_constraints) THEN
-         CALL pint_write_line("Using beadwise constraints")
-      ELSE
-         CALL pint_write_line("Using centroid constraints")
+      IF (pint_env%simpar%constraint) THEN
+         IF (pint_env%beadwise_constraints) THEN
+            CALL pint_write_line("Using beadwise constraints")
+         ELSE
+            CALL pint_write_line("Using centroid constraints")
+         END IF
       END IF
 
       IF (explicit) THEN

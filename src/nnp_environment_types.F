@@ -125,6 +125,7 @@ MODULE nnp_environment_types
       TYPE(cp_subsys_type), POINTER                       :: subsys
       TYPE(section_vals_type), POINTER                    :: nnp_input, &
                                                              force_env_input
+      TYPE(cell_type), POINTER                            :: cell
       TYPE(cell_type), POINTER                            :: cell_ref
       LOGICAL                                             :: use_ref_cell
       ! bias
@@ -281,6 +282,7 @@ CONTAINS
       NULLIFY (nnp_env%subsys)
       NULLIFY (nnp_env%nnp_input)
       NULLIFY (nnp_env%force_env_input)
+      NULLIFY (nnp_env%cell)
       NULLIFY (nnp_env%cell_ref)
 
       nnp_env%use_ref_cell = .FALSE.
@@ -398,6 +400,9 @@ CONTAINS
       IF (ASSOCIATED(nnp_env%subsys)) THEN
          CALL cp_subsys_release(nnp_env%subsys)
       END IF
+      IF (ASSOCIATED(nnp_env%cell)) THEN
+         CALL cell_release(nnp_env%cell)
+      END IF
       IF (ASSOCIATED(nnp_env%cell_ref)) THEN
          CALL cell_release(nnp_env%cell_ref)
       END IF
@@ -466,6 +471,10 @@ CONTAINS
       END IF
       IF (PRESENT(nnp_forces)) nnp_forces = nnp_env%nnp_forces
 
+      ! note cell will be overwritten if subsys is associated
+      ! helium_env uses nnp without subsys
+      IF (PRESENT(cell)) cell => nnp_env%cell
+
       IF (PRESENT(subsys)) subsys => nnp_env%subsys
       IF (ASSOCIATED(nnp_env%subsys)) THEN
          CALL cp_subsys_get(nnp_env%subsys, &
@@ -503,6 +512,7 @@ CONTAINS
 !> \param local_molecules All molecules on this particular node
 !> \param nnp_input ...
 !> \param force_env_input Pointer to the force_env input section
+!> \param cell ...
 !> \param cell_ref The reference simulation cell
 !> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
@@ -515,7 +525,7 @@ CONTAINS
    SUBROUTINE nnp_env_set(nnp_env, nnp_forces, subsys, &
                           atomic_kind_set, particle_set, local_particles, &
                           molecule_kind_set, molecule_set, local_molecules, &
-                          nnp_input, force_env_input, cell_ref, &
+                          nnp_input, force_env_input, cell, cell_ref, &
                           use_ref_cell, nnp_potential_energy)
 
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp_env
@@ -532,7 +542,7 @@ CONTAINS
          POINTER                                         :: molecule_set
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(section_vals_type), OPTIONAL, POINTER         :: nnp_input, force_env_input
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ref_cell
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: nnp_potential_energy
 
@@ -553,6 +563,16 @@ CONTAINS
          END IF
          END IF
          nnp_env%subsys => subsys
+      END IF
+      IF (PRESENT(cell)) THEN
+         IF (ASSOCIATED(cell)) THEN
+            CALL cell_retain(cell)
+            CALL cell_release(nnp_env%cell)
+            nnp_env%cell => cell
+         END IF
+         IF (ASSOCIATED(nnp_env%subsys)) THEN
+            CALL cp_subsys_set(nnp_env%subsys, cell=cell)
+         END IF
       END IF
       IF (PRESENT(atomic_kind_set)) THEN
          CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)

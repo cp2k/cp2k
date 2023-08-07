@@ -13,8 +13,12 @@
 MODULE helium_sampling
 
    USE cp_external_control,             ONLY: external_control
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
+   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                              cp_get_default_logger,&
+                                              cp_logger_create,&
+                                              cp_logger_release,&
+                                              cp_logger_type,&
+                                              cp_rm_default_logger
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
                                               cp_rm_iter_level
@@ -188,7 +192,12 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (logger)
-      logger => cp_get_default_logger()
+      IF (SIZE(helium_env) < 1) THEN
+         logger => cp_get_default_logger()
+      ELSE
+         CALL cp_logger_create(logger, para_env=helium_env(1)%comm, template_logger=cp_get_default_logger())
+         CALL cp_add_default_logger(logger)
+      END IF
 
       DO k = 1, SIZE(helium_env)
 
@@ -388,6 +397,11 @@ CONTAINS
             END DO
             DEALLOCATE (work_2d)
          END IF
+      END IF
+
+      IF (SIZE(helium_env) > 0) THEN
+         CALL cp_rm_default_logger()
+         CALL cp_logger_release(logger)
       END IF
 
       RETURN
