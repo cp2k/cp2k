@@ -357,7 +357,7 @@ CONTAINS
          END DO
          IF (gapw .OR. gapw_xc) THEN
             ! remove one-center potential matrix part
-            NULLIFY (matrix_p)
+            CALL qs_rho_get(rho_struct, rho_ao_kp=matrix_p)
             CALL update_ks_atom(qs_env, xcmat, matrix_p, forces=.FALSE., kscale=-0.5_dp)
             CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
             CALL atprop_array_init(atprop%ate1c, natom)
@@ -378,6 +378,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL atom_trace(xcmat(ispin)%matrix, rho_ao(ispin)%matrix, 1.0_dp, atprop%atexc)
             CALL dbcsr_release(xcmat(ispin)%matrix)
+            DEALLOCATE (xcmat(ispin)%matrix)
          END DO
          DEALLOCATE (xcmat)
 

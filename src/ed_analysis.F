@@ -82,7 +82,8 @@ MODULE ed_analysis
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_atom_types,               ONLY: rho_atom_type,&
                                               zero_rho_atom_integrals
-   USE qs_rho_types,                    ONLY: qs_rho_type
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
@@ -425,6 +426,7 @@ CONTAINS
       DO ispin = 1, nspin
          CALL dbcsr_release(ks_mat(ispin)%matrix)
          CALL dbcsr_release(vhxc_mat(ispin)%matrix)
+         DEALLOCATE (ks_mat(ispin)%matrix, vhxc_mat(ispin)%matrix)
          CALL deallocate_mo_set(mos_loc(ispin))
       END DO
       DEALLOCATE (ks_mat, vhxc_mat)
@@ -607,7 +609,7 @@ CONTAINS
 
       IF (gapw .OR. gapw_xc) THEN
          ! remove one-center potential matrix part
-         NULLIFY (matrix_p)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=matrix_p)
          CALL update_ks_atom(qs_env, vhxc_mat, matrix_p, forces=.FALSE., kscale=-0.5_dp)
          !
          DO iatom = 1, natom
