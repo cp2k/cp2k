@@ -3,12 +3,12 @@
 # Usage: docker build -f ./Dockerfile.test_fedora-psmp ../../
 #
 
-FROM fedora:33
+FROM fedora:38
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh fedora:33
+RUN ./install_requirements.sh fedora:38
 
 # Install the toolchain.
 RUN mkdir scripts

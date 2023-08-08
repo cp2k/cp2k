@@ -33,7 +33,7 @@ def main() -> None:
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(toolchain_full(base_image="fedora:33") + regtest("psmp"))
+        f.write(toolchain_full(base_image="fedora:38") + regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
         f.write(toolchain_intel() + regtest("psmp", intel=True))
