@@ -1449,8 +1449,10 @@ CONTAINS
       ELSE
 
          !If nex_atom < nprocs, simply devide processors in nex_atom batches
+         !At most 128 ranks per atom, experiments have shown that if nprocs >>> nex_atom, crahes occur.
+         !The 128 upper limit is based on trial and error
          nbatch = nex_atom
-         batch_size = nprocs/nbatch
+         batch_size = MIN(nprocs/nbatch, 128)
 
       END IF
 
