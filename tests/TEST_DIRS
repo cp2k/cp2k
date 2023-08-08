@@ -346,4 +346,4 @@ Fist/regtest-nequip                                         libtorch
 Fist/regtest-allegro                                        libtorch
 Fist/regtest-16
 DFTB/regtest-vdw
-QS/regtest-ed
+QS/regtest-ed                                               libint
