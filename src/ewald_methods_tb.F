@@ -94,7 +94,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(in)                                :: use_virial
-      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_spme_evaluate'
 
@@ -196,65 +196,67 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rpot)
 
       ! Atomic Stress
-      IF (ASSOCIATED(atprop)) THEN
-         IF (atprop%stress .AND. use_virial) THEN
+      IF (PRESENT(atprop)) THEN
+         IF (ASSOCIATED(atprop)) THEN
+            IF (atprop%stress .AND. use_virial) THEN
 
-            CALL rs_grid_zero(rpot)
-            rhob_g%cc = phi_g%cc*green%p3m_charge%cr
-            CALL pw_transfer(rhob_g, rhob_r)
-            CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
-            ipart = 0
-            DO
-               CALL set_list(particle_set, npart, center, p1, rden, ipart)
-               IF (p1 == 0) EXIT
-               ! calculate function on small boxes
-               CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
-                              is_shell=.FALSE., unit_charge=.TRUE.)
-               CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
-               atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*mcharge(p1)*fint*dvols
-               atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1) + 0.5_dp*mcharge(p1)*fint*dvols
-               atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*mcharge(p1)*fint*dvols
-            END DO
-
-            NULLIFY (phib_g)
-            ALLOCATE (phib_g)
-            CALL pw_pool_create_pw(pw_pool, phib_g, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            ffa = (0.5_dp/alpha)**2
-            ffb = 1.0_dp/fourpi
-            DO i = 1, 3
-               DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
-                  phib_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(1.0_dp + ffa*grid_spme%gsq(ig))
-                  phib_g%cc(ig) = phib_g%cc(ig)*green%influence_fn%cc(ig)
+               CALL rs_grid_zero(rpot)
+               rhob_g%cc = phi_g%cc*green%p3m_charge%cr
+               CALL pw_transfer(rhob_g, rhob_r)
+               CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
+               ipart = 0
+               DO
+                  CALL set_list(particle_set, npart, center, p1, rden, ipart)
+                  IF (p1 == 0) EXIT
+                  ! calculate function on small boxes
+                  CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
+                                 is_shell=.FALSE., unit_charge=.TRUE.)
+                  CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
+                  atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*mcharge(p1)*fint*dvols
+                  atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1) + 0.5_dp*mcharge(p1)*fint*dvols
+                  atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*mcharge(p1)*fint*dvols
                END DO
-               IF (grid_spme%have_g0) phib_g%cc(1) = 0.0_dp
-               DO j = 1, i
-                  nd = 0
-                  nd(j) = 1
-                  CALL pw_copy(phib_g, rhob_g)
-                  CALL pw_derive(rhob_g, nd)
-                  rhob_g%cc = rhob_g%cc*green%p3m_charge%cr
-                  CALL pw_transfer(rhob_g, rhob_r)
-                  CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
 
-                  ipart = 0
-                  DO
-                     CALL set_list(particle_set, npart, center, p1, rden, ipart)
-                     IF (p1 == 0) EXIT
-                     ! calculate function on small boxes
-                     CALL get_patch(particle_set, delta, green, p1, rhos, &
-                                    is_core=.FALSE., is_shell=.FALSE., unit_charge=.TRUE.)
-                     ! integrate box and potential
-                     CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
-                     atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fint*dvols*mcharge(p1)
-                     IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fint*dvols*mcharge(p1)
+               NULLIFY (phib_g)
+               ALLOCATE (phib_g)
+               CALL pw_pool_create_pw(pw_pool, phib_g, &
+                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               ffa = (0.5_dp/alpha)**2
+               ffb = 1.0_dp/fourpi
+               DO i = 1, 3
+                  DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
+                     phib_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(1.0_dp + ffa*grid_spme%gsq(ig))
+                     phib_g%cc(ig) = phib_g%cc(ig)*green%influence_fn%cc(ig)
                   END DO
+                  IF (grid_spme%have_g0) phib_g%cc(1) = 0.0_dp
+                  DO j = 1, i
+                     nd = 0
+                     nd(j) = 1
+                     CALL pw_copy(phib_g, rhob_g)
+                     CALL pw_derive(rhob_g, nd)
+                     rhob_g%cc = rhob_g%cc*green%p3m_charge%cr
+                     CALL pw_transfer(rhob_g, rhob_r)
+                     CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
 
+                     ipart = 0
+                     DO
+                        CALL set_list(particle_set, npart, center, p1, rden, ipart)
+                        IF (p1 == 0) EXIT
+                        ! calculate function on small boxes
+                        CALL get_patch(particle_set, delta, green, p1, rhos, &
+                                       is_core=.FALSE., is_shell=.FALSE., unit_charge=.TRUE.)
+                        ! integrate box and potential
+                        CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
+                        atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fint*dvols*mcharge(p1)
+                        IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fint*dvols*mcharge(p1)
+                     END DO
+
+                  END DO
                END DO
-            END DO
-            CALL pw_pool_give_back_pw(pw_pool, phib_g)
-            DEALLOCATE (phib_g)
+               CALL pw_pool_give_back_pw(pw_pool, phib_g)
+               DEALLOCATE (phib_g)
 
+            END IF
          END IF
       END IF
 
@@ -367,7 +369,7 @@ CONTAINS
          POINTER                                         :: n_list
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tb_ewald_overlap'
 
@@ -404,10 +406,12 @@ CONTAINS
                   pfr = -dfr*mcharge(iatom)*mcharge(jatom)
                END IF
                CALL virial_pair_force(virial%pv_virial, -pfr, rij, rij)
-               IF (ASSOCIATED(atprop)) THEN
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*pfr, rij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*pfr, rij, rij)
+               IF (PRESENT(atprop)) THEN
+                  IF (ASSOCIATED(atprop)) THEN
+                     IF (atprop%stress) THEN
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*pfr, rij, rij)
+                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*pfr, rij, rij)
+                     END IF
                   END IF
                END IF
             END IF

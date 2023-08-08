@@ -51,7 +51,8 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: ikind, lb, mao, ne, nkind, nsgf, ub, z
+      INTEGER                                            :: ikind, lb, mao, ne, ngau, nkind, nsgf, &
+                                                            ub, z
       INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(:), POINTER                     :: econf
       REAL(KIND=dp)                                      :: zval
@@ -78,7 +79,9 @@ CONTAINS
             ub = UBOUND(econf, 1)
             ne = ub - lb
             elcon(0:ne) = econf(lb:ub)
-            CALL create_min_basis(refbasis, z, elcon, mao)
+            ! STO-3G
+            ngau = 3
+            CALL create_min_basis(refbasis, z, elcon, mao, ngau)
             CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
             CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
          END IF
@@ -97,14 +100,15 @@ CONTAINS
 !> \param zval ...
 !> \param econf ...
 !> \param mao ...
+!> \param ngau ...
 !> \par History
 !>      03.2023 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE create_min_basis(min_basis_set, zval, econf, mao)
+   SUBROUTINE create_min_basis(min_basis_set, zval, econf, mao, ngau)
       TYPE(gto_basis_set_type), POINTER                  :: min_basis_set
       INTEGER, INTENT(IN)                                :: zval
       INTEGER, DIMENSION(0:3)                            :: econf
-      INTEGER, INTENT(IN)                                :: mao
+      INTEGER, INTENT(IN)                                :: mao, ngau
 
       CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = (/"S", "P", "D", "F"/)
 
@@ -207,7 +211,7 @@ CONTAINS
       CALL allocate_sto_basis_set(sto_basis_set)
       CALL set_sto_basis_set(sto_basis_set, name=bname, nshell=nss, nq=nq, &
                              lq=lq, zet=zet, symbol=sym)
-      CALL create_gto_from_sto_basis(sto_basis_set, min_basis_set, 6)
+      CALL create_gto_from_sto_basis(sto_basis_set, min_basis_set, ngau)
       min_basis_set%norm_type = 2
       CALL init_orb_basis_set(min_basis_set)
       CALL deallocate_sto_basis_set(sto_basis_set)

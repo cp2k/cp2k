@@ -53,6 +53,7 @@ MODULE qs_scf_post_gpw
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE dct,                             ONLY: pw_shrink
+   USE ed_analysis,                     ONLY: edmf_analysis
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hfx_ri,                          ONLY: print_ri_hfx
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -2665,6 +2666,15 @@ CONTAINS
             CALL iao_wfn_analysis(qs_env, iao_env, unit_nr)
          END IF
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%IAO_ANALYSIS")
+      END IF
+
+      ! Energy Decomposition Analysis
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%ENERGY_DECOMPOSITION_ANALYSIS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%ENERGY_DECOMPOSITION_ANALYSIS", &
+                                        extension=".mao", log_filename=.FALSE.)
+         CALL edmf_analysis(qs_env, print_key, unit_nr)
+         CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%ENERGY_DECOMPOSITION_ANALYSIS")
       END IF
 
       ! Print the density in the RI-HFX basis

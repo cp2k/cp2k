@@ -54,16 +54,18 @@ CONTAINS
 !> \param gcp_env ...
 !> \param energy ...
 !> \param calculate_forces ...
+!> \param ategcp ...
 !> \note
 !> \note energy_correction_type: also add gcp_env and egcp to the type
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE calculate_gcp_pairpot(qs_env, gcp_env, energy, calculate_forces)
+   SUBROUTINE calculate_gcp_pairpot(qs_env, gcp_env, energy, calculate_forces, ategcp)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       LOGICAL, INTENT(IN)                                :: calculate_forces
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: ategcp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_gcp_pairpot'
 
@@ -71,7 +73,8 @@ CONTAINS
                                                             jatom, jkind, mepos, natom, nkind, &
                                                             nsto, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, ngcpat
-      LOGICAL                                            :: atenergy, atstress, use_virial, verbose
+      LOGICAL                                            :: atenergy, atex, atstress, use_virial, &
+                                                            verbose
       REAL(KIND=dp)                                      :: eama, eamb, egcp, expab, fac, fda, fdb, &
                                                             gnorm, nvirta, nvirtb, rcc, sint, sqa, &
                                                             sqb
@@ -124,6 +127,9 @@ CONTAINS
       END IF
       atstress = atprop%stress
       atstr => atprop%atstress
+      ! external atomic energy
+      atex = .FALSE.
+      IF (PRESENT(ategcp)) atex = .TRUE.
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
@@ -237,6 +243,10 @@ CONTAINS
             IF (atenergy) THEN
                atener(iatom) = atener(iatom) + fda*fac
                atener(jatom) = atener(jatom) + fdb*fac
+            END IF
+            IF (atex) THEN
+               ategcp(iatom) = ategcp(iatom) + fda*fac
+               ategcp(jatom) = ategcp(jatom) + fdb*fac
             END IF
          END IF
       END DO

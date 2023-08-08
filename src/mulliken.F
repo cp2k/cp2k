@@ -31,7 +31,7 @@ MODULE mulliken
 ! *** Public subroutines ***
 
    PUBLIC :: mulliken_charges, ao_charges, mulliken_restraint, compute_bond_order
-   PUBLIC :: compute_charges
+   PUBLIC :: compute_charges, atom_trace
 
    INTERFACE mulliken_charges
       MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c, &
@@ -899,6 +899,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ao_charges_kp_2
+
+! **************************************************************************************************
+!> \brief Compute partial trace of product of two matrices
+!> \param amat ...
+!> \param bmat ...
+!> \param factor ...
+!> \param atrace ...
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+!> \note
+!>      charges are computed per spin in the LSD case
+! **************************************************************************************************
+   SUBROUTINE atom_trace(amat, bmat, factor, atrace)
+      TYPE(dbcsr_type), POINTER                          :: amat, bmat
+      REAL(kind=dp), INTENT(IN)                          :: factor
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: atrace
+
+      INTEGER                                            :: blk, iblock_col, iblock_row, nblock
+      LOGICAL                                            :: found
+      REAL(kind=dp)                                      :: btr, mult
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a_block, b_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_get_info(bmat, nblkrows_total=nblock)
+      CPASSERT(nblock == SIZE(atrace))
+
+      CALL dbcsr_iterator_start(iter, bmat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, b_block, blk)
+         CALL dbcsr_get_block_p(matrix=amat, &
+                                row=iblock_row, col=iblock_col, BLOCK=a_block, found=found)
+
+         ! we can cycle if a block is not present
+         IF (.NOT. (ASSOCIATED(b_block) .AND. ASSOCIATED(a_block))) CYCLE
+
+         IF (iblock_row .EQ. iblock_col) THEN
+            mult = 0.5_dp ! avoid double counting of diagonal blocks
+         ELSE
+            mult = 1.0_dp
+         END IF
+         btr = factor*mult*SUM(a_block*b_block)
+         atrace(iblock_row) = atrace(iblock_row) + btr
+         atrace(iblock_col) = atrace(iblock_col) + btr
+
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+   END SUBROUTINE atom_trace
 
 ! **************************************************************************************************
 

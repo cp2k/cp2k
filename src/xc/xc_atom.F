@@ -60,7 +60,8 @@ CONTAINS
 !> \param adiabatic_rescale_factor ...
 ! **************************************************************************************************
    SUBROUTINE vxc_of_r_new(xc_fun_section, rho_set, deriv_set, deriv_order, needs, w, &
-                           lsd, na, nr, exc, vxc, vxg, vtau, energy_only, epr_xc, adiabatic_rescale_factor)
+                           lsd, na, nr, exc, vxc, vxg, vtau, &
+                           energy_only, epr_xc, adiabatic_rescale_factor)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible

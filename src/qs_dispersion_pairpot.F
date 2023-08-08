@@ -1236,13 +1236,15 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param energy ...
 !> \param calculate_forces ...
+!> \param atevdw ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_pairpot(qs_env, dispersion_env, energy, calculate_forces)
+   SUBROUTINE calculate_dispersion_pairpot(qs_env, dispersion_env, energy, calculate_forces, atevdw)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       LOGICAL, INTENT(IN)                                :: calculate_forces
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atevdw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot'
 
@@ -1252,8 +1254,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL :: atenergy, atstress, debug, debugall, debugx, domol, exclude_pair, floating_a, &
-         floating_b, floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
+      LOGICAL :: atenergy, atex, atstress, debug, debugall, debugx, domol, exclude_pair, &
+         floating_a, floating_b, floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
          dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dd, de6, de8, de91, &
@@ -1326,6 +1328,11 @@ CONTAINS
       END IF
       atstress = atprop%stress
       atstr => atprop%atstress
+      ! external atomic energy
+      atex = .FALSE.
+      IF (PRESENT(atevdw)) THEN
+         atex = .TRUE.
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
@@ -1598,6 +1605,10 @@ CONTAINS
                   atener(iatom) = atener(iatom) - 0.5_dp*xp*fdmp*fac
                   atener(jatom) = atener(jatom) - 0.5_dp*xp*fdmp*fac
                END IF
+               IF (atex) THEN
+                  atevdw(iatom) = atevdw(iatom) - 0.5_dp*xp*fdmp*fac
+                  atevdw(jatom) = atevdw(jatom) - 0.5_dp*xp*fdmp*fac
+               END IF
             ELSE IF (disp_a%type == dftd3_pp .AND. dr > 0.001_dp) THEN
                IF (dispersion_env%nd3_exclude_pair > 0) THEN
                   CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, exclude=exclude_pair)
@@ -1648,6 +1659,10 @@ CONTAINS
                IF (atenergy) THEN
                   atener(iatom) = atener(iatom) - 0.5_dp*(e6 + e8 + srbe)
                   atener(jatom) = atener(jatom) - 0.5_dp*(e6 + e8 + srbe)
+               END IF
+               IF (atex) THEN
+                  atevdw(iatom) = atevdw(iatom) - 0.5_dp*(e6 + e8 + srbe)
+                  atevdw(jatom) = atevdw(jatom) - 0.5_dp*(e6 + e8 + srbe)
                END IF
                IF (calculate_forces) THEN
                   ! damping
@@ -1823,6 +1838,11 @@ CONTAINS
                                     atener(iatom) = atener(iatom) - e9/3._dp
                                     atener(jatom) = atener(jatom) - e9/3._dp
                                     atener(katom) = atener(katom) - e9/3._dp
+                                 END IF
+                                 IF (atex) THEN
+                                    atevdw(iatom) = atevdw(iatom) - e9/3._dp
+                                    atevdw(jatom) = atevdw(jatom) - e9/3._dp
+                                    atevdw(katom) = atevdw(katom) - e9/3._dp
                                  END IF
 
                                  IF (calculate_forces) THEN

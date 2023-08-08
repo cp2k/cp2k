@@ -313,15 +313,17 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param local_rho_set ...
 !> \param local_rho_set_2nd ...
+!> \param atener ...
 ! **************************************************************************************************
    SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set, &
-                                    local_rho_set_2nd)
+                                    local_rho_set_2nd, atener)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set, local_rho_set_2nd
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atener
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace'
 
@@ -632,6 +634,12 @@ CONTAINS
                   DO ispin = 1, nspins
                      int_local_h(ispin)%r_coef = int_local_h(ispin)%r_coef + intloc
                      int_local_s(ispin)%r_coef = int_local_s(ispin)%r_coef + intloc
+                  END DO
+               END IF
+
+               IF (PRESENT(atener)) THEN
+                  DO iso = 1, nsoset(l0_ikind)
+                     atener(iatom) = atener(iatom) + 0.5_dp*Qlm(iso)*hab_sph(iso)
                   END DO
                END IF
 

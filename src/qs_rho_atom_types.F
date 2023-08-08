@@ -36,13 +36,16 @@ MODULE qs_rho_atom_types
       REAL(dp)                                        :: exc_s = 0.0_dp
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: ga_Vlocal_gb_h => NULL()
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: ga_Vlocal_gb_s => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: int_scr_h => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER     :: int_scr_s => NULL()
    END TYPE rho_atom_type
 
    TYPE rho_atom_p_type
       TYPE(rho_atom_type), POINTER :: rho_atom => NULL()
    END TYPE rho_atom_p_type
 
-   PUBLIC :: deallocate_rho_atom_set, get_rho_atom, rho_atom_coeff, rho_atom_type
+   PUBLIC :: deallocate_rho_atom_set, get_rho_atom, rho_atom_coeff, rho_atom_type, &
+             zero_rho_atom_integrals
 
 CONTAINS
 
@@ -82,6 +85,17 @@ CONTAINS
                END IF
                DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_h)
                DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_s)
+            END IF
+            IF (ASSOCIATED(rho_atom_set(iat)%int_scr_h)) THEN
+               IF (ASSOCIATED(rho_atom_set(iat)%int_scr_h(1)%r_coef)) THEN
+                  n = SIZE(rho_atom_set(iat)%int_scr_h, 1)
+                  DO i = 1, n
+                     DEALLOCATE (rho_atom_set(iat)%int_scr_h(i)%r_coef)
+                     DEALLOCATE (rho_atom_set(iat)%int_scr_s(i)%r_coef)
+                  END DO
+               END IF
+               DEALLOCATE (rho_atom_set(iat)%int_scr_h)
+               DEALLOCATE (rho_atom_set(iat)%int_scr_s)
             END IF
 
             IF (ASSOCIATED(rho_atom_set(iat)%drho_rad_h)) THEN
@@ -171,10 +185,13 @@ CONTAINS
 !> \param rho_rad_s_d ...
 !> \param ga_Vlocal_gb_h ...
 !> \param ga_Vlocal_gb_s ...
+!> \param int_scr_h ...
+!> \param int_scr_s ...
 ! **************************************************************************************************
    SUBROUTINE get_rho_atom(rho_atom, cpc_h, cpc_s, rho_rad_h, rho_rad_s, &
                            drho_rad_h, drho_rad_s, vrho_rad_h, vrho_rad_s, &
-                           rho_rad_h_d, rho_rad_s_d, ga_Vlocal_gb_h, ga_Vlocal_gb_s)
+                           rho_rad_h_d, rho_rad_s_d, ga_Vlocal_gb_h, ga_Vlocal_gb_s, &
+                           int_scr_h, int_scr_s)
 
       TYPE(rho_atom_type), INTENT(IN), POINTER           :: rho_atom
       TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, &
@@ -184,7 +201,8 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_rad_h_d, rho_rad_s_d
       TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
+         POINTER                                         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s, &
+                                                            int_scr_h, int_scr_s
 
       IF (ASSOCIATED(rho_atom)) THEN
          IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h
@@ -199,10 +217,44 @@ CONTAINS
          IF (PRESENT(vrho_rad_s)) vrho_rad_s => rho_atom%vrho_rad_s
          IF (PRESENT(ga_Vlocal_gb_h)) ga_Vlocal_gb_h => rho_atom%ga_Vlocal_gb_h
          IF (PRESENT(ga_Vlocal_gb_s)) ga_Vlocal_gb_s => rho_atom%ga_Vlocal_gb_s
+         IF (PRESENT(int_scr_h)) int_scr_h => rho_atom%int_scr_h
+         IF (PRESENT(int_scr_s)) int_scr_s => rho_atom%int_scr_s
       ELSE
          CPABORT("The pointer rho_atom is not associated")
       END IF
 
    END SUBROUTINE get_rho_atom
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_atom_set ...
+! **************************************************************************************************
+   SUBROUTINE zero_rho_atom_integrals(rho_atom_set)
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+
+      INTEGER                                            :: i, iat, n, natom
+
+      IF (ASSOCIATED(rho_atom_set)) THEN
+         natom = SIZE(rho_atom_set)
+         DO iat = 1, natom
+            IF (ASSOCIATED(rho_atom_set(iat)%ga_Vlocal_gb_h)) THEN
+               IF (ASSOCIATED(rho_atom_set(iat)%ga_Vlocal_gb_h(1)%r_coef)) THEN
+                  n = SIZE(rho_atom_set(iat)%ga_Vlocal_gb_h, 1)
+                  DO i = 1, n
+                     rho_atom_set(iat)%ga_Vlocal_gb_h(i)%r_coef = 0.0_dp
+                  END DO
+               END IF
+            END IF
+            IF (ASSOCIATED(rho_atom_set(iat)%ga_Vlocal_gb_s)) THEN
+               IF (ASSOCIATED(rho_atom_set(iat)%ga_Vlocal_gb_s(1)%r_coef)) THEN
+                  n = SIZE(rho_atom_set(iat)%ga_Vlocal_gb_s, 1)
+                  DO i = 1, n
+                     rho_atom_set(iat)%ga_Vlocal_gb_s(i)%r_coef = 0.0_dp
+                  END DO
+               END IF
+            END IF
+         END DO
+      END IF
+   END SUBROUTINE zero_rho_atom_integrals
 
 END MODULE qs_rho_atom_types

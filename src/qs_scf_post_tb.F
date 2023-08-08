@@ -358,6 +358,15 @@ CONTAINS
          END IF
       END IF
 
+      ! ED
+      print_key => section_vals_get_subs_vals(print_section, "ENERGY_DECOMPOSITION_ANALYSIS")
+      CALL section_vals_get(print_key, explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CPWARN("ED analysis not available for TB methods.")
+         END IF
+      END IF
+
       ! Dipole Moments
       print_key => section_vals_get_subs_vals(print_section, "MOMENTS")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN

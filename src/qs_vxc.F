@@ -53,7 +53,8 @@ MODULE qs_vxc
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE virial_types,                    ONLY: virial_type
-   USE xc,                              ONLY: xc_exc_calc,&
+   USE xc,                              ONLY: calc_xc_density,&
+                                              xc_exc_calc,&
                                               xc_vxc_pw_create1
 #include "./base/base_uses.f90"
 
@@ -584,37 +585,43 @@ CONTAINS
    END SUBROUTINE qs_vxc_create
 
 ! **************************************************************************************************
-!> \brief calculates the XC density: E_xc(r) - V_xc(r)*rho(r)
+!> \brief calculates the XC density: E_xc(r) - V_xc(r)*rho(r)  or  E_xc(r)/rho(r)
 !> \param ks_env to get all the needed things
 !> \param rho_struct density
 !> \param xc_section ...
-!> \param xc_den will contain the xc energy density
+!> \param dispersion_env ...
+!> \param xc_ener will contain the xc energy density E_xc(r) - V_xc(r)*rho(r)
+!> \param xc_den will contain the xc energy density E_xc(r)/rho(r)
+!> \param vxc ...
+!> \param vtau ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, xc_den)
+   SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env, &
+                            xc_ener, xc_den, vxc, vtau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_type), INTENT(INOUT)                       :: xc_den
+      TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: xc_ener, xc_den
+      TYPE(pw_type), DIMENSION(:), OPTIONAL              :: vxc, vtau
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
       INTEGER                                            :: handle, ispin, myfun, nspins, vdw
       LOGICAL                                            :: rho_g_valid, tau_r_valid, uf_grid, vdW_nl
-      REAL(KIND=dp)                                      :: exc, factor, ovol
+      REAL(KIND=dp)                                      :: edisp, exc, factor, rho_cutoff
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
       TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
 
       CALL timeset(routineN, handle)
-
-      CALL pw_zero(xc_den)
 
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
@@ -629,12 +636,15 @@ CONTAINS
                       rho_r=rho_r, &
                       rho_g=rho_g, &
                       tau_r=tau_r)
+      nspins = dft_control%nspins
 
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
       CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=vdw)
       vdW_nl = (vdw == xc_vdw_fun_nonloc)
-      IF (tau_r_valid) THEN
-         CALL cp_warn(__LOCATION__, "Tau contribution will not be correctly handled")
+      IF (PRESENT(xc_ener)) THEN
+         IF (tau_r_valid) THEN
+            CALL cp_warn(__LOCATION__, "Tau contribution will not be correctly handled")
+         END IF
       END IF
       IF (vdW_nl) THEN
          CALL cp_warn(__LOCATION__, "vdW functional contribution will be ignored")
@@ -647,12 +657,28 @@ CONTAINS
          CPABORT("Fine Grid in Local Energy")
       END IF
 
+      IF (PRESENT(xc_ener)) THEN
+         CALL pw_zero(xc_ener)
+      END IF
+      IF (PRESENT(xc_den)) THEN
+         CALL pw_zero(xc_den)
+      END IF
+      IF (PRESENT(vxc)) THEN
+         DO ispin = 1, nspins
+            CALL pw_zero(vxc(ispin))
+         END DO
+      END IF
+      IF (PRESENT(vtau)) THEN
+         DO ispin = 1, nspins
+            CALL pw_zero(vtau(ispin))
+         END DO
+      END IF
+
       IF (myfun /= xc_none) THEN
 
          CPASSERT(ASSOCIATED(rho_struct))
          CPASSERT(dft_control%sic_method_id == sic_none)
 
-         nspins = dft_control%nspins
          ! add the nlcc densities
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
@@ -669,6 +695,20 @@ CONTAINS
                                 compute_virial=.FALSE., &
                                 virial_xc=vdum, &
                                 exc_r=exc_r)
+         ! calclulate non-local vdW functional
+         ! only if this XC_SECTION has it
+         ! if yes, we use the dispersion_env from ks_env
+         ! this is dangerous, as it assumes a special connection xc_section -> qs_env
+         IF (vdW_nl) THEN
+            CALL get_ks_env(ks_env=ks_env, para_env=para_env)
+            ! no SIC functionals allowed
+            CPASSERT(dft_control%sic_method_id == sic_none)
+            !
+            CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
+            CALL calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edisp, dispersion_env, &
+                                             .FALSE., vdw_pw_pool, xc_pw_pool, para_env)
+         END IF
+
          ! remove the nlcc densities (keep stuff in original state)
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
@@ -678,17 +718,40 @@ CONTAINS
             END DO
          END IF
          !
-         ovol = 1.0_dp/xc_den%pw_grid%dvol
-         CALL pw_copy(exc_r, xc_den)
-         DO ispin = 1, nspins
-!deb        CALL pw_multiply(xc_den, vxc_rho(ispin), rho_r(ispin), alpha=-ovol)
-            CALL pw_multiply(xc_den, vxc_rho(ispin), rho_r(ispin), alpha=-1.0_dp)
-         END DO
+         IF (PRESENT(xc_den)) THEN
+            CALL pw_copy(exc_r, xc_den)
+            rho_cutoff = 1.E-14_dp
+            CALL calc_xc_density(xc_den, rho_r, rho_cutoff)
+         END IF
+         IF (PRESENT(xc_ener)) THEN
+            CALL pw_copy(exc_r, xc_ener)
+            DO ispin = 1, nspins
+               CALL pw_multiply(xc_ener, vxc_rho(ispin), rho_r(ispin), alpha=-1.0_dp)
+            END DO
+         END IF
+         IF (PRESENT(vxc)) THEN
+            DO ispin = 1, nspins
+               CALL pw_copy(vxc_rho(ispin), vxc(ispin))
+            END DO
+         END IF
+         IF (PRESENT(vtau)) THEN
+            DO ispin = 1, nspins
+               CALL pw_copy(vxc_tau(ispin), vtau(ispin))
+            END DO
+         END IF
          ! remove arrays
-         DO ispin = 1, nspins
-            CALL pw_release(vxc_rho(ispin))
-         END DO
-         DEALLOCATE (vxc_rho)
+         IF (ASSOCIATED(vxc_rho)) THEN
+            DO ispin = 1, nspins
+               CALL pw_release(vxc_rho(ispin))
+            END DO
+            DEALLOCATE (vxc_rho)
+         END IF
+         IF (ASSOCIATED(vxc_tau)) THEN
+            DO ispin = 1, nspins
+               CALL pw_release(vxc_tau(ispin))
+            END DO
+            DEALLOCATE (vxc_tau)
+         END IF
          CALL pw_release(exc_r)
          !
       END IF

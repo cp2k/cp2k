@@ -578,6 +578,12 @@ CONTAINS
          CPWARN("MAO analysis not available for semi-empirical calculations!")
       END IF
 
+      ! ED
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%ENERGY_DECOMPOSITION_ANALYSIS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         CPWARN("ED analysis not available for semi-empirical calculations!")
+      END IF
+
    END SUBROUTINE qs_scf_post_charges
 
 ! **************************************************************************************************

@@ -477,10 +477,12 @@ CONTAINS
 !>      grid
 !> \param v_rspace ...
 !> \param qs_env ...
+!> \param atecc ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env)
+   SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env, atecc)
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace'
 
@@ -538,8 +540,8 @@ CONTAINS
                          atprop=atprop)
 
          ! atomic energy contributions
+         natom = SIZE(particle_set)
          IF (ASSOCIATED(atprop)) THEN
-            natom = SIZE(particle_set)
             CALL atprop_array_init(atprop%ateb, natom)
          END IF
 
@@ -614,6 +616,9 @@ CONTAINS
                END IF
                IF (ASSOCIATED(atprop)) THEN
                   atprop%ateb(atom_a) = atprop%ateb(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
+               END IF
+               IF (PRESENT(atecc)) THEN
+                  atecc(atom_a) = atecc(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
                END IF
 
             END DO

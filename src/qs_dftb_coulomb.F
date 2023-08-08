@@ -260,7 +260,7 @@ CONTAINS
          CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
          CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
          CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, &
-                               virial, use_virial, atprop)
+                               virial, use_virial, atprop=atprop)
          SELECT CASE (ewald_type)
          CASE DEFAULT
             CPABORT("Invalid Ewald type")
@@ -272,7 +272,8 @@ CONTAINS
             CPABORT("PME not implemented in DFTB")
          CASE (do_ewald_spme)
             CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                  gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
+                                  gmcharge, mcharge, calculate_forces, virial, &
+                                  use_virial, atprop=atprop)
          END SELECT
       ELSE
          ! direct sum

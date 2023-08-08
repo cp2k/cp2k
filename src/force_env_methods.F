@@ -69,6 +69,7 @@ MODULE force_env_methods
         use_eip_force, use_embed, use_fist_force, use_mixed_force, use_nnp_force, use_prog_name, &
         use_pwdft_force, use_qmmm, use_qmmmx, use_qs_force
    USE force_env_utils,                 ONLY: rescale_forces,&
+                                              write_atener,&
                                               write_forces
    USE force_fields_util,               ONLY: get_generic_info
    USE fp_methods,                      ONLY: fp_eval
@@ -413,10 +414,9 @@ CONTAINS
          CALL force_env%para_env%sum(atprop_env%atener)
          CALL force_env_get(force_env, potential_energy=e_pot)
          IF (output_unit > 0) THEN
-            IF (logger%iter_info%print_level > low_print_level) THEN
-               WRITE (UNIT=output_unit, FMT="(/,T6,A,T15,A)") "Atom", "Potential energy"
-               WRITE (UNIT=output_unit, FMT="(T2,I8,1X,F20.10)") &
-                  (i, atprop_env%atener(i), i=1, SIZE(atprop_env%atener))
+            IF (logger%iter_info%print_level >= low_print_level) THEN
+               CALL cp_subsys_get(subsys=subsys, particles=particles)
+               CALL write_atener(output_unit, particles, atprop_env%atener, "Mulliken Atomic Energies")
             END IF
             sum_energy = accurate_sum(atprop_env%atener(:))
             checksum = ABS(e_pot - sum_energy)

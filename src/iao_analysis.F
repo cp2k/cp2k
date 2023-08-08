@@ -121,7 +121,12 @@ MODULE iao_analysis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iao_analysis'
 
-   PUBLIC ::  iao_wfn_analysis
+   PUBLIC ::  iao_wfn_analysis, iao_charges, iao_calculate_dmat
+
+   INTERFACE iao_calculate_dmat
+      MODULE PROCEDURE iao_calculate_dmat_diag, & ! diagonal occupation matrix
+         iao_calculate_dmat_full    ! full occupation matrix
+   END INTERFACE
 
 ! **************************************************************************************************
 
@@ -133,28 +138,29 @@ CONTAINS
 !> \param iao_env ...
 !> \param unit_nr ...
 !> \param c_iao_coef ...
-!> \param c_loc_coef ...
+!> \param mos ...
+!> \param bond_centers ...
 ! **************************************************************************************************
-   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, c_loc_coef)
+   SUBROUTINE iao_wfn_analysis(qs_env, iao_env, unit_nr, c_iao_coef, mos, bond_centers)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(iao_env_type), INTENT(IN)                     :: iao_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          OPTIONAL                                        :: c_iao_coef
-      TYPE(cp_fm_type), DIMENSION(:), OPTIONAL           :: c_loc_coef
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: bond_centers
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'iao_wfn_analysis'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname
       INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
-                                                            nao, natom, nimages, nkind, norb, &
-                                                            nref, nsgf, nspin, nvec, sweeps
+                                                            nao, natom, nimages, nkind, no, norb, &
+                                                            nref, ns, nsgf, nspin, nvec, nx, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(2)                              :: nocc
-      LOGICAL                                            :: cubes_iao, cubes_ibo, do_bondorbitals, &
-                                                            molden_iao, molden_ibo, &
-                                                            uniform_occupation
+      LOGICAL                                            :: cubes_iao, cubes_ibo, molden_iao, &
+                                                            molden_ibo, uniform_occupation
       REAL(KIND=dp)                                      :: trace, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
@@ -175,7 +181,7 @@ CONTAINS
                                                             ref_basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: ocebasis, orbbasis, refbasis
       TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mo_iao, mo_loc
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: my_mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sro_list, srr_list, sxo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -252,28 +258,32 @@ CONTAINS
       CALL build_overlap_matrix_simple(ks_env, sro, &
                                        ref_basis_set_list, orb_basis_set_list, sro_list)
       !
-      CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
-      CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=nref, nfullcols_total=norb)
+      IF (PRESENT(mos)) THEN
+         my_mos => mos
+      ELSE
+         CALL get_qs_env(qs_env, mos=my_mos)
+      END IF
+      CALL get_mo_set(my_mos(1), mo_coeff=mo_coeff)
+      CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=nref, nfullcols_total=nao)
 
       ! Projectors
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=nref, &
-                               ncol_global=norb, para_env=mo_coeff%matrix_struct%para_env)
+                               ncol_global=nao, para_env=mo_coeff%matrix_struct%para_env)
       CALL cp_fm_create(p_ref_orb, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=norb, &
+      CALL cp_fm_struct_create(fm_struct, context=mo_coeff%matrix_struct%context, nrow_global=nao, &
                                ncol_global=nref, para_env=mo_coeff%matrix_struct%para_env)
       CALL cp_fm_create(p_orb_ref, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       !
       CALL iao_projectors(smat, sref(1)%matrix, sro(1)%matrix, p_orb_ref, p_ref_orb, iao_env%eps_svd)
 
-      ! occupied orbitals
+      ! occupied orbitals, orbitals considered for IAO generation
       nocc(1:2) = 0
       DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=norb, uniform_occupation=uniform_occupation, &
+         CALL get_mo_set(my_mos(ispin), mo_coeff=mo_coeff, nmo=norb, uniform_occupation=uniform_occupation, &
                          occupation_numbers=occupation_numbers)
          IF (uniform_occupation) THEN
             nvec = norb
@@ -292,7 +302,7 @@ CONTAINS
       ! generate IAOs
       ALLOCATE (iao_coef(nspin), cvec(nspin))
       DO ispin = 1, nspin
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+         CALL get_mo_set(my_mos(ispin), mo_coeff=mo_coeff)
          nvec = nocc(ispin)
          IF (nvec > 0) THEN
             NULLIFY (fm_struct)
@@ -314,7 +324,7 @@ CONTAINS
          ! MOs in IAO basis
          ALLOCATE (ciao(nspin))
          DO ispin = 1, nspin
-            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
+            CALL get_mo_set(my_mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
             CALL cp_fm_create(smo, mo_coeff%matrix_struct)
             NULLIFY (fm_struct)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
@@ -335,14 +345,14 @@ CONTAINS
          ALLOCATE (mcharge(natom, nspin))
          CALL dbcsr_get_info(sref(1)%matrix, nfullrows_total=nref)
          DO ispin = 1, nspin
-            CALL get_mo_set(mos(ispin), &
+            CALL get_mo_set(my_mos(ispin), &
                             uniform_occupation=uniform_occupation, &
                             occupation_numbers=occupation_numbers)
             ! diagonal block matrix
             CALL dbcsr_create(dmat, template=sref(1)%matrix)
             CALL dbcsr_reserve_diag_blocks(dmat)
             !
-            CALL calculate_dmat(ciao(ispin), dmat, occupation_numbers, uniform_occupation)
+            CALL iao_calculate_dmat(ciao(ispin), dmat, occupation_numbers, uniform_occupation)
             CALL dbcsr_trace(dmat, trace)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,I2,T66,F15.4)') 'Number of Electrons: Trace(Piao) Spin ', ispin, trace
@@ -364,7 +374,7 @@ CONTAINS
       CALL cp_fm_release(p_ref_orb)
       CALL cp_fm_release(p_orb_ref)
       CALL cp_fm_release(cvec)
-      DEALLOCATE (ref_basis_set_list, orb_basis_set_list)
+      DEALLOCATE (orb_basis_set_list)
       !
       IF (iao_env%do_oce) THEN
          ! generate OCE basis
@@ -445,9 +455,9 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A)') '  Write IAO in MOLDEN Format'
          END IF
-         CALL get_mo_set(mos(1), nao=nao)
          ALLOCATE (mo_iao(nspin))
          DO ispin = 1, nspin
+            CALL get_mo_set(my_mos(ispin), nao=nao)
             CALL allocate_mo_set(mo_iao(ispin), nao, nref, nref, 0.0_dp, 1.0_dp, 0.0_dp)
             CALL init_mo_set(mo_iao(ispin), fm_ref=iao_coef(ispin), name="iao_set")
             CALL cp_fm_to_fm(iao_coef(ispin), mo_iao(ispin)%mo_coeff)
@@ -470,44 +480,27 @@ CONTAINS
       END IF
       !
       ! Intrinsic bond orbitals
-      IF (do_bondorbitals) THEN
+      IF (iao_env%do_bondorbitals) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T2,A)') 'Intrinsic Bond Orbital Generation'
          END IF
          ! MOs in IAO basis -> ciao
          ALLOCATE (ciao(nspin))
-         IF (PRESENT(c_loc_coef)) THEN
-            DO ispin = 1, nspin
-               CALL cp_fm_get_info(c_loc_coef(ispin), nrow_global=nao, ncol_global=norb)
-               nocc(ispin) = norb
-               CALL cp_fm_create(smo, mo_coeff%matrix_struct)
-               NULLIFY (fm_struct)
-               CALL cp_fm_struct_create(fm_struct, nrow_global=nref, &
-                                        template_fmstruct=c_loc_coef(ispin)%matrix_struct)
-               CALL cp_fm_create(ciao(ispin), fm_struct)
-               CALL cp_fm_struct_release(fm_struct)
-               ! CIAO = A(T)*S*C
-               CALL cp_dbcsr_sm_fm_multiply(smat, c_loc_coef(ispin), smo, ncol=norb)
-               CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
-               CALL cp_fm_release(smo)
-            END DO
-         ELSE
-            DO ispin = 1, nspin
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
-               CALL cp_fm_create(smo, mo_coeff%matrix_struct)
-               NULLIFY (fm_struct)
-               CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
-               CALL cp_fm_create(ciao(ispin), fm_struct)
-               CALL cp_fm_struct_release(fm_struct)
-               ! CIAO = A(T)*S*C
-               CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
-               CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
-               CALL cp_fm_release(smo)
-            END DO
-         END IF
+         DO ispin = 1, nspin
+            CALL get_mo_set(my_mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=norb)
+            CALL cp_fm_create(smo, mo_coeff%matrix_struct)
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nref, template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(ciao(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+            ! CIAO = A(T)*S*C
+            CALL cp_dbcsr_sm_fm_multiply(smat, mo_coeff, smo, ncol=norb)
+            CALL parallel_gemm('T', 'N', nref, norb, nao, 1.0_dp, iao_coef(ispin), smo, 0.0_dp, ciao(ispin))
+            CALL cp_fm_release(smo)
+         END DO
          !
-         ! localize occupied orbitals
-         CALL get_mo_set(mos(1), nao=nao)
+         ! localize occupied orbitals nocc(ispin), see IAO generation
+         !
          ALLOCATE (cloc(nspin), c_loc_orb(nspin))
          DO ispin = 1, nspin
             NULLIFY (fm_struct)
@@ -550,6 +543,7 @@ CONTAINS
                CALL jacobi_rotation_pipek(zij_atom, cloc(ispin), sweeps)
                !
                CALL cp_fm_release(zij_atom)
+               CALL get_mo_set(my_mos(ispin), nao=nao)
                NULLIFY (fm_struct)
                CALL cp_fm_struct_create(fm_struct, nrow_global=nao, &
                                         template_fmstruct=cloc(ispin)%matrix_struct)
@@ -581,8 +575,20 @@ CONTAINS
                CALL center_spread_loc(qs_env, c_loc_orb, moments)
             END IF
             !
-            CALL print_center_spread(moments, nocc, ibo_cc_section)
+            IF (ASSOCIATED(ibo_cc_section)) THEN
+               CALL print_center_spread(moments, nocc, ibo_cc_section)
+            END IF
             !
+            IF (PRESENT(bond_centers)) THEN
+               nx = SIZE(bond_centers, 1)
+               no = SIZE(bond_centers, 2)
+               ns = SIZE(bond_centers, 3)
+               CPASSERT(no >= nvec)
+               CPASSERT(ns == nspin)
+               CPASSERT(nx >= 3)
+               nx = MIN(nx, 5)
+               bond_centers(1:nx, 1:nvec, 1:ns) = moments(1:nx, 1:nvec, 1:ns)
+            END IF
             DEALLOCATE (moments)
          END IF
          !
@@ -592,9 +598,9 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A)') '  Write IBO in MOLDEN Format'
             END IF
-            CALL get_mo_set(mos(1), nao=nao)
             ALLOCATE (mo_loc(nspin))
             DO ispin = 1, nspin
+               CALL get_mo_set(my_mos(ispin), nao=nao)
                nvec = nocc(ispin)
                CALL allocate_mo_set(mo_loc(ispin), nao, nvec, nvec, 0.0_dp, 1.0_dp, 0.0_dp)
                CALL init_mo_set(mo_loc(ispin), fm_ref=c_loc_orb(ispin), name="ibo_orb")
@@ -618,14 +624,17 @@ CONTAINS
             CALL print_ibo_cubes(qs_env, ibo_cubes_section, c_loc_orb)
          END IF
          !
-         IF (PRESENT(c_loc_coef)) THEN
-            ! c_loc_orb -> c_loc_coef
+         IF (PRESENT(mos)) THEN
+            ! c_loc_orb -> mos
             DO ispin = 1, nspin
-               CALL cp_fm_to_fm(c_loc_orb(ispin), c_loc_coef(ispin))
+               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+               nvec = nocc(ispin)
+               CALL cp_fm_to_fm(c_loc_orb(ispin), mo_coeff, ncol=nvec)
             END DO
          END IF
          CALL cp_fm_release(c_loc_orb)
       END IF
+      DEALLOCATE (ref_basis_set_list)
 
       IF (PRESENT(c_iao_coef)) THEN
          CALL cp_fm_release(c_iao_coef)
@@ -780,20 +789,20 @@ CONTAINS
    END SUBROUTINE intrinsic_ao_calc
 
 ! **************************************************************************************************
-!> \brief Calculate the density matrix from fm vectors
+!> \brief Calculate the density matrix from fm vectors using occupation numbers
 !> \param cvec ...
 !> \param density_matrix ...
 !> \param occupation ...
 !> \param uniform_occupation ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dmat(cvec, density_matrix, occupation, uniform_occupation)
+   SUBROUTINE iao_calculate_dmat_diag(cvec, density_matrix, occupation, uniform_occupation)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: cvec
       TYPE(dbcsr_type)                                   :: density_matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
       LOGICAL, INTENT(IN)                                :: uniform_occupation
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dmat'
+      CHARACTER(len=*), PARAMETER :: routineN = 'iao_calculate_dmat_diag'
 
       INTEGER                                            :: handle, ncol
       REAL(KIND=dp)                                      :: alpha
@@ -821,7 +830,56 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_dmat
+   END SUBROUTINE iao_calculate_dmat_diag
+
+! **************************************************************************************************
+!> \brief Calculate the density matrix from fm vectors using an occupation matrix
+!> \param cvec ...
+!> \param density_matrix ...
+!> \param weight ...
+!> \param occmat ...
+! **************************************************************************************************
+   SUBROUTINE iao_calculate_dmat_full(cvec, density_matrix, weight, occmat)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: cvec
+      TYPE(dbcsr_type)                                   :: density_matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: weight
+      TYPE(cp_fm_type), INTENT(IN)                       :: occmat
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'iao_calculate_dmat_full'
+
+      INTEGER                                            :: handle, ic, jc, ncol
+      REAL(KIND=dp)                                      :: alpha
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm1, fm2
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_set(density_matrix, 0.0_dp)
+
+      CALL cp_fm_struct_create(fm_struct, ncol_global=1, &
+                               template_fmstruct=cvec%matrix_struct)
+      CALL cp_fm_create(fm1, fm_struct)
+      CALL cp_fm_create(fm2, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL cp_fm_get_info(cvec, ncol_global=ncol)
+      DO ic = 1, ncol
+         CALL cp_fm_to_fm(cvec, fm1, ncol=1, source_start=ic, target_start=1)
+         DO jc = 1, ncol
+            CALL cp_fm_to_fm(cvec, fm2, ncol=1, source_start=jc, target_start=1)
+            CALL cp_fm_get_element(occmat, ic, jc, alpha)
+            alpha = weight(ic)*alpha
+            CALL cp_dbcsr_plus_fm_fm_t(density_matrix, fm1, fm2, ncol=1, &
+                                       alpha=alpha, symmetry_mode=1)
+         END DO
+      END DO
+      CALL cp_fm_release(fm1)
+      CALL cp_fm_release(fm2)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE iao_calculate_dmat_full
 
 ! **************************************************************************************************
 !> \brief compute the atomic charges (orthogonal basis)
@@ -1250,6 +1308,14 @@ CONTAINS
          CALL cp_fm_release(zij)
 
       END DO
+
+      DO i = 1, dim_op
+         DO j = 1, 2
+            CALL dbcsr_release(op_sm_set(j, i)%matrix)
+            DEALLOCATE (op_sm_set(j, i)%matrix)
+         END DO
+      END DO
+      DEALLOCATE (op_sm_set)
 
       CALL timestop(handle)
 

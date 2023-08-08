@@ -158,6 +158,7 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: my_oce
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom
       TYPE(rho_atom_type), POINTER                       :: rho_at
       TYPE(virial_type), POINTER                         :: virial
@@ -242,9 +243,9 @@ CONTAINS
                iatom = atom_list(iat)
                DO ispin = 1, nspins
                   CALL prj_gather(my_rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef, &
-                                  my_rho_atom(iatom)%cpc_h(ispin)%r_coef, my_kind_set(ikind))
+                                  my_rho_atom(iatom)%int_scr_h(ispin)%r_coef, my_kind_set(ikind))
                   CALL prj_gather(my_rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef, &
-                                  my_rho_atom(iatom)%cpc_s(ispin)%r_coef, my_kind_set(ikind))
+                                  my_rho_atom(iatom)%int_scr_s(ispin)%r_coef, my_kind_set(ikind))
                END DO
             END DO
             ! broadcast the CPC arrays to all processors (replicated data)
@@ -253,8 +254,8 @@ CONTAINS
                DO iat = bo(1), bo(2)
                   iatom = atom_list(iat)
                   DO ispin = 1, nspins
-                     CALL para_env%bcast(my_rho_atom(iatom)%cpc_h(ispin)%r_coef, ip)
-                     CALL para_env%bcast(my_rho_atom(iatom)%cpc_s(ispin)%r_coef, ip)
+                     CALL para_env%bcast(my_rho_atom(iatom)%int_scr_h(ispin)%r_coef, ip)
+                     CALL para_env%bcast(my_rho_atom(iatom)%int_scr_s(ispin)%r_coef, ip)
                   END DO
                END DO
             END DO
@@ -305,6 +306,7 @@ CONTAINS
 !$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
 !$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
 !$OMP                 , mat_h, mat_p, dCPC_h, dCPC_s, PC_h, PC_s     &
+!$OMP                 , int_local_h, int_local_s                     &
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
 !$OMP                 , found, next_task                             &
@@ -449,8 +451,9 @@ CONTAINS
                            rho_at => my_rho_atom(katom)
                            nsoctot = SIZE(C_coeff_ss_a, 2)
 
+                           CALL get_rho_atom(rho_atom=rho_at, int_scr_h=int_local_h, int_scr_s=int_local_s)
                            CALL add_vhxca_to_ks(mat_h, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
-                                                rho_at, nspins, iatom, jatom, nsoctot, factor1, &
+                                                int_local_h, int_local_s, nspins, iatom, jatom, nsoctot, factor1, &
                                                 list_a, n_cont_a, list_b, n_cont_b, C_int_h, C_int_s, a_matrix, dista, distb, coc)
 
                            IF (forces) THEN
@@ -464,9 +467,10 @@ CONTAINS
                               rho_at => my_rho_atom(katom)
                               force_tmp(1:3, 1:3) = 0.0_dp
 
+                              CALL get_rho_atom(rho_atom=rho_at, int_scr_h=int_local_h, int_scr_s=int_local_s)
                               IF (iatom <= jatom) THEN
                                  CALL add_vhxca_forces(mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
-                                                       rho_at, force_tmp, nspins, iatom, jatom, nsoctot, &
+                                                       int_local_h, int_local_s, force_tmp, nspins, iatom, jatom, nsoctot, &
                                                        list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, &
                                                        PC_h, PC_s, p_matrix, force_fac)
                                  force_tmp = factor2*force_tmp
@@ -485,7 +489,7 @@ CONTAINS
                                  END IF
                               ELSE
                                  CALL add_vhxca_forces(mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
-                                                       rho_at, force_tmp, nspins, jatom, iatom, nsoctot, &
+                                                       int_local_h, int_local_s, force_tmp, nspins, jatom, iatom, nsoctot, &
                                                        list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, &
                                                        PC_h, PC_s, p_matrix, force_fac)
                                  force_tmp = factor2*force_tmp
@@ -568,7 +572,8 @@ CONTAINS
 !> \param C_hh_b ...
 !> \param C_ss_a ...
 !> \param C_ss_b ...
-!> \param rho_atom ...
+!> \param int_local_h ...
+!> \param int_local_s ...
 !> \param nspins ...
 !> \param ia ...
 !> \param ja ...
@@ -586,11 +591,12 @@ CONTAINS
 !> \param coc ...
 ! **************************************************************************************************
    SUBROUTINE add_vhxca_to_ks(mat_h, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
-                              rho_atom, nspins, ia, ja, nsp, factor, lista, nconta, listb, ncontb, &
+                              int_local_h, int_local_s, &
+                              nspins, ia, ja, nsp, factor, lista, nconta, listb, ncontb, &
                               C_int_h, C_int_s, a_matrix, dista, distb, coc)
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: mat_h
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: C_hh_a, C_hh_b, C_ss_a, C_ss_b
-      TYPE(rho_atom_type), INTENT(IN), POINTER           :: rho_atom
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
       INTEGER, INTENT(IN)                                :: nspins, ia, ja, nsp
       REAL(KIND=dp), INTENT(IN)                          :: factor
       INTEGER, DIMENSION(:), INTENT(IN)                  :: lista
@@ -604,10 +610,8 @@ CONTAINS
 
       INTEGER                                            :: i, ispin, j, k
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, int_hard, int_soft
-      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
 
-      NULLIFY (int_local_h, int_local_s, int_hard, int_soft)
-      CALL get_rho_atom(rho_atom=rho_atom, cpc_h=int_local_h, cpc_s=int_local_s)
+      NULLIFY (int_hard, int_soft)
 
       DO ispin = 1, nspins
          h_block => mat_h(ispin)%array
@@ -714,7 +718,8 @@ CONTAINS
 !> \param C_hh_b ...
 !> \param C_ss_a ...
 !> \param C_ss_b ...
-!> \param rho_atom ...
+!> \param int_local_h ...
+!> \param int_local_s ...
 !> \param force ...
 !> \param nspins ...
 !> \param ia ...
@@ -733,12 +738,13 @@ CONTAINS
 !> \param force_scaling ...
 ! **************************************************************************************************
    SUBROUTINE add_vhxca_forces(mat_p, C_hh_a, C_hh_b, C_ss_a, C_ss_b, &
-                               rho_atom, force, nspins, ia, ja, nsp, lista, nconta, listb, ncontb, &
+                               int_local_h, int_local_s, &
+                               force, nspins, ia, ja, nsp, lista, nconta, listb, ncontb, &
                                dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix, force_scaling)
       TYPE(cp_2d_r_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: mat_p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: C_hh_a, C_hh_b, C_ss_a, C_ss_b
-      TYPE(rho_atom_type), INTENT(IN), POINTER           :: rho_atom
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
       REAL(dp), DIMENSION(3, 3), INTENT(INOUT)           :: force
       INTEGER, INTENT(IN)                                :: nspins, ia, ja, nsp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: lista
@@ -755,7 +761,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: int_hard, int_soft
       REAL(KIND=dp)                                      :: ieqj, trace
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
-      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
 
 !   if(dista.and.distb) we could also here use ChPCh = CsPCs
 !   *** factor 2 because only half of the pairs with ia =/ ja are considered
@@ -763,8 +768,7 @@ CONTAINS
       ieqj = 2.0_dp
       IF (ia == ja) ieqj = 1.0_dp
 
-      NULLIFY (int_local_h, int_local_s, int_hard, int_soft)
-      CALL get_rho_atom(rho_atom=rho_atom, cpc_h=int_local_h, cpc_s=int_local_s)
+      NULLIFY (int_hard, int_soft)
 
       DO ispin = 1, nspins
          p_block => mat_p(ispin)%array

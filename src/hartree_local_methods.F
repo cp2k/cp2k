@@ -8,8 +8,6 @@
 MODULE hartree_local_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE atprop_types,                    ONLY: atprop_array_init,&
-                                              atprop_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
@@ -225,11 +223,11 @@ CONTAINS
 
       INTEGER :: bo(2), handle, iat, iatom, ikind, ipgf1, is1, iset1, iso, l_ang, llmax, lmax0, &
          lmax0_2nd, lmax_0, m1, max_iso, max_iso_not0, max_s_harm, maxl, maxso, mepos, n1, nat, &
-         natom, nchan_0, nkind, nr, nset, nsotot, nspins, num_pe
+         nchan_0, nkind, nr, nset, nsotot, nspins, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf
-      LOGICAL                                            :: atenergy, core_charge, l_2nd_local_rho, &
+      LOGICAL                                            :: core_charge, l_2nd_local_rho, &
                                                             my_core_2nd, my_periodic, paw_atom
       REAL(dp)                                           :: back_ch, factor
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gexp, sqrtwr
@@ -239,7 +237,6 @@ CONTAINS
                                                             Vh1_s, vrrad_0, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG, Qlm_gg, Qlm_gg_2nd
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
@@ -262,12 +259,12 @@ CONTAINS
       NULLIFY (rho0_mpole, rhoz_set)
       NULLIFY (atom_list, grid_atom, harmonics)
       NULLIFY (basis_1c, lmin, lmax, npgf, zet)
-      NULLIFY (gsph, atprop)
+      NULLIFY (gsph)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, atprop=atprop, &
+                      qs_kind_set=qs_kind_set, &
                       pw_env=pw_env, qs_charges=qs_charges)
 
       CALL pw_env_get(pw_env, poisson_env=poisson_env)
@@ -304,15 +301,6 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set, maxg_iso_not0=max_iso)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, lmax_0=lmax_0)
-
-      atenergy = .FALSE.
-      IF (ASSOCIATED(atprop)) THEN
-         atenergy = atprop%energy
-         IF (atenergy) THEN
-            CALL get_qs_env(qs_env=qs_env, natom=natom)
-            CALL atprop_array_init(atprop%ate1c, natom)
-         END IF
-      END IF
 
       !   Put to 0 the local hartree energy contribution from 1 center integrals
       energy_hartree_1c = 0.0_dp
@@ -434,7 +422,7 @@ CONTAINS
 
                CALL Vh_1c_atom_energy(energy_hartree_1c, ecoul_1c, rho_atom, rrad_0, &
                                       grid_atom, iatom, core_charge, rrad_z, Vh1_h, Vh1_s, & ! core charge for density
-                                      nchan_0, nspins, max_iso_not0, atenergy, atprop%ate1c)
+                                      nchan_0, nspins, max_iso_not0)
 
                IF (l_2nd_local_rho) rho_atom => rho_atom_set_2nd(iatom) ! rho_atom for potential (2nd)
 
@@ -549,12 +537,10 @@ CONTAINS
 !> \param nchan_0 ...
 !> \param nspins ...
 !> \param max_iso_not0 ...
-!> \param atenergy ...
-!> \param ate1c ...
 ! **************************************************************************************************
    SUBROUTINE Vh_1c_atom_energy(energy_hartree_1c, ecoul_1c, rho_atom, rrad_0, &
                                 grid_atom, iatom, core_charge, rrad_z, Vh1_h, Vh1_s, &
-                                nchan_0, nspins, max_iso_not0, atenergy, ate1c)
+                                nchan_0, nspins, max_iso_not0)
 
       REAL(dp), INTENT(INOUT)                            :: energy_hartree_1c
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
@@ -566,8 +552,6 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: rrad_z
       REAL(dp), DIMENSION(:, :), POINTER                 :: Vh1_h, Vh1_s
       INTEGER, INTENT(IN)                                :: nchan_0, nspins, max_iso_not0
-      LOGICAL, INTENT(IN)                                :: atenergy
-      REAL(dp), DIMENSION(:), POINTER                    :: ate1c
 
       INTEGER                                            :: iso, ispin, nr
       REAL(dp)                                           :: ecoul_1_0, ecoul_1_h, ecoul_1_s, &
@@ -606,11 +590,6 @@ CONTAINS
 
       energy_hartree_1c = energy_hartree_1c + ecoul_1_z - ecoul_1_0
       energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s
-
-      ! atomic energy contribution
-      IF (atenergy) THEN
-         ate1c(iatom) = ate1c(iatom) + ecoul_1_z - ecoul_1_0
-      END IF
 
    END SUBROUTINE Vh_1c_atom_energy
 

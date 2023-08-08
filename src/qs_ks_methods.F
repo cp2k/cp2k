@@ -777,7 +777,6 @@ CONTAINS
       IF (gapw .OR. gapw_xc) THEN
          ! Single atom contributions in the KS matrix ***
          CALL update_ks_atom(qs_env, ks_matrix, rho_ao, calculate_forces)
-
          IF (dft_control%do_admm) THEN
             !Single atom contribution to the AUX matrices
             !Note: also update ks_aux_fit matrix in case of rtp
