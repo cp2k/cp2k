@@ -113,7 +113,12 @@ case "${with_openblas}" in
     OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
     OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     OPENBLAS_ROOT="${pkg_install_dir}"
-    OPENBLAS_LIBS="-lopenblas"
+    # Prefer static library if available
+    if [ -f "${pkg_install_dir}/lib/libopenblas.a" ]; then
+      OPENBLAS_LIBS="-l:libopenblas.a"
+    else
+      OPENBLAS_LIBS="-lopenblas"
+    fi
     ;;
   __SYSTEM__)
     echo "==================== Finding LAPACK from system paths ===================="
