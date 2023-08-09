@@ -260,8 +260,9 @@ MODULE almo_scf_types
                                envelope_amplitude = 0.0_dp
 
       ! guess options
-      TYPE(almo_scf_history_type) :: almo_history = almo_scf_history_type()
-      TYPE(almo_scf_history_type) :: xalmo_history = almo_scf_history_type()
+      ! This prevents a bug in GCC 8/9
+      TYPE(almo_scf_history_type) :: almo_history = almo_scf_history_type(matrix_p_up_down=null(), matrix_t=null())
+      TYPE(almo_scf_history_type) :: xalmo_history = almo_scf_history_type(matrix_p_up_down=null(), matrix_t=null())
       INTEGER :: almo_extrapolation_order = 0
       INTEGER :: xalmo_extrapolation_order = 0
 

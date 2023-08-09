@@ -94,7 +94,8 @@ MODULE dm_ls_scf_types
       REAL(KIND=dp), DIMENSION(2) ::  homo_spin = 0.0_dp
       REAL(KIND=dp), DIMENSION(2) ::  lumo_spin = 0.0_dp
 
-      TYPE(ls_mat_history_type) :: scf_history = ls_mat_history_type()
+      ! This prevents a bug in GCC up to version 9.x (9.5 seems to work though)
+      TYPE(ls_mat_history_type) :: scf_history = ls_mat_history_type(matrix=null())
       INTEGER :: extrapolation_order = -1
 
       LOGICAL :: has_unit_metric = .FALSE.
@@ -136,7 +137,8 @@ MODULE dm_ls_scf_types
       LOGICAL  :: report_all_sparsities = .FALSE., perform_mu_scan = .FALSE., use_s_sqrt = .FALSE.
 
       TYPE(ls_mstruct_type) :: ls_mstruct
-      TYPE(ls_scf_curvy_type) :: curvy_data = ls_scf_curvy_type()
+      TYPE(ls_scf_curvy_type) :: curvy_data = ls_scf_curvy_type(matrix_dp=null(), matrix_p=null(), &
+                                                                matrix_psave=null(), matrix_bch=null())
 
       TYPE(chebyshev_type) :: chebyshev = chebyshev_type()
 
