@@ -3,7 +3,7 @@
 # CP2K (Intel/MKL x86_64) arch file for Linux clusters
 #
 # Tested with: Intel 22.2 , Intel MPI, Intel MKL,
-#              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2022.11.001,
+#              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2023.05.001,
 #              PLUMED 2.8.2, SPGLIB 1.16.2, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6
 #
@@ -12,7 +12,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 21.06.2023
+# Last update: 09.08.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -53,7 +53,7 @@ DO_CHECKS      := no
 SHARED         := no
 TARGET_CPU     := native
 USE_COSMA      := 2.6.6
-USE_ELPA       := 2022.11.001
+USE_ELPA       := 2023.05.001
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 #USE_LIBTORCH   := 1.12.1
