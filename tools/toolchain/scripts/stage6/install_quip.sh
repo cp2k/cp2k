@@ -118,18 +118,19 @@ case "${with_quip}" in
       echo "F77FLAGS       += -g ${compat_flag}" >> arch/Makefile.linux_${quip_arch}_gfortran
       echo "CFLAGS         += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
       echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
-      export QUIP_ARCH=linux_${quip_arch}_gfortran
+      # Makefile.linux_${quip_arch}_gfortran_openmp includes Makefile.linux_${quip_arch}_gfortran
+      export QUIP_ARCH=linux_${quip_arch}_gfortran_openmp
       # hit enter a few times to accept defaults
       echo -e "${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}") \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
       # make -j does not work :-(
       make > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
       ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
-      cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod \
+      cp build/${QUIP_ARCH}/quip_unified_wrapper_module.mod \
         "${pkg_install_dir}/include/"
-      cp build/linux_x86_64_gfortran/*.a \
+      cp build/${QUIP_ARCH}/*.a \
         "${pkg_install_dir}/lib/"
-      cp src/fox/objs.linux_${quip_arch}_gfortran/lib/*.a \
+      cp src/fox/objs.${QUIP_ARCH}/lib/*.a \
         "${pkg_install_dir}/lib/"
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
