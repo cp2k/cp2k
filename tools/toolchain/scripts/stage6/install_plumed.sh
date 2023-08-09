@@ -90,7 +90,12 @@ case "$with_plumed" in
 esac
 
 if [ "$with_plumed" != "__DONTUSE__" ]; then
-  PLUMED_LIBS='-lplumed -ldl -lstdc++ -lz -ldl'
+  # Prefer static library if available
+  if [ -f "${pkg_install_dir}/lib/libplumed.a" ]; then
+    PLUMED_LIBS="-l:libplumed.a -ldl -lstdc++ -lz -ldl"
+  else
+    PLUMED_LIBS="-lplumed -ldl -lstdc++ -lz -ldl"
+  fi
   if [ "$with_plumed" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_plumed"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
