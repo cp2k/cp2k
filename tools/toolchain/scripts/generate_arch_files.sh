@@ -242,7 +242,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       add_lib_from_paths HIP_LDFLAGS "libroctx64.*" $LIB_PATHS
       check_lib -lroctracer64 "hip"
       add_lib_from_paths HIP_LDFLAGS "libroctracer64.*" $LIB_PATHS
-      HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx90a -O3 --std=c++11 -Wall -Wextra -Werror \$(DFLAGS)"
+      HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx90a -munsafe-fp-atomics -O3 --std=c++11 -Wall -Wextra -Werror \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
       CXXFLAGS+=" -fopenmp -Wall -Wextra -Werror"

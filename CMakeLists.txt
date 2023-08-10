@@ -287,6 +287,12 @@ cmake_dependent_option(
 cmake_dependent_option(
   CP2K_DBCSR_CPU_ONLY "Use DBCSR compiled without GPU support." OFF
   "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_DEBUG_MODE)" OFF)
+
+cmake_dependent_option(
+  CP2K_USE_UNIFIED_MEMORY "Use CPU/GPU unified memory.
+  requires Mi250x or future AMD architectures to be fully functional" OFF
+  "CP2K_USE_ACCEL MATCHES \"HIP\"" OFF)
+
 cmake_dependent_option(DBCSR_USE_OPENMP "Enable openmp support in DBCSR" ON
                        "CP2K_BUILD_DBCSR" OFF)
 # ##############################################################################
@@ -550,6 +556,17 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCGITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
   set(CP2K_USE_HIP ON)
+
+  # use hardware atomic operations on Mi250X.
+  if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a")
+    set(HIP_RELEASE_OPTIONS "-munsafe-fp-atomics")
+  endif()
+
+  # add the Mi300A parameters when available
+  if(CP2K_USE_UNIFIED_MEMORY AND CMAKE_HIP_ARCHITECTURES MATCHES "gfx90a")
+    set(CMAKE_HIP_ARCHITECTURES "gfx90a:xnack+")
+  endif()
+
 endif()
 
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)

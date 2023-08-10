@@ -33,50 +33,80 @@ class smem_parameters;
 template <typename T> class gpu_vector {
   size_t allocated_size_{0};
   size_t current_size_{0};
-  T *ptr = nullptr;
+  bool allocated_outside_{false};
+  T *device_ptr_ = nullptr;
+  T *host_ptr_ = nullptr;
 
 public:
-  gpu_vector() {
-    ptr = nullptr;
-    allocated_size_ = 0;
-    current_size_ = 0;
-  }
+  gpu_vector() {}
+
   // size is the number of elements not the memory size
-  gpu_vector(const size_t size_) {
-    if (size_ < 16) {
+  gpu_vector(const size_t size__) {
+    if (size__ < 16) {
       allocated_size_ = 16;
     } else {
-      allocated_size_ = (size_ / 16 + 1) * 16;
+      allocated_size_ = (size__ / 16 + 1) * 16;
     }
-    current_size_ = size_;
+    current_size_ = size__;
 
-    offloadMalloc((void **)&ptr, sizeof(T) * allocated_size_);
+#ifndef CP2K_USE_UNIFIED_MEMORY
+    offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
+#else
+    hipMallocManaged((void **)&device_ptr_, sizeof(T) * allocated_size_);
+#endif
   }
 
+  gpu_vector(const size_t size__, const void *ptr__) {
+    allocated_size_ = size__;
+    current_size_ = size__;
+    allocated_outside_ = true;
+    device_ptr_ = ptr__;
+  }
   ~gpu_vector() { reset(); }
 
   inline size_t size() { return current_size_; }
 
   inline void copy_to_gpu(const T *data__) {
-    offloadMemcpyHtoD(ptr, data__, sizeof(T) * current_size_);
+    offloadMemcpyHtoD(device_ptr_, data__, sizeof(T) * current_size_);
   }
 
-  inline void copy_to_gpu(const T *data__, offloadStream_t &stream) {
-    offloadMemcpyAsyncHtoD(ptr, data__, sizeof(T) * current_size_, stream);
+  inline void copy_to_gpu(const T *data__, offloadStream_t &stream__) {
+    offloadMemcpyAsyncHtoD(device_ptr_, data__, sizeof(T) * current_size_,
+                           stream__);
   }
 
-  inline void copy_from_gpu(T *data__, offloadStream_t &stream) {
-    offloadMemcpyAsyncDtoH(data__, ptr, sizeof(T) * current_size_, stream);
+  inline void copy_to_gpu(offloadStream_t &stream__) {
+    offloadMemcpyAsyncHtoD(device_ptr_, host_ptr_, sizeof(T) * current_size_,
+                           stream__);
   }
 
-  inline void zero(offloadStream_t &stream) {
+  inline void copy_from_gpu(T *data__, offloadStream_t &stream__) {
+    offloadMemcpyAsyncDtoH(data__, device_ptr_, sizeof(T) * current_size_,
+                           stream__);
+  }
+
+  inline void copy_from_gpu(offloadStream_t &stream__) {
+    offloadMemcpyAsyncDtoH(host_ptr_, device_ptr_, sizeof(T) * current_size_,
+                           stream__);
+  }
+
+  inline void zero(offloadStream_t &stream__) {
     // zero device grid buffers
-    offloadMemsetAsync(ptr, 0, sizeof(T) * current_size_, stream);
+    offloadMemsetAsync(device_ptr_, 0, sizeof(T) * current_size_, stream__);
+  }
+
+  inline void associate(void *host_ptr__, void *device_ptr__,
+                        const size_t size__) {
+    allocated_outside_ = true;
+    // size__ is the number of elements not the size of the memory block
+    current_size_ = size__;
+    device_ptr_ = static_cast<T *>(device_ptr__);
+    host_ptr_ = static_cast<T *>(host_ptr__);
   }
 
   inline void zero() {
     // zero device grid buffers
-    offloadMemset(ptr, 0, sizeof(T) * current_size_);
+    offloadMemset(device_ptr_, 0, sizeof(T) * current_size_);
   }
 
   inline void copy_to_gpu(const std::vector<T> &data__) {
@@ -86,15 +116,22 @@ public:
     // - resize the gpu vector
     // - or the cpu vector and gpu vector are not representing the quantity.
 
-    offloadMemcpyHtoD(ptr, data__.data(), sizeof(T) * data__.size());
+    offloadMemcpyHtoD(device_ptr_, data__.data(), sizeof(T) * data__.size());
   }
 
   inline void resize(const size_t new_size_) {
+    if (allocated_outside_) {
+      allocated_outside_ = false;
+      allocated_size_ = 0;
+      device_ptr_ = nullptr;
+      host_ptr_ = nullptr;
+    }
+
     if (allocated_size_ < new_size_) {
-      if (ptr != nullptr)
-        offloadFree(ptr);
+      if (device_ptr_ != nullptr)
+        offloadFree(device_ptr_);
       allocated_size_ = (new_size_ / 16 + (new_size_ % 16 != 0)) * 16;
-      offloadMalloc((void **)&ptr, sizeof(T) * allocated_size_);
+      offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
     }
     current_size_ = new_size_;
   }
@@ -104,15 +141,19 @@ public:
 
   // reset the class and free memory
   inline void reset() {
-    if (ptr != nullptr)
-      offloadFree(ptr);
+    if (allocated_outside_) {
+      return;
+    }
+
+    if (device_ptr_ != nullptr)
+      offloadFree(device_ptr_);
 
     allocated_size_ = 0;
     current_size_ = 0;
-    ptr = nullptr;
+    device_ptr_ = nullptr;
   }
 
-  inline T *data() { return ptr; }
+  inline T *data() { return device_ptr_; }
 };
 
 template <typename T> class grid_info {
@@ -141,6 +182,10 @@ public:
 
   inline void copy_to_gpu(const T *data, offloadStream_t &stream) {
     grid_.copy_to_gpu(data, stream);
+  }
+
+  inline void copy_to_gpu(offloadStream_t &stream) {
+    grid_.copy_to_gpu(stream);
   }
 
   inline void reset() { grid_.reset(); }
@@ -205,6 +250,14 @@ public:
     grid_.copy_from_gpu(data__, stream);
   }
 
+  inline void copy_to_host(offloadStream_t &stream) {
+    grid_.copy_from_gpu(stream);
+  }
+
+  inline void associate(void *host_ptr__, void *device_ptr__,
+                        const size_t size__) {
+    grid_.associate(host_ptr__, device_ptr__, size__);
+  }
   inline bool is_distributed() { return is_distributed_; }
 
   inline int full_size(const int i) {

@@ -397,14 +397,27 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
   assert(ctx->nlevels == nlevels);
   ctx->set_device();
 
+  ctx->pab_block_.associate(pab_blocks->host_buffer, pab_blocks->device_buffer,
+                            pab_blocks->size / sizeof(double));
+
+  /*
+      There are 3 scenario here.
+        - Mi300 : no copy will happen as the two buffers have the same address
+        - Mi250X : an internal copy will happen. We do not need to do anything
+      explicit
+        - no unified memory : Explicit copy will happen
+    */
+  ctx->pab_block_.copy_to_gpu(ctx->main_stream);
+
   for (int level = 0; level < ctx->nlevels; level++) {
+    ctx->grid_[level].associate(grids[level]->host_buffer,
+                                grids[level]->device_buffer,
+                                grids[level]->size / sizeof(double));
     ctx->grid_[level].zero(ctx->level_streams[level]);
   }
 
-  ctx->pab_block_.resize(pab_blocks->size / sizeof(double));
-  ctx->pab_block_.copy_to_gpu(pab_blocks->host_buffer, ctx->main_stream);
-
-  // record an event so the level streams can wait for the blocks to be uploaded
+  ctx->pab_block_.associate(pab_blocks->host_buffer, pab_blocks->device_buffer,
+                            pab_blocks->size / sizeof(double));
 
   int lp_diff = -1;
 
@@ -437,8 +450,7 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
 
   // download result from device to host.
   for (int level = 0; level < ctx->nlevels; level++) {
-    ctx->grid_[level].copy_to_host(grids[level]->host_buffer,
-                                   ctx->level_streams[level]);
+    ctx->grid_[level].copy_to_host(ctx->level_streams[level]);
   }
 
   // need to wait for all streams to finish
@@ -469,20 +481,25 @@ extern "C" void grid_hip_integrate_task_list(
   // ctx->coef_dev_.zero(ctx->level_streams[0]);
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    if (ctx->number_of_tasks_per_level_[level])
-      ctx->grid_[level].copy_to_gpu(grids[level]->host_buffer,
-                                    ctx->level_streams[level]);
+    if (ctx->number_of_tasks_per_level_[level]) {
+      ctx->grid_[level].associate(grids[level]->host_buffer,
+                                  grids[level]->device_buffer,
+                                  grids[level]->size / sizeof(double));
+      ctx->grid_[level].copy_to_gpu(ctx->level_streams[level]);
+    }
   }
 
   if ((forces != nullptr) || (virial != nullptr)) {
-    ctx->pab_block_.resize(pab_blocks->size / sizeof(double));
-    ctx->pab_block_.copy_to_gpu(pab_blocks->host_buffer, ctx->main_stream);
+    ctx->pab_block_.associate(pab_blocks->host_buffer,
+                              pab_blocks->device_buffer,
+                              pab_blocks->size / sizeof(double));
+    ctx->pab_block_.copy_to_gpu(ctx->main_stream);
   }
 
   // we do not need to wait for this to start the computations since the matrix
   // elements are computed after all coefficients are calculated.
-
-  ctx->hab_block_.resize(hab_blocks->size / sizeof(double));
+  ctx->hab_block_.associate(hab_blocks->host_buffer, hab_blocks->device_buffer,
+                            hab_blocks->size / sizeof(double));
   ctx->hab_block_.zero(ctx->main_stream);
 
   ctx->calculate_forces = (forces != nullptr);
@@ -533,7 +550,7 @@ extern "C" void grid_hip_integrate_task_list(
   // computing the hab coefficients does not depend on the number of grids so we
   // can run these calculations on the main stream
   ctx->compute_hab_coefficients();
-  ctx->hab_block_.copy_from_gpu(hab_blocks->host_buffer, ctx->main_stream);
+  ctx->hab_block_.copy_from_gpu(ctx->main_stream);
 
   if (forces != NULL) {
     ctx->forces_.copy_from_gpu(forces, ctx->main_stream);
