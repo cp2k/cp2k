@@ -147,7 +147,8 @@ def process_section(
         # Render TOC for keywords
         output += ["## Keywords", ""]
         for keyword in keywords:
-            output += [f"* {get_name(keyword)}"]  # TODO cross-links with description
+            keyword_name = get_name(keyword)
+            output += [f"* <a href='#{keyword_name}'>{keyword_name}</a>"]
         output += [""]
         # Render keywords
         output += ["## Keyword descriptions", ""]
