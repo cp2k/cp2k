@@ -52,21 +52,21 @@ MODULE ps_implicit_types
       TYPE(pw_type), POINTER            :: initial_guess => NULL()
       TYPE(pw_type), POINTER            :: v_eps => NULL()
       TYPE(pw_type), POINTER            :: cstr_charge => NULL()
-      REAL(dp), DIMENSION(:), POINTER   :: initial_lambda => NULL()
+      REAL(dp), DIMENSION(:), ALLOCATABLE :: initial_lambda
       REAL(dp)                          :: ehartree = 0.0_dp
       REAL(dp)                          :: electric_enthalpy = 0.0_dp
       INTEGER                           :: times_called = 0
       TYPE(dirichlet_bc_p_type), &
-         DIMENSION(:), POINTER           :: contacts => NULL()
-      REAL(dp), DIMENSION(:, :), POINTER :: QS => NULL()
-      REAL(dp), DIMENSION(:, :), POINTER :: Rinv => NULL()
-      REAL(dp), DIMENSION(:, :), POINTER :: B => NULL()
-      REAL(dp), DIMENSION(:, :), POINTER :: Bt => NULL()
-      REAL(dp), DIMENSION(:), POINTER   :: v_D => NULL()
-      REAL(dp), DIMENSION(:), POINTER   :: osc_frac => NULL()
-      REAL(dp), DIMENSION(:), POINTER   :: frequency => NULL()
-      REAL(dp), DIMENSION(:), POINTER   :: phase => NULL()
-      INTEGER, DIMENSION(:), POINTER    :: idx_1dto3d => NULL()
+         DIMENSION(:), ALLOCATABLE      :: contacts
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE :: QS
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE :: Rinv
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE :: B
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE :: Bt
+      REAL(dp), DIMENSION(:), ALLOCATABLE :: v_D
+      REAL(dp), DIMENSION(:), ALLOCATABLE :: osc_frac
+      REAL(dp), DIMENSION(:), ALLOCATABLE :: frequency
+      REAL(dp), DIMENSION(:), ALLOCATABLE :: phase
+      INTEGER, DIMENSION(:), ALLOCATABLE :: idx_1dto3d
    END TYPE ps_implicit_type
 
    PUBLIC ps_implicit_type, ps_implicit_parameters
