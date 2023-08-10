@@ -8,14 +8,16 @@ To build  a local version of the manual perform the following steps:
 
    `pip3 install sphinx myst-parser sphinx_rtd_theme lxml`
 
-1. Build a CP2K binary and generate `cp2k_input.xml` file:
+1. Build a CP2K binary and use it to generate the `cp2k_input.xml` and `references.html` files:
 
-   `cp2k/exe/local/cp2k.psmp --xml`
+   `../exe/local/cp2k.psmp --xml`
 
-1. Generate the Markdown files from the XML file:
+1. Generate Markdown pages from the aforementioned files:
 
-   `cp2k/docs/generate_input_reference.py ./cp2k_input.xml ./references.html`
+   `./generate_input_reference.py ./cp2k_input.xml ./references.html`
 
-1. And finally run Sphinx:
+1. Run Sphinx:
 
-   `sphinx-build cp2k/docs/ output_dir -W -n --keep-going --jobs 16`
+   `make html`
+
+1. Browse the HTML output in the `_build` directory.
