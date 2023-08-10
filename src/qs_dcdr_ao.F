@@ -575,12 +575,6 @@ CONTAINS
                                         qs_env=qs_env, &
                                         beta=idir, lambda=dcdr_env%lambda)
 
-            ! It appears that both calculate_drho_elec_dR and calculate_drho_elec do not return the
-            !  correct drho_g when NGRIDS>1. The transfer of the real-spaced electron density
-            !  solves this issue
-            CALL pw_zero(drho_g(ispin))
-            CALL pw_transfer(drho_r(ispin), drho_g(ispin))
-
             CALL pw_axpy(drho_g(ispin), drho_g_total)
             CALL pw_axpy(drho_r(ispin), drho_r_total)
          END DO

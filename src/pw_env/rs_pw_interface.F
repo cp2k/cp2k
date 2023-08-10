@@ -49,7 +49,6 @@ MODULE rs_pw_interface
 ! *** Public subroutines ***
 
    PUBLIC :: density_rs2pw, &
-             density_rs2pw_basic, &
              potential_pw2rs
 
 CONTAINS
@@ -141,92 +140,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE density_rs2pw
-
-! **************************************************************************************************
-!> \brief given partial densities on the realspace multigrids,
-!>      computes the full density on the plane wave grids
-!> \param pw_env ...
-!> \param rs_rho ...
-!> \param rho ...
-!> \param rho_gspace ...
-!> \note
-!>      should contain the all communication in the collocation of the density
-!>      in the case of replicated grids
-! **************************************************************************************************
-   SUBROUTINE density_rs2pw_basic(pw_env, rs_rho, rho, rho_gspace)
-
-      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
-      TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_rho
-      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw_basic'
-
-      INTEGER                                            :: handle, igrid_level, interp_kind
-      TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
-
-      CALL timeset(routineN, handle)
-      NULLIFY (gridlevel_info, rs_descs, pw_pools)
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
-
-      gridlevel_info => pw_env%gridlevel_info
-
-      CALL section_vals_val_get(pw_env%interp_section, "KIND", i_val=interp_kind)
-
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                               use_data=REALDATA3D, &
-                               in_space=REALSPACE)
-
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                               use_data=COMPLEXDATA1D, &
-                               in_space=RECIPROCALSPACE)
-
-      IF (gridlevel_info%ngrid_levels == 1) THEN
-         CALL rs_pw_transfer(rs_rho(1), rho, rs2pw)
-         CALL pw_transfer(rho, rho_gspace)
-      ELSE
-         DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_pw_transfer(rs_rho(igrid_level), &
-                                mgrid_rspace(igrid_level), rs2pw)
-         END DO
-
-         ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
-         SELECT CASE (interp_kind)
-         CASE (pw_interp)
-            DO igrid_level = 1, gridlevel_info%ngrid_levels
-               CALL pw_transfer(mgrid_rspace(igrid_level), &
-                                mgrid_gspace(igrid_level))
-               IF (igrid_level /= 1) THEN
-                  CALL pw_axpy(mgrid_gspace(igrid_level), mgrid_gspace(1))
-               END IF
-            END DO
-            CALL pw_transfer(mgrid_gspace(1), rho)
-            CALL pw_transfer(mgrid_rspace(1), rho_gspace)
-         CASE (spline3_pbc_interp)
-            DO igrid_level = gridlevel_info%ngrid_levels, 2, -1
-               CALL pw_prolongate_s3(mgrid_rspace(igrid_level), &
-                                     mgrid_rspace(igrid_level - 1), pw_pools(igrid_level)%pool, &
-                                     pw_env%interp_section)
-            END DO
-            CALL pw_copy(mgrid_rspace(1), rho)
-            CALL pw_transfer(rho, rho_gspace)
-         CASE default
-            CALL cp_abort(__LOCATION__, &
-                          "interpolator "// &
-                          cp_to_string(interp_kind))
-         END SELECT
-      END IF
-
-      ! *** give back the pw multi-grids
-      CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
-      CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
-      CALL timestop(handle)
-
-   END SUBROUTINE density_rs2pw_basic
 
 ! **************************************************************************************************
 !> \brief transfers a potential from a pw_grid to a vector of

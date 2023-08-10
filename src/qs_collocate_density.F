@@ -105,8 +105,7 @@ MODULE qs_collocate_density
                                               rs2pw,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
-   USE rs_pw_interface,                 ONLY: density_rs2pw,&
-                                              density_rs2pw_basic
+   USE rs_pw_interface,                 ONLY: density_rs2pw
    USE task_list_methods,               ONLY: rs_copy_to_buffer,&
                                               rs_distribute_matrix,&
                                               rs_scatter_matrices
@@ -1977,7 +1976,7 @@ CONTAINS
 
          END DO loop_tasks
 
-         CALL density_rs2pw_basic(pw_env, rs_rho, drho(idir), drho_gspace(idir))
+         CALL density_rs2pw(pw_env, rs_rho, drho(idir), drho_gspace(idir))
 
       END DO loop_xyz
 
@@ -2381,7 +2380,7 @@ CONTAINS
 
       END DO loop_tasks
 
-      CALL density_rs2pw_basic(pw_env, rs_rho, drho, drho_gspace)
+      CALL density_rs2pw(pw_env, rs_rho, drho, drho_gspace)
 
       !   *** Release work storage ***
       IF (distributed_rs_grids) THEN
