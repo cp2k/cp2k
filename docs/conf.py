@@ -24,7 +24,7 @@ author = "CP2K Developers"
 extensions = ["myst_parser", "sphinx_rtd_theme"]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
 
 suppress_warnings = ["app", "ref", "index"]
 
