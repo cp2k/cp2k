@@ -121,15 +121,15 @@ MODULE realspace_grid_types
       INTEGER, DIMENSION(3) :: neighbours = -1
       ! only meaningful on distributed grids
       ! a list of bounds for each CPU
-      INTEGER, DIMENSION(:, :), POINTER :: lb_global => NULL()
-      INTEGER, DIMENSION(:, :), POINTER :: ub_global => NULL()
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: lb_global
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: ub_global
       ! a mapping from linear rank to 3d coord
-      INTEGER, DIMENSION(:, :), POINTER :: rank2coord => NULL()
-      INTEGER, DIMENSION(:, :, :), POINTER :: coord2rank => NULL()
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: rank2coord
+      INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: coord2rank
       ! a mapping from index to rank (which allows to figure out easily on which rank a given point of the grid is)
-      INTEGER, DIMENSION(:), POINTER :: x2coord => NULL()
-      INTEGER, DIMENSION(:), POINTER :: y2coord => NULL()
-      INTEGER, DIMENSION(:), POINTER :: z2coord => NULL()
+      INTEGER, DIMENSION(:), ALLOCATABLE :: x2coord
+      INTEGER, DIMENSION(:), ALLOCATABLE :: y2coord
+      INTEGER, DIMENSION(:), ALLOCATABLE :: z2coord
 
       INTEGER                :: my_virtual_pos = -1
       INTEGER, DIMENSION(3) :: virtual_group_coor = -1
@@ -149,7 +149,7 @@ MODULE realspace_grid_types
       INTEGER, DIMENSION(3) :: lb_real = -1 ! lower bounds of the real local data
       INTEGER, DIMENSION(3) :: ub_real = -1 ! upper bounds of the real local data
 
-      INTEGER, DIMENSION(:), POINTER             :: px => NULL(), py => NULL(), pz => NULL() ! index translators
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: px, py, pz ! index translators
       TYPE(offload_buffer_type)                  :: buffer = offload_buffer_type() ! owner of the grid's memory
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
 
@@ -230,8 +230,6 @@ CONTAINS
       ALLOCATE (desc)
 
       CALL pw_grid%para%group%sync()
-
-      NULLIFY (desc%rank2coord, desc%coord2rank, desc%lb_global, desc%ub_global, desc%x2coord, desc%y2coord, desc%z2coord)
 
       desc%pw => pw_grid
       CALL pw_grid_retain(desc%pw)
@@ -2030,10 +2028,9 @@ CONTAINS
       CALL offload_free_buffer(rs_grid%buffer)
       NULLIFY (rs_grid%r)
 
-      IF (ASSOCIATED(rs_grid%px)) DEALLOCATE (rs_grid%px)
-      IF (ASSOCIATED(rs_grid%py)) DEALLOCATE (rs_grid%py)
-      IF (ASSOCIATED(rs_grid%pz)) DEALLOCATE (rs_grid%pz)
-      NULLIFY (rs_grid%px, rs_grid%py, rs_grid%pz)
+      IF (ALLOCATED(rs_grid%px)) DEALLOCATE (rs_grid%px)
+      IF (ALLOCATED(rs_grid%py)) DEALLOCATE (rs_grid%py)
+      IF (ALLOCATED(rs_grid%pz)) DEALLOCATE (rs_grid%pz)
    END SUBROUTINE rs_grid_release
 
 ! **************************************************************************************************
