@@ -1170,7 +1170,11 @@ CONTAINS
 
          IF (.NOT. my_do_im_time) THEN
 
-            CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, my_sab_orb_sub)
+            IF (PRESENT(sab_orb_sub)) THEN
+               CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, sab_orb_sub)
+            ELSE
+               CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, my_sab_orb_sub)
+            END IF
 
          END IF
 
