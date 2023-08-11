@@ -156,10 +156,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
-         WRITE (UNIT=unit_nr, FMT="(T26,A)") "ENERGY DECOMPOSITION ANALYSIS"
-         WRITE (UNIT=unit_nr, FMT="(T22,A)") "Janus J Eriksen, JCP 153 214109 (2020)"
-         WRITE (unit_nr, '(T2,A)') '!-----------------------------------------------------------------------------!'
+         WRITE (UNIT=unit_nr, FMT="(/,T2,A)") &
+            "!-----------------------------------------------------------------------------!", &
+            "!                        ENERGY DECOMPOSITION ANALYSIS                        !", &
+            "!                    Janus J Eriksen, JCP 153 214109 (2020)                   !", &
+            "!-----------------------------------------------------------------------------!"
       END IF
       CALL cite_reference(Eriksen2020)
 
@@ -334,7 +335,8 @@ CONTAINS
                IF (ABS(focc - checksum) > 1.E-6_dp) THEN
                   CALL cp_warn(__LOCATION__, "Sum of atomic orbital weights is incorrect")
                   IF (unit_nr > 0) THEN
-                     WRITE (6, '(T2,A,F10.6,T40,A,F10.6)') "Orbital occupation:", focc, &
+                     WRITE (UNIT=unit_nr, FMT="(T2,A,F10.6,T40,A,F10.6)") &
+                        "Orbital occupation:", focc, &
                         "Sum of atomic orbital weights:", checksum
                   END IF
                END IF
@@ -359,7 +361,8 @@ CONTAINS
                IF (ABS(focc - checksum) > 1.E-6_dp) THEN
                   CALL cp_warn(__LOCATION__, "Sum of atomic orbital weights is incorrect")
                   IF (unit_nr > 0) THEN
-                     WRITE (6, '(T2,A,F10.6,T40,A,F10.6)') "Orbital occupation:", focc, &
+                     WRITE (UNIT=unit_nr, FMT="(T2,A,F10.6,T40,A,F10.6)") &
+                        "Orbital occupation:", focc, &
                         "Sum of atomic orbital weights:", checksum
                   END IF
                END IF
@@ -490,8 +493,8 @@ CONTAINS
       END IF
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(/,T2,A)') &
-            '!----------------------------END OF ED ANALYSIS-------------------------------!'
+         WRITE (UNIT=unit_nr, FMT="(/,T2,A)") &
+            "!--------------------------- END OF ED ANALYSIS ------------------------------!"
       END IF
       DEALLOCATE (bcenter)
       DEALLOCATE (atener, ateks, atecc, ate1c)
@@ -664,11 +667,11 @@ CONTAINS
             "Atom  Element", "X", "Y", "Z", "Energy[a.u.]"
          natom = SIZE(atener)
          DO i = 1, natom
-            WRITE (iounit, "(I6,T12,A2,T24,3F12.6,F21.10)") i, &
+            WRITE (UNIT=iounit, FMT="(I6,T12,A2,T24,3F12.6,F21.10)") i, &
                TRIM(ADJUSTL(particle_set(i)%atomic_kind%element_symbol)), &
                particle_set(i)%r(1:3)*angstrom, atener(i)
          END DO
-         WRITE (iounit, "(A)") ""
+         WRITE (UNIT=iounit, FMT="(A)") ""
       END IF
 
    END SUBROUTINE write_atener
