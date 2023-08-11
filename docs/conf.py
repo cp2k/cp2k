@@ -15,7 +15,7 @@ logging.getLogger("sphinx.sphinx.domains.python").setLevel(logging.ERROR)
 # add_module_names = False
 
 project = "CP2K"
-copyright = "2023, CP2K Developers"
+copyright = "2000-2023, CP2K Developers"
 author = "CP2K Developers"
 
 # -- General configuration ---------------------------------------------------
