@@ -128,6 +128,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_bandstructure_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_tipscan_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1914,6 +1918,139 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_stda_section
+
+! **************************************************************************************************
+!> \brief creates an input section for electronic band structure calculations
+!> \param section section to create
+!> \par History
+!>    * 07.2023 created [Jan Wilhelm]
+! **************************************************************************************************
+   SUBROUTINE create_bandstructure_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="BANDSTRUCTURE", &
+                          description="Parameters needed to set up a calculation for "// &
+                          "electronic level energies of molecules and the electronic band "// &
+                          "structure of materials from post-SCF schemes.", &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword, subsection)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the band structure calculation.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_gw_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_bandstructure_section
+
+! **************************************************************************************************
+!> \brief creates an input section for a GW calculation for the electronic band structure
+!> \param section section to create
+!> \par History
+!>    * 07.2023 created [Jan Wilhelm]
+! **************************************************************************************************
+   SUBROUTINE create_gw_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GW", &
+                          description="Parameters needed to set up a GW calculation for "// &
+                          "electronic level energies of molecules and the band structure of "// &
+                          "materials (currently only 2D materials tested). For the GW algorithm "// &
+                          "for molecules, see [https://doi.org/10.1021/acs.jctc.0c01282]. "// &
+                          "For 2D materials, see [http://arxiv.org/abs/2306.16066].", &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the GW calculation.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_TIME_FREQ_POINTS", &
+                          description="Number of discrete points for the imaginary-time grid and "// &
+                          "the imaginary-frequency grid. The more points, the more precise is "// &
+                          "the calculation. Typically, 10 points are good for 0.1 eV precision "// &
+                          "of band structures and molecular energy levels, 20 points for 0.03 eV "// &
+                          "precision, and 30 points for 0.01 eV precision, see Table I in "// &
+                          "[https://doi.org/10.1021/acs.jctc.0c01282]. GW computation time "// &
+                          "increases roughly linearly with NUM_TIME_FREQ_POINTS.", &
+                          usage="NUM_TIME_FREQ_POINTS 30", &
+                          default_i_val=30)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          description="Determines a threshold for the DBCSR based "// &
+                          "sparse multiplications. Normally, this EPS_FILTER determines accuracy "// &
+                          "and timing of low-scaling GW calculations. (Lower filter means higher "// &
+                          "numerical precision, but higher computational cost.)", &
+                          usage="EPS_FILTER 1.0E-6_dp", &
+                          default_r_val=1.0E-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_3C_INT", &
+                          description="Determines threshold for computing three-center "// &
+                          "integrals of the truncated Coulomb operator. "// &
+                          "(Lower filter means more integrals are computed (= higher "// &
+                          "numerical precision), but higher computational cost.)", &
+                          usage="EPS_3C_INT 1.0E-6_dp", &
+                          default_r_val=1.0E-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM_V", &
+                          description="Determines number of cells used for summing the  "// &
+                          "cells R in the Coulomb matrix, "// &
+                          "V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. ", &
+                          usage="SIZE_LATTICE_SUM_V 4", &
+                          default_i_val=5)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="KPOINTS_CHI_EPS_W", &
+         description="Monkhorst-Pack k-point mesh of size N_x, N_y, N_z. Only even"// &
+         "meshes implemented. For non-periodic directions α, choose N_α = 1. "// &
+         "The N_x, N_y, N_z mesh and a N_x+2, N_y+2, N_z+2 mesh is used for "// &
+         "extrapolating the k-point integration of the screened Coulomb "// &
+         "interaction. Automatic choice of the k-point mesh for negative "// &
+         "values, e.g. KPOINTS_CHI_EPS_W -1 -1 -1.", &
+         usage="KPOINTS_CHI_EPS_W  N_x  N_y  N_z", &
+         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="KPOINTS_SIGMA", &
+         description="Monkhorst-Pack k-point mesh of size N_x, N_y, N_z. "// &
+         "For non-periodic directions α, choose N_α = 1. "// &
+         "Automatic choice of the k-point mesh for negative "// &
+         "values, e.g. KPOINTS_SELF_ENERGY -1 -1 -1. If you like to compute GW "// &
+         "quasiparticle energies along a k-path, you can specify the k-path in "// &
+         "&DFT/&PRINT/&BAND_STRUCTURE/&KPOINT_SET.", &
+         usage="KPOINTS_SIGMA N_x  N_y  N_z", &
+         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_gw_section
 
 ! **************************************************************************************************
 !> \brief creates an input section for a tip scan calculation
