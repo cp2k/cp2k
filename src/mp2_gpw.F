@@ -1081,19 +1081,28 @@ CONTAINS
 
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
-      NULLIFY (my_sab_orb_sub)
       IF (PRESENT(sab_orb_sub)) THEN
          NULLIFY (sab_orb_sub)
-         my_sab_orb_sub => sab_orb_sub
-      END IF
-      ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
-      IF (my_do_kpoints) THEN
-         CALL build_neighbor_lists(my_sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
-                                   mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
-                                   symmetric=.FALSE.)
+         ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
+         IF (my_do_kpoints) THEN
+            CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
+                                      symmetric=.FALSE.)
+         ELSE
+            CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
+         END IF
       ELSE
-         CALL build_neighbor_lists(my_sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
-                                   mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
+         NULLIFY (my_sab_orb_sub)
+         ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
+         IF (my_do_kpoints) THEN
+            CALL build_neighbor_lists(my_sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
+                                      symmetric=.FALSE.)
+         ELSE
+            CALL build_neighbor_lists(my_sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
+         END IF
       END IF
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d)
