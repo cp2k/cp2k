@@ -243,8 +243,6 @@ CONTAINS
       IF (ALLOCATED(gw_env%basis_set_AO)) DEALLOCATE (gw_env%basis_set_AO)
       IF (ALLOCATED(gw_env%basis_set_RI)) DEALLOCATE (gw_env%basis_set_RI)
 
-      
-
       DEALLOCATE (gw_env)
 
       CALL timestop(handle)

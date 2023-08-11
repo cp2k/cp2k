@@ -1513,7 +1513,6 @@ CONTAINS
 
       INTEGER                                            :: handle, i_atom, i_t, j_atom
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_Sigma_neg_tau, mat_Sigma_pos_tau
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_c_Gamma_freq
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, &
                                                             t_2c_Sigma_neg_tau, &
                                                             t_2c_Sigma_pos_tau, t_2c_W, &
@@ -1523,7 +1522,7 @@ CONTAINS
 
       CALL create_mat_for_Sigma_c(gw_env, t_2c_Gocc, t_2c_Gvir, t_2c_W, t_2c_Sigma_neg_tau, &
                                   t_2c_Sigma_pos_tau, t_3c_for_G, t_3c_x_W, &
-                                  mat_Sigma_neg_tau, mat_Sigma_pos_tau, mat_Sigma_c_Gamma_freq)
+                                  mat_Sigma_neg_tau, mat_Sigma_pos_tau)
 
       DO i_t = 1, gw_env%num_time_freq_points
 
@@ -1598,11 +1597,10 @@ CONTAINS
 !> \param t_3c_x_W ...
 !> \param mat_Sigma_neg_tau ...
 !> \param mat_Sigma_pos_tau ...
-!> \param mat_Sigma_c_Gamma_freq ...
 ! **************************************************************************************************
    SUBROUTINE create_mat_for_Sigma_c(gw_env, t_2c_Gocc, t_2c_Gvir, t_2c_W, t_2c_Sigma_neg_tau, &
                                      t_2c_Sigma_pos_tau, t_3c_for_G, t_3c_x_W, &
-                                     mat_Sigma_neg_tau, mat_Sigma_pos_tau, mat_Sigma_c_Gamma_freq)
+                                     mat_Sigma_neg_tau, mat_Sigma_pos_tau)
 
       TYPE(gw_type), POINTER                             :: gw_env
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_2c_W, &
@@ -1610,11 +1608,10 @@ CONTAINS
                                                             t_2c_Sigma_pos_tau, t_3c_for_G, &
                                                             t_3c_x_W
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_Sigma_neg_tau, mat_Sigma_pos_tau
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_c_Gamma_freq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mat_for_Sigma_c'
 
-      INTEGER                                            :: handle, i_t, i_w, re_im
+      INTEGER                                            :: handle, i_t
 
       CALL timeset(routineN, handle)
 
@@ -1626,22 +1623,15 @@ CONTAINS
       CALL dbt_create(gw_env%t_RI_AO__AO, t_3c_for_G)
       CALL dbt_create(gw_env%t_RI__AO_AO, t_3c_x_W)
 
-      NULLIFY (mat_Sigma_neg_tau, mat_Sigma_pos_tau, mat_Sigma_c_Gamma_freq)
+      NULLIFY (mat_Sigma_neg_tau, mat_Sigma_pos_tau)
       CALL dbcsr_allocate_matrix_set(mat_Sigma_neg_tau, gw_env%num_time_freq_points)
       CALL dbcsr_allocate_matrix_set(mat_Sigma_pos_tau, gw_env%num_time_freq_points)
-      CALL dbcsr_allocate_matrix_set(mat_Sigma_c_Gamma_freq, gw_env%num_time_freq_points, 2)
 
       DO i_t = 1, gw_env%num_time_freq_points
          ALLOCATE (mat_Sigma_neg_tau(i_t)%matrix)
          ALLOCATE (mat_Sigma_pos_tau(i_t)%matrix)
          CALL dbcsr_create(mat_Sigma_neg_tau(i_t)%matrix, template=gw_env%mat_ao_ao%matrix)
          CALL dbcsr_create(mat_Sigma_pos_tau(i_t)%matrix, template=gw_env%mat_ao_ao%matrix)
-         DO re_im = 1, 2
-            i_w = i_t
-            ALLOCATE (mat_Sigma_c_Gamma_freq(i_w, re_im)%matrix)
-            CALL dbcsr_create(mat_Sigma_c_Gamma_freq(i_w, re_im)%matrix, &
-                              template=gw_env%mat_ao_ao%matrix)
-         END DO
       END DO
 
       CALL timestop(handle)
