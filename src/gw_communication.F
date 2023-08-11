@@ -52,8 +52,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: num_pe_sub
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'global_matrix_to_local_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'global_matrix_to_local_matrix'
 
       INTEGER :: block_counter, block_offset, block_size, col, col_from_buffer, col_offset, &
          col_size, handle, handle1, i_block, i_entry, i_mepos, igroup, imep, imep_sub, msg_offset, &
@@ -331,8 +330,7 @@ CONTAINS
       TYPE(buffer_type), ALLOCATABLE, DIMENSION(:)       :: buffer_rec, buffer_send
       LOGICAL, OPTIONAL                                  :: do_indx, do_msg
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer'
 
       INTEGER                                            :: handle, imep, rec_counter, send_counter
       LOGICAL                                            :: my_do_indx, my_do_msg
@@ -411,8 +409,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mat_local, mat_global
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_matrix_to_global_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_matrix_to_global_matrix'
 
       INTEGER                                            :: block_size, c, col, col_size, handle, &
                                                             handle1, i_block, imep, o, offset, r, &
