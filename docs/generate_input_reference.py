@@ -148,7 +148,9 @@ def process_section(
         output += ["## Keywords", ""]
         for keyword in keywords:
             keyword_name = get_name(keyword)
-            output += [f"* <a href='#{keyword_name}'>{keyword_name}</a>"]
+            output += [
+                f"* <a href='#{keyword_name}'>" f"{escape_markdown(keyword_name)}</a>"
+            ]
         output += [""]
         # Render keywords
         output += ["## Keyword descriptions", ""]
