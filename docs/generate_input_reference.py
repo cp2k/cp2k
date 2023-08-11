@@ -189,7 +189,7 @@ def render_keyword(
     usage = get_text(keyword.find("USAGE"))
     description = get_text(keyword.find("DESCRIPTION"))
     location = get_text(keyword.find("LOCATION"))
-    lone_leyword_value = get_text(keyword.find("LONE_KEYWORD_VALUE"))
+    lone_keyword_value = get_text(keyword.find("LONE_KEYWORD_VALUE"))
 
     # Find keyword data type.
     data_type_element = keyword.find("DATA_TYPE")
@@ -229,8 +229,8 @@ def render_keyword(
     if len(keyword_names) > 1:
         aliases = " ,".join(keyword_names[1:])
         output += [f"**Aliase:** {aliases}", ""]
-    if lone_leyword_value:
-        output += [f"**Lone keyword:** `{escape_markdown(lone_leyword_value)}`", ""]
+    if lone_keyword_value:
+        output += [f"**Lone keyword:** `{escape_markdown(lone_keyword_value)}`", ""]
     if usage:
         output += [f"**Usage:** _{escape_markdown(usage)}_", ""]
     if data_type == "enum":
