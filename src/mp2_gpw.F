@@ -1145,7 +1145,6 @@ CONTAINS
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
-                           !JW 2del                   dist=dbcsr_dist_sub, matrix_type=dbcsr_type_no_symmetry, &
                            dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                            nze=0)
@@ -1154,7 +1153,6 @@ CONTAINS
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
-                           !JW 2del                   dist=dbcsr_dist_sub, matrix_type=dbcsr_type_no_symmetry, &
                            dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
                            nze=0)
@@ -1163,7 +1161,6 @@ CONTAINS
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
-                           !JW 2del                   dist=dbcsr_dist_sub, matrix_type=dbcsr_type_symmetric, &
                            dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                            nze=0)

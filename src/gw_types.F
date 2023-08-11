@@ -199,6 +199,7 @@ CONTAINS
 
       IF (ASSOCIATED(gw_env%nkp_grid_chi_eps_W_input)) DEALLOCATE (gw_env%nkp_grid_chi_eps_W_input)
       IF (ASSOCIATED(gw_env%kpoints_chi_eps_W)) CALL kpoint_release(gw_env%kpoints_chi_eps_W)
+      IF (ASSOCIATED(gw_env%kpoints_Sigma)) CALL kpoint_release(gw_env%kpoints_Sigma)
 
       IF (ALLOCATED(gw_env%imag_time_points)) DEALLOCATE (gw_env%imag_time_points)
       IF (ALLOCATED(gw_env%imag_freq_points)) DEALLOCATE (gw_env%imag_freq_points)
@@ -241,6 +242,8 @@ CONTAINS
 
       IF (ALLOCATED(gw_env%basis_set_AO)) DEALLOCATE (gw_env%basis_set_AO)
       IF (ALLOCATED(gw_env%basis_set_RI)) DEALLOCATE (gw_env%basis_set_RI)
+
+      
 
       DEALLOCATE (gw_env)
 
