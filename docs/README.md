@@ -20,4 +20,4 @@ To build  a local version of the manual perform the following steps:
 
    `make html`
 
-1. Browse the HTML output in the `_build` directory.
+1. Browse the HTML output in the `_build/html` directory.
