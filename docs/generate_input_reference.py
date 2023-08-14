@@ -229,7 +229,7 @@ def render_keyword(keyword: lxml.etree._Element, section_xref: str) -> List[str]
         output += ["**Keyword can be repeated.**", ""]
     if len(keyword_names) > 1:
         aliases = " ,".join(keyword_names[1:])
-        output += [f"**Aliase:** {escape_markdown(aliases)}", ""]
+        output += [f"**Aliases:** {escape_markdown(aliases)}", ""]
     if lone_keyword_value:
         output += [f"**Lone keyword:** `{escape_markdown(lone_keyword_value)}`", ""]
     if usage:
