@@ -175,7 +175,7 @@ CONTAINS
       pw_grid_out%para%rs_pos = pw_grid_in%para%rs_pos
       pw_grid_out%para%rs_mpo = pw_grid_in%para%rs_mpo
 
-      NULLIFY (pw_grid_out%g, pw_grid_out%gsq, pw_grid_out%g_hat)
+      NULLIFY (pw_grid_out%g, pw_grid_out%gsq)
       CPASSERT(pw_grid_in%grid_span == FULLSPACE)
       pw_grid_out%grid_span = pw_grid_in%grid_span
       pw_grid_out%have_g0 = .FALSE.

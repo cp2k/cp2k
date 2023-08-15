@@ -76,10 +76,10 @@ MODULE pw_grid_types
       REAL(KIND=dp) :: cutoff = 0.0_dp ! cutoff in a.u.
       TYPE(map_pn) :: mapl = map_pn(), mapm = map_pn(), mapn = map_pn() ! mapping 1D => 3D
       TYPE(pw_para_type) :: para = pw_para_type() ! information on parallelisation
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: g => NULL() ! grid point vectors
-      REAL(KIND=dp), DIMENSION(:), POINTER :: gsq => NULL() ! squared vector lengths
-      INTEGER, DIMENSION(:, :), POINTER :: g_hat => NULL() ! grid point indices (Miller)
-      INTEGER, DIMENSION(:, :), POINTER :: g_hatmap => NULL() ! mapped grid point indices (Miller) [CUDA]
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: g => NULL() ! grid point vectors
+      REAL(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS :: gsq => NULL() ! squared vector lengths
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: g_hat ! grid point indices (Miller)
+      INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS :: g_hatmap => NULL() ! mapped grid point indices (Miller) [CUDA]
       INTEGER :: grid_span = FULLSPACE ! type HALFSPACE/FULLSPACE
       LOGICAL :: have_g0 = .TRUE. ! whether I have G = [0,0,0]
       INTEGER :: first_gne0 = 0 ! first g index /= 0 [1/2]

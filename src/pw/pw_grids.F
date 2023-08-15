@@ -111,7 +111,6 @@ CONTAINS
       pw_grid%ref_count = 1
       NULLIFY (pw_grid%g)
       NULLIFY (pw_grid%gsq)
-      NULLIFY (pw_grid%g_hat)
       NULLIFY (pw_grid%g_hatmap)
       NULLIFY (pw_grid%gidx)
       NULLIFY (pw_grid%grays)
@@ -400,7 +399,7 @@ CONTAINS
    END SUBROUTINE pw_grid_setup
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief sets up a combined index for CUDA gather and scatter
 !> \param pw_grid ...
 !> \author Gloess Andreas (xx-Dec-2012)
@@ -2152,7 +2151,7 @@ CONTAINS
             IF (ASSOCIATED(pw_grid%gsq)) THEN
                DEALLOCATE (pw_grid%gsq)
             END IF
-            IF (ASSOCIATED(pw_grid%g_hat)) THEN
+            IF (ALLOCATED(pw_grid%g_hat)) THEN
                DEALLOCATE (pw_grid%g_hat)
             END IF
             IF (ASSOCIATED(pw_grid%g_hatmap)) THEN
