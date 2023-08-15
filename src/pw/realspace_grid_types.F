@@ -205,7 +205,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_create_descriptor(desc, pw_grid, input_settings, border_points)
       TYPE(realspace_grid_desc_type), POINTER            :: desc
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), TARGET, INTENT(INOUT)          :: pw_grid
       TYPE(realspace_grid_input_type), INTENT(IN)        :: input_settings
       INTEGER, INTENT(IN), OPTIONAL                      :: border_points
 
@@ -218,8 +218,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: ratio, ratio_best, volume, volume_dist
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(pw_grid))
 
       IF (PRESENT(border_points)) THEN
          border_size = border_points
@@ -486,7 +484,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_create(rs, desc)
       TYPE(realspace_grid_type), INTENT(OUT)             :: rs
-      TYPE(realspace_grid_desc_type), POINTER            :: desc
+      TYPE(realspace_grid_desc_type), TARGET, INTENT(INOUT) :: desc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rs_grid_create'
 
@@ -835,62 +833,57 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw
 
       INTEGER                                            :: dest, ii, ip, ix, iy, iz, &
-                                                            mepos, nma, nn, np, s(3), source
+                                                            nma, nn, s(3), source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
-      INTEGER, DIMENSION(:, :), POINTER                  :: pbo
-      INTEGER, DIMENSION(:, :, :), POINTER               :: bo
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: recvbuf, sendbuf, swapptr
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
-      TYPE(mp_comm_type)                                 :: group
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: recvbuf, sendbuf, swaparray
 
-      np = pw%pw_grid%para%group_size
-      bo => pw%pw_grid%para%bo(1:2, 1:3, 0:np - 1, 1)
-      pbo => pw%pw_grid%bounds
-      group = pw%pw_grid%para%rs_group
-      mepos = pw%pw_grid%para%rs_mpo
-      ALLOCATE (rcount(0:np - 1))
-      DO ip = 1, np
-         rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
-      END DO
-      nma = MAXVAL(rcount(0:np - 1))
-      ALLOCATE (sendbuf(nma), recvbuf(nma))
-      sendbuf = 1.0E99_dp; recvbuf = 1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
-      grid => rs%r
+      ASSOCIATE(np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
+                pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
+                grid => rs%r)
+         ALLOCATE (rcount(0:np - 1))
+         DO ip = 1, np
+               rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
+         END DO
+         nma = MAXVAL(rcount(0:np - 1))
+         ALLOCATE (sendbuf(nma), recvbuf(nma))
+         sendbuf = 1.0E99_dp; recvbuf = 1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
 
-      !sample peak memory
-      CALL m_memory()
+         !sample peak memory
+         CALL m_memory()
 
-      dest = MODULO(mepos + 1, np)
-      source = MODULO(mepos - 1, np)
-      sendbuf = 0.0_dp
+         dest = MODULO(mepos + 1, np)
+         source = MODULO(mepos - 1, np)
+         sendbuf = 0.0_dp
 
-      DO ip = 1, np
+         DO ip = 1, np
 
-         lb = pbo(1, :) + bo(1, :, MODULO(mepos - ip, np) + 1) - 1
-         ub = pbo(1, :) + bo(2, :, MODULO(mepos - ip, np) + 1) - 1
-         ! this loop takes about the same time as the message passing call
-         ! notice that the range of ix is only a small fraction of the first index of grid
-         ! therefore it seems faster to have the second index as the innermost loop
-         ! if this runs on many cpus
-         ! tested on itanium, pentium4, opteron, ultrasparc...
-         s = ub - lb + 1
-         DO iz = lb(3), ub(3)
-            DO ix = lb(1), ub(1)
-               ii = (iz - lb(3))*s(1)*s(2) + (ix - lb(1)) + 1
-               DO iy = lb(2), ub(2)
-                  sendbuf(ii) = sendbuf(ii) + grid(ix, iy, iz)
-                  ii = ii + s(1)
+            lb = pbo(1, :) + bo(1, :, MODULO(mepos - ip, np) + 1) - 1
+            ub = pbo(1, :) + bo(2, :, MODULO(mepos - ip, np) + 1) - 1
+            ! this loop takes about the same time as the message passing call
+            ! notice that the range of ix is only a small fraction of the first index of grid
+            ! therefore it seems faster to have the second index as the innermost loop
+            ! if this runs on many cpus
+            ! tested on itanium, pentium4, opteron, ultrasparc...
+            s = ub - lb + 1
+            DO iz = lb(3), ub(3)
+               DO ix = lb(1), ub(1)
+                  ii = (iz - lb(3))*s(1)*s(2) + (ix - lb(1)) + 1
+                  DO iy = lb(2), ub(2)
+                     sendbuf(ii) = sendbuf(ii) + grid(ix, iy, iz)
+                     ii = ii + s(1)
+                  END DO
                END DO
             END DO
+            IF (ip .EQ. np) EXIT
+            CALL group%sendrecv(sendbuf, dest, recvbuf, source, 13)
+            CALL MOVE_ALLOC(sendbuf, swaparray)
+            CALL MOVE_ALLOC(recvbuf, sendbuf)
+            CALL MOVE_ALLOC(swaparray, recvbuf)
          END DO
-         IF (ip .EQ. np) EXIT
-         CALL group%sendrecv(sendbuf, dest, recvbuf, source, 13)
-         swapptr => sendbuf
-         sendbuf => recvbuf
-         recvbuf => swapptr
-      END DO
-      nn = rcount(mepos)
+         nn = rcount(mepos)
+      END ASSOCIATE
+
       IF (pw%in_use == REALDATA3D) THEN
          CALL dcopy(nn, sendbuf, 1, pw%cr3d, 1)
       ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
@@ -915,105 +908,99 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw
 
       INTEGER                                            :: dest, i, ii, im, ip, ix, iy, iz, j, jm, &
-                                                            k, km, mepos, nma, nn, np, source
+                                                            k, km, nma, nn, source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
-      INTEGER, DIMENSION(:, :), POINTER                  :: pbo
-      INTEGER, DIMENSION(:, :, :), POINTER               :: bo
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: recvbuf, sendbuf, swapptr
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
-      TYPE(mp_comm_type)                                 :: group
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: recvbuf, sendbuf, swaparray
       TYPE(mp_request_type), DIMENSION(2)                :: req
 
-      np = pw%pw_grid%para%group_size
-      bo => pw%pw_grid%para%bo(1:2, 1:3, 0:np - 1, 1)
-      pbo => pw%pw_grid%bounds
-      group = pw%pw_grid%para%rs_group
-      mepos = pw%pw_grid%para%rs_mpo
-      ALLOCATE (rcount(0:np - 1))
-      DO ip = 1, np
-         rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
-      END DO
-      nma = MAXVAL(rcount(0:np - 1))
-      ALLOCATE (sendbuf(nma), recvbuf(nma))
-      sendbuf = 1.0E99_dp; recvbuf = 1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
-      grid => rs%r
-
-      !sample peak memory
-      CALL m_memory()
-
-      nn = rcount(mepos)
-      IF (pw%in_use == REALDATA3D) THEN
-         CALL dcopy(nn, pw%cr3d, 1, sendbuf, 1)
-      ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-         CALL dcopy(nn, TRANSFER(pw%cc3d, sendbuf), 2, sendbuf, 1)
-      ELSE
-         CPABORT("PW type not compatible")
-      END IF
-
-      dest = MODULO(mepos + 1, np)
-      source = MODULO(mepos - 1, np)
-
-      DO ip = 0, np - 1
-         ! we must shift the buffer only np-1 times around
-         IF (ip .NE. np - 1) THEN
-            CALL group%isendrecv(sendbuf, dest, recvbuf, source, &
-                                 req(1), req(2), 13)
-         END IF
-         lb = pbo(1, :) + bo(1, :, MODULO(mepos - ip, np) + 1) - 1
-         ub = pbo(1, :) + bo(2, :, MODULO(mepos - ip, np) + 1) - 1
-         ii = 0
-         ! this loop takes about the same time as the message passing call
-         ! If I read the code correctly then:
-         DO iz = lb(3), ub(3)
-            DO iy = lb(2), ub(2)
-               DO ix = lb(1), ub(1)
-                  ii = ii + 1
-                  grid(ix, iy, iz) = sendbuf(ii)
-               END DO
-            END DO
+      ASSOCIATE(np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
+                pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
+                grid => rs%r)
+         ALLOCATE (rcount(0:np - 1))
+         DO ip = 1, np
+            rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
          END DO
-         IF (ip .NE. np - 1) THEN
-            CALL mp_waitall(req)
+         nma = MAXVAL(rcount(0:np - 1))
+         ALLOCATE (sendbuf(nma), recvbuf(nma))
+         sendbuf = 1.0E99_dp; recvbuf = 1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
+
+         !sample peak memory
+         CALL m_memory()
+
+         nn = rcount(mepos)
+         IF (pw%in_use == REALDATA3D) THEN
+            CALL dcopy(nn, pw%cr3d, 1, sendbuf, 1)
+         ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
+            CALL dcopy(nn, TRANSFER(pw%cc3d, sendbuf), 2, sendbuf, 1)
+         ELSE
+            CPABORT("PW type not compatible")
          END IF
-         swapptr => sendbuf
-         sendbuf => recvbuf
-         recvbuf => swapptr
-      END DO
-      IF (rs%desc%border > 0) THEN
-!$OMP    PARALLEL DO DEFAULT(NONE) &
-!$OMP                PRIVATE(i,im,j,jm,k,km) &
-!$OMP                SHARED(rs)
-         DO k = rs%lb_local(3), rs%ub_local(3)
-            IF (k < rs%lb_real(3)) THEN
-               km = k + rs%desc%npts(3)
-            ELSE IF (k > rs%ub_real(3)) THEN
-               km = k - rs%desc%npts(3)
-            ELSE
-               km = k
+
+         dest = MODULO(mepos + 1, np)
+         source = MODULO(mepos - 1, np)
+
+         DO ip = 0, np - 1
+            ! we must shift the buffer only np-1 times around
+            IF (ip .NE. np - 1) THEN
+               CALL group%isendrecv(sendbuf, dest, recvbuf, source, &
+                                    req(1), req(2), 13)
             END IF
-            DO j = rs%lb_local(2), rs%ub_local(2)
-               IF (j < rs%lb_real(2)) THEN
-                  jm = j + rs%desc%npts(2)
-               ELSE IF (j > rs%ub_real(2)) THEN
-                  jm = j - rs%desc%npts(2)
-               ELSE
-                  jm = j
-               END IF
-               DO i = rs%lb_local(1), rs%ub_local(1)
-                  IF (i < rs%lb_real(1)) THEN
-                     im = i + rs%desc%npts(1)
-                  ELSE IF (i > rs%ub_real(1)) THEN
-                     im = i - rs%desc%npts(1)
-                  ELSE
-                     im = i
-                  END IF
-                  rs%r(i, j, k) = rs%r(im, jm, km)
+            lb = pbo(1, :) + bo(1, :, MODULO(mepos - ip, np) + 1) - 1
+            ub = pbo(1, :) + bo(2, :, MODULO(mepos - ip, np) + 1) - 1
+            ii = 0
+            ! this loop takes about the same time as the message passing call
+            ! If I read the code correctly then:
+            DO iz = lb(3), ub(3)
+               DO iy = lb(2), ub(2)
+                  DO ix = lb(1), ub(1)
+                     ii = ii + 1
+                     grid(ix, iy, iz) = sendbuf(ii)
+                  END DO
                END DO
             END DO
+            IF (ip .NE. np - 1) THEN
+               CALL mp_waitall(req)
+            END IF
+            CALL MOVE_ALLOC(sendbuf, swaparray)
+            CALL MOVE_ALLOC(recvbuf, sendbuf)
+            CALL MOVE_ALLOC(swaparray, recvbuf)
          END DO
-!$OMP    END PARALLEL DO
-      END IF
+         IF (rs%desc%border > 0) THEN
+!$OMP       PARALLEL DO DEFAULT(NONE) &
+!$OMP                   PRIVATE(i,im,j,jm,k,km) &
+!$OMP                   SHARED(rs)
+            DO k = rs%lb_local(3), rs%ub_local(3)
+               IF (k < rs%lb_real(3)) THEN
+                  km = k + rs%desc%npts(3)
+               ELSE IF (k > rs%ub_real(3)) THEN
+                  km = k - rs%desc%npts(3)
+               ELSE
+                  km = k
+               END IF
+               DO j = rs%lb_local(2), rs%ub_local(2)
+                  IF (j < rs%lb_real(2)) THEN
+                     jm = j + rs%desc%npts(2)
+                  ELSE IF (j > rs%ub_real(2)) THEN
+                     jm = j - rs%desc%npts(2)
+                  ELSE
+                     jm = j
+                  END IF
+                  DO i = rs%lb_local(1), rs%ub_local(1)
+                     IF (i < rs%lb_real(1)) THEN
+                        im = i + rs%desc%npts(1)
+                     ELSE IF (i > rs%ub_real(1)) THEN
+                        im = i - rs%desc%npts(1)
+                     ELSE
+                        im = i
+                     END IF
+                     rs%r(i, j, k) = rs%r(im, jm, km)
+                  END DO
+               END DO
+            END DO
+!$OMP       END PARALLEL DO
+         END IF
+      END ASSOCIATE
 
       DEALLOCATE (rcount)
       DEALLOCATE (sendbuf)
@@ -1059,7 +1046,7 @@ CONTAINS
          lb_send_up, ub_recv, ub_recv_down, ub_recv_up, ub_send, ub_send_down, ub_send_up
       LOGICAL, DIMENSION(3)                              :: halo_swapped
       REAL(KIND=dp)                                      :: pw_sum, rs_sum
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: recv_buf_3d_down, recv_buf_3d_up, &
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: recv_buf_3d_down, recv_buf_3d_up, &
                                                             send_buf_3d_down, send_buf_3d_up
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: recv_bufs, send_bufs
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_reqs, send_reqs
@@ -1545,7 +1532,7 @@ CONTAINS
       INTEGER, DIMENSION(3) :: coords, lb_recv, lb_recv_down, lb_recv_up, lb_send, lb_send_down, &
          lb_send_up, ub_recv, ub_recv_down, ub_recv_up, ub_send, ub_send_down, ub_send_up
       LOGICAL, DIMENSION(3)                              :: halo_swapped
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: recv_buf_3d_down, recv_buf_3d_up, &
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: recv_buf_3d_down, recv_buf_3d_up, &
                                                             send_buf_3d_down, send_buf_3d_up
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: recv_bufs, send_bufs
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_reqs, send_reqs
@@ -2092,9 +2079,8 @@ CONTAINS
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 ! **************************************************************************************************
    SUBROUTINE rs_grid_retain_descriptor(rs_desc)
-      TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
+      TYPE(realspace_grid_desc_type), INTENT(INOUT)      :: rs_desc
 
-      CPASSERT(ASSOCIATED(rs_desc))
       CPASSERT(rs_desc%ref_count > 0)
       rs_desc%ref_count = rs_desc%ref_count + 1
    END SUBROUTINE rs_grid_retain_descriptor

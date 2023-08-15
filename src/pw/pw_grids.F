@@ -115,11 +115,6 @@ CONTAINS
       NULLIFY (pw_grid%g_hatmap)
       NULLIFY (pw_grid%gidx)
       NULLIFY (pw_grid%grays)
-      NULLIFY (pw_grid%para%yzp)
-      NULLIFY (pw_grid%para%yzq)
-      NULLIFY (pw_grid%para%nyzray)
-      NULLIFY (pw_grid%para%bo)
-      NULLIFY (pw_grid%para%pos_of_x)
 
       ! assign a unique tag to this grid
       grid_tag = grid_tag + 1
@@ -2190,17 +2185,17 @@ CONTAINS
             IF (ALLOCATED(pw_grid%mapn%neg)) THEN
                DEALLOCATE (pw_grid%mapn%neg)
             END IF
-            IF (ASSOCIATED(pw_grid%para%bo)) THEN
+            IF (ALLOCATED(pw_grid%para%bo)) THEN
                DEALLOCATE (pw_grid%para%bo)
             END IF
             IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-               IF (ASSOCIATED(pw_grid%para%yzp)) THEN
+               IF (ALLOCATED(pw_grid%para%yzp)) THEN
                   DEALLOCATE (pw_grid%para%yzp)
                END IF
-               IF (ASSOCIATED(pw_grid%para%yzq)) THEN
+               IF (ALLOCATED(pw_grid%para%yzq)) THEN
                   DEALLOCATE (pw_grid%para%yzq)
                END IF
-               IF (ASSOCIATED(pw_grid%para%nyzray)) THEN
+               IF (ALLOCATED(pw_grid%para%nyzray)) THEN
                   DEALLOCATE (pw_grid%para%nyzray)
                END IF
             END IF
@@ -2208,7 +2203,7 @@ CONTAINS
             CALL pw_grid%para%group%free()
             IF (PRODUCT(pw_grid%para%rs_dims) /= 0) &
                CALL pw_grid%para%rs_group%free()
-            IF (ASSOCIATED(pw_grid%para%pos_of_x)) THEN
+            IF (ALLOCATED(pw_grid%para%pos_of_x)) THEN
                DEALLOCATE (pw_grid%para%pos_of_x)
             END IF
 

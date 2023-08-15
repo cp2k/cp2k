@@ -118,7 +118,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: pw_mode
 
       INTEGER                                            :: pw_mode_loc
-      INTEGER, DIMENSION(:), POINTER                     :: pos_of_x
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: pos_of_x
 
       CPASSERT(pw_grid_in%ngpts_cut > 0)
       CPASSERT(.NOT. ASSOCIATED(pw_grid_out))
@@ -164,14 +164,10 @@ CONTAINS
       pw_grid_out%para%group_head = &
          (pw_grid_out%para%group_head_id == pw_grid_out%para%my_pos)
       pw_grid_out%para%mode = pw_mode_loc
-      NULLIFY (pw_grid_out%para%yzp, &
-               pw_grid_out%para%yzq, &
-               pw_grid_out%para%nyzray, &
-               pw_grid_out%para%bo)
       ALLOCATE (pos_of_x(pw_grid_out%bounds(1, 1):pw_grid_out%bounds(2, 1)))
       pos_of_x(:pw_grid_out%bounds(2, 1) - 1) = pw_grid_in%para%pos_of_x
       pos_of_x(pw_grid_out%bounds(2, 1)) = pos_of_x(pw_grid_out%bounds(2, 1) - 1)
-      pw_grid_out%para%pos_of_x => pos_of_x
+      CALL MOVE_ALLOC(pos_of_x, pw_grid_out%para%pos_of_x)
       pw_grid_out%para%rs_dims = pw_grid_in%para%rs_dims
       IF (PRODUCT(pw_grid_in%para%rs_dims) /= 0) THEN
          CALL pw_grid_out%para%rs_group%from_dup(pw_grid_in%para%rs_group)
