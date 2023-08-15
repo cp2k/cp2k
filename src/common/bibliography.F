@@ -86,8 +86,8 @@ MODULE bibliography
                             Grimme2017, Kondov2007, Clabaut2020, Clabaut2021, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
-                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
-                            Behler2007, Behler2011, Schran2020a, Schran2020b, &
+                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
+                            cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
                             Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020
@@ -4478,6 +4478,25 @@ CONTAINS
                          "DI 10.1021/acs.jpclett.7b02740", &
                          "ER"), &
                          DOI="10.1021/acs.jpclett.7b02740")
+
+      CALL add_reference(key=Wilhelm2021, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Wilhelm, J", &
+                         "   Seewald, P", &
+                         "   Golze, D", &
+                         "AF Wilhelm, Jan", &
+                         "   Seewald, Patrick", &
+                         "   Golze, Dorothea", &
+                         "TI Low-Scaling GW with Benchmark Accuracy and Application to Phosphorene Nanosheets", &
+                         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
+                         "PD FEB", &
+                         "BP 1662", &
+                         "EP 1677", &
+                         "PY 2021", &
+                         "VL 9", &
+                         "DI 10.1021/acs.jctc.0c01282", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.0c01282")
 
       CALL add_reference(key=Lass2018, ISI_record=s2a( &
                          "PT C", &

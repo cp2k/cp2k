@@ -1219,9 +1219,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_kpoints'
 
-      INTEGER                                            :: handle, i, i_dim, ix, iy, iz, &
-                                                            n_periodic_dir, nkp, nkp_extra, &
-                                                            nkp_orig
+      INTEGER                                            :: handle, i, i_dim, ix, iy, iz, nkp, &
+                                                            nkp_extra, nkp_orig
       INTEGER, DIMENSION(3)                              :: nkp_grid, nkp_grid_extra, periodic
       LOGICAL                                            :: do_extrapolate_kpoints
       TYPE(cell_type), POINTER                           :: cell
@@ -1245,7 +1244,6 @@ CONTAINS
       kpoints%eps_geo = 1.e-6_dp
       nkp_grid(1:3) = qs_env%mp2_env%ri_rpa_im_time%kp_grid(1:3)
       do_extrapolate_kpoints = qs_env%mp2_env%ri_rpa_im_time%do_extrapolate_kpoints
-      n_periodic_dir = periodic(1) + periodic(2) + periodic(3)
 
       DO i_dim = 1, 3
          IF (periodic(i_dim) == 1) THEN

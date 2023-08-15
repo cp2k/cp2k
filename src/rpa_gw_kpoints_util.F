@@ -88,7 +88,7 @@ MODULE rpa_gw_kpoints_util
 
    PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_power, real_space_to_kpoint_transform_rpa, &
              get_mat_cell_T_from_mat_gamma, get_bandstruc_and_k_dependent_MOs, &
-             compute_wkp_W, mat_kp_from_mat_gamma
+             compute_wkp_W, mat_kp_from_mat_gamma, cp_cfm_upper_to_full
 
 CONTAINS
 
@@ -1064,7 +1064,7 @@ CONTAINS
       CALL cp_cfm_cholesky_invert(cfm_mat_Q)
 
       ! symmetrize the result
-      CALL own_cfm_upper_to_full(cfm_mat_Q, cfm_mat_work)
+      CALL cp_cfm_upper_to_full(cfm_mat_Q)
 
       ! subtract exchange part by subtracing identity matrix from epsilon
       CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
@@ -1243,10 +1243,12 @@ CONTAINS
       CALL cp_fm_create(fm_work_Minv_W, fm_mat_W(1)%matrix_struct)
 
       DO jquad = 1, num_integ_points
+
          CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_work_Minv, fm_mat_W(jquad), &
                             0.0_dp, fm_work_Minv_W)
          CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_work_Minv_W, fm_work_Minv, &
                             0.0_dp, fm_mat_W(jquad))
+
       END DO
 
       CALL cp_fm_release(fm_work_Minv)
@@ -1423,19 +1425,21 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param cfm_mat_Q ...
-!> \param cfm_mat_work ...
 ! **************************************************************************************************
-   SUBROUTINE own_cfm_upper_to_full(cfm_mat_Q, cfm_mat_work)
+   SUBROUTINE cp_cfm_upper_to_full(cfm_mat_Q)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q, cfm_mat_work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'own_cfm_upper_to_full'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_upper_to_full'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(cp_cfm_type)                                  :: cfm_mat_work
 
       CALL timeset(routineN, handle)
+
+      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
 
       ! get info of fm_mat_Q
       CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
@@ -1461,25 +1465,25 @@ CONTAINS
 
       CALL cp_cfm_scale_and_add(z_one, cfm_mat_Q, z_one, cfm_mat_work)
 
+      CALL cp_cfm_release(cfm_mat_work)
+
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE cp_cfm_upper_to_full
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param kpoints ...
 !> \param Eigenval_kp ...
 ! **************************************************************************************************
-   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, Eigenval_kp)
+   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, Eigenval_kp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bandstruc_and_k_dependent_MOs'
 
       INTEGER                                            :: handle, ikp, ispin, nmo, nspins
-      INTEGER, DIMENSION(3)                              :: nkp_grid_G, nkp_grid_W
+      INTEGER, DIMENSION(3)                              :: nkp_grid_G
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ev
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kpgeneral
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
@@ -1492,7 +1496,6 @@ CONTAINS
                qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
                para_env)
 
-      nkp_grid_W(1:3) = kpoints%nkp_grid(1:3)
       nkp_grid_G(1:3) = (/1, 1, 1/)
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)

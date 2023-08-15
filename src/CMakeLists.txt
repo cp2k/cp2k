@@ -62,6 +62,7 @@ list(
   atom_utils.F
   atom_xc.F
   auto_basis.F
+  bandstructure_methods.F
   basis_set_output.F
   beta_gamma_psi.F
   block_p_types.F
@@ -200,6 +201,10 @@ list(
   group_dist_types.F
   grrm_utils.F
   gapw_1c_basis_set.F
+  gw_communication.F
+  gw_methods.F
+  gw_types.F
+  gw_utils.F
   hartree_local_methods.F
   hartree_local_types.F
   header.F

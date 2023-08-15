@@ -16,6 +16,7 @@ MODULE qs_energy_utils
    USE atprop_types,                    ONLY: atprop_array_add,&
                                               atprop_array_init,&
                                               atprop_type
+   USE bandstructure_methods,           ONLY: post_SCF_bandstructure
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_control_utils,                ONLY: read_ddapc_section
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
@@ -99,7 +100,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
       INTEGER                                            :: handle, natom
-      LOGICAL                                            :: do_et, do_et_proj, do_tip_scan
+      LOGICAL                                            :: do_et, do_et_proj, &
+                                                            do_post_SCF_bandstructure, do_tip_scan
       REAL(KIND=dp)                                      :: ekts
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -107,7 +109,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: input, proj_section, rest_b_section, &
+      TYPE(section_vals_type), POINTER                   :: input, post_SCF_bandstr_section, &
+                                                            proj_section, rest_b_section, &
                                                             tip_scan_section
 
       NULLIFY (atprop, energy, pw_env)
@@ -195,6 +198,14 @@ CONTAINS
 
       IF (dft_control%tddfpt2_control%enabled) THEN
          CALL tddfpt(qs_env, calc_forces)
+      END IF
+
+      ! post-SCF bandstructure calculation from higher level methods
+      NULLIFY (post_SCF_bandstr_section)
+      post_SCF_bandstr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BANDSTRUCTURE")
+      CALL section_vals_get(post_SCF_bandstr_section, explicit=do_post_SCF_bandstructure)
+      IF (do_post_SCF_bandstructure) THEN
+         CALL post_SCF_bandstructure(qs_env)
       END IF
 
       ! tip scan

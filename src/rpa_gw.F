@@ -154,7 +154,7 @@ MODULE rpa_gw
 
    PUBLIC :: allocate_matrices_gw_im_time, allocate_matrices_gw, compute_GW_self_energy, compute_QP_energies, &
              deallocate_matrices_gw_im_time, deallocate_matrices_gw, compute_minus_vxc_kpoints, trafo_to_mo_and_kpoints, &
-             get_fermi_level_offset, compute_W_cubic_GW
+             get_fermi_level_offset, compute_W_cubic_GW, continuation_pade
 
 CONTAINS
 
@@ -5788,6 +5788,7 @@ CONTAINS
       ALLOCATE (sizes_AO(dbt_nblks_total(t_3c_O(1, 1), 2)))
       CALL dbt_get_info(t_3c_O(1, 1), blk_size_2=sizes_AO)
       CALL create_2c_tensor(t_greens_fct_occ, dist1, dist2, pgrid_2d, sizes_AO, sizes_AO, name="(AO|AO)")
+
       DEALLOCATE (dist1, dist2)
       CALL create_2c_tensor(t_greens_fct_virt, dist1, dist2, pgrid_2d, sizes_AO, sizes_AO, name="(AO|AO)")
       DEALLOCATE (dist1, dist2)

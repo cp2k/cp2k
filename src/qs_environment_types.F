@@ -51,6 +51,8 @@ MODULE qs_environment_types
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                               fist_nonbond_env_type
    USE global_types,                    ONLY: global_environment_type
+   USE gw_types,                        ONLY: gw_env_release,&
+                                              gw_type
    USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                               get_hartree_local,&
                                               hartree_local_create,&
@@ -290,6 +292,7 @@ MODULE qs_environment_types
       ! a history for the broyden ot
       REAL(KIND=dp)                                         :: broyden_adaptive_sigma
       TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
+      TYPE(gw_type), POINTER                                :: gw_env
       TYPE(kg_environment_type), POINTER                    :: kg_env
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
       TYPE(molecular_scf_guess_env_type), POINTER           :: molecular_scf_guess_env => NULL()
@@ -444,6 +447,7 @@ CONTAINS
 !> \param external_vxc ...
 !> \param mask ...
 !> \param mp2_env ...
+!> \param gw_env ...
 !> \param kg_env ...
 !> \param WannierCentres ...
 !> \param atprop ...
@@ -490,8 +494,8 @@ CONTAINS
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, results, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, &
                          lri_env, lri_density, exstate_env, ec_env, dispersion_env, gcp_env, vee, &
-                         rho_external, external_vxc, mask, &
-                         mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
+                         rho_external, external_vxc, mask, mp2_env, gw_env, kg_env, &
+                         WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, rhs)
       TYPE(qs_environment_type), INTENT(IN)              :: qs_env
@@ -602,6 +606,7 @@ CONTAINS
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
       TYPE(pw_type), OPTIONAL, POINTER                   :: external_vxc, mask
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
+      TYPE(gw_type), OPTIONAL, POINTER                   :: gw_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(wannier_centres_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: WannierCentres
@@ -631,6 +636,7 @@ CONTAINS
       IF (PRESENT(gradient_history)) gradient_history => qs_env%gradient_history
       IF (PRESENT(variable_history)) variable_history => qs_env%variable_history
       IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
+      IF (PRESENT(gw_env)) gw_env => qs_env%gw_env
       IF (PRESENT(kg_env)) kg_env => qs_env%kg_env
       IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
       IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
@@ -880,6 +886,7 @@ CONTAINS
       NULLIFY (qs_env%gcp_env)
       NULLIFY (qs_env%rtp)
       NULLIFY (qs_env%mp2_env)
+      NULLIFY (qs_env%gw_env)
       NULLIFY (qs_env%kg_env)
       NULLIFY (qs_env%ec_env)
       NULLIFY (qs_env%WannierCentres)
@@ -985,6 +992,7 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param gcp_env ...
 !> \param mp2_env ...
+!> \param gw_env ...
 !> \param kg_env ...
 !> \param force ...
 !> \param kpoints ...
@@ -1014,7 +1022,7 @@ CONTAINS
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
-                         gcp_env, mp2_env, kg_env, force, &
+                         gcp_env, mp2_env, gw_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, mos_last_converged, rhs)
 
@@ -1078,6 +1086,7 @@ CONTAINS
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
+      TYPE(gw_type), OPTIONAL, POINTER                   :: gw_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(qs_force_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: force
@@ -1094,6 +1103,7 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       IF (PRESENT(mp2_env)) qs_env%mp2_env => mp2_env
+      IF (PRESENT(gw_env)) qs_env%gw_env => gw_env
       IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
       IF (PRESENT(super_cell)) THEN
          CALL cell_retain(super_cell)
@@ -1540,6 +1550,9 @@ CONTAINS
          CALL mp2_env_release(qs_env%mp2_env)
          DEALLOCATE (qs_env%mp2_env)
          NULLIFY (qs_env%mp2_env)
+      END IF
+      IF (ASSOCIATED(qs_env%gw_env)) THEN
+         CALL gw_env_release(qs_env%gw_env)
       END IF
       IF (ASSOCIATED(qs_env%kg_env)) THEN
          CALL kg_env_release(qs_env%kg_env)

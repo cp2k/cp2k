@@ -404,8 +404,10 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+
       CALL neighbor_list_iterator_create(iterator%iter_ij, ijk_nl%ij_list)
       CALL neighbor_list_iterator_create(iterator%iter_jk, ijk_nl%jk_list, search=.TRUE.)
+
       iterator%iter_level = 0
       iterator%ijk_nl = ijk_nl
 
@@ -644,7 +646,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(one_dim_int_array), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: alloc_i, alloc_j, alloc_k
@@ -693,7 +694,7 @@ CONTAINS
       END IF
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
-                      dft_control=dft_control, kpoints=kpoints, para_env=para_env)
+                      dft_control=dft_control, kpoints=kpoints)
 
       IF (do_kpoints_prv) THEN
          nimg = dft_control%nimages
@@ -712,6 +713,7 @@ CONTAINS
       nblk(:, :) = 0
 
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
+
       CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
 
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
@@ -765,6 +767,7 @@ CONTAINS
       nblk(:, :) = 0
 
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
+
       CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
 
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
@@ -2353,6 +2356,9 @@ CONTAINS
 
       NULLIFY (qs_kind_set, atomic_kind_set)
 
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      natom=natom, kpoints=kpoints, dft_control=dft_control, para_env=para_env)
+
       CALL alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, &
                           potential_parameter, op_pos=op_pos_prv, do_kpoints=do_kpoints, &
                           bounds_i=bounds_i, bounds_j=bounds_j, bounds_k=bounds_k)
@@ -2508,6 +2514,7 @@ CONTAINS
          bo(:) = bo(:) + bounds_i(1) - 1
          CALL nl_3c_iter_set_bounds(nl_3c_iter, bo, bounds_j, bounds_k)
       ELSE IF (PRESENT(bounds_j)) THEN
+
          bo = get_limit(bounds_j(2) - bounds_j(1) + 1, nthread, mepos)
          bo(:) = bo(:) + bounds_j(1) - 1
          CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bo, bounds_k)
@@ -2560,7 +2567,6 @@ CONTAINS
          ELSE
             jcell = 1; kcell = 1
          END IF
-
          CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, first_sgf=first_sgf_i, lmax=lmax_i, lmin=lmin_i, &
                                 npgf=npgfi, nset=nseti, nsgf_set=nsgfi, pgf_radius=rpgf_i, set_radius=set_radius_i, &
                                 sphi=sphi_i, zet=zeti, kind_radius=kind_radius_i)
@@ -2572,7 +2578,6 @@ CONTAINS
          CALL get_gto_basis_set(basis_k(kkind)%gto_basis_set, first_sgf=first_sgf_k, lmax=lmax_k, lmin=lmin_k, &
                                 npgf=npgfk, nset=nsetk, nsgf_set=nsgfk, pgf_radius=rpgf_k, set_radius=set_radius_k, &
                                 sphi=sphi_k, zet=zetk, kind_radius=kind_radius_k)
-
          djk = NORM2(rjk)
          dij = NORM2(rij)
          dik = NORM2(rik)
@@ -2608,7 +2613,6 @@ CONTAINS
 
          block_t = 0.0_dp
          block_not_zero = .FALSE.
-
          DO iset = 1, nseti
 
             DO jset = 1, nsetj
@@ -2653,7 +2657,6 @@ CONTAINS
                      END IF
 
                      block_not_zero = .TRUE.
-
                      ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
                      CALL libxsmm_abc_contract(sijk_contr, sijk, tspj(jset, jkind)%array, &
                                                spk(kset, kkind)%array, spi(iset, ikind)%array, &
@@ -2675,7 +2678,6 @@ CONTAINS
                                 block_start_k:block_end_k, &
                                 block_start_i:block_end_i) + &
                         prefac*sijk_contr(:, :, :)
-
                      DEALLOCATE (sijk_contr)
                   END IF ! number of triples > 0
 
@@ -2758,7 +2760,6 @@ CONTAINS
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
-
       DEALLOCATE (spi, tspj, spk)
 
       CALL timestop(handle)
@@ -3191,10 +3192,12 @@ CONTAINS
 !> \param potential_parameter ...
 !> \param do_kpoints ...
 !> this routine requires that libint has been static initialised somewhere else
+!> \param kpoints ...
+!> \param regularization_RI ...
 ! **************************************************************************************************
    SUBROUTINE build_2c_integrals(t2c, filter_eps, qs_env, &
                                  nl_2c, basis_i, basis_j, &
-                                 potential_parameter, do_kpoints)
+                                 potential_parameter, do_kpoints, kpoints, regularization_RI)
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: t2c
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -3203,6 +3206,8 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
+      REAL(KIND=dp), OPTIONAL                            :: regularization_RI
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals'
 
@@ -3216,7 +3221,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints_prv, do_symmetric, found, &
                                                             trans
-      REAL(KIND=dp)                                      :: dab, regularization_RI
+      REAL(KIND=dp)                                      :: dab, my_regularization_RI
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sij, sij_contr, sij_rs
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j
@@ -3226,7 +3231,6 @@ CONTAINS
       TYPE(block_p_type)                                 :: block_t
       TYPE(cp_libint_t)                                  :: lib
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -3246,15 +3250,18 @@ CONTAINS
 
       ! get stuff
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
-                      natom=natom, kpoints=kpoints, dft_control=dft_control, para_env=para_env)
+                      natom=natom, dft_control=dft_control, para_env=para_env)
 
       IF (do_kpoints_prv) THEN
+         CPASSERT(PRESENT(kpoints))
          nimg = dft_control%nimages
          CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
-         regularization_RI = qs_env%mp2_env%ri_rpa_im_time%regularization_RI
       ELSE
          nimg = 1
       END IF
+
+      my_regularization_RI = 0.0_dp
+      IF (PRESENT(regularization_RI)) my_regularization_RI = regularization_RI
 
       CPASSERT(ALL(SHAPE(t2c) == [nimg]))
 

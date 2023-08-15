@@ -102,7 +102,7 @@ MODULE mp2_gpw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_gpw'
 
-   PUBLIC :: mp2_gpw_main
+   PUBLIC :: mp2_gpw_main, create_mat_munu
 
 CONTAINS
 
@@ -181,10 +181,7 @@ CONTAINS
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
-      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
@@ -262,8 +259,6 @@ CONTAINS
                       cell=cell, &
                       particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set, &
-                      molecule_set=molecule_set, &
-                      molecule_kind_set=molecule_kind_set, &
                       dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp)
 
@@ -332,10 +327,10 @@ CONTAINS
 
       CALL get_eps_old(dft_control, eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old)
 
-      CALL create_mat_munu(mat_munu, qs_env, mp2_env, dft_control, atomic_kind_set, qs_kind_set, &
-                           atom2d, molecule_kind_set, &
-                           molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub_mat_munu, &
-                           do_im_time=do_im_time)
+      CALL create_mat_munu(mat_munu, qs_env, mp2_env%mp2_gpw%eps_grid, &
+                           blacs_env_sub_mat_munu, do_im_time=do_im_time, sab_orb_sub=sab_orb_sub, &
+                           do_kpoints=mp2_env%ri_rpa_im_time%do_im_time_kpoints, &
+                           dbcsr_sym_type=dbcsr_type_symmetric)
 
       ! which RI metric we want to have
       ri_metric_type = mp2_env%ri_metric%potential_type
@@ -524,8 +519,7 @@ CONTAINS
 
          IF (do_im_time) THEN
 
-            CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, &
-                                 qs_kind_set, atom2d, molecule_kind_set, molecule_set, particle_set, cell)
+            CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
 
             ! To be removed later
             ALLOCATE (BIb_C(nspins))
@@ -935,61 +929,58 @@ CONTAINS
 !> \brief Encapsulate the building of dbcsr_matrix mat_munu
 !> \param mat_munu ...
 !> \param qs_env ...
-!> \param mp2_env ...
-!> \param dft_control ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param atom2d ...
-!> \param molecule_kind_set ...
-!> \param molecule_set ...
-!> \param sab_orb_sub ...
-!> \param particle_set ...
-!> \param cell ...
+!> \param eps_grid ...
 !> \param blacs_env_sub ...
 !> \param do_ri_aux_basis ...
 !> \param do_mixed_basis ...
 !> \param group_size_prim ...
 !> \param do_im_time ...
+!> \param do_kpoints ...
+!> \param sab_orb_sub ...
+!> \param dbcsr_sym_type ...
 !> \author Jan Wilhelm, code by Mauro Del Ben
 ! **************************************************************************************************
-   SUBROUTINE create_mat_munu(mat_munu, qs_env, mp2_env, dft_control, atomic_kind_set, qs_kind_set, &
-                              atom2d, molecule_kind_set, &
-                              molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub, &
-                              do_ri_aux_basis, do_mixed_basis, group_size_prim, do_im_time)
+   SUBROUTINE create_mat_munu(mat_munu, qs_env, eps_grid, blacs_env_sub, &
+                              do_ri_aux_basis, do_mixed_basis, group_size_prim, &
+                              do_im_time, do_kpoints, sab_orb_sub, dbcsr_sym_type)
 
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type)                                     :: mp2_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb_sub
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp)                                      :: eps_grid
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_ri_aux_basis, do_mixed_basis
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_prim
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time, do_kpoints
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_orb_sub
+      CHARACTER, OPTIONAL                                :: dbcsr_sym_type
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_mat_munu'
 
+      CHARACTER                                          :: my_dbcsr_sym_type
       INTEGER                                            :: handle, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      LOGICAL                                            :: do_kpoints, my_do_im_time, &
+      LOGICAL                                            :: my_do_im_time, my_do_kpoints, &
                                                             my_do_mixed_basis, my_do_ri_aux_basis
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: orb_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
-      REAL(kind=dp)                                      :: subcells
+      REAL(KIND=dp)                                      :: subcells
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist_sub
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_molecules_sub, local_particles_sub
       TYPE(distribution_2d_type), POINTER                :: distribution_2d_sub
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: my_sab_orb_sub
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
@@ -1005,27 +996,42 @@ CONTAINS
          my_do_mixed_basis = do_mixed_basis
       END IF
 
-      my_do_im_time = .FALSE.
+      my_do_im_time = .TRUE.
       IF (PRESENT(do_im_time)) THEN
          my_do_im_time = do_im_time
       END IF
 
-!      do_kpoints = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints .OR. &
-!                             SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
-      do_kpoints = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
+      my_do_kpoints = .FALSE.
+      IF (PRESENT(do_kpoints)) THEN
+         my_do_kpoints = do_kpoints
+      END IF
 
-      IF (do_kpoints) THEN
+      my_dbcsr_sym_type = dbcsr_type_no_symmetry
+      IF (PRESENT(dbcsr_sym_type)) THEN
+         my_dbcsr_sym_type = dbcsr_sym_type
+      END IF
+
+      CALL get_qs_env(qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      molecule_set=molecule_set, &
+                      molecule_kind_set=molecule_kind_set, &
+                      dft_control=dft_control)
+
+      IF (my_do_kpoints) THEN
          ! please choose EPS_PGF_ORB in QS section smaller than EPS_GRID in WFC_GPW section
-         IF (mp2_env%mp2_gpw%eps_grid < dft_control%qs_control%eps_pgf_orb) THEN
-            mp2_env%mp2_gpw%eps_grid = dft_control%qs_control%eps_pgf_orb
+         IF (eps_grid < dft_control%qs_control%eps_pgf_orb) THEN
+            eps_grid = dft_control%qs_control%eps_pgf_orb
             CPWARN("WFC_GPW%EPS_GRID has been set to QS%EPS_PGF_ORB")
          END IF
       END IF
 
       ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
-      dft_control%qs_control%eps_pgf_orb = mp2_env%mp2_gpw%eps_grid
-      dft_control%qs_control%eps_rho_rspace = mp2_env%mp2_gpw%eps_grid
-      dft_control%qs_control%eps_gvg_rspace = mp2_env%mp2_gpw%eps_grid
+      dft_control%qs_control%eps_pgf_orb = eps_grid
+      dft_control%qs_control%eps_rho_rspace = eps_grid
+      dft_control%qs_control%eps_gvg_rspace = eps_grid
       CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
       ! get a distribution_1d
@@ -1051,7 +1057,6 @@ CONTAINS
                                    force_env_section=qs_env%input)
 
       ! Build the sub orbital-orbital overlap neighbor lists
-      NULLIFY (sab_orb_sub)
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
       nkind = SIZE(atomic_kind_set)
       ALLOCATE (atom2d(nkind))
@@ -1076,14 +1081,28 @@ CONTAINS
 
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
-      ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
-      IF (do_kpoints) THEN
-         CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
-                                   mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
-                                   symmetric=.FALSE.)
+      IF (PRESENT(sab_orb_sub)) THEN
+         NULLIFY (sab_orb_sub)
+         ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
+         IF (my_do_kpoints) THEN
+            CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
+                                      symmetric=.FALSE.)
+         ELSE
+            CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
+         END IF
       ELSE
-         CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
-                                   mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
+         NULLIFY (my_sab_orb_sub)
+         ! for cubic RPA/GW with kpoints, we need all neighbors and not only the symmetric ones
+         IF (my_do_kpoints) THEN
+            CALL build_neighbor_lists(my_sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub", &
+                                      symmetric=.FALSE.)
+         ELSE
+            CALL build_neighbor_lists(my_sab_orb_sub, particle_set, atom2d, cell, pair_radius, &
+                                      mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb_sub")
+         END IF
       END IF
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d)
@@ -1126,7 +1145,7 @@ CONTAINS
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
-                           dist=dbcsr_dist_sub, matrix_type=dbcsr_type_no_symmetry, &
+                           dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                            nze=0)
 
@@ -1134,7 +1153,7 @@ CONTAINS
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
-                           dist=dbcsr_dist_sub, matrix_type=dbcsr_type_no_symmetry, &
+                           dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
                            nze=0)
 
@@ -1142,13 +1161,17 @@ CONTAINS
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
-                           dist=dbcsr_dist_sub, matrix_type=dbcsr_type_symmetric, &
+                           dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                            nze=0)
 
          IF (.NOT. my_do_im_time) THEN
 
-            CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, sab_orb_sub)
+            IF (PRESENT(sab_orb_sub)) THEN
+               CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, sab_orb_sub)
+            ELSE
+               CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, my_sab_orb_sub)
+            END IF
 
          END IF
 
@@ -1168,6 +1191,10 @@ CONTAINS
       CALL distribution_1d_release(local_particles_sub)
       CALL distribution_1d_release(local_molecules_sub)
 
+      IF (.NOT. PRESENT(sab_orb_sub)) THEN
+         CALL release_neighbor_list_sets(my_sab_orb_sub)
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE create_mat_munu
@@ -1178,38 +1205,19 @@ CONTAINS
 !> \param qs_env ...
 !> \param mp2_env ...
 !> \param para_env ...
-!> \param dft_control ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param atom2d ...
-!> \param molecule_kind_set ...
-!> \param molecule_set ...
-!> \param particle_set ...
-!> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE create_matrix_P(mat_P_global, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, &
-                              qs_kind_set, atom2d, molecule_kind_set, molecule_set, particle_set, cell)
+   SUBROUTINE create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
 
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_P_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_matrix_P'
 
       INTEGER                                            :: blacs_grid_layout, handle
       LOGICAL                                            :: blacs_repeatable
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb_sub
 
       CALL timeset(routineN, handle)
 
@@ -1220,15 +1228,12 @@ CONTAINS
                                blacs_grid_layout, &
                                blacs_repeatable)
 
-      CALL create_mat_munu(mat_P_global, qs_env, mp2_env, dft_control, &
-                           atomic_kind_set, qs_kind_set, atom2d, molecule_kind_set, &
-                           molecule_set, sab_orb_sub, particle_set, cell, blacs_env_global, &
-                           do_ri_aux_basis=.TRUE.)
+      CALL create_mat_munu(mat_P_global, qs_env, mp2_env%mp2_gpw%eps_grid, &
+                           blacs_env_global, do_ri_aux_basis=.TRUE., do_im_time=.FALSE., &
+                           do_kpoints=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
 
       CALL dbcsr_reserve_all_blocks(mat_P_global%matrix)
       CALL cp_blacs_env_release(blacs_env_global)
-
-      CALL release_neighbor_list_sets(sab_orb_sub)
 
       CALL timestop(handle)
 

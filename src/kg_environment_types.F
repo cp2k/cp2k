@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Types needed for a for a Kim-Gordon-like partitioning into molecular
+!> \brief Types needed for a Kim-Gordon-like partitioning into molecular
 !>        subunits
 !> \par History
 !>       2012.07 created [Martin Haeufel]

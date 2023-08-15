@@ -76,8 +76,7 @@ MODULE mp2_ri_2c
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
-   USE machine,                         ONLY: m_flush,&
-                                              m_walltime
+   USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
                                               mp_para_env_type,&
@@ -112,7 +111,8 @@ MODULE mp2_ri_2c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_2c'
 
-   PUBLIC :: get_2c_integrals, setup_trunc_coulomb_potential_for_exchange_self_energy
+   PUBLIC :: get_2c_integrals, setup_trunc_coulomb_pot_for_exchange_self_energy, RI_2c_integral_mat, &
+             inversion_of_M_and_mult_with_chol_dec_of_V
 
 CONTAINS
 
@@ -230,7 +230,8 @@ CONTAINS
             CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
             CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L_work, dimen_RI, ri_metric, &
-                                    do_kpoints, kpoints, put_mat_KS_env=.TRUE.)
+                                    do_kpoints, kpoints, put_mat_KS_env=.TRUE., &
+                                    regularization_RI=qs_env%mp2_env%ri_rpa_im_time%regularization_RI)
 
             ! re-init the radii to previous values
             dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
@@ -260,17 +261,17 @@ CONTAINS
             CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, kpoints)
 
             CALL inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, dimen_RI, &
-                                                            unit_nr, kpoints, qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
+                                                            kpoints, qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
 
-            CALL setup_trunc_coulomb_potential_for_exchange_self_energy(qs_env, trunc_coulomb)
+            CALL setup_trunc_coulomb_pot_for_exchange_self_energy(qs_env, trunc_coulomb)
 
             ! Gamma-only truncated Coulomb matrix V^tr with cutoff radius = half the unit cell size; for exchange self-energy
             CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv_Vtrunc_Minv, fm_matrix_L_work, dimen_RI, trunc_coulomb, &
-                                    do_kpoints=.FALSE., kpoints=kpoints, put_mat_KS_env=.FALSE.)
+                                    do_kpoints=.FALSE., kpoints=kpoints, put_mat_KS_env=.FALSE., regularization_RI=0.0_dp)
 
             ! Gamma-only RI-metric matrix; for computing Gamma-only/MIC self-energy
             CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv, fm_matrix_L_work, dimen_RI, ri_metric, &
-                                    do_kpoints=.FALSE., kpoints=kpoints, put_mat_KS_env=.FALSE.)
+                                    do_kpoints=.FALSE., kpoints=kpoints, put_mat_KS_env=.FALSE., regularization_RI=0.0_dp)
 
             CALL Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc(fm_matrix_Minv_Vtrunc_Minv, &
                                                                             fm_matrix_Minv, qs_env)
@@ -545,9 +546,10 @@ CONTAINS
 !> \param do_kpoints ...
 !> \param kpoints ...
 !> \param put_mat_KS_env ...
+!> \param regularization_RI ...
 ! **************************************************************************************************
    SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L, dimen_RI, &
-                                 ri_metric, do_kpoints, kpoints, put_mat_KS_env)
+                                 ri_metric, do_kpoints, kpoints, put_mat_KS_env, regularization_RI)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_kpoints
@@ -555,8 +557,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(libint_potential_type)                        :: ri_metric
       LOGICAL, INTENT(IN)                                :: do_kpoints
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      LOGICAL                                            :: put_mat_KS_env
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
+      LOGICAL, OPTIONAL                                  :: put_mat_KS_env
+      REAL(KIND=dp), OPTIONAL                            :: regularization_RI
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat'
 
@@ -565,6 +568,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: my_put_mat_KS_env
+      REAL(KIND=dp)                                      :: my_regularization_RI
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -586,6 +591,18 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (sab_RI, matrix_s_RI_aux_transl, dist_2d)
+
+      IF (PRESENT(regularization_RI)) THEN
+         my_regularization_RI = regularization_RI
+      ELSE
+         my_regularization_RI = 0.0_dp
+      END IF
+
+      IF (PRESENT(put_mat_KS_env)) THEN
+         my_put_mat_KS_env = put_mat_KS_env
+      ELSE
+         my_put_mat_KS_env = .FALSE.
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, &
                       para_env=para_env, &
@@ -628,12 +645,13 @@ CONTAINS
       END DO
 
       CALL build_2c_integrals(mat_2c, 0.0_dp, qs_env, sab_RI, basis_set_RI, basis_set_RI, &
-                              ri_metric, do_kpoints=do_kpoints)
+                              ri_metric, do_kpoints=do_kpoints, kpoints=kpoints, &
+                              regularization_RI=my_regularization_RI)
 
       CALL dbcsr_distribution_release(dbcsr_dist)
       DEALLOCATE (basis_set_RI)
 
-      IF (put_mat_KS_env) THEN
+      IF (my_put_mat_KS_env) THEN
          CALL get_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
          IF (ASSOCIATED(matrix_s_RI_aux_transl)) CALL dbcsr_deallocate_matrix_set(matrix_s_RI_aux_transl)
       END IF
@@ -644,11 +662,12 @@ CONTAINS
          CALL dbcsr_release(mat_2c(img))
       END DO
 
-      IF (put_mat_KS_env) THEN
+      IF (my_put_mat_KS_env) THEN
          CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
       END IF
 
       IF (do_kpoints) THEN
+         CPASSERT(PRESENT(kpoints))
          CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
                               cell_to_index=cell_to_index)
          n_real_imag = 2
@@ -736,7 +755,7 @@ CONTAINS
 
       CALL cp_fm_release(fm_matrix_S_global)
 
-      IF (.NOT. put_mat_KS_env) THEN
+      IF (.NOT. my_put_mat_KS_env) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_s_RI_aux_transl)
       END IF
 
@@ -1436,16 +1455,15 @@ CONTAINS
 !> \param fm_matrix_Minv_L_kpoints ...
 !> \param fm_matrix_L_kpoints ...
 !> \param dimen_RI ...
-!> \param unit_nr ...
 !> \param kpoints ...
 !> \param eps_eigval_S ...
 ! **************************************************************************************************
    SUBROUTINE inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, &
-                                                         dimen_RI, unit_nr, kpoints, eps_eigval_S)
+                                                         dimen_RI, kpoints, eps_eigval_S)
 
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_matrix_Minv_L_kpoints, &
                                                             fm_matrix_L_kpoints
-      INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
+      INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval_S
 
@@ -1454,7 +1472,6 @@ CONTAINS
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, nkp
-      REAL(KIND=dp)                                      :: t1, t2
       TYPE(cp_cfm_type)                                  :: cfm_matrix_K_tmp, cfm_matrix_M_tmp, &
                                                             cfm_matrix_V_tmp, cfm_matrix_Vtrunc_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -1471,8 +1488,6 @@ CONTAINS
       CALL get_kpoint_info(kpoints, nkp=nkp)
 
       DO ikp = 1, nkp
-
-         t1 = m_walltime()
 
          CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_M_tmp, cone, fm_matrix_Minv_L_kpoints(ikp, 1))
          CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_M_tmp, ione, fm_matrix_Minv_L_kpoints(ikp, 2))
@@ -1493,12 +1508,6 @@ CONTAINS
 
          ! move
          CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_Minv_L_kpoints(ikp, 1), fm_matrix_Minv_L_kpoints(ikp, 2))
-
-         t2 = m_walltime()
-
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I4,A,I3, A, F11.1)') &
-            'INTEGRAL_INFO| Integrals for k-point', ikp, ' / ', nkp, &
-            ', execution time (s):', t2 - t1
 
       END DO
 
@@ -1579,18 +1588,19 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param trunc_coulomb ...
+!> \param rel_cutoff_trunc_coulomb_ri_x ...
 ! **************************************************************************************************
-   SUBROUTINE setup_trunc_coulomb_potential_for_exchange_self_energy(qs_env, trunc_coulomb)
+   SUBROUTINE setup_trunc_coulomb_pot_for_exchange_self_energy(qs_env, trunc_coulomb, &
+                                                               rel_cutoff_trunc_coulomb_ri_x)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(libint_potential_type), OPTIONAL              :: trunc_coulomb
+      REAL(KIND=dp), OPTIONAL                            :: rel_cutoff_trunc_coulomb_ri_x
 
-      CHARACTER(LEN=*), PARAMETER :: &
-         routineN = 'setup_trunc_coulomb_potential_for_exchange_self_energy'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_trunc_coulomb_pot_for_exchange_self_energy'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(3)                              :: periodic
-      REAL(KIND=dp)                                      :: rel_cutoff_trunc_coulomb_ri_x, &
-                                                            shortest_dist_cell_planes
+      REAL(KIND=dp) :: my_rel_cutoff_trunc_coulomb_ri_x, shortest_dist_cell_planes
       TYPE(cell_type), POINTER                           :: cell
 
       CALL timeset(routineN, handle)
@@ -1617,11 +1627,15 @@ CONTAINS
          END IF
       END IF
 
-      rel_cutoff_trunc_coulomb_ri_x = qs_env%mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x
+      IF (PRESENT(rel_cutoff_trunc_coulomb_ri_x)) THEN
+         my_rel_cutoff_trunc_coulomb_ri_x = rel_cutoff_trunc_coulomb_ri_x
+      ELSE
+         my_rel_cutoff_trunc_coulomb_ri_x = qs_env%mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x
+      END IF
 
       IF (PRESENT(trunc_coulomb)) THEN
          trunc_coulomb%potential_type = do_potential_truncated
-         trunc_coulomb%cutoff_radius = shortest_dist_cell_planes*rel_cutoff_trunc_coulomb_ri_x
+         trunc_coulomb%cutoff_radius = shortest_dist_cell_planes*my_rel_cutoff_trunc_coulomb_ri_x
          trunc_coulomb%filename = "t_c_g.dat"
          ! dummy
          trunc_coulomb%omega = 0.0_dp
@@ -1629,7 +1643,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE setup_trunc_coulomb_potential_for_exchange_self_energy
+   END SUBROUTINE setup_trunc_coulomb_pot_for_exchange_self_energy
 
 ! **************************************************************************************************
 !> \brief ...
