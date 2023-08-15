@@ -151,7 +151,7 @@ MODULE realspace_grid_types
 
       INTEGER, DIMENSION(:), ALLOCATABLE         :: px, py, pz ! index translators
       TYPE(offload_buffer_type)                  :: buffer = offload_buffer_type() ! owner of the grid's memory
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
 
    END TYPE realspace_grid_type
 
