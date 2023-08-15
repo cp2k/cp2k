@@ -74,11 +74,10 @@ MODULE qs_cdft_methods
                                               qs_subsys_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
-                                              rs2pw,&
                                               rs_grid_create,&
                                               rs_grid_release,&
                                               rs_grid_zero,&
-                                              rs_pw_transfer
+                                              transfer_rs2pw
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -886,10 +885,10 @@ CONTAINS
          DEALLOCATE (pab)
 
          IF (igroup == 1) THEN
-            CALL rs_pw_transfer(rs_rho_all, cdft_control%group(igroup)%hw_rho_total, rs2pw)
+            CALL transfer_rs2pw(rs_rho_all, cdft_control%group(igroup)%hw_rho_total)
          END IF
 
-         CALL rs_pw_transfer(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint, rs2pw)
+         CALL transfer_rs2pw(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint)
          CALL rs_grid_release(rs_rho_constr)
 
          ! Calculate weight function
@@ -901,7 +900,7 @@ CONTAINS
          ! Calculate charges
          IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
-               CALL rs_pw_transfer(rs_single_charge(i), cdft_control%group(igroup)%hw_rho_atomic_charge(i), rs2pw)
+               CALL transfer_rs2pw(rs_single_charge(i), cdft_control%group(igroup)%hw_rho_atomic_charge(i))
                CALL hfun_scale(cdft_control%charge(i)%cr3d, &
                                cdft_control%group(igroup)%hw_rho_atomic_charge(i)%cr3d, &
                                cdft_control%group(igroup)%hw_rho_total%cr3d, divide=.TRUE., &
@@ -912,7 +911,7 @@ CONTAINS
          ! Print atomic densities if requested
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
-               CALL rs_pw_transfer(rs_single(i), cdft_control%group(igroup)%hw_rho_atomic(i), rs2pw)
+               CALL transfer_rs2pw(rs_single(i), cdft_control%group(igroup)%hw_rho_atomic(i))
             END DO
             CALL cdft_print_hirshfeld_density(qs_env)
          END IF
@@ -1051,7 +1050,7 @@ CONTAINS
                   END DO
 
                   DO iatom = num_species_small(k), num_species_small(k + 1)
-                     CALL rs_pw_transfer(rs_single_dr(iatom), pw_single_dr(iatom), rs2pw)
+                     CALL transfer_rs2pw(rs_single_dr(iatom), pw_single_dr(iatom))
                      CALL rs_grid_release(rs_single_dr(iatom))
                   END DO
 

@@ -34,11 +34,10 @@ MODULE rs_pw_interface
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE realspace_grid_types,            ONLY: pw2rs,&
-                                              realspace_grid_desc_p_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type,&
-                                              rs2pw,&
-                                              rs_pw_transfer
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -98,15 +97,15 @@ CONTAINS
                                in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
-         CALL rs_pw_transfer(rs_rho(1), rho, rs2pw)
+         CALL transfer_rs2pw(rs_rho(1), rho)
          CALL pw_transfer(rho, rho_gspace)
          IF (rho%pw_grid%spherical) THEN ! rho_gspace = rho
             CALL pw_transfer(rho_gspace, rho)
          END IF
       ELSE
          DO igrid_level = 1, gridlevel_info%ngrid_levels
-            CALL rs_pw_transfer(rs_rho(igrid_level), &
-                                mgrid_rspace(igrid_level), rs2pw)
+            CALL transfer_rs2pw(rs_rho(igrid_level), &
+                                mgrid_rspace(igrid_level))
          END DO
 
          ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
@@ -226,8 +225,8 @@ CONTAINS
       END SELECT
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_pw_transfer(rs_v(igrid_level), &
-                             mgrid_rspace(igrid_level), pw2rs)
+         CALL transfer_pw2rs(rs_v(igrid_level), &
+                             mgrid_rspace(igrid_level))
       END DO
       ! *** give back the pw multi-grids
       CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)

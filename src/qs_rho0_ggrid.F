@@ -59,8 +59,8 @@ MODULE qs_rho0_ggrid
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE realspace_grid_types,            ONLY: &
-        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_type, rs2pw, &
-        rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
+        realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_type, &
+        rs_grid_create, rs_grid_release, rs_grid_zero, transfer_pw2rs, transfer_rs2pw
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -225,7 +225,7 @@ CONTAINS
       DEALLOCATE (pab)
 
       IF (igrid /= auxbas_grid) THEN
-         CALL rs_pw_transfer(rs_grid, coeff_rspace, rs2pw)
+         CALL transfer_rs2pw(rs_grid, coeff_rspace)
          CALL pw_zero(rho0_s_gs)
          CALL pw_transfer(coeff_rspace, coeff_gspace)
          CALL pw_axpy(coeff_gspace, rho0_s_gs)
@@ -239,7 +239,7 @@ CONTAINS
          CALL pw_pool_create_pw(pw_pool, rho0_r_tmp, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
 
-         CALL rs_pw_transfer(rs_grid, rho0_r_tmp, rs2pw)
+         CALL transfer_rs2pw(rs_grid, rho0_r_tmp)
 
          tot_rs_int = pw_integrate_function(rho0_r_tmp, isign=-1)
 
@@ -467,7 +467,7 @@ CONTAINS
       ! Setup the rs grid at level igrid
       CALL rs_grid_create(rs_v, rs_desc)
       CALL rs_grid_zero(rs_v)
-      CALL rs_pw_transfer(rs_v, coeff_rspace, pw2rs)
+      CALL transfer_pw2rs(rs_v, coeff_rspace)
 
       CALL pw_pool_give_back_pw(pw_pool, coeff_rspace)
 

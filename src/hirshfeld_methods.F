@@ -58,12 +58,11 @@ MODULE hirshfeld_methods
                                               qs_kind_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE realspace_grid_types,            ONLY: pw2rs,&
-                                              realspace_grid_desc_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
-                                              rs2pw,&
                                               rs_grid_zero,&
-                                              rs_pw_transfer
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -529,7 +528,7 @@ CONTAINS
       fnorm%in_space = REALSPACE
       CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
 
-      CALL rs_pw_transfer(rs_rho, fnorm, rs2pw)
+      CALL transfer_rs2pw(rs_rho, fnorm)
 
       CALL timestop(handle)
 
@@ -582,7 +581,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
-      CALL rs_pw_transfer(rs_v, rfun, pw2rs)
+      CALL transfer_pw2rs(rs_v, rfun)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                       dft_control=dft_control, particle_set=particle_set)

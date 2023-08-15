@@ -64,10 +64,9 @@ MODULE qmmm_image_charge
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_pgf_product
-   USE realspace_grid_types,            ONLY: pw2rs,&
-                                              realspace_grid_desc_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
-                                              rs_pw_transfer
+                                              transfer_pw2rs
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -368,7 +367,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
-      CALL rs_pw_transfer(rs_v, potential, pw2rs)
+      CALL transfer_pw2rs(rs_v, potential)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -488,7 +487,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
-      CALL rs_pw_transfer(rs_v, potential, pw2rs)
+      CALL transfer_pw2rs(rs_v, potential)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
