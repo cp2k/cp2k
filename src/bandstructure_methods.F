@@ -7,6 +7,7 @@
 
 MODULE bandstructure_methods
    USE gw_methods,                      ONLY: gw
+   USE gw_types,                        ONLY: gw_env_create
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -48,6 +49,7 @@ CONTAINS
       gw_input_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BANDSTRUCTURE%GW")
       CALL section_vals_get(gw_input_section, explicit=do_gw)
       IF (do_gw) THEN
+         CALL gw_env_create(qs_env%gw_env)
          CALL gw(qs_env, qs_env%gw_env, gw_input_section)
       END IF
 

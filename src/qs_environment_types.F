@@ -292,7 +292,7 @@ MODULE qs_environment_types
       ! a history for the broyden ot
       REAL(KIND=dp)                                         :: broyden_adaptive_sigma
       TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
-      TYPE(gw_type), POINTER                                :: gw_env
+      TYPE(gw_type), POINTER                                :: gw_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
       TYPE(molecular_scf_guess_env_type), POINTER           :: molecular_scf_guess_env => NULL()

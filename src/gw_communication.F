@@ -26,17 +26,17 @@ MODULE gw_communication
 
    PRIVATE
 
+   TYPE buffer_type
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: msg => NULL()
+      INTEGER, DIMENSION(:), POINTER  :: sizes => NULL()
+      INTEGER, DIMENSION(:, :), POINTER  :: indx => NULL()
+      INTEGER :: proc = -1
+      INTEGER :: msg_req = -1
+   END TYPE
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_communication'
 
    PUBLIC :: global_matrix_to_local_matrix, local_matrix_to_global_matrix
-
-   TYPE buffer_type
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: msg
-      INTEGER, DIMENSION(:), POINTER  :: sizes
-      INTEGER, DIMENSION(:, :), POINTER  :: indx
-      INTEGER :: proc
-      INTEGER :: msg_req
-   END TYPE
 
 CONTAINS
 
