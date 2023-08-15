@@ -1222,8 +1222,8 @@ CONTAINS
       ! after the gather we are in g-space
       pw%in_space = RECIPROCALSPACE
 
-      ASSOCIATE(mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
 
          IF (PRESENT(scale)) THEN
 
@@ -1285,8 +1285,8 @@ CONTAINS
       ! after the gather we are in g-space
       pw%in_space = RECIPROCALSPACE
 
-      ASSOCIATE(mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
 
          IF (PRESENT(scale)) THEN
 !$OMP       PARALLEL DO DEFAULT(NONE), &
@@ -1354,8 +1354,8 @@ CONTAINS
          CPABORT("Data has to be in RECIPROCALSPACE")
       END IF
 
-      ASSOCIATE(mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
 
          ! should only zero the unused bits (but the zero is needed)
          IF (.NOT. PRESENT(scale)) c = 0.0_dp
@@ -1390,8 +1390,8 @@ CONTAINS
 
       IF (pw%pw_grid%grid_span == HALFSPACE) THEN
 
-         ASSOCIATE(mapl => pw%pw_grid%mapl%neg, mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, &
-                   ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
+         ASSOCIATE (mapl => pw%pw_grid%mapl%neg, mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, &
+                    ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
 
             IF (PRESENT(scale)) THEN
 
@@ -1457,8 +1457,8 @@ CONTAINS
          CPABORT("This grid type is not distributed")
       END IF
 
-      ASSOCIATE(mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
 
          IF (.NOT. PRESENT(scale)) CALL zero_c(c)
 
@@ -1496,8 +1496,8 @@ CONTAINS
 
       IF (pw%pw_grid%grid_span == HALFSPACE) THEN
 
-         ASSOCIATE(mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, mapl => pw%pw_grid%mapl%neg, &
-                   ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq), yzq => pw%pw_grid%para%yzq)
+         ASSOCIATE (mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, mapl => pw%pw_grid%mapl%neg, &
+                    ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq), yzq => pw%pw_grid%para%yzq)
 
             IF (PRESENT(scale)) THEN
 !$OMP          PARALLEL DO DEFAULT(NONE), &

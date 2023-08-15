@@ -58,9 +58,14 @@ MODULE qs_rho0_ggrid
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
                                               rho_atom_type
-   USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_type, &
-        rs_grid_create, rs_grid_release, rs_grid_zero, transfer_pw2rs, transfer_rs2pw
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                              realspace_grid_desc_type,&
+                                              realspace_grid_type,&
+                                              rs_grid_create,&
+                                              rs_grid_release,&
+                                              rs_grid_zero,&
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"

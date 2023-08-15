@@ -205,7 +205,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_create_descriptor(desc, pw_grid, input_settings, border_points)
       TYPE(realspace_grid_desc_type), POINTER            :: desc
-      TYPE(pw_grid_type), TARGET, INTENT(INOUT)          :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT), TARGET          :: pw_grid
       TYPE(realspace_grid_input_type), INTENT(IN)        :: input_settings
       INTEGER, INTENT(IN), OPTIONAL                      :: border_points
 
@@ -484,7 +484,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_create(rs, desc)
       TYPE(realspace_grid_type), INTENT(OUT)             :: rs
-      TYPE(realspace_grid_desc_type), TARGET, INTENT(INOUT) :: desc
+      TYPE(realspace_grid_desc_type), INTENT(INOUT), &
+         TARGET                                          :: desc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rs_grid_create'
 
@@ -698,7 +699,7 @@ CONTAINS
                DO i = rs%lb_real(3), rs%ub_real(3)
                   pw%cc3d(:, :, i) = CMPLX(rs%r(rs%lb_real(1):rs%ub_real(1), &
                                                 rs%lb_real(2):rs%ub_real(2), i), &
-                                              0.0_dp, KIND=dp)
+                                           0.0_dp, KIND=dp)
                END DO
 !$OMP          END PARALLEL DO
             END IF
@@ -832,18 +833,18 @@ CONTAINS
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
       TYPE(pw_type), INTENT(IN)                          :: pw
 
-      INTEGER                                            :: dest, ii, ip, ix, iy, iz, &
-                                                            nma, nn, s(3), source
+      INTEGER                                            :: dest, ii, ip, ix, iy, iz, nma, nn, s(3), &
+                                                            source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: recvbuf, sendbuf, swaparray
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recvbuf, sendbuf, swaparray
 
-      ASSOCIATE(np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
-                pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
-                grid => rs%r)
+      ASSOCIATE (np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
+                 pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
+                 grid => rs%r)
          ALLOCATE (rcount(0:np - 1))
          DO ip = 1, np
-               rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
+            rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
          END DO
          nma = MAXVAL(rcount(0:np - 1))
          ALLOCATE (sendbuf(nma), recvbuf(nma))
@@ -911,12 +912,12 @@ CONTAINS
                                                             k, km, nma, nn, source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: recvbuf, sendbuf, swaparray
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recvbuf, sendbuf, swaparray
       TYPE(mp_request_type), DIMENSION(2)                :: req
 
-      ASSOCIATE(np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
-                pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
-                grid => rs%r)
+      ASSOCIATE (np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
+                 pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
+                 grid => rs%r)
          ALLOCATE (rcount(0:np - 1))
          DO ip = 1, np
             rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
@@ -1013,7 +1014,6 @@ CONTAINS
 !>       distributed (3D domain decomposition)
 !> \param rs ...
 !> \param pw ...
-!> \param dir ...
 !> \par History
 !>      12.2007 created [Matt Watkins]
 !>      9.2008 reduced amount of halo data sent [Iain Bethune]
@@ -1046,7 +1046,7 @@ CONTAINS
          lb_send_up, ub_recv, ub_recv_down, ub_recv_up, ub_send, ub_send_down, ub_send_up
       LOGICAL, DIMENSION(3)                              :: halo_swapped
       REAL(KIND=dp)                                      :: pw_sum, rs_sum
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: recv_buf_3d_down, recv_buf_3d_up, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: recv_buf_3d_down, recv_buf_3d_up, &
                                                             send_buf_3d_down, send_buf_3d_up
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: recv_bufs, send_bufs
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_reqs, send_reqs
@@ -1501,7 +1501,6 @@ CONTAINS
 !>       distributed (3D domain decomposition)
 !> \param rs ...
 !> \param pw ...
-!> \param dir ...
 !> \par History
 !>      12.2007 created [Matt Watkins]
 !>      9.2008 reduced amount of halo data sent [Iain Bethune]
@@ -1532,7 +1531,7 @@ CONTAINS
       INTEGER, DIMENSION(3) :: coords, lb_recv, lb_recv_down, lb_recv_up, lb_send, lb_send_down, &
          lb_send_up, ub_recv, ub_recv_down, ub_recv_up, ub_send, ub_send_down, ub_send_up
       LOGICAL, DIMENSION(3)                              :: halo_swapped
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: recv_buf_3d_down, recv_buf_3d_up, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: recv_buf_3d_down, recv_buf_3d_up, &
                                                             send_buf_3d_down, send_buf_3d_up
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: recv_bufs, send_bufs
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_reqs, send_reqs

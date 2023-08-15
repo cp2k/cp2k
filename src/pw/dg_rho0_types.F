@@ -227,7 +227,7 @@ CONTAINS
       rho0 => dg_rho0%cr3d
 
       DO gpt = 1, pw_grid%ngpts_cut_local
-         ASSOCIATE(ghat => pw_grid%g_hat(:, gpt))
+         ASSOCIATE (ghat => pw_grid%g_hat(:, gpt))
 
             lp = pw_grid%mapl%pos(ghat(1))
             ln = pw_grid%mapl%neg(ghat(1))

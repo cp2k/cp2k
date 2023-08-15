@@ -49,9 +49,14 @@ MODULE spme
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_type, realspace_grid_type, rs_grid_create, &
-        rs_grid_release, rs_grid_set_box, rs_grid_zero, transfer_pw2rs, transfer_rs2pw
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
+                                              realspace_grid_type,&
+                                              rs_grid_create,&
+                                              rs_grid_release,&
+                                              rs_grid_set_box,&
+                                              rs_grid_zero,&
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
    USE shell_potential_types,           ONLY: shell_kind_type
 #include "./base/base_uses.f90"
 

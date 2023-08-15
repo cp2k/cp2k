@@ -542,7 +542,7 @@ CONTAINS
 
       ! check if charge function is consistent with current box volume
 
-      ASSOCIATE(grid => gf%influence_fn%pw_grid, bm2 => gf%p3m_bm2)
+      ASSOCIATE (grid => gf%influence_fn%pw_grid, bm2 => gf%p3m_bm2)
          arg = 1.0_dp/(8.0_dp*gf%p3m_alpha**2)
          novol = REAL(grid%ngpts, KIND=dp)/grid%vol
          DO ig = 1, grid%ngpts_cut_local
@@ -550,7 +550,7 @@ CONTAINS
             m = grid%g_hat(2, ig)
             n = grid%g_hat(3, ig)
             gf%p3m_charge%cr(ig) = novol*EXP(-arg*grid%gsq(ig))* &
-                        bm2(1, l)*bm2(2, m)*bm2(3, n)
+                                   bm2(1, l)*bm2(2, m)*bm2(3, n)
          END DO
       END ASSOCIATE
 

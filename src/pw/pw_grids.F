@@ -419,10 +419,10 @@ CONTAINS
 
       ! mapping of map_x( g_hat(i,j)) to g_hatmap
       ! the second index is for switching from gather(1) to scatter(2)
-      ASSOCIATE(g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%mapl%pos, &
-                pmapm => pw_grid%mapm%pos, pmapn => pw_grid%mapn%pos, nmapl => pw_grid%mapl%neg, &
-                nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts = SIZE(pw_grid%gsq), &
-                npts => pw_grid%npts, yzq => pw_grid%para%yzq)
+      ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%mapl%pos, &
+                 pmapm => pw_grid%mapm%pos, pmapn => pw_grid%mapn%pos, nmapl => pw_grid%mapl%neg, &
+                 nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts => SIZE(pw_grid%gsq), &
+                 npts => pw_grid%npts, yzq => pw_grid%para%yzq)
          ! initialize map array to minus one, to guarantee memory
          ! range checking errors in CUDA part (just to be sure)
          g_hatmap(:, :) = -1
@@ -1351,7 +1351,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: gpt
       REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
 
-      ASSOCIATE(bounds => pw_grid%bounds)
+      ASSOCIATE (bounds => pw_grid%bounds)
 
          IF (pw_grid%grid_span == HALFSPACE) THEN
             n_upperlimit = 0
@@ -2010,8 +2010,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ASSOCIATE(ny => pw_grid%npts(2), nz => pw_grid%npts(3), posm => pw_grid%mapm%pos, posn => pw_grid%mapn%pos, &
-                negm => pw_grid%mapm%neg, negn => pw_grid%mapn%neg)
+      ASSOCIATE (ny => pw_grid%npts(2), nz => pw_grid%npts(3), posm => pw_grid%mapm%pos, posn => pw_grid%mapn%pos, &
+                 negm => pw_grid%mapm%neg, negn => pw_grid%mapn%neg)
 
          yz = 0
          pw_grid%para%yzp = 0
@@ -2114,7 +2114,7 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE pw_grid_retain(pw_grid)
-      TYPE(pw_grid_type), INTENT(INOUT)         :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
       CPASSERT(pw_grid%ref_count > 0)
       pw_grid%ref_count = pw_grid%ref_count + 1

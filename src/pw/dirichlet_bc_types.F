@@ -155,8 +155,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbc_release(contacts, do_dbc_cube, pw_pool)
 
-      TYPE(dirichlet_bc_p_type), DIMENSION(:), &
-         INTENT(INOUT), ALLOCATABLE                      :: contacts
+      TYPE(dirichlet_bc_p_type), ALLOCATABLE, &
+         DIMENSION(:), INTENT(INOUT)                     :: contacts
       LOGICAL, INTENT(IN)                                :: do_dbc_cube
       TYPE(pw_pool_type), INTENT(IN), OPTIONAL, POINTER  :: pw_pool
 

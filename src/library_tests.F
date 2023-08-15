@@ -97,9 +97,9 @@ MODULE library_tests
                                               pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, &
-        rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
-        rs_grid_release_descriptor, rs_grid_zero, transfer_pw2rs, transfer_rs2pw
+        realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
+        rs_grid_create_descriptor, rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
+        rs_grid_zero, transfer_pw2rs, transfer_rs2pw
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
 #include "./base/base_uses.f90"
 
@@ -708,8 +708,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test'
 
-      INTEGER                                            :: halo_size, handle, i_loop, n_loop, &
-                                                            ns_max
+      INTEGER                                            :: halo_size, handle, i_loop, n_loop, ns_max
       INTEGER, DIMENSION(3)                              :: no, np
       INTEGER, DIMENSION(:), POINTER                     :: i_vals
       LOGICAL                                            :: do_rs2pw

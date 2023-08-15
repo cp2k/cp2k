@@ -51,9 +51,14 @@ MODULE ewald_methods_tb
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_type, realspace_grid_type, rs_grid_create, &
-        rs_grid_release, rs_grid_set_box, rs_grid_zero, transfer_pw2rs, transfer_rs2pw
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
+                                              realspace_grid_type,&
+                                              rs_grid_create,&
+                                              rs_grid_release,&
+                                              rs_grid_set_box,&
+                                              rs_grid_zero,&
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
    USE spme,                            ONLY: get_patch
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type

@@ -118,7 +118,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: pw_mode
 
       INTEGER                                            :: pw_mode_loc
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: pos_of_x
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_of_x
 
       CPASSERT(pw_grid_in%ngpts_cut > 0)
       CPASSERT(.NOT. ASSOCIATED(pw_grid_out))
