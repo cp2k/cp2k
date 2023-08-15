@@ -156,9 +156,6 @@ CONTAINS
       pw_grid_out%vol = pw_grid_in%vol*REAL(pw_grid_out%ngpts, dp) &
                         /REAL(pw_grid_in%ngpts, dp) !FM do not modify?
       pw_grid_out%cutoff = pw_grid_in%cutoff
-      NULLIFY (pw_grid_out%mapl%pos, pw_grid_out%mapl%neg, &
-               pw_grid_out%mapm%pos, pw_grid_out%mapm%neg, &
-               pw_grid_out%mapn%pos, pw_grid_out%mapn%neg)
 
       !para
       pw_grid_out%para%group_size = pw_grid_out%para%group%num_pe

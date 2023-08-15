@@ -31,7 +31,7 @@ MODULE pw_grid_types
    ! maps to positive and negative g-vectors
 ! **************************************************************************************************
    TYPE map_pn
-      INTEGER, DIMENSION(:), POINTER :: pos => NULL(), neg => NULL()
+      INTEGER, DIMENSION(:), ALLOCATABLE :: pos, neg
    END TYPE map_pn
 
 ! info on parallelisation
