@@ -39,8 +39,7 @@ MODULE gw_types
 
    PUBLIC :: gw_type
 
-   PUBLIC :: gw_env_create, &
-             gw_env_release
+   PUBLIC :: gw_env_release
 
    TYPE gw_type
 
@@ -277,26 +276,5 @@ CONTAINS
       IF (ASSOCIATED(t%matrix_rep)) CALL dbt_destroy(t)
 
    END SUBROUTINE safe_dbt_destroy
-
-! **************************************************************************************************
-!> \brief ...
-!> \param gw_env ...
-! **************************************************************************************************
-   SUBROUTINE gw_env_create(gw_env)
-      TYPE(gw_type), POINTER                             :: gw_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gw_env_create'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(gw_env))
-
-      ALLOCATE (gw_env)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE gw_env_create
 
 END MODULE gw_types
