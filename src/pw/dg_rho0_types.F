@@ -194,7 +194,6 @@ CONTAINS
       INTEGER, PARAMETER                                 :: IMPOSSIBLE = 10000
 
       INTEGER                                            :: gpt, l0, ln, lp, m0, mn, mp, n0, nn, np
-      INTEGER, DIMENSION(:), POINTER                     :: ghat
       INTEGER, DIMENSION(:, :), POINTER                  :: bds
       REAL(KIND=dp)                                      :: const, e_gsq
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho0
@@ -228,32 +227,32 @@ CONTAINS
       rho0 => dg_rho0%cr3d
 
       DO gpt = 1, pw_grid%ngpts_cut_local
-         ghat => pw_grid%g_hat(:, gpt)
+         ASSOCIATE (ghat => pw_grid%g_hat(:, gpt))
 
-         lp = pw_grid%mapl%pos(ghat(1))
-         ln = pw_grid%mapl%neg(ghat(1))
-         mp = pw_grid%mapm%pos(ghat(2))
-         mn = pw_grid%mapm%neg(ghat(2))
-         np = pw_grid%mapn%pos(ghat(3))
-         nn = pw_grid%mapn%neg(ghat(3))
+            lp = pw_grid%mapl%pos(ghat(1))
+            ln = pw_grid%mapl%neg(ghat(1))
+            mp = pw_grid%mapm%pos(ghat(2))
+            mn = pw_grid%mapm%neg(ghat(2))
+            np = pw_grid%mapn%pos(ghat(3))
+            nn = pw_grid%mapn%neg(ghat(3))
 
-         e_gsq = EXP(-const*pw_grid%gsq(gpt))/pw_grid%vol
+            e_gsq = EXP(-const*pw_grid%gsq(gpt))/pw_grid%vol
 
-         !*apsi
-         lp = lp + bds(1, 1)
-         mp = mp + bds(1, 2)
-         np = np + bds(1, 3)
-         ln = ln + bds(1, 1)
-         mn = mn + bds(1, 2)
-         nn = nn + bds(1, 3)
+            lp = lp + bds(1, 1)
+            mp = mp + bds(1, 2)
+            np = np + bds(1, 3)
+            ln = ln + bds(1, 1)
+            mn = mn + bds(1, 2)
+            nn = nn + bds(1, 3)
 
-         rho0(lp, mp, np) = e_gsq
-         rho0(ln, mn, nn) = e_gsq
+            rho0(lp, mp, np) = e_gsq
+            rho0(ln, mn, nn) = e_gsq
 
-         IF (ghat(1) == l0 .OR. ghat(2) == m0 .OR. ghat(3) == n0) THEN
-            rho0(lp, mp, np) = 0.0_dp
-            rho0(ln, mn, nn) = 0.0_dp
-         END IF
+            IF (ghat(1) == l0 .OR. ghat(2) == m0 .OR. ghat(3) == n0) THEN
+               rho0(lp, mp, np) = 0.0_dp
+               rho0(ln, mn, nn) = 0.0_dp
+            END IF
+         END ASSOCIATE
 
       END DO
 

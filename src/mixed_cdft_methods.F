@@ -112,9 +112,8 @@ MODULE mixed_cdft_methods
                                               mo_set_type,&
                                               set_mo_set
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                              rs2pw,&
                                               rs_grid_zero,&
-                                              rs_pw_transfer
+                                              transfer_rs2pw
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -2587,7 +2586,7 @@ CONTAINS
          DEALLOCATE (pab)
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%becke_control%cavity, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL rs_pw_transfer(rs_cavity, cdft_control%becke_control%cavity, rs2pw)
+         CALL transfer_rs2pw(rs_cavity, cdft_control%becke_control%cavity)
          CALL hfun_zero(cdft_control%becke_control%cavity%cr3d, &
                         cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)

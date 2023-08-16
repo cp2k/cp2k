@@ -111,21 +111,9 @@ CONTAINS
       pw_grid%ref_count = 1
       NULLIFY (pw_grid%g)
       NULLIFY (pw_grid%gsq)
-      NULLIFY (pw_grid%g_hat)
       NULLIFY (pw_grid%g_hatmap)
       NULLIFY (pw_grid%gidx)
       NULLIFY (pw_grid%grays)
-      NULLIFY (pw_grid%mapl%pos)
-      NULLIFY (pw_grid%mapl%neg)
-      NULLIFY (pw_grid%mapm%pos)
-      NULLIFY (pw_grid%mapm%neg)
-      NULLIFY (pw_grid%mapn%pos)
-      NULLIFY (pw_grid%mapn%neg)
-      NULLIFY (pw_grid%para%yzp)
-      NULLIFY (pw_grid%para%yzq)
-      NULLIFY (pw_grid%para%nyzray)
-      NULLIFY (pw_grid%para%bo)
-      NULLIFY (pw_grid%para%pos_of_x)
 
       ! assign a unique tag to this grid
       grid_tag = grid_tag + 1
@@ -194,7 +182,7 @@ CONTAINS
    SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, vol, dvol, npts, ngpts, &
                                ngpts_cut, dr, cutoff, orthorhombic, gvectors, gsquare)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, mode
       REAL(dp), INTENT(OUT), OPTIONAL                    :: vol, dvol
       INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: npts
@@ -236,7 +224,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, INTENT(in), OPTIONAL                      :: grid_span
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: npts
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds
@@ -297,7 +285,7 @@ CONTAINS
                             rs_dims, iounit)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, INTENT(in), OPTIONAL                      :: grid_span
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds, bounds_local
@@ -411,86 +399,75 @@ CONTAINS
    END SUBROUTINE pw_grid_setup
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief sets up a combined index for CUDA gather and scatter
 !> \param pw_grid ...
 !> \author Gloess Andreas (xx-Dec-2012)
 ! **************************************************************************************************
    SUBROUTINE pw_grid_create_ghatmap(pw_grid)
 
-      TYPE(pw_grid_type), INTENT(INOUT), POINTER         :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap'
 
-      INTEGER                                            :: gpt, handle, l, m, mn, n, ngpts
-      INTEGER, DIMENSION(:), POINTER                     :: nmapl, nmapm, nmapn, npts, pmapl, pmapm, &
-                                                            pmapn
-      INTEGER, DIMENSION(:, :), POINTER                  :: g_hat, g_hatmap, yzq
+      INTEGER                                            :: gpt, handle, l, m, mn, n
 
       CALL timeset(routineN, handle)
 
       ! some checks
-      CPASSERT(ASSOCIATED(pw_grid))
       CPASSERT(pw_grid%ref_count > 0)
 
       ! mapping of map_x( g_hat(i,j)) to g_hatmap
       ! the second index is for switching from gather(1) to scatter(2)
-      g_hat => pw_grid%g_hat
-      g_hatmap => pw_grid%g_hatmap
-      pmapl => pw_grid%mapl%pos
-      pmapm => pw_grid%mapm%pos
-      pmapn => pw_grid%mapn%pos
-      nmapl => pw_grid%mapl%neg
-      nmapm => pw_grid%mapm%neg
-      nmapn => pw_grid%mapn%neg
-
-      ngpts = SIZE(pw_grid%gsq)
-      npts => pw_grid%npts
-      ! initialize map array to minus one, to guarantee memory
-      ! range checking errors in CUDA part (just to be sure)
-      g_hatmap(:, :) = -1
-      IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
-         DO gpt = 1, ngpts
-            l = pmapl(g_hat(1, gpt))
-            m = pmapm(g_hat(2, gpt))
-            n = pmapn(g_hat(3, gpt))
-            !ATTENTION: C-mapping [start-index=0] !!!!
-            !ATTENTION: potential integer overflow !!!!
-            g_hatmap(gpt, 1) = l + npts(1)*(m + npts(2)*n)
-         END DO
-         IF (pw_grid%grid_span == HALFSPACE) THEN
+      ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%mapl%pos, &
+                 pmapm => pw_grid%mapm%pos, pmapn => pw_grid%mapn%pos, nmapl => pw_grid%mapl%neg, &
+                 nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts => SIZE(pw_grid%gsq), &
+                 npts => pw_grid%npts, yzq => pw_grid%para%yzq)
+         ! initialize map array to minus one, to guarantee memory
+         ! range checking errors in CUDA part (just to be sure)
+         g_hatmap(:, :) = -1
+         IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
             DO gpt = 1, ngpts
-               l = nmapl(g_hat(1, gpt))
-               m = nmapm(g_hat(2, gpt))
-               n = nmapn(g_hat(3, gpt))
+               l = pmapl(g_hat(1, gpt))
+               m = pmapm(g_hat(2, gpt))
+               n = pmapn(g_hat(3, gpt))
                !ATTENTION: C-mapping [start-index=0] !!!!
                !ATTENTION: potential integer overflow !!!!
-               g_hatmap(gpt, 2) = l + npts(1)*(m + npts(2)*n)
+               g_hatmap(gpt, 1) = l + npts(1)*(m + npts(2)*n)
             END DO
-         END IF
-      ELSE
-         yzq => pw_grid%para%yzq
-         DO gpt = 1, ngpts
-            l = pmapl(g_hat(1, gpt))
-            m = pmapm(g_hat(2, gpt)) + 1
-            n = pmapn(g_hat(3, gpt)) + 1
-            !ATTENTION: C-mapping [start-index=0] !!!!
-            !ATTENTION: potential integer overflow !!!!
-            mn = yzq(m, n) - 1
-            g_hatmap(gpt, 1) = l + npts(1)*mn
-         END DO
-         IF (pw_grid%grid_span == HALFSPACE) THEN
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               DO gpt = 1, ngpts
+                  l = nmapl(g_hat(1, gpt))
+                  m = nmapm(g_hat(2, gpt))
+                  n = nmapn(g_hat(3, gpt))
+                  !ATTENTION: C-mapping [start-index=0] !!!!
+                  !ATTENTION: potential integer overflow !!!!
+                  g_hatmap(gpt, 2) = l + npts(1)*(m + npts(2)*n)
+               END DO
+            END IF
+         ELSE
             DO gpt = 1, ngpts
-               l = nmapl(g_hat(1, gpt))
-               m = nmapm(g_hat(2, gpt)) + 1
-               n = nmapn(g_hat(3, gpt)) + 1
+               l = pmapl(g_hat(1, gpt))
+               m = pmapm(g_hat(2, gpt)) + 1
+               n = pmapn(g_hat(3, gpt)) + 1
                !ATTENTION: C-mapping [start-index=0] !!!!
                !ATTENTION: potential integer overflow !!!!
                mn = yzq(m, n) - 1
-               g_hatmap(gpt, 2) = l + npts(1)*mn
+               g_hatmap(gpt, 1) = l + npts(1)*mn
             END DO
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               DO gpt = 1, ngpts
+                  l = nmapl(g_hat(1, gpt))
+                  m = nmapm(g_hat(2, gpt)) + 1
+                  n = nmapn(g_hat(3, gpt)) + 1
+                  !ATTENTION: C-mapping [start-index=0] !!!!
+                  !ATTENTION: potential integer overflow !!!!
+                  mn = yzq(m, n) - 1
+                  g_hatmap(gpt, 2) = l + npts(1)*mn
+               END DO
+            END IF
          END IF
-      END IF
+      END ASSOCIATE
 
       CALL timestop(handle)
 
@@ -527,7 +504,7 @@ CONTAINS
                                      blocked, ref_grid, rs_dims, iounit)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat, cell_h_inv
       REAL(KIND=dp), INTENT(IN)                          :: cell_deth
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       INTEGER, INTENT(in), OPTIONAL                      :: blocked
       TYPE(pw_grid_type), INTENT(in), OPTIONAL           :: ref_grid
@@ -544,7 +521,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(pw_grid))
       CPASSERT(pw_grid%ref_count > 0)
 
       ! set pointer to possible reference grid
@@ -617,7 +593,7 @@ CONTAINS
    SUBROUTINE cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat, cell_h_inv
       REAL(KIND=dp), INTENT(IN)                          :: cell_deth
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
       pw_grid%vol = ABS(cell_deth)
       pw_grid%dvol = pw_grid%vol/REAL(pw_grid%ngpts, KIND=dp)
@@ -651,7 +627,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_grid_print(pw_grid, info)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       INTEGER, INTENT(IN)                                :: info
 
       INTEGER                                            :: i
@@ -778,7 +754,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, bounds_local, ref_grid, blocked, rs_dims)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       TYPE(pw_grid_type), INTENT(IN), OPTIONAL           :: ref_grid
@@ -1173,7 +1149,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pre_tag(pw_grid, yz_mask, ref_grid)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
       TYPE(pw_grid_type), INTENT(IN)                     :: ref_grid
 
@@ -1235,7 +1211,7 @@ CONTAINS
 !> \param yz_mask ...
 !> \param yz_index ...
 ! **************************************************************************************************
-   SUBROUTINE order_mask(yz_mask, yz_index)
+   PURE SUBROUTINE order_mask(yz_mask, yz_index)
 
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: yz_mask
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_index
@@ -1319,7 +1295,7 @@ CONTAINS
 !> \param m ...
 !> \param n ...
 ! **************************************************************************************************
-   SUBROUTINE pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
+   PURE SUBROUTINE pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp), INTENT(OUT)                         :: length_x, length_y, length_z, length
@@ -1367,58 +1343,58 @@ CONTAINS
    SUBROUTINE pw_grid_count(h_inv, pw_grid, cutoff, yz_mask)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_mask
 
       INTEGER                                            :: l, m, mm, n, n_upperlimit, nlim(2), nn
       INTEGER(KIND=int_8)                                :: gpt
-      INTEGER, DIMENSION(:, :), POINTER                  :: bounds
       REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
 
-      bounds => pw_grid%bounds
+      ASSOCIATE (bounds => pw_grid%bounds)
 
-      IF (pw_grid%grid_span == HALFSPACE) THEN
-         n_upperlimit = 0
-      ELSE IF (pw_grid%grid_span == FULLSPACE) THEN
-         n_upperlimit = bounds(2, 3)
-      ELSE
-         CPABORT("No type set for the grid")
-      END IF
+         IF (pw_grid%grid_span == HALFSPACE) THEN
+            n_upperlimit = 0
+         ELSE IF (pw_grid%grid_span == FULLSPACE) THEN
+            n_upperlimit = bounds(2, 3)
+         ELSE
+            CPABORT("No type set for the grid")
+         END IF
 
-      ! finds valid g-points within grid
-      gpt = 0
-      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
-         nlim(1) = bounds(1, 3)
-         nlim(2) = n_upperlimit
-      ELSE IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         n = n_upperlimit - bounds(1, 3) + 1
-         nlim = get_limit(n, pw_grid%para%group_size, pw_grid%para%my_pos)
-         nlim = nlim + bounds(1, 3) - 1
-      ELSE
-         CPABORT("para % mode not specified")
-      END IF
+         ! finds valid g-points within grid
+         gpt = 0
+         IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+            nlim(1) = bounds(1, 3)
+            nlim(2) = n_upperlimit
+         ELSE IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+            n = n_upperlimit - bounds(1, 3) + 1
+            nlim = get_limit(n, pw_grid%para%group_size, pw_grid%para%my_pos)
+            nlim = nlim + bounds(1, 3) - 1
+         ELSE
+            CPABORT("para % mode not specified")
+         END IF
 
-      yz_mask = 0
-      DO n = nlim(1), nlim(2)
-         nn = n - bounds(1, 3) + 1
-         DO m = bounds(1, 2), bounds(2, 2)
-            mm = m - bounds(1, 2) + 1
-            DO l = bounds(1, 1), bounds(2, 1)
-               IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
-                  IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
-               END IF
+         yz_mask = 0
+         DO n = nlim(1), nlim(2)
+            nn = n - bounds(1, 3) + 1
+            DO m = bounds(1, 2), bounds(2, 2)
+               mm = m - bounds(1, 2) + 1
+               DO l = bounds(1, 1), bounds(2, 1)
+                  IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
+                     IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
+                  END IF
 
-               CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
+                  CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
-               IF (0.5_dp*length <= cutoff) THEN
-                  gpt = gpt + 1
-                  yz_mask(mm, nn) = yz_mask(mm, nn) + 1
-               END IF
+                  IF (0.5_dp*length <= cutoff) THEN
+                     gpt = gpt + 1
+                     yz_mask(mm, nn) = yz_mask(mm, nn) + 1
+                  END IF
 
+               END DO
             END DO
          END DO
-      END DO
+      END ASSOCIATE
 
       ! number of g-vectors for grid
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
@@ -1442,7 +1418,7 @@ CONTAINS
    SUBROUTINE pw_grid_assign(h_inv, pw_grid, cutoff)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_assign'
@@ -2023,55 +1999,50 @@ CONTAINS
    SUBROUTINE pw_grid_remap(pw_grid, yz)
 
       ! Argument
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_remap'
 
-      INTEGER                                            :: gpt, handle, i, ip, is, j, m, n, ny, nz
-      INTEGER, DIMENSION(:), POINTER                     :: mapm, mapn
+      INTEGER                                            :: gpt, handle, i, ip, is, j, m, n
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) RETURN
 
       CALL timeset(routineN, handle)
 
-      ny = pw_grid%npts(2)
-      nz = pw_grid%npts(3)
+      ASSOCIATE (ny => pw_grid%npts(2), nz => pw_grid%npts(3), posm => pw_grid%mapm%pos, posn => pw_grid%mapn%pos, &
+                 negm => pw_grid%mapm%neg, negn => pw_grid%mapn%neg)
 
-      yz = 0
-      pw_grid%para%yzp = 0
-      pw_grid%para%yzq = 0
+         yz = 0
+         pw_grid%para%yzp = 0
+         pw_grid%para%yzq = 0
 
-      mapm => pw_grid%mapm%pos
-      mapn => pw_grid%mapn%pos
-
-      DO gpt = 1, SIZE(pw_grid%gsq)
-         m = mapm(pw_grid%g_hat(2, gpt)) + 1
-         n = mapn(pw_grid%g_hat(3, gpt)) + 1
-         yz(m, n) = yz(m, n) + 1
-      END DO
-      IF (pw_grid%grid_span == HALFSPACE) THEN
-         mapm => pw_grid%mapm%neg
-         mapn => pw_grid%mapn%neg
          DO gpt = 1, SIZE(pw_grid%gsq)
-            m = mapm(pw_grid%g_hat(2, gpt)) + 1
-            n = mapn(pw_grid%g_hat(3, gpt)) + 1
+            m = posm(pw_grid%g_hat(2, gpt)) + 1
+            n = posn(pw_grid%g_hat(3, gpt)) + 1
             yz(m, n) = yz(m, n) + 1
          END DO
-      END IF
+         IF (pw_grid%grid_span == HALFSPACE) THEN
+            DO gpt = 1, SIZE(pw_grid%gsq)
+               m = negm(pw_grid%g_hat(2, gpt)) + 1
+               n = negn(pw_grid%g_hat(3, gpt)) + 1
+               yz(m, n) = yz(m, n) + 1
+            END DO
+         END IF
 
-      ip = pw_grid%para%my_pos
-      is = 0
-      DO i = 1, nz
-         DO j = 1, ny
-            IF (yz(j, i) > 0) THEN
-               is = is + 1
-               pw_grid%para%yzp(1, is, ip) = j
-               pw_grid%para%yzp(2, is, ip) = i
-               pw_grid%para%yzq(j, i) = is
-            END IF
+         ip = pw_grid%para%my_pos
+         is = 0
+         DO i = 1, nz
+            DO j = 1, ny
+               IF (yz(j, i) > 0) THEN
+                  is = is + 1
+                  pw_grid%para%yzp(1, is, ip) = j
+                  pw_grid%para%yzp(2, is, ip) = i
+                  pw_grid%para%yzq(j, i) = is
+               END IF
+            END DO
          END DO
-      END DO
+      END ASSOCIATE
 
       CPASSERT(is == pw_grid%para%nyzray(ip))
       CALL pw_grid%para%group%sum(pw_grid%para%yzp)
@@ -2096,7 +2067,7 @@ CONTAINS
    SUBROUTINE pw_grid_change(cell_hmat, pw_grid)
       ! Argument
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
       INTEGER                                            :: gpt
       REAL(KIND=dp)                                      :: cell_deth, l, m, n
@@ -2143,9 +2114,8 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE pw_grid_retain(pw_grid)
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
-      CPASSERT(ASSOCIATED(pw_grid))
       CPASSERT(pw_grid%ref_count > 0)
       pw_grid%ref_count = pw_grid%ref_count + 1
    END SUBROUTINE pw_grid_retain
@@ -2181,7 +2151,7 @@ CONTAINS
             IF (ASSOCIATED(pw_grid%gsq)) THEN
                DEALLOCATE (pw_grid%gsq)
             END IF
-            IF (ASSOCIATED(pw_grid%g_hat)) THEN
+            IF (ALLOCATED(pw_grid%g_hat)) THEN
                DEALLOCATE (pw_grid%g_hat)
             END IF
             IF (ASSOCIATED(pw_grid%g_hatmap)) THEN
@@ -2196,35 +2166,35 @@ CONTAINS
             IF (ASSOCIATED(pw_grid%grays)) THEN
                DEALLOCATE (pw_grid%grays)
             END IF
-            IF (ASSOCIATED(pw_grid%mapl%pos)) THEN
+            IF (ALLOCATED(pw_grid%mapl%pos)) THEN
                DEALLOCATE (pw_grid%mapl%pos)
             END IF
-            IF (ASSOCIATED(pw_grid%mapm%pos)) THEN
+            IF (ALLOCATED(pw_grid%mapm%pos)) THEN
                DEALLOCATE (pw_grid%mapm%pos)
             END IF
-            IF (ASSOCIATED(pw_grid%mapn%pos)) THEN
+            IF (ALLOCATED(pw_grid%mapn%pos)) THEN
                DEALLOCATE (pw_grid%mapn%pos)
             END IF
-            IF (ASSOCIATED(pw_grid%mapl%neg)) THEN
+            IF (ALLOCATED(pw_grid%mapl%neg)) THEN
                DEALLOCATE (pw_grid%mapl%neg)
             END IF
-            IF (ASSOCIATED(pw_grid%mapm%neg)) THEN
+            IF (ALLOCATED(pw_grid%mapm%neg)) THEN
                DEALLOCATE (pw_grid%mapm%neg)
             END IF
-            IF (ASSOCIATED(pw_grid%mapn%neg)) THEN
+            IF (ALLOCATED(pw_grid%mapn%neg)) THEN
                DEALLOCATE (pw_grid%mapn%neg)
             END IF
-            IF (ASSOCIATED(pw_grid%para%bo)) THEN
+            IF (ALLOCATED(pw_grid%para%bo)) THEN
                DEALLOCATE (pw_grid%para%bo)
             END IF
             IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-               IF (ASSOCIATED(pw_grid%para%yzp)) THEN
+               IF (ALLOCATED(pw_grid%para%yzp)) THEN
                   DEALLOCATE (pw_grid%para%yzp)
                END IF
-               IF (ASSOCIATED(pw_grid%para%yzq)) THEN
+               IF (ALLOCATED(pw_grid%para%yzq)) THEN
                   DEALLOCATE (pw_grid%para%yzq)
                END IF
-               IF (ASSOCIATED(pw_grid%para%nyzray)) THEN
+               IF (ALLOCATED(pw_grid%para%nyzray)) THEN
                   DEALLOCATE (pw_grid%para%nyzray)
                END IF
             END IF
@@ -2232,7 +2202,7 @@ CONTAINS
             CALL pw_grid%para%group%free()
             IF (PRODUCT(pw_grid%para%rs_dims) /= 0) &
                CALL pw_grid%para%rs_group%free()
-            IF (ASSOCIATED(pw_grid%para%pos_of_x)) THEN
+            IF (ALLOCATED(pw_grid%para%pos_of_x)) THEN
                DEALLOCATE (pw_grid%para%pos_of_x)
             END IF
 

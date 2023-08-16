@@ -158,8 +158,8 @@ MODULE pw_poisson_types
       LOGICAL :: p3m = .FALSE.
       INTEGER :: p3m_order = 0
       REAL(KIND=dp) :: p3m_alpha = 0.0_dp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: p3m_coeff => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: p3m_bm2 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: p3m_coeff
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: p3m_bm2
       LOGICAL :: sr_screening = .FALSE.
       REAL(KIND=dp) :: sr_alpha = 1.0_dp
       REAL(KIND=dp) :: sr_rc = 0.0_dp
@@ -459,9 +459,9 @@ CONTAINS
             DEALLOCATE (gftype%p3m_charge)
          END IF
       END IF
-      IF (ASSOCIATED(gftype%p3m_bm2)) &
+      IF (ALLOCATED(gftype%p3m_bm2)) &
          DEALLOCATE (gftype%p3m_bm2)
-      IF (ASSOCIATED(gftype%p3m_coeff)) &
+      IF (ALLOCATED(gftype%p3m_coeff)) &
          DEALLOCATE (gftype%p3m_coeff)
    END SUBROUTINE pw_green_release
 
@@ -489,13 +489,13 @@ CONTAINS
 
       lb => gftype%influence_fn%pw_grid%bounds(1, :)
       ub => gftype%influence_fn%pw_grid%bounds(2, :)
-      IF (ASSOCIATED(gftype%p3m_bm2)) THEN
+      IF (ALLOCATED(gftype%p3m_bm2)) THEN
          IF (LBOUND(gftype%p3m_bm2, 2) /= MINVAL(lb(:)) .OR. &
              UBOUND(gftype%p3m_bm2, 2) /= MAXVAL(ub(:))) THEN
             DEALLOCATE (gftype%p3m_bm2)
          END IF
       END IF
-      IF (.NOT. ASSOCIATED(gftype%p3m_bm2)) THEN
+      IF (.NOT. ALLOCATED(gftype%p3m_bm2)) THEN
          ALLOCATE (gftype%p3m_bm2(3, MINVAL(lb(:)):MAXVAL(ub(:))))
       END IF
 
@@ -533,31 +533,26 @@ CONTAINS
 !> \brief ...
 !> \param gf ...
 ! **************************************************************************************************
-   SUBROUTINE calc_p3m_charge(gf)
+   PURE SUBROUTINE calc_p3m_charge(gf)
 
-      TYPE(greens_fn_type), INTENT(IN)                   :: gf
+      TYPE(greens_fn_type), INTENT(INOUT)                :: gf
 
       INTEGER                                            :: ig, l, m, n
       REAL(KIND=dp)                                      :: arg, novol
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bm2
-      TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type), POINTER                             :: pc
-
-      grid => gf%influence_fn%pw_grid
 
       ! check if charge function is consistent with current box volume
 
-      pc => gf%p3m_charge
-      bm2 => gf%p3m_bm2
-      arg = 1.0_dp/(8.0_dp*gf%p3m_alpha**2)
-      novol = REAL(grid%ngpts, KIND=dp)/grid%vol
-      DO ig = 1, grid%ngpts_cut_local
-         l = grid%g_hat(1, ig)
-         m = grid%g_hat(2, ig)
-         n = grid%g_hat(3, ig)
-         pc%cr(ig) = novol*EXP(-arg*grid%gsq(ig))* &
-                     bm2(1, l)*bm2(2, m)*bm2(3, n)
-      END DO
+      ASSOCIATE (grid => gf%influence_fn%pw_grid, bm2 => gf%p3m_bm2)
+         arg = 1.0_dp/(8.0_dp*gf%p3m_alpha**2)
+         novol = REAL(grid%ngpts, KIND=dp)/grid%vol
+         DO ig = 1, grid%ngpts_cut_local
+            l = grid%g_hat(1, ig)
+            m = grid%g_hat(2, ig)
+            n = grid%g_hat(3, ig)
+            gf%p3m_charge%cr(ig) = novol*EXP(-arg*grid%gsq(ig))* &
+                                   bm2(1, l)*bm2(2, m)*bm2(3, n)
+         END DO
+      END ASSOCIATE
 
    END SUBROUTINE calc_p3m_charge
 

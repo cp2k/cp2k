@@ -328,7 +328,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale'
 
       INTEGER                                            :: handle, ns
-      REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
 
@@ -357,7 +356,6 @@ CONTAINS
          CPABORT("No suitable data field")
       END SELECT
 
-      flop = REAL(ns, KIND=dp)*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_scale
@@ -383,14 +381,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
 
-      INTEGER                                            :: cnt, handle, n_exp
-      REAL(KIND=dp)                                      :: flop, omega_2
+      INTEGER                                            :: cnt, handle
+      REAL(KIND=dp)                                      :: omega_2
 
       CALL timeset(routineN, handle)
       CPASSERT(omega >= 0)
-
-      flop = 0.0_dp
-      n_exp = 0
 
       omega_2 = omega*omega
       omega_2 = 0.25_dp/omega_2
@@ -403,8 +398,6 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw, omega_2)
          pw%cc(:) = pw%cc(:)*EXP(-pw%pw_grid%gsq(:)*omega_2)
 !$OMP END PARALLEL WORKSHARE
-         flop = flop + 2*cnt
-         n_exp = n_exp + cnt
 
       ELSE
 
@@ -412,7 +405,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp
@@ -438,13 +430,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_compl_gauss_damp'
 
-      INTEGER                                            :: cnt, handle, i, n_exp
-      REAL(KIND=dp)                                      :: flop, omega_2, tmp
+      INTEGER                                            :: cnt, handle, i
+      REAL(KIND=dp)                                      :: omega_2, tmp
 
       CALL timeset(routineN, handle)
-
-      flop = 0.0_dp
-      n_exp = 0
 
       omega_2 = omega*omega
       omega_2 = 0.25_dp/omega_2
@@ -463,7 +452,6 @@ CONTAINS
                pw%cc(i) = pw%cc(i)*(tmp + 0.5_dp*tmp*(tmp + (1.0_dp/3.0_dp)*tmp**2))
             END IF
          END DO
-         flop = flop + 2*cnt
 
       ELSE
 
@@ -471,7 +459,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_compl_gauss_damp
@@ -499,13 +486,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp_mix'
 
-      INTEGER                                            :: cnt, handle, n_exp
-      REAL(KIND=dp)                                      :: flop, omega_2
+      INTEGER                                            :: cnt, handle
+      REAL(KIND=dp)                                      :: omega_2
 
       CALL timeset(routineN, handle)
-
-      flop = 0.0_dp
-      n_exp = 0
 
       omega_2 = omega*omega
       omega_2 = 0.25_dp/omega_2
@@ -518,8 +502,6 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw, omega_2, scale_coul, scale_long)
          pw%cc(:) = pw%cc(:)*(scale_coul + scale_long*EXP(-pw%pw_grid%gsq(:)*omega_2))
 !$OMP END PARALLEL WORKSHARE
-         flop = flop + 4*cnt
-         n_exp = n_exp + cnt
 
       ELSE
 
@@ -527,7 +509,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp_mix
@@ -553,15 +534,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_truncated'
 
-      INTEGER                                            :: cnt, handle, i, n_cos, n_sqrt
-      REAL(KIND=dp)                                      :: flop, tmp
+      INTEGER                                            :: cnt, handle, i
+      REAL(KIND=dp)                                      :: tmp
 
       CALL timeset(routineN, handle)
       CPASSERT(rcutoff >= 0)
-
-      flop = 0.0_dp
-      n_cos = 0
-      n_sqrt = 0
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
@@ -577,9 +554,6 @@ CONTAINS
                pw%cc(i) = pw%cc(i)*tmp**2/2.0_dp*(1.0 - tmp**2/12.0_dp)
             END IF
          END DO
-         flop = flop + 2*cnt
-         n_sqrt = n_sqrt + cnt
-         n_cos = n_cos + cnt
 
       ELSE
 
@@ -587,7 +561,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_truncated
@@ -612,15 +585,12 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: im
       INTEGER                                            :: cnt, handle, m
-      REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
       CPASSERT(ALL(n >= 0))
 
       m = SUM(n)
       im = CMPLX(0.0_dp, 1.0_dp, KIND=dp)**m
-
-      flop = 0.0_dp
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
@@ -631,34 +601,28 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw)
             pw%cc(:) = pw%cc(:)*pw%pw_grid%g(1, :)
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 6*cnt
          ELSE IF (n(1) > 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw,n)
             pw%cc(:) = pw%cc(:)*(pw%pw_grid%g(1, :)**n(1))
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 7*cnt
          END IF
          IF (n(2) == 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, cnt)
             pw%cc(:) = pw%cc(:)*pw%pw_grid%g(2, :)
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 6*cnt
          ELSE IF (n(2) > 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, cnt,n)
             pw%cc(:) = pw%cc(:)*(pw%pw_grid%g(2, :)**n(2))
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 7*cnt
          END IF
          IF (n(3) == 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,cnt)
             pw%cc(:) = pw%cc(:)*pw%pw_grid%g(3, :)
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 6*cnt
          ELSE IF (n(3) > 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,cnt,n)
             pw%cc(:) = pw%cc(:)*(pw%pw_grid%g(3, :)**n(3))
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 7*cnt
          END IF
 
          ! im can take the values 1, -1, i, -i
@@ -667,7 +631,6 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,cnt,im)
             pw%cc(:) = im*pw%cc(:)
 !$OMP END PARALLEL WORKSHARE
-            flop = flop + 6*cnt
          END IF
 
       ELSE
@@ -676,7 +639,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_derive
@@ -698,11 +660,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_laplace'
 
       INTEGER                                            :: cnt, handle
-      REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-
-      flop = 0.0_dp
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
@@ -712,7 +671,6 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw)
          pw%cc(:) = -pw%cc(:)*pw%pw_grid%gsq(:)
 !$OMP END PARALLEL WORKSHARE
-         flop = flop + 6*cnt
 
       ELSE
 
@@ -720,7 +678,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_laplace
@@ -745,11 +702,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2'
 
       INTEGER                                            :: cnt, handle, ig
-      REAL(KIND=dp)                                      :: flop, gg, o3
+      REAL(KIND=dp)                                      :: gg, o3
 
       CALL timeset(routineN, handle)
 
-      flop = 0.0_dp
       o3 = 1._dp/3._dp
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
@@ -763,13 +719,11 @@ CONTAINS
                gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
                pwdr2%cc(ig) = gg*pw%cc(ig)
             END DO
-            flop = flop + 5*cnt
          ELSE
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) SHARED(pwdr2,pw,i,j,cnt)
             DO ig = 1, cnt
                pwdr2%cc(ig) = pw%cc(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig))
             END DO
-            flop = flop + 4*cnt
          END IF
 
       ELSE
@@ -778,7 +732,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_dr2
@@ -803,12 +756,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i, j
 
       INTEGER                                            :: cnt, handle, ig
-      REAL(KIND=dp)                                      :: flop, gg, o3
+      REAL(KIND=dp)                                      :: gg, o3
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2_gg'
 
       CALL timeset(routineN, handle)
 
-      flop = 0.0_dp
       o3 = 1._dp/3._dp
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
@@ -822,14 +774,12 @@ CONTAINS
                gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
                pwdr2_gg%cc(ig) = gg*pw%cc(ig)/pw%pw_grid%gsq(ig)
             END DO
-            flop = flop + 6*cnt
          ELSE
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) SHARED(pwdr2_gg,pw,i,j,cnt)
             DO ig = pw%pw_grid%first_gne0, cnt
                pwdr2_gg%cc(ig) = pw%cc(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)) &
                                  /pw%pw_grid%gsq(ig)
             END DO
-            flop = flop + 5*cnt
          END IF
 
          IF (pw%pw_grid%have_g0) pwdr2_gg%cc(1) = 0.0_dp
@@ -840,7 +790,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_dr2_gg
@@ -865,11 +814,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_smoothing'
 
       INTEGER                                            :: cnt, handle, ig
-      REAL(KIND=dp)                                      :: arg, f, flop
+      REAL(KIND=dp)                                      :: arg, f
 
       CALL timeset(routineN, handle)
-
-      flop = 0.0_dp
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
@@ -882,7 +829,6 @@ CONTAINS
             f = EXP(arg)/(1 + EXP(arg))
             pw%cc(ig) = f*pw%cc(ig)
          END DO
-         flop = flop + 6*cnt
 
       ELSE
 
@@ -890,7 +836,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_smoothing
@@ -979,7 +924,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
-      REAL(KIND=dp)                                      :: flop, my_alpha
+      REAL(KIND=dp)                                      :: my_alpha
 
       CALL timeset(routineN, handle)
       out_unit = cp_logger_get_default_io_unit()
@@ -995,13 +940,11 @@ CONTAINS
                DO i = 1, SIZE(pw2%cr)
                   pw2%cr(i) = pw2%cr(i) + pw1%cr(i)
                END DO
-               flop = REAL(SIZE(pw2%cr), KIND=dp)
             ELSE
 !$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,pw1,my_alpha)
                DO i = 1, SIZE(pw2%cr)
                   pw2%cr(i) = pw2%cr(i) + my_alpha*pw1%cr(i)
                END DO
-               flop = REAL(2*SIZE(pw2%cr), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
                   pw2%in_use == COMPLEXDATA1D) THEN
@@ -1010,25 +953,21 @@ CONTAINS
                DO i = 1, SIZE(pw2%cc)
                   pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
                END DO
-               flop = REAL(2*SIZE(pw2%cc), KIND=dp)
             ELSE
 !$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,my_alpha,pw1)
                DO i = 1, SIZE(pw2%cc)
                   pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
                END DO
-               flop = REAL(4*SIZE(pw2%cc), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cr3d = pw2%cr3d + pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(SIZE(pw2%cr3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cr3d = pw2%cr3d + my_alpha*pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D) THEN
@@ -1036,12 +975,10 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cc3d = pw2%cc3d + pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(2*SIZE(pw2%cc3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cc3d = pw2%cc3d + my_alpha*pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(4*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
             CPABORT("No suitable data field")
@@ -1057,7 +994,6 @@ CONTAINS
             ng1 = SIZE(pw1%cc)
             ng2 = SIZE(pw2%cc)
             ng = MIN(ng1, ng2)
-            flop = REAL(2*ng, KIND=dp)
 
             IF (pw1%pw_grid%spherical) THEN
 
@@ -1169,7 +1105,6 @@ CONTAINS
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_axpy
@@ -1191,7 +1126,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply'
 
       INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: flop, my_alpha
+      REAL(KIND=dp)                                      :: my_alpha
 
       CALL timeset(routineN, handle)
 
@@ -1207,12 +1142,10 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cr = pw_out%cr + pw1%cr*pw2%cr
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(2*SIZE(pw2%cr), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cr = pw_out%cr + my_alpha*pw1%cr*pw2%cr
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(3*SIZE(pw2%cr), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
                   pw2%in_use == COMPLEXDATA1D .AND. &
@@ -1221,12 +1154,10 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cc = pw_out%cc + pw1%cc*pw2%cc
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(3*SIZE(pw2%cc), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(6*SIZE(pw2%cc), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
                   pw_out%in_use == REALDATA3D) THEN
@@ -1234,12 +1165,10 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cr3d = pw_out%cr3d + pw1%cr3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(3*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D .AND. &
@@ -1248,12 +1177,10 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cc3d = pw_out%cc3d + pw1%cc3d*pw2%cc3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cc3d
 !$OMP END PARALLEL WORKSHARE
-               flop = REAL(6*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
             CPABORT("No suitable data field")
@@ -1263,7 +1190,6 @@ CONTAINS
          CPABORT("Grids not compatible")
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_multiply
@@ -1285,10 +1211,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gather_s'
 
-      INTEGER                                            :: gpt, handle, l, m, n, ngpts
-      INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
-      INTEGER, DIMENSION(:, :), POINTER                  :: ghat
-      REAL(KIND=dp)                                      :: cpy
+      INTEGER                                            :: gpt, handle, l, m, n
 
       CALL timeset(routineN, handle)
 
@@ -1299,41 +1222,36 @@ CONTAINS
       ! after the gather we are in g-space
       pw%in_space = RECIPROCALSPACE
 
-      mapl => pw%pw_grid%mapl%pos
-      mapm => pw%pw_grid%mapm%pos
-      mapn => pw%pw_grid%mapn%pos
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
 
-      ngpts = SIZE(pw%pw_grid%gsq)
+         IF (PRESENT(scale)) THEN
 
-      ghat => pw%pw_grid%g_hat
+!$OMP       PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(scale,pw,c)
+            DO gpt = 1, ngpts
+               l = mapl(ghat(1, gpt)) + 1
+               m = mapm(ghat(2, gpt)) + 1
+               n = mapn(ghat(3, gpt)) + 1
+               pw%cc(gpt) = scale*c(l, m, n)
 
-      IF (PRESENT(scale)) THEN
+            END DO
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
-         DO gpt = 1, ngpts
+         ELSE
 
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            pw%cc(gpt) = scale*c(l, m, n)
+!$OMP       PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(pw,c)
+            DO gpt = 1, ngpts
 
-         END DO
+               l = mapl(ghat(1, gpt)) + 1
+               m = mapm(ghat(2, gpt)) + 1
+               n = mapn(ghat(3, gpt)) + 1
+               pw%cc(gpt) = c(l, m, n)
 
-      ELSE
+            END DO
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,pw,c)
-         DO gpt = 1, ngpts
+         END IF
 
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            pw%cc(gpt) = c(l, m, n)
+      END ASSOCIATE
 
-         END DO
-
-      END IF
-
-      cpy = REAL(ngpts, KIND=dp)*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_gather_s
@@ -1352,10 +1270,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gather_p'
 
-      INTEGER                                            :: gpt, handle, l, m, mn, n, ngpts
-      INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
-      INTEGER, DIMENSION(:, :), POINTER                  :: ghat, yzq
-      REAL(KIND=dp)                                      :: cpy
+      INTEGER                                            :: gpt, handle, l, m, mn, n
 
       CALL timeset(routineN, handle)
 
@@ -1370,46 +1285,41 @@ CONTAINS
       ! after the gather we are in g-space
       pw%in_space = RECIPROCALSPACE
 
-      mapl => pw%pw_grid%mapl%pos
-      mapm => pw%pw_grid%mapm%pos
-      mapn => pw%pw_grid%mapn%pos
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
 
-      ngpts = SIZE(pw%pw_grid%gsq)
+         IF (PRESENT(scale)) THEN
+!$OMP       PARALLEL DO DEFAULT(NONE), &
+!$OMP                   PRIVATE(l,m,n,mn), &
+!$OMP                   SHARED(pw,c,scale)
+            DO gpt = 1, ngpts
 
-      ghat => pw%pw_grid%g_hat
-      yzq => pw%pw_grid%para%yzq
+               l = mapl(ghat(1, gpt)) + 1
+               m = mapm(ghat(2, gpt)) + 1
+               n = mapn(ghat(3, gpt)) + 1
+               mn = yzq(m, n)
+               pw%cc(gpt) = scale*c(l, mn)
 
-      IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l,m,n,mn), &
-!$OMP             SHARED(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c,scale)
-         DO gpt = 1, ngpts
+            END DO
+!$OMP       END PARALLEL DO
+         ELSE
+!$OMP       PARALLEL DO DEFAULT(NONE), &
+!$OMP                   PRIVATE(l,m,n,mn), &
+!$OMP                   SHARED(pw,c)
+            DO gpt = 1, ngpts
 
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            mn = yzq(m, n)
-            pw%cc(gpt) = scale*c(l, mn)
+               l = mapl(ghat(1, gpt)) + 1
+               m = mapm(ghat(2, gpt)) + 1
+               n = mapn(ghat(3, gpt)) + 1
+               mn = yzq(m, n)
+               pw%cc(gpt) = c(l, mn)
 
-         END DO
-!$OMP END PARALLEL DO
-      ELSE
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l,m,n,mn), &
-!$OMP             SHARED(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c)
-         DO gpt = 1, ngpts
+            END DO
+!$OMP       END PARALLEL DO
+         END IF
 
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            mn = yzq(m, n)
-            pw%cc(gpt) = c(l, mn)
+      END ASSOCIATE
 
-         END DO
-!$OMP END PARALLEL DO
-      END IF
-
-      cpy = REAL(ngpts, KIND=dp)*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_gather_p
@@ -1432,10 +1342,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scatter_s'
 
-      INTEGER                                            :: gpt, handle, l, m, n, ngpts
-      INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
-      INTEGER, DIMENSION(:, :), POINTER                  :: ghat
-      REAL(KIND=dp)                                      :: cpy
+      INTEGER                                            :: gpt, handle, l, m, n
 
       CALL timeset(routineN, handle)
 
@@ -1447,78 +1354,75 @@ CONTAINS
          CPABORT("Data has to be in RECIPROCALSPACE")
       END IF
 
-      mapl => pw%pw_grid%mapl%pos
-      mapm => pw%pw_grid%mapm%pos
-      mapn => pw%pw_grid%mapn%pos
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
 
-      ghat => pw%pw_grid%g_hat
-
-      ngpts = SIZE(pw%pw_grid%gsq)
-
-      ! should only zero the unused bits (but the zero is needed)
-      IF (.NOT. PRESENT(scale)) c = 0.0_dp
-
-      IF (PRESENT(scale)) THEN
-
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts,mapl,mapm,mapn,ghat,scale,pw,c)
-         DO gpt = 1, ngpts
-
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            c(l, m, n) = scale*pw%cc(gpt)
-
-         END DO
-
-      ELSE
-
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts,mapl,mapm,mapn,ghat,pw,c)
-         DO gpt = 1, ngpts
-
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            c(l, m, n) = pw%cc(gpt)
-
-         END DO
-
-      END IF
-
-      IF (pw%pw_grid%grid_span == HALFSPACE) THEN
-
-         mapl => pw%pw_grid%mapl%neg
-         mapm => pw%pw_grid%mapm%neg
-         mapn => pw%pw_grid%mapn%neg
+         ! should only zero the unused bits (but the zero is needed)
+         IF (.NOT. PRESENT(scale)) c = 0.0_dp
 
          IF (PRESENT(scale)) THEN
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
+!$OMP       PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(scale,pw,c)
             DO gpt = 1, ngpts
 
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
                n = mapn(ghat(3, gpt)) + 1
-               c(l, m, n) = scale*CONJG(pw%cc(gpt))
+               c(l, m, n) = scale*pw%cc(gpt)
 
             END DO
 
          ELSE
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,pw,c)
+!$OMP       PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(pw,c)
             DO gpt = 1, ngpts
 
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
                n = mapn(ghat(3, gpt)) + 1
-               c(l, m, n) = CONJG(pw%cc(gpt))
+               c(l, m, n) = pw%cc(gpt)
 
             END DO
 
          END IF
 
+      END ASSOCIATE
+
+      IF (pw%pw_grid%grid_span == HALFSPACE) THEN
+
+         ASSOCIATE (mapl => pw%pw_grid%mapl%neg, mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, &
+                    ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
+
+            IF (PRESENT(scale)) THEN
+
+!$OMP          PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(scale,pw,c)
+               DO gpt = 1, ngpts
+
+                  l = mapl(ghat(1, gpt)) + 1
+                  m = mapm(ghat(2, gpt)) + 1
+                  n = mapn(ghat(3, gpt)) + 1
+                  c(l, m, n) = scale*CONJG(pw%cc(gpt))
+
+               END DO
+
+            ELSE
+
+!$OMP          PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(pw,c)
+               DO gpt = 1, ngpts
+
+                  l = mapl(ghat(1, gpt)) + 1
+                  m = mapm(ghat(2, gpt)) + 1
+                  n = mapn(ghat(3, gpt)) + 1
+                  c(l, m, n) = CONJG(pw%cc(gpt))
+
+               END DO
+
+            END IF
+
+         END ASSOCIATE
+
       END IF
 
-      cpy = REAL(ngpts, KIND=dp)*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_scatter_s
@@ -1537,10 +1441,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scatter_p'
 
-      INTEGER                                            :: gpt, handle, l, m, mn, n, ngpts
-      INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
-      INTEGER, DIMENSION(:, :), POINTER                  :: ghat, yzq
-      REAL(KIND=dp)                                      :: cpy
+      INTEGER                                            :: gpt, handle, l, m, mn, n
 
       CALL timeset(routineN, handle)
 
@@ -1556,86 +1457,80 @@ CONTAINS
          CPABORT("This grid type is not distributed")
       END IF
 
-      mapl => pw%pw_grid%mapl%pos
-      mapm => pw%pw_grid%mapm%pos
-      mapn => pw%pw_grid%mapn%pos
+      ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
+                 ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
 
-      ghat => pw%pw_grid%g_hat
-      yzq => pw%pw_grid%para%yzq
+         IF (.NOT. PRESENT(scale)) CALL zero_c(c)
 
-      ngpts = SIZE(pw%pw_grid%gsq)
+         IF (PRESENT(scale)) THEN
+!$OMP       PARALLEL DO DEFAULT(NONE), &
+!$OMP                   PRIVATE(l,m,n,mn), &
+!$OMP                   SHARED(pw,c,scale)
+            DO gpt = 1, ngpts
 
-      IF (.NOT. PRESENT(scale)) CALL zero_c(c)
+               l = mapl(ghat(1, gpt)) + 1
+               m = mapm(ghat(2, gpt)) + 1
+               n = mapn(ghat(3, gpt)) + 1
+               mn = yzq(m, n)
+               c(l, mn) = scale*pw%cc(gpt)
 
-      IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l,m,n,mn), &
-!$OMP             SHARED(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c,scale)
-         DO gpt = 1, ngpts
+            END DO
+!$OMP       END PARALLEL DO
+         ELSE
+!$OMP       PARALLEL DO DEFAULT(NONE), &
+!$OMP                   PRIVATE(l,m,n,mn), &
+!$OMP                   SHARED(pw,c)
+            DO gpt = 1, ngpts
 
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            mn = yzq(m, n)
-            c(l, mn) = scale*pw%cc(gpt)
+               l = mapl(ghat(1, gpt)) + 1
+               m = mapm(ghat(2, gpt)) + 1
+               n = mapn(ghat(3, gpt)) + 1
+               mn = yzq(m, n)
+               c(l, mn) = pw%cc(gpt)
 
-         END DO
-!$OMP END PARALLEL DO
-      ELSE
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l,m,n,mn), &
-!$OMP             SHARED(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c)
-         DO gpt = 1, ngpts
+            END DO
+!$OMP       END PARALLEL DO
+         END IF
 
-            l = mapl(ghat(1, gpt)) + 1
-            m = mapm(ghat(2, gpt)) + 1
-            n = mapn(ghat(3, gpt)) + 1
-            mn = yzq(m, n)
-            c(l, mn) = pw%cc(gpt)
-
-         END DO
-!$OMP END PARALLEL DO
-      END IF
+      END ASSOCIATE
 
       IF (pw%pw_grid%grid_span == HALFSPACE) THEN
 
-         mapm => pw%pw_grid%mapm%neg
-         mapn => pw%pw_grid%mapn%neg
-         mapl => pw%pw_grid%mapl%neg
+         ASSOCIATE (mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, mapl => pw%pw_grid%mapl%neg, &
+                    ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq), yzq => pw%pw_grid%para%yzq)
 
-         IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l,m,n,mn), &
-!$OMP             SHARED(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c,scale)
-            DO gpt = 1, ngpts
+            IF (PRESENT(scale)) THEN
+!$OMP          PARALLEL DO DEFAULT(NONE), &
+!$OMP                      PRIVATE(l,m,n,mn), &
+!$OMP                      SHARED(pw,c,scale)
+               DO gpt = 1, ngpts
 
-               l = mapl(ghat(1, gpt)) + 1
-               m = mapm(ghat(2, gpt)) + 1
-               n = mapn(ghat(3, gpt)) + 1
-               mn = yzq(m, n)
-               c(l, mn) = scale*CONJG(pw%cc(gpt))
+                  l = mapl(ghat(1, gpt)) + 1
+                  m = mapm(ghat(2, gpt)) + 1
+                  n = mapn(ghat(3, gpt)) + 1
+                  mn = yzq(m, n)
+                  c(l, mn) = scale*CONJG(pw%cc(gpt))
 
-            END DO
-!$OMP END PARALLEL DO
-         ELSE
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l,m,n,mn), &
-!$OMP             SHARED(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c)
-            DO gpt = 1, ngpts
+               END DO
+!$OMP          END PARALLEL DO
+            ELSE
+!$OMP          PARALLEL DO DEFAULT(NONE), &
+!$OMP                      PRIVATE(l,m,n,mn), &
+!$OMP                      SHARED(pw,c)
+               DO gpt = 1, ngpts
 
-               l = mapl(ghat(1, gpt)) + 1
-               m = mapm(ghat(2, gpt)) + 1
-               n = mapn(ghat(3, gpt)) + 1
-               mn = yzq(m, n)
-               c(l, mn) = CONJG(pw%cc(gpt))
+                  l = mapl(ghat(1, gpt)) + 1
+                  m = mapm(ghat(2, gpt)) + 1
+                  n = mapn(ghat(3, gpt)) + 1
+                  mn = yzq(m, n)
+                  c(l, mn) = CONJG(pw%cc(gpt))
 
-            END DO
-!$OMP END PARALLEL DO
-         END IF
-
+               END DO
+!$OMP          END PARALLEL DO
+            END IF
+         END ASSOCIATE
       END IF
 
-      cpy = REAL(ngpts, KIND=dp)*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_scatter_p
@@ -2339,10 +2234,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor'
 
       INTEGER                                            :: cnt, handle, ig
-      REAL(KIND=dp)                                      :: arg, flop
+      REAL(KIND=dp)                                      :: arg
 
       CALL timeset(routineN, handle)
-      flop = 0.0_dp
 
       IF (sf%in_space == RECIPROCALSPACE .AND. &
           sf%in_use == COMPLEXDATA1D) THEN
@@ -2354,14 +2248,12 @@ CONTAINS
             arg = DOT_PRODUCT(sf%pw_grid%g(:, ig), r)
             sf%cc(ig) = CMPLX(COS(arg), -SIN(arg), KIND=dp)
          END DO
-         flop = flop + 7*cnt
       ELSE
 
          CPABORT("No suitable data field")
 
       END IF
 
-      flop = flop*1.e-6_dp
       CALL timestop(handle)
 
    END SUBROUTINE pw_structure_factor

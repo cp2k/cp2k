@@ -31,7 +31,7 @@ MODULE pw_grid_types
    ! maps to positive and negative g-vectors
 ! **************************************************************************************************
    TYPE map_pn
-      INTEGER, DIMENSION(:), POINTER :: pos => NULL(), neg => NULL()
+      INTEGER, DIMENSION(:), ALLOCATABLE :: pos, neg
    END TYPE map_pn
 
 ! info on parallelisation
@@ -46,15 +46,15 @@ MODULE pw_grid_types
       INTEGER :: group_size = -1! # of Processors in group
       LOGICAL :: group_head = .FALSE. ! Master process within group
       INTEGER :: group_head_id = 0 ! Id of group_head
-      INTEGER, DIMENSION(:, :, :), POINTER :: yzp => NULL() ! g-space rays (xy,k,pe)
-      INTEGER, DIMENSION(:, :), POINTER :: yzq => NULL() ! local inverse pointer of yzp
-      INTEGER, DIMENSION(:), POINTER :: nyzray => NULL() ! number of g-space rays (pe)
+      INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: yzp ! g-space rays (xy,k,pe)
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: yzq ! local inverse pointer of yzp
+      INTEGER, DIMENSION(:), ALLOCATABLE :: nyzray ! number of g-space rays (pe)
       TYPE(mp_cart_type) :: rs_group = mp_cart_type() ! real space group (2-dim cart)
       INTEGER :: rs_mpo = -1 ! real space group position
       INTEGER, DIMENSION(2) :: rs_dims = 0 ! real space group dimensions
       INTEGER, DIMENSION(2) :: rs_pos = -1 ! real space group positions in grid
-      INTEGER, DIMENSION(:, :, :, :), POINTER :: bo => NULL() ! list of axis distribution
-      INTEGER, DIMENSION(:), POINTER :: pos_of_x => NULL() ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
+      INTEGER, DIMENSION(:, :, :, :), ALLOCATABLE :: bo ! list of axis distribution
+      INTEGER, DIMENSION(:), ALLOCATABLE :: pos_of_x ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
    END TYPE pw_para_type
 
    ! all you always wanted to know about grids, but were...
@@ -76,10 +76,10 @@ MODULE pw_grid_types
       REAL(KIND=dp) :: cutoff = 0.0_dp ! cutoff in a.u.
       TYPE(map_pn) :: mapl = map_pn(), mapm = map_pn(), mapn = map_pn() ! mapping 1D => 3D
       TYPE(pw_para_type) :: para = pw_para_type() ! information on parallelisation
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: g => NULL() ! grid point vectors
-      REAL(KIND=dp), DIMENSION(:), POINTER :: gsq => NULL() ! squared vector lengths
-      INTEGER, DIMENSION(:, :), POINTER :: g_hat => NULL() ! grid point indices (Miller)
-      INTEGER, DIMENSION(:, :), POINTER :: g_hatmap => NULL() ! mapped grid point indices (Miller) [CUDA]
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: g => NULL() ! grid point vectors
+      REAL(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS :: gsq => NULL() ! squared vector lengths
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: g_hat ! grid point indices (Miller)
+      INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS :: g_hatmap => NULL() ! mapped grid point indices (Miller) [CUDA]
       INTEGER :: grid_span = FULLSPACE ! type HALFSPACE/FULLSPACE
       LOGICAL :: have_g0 = .TRUE. ! whether I have G = [0,0,0]
       INTEGER :: first_gne0 = 0 ! first g index /= 0 [1/2]

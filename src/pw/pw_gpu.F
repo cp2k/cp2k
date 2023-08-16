@@ -236,16 +236,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
-      INTEGER, DIMENSION(:, :, :), POINTER               :: yzp
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
       TYPE(mp_comm_type)                                 :: gs_group
-
-!nyzray(0:)
-!yzp(:,:,0:)
-!bo(:,:,0:,:)
 
       CALL timeset(routineN, handle)
 
@@ -259,7 +254,6 @@ CONTAINS
       IF (pw1%pw_grid%para%ray_distribution) THEN
          gs_group = pw1%pw_grid%para%group
          rs_group = pw1%pw_grid%para%rs_group
-         yzp => pw1%pw_grid%para%yzp
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
@@ -345,7 +339,7 @@ CONTAINS
             CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -370,7 +364,7 @@ CONTAINS
             CALL pw_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, gs_group, g_pos, p2p, yzp, nyzray, &
+            CALL yz_to_x(tbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -416,16 +410,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
-      INTEGER, DIMENSION(:, :, :), POINTER               :: yzp
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
       TYPE(mp_comm_type)                                 :: gs_group
-
-!nyzray(0:)
-!yzp(:,:,0:)
-!bo(:,:,0:,:)
 
       CALL timeset(routineN, handle)
 
@@ -439,7 +428,6 @@ CONTAINS
       IF (pw1%pw_grid%para%ray_distribution) THEN
          gs_group = pw1%pw_grid%para%group
          rs_group = pw1%pw_grid%para%rs_group
-         yzp => pw1%pw_grid%para%yzp
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
@@ -517,7 +505,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(qbuf)
-            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             ! FFT along y
@@ -554,7 +542,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(tbuf)
-            CALL x_to_yz(sbuf, gs_group, g_pos, p2p, yzp, nyzray, &
+            CALL x_to_yz(sbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z

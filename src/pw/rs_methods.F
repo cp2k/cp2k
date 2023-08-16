@@ -27,14 +27,13 @@ MODULE rs_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE realspace_grid_types,            ONLY: pw2rs,&
-                                              realspace_grid_desc_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
-                                              rs2pw,&
                                               rs_grid_create,&
                                               rs_grid_release,&
                                               rs_grid_zero,&
-                                              rs_pw_transfer
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,7 +80,7 @@ CONTAINS
 
       ! Setup
       rs_desc => rs_grid%desc
-      CALL rs_pw_transfer(rs_grid, f, pw2rs)
+      CALL transfer_pw2rs(rs_grid, f)
       DO i = 1, 3
          CALL rs_grid_create(drs_grid(i), rs_desc)
          CALL rs_grid_zero(drs_grid(i))
@@ -112,7 +111,7 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i), df(i), rs2pw)
+         CALL transfer_rs2pw(drs_grid(i), df(i))
          CALL rs_grid_release(drs_grid(i))
       END DO
 
@@ -150,7 +149,7 @@ CONTAINS
 
       ! Setup
       rs_desc => rs_grid%desc
-      CALL rs_pw_transfer(rs_grid, f, pw2rs)
+      CALL transfer_pw2rs(rs_grid, f)
       DO i = 1, 3
          CALL rs_grid_create(drs_grid(i), rs_desc)
          CALL rs_grid_zero(drs_grid(i))
@@ -181,7 +180,7 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i), df(i), rs2pw)
+         CALL transfer_rs2pw(drs_grid(i), df(i))
          CALL rs_grid_release(drs_grid(i))
       END DO
 
@@ -219,7 +218,7 @@ CONTAINS
 
       ! Setup
       rs_desc => rs_grid%desc
-      CALL rs_pw_transfer(rs_grid, f, pw2rs)
+      CALL transfer_pw2rs(rs_grid, f)
       DO i = 1, 3
          CALL rs_grid_create(drs_grid(i), rs_desc)
          CALL rs_grid_zero(drs_grid(i))
@@ -253,7 +252,7 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i), df(i), rs2pw)
+         CALL transfer_rs2pw(drs_grid(i), df(i))
          CALL rs_grid_release(drs_grid(i))
       END DO
 

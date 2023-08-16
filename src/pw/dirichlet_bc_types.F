@@ -155,8 +155,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbc_release(contacts, do_dbc_cube, pw_pool)
 
-      TYPE(dirichlet_bc_p_type), DIMENSION(:), &
-         INTENT(INOUT), POINTER                          :: contacts
+      TYPE(dirichlet_bc_p_type), ALLOCATABLE, &
+         DIMENSION(:), INTENT(INOUT)                     :: contacts
       LOGICAL, INTENT(IN)                                :: do_dbc_cube
       TYPE(pw_pool_type), INTENT(IN), OPTIONAL, POINTER  :: pw_pool
 
@@ -166,7 +166,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(contacts)) THEN
+      IF (ALLOCATED(contacts)) THEN
          n_contacts = SIZE(contacts)
          IF (do_dbc_cube) THEN
             DO i = 1, n_contacts

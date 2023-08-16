@@ -35,7 +35,7 @@ MODULE offload_api
    PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
 
    TYPE offload_buffer_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: host_buffer => Null()
+      REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: host_buffer => Null()
       TYPE(C_PTR)                          :: c_ptr = C_NULL_PTR
    END TYPE offload_buffer_type
 

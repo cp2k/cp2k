@@ -61,10 +61,9 @@ MODULE qs_integrate_potential_single
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
-                                              pw2rs,&
                                               realspace_grid_type,&
                                               rs_grid_zero,&
-                                              rs_pw_transfer
+                                              transfer_pw2rs
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -127,7 +126,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
 
-      CALL rs_pw_transfer(rs_v, rho_rspace, pw2rs)
+      CALL transfer_pw2rs(rs_v, rho_rspace)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -313,7 +312,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
 
-      CALL rs_pw_transfer(rs_v, rho_rspace, pw2rs)
+      CALL transfer_pw2rs(rs_v, rho_rspace)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -526,7 +525,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
 
-         CALL rs_pw_transfer(rs_v, v_rspace, pw2rs)
+         CALL transfer_pw2rs(rs_v, v_rspace)
 
          CALL get_qs_env(qs_env=qs_env, &
                          atomic_kind_set=atomic_kind_set, &

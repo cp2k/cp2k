@@ -69,8 +69,8 @@ CONTAINS
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: poisson_params
-      TYPE(dirichlet_bc_p_type), DIMENSION(:), &
-         INTENT(INOUT), POINTER                          :: dbcs
+      TYPE(dirichlet_bc_p_type), ALLOCATABLE, &
+         DIMENSION(:), INTENT(INOUT)                     :: dbcs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_boundary_region_setup'
 
