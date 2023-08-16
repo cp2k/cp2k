@@ -142,6 +142,7 @@ CONTAINS
       NULLIFY (para_env)
       NULLIFY (rho_atom)
       NULLIFY (my_rho_atom_set)
+      NULLIFY (rho_nlcc)
 
       epr_xc = .FALSE.
       IF (PRESENT(gradient_atom_set)) THEN
