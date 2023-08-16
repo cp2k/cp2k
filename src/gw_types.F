@@ -200,7 +200,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(gw_env))
 
-      IF (ASSOCIATED(gw_env%nkp_grid_chi_eps_W_input)) DEALLOCATE (gw_env%nkp_grid_chi_eps_W_input)
       IF (ASSOCIATED(gw_env%kpoints_chi_eps_W)) CALL kpoint_release(gw_env%kpoints_chi_eps_W)
       IF (ASSOCIATED(gw_env%kpoints_Sigma)) CALL kpoint_release(gw_env%kpoints_Sigma)
 
