@@ -37,7 +37,9 @@ MODULE gw_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_types'
 
-   PUBLIC :: gw_type, gw_env_release
+   PUBLIC :: gw_type
+
+   PUBLIC :: gw_env_release
 
    TYPE gw_type
 
@@ -48,62 +50,62 @@ MODULE gw_types
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenvalues_scf, &
                                                          eigenvalues_G0W0
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenvalues_scGW0
-      REAL(KIND=dp)                                   :: E_VBM_scf, &
-                                                         E_CBM_scf, &
-                                                         E_DBG_scf, &
-                                                         E_IDBG_scf, &
-                                                         E_VBM_G0W0, &
-                                                         E_CBM_G0W0, &
-                                                         E_DBG_G0W0, &
-                                                         E_IDBG_G0W0
+      REAL(KIND=dp)                                   :: E_VBM_scf = 0.0_dp, &
+                                                         E_CBM_scf = 0.0_dp, &
+                                                         E_DBG_scf = 0.0_dp, &
+                                                         E_IDBG_scf = 0.0_dp, &
+                                                         E_VBM_G0W0 = 0.0_dp, &
+                                                         E_CBM_G0W0 = 0.0_dp, &
+                                                         E_DBG_G0W0 = 0.0_dp, &
+                                                         E_IDBG_G0W0 = 0.0_dp
 
       ! general parameters on molecular orbitals and basis sets
-      INTEGER                                         :: n_ao, &
-                                                         n_RI, &
-                                                         n_spin, &
-                                                         n_atom
-      INTEGER, DIMENSION(2)                           :: n_occ, &
-                                                         n_vir
-      REAL(KIND=dp)                                   :: spin_degeneracy
-      REAL(KIND=dp), DIMENSION(2)                     :: e_fermi
+      INTEGER                                         :: n_ao = -1, &
+                                                         n_RI = -1, &
+                                                         n_spin = -1, &
+                                                         n_atom = -1
+      INTEGER, DIMENSION(2)                           :: n_occ = [-1, -1], &
+                                                         n_vir = [-1, -1]
+      REAL(KIND=dp)                                   :: spin_degeneracy = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                     :: e_fermi = [0.0_dp, 0.0_dp]
 
       ! kpoint mesh for chi, eps, W
-      INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_chi_eps_W_input, &
-                                                         nkp_grid_Sigma_input
-      INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig, &
-                                                         nkp_grid_chi_eps_W_extra
-      INTEGER                                         :: nkp_chi_eps_W_orig, &
-                                                         nkp_chi_eps_W_extra, &
-                                                         ikp_local_start, &
-                                                         ikp_local_end
-      TYPE(kpoint_type), POINTER                      :: kpoints_chi_eps_W, &
-                                                         kpoints_Sigma
-      INTEGER                                         :: size_lattice_sum_V
+      INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_chi_eps_W_input => NULL(), &
+                                                         nkp_grid_Sigma_input => NULL()
+      INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig = [0, 0, 0], &
+                                                         nkp_grid_chi_eps_W_extra = [0, 0, 0]
+      INTEGER                                         :: nkp_chi_eps_W_orig = -1, &
+                                                         nkp_chi_eps_W_extra = -1, &
+                                                         ikp_local_start = -1, &
+                                                         ikp_local_end = -1
+      TYPE(kpoint_type), POINTER                      :: kpoints_chi_eps_W => NULL(), &
+                                                         kpoints_Sigma => NULL()
+      INTEGER                                         :: size_lattice_sum_V = -1
 
       ! imaginary time and frequency grids
-      INTEGER                                         :: num_time_freq_points, &
-                                                         num_freq_points_fit
+      INTEGER                                         :: num_time_freq_points = -1, &
+                                                         num_freq_points_fit = -1
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_time_points, &
                                                          imag_freq_points, &
                                                          imag_freq_points_fit
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: weights_cos_t_to_w, &
                                                          weights_cos_w_to_t, &
                                                          weights_sin_t_to_w
-      INTEGER                                         :: nparam_pade, &
-                                                         num_points_per_magnitude
-      REAL(KIND=dp)                                   :: freq_max_fit, &
-                                                         regularization_minimax, &
-                                                         stabilize_exp
+      INTEGER                                         :: nparam_pade = -1, &
+                                                         num_points_per_magnitude = -1
+      REAL(KIND=dp)                                   :: freq_max_fit = 0.0_dp, &
+                                                         regularization_minimax = 0.0_dp, &
+                                                         stabilize_exp = 0.0_dp
 
       ! filter threshold for matrix-tensor operations
-      REAL(KIND=dp)                                   :: eps_filter, &
-                                                         eps_3c_int, &
-                                                         eps_atom_grid_2d_mat
+      REAL(KIND=dp)                                   :: eps_filter = 0.0_dp, &
+                                                         eps_3c_int = 0.0_dp, &
+                                                         eps_atom_grid_2d_mat = 0.0_dp
 
       ! threshold for inverting ao overlap matrix, RI matrices
-      REAL(KIND=dp)                                   :: eps_eigval_mat_s, &
-                                                         eps_eigval_mat_RI, &
-                                                         regularization_RI
+      REAL(KIND=dp)                                   :: eps_eigval_mat_s = 0.0_dp, &
+                                                         eps_eigval_mat_RI = 0.0_dp, &
+                                                         regularization_RI = 0.0_dp
 
       ! global full matrices used in GW
       TYPE(cp_fm_type)                                :: fm_s_Gamma
@@ -147,28 +149,29 @@ MODULE gw_types
 !                                                         mat_M_inv_kp_loc
 
       ! parameters and data for parallelization
-      INTEGER                                         :: tensor_group_size, &
-                                                         tensor_group_color, &
-                                                         num_tensor_groups, &
-                                                         kp_diag_group_size, &
-                                                         kp_diag_group_color, &
-                                                         num_kp_diag_groups, &
-                                                         min_block_size
-      TYPE(mp_para_env_type), POINTER                 :: para_env, &
-                                                         para_env_tensor, &
-                                                         para_env_kp_diag
+      INTEGER                                         :: tensor_group_size = -1, &
+                                                         tensor_group_color = -1, &
+                                                         num_tensor_groups = -1, &
+                                                         kp_diag_group_size = -1, &
+                                                         kp_diag_group_color = -1, &
+                                                         num_kp_diag_groups = -1, &
+                                                         min_block_size = -1
+      TYPE(mp_para_env_type), POINTER                 :: para_env => NULL(), &
+                                                         para_env_tensor => NULL(), &
+                                                         para_env_kp_diag => NULL()
       ! parallelization: two different atom ranges for tensor group
 ! JW 2del
 !      TYPE(particle_type), DIMENSION(:), POINTER      :: particle_subset_i, &
 !                                                         particle_subset_j
-      INTEGER                                         :: atom_i_start, &
-                                                         atom_i_end, &
-                                                         atom_j_start, &
-                                                         atom_j_end, &
-                                                         n_atom_ij
+      INTEGER                                         :: atom_i_start = -1, &
+                                                         atom_i_end = -1, &
+                                                         atom_j_start = -1, &
+                                                         atom_j_end = -1, &
+                                                         n_atom_ij = -1
 
-      REAL(KIND=dp)                                   :: t1, t2
-      INTEGER                                         :: unit_nr
+      REAL(KIND=dp)                                   :: t1 = 0.0_dp, &
+                                                         t2 = 0.0_dp
+      INTEGER                                         :: unit_nr = 0
 
       ! parameters and data for basis sets
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
@@ -197,7 +200,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(gw_env))
 
-      IF (ASSOCIATED(gw_env%nkp_grid_chi_eps_W_input)) DEALLOCATE (gw_env%nkp_grid_chi_eps_W_input)
       IF (ASSOCIATED(gw_env%kpoints_chi_eps_W)) CALL kpoint_release(gw_env%kpoints_chi_eps_W)
       IF (ASSOCIATED(gw_env%kpoints_Sigma)) CALL kpoint_release(gw_env%kpoints_Sigma)
 
