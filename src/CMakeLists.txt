@@ -1429,8 +1429,9 @@ if(CP2K_USE_CUDA)
   else()
     target_link_libraries(
       cp2k_cuda_libs
-      INTERFACE $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:CUDA::cusolver> CUDA::cufft
-                CUDA::cufftw CUDA::cublas CUDA::cudart CUDA::cuda_driver)
+      INTERFACE $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:CP2K::CUSOLVER_MP::cusolvermp>
+                CUDA::cufft CUDA::cufftw CUDA::cublas CUDA::cudart
+                CUDA::cuda_driver)
   endif()
 endif()
 
