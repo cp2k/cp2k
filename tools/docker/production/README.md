@@ -54,6 +54,7 @@ docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrac
 ```
 
 All containers provide as further binaries:
+
 - `cp2k.popt` (enforces `OMP_NUM_THREADS=1` by contrast to `cp2k.psmp` or just `cp2k`)
 - `cp2k_shell` (runs the CP2K shell tool)
 - `dumpdcd` (processing and conversion of `.dcd` files)
@@ -115,4 +116,3 @@ The Python script [`generate_docker_files`](https://github.com/cp2k/cp2k/tree/ma
 ```
 
 it will create docker files using 28 instead of the default 8 CPU cores for building the docker containers and the container will include all CP2K regression tests. Run `generate_docker_files -h` for more details about the available options.
-
