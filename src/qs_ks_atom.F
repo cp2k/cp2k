@@ -136,13 +136,13 @@ CONTAINS
                                                             is_task_valid, my_tddft, paw_atom, &
                                                             use_virial
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
-      REAL(KIND=dp), DIMENSION(2)                        :: force_fac
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
       REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
+      REAL(KIND=dp), DIMENSION(2)                        :: force_fac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b
@@ -207,7 +207,7 @@ CONTAINS
       IF (PRESENT(kintegral)) factor1 = kintegral
       IF (PRESENT(kforce)) factor2 = kforce
       force_fac = 1.0_dp
-      IF (PRESENT(fscale)) force_fac(:) = fscale(:)      
+      IF (PRESENT(fscale)) force_fac(:) = fscale(:)
 
       IF (PRESENT(rho_atom_external)) my_rho_atom => rho_atom_external
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external

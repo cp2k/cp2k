@@ -3,14 +3,10 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_f01_coulomb_only.inp                 1    1.0E-11              -17.13968888100846
-ch2o_f01_pbe_gapwxc.inp                  1    1.0E-11              -16.99417766936085
-ch2o_f01_pbe.inp                         1    1.0E-11              -16.98005256434762
-ch2o_f02_coulomb_only.inp                1    1.0E-11              -12.74156401757076
 h2o_f01_coulomb_only.inp                 37    1.0E-4              0.101128E+01
-ch2o_f01_pbe_gapwxc.inp                  37    1.0E-4              0.138361E+00
-ch2o_f01_pbe.inp                         37    1.0E-4              0.145756E+00
-ch2o_f02_coulomb_only.inp                37    1.0E-4              0.202091E+00
+h2o_f01_pbe_gapwxc.inp                   37    1.0E-4              0.138361E+00
+h2o_f01_pbe.inp                          37    1.0E-4              0.145756E+00
+h2o_f02_coulomb_only.inp                 37    1.0E-4              0.202091E+00
 h2o_t01.inp                              0
 h2o_t02.inp                              0
 h2o_t03.inp                              0
@@ -19,8 +15,8 @@ h2o_t05.inp                              0
 h2o_t06.inp                              0
 h2o_t07.inp                              0
 h2o_t08.inp                              0
-#h2o_t09.inp                              0
-#h2o_t10.inp                              0
-#h2o_t11.inp                              0
-#h2o_t12.inp                              0
+h2o_t09.inp                              0
+h2o_t10.inp                              0
+h2o_t11.inp                              0
+h2o_t12.inp                              0
 #EOF

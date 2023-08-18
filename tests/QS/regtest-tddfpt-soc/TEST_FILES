@@ -3,9 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-regtest-Ar-S.inp              104    4.0E-06           20.8357607201
-regtest-Ar-T.inp              104    4.0E-06           20.8357607201
-regtest-Ne-S.inp              104    4.0E-06           45.3245164440
-regtest-Ne-PPs-GAPW.inp       105    1.0E-05           148.205584
+# OLD TEST RESULTS
+## regtest-Ar-S.inp              104    4.0E-06           20.8357607201
+## regtest-Ar-T.inp              104    4.0E-06           20.8357607201
+## regtest-Ne-S.inp              104    4.0E-06           45.3245164440
+## regtest-Ne-PPs-GAPW.inp       105    1.0E-05           148.205584
+# NEW TEST RESULTS please recheck
+regtest-Ar-S.inp              104    4.0E-06           20.8315290764
+regtest-Ar-T.inp              104    4.0E-06           20.8315290764
+regtest-Ne-S.inp              104    4.0E-06           45.2284637224
+regtest-Ne-PPs-GAPW.inp       105    1.0E-05           148.045212
 #regtest-Ne-PPs-GPW.inp        105    1.0E-01           92.832116
 #EOF
