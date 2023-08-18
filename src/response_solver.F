@@ -1317,11 +1317,9 @@ CONTAINS
          !      ! HXC term
          IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
          IF (gapw) CALL update_ks_atom(qs_env, scrm, mpa, forces=.TRUE., tddft=.FALSE., &
-                                       rho_atom_external=local_rho_set_gs%rho_atom_set, &
-                                       kscale=1.0_dp)
+                                       rho_atom_external=local_rho_set_gs%rho_atom_set)
          IF (myfun /= xc_none) CALL update_ks_atom(qs_env, scrm, mpa, forces=.TRUE., tddft=.FALSE., &
-                                                   rho_atom_external=local_rho_set_vxc%rho_atom_set, &
-                                                   kscale=1.0_dp)
+                                                   rho_atom_external=local_rho_set_vxc%rho_atom_set)
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
@@ -1774,8 +1772,7 @@ CONTAINS
          IF (myfun /= xc_none) THEN
             IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
             CALL update_ks_atom(qs_env, matrix_hz, matrix_p, forces=.TRUE., tddft=.FALSE., &
-                                rho_atom_external=local_rho_set_f%rho_atom_set, &
-                                kscale=1.0_dp)
+                                rho_atom_external=local_rho_set_f%rho_atom_set)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
@@ -1786,8 +1783,7 @@ CONTAINS
          IF (gapw) THEN
             IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
             CALL update_ks_atom(qs_env, matrix_ht, matrix_p, forces=.TRUE., tddft=.FALSE., &
-                                rho_atom_external=local_rho_set_t%rho_atom_set, &
-                                kscale=1.0_dp)
+                                rho_atom_external=local_rho_set_t%rho_atom_set)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)

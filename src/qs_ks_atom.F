@@ -96,6 +96,7 @@ CONTAINS
 !> \param kscale ...
 !> \param kintegral ...
 !> \param kforce ...
+!> \param fscale ...
 !> \par History
 !>      created [MI]
 !>      the loop over the spins is done internally [03-05,MI]
@@ -105,7 +106,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE update_ks_atom(qs_env, ksmat, pmat, forces, tddft, rho_atom_external, &
                              kind_set_external, oce_external, sab_external, kscale, &
-                             kintegral, kforce)
+                             kintegral, kforce, fscale)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(*), INTENT(INOUT)    :: ksmat, pmat
@@ -119,6 +120,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_external
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kscale, kintegral, kforce
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN), OPTIONAL  :: fscale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
@@ -134,9 +136,10 @@ CONTAINS
                                                             is_task_valid, my_tddft, paw_atom, &
                                                             use_virial
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
+      REAL(KIND=dp), DIMENSION(2)                        :: force_fac
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
-      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2, force_fac(2)
+      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
@@ -203,9 +206,8 @@ CONTAINS
       END IF
       IF (PRESENT(kintegral)) factor1 = kintegral
       IF (PRESENT(kforce)) factor2 = kforce
-
       force_fac = 1.0_dp
-      IF (PRESENT(fscale)) force_fac(:) = fscale(:)
+      IF (PRESENT(fscale)) force_fac(:) = fscale(:)      
 
       IF (PRESENT(rho_atom_external)) my_rho_atom => rho_atom_external
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
