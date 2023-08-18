@@ -1094,7 +1094,7 @@ CONTAINS
                   END DO
                END DO
                !
-               DO ns = 1, nspins
+               DO ns = 1, mspins
                   DEALLOCATE (fint_ss(ns)%r_coef)
                   DEALLOCATE (fint_hh(ns)%r_coef)
                END DO
