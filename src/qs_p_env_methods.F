@@ -262,7 +262,8 @@ CONTAINS
          CALL allocate_rho_atom_internals(p_env%local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
 
-         CALL init_rho0(p_env%local_rho_set, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+         CALL init_rho0(p_env%local_rho_set, qs_env, dft_control%qs_control%gapw_control, &
+                        zcore=0.0_dp)
          CALL rho0_s_grid_create(pw_env, p_env%local_rho_set%rho0_mpole)
          CALL hartree_local_create(p_env%hartree_local)
          CALL init_coulomb_local(p_env%hartree_local, natom)

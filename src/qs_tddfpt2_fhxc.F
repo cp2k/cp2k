@@ -266,7 +266,7 @@ CONTAINS
             rho_atom_set => sub_env%local_rho_set%rho_atom_set
             rho1_atom_set => work_matrices%local_rho_set%rho_atom_set
             CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, kernel_env%xc_section, &
-                                             sub_env%para_env, do_tddft=.TRUE., do_triplet=is_rks_triplets)
+                                             sub_env%para_env, do_tddfpt2=.TRUE., do_triplet=is_rks_triplets)
          END IF
 
          ! ADMM correction
@@ -443,7 +443,8 @@ CONTAINS
             IF (gapw .OR. gapw_xc) THEN
                ! rho_ia_ao will not be touched
                CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., &
-                                   rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
+                                   rho_atom_external=work_matrices%local_rho_set%rho_atom_set, &
+                                   tddft=.TRUE.)
             END IF
          END IF
 

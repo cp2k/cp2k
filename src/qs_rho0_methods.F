@@ -342,14 +342,14 @@ CONTAINS
 !> \param local_rho_set ...
 !> \param qs_env ...
 !> \param gapw_control ...
-!> \param tddft ...
+!> \param zcore ...
 ! **************************************************************************************************
-   SUBROUTINE init_rho0(local_rho_set, qs_env, gapw_control, tddft)
+   SUBROUTINE init_rho0(local_rho_set, qs_env, gapw_control, zcore)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
-      LOGICAL, INTENT(in)                                :: tddft
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zcore
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho0'
 
@@ -430,7 +430,7 @@ CONTAINS
                           basis_set=basis_1c, basis_type="GAPW_1C")
 
          ! Set charge distribution of ionic cores to zero when computing the response-density
-         IF (tddft) zeff = 0.0_dp
+         IF (PRESENT(zcore)) zeff = zcore
 
          CALL get_gto_basis_set(gto_basis_set=basis_1c, &
                                 maxl=maxl, &

@@ -340,8 +340,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf
       LOGICAL                                            :: grid_distributed, paw_atom, use_virial
-      REAL(KIND=dp)                                      :: eps_rho_rspace, force_tmp(3), ra(3), &
-                                                            rpgf0, scale, zet0
+      REAL(KIND=dp)                                      :: eps_rho_rspace, force_tmp(3), fscale, &
+                                                            ra(3), rpgf0, zet0
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: hab_sph, norm_l, Qlm
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, hdab_sph, intloc, pab
@@ -455,8 +455,8 @@ CONTAINS
          CALL pw_pool_give_back_pw(pw_aux, coeff_gaux)
          CALL pw_pool_create_pw(pw_aux, coeff_raux, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         scale = coeff_rspace%pw_grid%dvol/coeff_raux%pw_grid%dvol
-         coeff_rspace%cr3d = scale*coeff_rspace%cr3d
+         fscale = coeff_rspace%pw_grid%dvol/coeff_raux%pw_grid%dvol
+         coeff_rspace%cr3d = fscale*coeff_rspace%cr3d
          CALL pw_pool_give_back_pw(pw_aux, coeff_raux)
       ELSE
 
@@ -495,6 +495,11 @@ CONTAINS
       ncurr = -1
 
       grid_distributed = rs_v%desc%distributed
+
+      fscale = 1.0_dp
+      IF (PRESENT(kforce)) THEN
+         fscale = kforce
+      END IF
 
       DO ikind = 1, SIZE(atomic_kind_set, 1)
          NULLIFY (basis_1c_set, atom_list, harmonics)
@@ -655,7 +660,7 @@ CONTAINS
                      force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2, iso)
                      force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3, iso)
                   END DO
-                  force(ikind)%g0s_Vh_elec(1:3, iat) = force(ikind)%g0s_Vh_elec(1:3, iat) + force_tmp(1:3)
+                  force(ikind)%g0s_Vh_elec(1:3, iat) = force(ikind)%g0s_Vh_elec(1:3, iat) + fscale*force_tmp(1:3)
                END IF
                IF (use_virial) THEN
                   my_virial_a = 0.0_dp
@@ -663,8 +668,8 @@ CONTAINS
                      DO ii = 1, 3
                      DO i = 1, 3
                         ! Q from local_rho_set
-                        virial%pv_gapw(i, ii) = virial%pv_gapw(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
-                        virial%pv_virial(i, ii) = virial%pv_virial(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
+                        virial%pv_gapw(i, ii) = virial%pv_gapw(i, ii) + fscale*Qlm(iso)*a_hdab_sph(i, ii, iso)
+                        virial%pv_virial(i, ii) = virial%pv_virial(i, ii) + fscale*Qlm(iso)*a_hdab_sph(i, ii, iso)
                      END DO
                      END DO
                   END DO

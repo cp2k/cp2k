@@ -740,7 +740,8 @@ CONTAINS
          CALL local_rho_set_create(local_rho_set)
          CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
-         CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+         CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control, &
+                        zcore=0.0_dp)
          CALL rho0_s_grid_create(pw_env, local_rho_set%rho0_mpole)
          CALL hartree_local_create(hartree_local)
          CALL init_coulomb_local(hartree_local, natom)
@@ -806,8 +807,7 @@ CONTAINS
       CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
       IF (gapw) THEN
          CALL Vh_1c_gg_integrals(qs_env, thartree, hartree_local%ecoul_1c, &
-                                 local_rho_set, &
-                                 para_env, tddft=.TRUE.)
+                                 local_rho_set, para_env, tddft=.TRUE.)
          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
                                     calculate_forces=.FALSE., &
                                     local_rho_set=local_rho_set)
@@ -877,8 +877,8 @@ CONTAINS
       IF (gapw .OR. gapw_xc) THEN
          mhz(1:nspins, 1:1) => matrix_hz(1:nspins)
          mpe(1:nspins, 1:1) => matrix_pe(1:nspins)
-         CALL update_ks_atom(qs_env, mhz, mpe, forces=.FALSE., tddft=.TRUE., &
-                             rho_atom_external=local_rho_set%rho_atom_set, kscale=0.5_dp)
+         CALL update_ks_atom(qs_env, mhz, mpe, forces=.FALSE., &
+                             rho_atom_external=local_rho_set%rho_atom_set)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)

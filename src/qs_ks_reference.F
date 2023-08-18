@@ -350,7 +350,7 @@ CONTAINS
                                           qs_kind_set, dft_control, para_env)
          IF (gapw) THEN
             CALL get_qs_env(qs_env, natom=natom)
-            CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control, .FALSE.)
+            CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control)
             CALL rho0_s_grid_create(pw_env, local_rho_set%rho0_mpole)
             CALL hartree_local_create(hartree_local)
             CALL init_coulomb_local(hartree_local, natom)

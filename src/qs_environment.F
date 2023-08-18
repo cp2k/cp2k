@@ -1146,7 +1146,7 @@ CONTAINS
          IF (dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, natom=natom)
             !       *** Allocate and initialize the compensation density rho0 ***
-            CALL init_rho0(local_rho_set, qs_env, gapw_control, .FALSE.)
+            CALL init_rho0(local_rho_set, qs_env, gapw_control)
             !       *** Allocate and Initialize the local coulomb term ***
             CALL init_coulomb_local(qs_env%hartree_local, natom)
          END IF

@@ -1165,7 +1165,7 @@ CONTAINS
          CALL local_rho_set_create(local_rho_set_gs)
          CALL allocate_rho_atom_internals(local_rho_set_gs%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
-         CALL init_rho0(local_rho_set_gs, qs_env, dft_control%qs_control%gapw_control, .FALSE.)
+         CALL init_rho0(local_rho_set_gs, qs_env, dft_control%qs_control%gapw_control)
          CALL rho0_s_grid_create(pw_env, local_rho_set_gs%rho0_mpole)
          CALL calculate_rho_atom_coeff(qs_env, matrix_p(:, 1), local_rho_set_gs%rho_atom_set, &
                                        qs_kind_set, oce, sab_orb, para_env)
@@ -1175,7 +1175,8 @@ CONTAINS
          CALL local_rho_set_create(local_rho_set_t)
          CALL allocate_rho_atom_internals(local_rho_set_t%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
-         CALL init_rho0(local_rho_set_t, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+         CALL init_rho0(local_rho_set_t, qs_env, dft_control%qs_control%gapw_control, &
+                        zcore=0.0_dp)
          CALL rho0_s_grid_create(pw_env, local_rho_set_t%rho0_mpole)
          CALL calculate_rho_atom_coeff(qs_env, mpa(:), local_rho_set_t%rho_atom_set, &
                                        qs_kind_set, oce, sab_orb, para_env)
@@ -1280,8 +1281,8 @@ CONTAINS
                                     calculate_forces=.TRUE.)
          END DO
          IF (myfun /= xc_none) THEN
-            CALL pw_zero(vhxc_rspace)
             DO ispin = 1, nspins
+               CALL pw_zero(vhxc_rspace)
                CALL pw_axpy(vxc_rspace(ispin), vhxc_rspace)
                CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                        hmat=scrm(ispin), pmat=mpa(ispin), &
@@ -1616,7 +1617,8 @@ CONTAINS
          CALL local_rho_set_create(local_rho_set_t)
          CALL allocate_rho_atom_internals(local_rho_set_t%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
-         CALL init_rho0(local_rho_set_t, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+         CALL init_rho0(local_rho_set_t, qs_env, dft_control%qs_control%gapw_control, &
+                        zcore=0.0_dp)
          CALL rho0_s_grid_create(pw_env, local_rho_set_t%rho0_mpole)
          CALL calculate_rho_atom_coeff(qs_env, mpa(:), local_rho_set_t%rho_atom_set, &
                                        qs_kind_set, oce, sab_orb, para_env)
@@ -1625,7 +1627,7 @@ CONTAINS
          CALL local_rho_set_create(local_rho_set_gs)
          CALL allocate_rho_atom_internals(local_rho_set_gs%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
-         CALL init_rho0(local_rho_set_gs, qs_env, dft_control%qs_control%gapw_control, .FALSE.)
+         CALL init_rho0(local_rho_set_gs, qs_env, dft_control%qs_control%gapw_control)
          CALL rho0_s_grid_create(pw_env, local_rho_set_gs%rho0_mpole)
          CALL calculate_rho_atom_coeff(qs_env, matrix_p(:, 1), local_rho_set_gs%rho_atom_set, &
                                        qs_kind_set, oce, sab_orb, para_env)
