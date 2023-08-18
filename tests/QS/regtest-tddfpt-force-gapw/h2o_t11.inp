@@ -5,7 +5,7 @@
        KERNEL FULL
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-9
        RKS_TRIPLETS T
        &XC
          &XC_FUNCTIONAL PBE
@@ -36,10 +36,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  20
-         EPS_SCF 1.0E-6
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
