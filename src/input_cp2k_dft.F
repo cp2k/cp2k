@@ -1810,6 +1810,24 @@ CONTAINS
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
                                        citations=(/Eriksen2020/))
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_ORB_CANONICAL", &
+                          description="Use reference orbitals in canonical form.", &
+                          usage="REFERENCE_ORB_CANONICAL {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SKIP_LOCALIZATION", &
+                          description="Don't localize the MOs.", &
+                          usage="SKIP_LOCALIZATION {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DETAILED_ENERGY", &
+                          description="Calculate detailed atomic decomposition energies.", &
+                          usage="DETAILED_ENERGY {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)

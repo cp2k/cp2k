@@ -121,7 +121,7 @@ MODULE iao_analysis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iao_analysis'
 
-   PUBLIC ::  iao_wfn_analysis, iao_charges, iao_calculate_dmat
+   PUBLIC ::  iao_wfn_analysis, iao_charges, iao_calculate_dmat, print_center_spread
 
    INTERFACE iao_calculate_dmat
       MODULE PROCEDURE iao_calculate_dmat_diag, & ! diagonal occupation matrix
@@ -624,7 +624,7 @@ CONTAINS
             CALL print_ibo_cubes(qs_env, ibo_cubes_section, c_loc_orb)
          END IF
          !
-         IF (PRESENT(mos)) THEN
+         IF (PRESENT(mos) .AND. ALLOCATED(c_loc_orb)) THEN
             ! c_loc_orb -> mos
             DO ispin = 1, nspin
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
@@ -1094,11 +1094,13 @@ CONTAINS
 !> \param moments ...
 !> \param nocc ...
 !> \param print_section ...
+!> \param iounit ...
 ! **************************************************************************************************
-   SUBROUTINE print_center_spread(moments, nocc, print_section)
+   SUBROUTINE print_center_spread(moments, nocc, print_section, iounit)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: moments
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc
-      TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: print_section
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: is, ispin, iw, nspin
@@ -1107,19 +1109,27 @@ CONTAINS
       logger => cp_get_default_logger()
       nspin = SIZE(moments, 3)
 
-      WRITE (filename, '(A18,I1.1)') "IBO_CENTERS_SPREAD"
-      iw = cp_print_key_unit_nr(logger, print_section, "", extension=".csp", &
-                                middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
+      IF (PRESENT(print_section)) THEN
+         WRITE (filename, '(A18,I1.1)') "IBO_CENTERS_SPREAD"
+         iw = cp_print_key_unit_nr(logger, print_section, "", extension=".csp", &
+                                   middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
+      ELSEIF (PRESENT(iounit)) THEN
+         iw = iounit
+      ELSE
+         iw = -1
+      END IF
       IF (iw > 0) THEN
          DO ispin = 1, nspin
-            WRITE (iw, "(A,i1)") "Intrinsic Bond Orbitals: Centers and Spread for Spin ", ispin
+            WRITE (iw, "(T2,A,i1)") "Intrinsic Bond Orbitals: Centers and Spread for Spin ", ispin
             WRITE (iw, "(A7,T30,A6,T68,A7)") "State", "Center", "Spreads"
             DO is = 1, nocc(ispin)
-               WRITE (iw, "(i7,3F15.8,8X,2F10.5)") is, moments(1:5, is, ispin)
+               WRITE (iw, "(i7,3F15.8,8X,2F10.5)") is, moments(:, is, ispin)
             END DO
          END DO
       END IF
-      CALL cp_print_key_finished_output(iw, logger, print_section, "")
+      IF (PRESENT(print_section)) THEN
+         CALL cp_print_key_finished_output(iw, logger, print_section, "")
+      END IF
 
    END SUBROUTINE print_center_spread
 
