@@ -392,10 +392,9 @@ CONTAINS
 
       CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 
-      ! multiply by -w
+      ! multiply by w
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
-         !deriv_att%deriv_data(:,:,1) = -w(:,:)*deriv_att%deriv_data(:,:,1)
          deriv_att%deriv_data(:, :, 1) = w(:, :)*deriv_att%deriv_data(:, :, 1)
       END DO
 

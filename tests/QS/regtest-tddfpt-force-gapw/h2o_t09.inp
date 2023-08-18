@@ -6,8 +6,9 @@
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
+       RKS_TRIPLETS T
        &XC
-         &XC_FUNCTIONAL PADE
+         &XC_FUNCTIONAL NONE
          &END XC_FUNCTIONAL
        &END XC
     &END TDDFPT
@@ -34,7 +35,7 @@
          STEPSIZE 0.1
       &END
       &OUTER_SCF
-         MAX_SCF  10
+         MAX_SCF  20
          EPS_SCF 1.0E-6
       &END
       MAX_SCF  10
@@ -55,9 +56,9 @@
       PERIODIC NONE
     &END
     &COORD
-  O  0.000000 0.000000  0.000000
-  H  0.000000 0.758602  0.504284
-  H  0.000000 0.758602 -0.504284
+    O   0.000000    0.000000    0.000000
+    H   0.000000   -0.757136    0.500545
+    H   0.000000    0.757136    0.500545
     &END COORD
     &TOPOLOGY
      &CENTER_COORDINATES
@@ -82,7 +83,7 @@
 &DEBUG
    DEBUG_FORCES .TRUE.
    DEBUG_STRESS_TENSOR .FALSE.
-   CHECK_ATOM_FORCE   1 y
+   CHECK_ATOM_FORCE   1 z
    STOP_ON_MISMATCH  T
 &END
  

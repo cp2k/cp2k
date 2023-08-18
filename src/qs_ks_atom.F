@@ -94,6 +94,8 @@ CONTAINS
 !> \param oce_external ...
 !> \param sab_external ...
 !> \param kscale ...
+!> \param kintegral ...
+!> \param kforce ...
 !> \param fscale ...
 !> \par History
 !>      created [MI]
@@ -103,7 +105,8 @@ CONTAINS
 !>      Allow for external kind_set, rho_atom_set, oce, sab 12.2019 (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE update_ks_atom(qs_env, ksmat, pmat, forces, tddft, rho_atom_external, &
-                             kind_set_external, oce_external, sab_external, kscale, fscale)
+                             kind_set_external, oce_external, sab_external, kscale, &
+                             kintegral, kforce, fscale)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(*), INTENT(INOUT)    :: ksmat, pmat
@@ -116,7 +119,8 @@ CONTAINS
       TYPE(oce_matrix_type), OPTIONAL, POINTER           :: oce_external
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_external
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kscale, fscale(2)
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kscale, kintegral, kforce
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN), OPTIONAL  :: fscale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
@@ -134,10 +138,11 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
-      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2, force_fac(2)
+      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
+      REAL(KIND=dp), DIMENSION(2)                        :: force_fac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b
@@ -185,11 +190,12 @@ CONTAINS
       nspins = dft_control%nspins
       nimages = dft_control%nimages
 
+      factor1 = 1.0_dp
+      factor2 = 1.0_dp
+
       !deal with externals
       my_tddft = .FALSE.
       IF (PRESENT(tddft)) my_tddft = tddft
-      factor1 = 1.0_dp
-      factor2 = 1.0_dp
       IF (my_tddft) THEN
          IF (nspins == 1) factor1 = 2.0_dp
          CPASSERT(nimages == 1)
@@ -198,7 +204,8 @@ CONTAINS
          factor1 = factor1*kscale
          factor2 = factor2*kscale
       END IF
-
+      IF (PRESENT(kintegral)) factor1 = kintegral
+      IF (PRESENT(kforce)) factor2 = kforce
       force_fac = 1.0_dp
       IF (PRESENT(fscale)) force_fac(:) = fscale(:)
 
@@ -376,6 +383,7 @@ CONTAINS
                DO ispin = 1, nspins
                   NULLIFY (mat_h(ispin)%array, mat_p(ispin)%array)
 
+                  found = .FALSE.
                   IF (iatom <= jatom) THEN
                      CALL dbcsr_get_block_p(matrix=ksmat(nspins*(img - 1) + ispin)%matrix, &
                                             row=iatom, col=jatom, &
@@ -385,8 +393,10 @@ CONTAINS
                                             row=jatom, col=iatom, &
                                             BLOCK=mat_h(ispin)%array, found=found)
                   END IF
+                  CPASSERT(found)
 
                   IF (forces) THEN
+                     found = .FALSE.
                      IF (iatom <= jatom) THEN
                         CALL dbcsr_get_block_p(matrix=pmat(nspins*(img - 1) + ispin)%matrix, &
                                                row=iatom, col=jatom, &
@@ -396,6 +406,7 @@ CONTAINS
                                                row=jatom, col=iatom, &
                                                BLOCK=mat_p(ispin)%array, found=found)
                      END IF
+                     CPASSERT(found)
                   END IF
                END DO
 

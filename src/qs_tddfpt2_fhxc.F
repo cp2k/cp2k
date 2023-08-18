@@ -200,7 +200,8 @@ CONTAINS
                                       pw_env_external=sub_env%pw_env, &
                                       task_list_external=sub_env%task_list_orb_soft, &
                                       para_env_external=sub_env%para_env)
-               CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set)
+               CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set, &
+                                     do_rho0=(.NOT. is_rks_triplets))
             ELSEIF (gapw_xc) THEN
                CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
                                       rho_xc_external=work_matrices%rho_xc_struct_sub, &
@@ -408,9 +409,6 @@ CONTAINS
                                           qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw, &
                                           pw_env_external=sub_env%pw_env, &
                                           task_list_external=sub_env%task_list_orb_soft)
-                  ! rho_ia_ao will not be touched
-                  CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
-                                      rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
                ELSEIF (gapw_xc) THEN
                   IF (.NOT. is_rks_triplets) THEN
                      CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
@@ -418,9 +416,6 @@ CONTAINS
                                              qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
                                              pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
                   END IF
-                  ! rho_ia_ao will not be touched
-                  CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
-                                      rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
                ELSE
                   CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
                                           hmat=work_matrices%A_ia_munu_sub(ispin), &
@@ -442,6 +437,16 @@ CONTAINS
                END DO
             END IF ! for full kernel using lri
          END DO
+
+         ! local atom contributions
+         IF (.NOT. do_lrigpw) THEN
+            IF (gapw .OR. gapw_xc) THEN
+               ! rho_ia_ao will not be touched
+               CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., &
+                                   rho_atom_external=work_matrices%local_rho_set%rho_atom_set, &
+                                   tddft=.TRUE.)
+            END IF
+         END IF
 
          ! calculate Coulomb contribution to response vector for lrigpw !
          ! this is restricting lri to Coulomb only at the moment !

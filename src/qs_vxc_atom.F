@@ -377,7 +377,6 @@ CONTAINS
 
                IF (.NOT. energy_only) THEN
                   NULLIFY (int_hh, int_ss)
-                  rho_atom => my_rho_atom_set(iatom)
                   CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, int_hh, int_ss, &
@@ -460,7 +459,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: gradient_functional, lsd, lsd_singlets, &
-                                                            my_tddft, paw_atom, tau_f
+                                                            my_tddft, paw_atom, scale_rho, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: vxc_h, vxc_s
@@ -532,6 +531,23 @@ CONTAINS
       ELSE
          nspins = 1
       END IF
+
+      scale_rho = .FALSE.
+      IF (my_tddft) THEN
+         IF (excitations == tddfpt_excitations) THEN
+            IF (nspins == 1 .AND. (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
+               lsd = .TRUE.
+            END IF
+         END IF
+      ELSEIF (PRESENT(do_tddfpt2) .AND. PRESENT(do_triplet)) THEN
+         IF (nspins == 1 .AND. do_triplet) THEN
+            lsd = .TRUE.
+            scale_rho = .TRUE.
+         END IF
+      ELSEIF (PRESENT(do_triplet)) THEN
+         IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
+      END IF
+
       needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, &
                                        calc_potential=.TRUE.)
       gradient_functional = needs%drho .OR. needs%drho_spin
@@ -540,18 +556,6 @@ CONTAINS
          CPABORT("Tau functionals not implemented for GAPW 2nd derivatives")
       ELSE
          rtau = 0.0_dp
-      END IF
-
-      IF (my_tddft) THEN
-         IF (excitations == tddfpt_excitations) THEN
-            IF (nspins == 1 .AND. (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
-               lsd = .TRUE.
-            END IF
-         END IF
-      ELSEIF (PRESENT(do_tddfpt2) .AND. PRESENT(do_triplet)) THEN
-         IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
-      ELSEIF (PRESENT(do_triplet)) THEN
-         IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
       END IF
 
       !  Here starts the loop over all the atoms
@@ -666,6 +670,14 @@ CONTAINS
                                      ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
                                      drho1_h, drho1_s)
             END DO
+            IF (scale_rho) THEN
+               rho_h = 2.0_dp*rho_h
+               rho_s = 2.0_dp*rho_s
+               IF (gradient_functional) THEN
+                  drho_h = 2.0_dp*drho_h
+                  drho_s = 2.0_dp*drho_s
+               END IF
+            END IF
 
             DO ir = 1, nr
                IF (tau_f) THEN
@@ -752,8 +764,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
-                                                            istep, myfun, na, natom, nf, nr, ns, &
-                                                            nspins, nstep, num_pe
+                                                            istep, mspins, myfun, na, natom, nf, &
+                                                            nr, ns, nspins, nstep, num_pe, nx
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
@@ -826,13 +838,15 @@ CONTAINS
          nlcc = has_nlcc(kind_set)
          lsd = dft_control%lsd
          nspins = dft_control%nspins
+         mspins = nspins
+         IF (is_triplet) THEN
+            CPASSERT(nspins == 1)
+            lsd = .TRUE.
+            mspins = 2
+         END IF
          needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.TRUE.)
          gradient_f = (needs%drho .OR. needs%drho_spin)
          tau_f = (needs%tau .OR. needs%tau_spin)
-         IF (is_triplet) THEN
-            CPASSERT(nspins == 1)
-            CPABORT("Missing Code")
-         END IF
 
          ! Here starts the loop over all the atoms
          DO ikind = 1, SIZE(atomic_kind_set)
@@ -864,26 +878,26 @@ CONTAINS
                                    drho_cutoff=gradient_cut, tau_cutoff=tau_cut)
 
             ! allocate the required 3d arrays where to store rho and drho
-            CALL xc_rho_set_atom_update(rho_set_h, needs, nspins, bounds)
-            CALL xc_rho_set_atom_update(rho_set_s, needs, nspins, bounds)
+            CALL xc_rho_set_atom_update(rho_set_h, needs, mspins, bounds)
+            CALL xc_rho_set_atom_update(rho_set_s, needs, mspins, bounds)
 
             weight => grid_atom%weight
 
-            ALLOCATE (rho_h(na, nr, nspins), rho_s(na, nr, nspins), &
+            ALLOCATE (rho_h(na, nr, mspins), rho_s(na, nr, mspins), &
                       rho0_h(na, nr, nspins), rho0_s(na, nr, nspins), &
                       rho1_h(na, nr, nspins), rho1_s(na, nr, nspins))
-            ALLOCATE (vxc_h(na, nr, nspins), vxc_s(na, nr, nspins))
+            ALLOCATE (vxc_h(na, nr, mspins), vxc_s(na, nr, mspins))
             IF (gradient_f) THEN
-               ALLOCATE (drho_h(4, na, nr, nspins), drho_s(4, na, nr, nspins), &
+               ALLOCATE (drho_h(4, na, nr, mspins), drho_s(4, na, nr, mspins), &
                          drho0_h(4, na, nr, nspins), drho0_s(4, na, nr, nspins), &
                          drho1_h(4, na, nr, nspins), drho1_s(4, na, nr, nspins))
-               ALLOCATE (vxg_h(3, na, nr, nspins), vxg_s(3, na, nr, nspins))
+               ALLOCATE (vxg_h(3, na, nr, mspins), vxg_s(3, na, nr, mspins))
             END IF
             IF (tau_f) THEN
-               ALLOCATE (tau_h(na, nr, nspins), tau_s(na, nr, nspins), &
+               ALLOCATE (tau_h(na, nr, mspins), tau_s(na, nr, mspins), &
                          tau0_h(na, nr, nspins), tau0_s(na, nr, nspins), &
                          tau1_h(na, nr, nspins), tau1_s(na, nr, nspins))
-               ALLOCATE (vtau_h(na, nr, nspins), vtau_s(na, nr, nspins))
+               ALLOCATE (vtau_h(na, nr, mspins), vtau_s(na, nr, mspins))
             END IF
             !
             ! NLCC: prepare rho and drho of the core charge for this KIND
@@ -904,11 +918,12 @@ CONTAINS
                NULLIFY (int_hh, int_ss)
                rho0_atom => rho0_atom_set(iatom)
                CALL get_rho_atom(rho_atom=rho0_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
-               ALLOCATE (fint_ss(nspins), fint_hh(nspins))
-               DO ns = 1, nspins
-                  nf = SIZE(int_ss(ns)%r_coef, 1)
+               ALLOCATE (fint_ss(mspins), fint_hh(mspins))
+               DO ns = 1, mspins
+                  nx = MIN(nspins, ns)
+                  nf = SIZE(int_ss(nx)%r_coef, 1)
                   ALLOCATE (fint_ss(ns)%r_coef(nf, nf))
-                  nf = SIZE(int_hh(ns)%r_coef, 1)
+                  nf = SIZE(int_hh(nx)%r_coef, 1)
                   ALLOCATE (fint_hh(ns)%r_coef(nf, nf))
                END DO
 
@@ -972,27 +987,52 @@ CONTAINS
 
                   beta = REAL(istep, KIND=dp)*epsrho
 
-                  rho_h = rho0_h + beta*rho1_h
-                  rho_s = rho0_s + beta*rho1_s
-                  IF (gradient_f) THEN
-                     drho_h = drho0_h + beta*drho1_h
-                     drho_s = drho0_s + beta*drho1_s
-                  END IF
-                  IF (tau_f) THEN
-                     tau_h = tau0_h + beta*tau1_h
-                     tau_s = tau0_s + beta*tau1_s
+                  IF (is_triplet) THEN
+                     rho_h(:, :, 1) = rho0_h(:, :, 1) + beta*rho1_h(:, :, 1)
+                     rho_h(:, :, 2) = rho0_h(:, :, 1)
+                     rho_h = 0.5_dp*rho_h
+                     rho_s(:, :, 1) = rho0_s(:, :, 1) + beta*rho1_s(:, :, 1)
+                     rho_s(:, :, 2) = rho0_s(:, :, 1)
+                     rho_s = 0.5_dp*rho_s
+                     IF (gradient_f) THEN
+                        drho_h(:, :, :, 1) = drho0_h(:, :, :, 1) + beta*drho1_h(:, :, :, 1)
+                        drho_h(:, :, :, 2) = drho0_h(:, :, :, 1)
+                        drho_h = 0.5_dp*drho_h
+                        drho_s(:, :, :, 1) = drho0_s(:, :, :, 1) + beta*drho1_s(:, :, :, 1)
+                        drho_s(:, :, :, 2) = drho0_s(:, :, :, 1)
+                        drho_s = 0.5_dp*drho_s
+                     END IF
+                     IF (tau_f) THEN
+                        tau_h(:, :, 1) = tau0_h(:, :, 1) + beta*tau1_h(:, :, 1)
+                        tau_h(:, :, 2) = tau0_h(:, :, 1)
+                        tau_h = 0.5_dp*tau0_h
+                        tau_s(:, :, 1) = tau0_s(:, :, 1) + beta*tau1_s(:, :, 1)
+                        tau_s(:, :, 2) = tau0_s(:, :, 1)
+                        tau_s = 0.5_dp*tau0_s
+                     END IF
+                  ELSE
+                     rho_h = rho0_h + beta*rho1_h
+                     rho_s = rho0_s + beta*rho1_s
+                     IF (gradient_f) THEN
+                        drho_h = drho0_h + beta*drho1_h
+                        drho_s = drho0_s + beta*drho1_s
+                     END IF
+                     IF (tau_f) THEN
+                        tau_h = tau0_h + beta*tau1_h
+                        tau_s = tau0_s + beta*tau1_s
+                     END IF
                   END IF
 
                   DO ir = 1, nr
                      IF (tau_f) THEN
-                        CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h, na, ir)
-                        CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s, na, ir)
+                        CALL fill_rho_set(rho_set_h, lsd, mspins, needs, rho_h, drho_h, tau_h, na, ir)
+                        CALL fill_rho_set(rho_set_s, lsd, mspins, needs, rho_s, drho_s, tau_s, na, ir)
                      ELSE IF (gradient_f) THEN
-                        CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_d, na, ir)
-                        CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_d, na, ir)
+                        CALL fill_rho_set(rho_set_h, lsd, mspins, needs, rho_h, drho_h, tau_d, na, ir)
+                        CALL fill_rho_set(rho_set_s, lsd, mspins, needs, rho_s, drho_s, tau_d, na, ir)
                      ELSE
-                        CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, rho_d, tau_d, na, ir)
-                        CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, rho_d, tau_d, na, ir)
+                        CALL fill_rho_set(rho_set_h, lsd, mspins, needs, rho_h, rho_d, tau_d, na, ir)
+                        CALL fill_rho_set(rho_set_s, lsd, mspins, needs, rho_s, rho_d, tau_d, na, ir)
                      END IF
                   END DO
 
@@ -1000,25 +1040,43 @@ CONTAINS
                   CALL xc_dset_zero_all(deriv_set)
                   CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
                                     lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h)
+                  IF (is_triplet) THEN
+                     vxc_h(:, :, 1) = vxc_h(:, :, 1) - vxc_h(:, :, 2)
+                     IF (gradient_f) THEN
+                        vxg_h(:, :, :, 1) = vxg_h(:, :, :, 1) - vxg_h(:, :, :, 2)
+                     END IF
+                     IF (tau_f) THEN
+                        vtau_h(:, :, 1) = vtau_h(:, :, 1) - vtau_h(:, :, 2)
+                     END IF
+                  END IF
                   ! soft atom density !
                   CALL xc_dset_zero_all(deriv_set)
                   CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
                                     lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s)
+                  IF (is_triplet) THEN
+                     vxc_s(:, :, 1) = vxc_s(:, :, 1) - vxc_s(:, :, 2)
+                     IF (gradient_f) THEN
+                        vxg_s(:, :, :, 1) = vxg_s(:, :, :, 1) - vxg_s(:, :, :, 2)
+                     END IF
+                     IF (tau_f) THEN
+                        vtau_s(:, :, 1) = vtau_s(:, :, 1) - vtau_s(:, :, 2)
+                     END IF
+                  END IF
                   ! potentials
-                  DO ns = 1, nspins
+                  DO ns = 1, mspins
                      fint_ss(ns)%r_coef(:, :) = 0.0_dp
                      fint_hh(ns)%r_coef(:, :) = 0.0_dp
                   END DO
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, fint_hh, fint_ss, &
-                                     grid_atom, basis_1c, harmonics, nspins)
+                                     grid_atom, basis_1c, harmonics, mspins)
                   ELSE
                      CALL gaVxcgb_noGC(vxc_h, vxc_s, fint_hh, fint_ss, &
-                                       grid_atom, basis_1c, harmonics, nspins)
+                                       grid_atom, basis_1c, harmonics, mspins)
                   END IF
                   IF (tau_f) THEN
                      CALL dgaVtaudgb(vtau_h, vtau_s, fint_hh, fint_ss, &
-                                     grid_atom, basis_1c, harmonics, nspins)
+                                     grid_atom, basis_1c, harmonics, mspins)
                   END IF
                   ! first derivative fxc
                   NULLIFY (int_hh, int_ss)
@@ -1036,7 +1094,7 @@ CONTAINS
                   END DO
                END DO
                !
-               DO ns = 1, nspins
+               DO ns = 1, mspins
                   DEALLOCATE (fint_ss(ns)%r_coef)
                   DEALLOCATE (fint_hh(ns)%r_coef)
                END DO

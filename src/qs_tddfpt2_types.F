@@ -446,7 +446,8 @@ CONTAINS
          CALL local_rho_set_create(work_matrices%local_rho_set)
          CALL allocate_rho_atom_internals(work_matrices%local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, sub_env%para_env)
-         CALL init_rho0(work_matrices%local_rho_set, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+         CALL init_rho0(work_matrices%local_rho_set, qs_env, dft_control%qs_control%gapw_control, &
+                        zcore=0.0_dp)
          CALL rho0_s_grid_create(sub_env%pw_env, work_matrices%local_rho_set%rho0_mpole)
          CALL hartree_local_create(work_matrices%hartree_local)
          CALL init_coulomb_local(work_matrices%hartree_local, natom)

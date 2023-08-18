@@ -19,8 +19,7 @@ MODULE qs_ks_reference
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
                                               init_coulomb_local
-   USE hartree_local_types,             ONLY: ecoul_1center_type,&
-                                              hartree_local_create,&
+   USE hartree_local_types,             ONLY: hartree_local_create,&
                                               hartree_local_release,&
                                               hartree_local_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none
@@ -58,7 +57,8 @@ MODULE qs_ks_reference
                                               local_rho_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: oce_matrix_type
-   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
+   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace,&
+                                              rho0_s_grid_create
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                               calculate_rho_atom_coeff
@@ -301,13 +301,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param local_rho_set ...
 !> \param local_rho_set_admm ...
+!> \param v_hartree_rspace ...
 !> \par History
 !>      07.2022 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE ks_ref_potential_atom(qs_env, local_rho_set, local_rho_set_admm)
+   SUBROUTINE ks_ref_potential_atom(qs_env, local_rho_set, local_rho_set_admm, v_hartree_rspace)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set, local_rho_set_admm
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_rspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ks_ref_potential_atom'
 
@@ -318,7 +320,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_aux, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -349,7 +350,7 @@ CONTAINS
                                           qs_kind_set, dft_control, para_env)
          IF (gapw) THEN
             CALL get_qs_env(qs_env, natom=natom)
-            CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control, .FALSE.)
+            CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control)
             CALL rho0_s_grid_create(pw_env, local_rho_set%rho0_mpole)
             CALL hartree_local_create(hartree_local)
             CALL init_coulomb_local(hartree_local, natom)
@@ -362,9 +363,9 @@ CONTAINS
          CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=gapw)
 
          IF (gapw) THEN
-            CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c)
-            CALL Vh_1c_gg_integrals(qs_env, eh1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
-                                    core_2nd=.FALSE.)
+            CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, .FALSE.)
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set)
          END IF
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -386,7 +387,7 @@ CONTAINS
                CALL qs_rho_get(rho, rho_ao_kp=rho_ao_aux)
                CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux, local_rho_set_admm%rho_atom_set, &
                                              admm_env%admm_gapw_env%admm_kind_set, oce, sab, para_env)
-               CALL prepare_gapw_den(qs_env, local_rho_set=admm_env%admm_gapw_env%local_rho_set, &
+               CALL prepare_gapw_den(qs_env, local_rho_set=local_rho_set_admm, &
                                      do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                !compute the potential due to atomic densities
                xc_section => admm_env%xc_section_aux
