@@ -319,9 +319,10 @@ CONTAINS
 !> \param local_rho_set ...
 !> \param local_rho_set_2nd ...
 !> \param atener ...
+!> \param kforce ...
 ! **************************************************************************************************
    SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set, &
-                                    local_rho_set_2nd, atener)
+                                    local_rho_set_2nd, atener, kforce)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
@@ -329,6 +330,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set, local_rho_set_2nd
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atener
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kforce
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace'
 
