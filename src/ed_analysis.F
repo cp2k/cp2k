@@ -122,12 +122,13 @@ CONTAINS
                                                             nref, nspin
       INTEGER, DIMENSION(2)                              :: nocc
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
-      LOGICAL                                            :: detailed_ener, explicit, &
+      LOGICAL                                            :: detailed_ener, explicit, gapw, gapw_xc, &
                                                             ref_orb_canonical, skip_localize, &
-                                                            uniform_occupation, uocc, gapw, gapw_xc
-      REAL(KIND=dp)                                      :: ateps, checksum, e_pot, ecc, egcp, ekts, &
-                                                            evdw, focc, sum_energy, e1, e2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1xc, ate1h, atecc, ateks, atener, odiag
+                                                            uniform_occupation, uocc
+      REAL(KIND=dp)                                      :: ateps, checksum, e1, e2, e_pot, ecc, &
+                                                            egcp, ekts, evdw, focc, sum_energy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1h, ate1xc, atecc, ateks, atener, &
+                                                            odiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atdet, mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
@@ -138,7 +139,7 @@ CONTAINS
                                                             rotmat
       TYPE(cp_fm_type), POINTER                          :: cloc, moref
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
-      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: ks_mat, vhxc_mat, exc_mat
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: exc_mat, ks_mat, vhxc_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, matrix_s, matrix_t
       TYPE(dbcsr_type)                                   :: dkmat, dmat
       TYPE(dbcsr_type), POINTER                          :: smat
@@ -465,14 +466,14 @@ CONTAINS
             CALL dbcsr_dot(dkmat, ks_mat(ispin)%matrix, ecc)
             ateks(iatom) = ateks(iatom) + ecc
             !
-            IF(detailed_ener) THEN
+            IF (detailed_ener) THEN
                CALL dbcsr_dot(dkmat, matrix_t(1)%matrix, e1)
-               atdet(iatom,1) = atdet(iatom,1) + e1
+               atdet(iatom, 1) = atdet(iatom, 1) + e1
                CALL dbcsr_dot(dkmat, matrix_h(1)%matrix, e2)
-               atdet(iatom,2) = atdet(iatom,2) + (e2-e1)
+               atdet(iatom, 2) = atdet(iatom, 2) + (e2 - e1)
                CALL dbcsr_dot(dkmat, exc_mat(1)%matrix, e1)
-               atdet(iatom,3) = atdet(iatom,3) + ecc - e2 - e1
-               atdet(iatom,4) = atdet(iatom,4) + e1
+               atdet(iatom, 3) = atdet(iatom, 3) + ecc - e2 - e1
+               atdet(iatom, 4) = atdet(iatom, 4) + e1
             END IF
             !
          END DO
@@ -507,26 +508,26 @@ CONTAINS
       ! core energy corrections
       CALL group%sum(atecc)
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
-      IF(detailed_ener) atdet(1:natom,6) = atdet(1:natom,6) + atecc(1:natom)
+      IF (detailed_ener) atdet(1:natom, 6) = atdet(1:natom, 6) + atecc(1:natom)
       ! one center terms (GAPW)
       CALL group%sum(ate1xc)
       CALL group%sum(ate1h)
       atener(1:natom) = atener(1:natom) + ate1xc(1:natom) + ate1h(1:natom)
-      IF(detailed_ener) THEN
-         IF(gapw .or. gapw_xc) atdet(1:natom,8) = atdet(1:natom,8) + ate1xc(1:natom)
-         IF(gapw) atdet(1:natom,9) = atdet(1:natom,9) + ate1h(1:natom)
+      IF (detailed_ener) THEN
+         IF (gapw .OR. gapw_xc) atdet(1:natom, 8) = atdet(1:natom, 8) + ate1xc(1:natom)
+         IF (gapw) atdet(1:natom, 9) = atdet(1:natom, 9) + ate1h(1:natom)
       END IF
       ! core correction
       atecc(1:natom) = 0.0_dp
       CALL calculate_ecore_overlap(qs_env, para_env, .FALSE., atecc=atecc)
       CALL group%sum(atecc)
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
-      IF(detailed_ener) atdet(1:natom,7) = atdet(1:natom,7) + atecc(1:natom)
+      IF (detailed_ener) atdet(1:natom, 7) = atdet(1:natom, 7) + atecc(1:natom)
       atecc(1:natom) = 0.0_dp
       CALL calculate_ecore_self(qs_env, atecc=atecc)
       CALL group%sum(atecc)
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
-      IF(detailed_ener) atdet(1:natom,7) = atdet(1:natom,7) + atecc(1:natom)
+      IF (detailed_ener) atdet(1:natom, 7) = atdet(1:natom, 7) + atecc(1:natom)
       ! vdW pair-potentials
       atecc(1:natom) = 0.0_dp
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
@@ -538,33 +539,33 @@ CONTAINS
       END IF
       CALL group%sum(atecc)
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
-      IF(detailed_ener) atdet(1:natom,10) = atdet(1:natom,10) + atecc(1:natom)
+      IF (detailed_ener) atdet(1:natom, 10) = atdet(1:natom, 10) + atecc(1:natom)
       ! distribute the entropic energy
       CALL get_qs_env(qs_env, energy=energy)
       ekts = energy%kts/REAL(natom, KIND=dp)
       atener(1:natom) = atener(1:natom) + ekts
 
-      IF(detailed_ener) THEN
+      IF (detailed_ener) THEN
          IF (unit_nr > 0) THEN
-            WRITE(unit_nr, FMT="(/,T2,A)") "Detailed Atomic Energy Components " 
-            CALL write_atdet(unit_nr, atdet(:,1), "Kinetic Energy")
-            CALL write_atdet(unit_nr, atdet(:,2), "Short-Range Core and/or PP Energy")
-            CALL write_atdet(unit_nr, atdet(:,3), "Hartree Energy (long-ranged part)")
-            CALL write_atdet(unit_nr, atdet(:,5), "Exact Exchange Energy")
-            CALL write_atdet(unit_nr, atdet(:,4), "Exchange-Correlation Energy")
-            CALL write_atdet(unit_nr, atdet(:,6), "Atomic Core Hartree: Int(nc V(n+nc) dx")
-            CALL write_atdet(unit_nr, atdet(:,7), "Core Self Energy Corrections")
-            IF(gapw) THEN
-               CALL write_atdet(unit_nr, atdet(:,9), "GAPW: 1-center Hartree Energy")
+            WRITE (unit_nr, FMT="(/,T2,A)") "Detailed Atomic Energy Components "
+            CALL write_atdet(unit_nr, atdet(:, 1), "Kinetic Energy")
+            CALL write_atdet(unit_nr, atdet(:, 2), "Short-Range Core and/or PP Energy")
+            CALL write_atdet(unit_nr, atdet(:, 3), "Hartree Energy (long-ranged part)")
+            CALL write_atdet(unit_nr, atdet(:, 5), "Exact Exchange Energy")
+            CALL write_atdet(unit_nr, atdet(:, 4), "Exchange-Correlation Energy")
+            CALL write_atdet(unit_nr, atdet(:, 6), "Atomic Core Hartree: Int(nc V(n+nc) dx")
+            CALL write_atdet(unit_nr, atdet(:, 7), "Core Self Energy Corrections")
+            IF (gapw) THEN
+               CALL write_atdet(unit_nr, atdet(:, 9), "GAPW: 1-center Hartree Energy")
             END IF
-            IF(gapw .OR. gapw_xc) THEN
-               CALL write_atdet(unit_nr, atdet(:,8), "GAPW: 1-center XC Energy")
+            IF (gapw .OR. gapw_xc) THEN
+               CALL write_atdet(unit_nr, atdet(:, 8), "GAPW: 1-center XC Energy")
             END IF
-            IF(ABS(evdw) > 1.E-14_dp) THEN
-               CALL write_atdet(unit_nr, atdet(:,10), "vdW Pairpotential Energy")
+            IF (ABS(evdw) > 1.E-14_dp) THEN
+               CALL write_atdet(unit_nr, atdet(:, 10), "vdW Pairpotential Energy")
             END IF
-            DO iatom=1,natom
-               atecc(iatom) = SUM(atdet(iatom,1:10)) - atener(iatom)
+            DO iatom = 1, natom
+               atecc(iatom) = SUM(atdet(iatom, 1:10)) - atener(iatom)
             END DO
             CALL write_atdet(unit_nr, atecc(:), "Missing Energy")
          END IF
@@ -718,7 +719,7 @@ CONTAINS
          !
          DO iatom = 1, natom
             ate1xc(iatom) = ate1xc(iatom) + &
-                           rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s
+                            rho_atom_set(iatom)%exc_h - rho_atom_set(iatom)%exc_s
          END DO
          IF (gapw) THEN
             DO iatom = 1, natom
@@ -778,7 +779,7 @@ CONTAINS
    END SUBROUTINE write_atener
 
 ! **************************************************************************************************
-!> \brief Write the one component of atomic energies 
+!> \brief Write the one component of atomic energies
 !> \param iounit ...
 !> \param atener ...
 !> \param label ...
@@ -798,7 +799,7 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(/,T2,A)") TRIM(label)
          WRITE (UNIT=iounit, FMT="(5G16.8)") atener(1:natom)
       END IF
-         
+
    END SUBROUTINE write_atdet
 
 END MODULE ed_analysis
