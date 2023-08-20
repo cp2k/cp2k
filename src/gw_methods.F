@@ -1019,6 +1019,9 @@ CONTAINS
 
       num_cells = SIZE(index_to_cell, 2)
 
+      i_atom_old = 0
+      j_atom_old = 0
+
       DO i_row = 1, nrow_local
          DO j_col = 1, ncol_local
 
