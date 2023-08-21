@@ -105,6 +105,8 @@ MODULE rpa_gw
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_methods,                      ONLY: pw_scale,&
+                                              pw_zero,pw_copy,pw_axpy
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -113,7 +115,6 @@ MODULE rpa_gw
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-   USE pw_methods, ONLY: pw_zero, pw_scale
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -2380,7 +2381,8 @@ CONTAINS
       CALL pw_scale(E_VBM_rspace, evolt)
       CALL pw_scale(E_CBM_rspace, evolt)
 
-      E_gap_rspace%cr3d(:, :, :) = E_CBM_rspace%cr3d(:, :, :) - E_VBM_rspace%cr3d(:, :, :)
+      CALL pw_copy(E_CBM_rspace, E_gap_rspace)
+      CALL pw_axpy(E_VBM_rspace, E_gap_rspace, -1.0_dp)
 
       gw_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%GW")
       CALL qs_subsys_get(subsys, particles=particles)
