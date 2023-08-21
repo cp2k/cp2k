@@ -33,7 +33,7 @@ MODULE qs_rho_methods
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_zero
+   USE pw_methods,                      ONLY: pw_zero, pw_scale, pw_copy
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -880,13 +880,14 @@ CONTAINS
             DO i = 1, mspin
                CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               rho_r_out(i)%cr3d(:, :, :) = rho_r_in(1)%cr3d(:, :, :)*ospin
+               CALL pw_copy(rho_r_in(1), rho_r_out(i))
+               CALL pw_scale(rho_r_out(i), ospin)
             END DO
          ELSE
             DO i = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               rho_r_out(i)%cr3d(:, :, :) = rho_r_in(i)%cr3d(:, :, :)
+               CALL pw_copy(rho_r_in(i), rho_r_out(i))
             END DO
          END IF
       END IF
@@ -920,7 +921,7 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out, &
                                 in_space=REALSPACE, &
                                 use_data=REALDATA3D)
-         rho_r_sccs_out%cr3d(:, :, :) = rho_r_sccs_in%cr3d(:, :, :)
+         CALL pw_copy(rho_r_sccs_in, rho_r_sccs_out)
       END IF
 
       ! drho_r
@@ -934,7 +935,8 @@ CONTAINS
                DO i = 1, 3
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  drho_r_out(i, j)%cr3d(:, :, :) = drho_r_in(i, 1)%cr3d(:, :, :)*ospin
+                  CALL pw_copy(drho_r_in(i, 1), drho_r_out(i, j))
+                  CALL pw_scale(drho_r_out(i, j), ospin)
                END DO
             END DO
          ELSE
@@ -942,7 +944,7 @@ CONTAINS
                DO i = 1, 3
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  drho_r_out(i, j)%cr3d(:, :, :) = drho_r_in(i, j)%cr3d(:, :, :)
+                  CALL pw_copy(drho_r_in(i, j), drho_r_out(i, j))
                END DO
             END DO
          END IF
@@ -985,13 +987,14 @@ CONTAINS
             DO i = 1, mspin
                CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               tau_r_out(i)%cr3d(:, :, :) = tau_r_in(1)%cr3d(:, :, :)*ospin
+               CALL pw_copy(tau_r_in(1), tau_r_out(i))
+               CALL pw_scale(tau_r_out(i), ospin)
             END DO
          ELSE
             DO i = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               tau_r_out(i)%cr3d(:, :, :) = tau_r_in(i)%cr3d(:, :, :)
+               CALL pw_copy(tau_r_in(i), tau_r_out(i))
             END DO
          END IF
       END IF
@@ -1338,7 +1341,7 @@ CONTAINS
          DO i = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            rho_r_out(i)%cr3d(:, :, :) = rho_r_in(i)%cr3d(:, :, :)
+            CALL pw_copy(rho_r_in(i), rho_r_out(i))
          END DO
       END IF
 
@@ -1350,7 +1353,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
-            rho_g_out(i)%cc(:) = rho_g_in(i)%cc(:)
+            CALL pw_copy(rho_g_in(i), rho_g_out(i))
          END DO
       END IF
 
@@ -1360,7 +1363,7 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out, &
                                 in_space=REALSPACE, &
                                 use_data=REALDATA3D)
-         rho_r_sccs_out%cr3d(:, :, :) = rho_r_sccs_in%cr3d(:, :, :)
+         CALL pw_copy(rho_r_sccs_in, rho_r_sccs_out)
       END IF
 
       ! drho_r and drho_g are only needed if calculated by collocation
@@ -1373,7 +1376,7 @@ CONTAINS
                DO i = 1, 3
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  drho_r_out(i, j)%cr3d(:, :, :) = drho_r_in(i, j)%cr3d(:, :, :)
+                  CALL pw_copy(drho_r_in(i, j), drho_r_out(i, j))
                END DO
             END DO
          END IF
@@ -1387,7 +1390,7 @@ CONTAINS
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j), &
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
-                  drho_g_out(i, j)%cc(:) = drho_g_in(i, j)%cc(:)
+                  CALL pw_copy(drho_g_in(i, j), drho_g_out(i, j))
                END DO
             END DO
          END IF
@@ -1404,7 +1407,7 @@ CONTAINS
             DO i = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               tau_r_out(i)%cr3d(:, :, :) = tau_r_in(i)%cr3d(:, :, :)
+               CALL pw_copy(tau_r_in(i), tau_r_out(i))
             END DO
          END IF
 
@@ -1416,7 +1419,7 @@ CONTAINS
                CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               tau_g_out(i)%cc(:) = tau_g_in(i)%cc(:)
+               CALL pw_copy(tau_g_in(i), tau_g_out(i))
             END DO
          END IF
       END IF

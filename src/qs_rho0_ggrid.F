@@ -32,7 +32,7 @@ MODULE qs_rho0_ggrid
                                               pw_copy,&
                                               pw_integrate_function,&
                                               pw_transfer,&
-                                              pw_zero
+                                              pw_zero,pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
@@ -457,7 +457,7 @@ CONTAINS
          CALL pw_pool_create_pw(pw_aux, coeff_raux, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          fscale = coeff_rspace%pw_grid%dvol/coeff_raux%pw_grid%dvol
-         coeff_rspace%cr3d = fscale*coeff_rspace%cr3d
+         CALL pw_scale(coeff_rspace, fscale)
          CALL pw_pool_give_back_pw(pw_aux, coeff_raux)
       ELSE
 

@@ -711,8 +711,7 @@ CONTAINS
                                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                                    pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp)
             ! add to the existing work_v_rspace
-            work_v_rspace%cr3d = work_v_rspace%cr3d - &
-                                 dft_control%sic_scaling_b*vxc(1)%pw_grid%dvol*vxc(1)%cr3d
+            CALL pw_axpy(vxc(1), work_v_rspace, -dft_control%sic_scaling_b*vxc(1)%pw_grid%dvol)
          END IF
          energy%exc = energy%exc - dft_control%sic_scaling_b*exc
 
@@ -1350,9 +1349,7 @@ CONTAINS
                ! SIC not implemented (or at least not tested)
                CPASSERT(dft_control%sic_method_id == sic_none)
                !Only the xc potential, because it has to be integrated with the soft basis
-               v_rspace_new(ispin)%cr3d = &
-                  v_rspace_new(ispin)%pw_grid%dvol* &
-                  v_rspace_new(ispin)%cr3d
+               CALL pw_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw_grid%dvol)
 
                ! add the xc  part due to v_rspace soft
                rho_ao => rho_ao_kp(ispin, :)
@@ -1364,7 +1361,7 @@ CONTAINS
                                        gapw=gapw_xc)
 
                ! Now the Hartree potential to be integrated with the full basis
-               v_rspace_new(ispin)%cr3d = v_rspace%cr3d
+               CALL pw_copy(v_rspace, v_rspace_new(ispin))
             ELSE
                ! Add v_hartree + v_xc = v_rspace_new
                v_rspace_new(ispin)%cr3d = &
@@ -1374,15 +1371,12 @@ CONTAINS
             IF (dft_control%qs_control%ddapc_explicit_potential) THEN
                IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
                   IF (ispin == 1) THEN
-                     v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d &
-                                                + v_spin_ddapc_rest_r%cr3d
+                     CALL pw_axpy(v_spin_ddapc_rest_r, v_rspace_new(ispin), 1.0_dp)
                   ELSE
-                     v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d &
-                                                - v_spin_ddapc_rest_r%cr3d
+                     CALL pw_axpy(v_spin_ddapc_rest_r, v_rspace_new(ispin), -1.0_dp)
                   END IF
                ELSE
-                  v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d &
-                                             + v_spin_ddapc_rest_r%cr3d
+                  CALL pw_axpy(v_spin_ddapc_rest_r, v_rspace_new(ispin), 1.0_dp)
                END IF
             END IF
             ! CDFT constraint contribution
@@ -1406,9 +1400,8 @@ CONTAINS
                   CASE DEFAULT
                      CPABORT("Unknown constraint type.")
                   END SELECT
-                  v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d &
-                                             + csign*cdft_control%group(igroup)%weight%cr3d* &
-                                             cdft_control%strength(igroup)
+                  CALL pw_axpy(cdft_control%group(igroup)%weight, v_rspace_new(ispin), &
+                  csign*cdft_control%strength(igroup))
                END DO
             END IF
             ! functional derivative of the Hartree energy wrt the density in the presence of dielectric

@@ -373,8 +373,8 @@ CONTAINS
             IF (nspins == 1) THEN
 
                IF (.NOT. (lr_triplet)) THEN
-                  v_rspace_new(1)%cr3d = 2.0_dp*v_rspace_new(1)%cr3d
-                  IF (ASSOCIATED(v_xc_tau)) v_xc_tau(1)%cr3d = 2.0_dp*v_xc_tau(1)%cr3d
+                  CALL pw_scale(v_rspace_new(1), 2.0_dp)
+                  IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(1), 2.0_dp)
                END IF
                CALL qs_rho_get(rho1, rho_ao=rho1_ao)
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
@@ -432,18 +432,16 @@ CONTAINS
 
             IF (nspins == 1) THEN
                IF (.NOT. (lr_triplet)) THEN
-                  v_rspace_new(1)%cr3d = 2.0_dp*v_rspace_new(1)%cr3d
-                  IF (ASSOCIATED(v_xc_tau)) v_xc_tau(1)%cr3d = 2.0_dp*v_xc_tau(1)%cr3d
+                  CALL pw_scale(v_rspace_new(1), 2.0_dp)
+                  IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(1), 2.0_dp)
                END IF
                ! add hartree only for SINGLETS
                !IF (res_etype == tddfpt_singlet) THEN
                IF (.NOT. lr_triplet) THEN
-                  v_rspace_new(1)%cr3d = v_rspace_new(1)%cr3d + &
-                                         2.0_dp*v_hartree_rspace%cr3d
+                  CALL pw_axpy(v_hartree_rspace, v_rspace_new(1), 2.0_dp)
                END IF
             ELSE
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_hartree_rspace%cr3d
+               CALL pw_axpy(v_hartree_rspace, v_rspace_new(ispin), 1.0_dp)
             END IF
 
             IF (lrigpw) THEN
@@ -933,7 +931,7 @@ CONTAINS
             IF (nspins == 1) alpha = 2.0_dp
 
             DO ispin = 1, nspins
-               v_xc(ispin)%cr3d = v_xc(ispin)%cr3d*v_xc(ispin)%pw_grid%dvol
+               CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
                CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
                CALL dbcsr_set(xcmat%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=xcmat, qs_env=qs_env, &
