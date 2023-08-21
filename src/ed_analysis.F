@@ -12,6 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE ed_analysis
+   USE admm_types,                      ONLY: admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
@@ -34,12 +35,14 @@ MODULE ed_analysis
         dbcsr_type, dbcsr_type_symmetric
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
+   USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE iao_analysis,                    ONLY: iao_calculate_dmat,&
                                               iao_charges,&
                                               iao_wfn_analysis,&
                                               print_center_spread
    USE iao_types,                       ONLY: iao_env_type,&
                                               iao_set_default
+   USE input_constants,                 ONLY: do_admm_aux_exch_func_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -122,11 +125,12 @@ CONTAINS
                                                             nref, nspin
       INTEGER, DIMENSION(2)                              :: nocc
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
-      LOGICAL                                            :: detailed_ener, explicit, gapw, gapw_xc, &
-                                                            ref_orb_canonical, skip_localize, &
-                                                            uniform_occupation, uocc
+      LOGICAL                                            :: detailed_ener, do_hfx, explicit, gapw, &
+                                                            gapw_xc, ref_orb_canonical, &
+                                                            skip_localize, uniform_occupation, uocc
       REAL(KIND=dp)                                      :: ateps, checksum, e1, e2, e_pot, ecc, &
-                                                            egcp, ekts, evdw, focc, sum_energy
+                                                            egcp, ehfx, ekts, evdw, focc, &
+                                                            sum_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1h, ate1xc, atecc, ateks, atener, &
                                                             odiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atdet, mcharge, mweight
@@ -140,7 +144,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: cloc, moref
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: exc_mat, ks_mat, vhxc_mat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, matrix_s, matrix_t
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_hfx, matrix_ks, &
+                                                            matrix_s, matrix_t
       TYPE(dbcsr_type)                                   :: dkmat, dmat
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -156,6 +161,7 @@ CONTAINS
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
       CALL section_vals_get(input_section, explicit=explicit)
       IF (.NOT. explicit) RETURN
@@ -163,7 +169,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (UNIT=unit_nr, FMT="(/,T2,A)") &
+         WRITE (UNIT=unit_nr, FMT="(/,4(T2,A))") &
             "!-----------------------------------------------------------------------------!", &
             "!                        ENERGY DECOMPOSITION ANALYSIS                        !", &
             "!                    Janus J Eriksen, JCP 153 214109 (2020)                   !", &
@@ -186,6 +192,9 @@ CONTAINS
       END IF
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      CALL get_qs_env(qs_env, input=input)
+      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_sections, explicit=do_hfx)
 
       CALL get_qs_env(qs_env, mos=mos)
       nspin = dft_control%nspins
@@ -451,6 +460,17 @@ CONTAINS
       DO ispin = 1, nspin
          CALL dbcsr_add(ks_mat(ispin)%matrix, vhxc_mat(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
+      !
+      IF (detailed_ener .AND. do_hfx) THEN
+         ALLOCATE (matrix_hfx(nspin))
+         DO ispin = 1, nspin
+            ALLOCATE (matrix_hfx(nspin)%matrix)
+            CALL dbcsr_create(matrix_hfx(ispin)%matrix, template=smat)
+            CALL dbcsr_copy(matrix_hfx(ispin)%matrix, smat)
+            CALL dbcsr_set(matrix_hfx(ispin)%matrix, 0.0_dp)
+         END DO
+         CALL get_hfx_ks_matrix(qs_env, matrix_hfx)
+      END IF
       ! Loop over spins and atoms
       DO ispin = 1, nspin
          CALL get_mo_set(mos_loc(ispin), mo_coeff=cloc, nmo=norb)
@@ -471,8 +491,11 @@ CONTAINS
                atdet(iatom, 1) = atdet(iatom, 1) + e1
                CALL dbcsr_dot(dkmat, matrix_h(1)%matrix, e2)
                atdet(iatom, 2) = atdet(iatom, 2) + (e2 - e1)
+               CALL dbcsr_scale(matrix_hfx(ispin)%matrix, 0.5_dp)
+               CALL dbcsr_dot(dkmat, matrix_hfx(ispin)%matrix, ehfx)
+               atdet(iatom, 5) = atdet(iatom, 5) + ehfx
                CALL dbcsr_dot(dkmat, exc_mat(1)%matrix, e1)
-               atdet(iatom, 3) = atdet(iatom, 3) + ecc - e2 - e1
+               atdet(iatom, 3) = atdet(iatom, 3) + ecc - e2 - e1 - ehfx
                atdet(iatom, 4) = atdet(iatom, 4) + e1
             END IF
             !
@@ -493,6 +516,13 @@ CONTAINS
       DEALLOCATE (mos_loc)
       DEALLOCATE (refbas_blk_sizes)
       DEALLOCATE (ref_basis_set_list)
+      IF (detailed_ener .AND. do_hfx) THEN
+         DO ispin = 1, nspin
+            CALL dbcsr_release(matrix_hfx(ispin)%matrix)
+            DEALLOCATE (matrix_hfx(ispin)%matrix)
+         END DO
+         DEALLOCATE (matrix_hfx)
+      END IF
       CALL cp_fm_release(orb_weight)
       CALL cp_fm_release(ciao)
       CALL cp_fm_release(rotmat)
@@ -616,8 +646,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vhxc_correction'
 
       INTEGER                                            :: handle, iatom, ispin, natom, nspins
-      LOGICAL                                            :: gapw, gapw_xc
+      LOGICAL                                            :: do_admm_corr, gapw, gapw_xc
       REAL(KIND=dp)                                      :: eh1, exc1
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -642,11 +673,20 @@ CONTAINS
       CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control, pw_env=pw_env)
 
       nspins = dft_control%nspins
-      xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      do_admm_corr = .FALSE.
+      IF (dft_control%do_admm) THEN
+         IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) do_admm_corr = .TRUE.
+      END IF
+      IF (do_admm_corr) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         xc_section => admm_env%xc_section_aux
+      ELSE
+         xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
+      END IF
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_create_pw(auxbas_pw_pool, xc_den, &
@@ -686,6 +726,9 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env, rho=rho_struct, dispersion_env=dispersion_env)
       END IF
+      !
+      CPASSERT(.NOT. do_admm_corr)
+      !
       IF (needs%tau .OR. needs%tau_spin) THEN
          CALL qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env=dispersion_env, &
                             xc_den=xc_den, vxc=vxc, vtau=vtau)
@@ -744,6 +787,31 @@ CONTAINS
 
    END SUBROUTINE vhxc_correction
 
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param matrix_hfx ...
+! **************************************************************************************************
+   SUBROUTINE get_hfx_ks_matrix(qs_env, matrix_hfx)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hfx
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hfx_ks_matrix'
+
+      INTEGER                                            :: handle
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, rho=rho)
+      CALL qs_rho_get(rho, rho_ao=matrix_p)
+      CALL tddft_hfx_matrix(matrix_hfx, matrix_p, qs_env, update_energy=.FALSE., &
+                            recalc_integrals=.FALSE.)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_hfx_ks_matrix
 ! **************************************************************************************************
 !> \brief Write the atomic coordinates, types, and energies
 !> \param iounit ...
