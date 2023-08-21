@@ -265,8 +265,7 @@ CONTAINS
    SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space)
       TYPE(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(OUT)                         :: pw
-      INTEGER, INTENT(in)                                :: use_data
-      INTEGER, INTENT(in)                                :: in_space
+      INTEGER, INTENT(in)                                :: use_data, in_space
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
 

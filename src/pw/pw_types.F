@@ -115,8 +115,7 @@ CONTAINS
    SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
       TYPE(pw_type), INTENT(OUT)                         :: pw
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
-      INTEGER, INTENT(in)                                :: use_data
-      INTEGER, INTENT(in)                                :: in_space
+      INTEGER, INTENT(in)                                :: use_data, in_space
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN), OPTIONAL, POINTER                   :: cr3d_ptr
 
