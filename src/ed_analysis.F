@@ -491,9 +491,13 @@ CONTAINS
                atdet(iatom, 1) = atdet(iatom, 1) + e1
                CALL dbcsr_dot(dkmat, matrix_h(1)%matrix, e2)
                atdet(iatom, 2) = atdet(iatom, 2) + (e2 - e1)
-               CALL dbcsr_scale(matrix_hfx(ispin)%matrix, 0.5_dp)
-               CALL dbcsr_dot(dkmat, matrix_hfx(ispin)%matrix, ehfx)
-               atdet(iatom, 5) = atdet(iatom, 5) + ehfx
+               IF (do_hfx) THEN
+                  CALL dbcsr_scale(matrix_hfx(ispin)%matrix, 0.5_dp)
+                  CALL dbcsr_dot(dkmat, matrix_hfx(ispin)%matrix, ehfx)
+                  atdet(iatom, 5) = atdet(iatom, 5) + ehfx
+               ELSE
+                  ehfx = 0.0_dp
+               END IF
                CALL dbcsr_dot(dkmat, exc_mat(1)%matrix, e1)
                atdet(iatom, 3) = atdet(iatom, 3) + ecc - e2 - e1 - ehfx
                atdet(iatom, 4) = atdet(iatom, 4) + e1
