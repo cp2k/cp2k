@@ -434,7 +434,7 @@ CONTAINS
 
                ! add hartree only for SINGLETS
                IF (.NOT. do_triplet) THEN
-                  v_rspace_new(1)%cr3d = v_hartree_rspace%cr3d
+                  CALL pw_copy(v_hartree_rspace, v_rspace_new(1))
 
                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                           pmat=rho_ao(ispin), &
@@ -458,7 +458,7 @@ CONTAINS
                                           calculate_forces=my_calc_forces, gapw=gapw_xc)
                END IF
 
-               v_rspace_new(ispin)%cr3d = v_hartree_rspace%cr3d
+               CALL pw_copy(v_hartree_rspace, v_rspace_new(ispin))
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
@@ -472,12 +472,10 @@ CONTAINS
 
                ! add hartree only for SINGLETS
                IF (.NOT. do_triplet) THEN
-                  v_rspace_new(1)%cr3d = v_rspace_new(1)%cr3d + &
-                                         v_hartree_rspace%cr3d
+                  CALL pw_axpy(v_hartree_rspace, v_rspace_new(1))
                END IF
             ELSE
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_hartree_rspace%cr3d
+               CALL pw_axpy(v_hartree_rspace, v_rspace_new(ispin))
             END IF
 
             IF (lrigpw) THEN
@@ -609,8 +607,8 @@ CONTAINS
       DO ispin = 1, SIZE(k_p_p1)
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
-         rho_r(ispin)%cr3d = rho_r(ispin)%cr3d + my_diff*rho1_r(ispin)%cr3d
-         rho_g(ispin)%cc = rho_g(ispin)%cc + my_diff*rho1_g(ispin)%cc
+         CALL pw_axpy(rho1_r(ispin), rho_r(ispin), my_diff)
+         CALL pw_axpy(rho1_g(ispin), rho_g(ispin), my_diff)
       END DO
 
       CALL qs_ks_build_kohn_sham_matrix(qs_env, &
@@ -630,8 +628,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
-         rho_r(ispin)%cr3d = rho_r(ispin)%cr3d + my_diff*rho1_r(ispin)%cr3d
-         rho_g(ispin)%cc = rho_g(ispin)%cc + my_diff*rho1_g(ispin)%cc
+         CALL pw_axpy(rho1_r(ispin), rho_r(ispin), my_diff)
+         CALL pw_axpy(rho1_g(ispin), rho_g(ispin), my_diff)
       END DO
 
       CALL qs_ks_build_kohn_sham_matrix(qs_env, &
@@ -644,8 +642,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
-         rho_r(ispin)%cr3d = rho_r(ispin)%cr3d + my_diff*rho1_r(ispin)%cr3d
-         rho_g(ispin)%cc = rho_g(ispin)%cc + my_diff*rho1_g(ispin)%cc
+         CALL pw_axpy(rho1_r(ispin), rho_r(ispin), my_diff)
+         CALL pw_axpy(rho1_g(ispin), rho_g(ispin), my_diff)
       END DO
 
 ! k_p_p1=(H(rho0+h/2 rho1)-H(rho0-h/2 rho1))/h
@@ -716,14 +714,14 @@ CONTAINS
             DO ispin = 1, 2
                CALL pw_pool_create_pw(auxbas_pw_pool, my_rho_r(ispin), &
                                       use_data=rho_r(1)%in_use, in_space=rho_r(1)%in_space)
-               my_rho_r(ispin)%cr3d = 0.5_dp*rho_r(1)%cr3d
+               CALL pw_axpy(rho_r(1), my_rho_r(ispin), 0.5_dp, 0.0_dp)
             END DO
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(2))
                DO ispin = 1, 2
                   CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin), &
                                          use_data=tau_r(1)%in_use, in_space=tau_r(1)%in_space)
-                  my_tau_r(ispin)%cr3d = 0.5_dp*tau_r(1)%cr3d
+                  CALL pw_axpy(tau_r(1), my_tau_r(ispin), 0.5_dp, 0.0_dp)
                END DO
             END IF
          ELSE

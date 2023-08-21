@@ -33,7 +33,10 @@ MODULE qs_rho_methods
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_zero, pw_scale, pw_copy
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
+                                              pw_scale,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -1153,7 +1156,7 @@ CONTAINS
          nspinb = SIZE(rho_ao_b)
          nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
-            rho_r_a(i)%cr3d(:, :, :) = alpha*rho_r_a(i)%cr3d(:, :, :) + beta*rho_r_b(i)%cr3d(:, :, :)
+            CALL pw_axpy(rho_r_b(i), rho_r_a(i), beta, alpha)
          END DO
       END IF
 
@@ -1163,13 +1166,13 @@ CONTAINS
          nspinb = SIZE(rho_ao_b)
          nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
-            rho_g_a(i)%cc(:) = alpha*rho_g_a(i)%cc(:) + beta*rho_g_b(i)%cc(:)
+            CALL pw_axpy(rho_g_b(i), rho_g_a(i), beta, alpha)
          END DO
       END IF
 
       ! SCCS
       IF (ASSOCIATED(rho_r_sccs_a) .AND. ASSOCIATED(rho_r_sccs_b)) THEN
-         rho_r_sccs_a%cr3d(:, :, :) = alpha*rho_r_sccs_a%cr3d(:, :, :) + beta*rho_r_sccs_b%cr3d(:, :, :)
+         CALL pw_axpy(rho_r_sccs_b, rho_r_sccs_a, beta, alpha)
       END IF
 
       ! drho_r
@@ -1177,7 +1180,7 @@ CONTAINS
          CPASSERT(ALL(SHAPE(drho_r_a) == SHAPE(drho_r_b))) ! not implemented
          DO j = 1, SIZE(drho_r_a, 2)
             DO i = 1, SIZE(drho_r_a, 1)
-               drho_r_a(i, j)%cr3d(:, :, :) = alpha*drho_r_a(i, j)%cr3d(:, :, :) + beta*drho_r_b(i, j)%cr3d(:, :, :)
+               CALL pw_axpy(drho_r_b(i, j), drho_r_a(i, j), beta, alpha)
             END DO
          END DO
       END IF
@@ -1187,7 +1190,7 @@ CONTAINS
          CPASSERT(ALL(SHAPE(drho_g_a) == SHAPE(drho_g_b))) ! not implemented
          DO j = 1, SIZE(drho_g_a, 2)
             DO i = 1, SIZE(drho_g_a, 1)
-               drho_g_a(i, j)%cc(:) = alpha*drho_g_a(i, j)%cc(:) + beta*drho_g_b(i, j)%cc(:)
+               CALL pw_axpy(drho_g_b(i, j), drho_g_a(i, j), beta, alpha)
             END DO
          END DO
       END IF
@@ -1198,7 +1201,7 @@ CONTAINS
          nspinb = SIZE(rho_ao_b)
          nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
-            tau_r_a(i)%cr3d(:, :, :) = alpha*tau_r_a(i)%cr3d(:, :, :) + beta*tau_r_b(i)%cr3d(:, :, :)
+            CALL pw_axpy(tau_r_b(i), tau_r_a(i), beta, alpha)
          END DO
       END IF
 
@@ -1208,7 +1211,7 @@ CONTAINS
          nspinb = SIZE(rho_ao_b)
          nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
-            tau_g_a(i)%cc(:) = alpha*tau_g_a(i)%cc(:) + beta*tau_g_b(i)%cc(:)
+            CALL pw_axpy(tau_g_b(i), tau_g_a(i), beta, alpha)
          END DO
       END IF
 

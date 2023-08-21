@@ -31,8 +31,9 @@ MODULE qs_rho0_ggrid
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integrate_function,&
+                                              pw_scale,&
                                               pw_transfer,&
-                                              pw_zero,pw_scale
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
