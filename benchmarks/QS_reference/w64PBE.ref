@@ -1,0 +1,181 @@
+ CP2K| version string:                 CP2K version 2023.2 (Development Version)
+ CP2K| source code revision number:                                  git:15ad1db
+ CP2K| cp2kflags: omp libint fftw3 libxc elpa parallel mpi_f08 scalapack cosma x
+ CP2K|            smm spglib sirius libvori libbqb libvdwxc
+ GLOBAL| Total number of message passing processes                            48
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| CPU model name                          AMD EPYC 7401 24-Core Processor
+
+ MD| ***************************************************************************
+ MD| Step number                                                              10
+ MD| Time [fs]                                                          5.000000
+ MD| Conserved quantity [hartree]                            -0.110249596807E+04
+ MD| ---------------------------------------------------------------------------
+ MD|                                          Instantaneous             Averages
+ MD| CPU time per MD step [s]                      8.273586            11.854998
+ MD| Energy drift per atom [K]          -0.856603985250E+00   0.594729349263E+00
+ MD| Potential energy [hartree]         -0.110275514041E+04  -0.110271804018E+04
+ MD| Kinetic energy [hartree]            0.259172340513E+00   0.222954073226E+00
+ MD| Temperature [K]                             285.654641           245.735581
+ MD| ***************************************************************************
+ MD| Estimated peak process memory after this step [MiB]                     230
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                T I M I N G                                  -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ SUBROUTINE                       CALLS  ASD         SELF TIME        TOTAL TIME
+                                MAXIMUM       AVERAGE  MAXIMUM  AVERAGE  MAXIMUM
+ CP2K                                 1  1.0    0.007    0.029  118.684  118.732
+ qs_mol_dyn_low                       1  2.0    0.004    0.004  118.556  118.604
+ qs_forces                           11  3.9    0.002    0.002  118.502  118.549
+ qs_energies                         11  4.9    0.001    0.001  109.558  109.602
+ scf_env_do_scf                      11  5.9    0.001    0.002  102.877  102.918
+ velocity_verlet                     10  3.0    0.001    0.002   94.271   94.309
+ scf_env_do_scf_inner_loop          106  6.8    0.003    0.009   93.540   93.578
+ rebuild_ks_matrix                  117  8.5    0.000    0.001   59.127   59.326
+ qs_ks_build_kohn_sham_matrix       117  9.5    0.020    0.024   59.127   59.326
+ qs_ks_update_qs_env                120  7.8    0.002    0.002   52.023   52.203
+ qs_rho_update_rho_low              117  7.9    0.001    0.001   43.928   43.956
+ calculate_rho_elec                 117  8.9    0.038    0.048   43.928   43.955
+ sum_up_and_integrate               117 10.5    0.048    0.070   43.389   43.414
+ integrate_v_rspace                 117 11.5    0.004    0.004   43.341   43.368
+ grid_collocate_task_list           117  9.9   37.600   38.719   37.600   38.719
+ grid_integrate_task_list           117 12.5   36.582   37.686   36.582   37.686
+ pw_transfer                       2234 12.7    0.214    0.247   12.967   13.176
+ fft_wrap_pw1pw2                   2000 13.9    0.028    0.031   12.684   12.878
+ qs_vxc_create                      117 10.5    0.004    0.004   12.401   12.466
+ xc_vxc_pw_create                   117 11.5    0.092    0.123   12.397   12.461
+ fft_wrap_pw1pw2_200               1298 15.3    1.771    2.155   11.888   12.103
+ dbcsr_multiply_generic            2035 12.5    0.081    0.089   10.914   11.340
+ fft3d_ps                          2000 15.9    4.147    5.063    9.222    9.659
+ init_scf_loop                       14  6.8    0.000    0.000    9.318    9.321
+ qs_scf_new_mos                     106  7.8    0.001    0.001    8.576    8.786
+ qs_scf_loop_do_ot                  106  8.8    0.001    0.001    8.575    8.785
+ multiply_cannon                   2035 13.5    0.163    0.206    7.746    8.724
+ ot_scf_mini                        106  9.8    0.002    0.003    8.023    8.194
+ multiply_cannon_loop              2035 14.5    0.117    0.132    7.113    8.088
+ xc_pw_derive                       702 13.5    0.007    0.008    7.680    7.878
+ xc_rho_set_and_dset_create         117 12.5    0.103    0.128    6.794    7.703
+ mp_waitall_1                    180577 16.5    5.549    7.213    5.549    7.213
+ qs_ks_update_qs_env_forces          11  4.9    0.000    0.000    7.150    7.170
+ density_rs2pw                      117  9.9    0.006    0.007    6.000    7.137
+ multiply_cannon_metrocomm3       24420 15.5    0.056    0.061    3.868    5.573
+ xc_pw_divergence                   117 12.5    0.004    0.004    5.323    5.486
+ init_scf_run                        11  5.9    0.000    0.001    5.325    5.327
+ scf_env_initial_rho_setup           11  6.9    0.000    0.001    5.325    5.327
+ potential_pw2rs                    117 12.5    0.008    0.008    5.260    5.273
+ ot_mini                            106 10.8    0.001    0.001    4.876    5.068
+ wfi_extrapolate                     11  7.9    0.001    0.001    4.910    4.912
+ mp_alltoall_z22v                  2000 17.9    4.287    4.820    4.287    4.820
+ transfer_rs2pw                     479 10.8    0.009    0.011    3.735    4.818
+ xc_functional_eval                 117 13.5    0.002    0.003    3.152    4.032
+ pbe_lda_eval                       117 14.5    3.150    4.030    3.150    4.030
+ transfer_pw2rs                     479 13.4    0.007    0.009    3.939    3.946
+ mp_waitany                       14336 13.9    2.279    3.512    2.279    3.512
+ multiply_cannon_multrec          24420 15.5    2.147    3.298    2.156    3.309
+ qs_ot_get_derivative               106 11.8    0.001    0.001    3.122    3.291
+ yz_to_x                            830 16.8    0.302    0.528    2.902    3.207
+ transfer_rs2pw_200                 128 11.7    0.377    0.487    2.054    3.157
+ mp_alltoall_d11v                  2144 13.6    1.701    2.983    1.701    2.983
+ rs_gather_matrices                 117 12.5    0.036    0.041    1.481    2.749
+ x_to_yz                            936 17.2    0.357    0.565    2.034    2.202
+ prepare_preconditioner              14  7.8    0.000    0.000    2.103    2.132
+ make_preconditioner                 14  8.8    0.000    0.000    2.102    2.132
+ multiply_cannon_metrocomm4       22385 15.5    0.054    0.059    0.810    2.119
+ make_m2s                          4070 13.5    0.053    0.058    1.968    2.083
+ mp_irecv_dv                      61473 16.0    0.732    2.034    0.732    2.034
+ transfer_pw2rs_200                 128 14.1    0.835    0.911    1.918    1.971
+ apply_preconditioner_dbcsr         120 12.8    0.000    0.000    1.634    1.842
+ apply_single                       120 13.8    0.000    0.000    1.634    1.842
+ make_images                       4070 14.5    0.117    0.130    1.593    1.753
+ build_core_hamiltonian_matrix_      11  4.9    0.000    0.001    1.600    1.744
+ ot_diis_step                       106 11.8    0.005    0.005    1.721    1.721
+ qs_ot_get_derivative_taylor         89 12.9    0.002    0.003    1.529    1.676
+ mp_sum_l                          9940 13.2    0.785    1.453    0.785    1.453
+ transfer_pw2rs_70                  117 14.5    0.449    0.549    1.377    1.423
+ qs_ot_get_p                        120 10.5    0.001    0.001    1.106    1.358
+ mp_sendrecv_dv                   16497 12.9    1.201    1.270    1.201    1.270
+ qs_energies_init_hamiltonians       11  5.9    0.000    0.000    1.160    1.161
+ mp_sum_d                          3825 11.6    0.782    1.152    0.782    1.152
+ make_full_single_inverse            14  9.8    0.001    0.001    1.115    1.144
+ pw_gather_p                        947 15.5    0.935    1.120    0.935    1.120
+ transfer_rs2pw_70                  117 11.9    0.384    0.446    1.055    1.096
+ build_core_ppl_forces               11  5.9    0.859    1.002    0.859    1.002
+ make_full_inverse_cholesky          14  9.8    0.000    0.000    0.940    0.952
+ cp_dbcsr_sm_fm_multiply             46  9.3    0.001    0.001    0.800    0.803
+ make_images_data                  4070 15.5    0.040    0.049    0.632    0.742
+ build_core_hamiltonian_matrix       11  6.9    0.001    0.001    0.666    0.739
+ make_images_sizes                 4070 15.5    0.004    0.004    0.471    0.735
+ mp_alltoall_i44                   4070 16.5    0.468    0.731    0.468    0.731
+ pw_scatter_p                      1053 16.2    0.672    0.714    0.672    0.714
+ qs_ot_get_orbitals                 106 10.8    0.000    0.000    0.670    0.692
+ cp_dbcsr_sm_fm_multiply_core        46 10.3    0.000    0.000    0.614    0.690
+ calculate_dm_sparse                117  9.7    0.000    0.000    0.617    0.665
+ hybrid_alltoall_any               4213 16.4    0.042    0.089    0.514    0.631
+ mp_isendrecv_dv                  16497 15.5    0.309    0.626    0.309    0.626
+ dbcsr_dot_sd                      1125 12.2    0.040    0.048    0.318    0.587
+ fft_wrap_pw1pw2_70                 234 14.2    0.045    0.058    0.486    0.568
+ transfer_pw2rs_30                  117 14.5    0.108    0.116    0.508    0.531
+ qs_env_update_s_mstruct             11  6.9    0.000    0.000    0.447    0.497
+ transfer_rs2pw_30                  117 11.9    0.068    0.071    0.490    0.496
+ mp_allgather_i34                  2035 14.5    0.273    0.491    0.273    0.491
+ dbcsr_sym_m_v_mult                1269 12.5    0.016    0.022    0.455    0.460
+ cp_fm_cholesky_invert               14 10.8    0.445    0.451    0.445    0.451
+ arnoldi_generalized_ev              14 10.8    0.000    0.000    0.446    0.450
+ pw_derive                          702 14.5    0.395    0.448    0.395    0.448
+ pw_copy                           1404 13.3    0.392    0.431    0.392    0.431
+ qs_ot_get_derivative_diag           17 12.0    0.000    0.000    0.390    0.421
+ build_kinetic_matrix_low            22  6.9    0.387    0.418    0.390    0.421
+ build_core_ppl                      11  7.9    0.355    0.415    0.355    0.415
+ parallel_gemm_fm                    96  8.9    0.000    0.000    0.409    0.415
+ parallel_gemm_fm_cosma              96  9.9    0.409    0.414    0.409    0.414
+ gev_build_subspace                  23 11.5    0.003    0.007    0.408    0.408
+ build_overlap_matrix_low            22  6.9    0.371    0.403    0.375    0.408
+ cp_fm_cholesky_decompose            28 10.5    0.399    0.403    0.399    0.403
+ copy_dbcsr_to_fm                   143 10.8    0.002    0.003    0.309    0.400
+ make_basis_sm                       14  9.3    0.000    0.001    0.373    0.376
+ dbcsr_make_images_dense           3364 14.9    0.031    0.033    0.276    0.368
+ mp_alltoall_i22                    633 13.6    0.192    0.366    0.192    0.366
+ dbcsr_make_dense_low              8254 15.7    0.036    0.038    0.250    0.361
+ dbcsr_complete_redistribute        323 11.8    0.067    0.079    0.324    0.357
+ qs_ot_p2m_diag                      19 11.0    0.003    0.004    0.342    0.344
+ calculate_rho_core                  11  7.9    0.020    0.023    0.287    0.336
+ make_images_pack                  4070 15.5    0.203    0.325    0.212    0.334
+ rs_grid_zero                       139 14.6    0.301    0.320    0.301    0.320
+ make_dense_data                   8254 16.7    0.175    0.277    0.197    0.309
+ pw_poisson_solve                   117 10.5    0.046    0.049    0.294    0.295
+ cp_dbcsr_syevd                      19 12.0    0.002    0.002    0.283    0.284
+ reorthogonalize_vectors             10  9.0    0.000    0.000    0.269    0.271
+ calculate_ecore_overlap             22  5.9    0.000    0.000    0.158    0.266
+ cp_fm_diag_elpa                     19 13.0    0.000    0.000    0.256    0.256
+ cp_fm_redistribute_end              19 14.0    0.125    0.241    0.128    0.243
+ dbcsr_sym_m_v_mult_local_mm       1269 13.5    0.214    0.240    0.216    0.243
+ ot_scf_init                         14  7.8    0.001    0.002    0.240    0.241
+ dbcsr_desymmetrize_deep            143 11.8    0.009    0.012    0.142    0.239
+ fft_wrap_pw1pw2_30                 234 14.2    0.009    0.011    0.202    0.233
+ cp_fm_diag_elpa_base                19 14.0    0.110    0.222    0.114    0.229
+ build_core_ppnl_forces              11  5.9    0.207    0.228    0.207    0.228
+ copy_fm_to_dbcsr                   180 10.8    0.001    0.001    0.188    0.225
+ pw_axpy                           1053 12.0    0.191    0.212    0.191    0.212
+ dbcsr_create_new                 37103 15.1    0.124    0.132    0.190    0.203
+ integrate_v_core_rspace             11  7.9    0.018    0.019    0.185    0.191
+ qs_energies_compute_matrix_w        11  5.9    0.000    0.000    0.183    0.187
+ calculate_w_matrix_ot               11  6.9    0.000    0.001    0.183    0.187
+ rs_scatter_matrices                128  9.9    0.042    0.061    0.165    0.183
+ arnoldi_normal_ev                  134 12.4    0.002    0.003    0.153    0.177
+ qs_create_task_list                 11  7.9    0.000    0.000    0.156    0.160
+ generate_qs_task_list               11  8.9    0.078    0.094    0.156    0.160
+ mp_irecv_dm3                      2048 13.9    0.072    0.158    0.072    0.158
+ pw_integral_ab                     117 11.5    0.124    0.129    0.153    0.158
+ multiply_cannon_metrocomm2       18315 15.5    0.042    0.046    0.109    0.156
+ mp_sum_dv                         7068 14.3    0.127    0.155    0.127    0.155
+ pw_zero                            585 13.0    0.126    0.154    0.126    0.154
+ cp_dbcsr_plus_fm_fm_t_native        22  8.9    0.000    0.000    0.138    0.145
+ dbcsr_new_transposed               836 13.4    0.007    0.008    0.108    0.137
+ transfer_pw2rs_10                  117 14.5    0.018    0.019    0.128    0.135
+ transfer_rs2pw_10                  117 11.9    0.020    0.021    0.128    0.133
+ arnoldi_extremal                   120 11.5    0.001    0.002    0.100    0.124
+ dbcsr_redistribute                 167 14.9    0.005    0.007    0.089    0.122
+ -------------------------------------------------------------------------------
