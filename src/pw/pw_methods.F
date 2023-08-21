@@ -906,11 +906,12 @@ CONTAINS
    END SUBROUTINE pw_transfer
 
 ! **************************************************************************************************
-!> \brief pw2 = alpha*pw1 + pw2
-!>      alpha defaults to 1
+!> \brief pw2 = alpha*pw1 + beta*pw2
+!>      alpha defaults to 1, beta defaults to 1
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param alpha ...
+!> \param beta ...
 !> \par History
 !>      JGH (21-Feb-2003) : added reference grid functionality
 !>      JGH (01-Dec-2007) : rename and remove complex alpha
@@ -919,16 +920,16 @@ CONTAINS
 !>      Currently only summing up of respective types allowed,
 !>      in order to avoid errors
 ! **************************************************************************************************
-   SUBROUTINE pw_axpy(pw1, pw2, alpha)
+   SUBROUTINE pw_axpy(pw1, pw2, alpha, beta)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
+      REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
-      REAL(KIND=dp)                                      :: my_alpha
+      REAL(KIND=dp)                                      :: my_alpha, my_beta
 
       CALL timeset(routineN, handle)
 
@@ -936,6 +937,35 @@ CONTAINS
 
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
+
+      my_beta = 1.0_dp
+      IF (PRESENT(beta)) my_beta = beta
+
+      IF (my_beta /= 1.0_dp) THEN
+         IF (my_beta == 0.0_dp) THEN
+            CALL pw_zero(pw2)
+         ELSE
+            IF (pw2%in_use == REALDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cr = pw2%cr*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw2%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cr3d = pw2%cr3d*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw2%in_use == COMPLEXDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cc = pw2%cc*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw2%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cc3d = pw2%cc3d*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+               CPABORT("Unknown array type in use for PW!")
+            END IF
+         END IF
+      END IF
 
       IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
 
@@ -946,8 +976,8 @@ CONTAINS
                   pw2%cr(i) = pw2%cr(i) + pw1%cr(i)
                END DO
 !$OMP END PARALLEL DO
-            ELSE
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,pw1,my_alpha)
                DO i = 1, SIZE(pw2%cr)
                   pw2%cr(i) = pw2%cr(i) + my_alpha*pw1%cr(i)
                END DO
@@ -961,8 +991,8 @@ CONTAINS
                   pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
                END DO
 !$OMP END PARALLEL DO
-            ELSE
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,my_alpha,pw1)
                DO i = 1, SIZE(pw2%cc)
                   pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
                END DO
@@ -973,8 +1003,8 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cr3d = pw2%cr3d + pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cr3d = pw2%cr3d + my_alpha*pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
             END IF
@@ -984,8 +1014,8 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cc3d = pw2%cc3d + pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cc3d = pw2%cc3d + my_alpha*pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
             END IF
@@ -1012,8 +1042,8 @@ CONTAINS
                      pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
                   END DO
 !$OMP END PARALLEL DO
-               ELSE
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(my_alpha, ng, pw1, pw2)
+               ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,pw1,my_alpha,ng)
                   DO i = 1, ng
                      pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
                   END DO
@@ -1038,7 +1068,7 @@ CONTAINS
                      END DO
 !$OMP END PARALLEL DO
                   END IF
-               ELSE
+               ELSE IF (my_alpha /= 0.0_dp) THEN
                   IF (ng1 >= ng2) THEN
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(my_alpha, ng2, pw1, pw2)
                      DO i = 1, ng2
@@ -1073,7 +1103,7 @@ CONTAINS
                      END DO
 !$OMP END PARALLEL DO
                   END IF
-               ELSE
+               ELSE IF (my_alpha /= 0.0_dp) THEN
                   IF (ng1 >= ng2) THEN
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(my_alpha, ng2, pw1, pw2)
                      DO i = 1, ng2
@@ -2034,6 +2064,7 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param sumtype ...
+!> \param just_sum ...
 !> \return ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
@@ -2043,8 +2074,8 @@ CONTAINS
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
+      LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum
       REAL(KIND=dp)                                      :: integral_value
-      LOGICAL, OPTIONAL, INTENT(IN)                      :: just_sum
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab'
 
