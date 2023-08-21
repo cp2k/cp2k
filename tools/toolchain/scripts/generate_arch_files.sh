@@ -37,9 +37,9 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   if [ "${TARGET_CPU}" = "native" ]; then
     BASEFLAGS="-fPIC -fp-model=precise -g -qopenmp -qopenmp-simd -traceback -xHost"
   elif [ "${TARGET_CPU}" = "generic" ]; then
-    BASEFLAGS="-fPIC -fp-model=precise -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
+    BASEFLAGS="-fPIC -fp-model=precise -g -mtune=${TARGET_CPU} -qopenmp -qopenmp-simd -traceback"
   else
-    BASEFLAGS="-fPIC -fp-model=precise -g -march=${TARGET_CPU} -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback"
+    BASEFLAGS="-fPIC -fp-model=precise -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} -qopenmp -qopenmp-simd -traceback"
   fi
   OPT_FLAGS="-O2 -funroll-loops"
   LDFLAGS_C="-nofor-main"
