@@ -23,7 +23,7 @@ MODULE qs_ks_qmmm_methods
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_retain
-   USE pw_methods,                      ONLY: pw_integral_ab
+   USE pw_methods,                      ONLY: pw_integral_ab,pw_axpy
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
@@ -201,17 +201,8 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: v_hartree, v_qmmm
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot'
+      CALL pw_axpy(v_qmmm, v_hartree, v_qmmm%pw_grid%dvol*scale)
 
-      INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: fac
-
-      CALL timeset(routineN, handle)
-
-      fac = v_qmmm%pw_grid%dvol*scale
-      v_hartree%cr3d = v_hartree%cr3d + fac*v_qmmm%cr3d
-
-      CALL timestop(handle)
    END SUBROUTINE qmmm_modify_hartree_pot
 
 END MODULE qs_ks_qmmm_methods

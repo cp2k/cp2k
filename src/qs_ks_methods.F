@@ -856,10 +856,8 @@ CONTAINS
          ! update core energy for grid based local pseudopotential
          ecore_ppl = 0._dp
          DO ispin = 1, nspins
-            ecore_ppl = ecore_ppl + &
-                        SUM(vppl_rspace%cr3d*rho_r(ispin)%cr3d)*vppl_rspace%pw_grid%dvol
+            ecore_ppl = ecore_ppl + pw_integral_ab(vppl_rspace, rho_r(ispin))
          END DO
-         CALL para_env%sum(ecore_ppl)
          energy%core = energy%core + ecore_ppl
       END IF
 

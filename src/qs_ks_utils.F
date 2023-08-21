@@ -83,9 +83,9 @@ MODULE qs_ks_utils
                                               PERIODIC_BC
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_integral_ab,&
                                               pw_integrate_function,&
                                               pw_scale,&
                                               pw_transfer,&
@@ -386,8 +386,7 @@ CONTAINS
             DO ispin = 1, Nspin
                CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
                ! use a work_v_rspace
-               work_v_rspace%cr3d = (energy_scaling(iterm)*vxc(ispin)%pw_grid%dvol)* &
-                                    vxc(ispin)%cr3d
+               CALL pw_axpy(vxc(ispin), work_v_rspace, energy_scaling(iterm)*vxc(ispin)%pw_grid%dvol, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
@@ -1364,9 +1363,7 @@ CONTAINS
                CALL pw_copy(v_rspace, v_rspace_new(ispin))
             ELSE
                ! Add v_hartree + v_xc = v_rspace_new
-               v_rspace_new(ispin)%cr3d = &
-                  v_rspace_new(ispin)%pw_grid%dvol* &
-                  v_rspace_new(ispin)%cr3d + v_rspace%cr3d
+               CALL pw_axpy(v_rspace, v_rspace_new(ispin), 1.0_dp, v_rspace_new(ispin)%pw_grid%dvol)
             END IF ! gapw_xc
             IF (dft_control%qs_control%ddapc_explicit_potential) THEN
                IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
@@ -1401,7 +1398,7 @@ CONTAINS
                      CPABORT("Unknown constraint type.")
                   END SELECT
                   CALL pw_axpy(cdft_control%group(igroup)%weight, v_rspace_new(ispin), &
-                  csign*cdft_control%strength(igroup))
+                               csign*cdft_control%strength(igroup))
                END DO
             END IF
             ! functional derivative of the Hartree energy wrt the density in the presence of dielectric
@@ -1409,13 +1406,11 @@ CONTAINS
             ! of the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          poisson_env%implicit_env%v_eps%cr3d*dvol
+               CALL pw_axpy(poisson_env%implicit_env%v_eps, v_rspace_new(ispin), dvol)
             END IF
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_sccs_rspace%cr3d
+               CALL pw_axpy(v_sccs_rspace, v_rspace_new(ispin))
             END IF
             ! External electrostatic potential
             IF (dft_control%apply_external_potential) THEN
@@ -1424,8 +1419,7 @@ CONTAINS
             END IF
             IF (do_ppl) THEN
                CPASSERT(.NOT. gapw)
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          vppl_rspace%cr3d*vppl_rspace%pw_grid%dvol
+               CALL pw_axpy(vppl_rspace, v_rspace_new(ispin), vppl_rspace%pw_grid%dvol)
             END IF
             ! the electrostatic sic contribution
             SELECT CASE (dft_control%sic_method_id)
@@ -1433,22 +1427,18 @@ CONTAINS
                !
             CASE (sic_mauri_us, sic_mauri_spz)
                IF (ispin == 1) THEN
-                  v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d - &
-                                             v_sic_rspace%cr3d
+                  CALL pw_axpy(v_sic_rspace, v_rspace_new(ispin), -1.0_dp)
                ELSE
-                  v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                             v_sic_rspace%cr3d
+                  CALL pw_axpy(v_sic_rspace, v_rspace_new(ispin), 1.0_dp)
                END IF
             CASE (sic_ad)
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d - v_sic_rspace%cr3d
+               CALL pw_axpy(v_sic_rspace, v_rspace_new(ispin), -1.0_dp)
             CASE (sic_eo)
                ! NOTHING TO BE DONE
             END SELECT
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
-               v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                          v_rspace_embed(ispin)%pw_grid%dvol* &
-                                          v_rspace_embed(ispin)%cr3d
+               CALL pw_axpy(v_rspace_embed(ispin), v_rspace_new(ispin), v_rspace_embed(ispin)%pw_grid%dvol)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
@@ -1511,17 +1501,15 @@ CONTAINS
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
-               v_rspace%cr3d = v_rspace%cr3d + poisson_env%implicit_env%v_eps%cr3d*dvol
+               CALL pw_axpy(poisson_env%implicit_env%v_eps, v_rspace, dvol)
             END IF
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
-               v_rspace%cr3d = v_rspace%cr3d + v_sccs_rspace%cr3d
+               CALL pw_axpy(v_sccs_rspace, v_rspace)
             END IF
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
-               v_rspace%cr3d = v_rspace%cr3d + &
-                               v_rspace_embed(ispin)%pw_grid%dvol* &
-                               v_rspace_embed(ispin)%cr3d
+               CALL pw_axpy(v_rspace_embed(ispin), v_rspace, v_rspace_embed(ispin)%pw_grid%dvol)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
@@ -1599,9 +1587,7 @@ CONTAINS
             CPABORT("LRIGPW/RIGPW not implemented for meta-GGAs")
          END IF
          DO ispin = 1, nspins
-            v_tau_rspace(ispin)%cr3d = &
-               v_tau_rspace(ispin)%pw_grid%dvol* &
-               v_tau_rspace(ispin)%cr3d
+            CALL pw_scale(v_tau_rspace(ispin), v_tau_rspace(ispin)%pw_grid%dvol)
 
             rho_ao => rho_ao_kp(ispin, :)
             ksmat => ks_matrix(ispin, :)
@@ -1624,9 +1610,7 @@ CONTAINS
          IF (ASSOCIATED(v_rspace_new_aux_fit)) THEN
             DO ispin = 1, nspins
                ! Calculate the xc potential
-               v_rspace_new_aux_fit(ispin)%cr3d = &
-                  v_rspace_new_aux_fit(ispin)%pw_grid%dvol* &
-                  v_rspace_new_aux_fit(ispin)%cr3d
+               CALL pw_scale(v_rspace_new_aux_fit(ispin), v_rspace_new_aux_fit(ispin)%pw_grid%dvol)
 
                ! set matrix_ks_aux_fit_dft = matrix_ks_aux_fit(k_HF)
                CALL dbcsr_copy(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, &
@@ -1752,7 +1736,6 @@ CONTAINS
       do_zmp_read = dft_control%apply_external_vxc
       IF (do_zmp_read) THEN
          CALL pw_copy(qs_env%external_vxc, v_rspace_new(1))
-         exc = 0.0_dp
          exc = accurate_dot_product(v_rspace_new(1)%cr3d, rho_r(1)%cr3d)* &
                v_rspace_new(1)%pw_grid%dvol
       ELSE
@@ -1793,14 +1776,8 @@ CONTAINS
             CALL pw_copy(v_rspace_new(1), v_xc_rspace)
 
             exc = 0.0_dp
-            exc = accurate_sum(v_rspace_new(1)%cr3d*rho_r(1)%cr3d)* &
-                  v_rspace_new(1)%pw_grid%dvol
-            IF (v_rspace_new(1)%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-               CALL v_rspace_new(1)%pw_grid%para%group%sum(exc)
-            END IF
+            exc = pw_integral_ab(v_rspace_new(1), rho_r(1))
 
-!     IF (v_rspace_new(1)%pw_grid%para%my_pos==0) &
-!           WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
 !Note that this is not the xc energy but \int(\rho*v_xc)
 !Vxc---> v_rspace_new
 !Exc---> energy%exc
@@ -1837,7 +1814,7 @@ CONTAINS
 
       CHARACTER(*), PARAMETER :: routineN = 'get_embed_potential_energy'
 
-      INTEGER                                            :: handle, ispin, ns1, ns2
+      INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: embed_corr_local
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1862,29 +1839,17 @@ CONTAINS
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(v_rspace_embed(ispin))
-         ns1 = SIZE(qs_env%embed_pot%cr3d)
-         ns2 = SIZE(v_rspace_embed(ispin)%cr3d)
-         IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
 
-         v_rspace_embed(ispin)%cr3d(:, :, :) = qs_env%embed_pot%cr3d
+         CALL pw_copy(qs_env%embed_pot, v_rspace_embed(ispin))
          embed_corr_local = 0.0_dp
 
          ! Spin embedding potential in open-shell case
          IF (dft_control%nspins .EQ. 2) THEN
-            ns1 = SIZE(qs_env%spin_embed_pot%cr3d)
-            IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
-            IF (ispin .EQ. 1) v_rspace_embed(ispin)%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%cr3d(:, :, :) + qs_env%spin_embed_pot%cr3d
-            IF (ispin .EQ. 2) v_rspace_embed(ispin)%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%cr3d(:, :, :) - qs_env%spin_embed_pot%cr3d
+            IF (ispin .EQ. 1) CALL pw_axpy(qs_env%spin_embed_pot, v_rspace_embed(ispin), 1.0_dp)
+            IF (ispin .EQ. 2) CALL pw_axpy(qs_env%spin_embed_pot, v_rspace_embed(ispin), -1.0_dp)
          END IF
          ! Integrate the density*potential
-         embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%cr3d, rho_r(ispin)%cr3d)* &
-                            v_rspace_embed(ispin)%pw_grid%dvol
-
-         IF (v_rspace_embed(ispin)%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL v_rspace_embed(ispin)%pw_grid%para%group%sum(embed_corr_local)
-         END IF
+         embed_corr_local = pw_integral_ab(v_rspace_embed(ispin), rho_r(ispin))
 
          embed_corr = embed_corr + embed_corr_local
 
