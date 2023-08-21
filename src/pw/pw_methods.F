@@ -199,13 +199,13 @@ CONTAINS
          ELSE IF (.NOT. (pw1%pw_grid%spherical .OR. &
                          pw2%pw_grid%spherical)) THEN
 
-            ng1 = SIZE(pw1%cc)
-            ng2 = SIZE(pw2%cc)
-            ns = 2*MAX(ng1, ng2)
-
             IF (pw1%in_use == COMPLEXDATA1D .AND. &
                 pw2%in_use == COMPLEXDATA1D .AND. &
                 pw1%in_space == RECIPROCALSPACE) THEN
+
+               ng1 = SIZE(pw1%cc)
+               ng2 = SIZE(pw2%cc)
+               ns = 2*MAX(ng1, ng2)
 
                IF ((pw1%pw_grid%id_nr == pw2%pw_grid%reference)) THEN
                   IF (ng1 >= ng2) THEN
@@ -255,11 +255,16 @@ CONTAINS
                   CALL pw_copy_match(pw1, pw2)
                END IF
 
+               pw2%in_space = RECIPROCALSPACE
+
+            ELSE IF (pw1%in_use == REALDATA3D .AND. pw1%in_use==pw2%in_use .AND. &
+                     pw1%in_space == REALSPACE) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
             ELSE
                CPABORT("No suitable data field")
             END IF
-
-            pw2%in_space = RECIPROCALSPACE
 
          ELSE
 
