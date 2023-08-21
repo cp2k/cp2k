@@ -395,7 +395,7 @@ CONTAINS
 
                ! add hartree only for SINGLETS
                IF (.NOT. lr_triplet) THEN
-                  v_rspace_new(1)%cr3d = 2.0_dp*v_hartree_rspace%cr3d
+                  CALL pw_axpy(v_hartree_rspace, v_rspace_new(1), 2.0_dp, 0.0_dp)
 
                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                           pmat=rho_ao(ispin), &
@@ -420,7 +420,7 @@ CONTAINS
                                           calculate_forces=.FALSE., gapw=gapw_xc)
                END IF
 
-               v_rspace_new(ispin)%cr3d = v_hartree_rspace%cr3d
+               CALL pw_copy(v_hartree_rspace, v_rspace_new(ispin))
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
