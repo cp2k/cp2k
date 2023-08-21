@@ -52,7 +52,6 @@ MODULE qs_sccs
                                               section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -67,8 +66,9 @@ MODULE qs_sccs
                                               pw_copy,&
                                               pw_derive,&
                                               pw_integral_ab,&
+                                              pw_integrate_function,&
                                               pw_transfer,&
-                                              pw_zero,pw_integrate_function
+                                              pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
                                               pw_poisson_mt,&
