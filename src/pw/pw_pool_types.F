@@ -266,7 +266,7 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(OUT)                         :: pw
       INTEGER, INTENT(in)                                :: use_data
-      INTEGER, INTENT(in), OPTIONAL                      :: in_space
+      INTEGER, INTENT(in)                                :: in_space
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
 
@@ -302,14 +302,12 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(el)) THEN
          CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
-                        cr3d_ptr=cr3d_ptr)
+                        in_space=in_space, cr3d_ptr=cr3d_ptr)
       ELSE
          pw = el
          DEALLOCATE (el)
+         pw%in_space = in_space
       END IF
-
-      pw%in_space = 0
-      IF (PRESENT(in_space)) pw%in_space = in_space
 
       CALL timestop(handle)
 

@@ -168,9 +168,9 @@ CONTAINS
       END IF
 
       CALL pw_pool_create_pw(pw_small_pool, rhos1, &
-                             use_data=REALDATA3D)
+                             use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_small_pool, rhos2, &
-                             use_data=REALDATA3D)
+                             use_data=REALDATA3D, in_space=REALSPACE)
 
       ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)

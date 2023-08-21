@@ -19,6 +19,7 @@ MODULE dg_rho0_types
                                               do_ewald_pme,&
                                               do_ewald_spme
    USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
                                               pw_create,&
                                               pw_release,&
                                               pw_type
@@ -170,10 +171,10 @@ CONTAINS
       END IF
       SELECT CASE (dg_rho0%type)
       CASE (do_ewald_ewald)
-         CALL pw_create(dg_rho0%density, pw_grid, REALDATA3D)
+         CALL pw_create(dg_rho0%density, pw_grid, REALDATA3D, REALSPACE)
          CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
       CASE (do_ewald_pme)
-         CALL pw_create(dg_rho0%density, pw_grid, REALDATA3D)
+         CALL pw_create(dg_rho0%density, pw_grid, REALDATA3D, REALSPACE)
          CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
       CASE (do_ewald_spme)
          CPABORT('SPME type not implemented')

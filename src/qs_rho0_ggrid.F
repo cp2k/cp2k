@@ -300,8 +300,7 @@ CONTAINS
          ALLOCATE (rho0_mpole%rho0_s_gs)
       END IF
       CALL pw_pool_create_pw(auxbas_pw_pool, rho0_mpole%rho0_s_gs, &
-                             use_data=COMPLEXDATA1D)
-      rho0_mpole%rho0_s_gs%in_space = RECIPROCALSPACE
+                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! Find the grid level suitable for rho0_soft
       rho0_mpole%igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info, 2.0_dp*rho0_mpole%zet0_h)

@@ -97,6 +97,7 @@ CONTAINS
          CPABORT("unknown data type "//cp_to_string(pw%in_use))
       END SELECT
       CALL pw_grid_release(pw%pw_grid)
+      pw%in_space = NOSPACE
    END SUBROUTINE pw_release
 
 ! **************************************************************************************************
@@ -115,7 +116,7 @@ CONTAINS
       TYPE(pw_type), INTENT(OUT)                         :: pw
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(in)                                :: use_data
-      INTEGER, INTENT(in), OPTIONAL                      :: in_space
+      INTEGER, INTENT(in)                                :: in_space
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN), OPTIONAL, POINTER                   :: cr3d_ptr
 
@@ -146,7 +147,6 @@ CONTAINS
       pw%in_use = use_data
       pw%pw_grid => pw_grid
       CALL pw_grid_retain(pw%pw_grid)
-      pw%in_space = NOSPACE
       bounds => pw%pw_grid%bounds_local
 
       SELECT CASE (use_data)
@@ -182,7 +182,7 @@ CONTAINS
       CASE default
          CPABORT("unknown data type")
       END SELECT
-      IF (PRESENT(in_space)) pw%in_space = in_space
+      pw%in_space = in_space
       CALL timestop(handle)
    END SUBROUTINE pw_create
 

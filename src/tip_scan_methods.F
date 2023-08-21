@@ -129,14 +129,11 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          NULLIFY (vtip)
          ALLOCATE (vtip)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vtip, use_data=REALDATA3D)
-         vtip%in_space = REALSPACE
+         CALL pw_pool_create_pw(auxbas_pw_pool, vtip, REALDATA3D, REALSPACE)
          CALL pw_zero(vtip)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vref, use_data=COMPLEXDATA1D)
-         vref%in_space = RECIPROCALSPACE
+         CALL pw_pool_create_pw(auxbas_pw_pool, vref, COMPLEXDATA1D, RECIPROCALSPACE)
          CALL pw_zero(vref)
-         CALL pw_pool_create_pw(auxbas_pw_pool, sf, use_data=COMPLEXDATA1D)
-         sf%in_space = RECIPROCALSPACE
+         CALL pw_pool_create_pw(auxbas_pw_pool, sf, COMPLEXDATA1D, RECIPROCALSPACE)
 
          ! get the reference tip potential and store it in reciprocal space (vref)
          CALL pw_transfer(scan_env%tip_pw_g, vref)
