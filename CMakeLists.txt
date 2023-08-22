@@ -529,7 +529,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   set(CP2K_USE_CUDA ON)
 
   if(CP2K_USE_CUSOLVER_MP)
-	  find_package(CuSolverMP REQUIRED)
+    find_package(CuSolverMP REQUIRED)
   endif()
   message(STATUS ``"-- CUDA compiler and libraries found")
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
