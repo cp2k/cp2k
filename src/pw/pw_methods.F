@@ -257,7 +257,7 @@ CONTAINS
 
                pw2%in_space = RECIPROCALSPACE
 
-            ELSE IF (pw1%in_use == REALDATA3D .AND. pw1%in_use==pw2%in_use .AND. &
+            ELSE IF (pw1%in_use == REALDATA3D .AND. pw1%in_use == pw2%in_use .AND. &
                      pw1%in_space == REALSPACE) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
                pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
@@ -917,6 +917,7 @@ CONTAINS
 !> \param pw2 ...
 !> \param alpha ...
 !> \param beta ...
+!> \param allow_noncompatible_grids ...
 !> \par History
 !>      JGH (21-Feb-2003) : added reference grid functionality
 !>      JGH (01-Dec-2007) : rename and remove complex alpha
@@ -925,15 +926,17 @@ CONTAINS
 !>      Currently only summing up of respective types allowed,
 !>      in order to avoid errors
 ! **************************************************************************************************
-   SUBROUTINE pw_axpy(pw1, pw2, alpha, beta)
+   SUBROUTINE pw_axpy(pw1, pw2, alpha, beta, allow_noncompatible_grids)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
+      LOGICAL                                            :: my_allow_noncompatible_grids
       REAL(KIND=dp)                                      :: my_alpha, my_beta
 
       CALL timeset(routineN, handle)
@@ -945,6 +948,9 @@ CONTAINS
 
       my_beta = 1.0_dp
       IF (PRESENT(beta)) my_beta = beta
+
+      my_allow_noncompatible_grids = .FALSE.
+      IF (PRESENT(allow_noncompatible_grids)) my_allow_noncompatible_grids = allow_noncompatible_grids
 
       IF (my_beta /= 1.0_dp) THEN
          IF (my_beta == 0.0_dp) THEN
@@ -1028,7 +1034,7 @@ CONTAINS
             CPABORT("No suitable data field")
          END IF
 
-      ELSE IF (pw_compatible(pw1%pw_grid, pw2%pw_grid)) THEN
+      ELSE IF (pw_compatible(pw1%pw_grid, pw2%pw_grid) .OR. my_allow_noncompatible_grids) THEN
 
          IF (pw1%in_use == COMPLEXDATA1D .AND. &
              pw2%in_use == COMPLEXDATA1D .AND. &
@@ -1138,6 +1144,24 @@ CONTAINS
                END IF
                CPABORT("Grids not compatible")
 
+            END IF
+
+         ELSE IF (pw1%in_use == REALDATA3D .AND. &
+                  pw2%in_use == REALDATA3D .AND. &
+                  pw1%in_space == REALSPACE .AND. &
+                  pw2%in_space == REALSPACE) THEN
+
+            IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(pw2%cr3d))) &
+               CPABORT("Noncommensurate grids not implemented for real-valued grids!")
+
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cr3d(:, :, :) = pw2%cr3d(:, :, :) + pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2,my_alpha)
+               pw2%cr3d(:, :, :) = pw2%cr3d(:, :, :) + my_alpha*pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
             END IF
          ELSE
             CPABORT("No suitable data field")

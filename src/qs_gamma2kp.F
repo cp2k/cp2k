@@ -25,7 +25,7 @@ MODULE qs_gamma2kp
    USE kpoint_types,                    ONLY: kpoint_create,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
-USE pw_methods, ONLY: pw_copy
+   USE pw_methods,                      ONLY: pw_copy
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment,                  ONLY: qs_init

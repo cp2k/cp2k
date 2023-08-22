@@ -32,8 +32,8 @@ MODULE qs_external_potential
    USE maxwell_solver_interface,        ONLY: maxwell_solver
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
-USE pw_methods, ONLY: pw_zero
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
+   USE pw_methods,                      ONLY: pw_zero
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&

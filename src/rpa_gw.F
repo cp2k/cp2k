@@ -105,8 +105,10 @@ MODULE rpa_gw
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_scale,&
-                                              pw_zero,pw_copy,pw_axpy
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
+                                              pw_scale,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type

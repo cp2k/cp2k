@@ -474,7 +474,7 @@ CONTAINS
          CPABORT(" KG with meta-kinetic energy functionals not implemented")
       END IF
       DO ispin = 1, nspins
-         vxc_rho(ispin)%cr3d = vxc_rho(ispin)%cr3d*vxc_rho(ispin)%pw_grid%dvol
+         CALL pw_scale(vxc_rho(ispin), vxc_rho(ispin)%pw_grid%dvol)
          lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
          CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, lri_v_int, calc_force, "LRI_AUX")
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin))
@@ -501,7 +501,7 @@ CONTAINS
          ekin_mol = ekin_mol + ekin_imol
 
          DO ispin = 1, nspins
-            vxc_rho(ispin)%cr3d = -vxc_rho(ispin)%cr3d*vxc_rho(ispin)%pw_grid%dvol
+            CALL pw_scale(vxc_rho(ispin), -vxc_rho(ispin)%pw_grid%dvol)
             lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
             CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, &
                                                lri_v_int, calc_force, &

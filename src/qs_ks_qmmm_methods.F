@@ -23,7 +23,8 @@ MODULE qs_ks_qmmm_methods
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_retain
-   USE pw_methods,                      ONLY: pw_integral_ab,pw_axpy
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_integral_ab
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
@@ -198,7 +199,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_modify_hartree_pot(v_hartree, v_qmmm, scale)
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree, v_qmmm
+      TYPE(pw_type), INTENT(INOUT)                       :: v_hartree
+      TYPE(pw_type), INTENT(IN)                          :: v_qmmm
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CALL pw_axpy(v_qmmm, v_hartree, v_qmmm%pw_grid%dvol*scale)
