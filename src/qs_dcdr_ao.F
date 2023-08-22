@@ -287,11 +287,9 @@ CONTAINS
 
       DO ispin = 1, dcdr_env%nspins
          CALL dbcsr_set(dcdr_env%matrix_apply_op_constant(ispin)%matrix, 0.0_dp)
+         CALL pw_axpy(v_hartree_rspace, v_rspace_new(ispin))
          IF (dcdr_env%nspins == 1) THEN
-            v_rspace_new(1)%cr3d = 2.0_dp*v_rspace_new(1)%cr3d + 2.0_dp*v_hartree_rspace%cr3d
-         ELSE IF (dcdr_env%nspins == 2) THEN
-            v_rspace_new(ispin)%cr3d = v_rspace_new(ispin)%cr3d + &
-                                       v_hartree_rspace%cr3d
+            CALL pw_scale(v_rspace_new(1), 2.0_dp)
          END IF
 
          CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &

@@ -84,6 +84,10 @@ MODULE pw_methods
       MODULE PROCEDURE pw_scatter_s, pw_scatter_p
    END INTERFACE
 
+   INTERFACE pw_set
+      MODULE PROCEDURE pw_set_value, pw_set_array
+   END INTERFACE
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -2094,27 +2098,31 @@ CONTAINS
 !> \param pw2 ...
 !> \param sumtype ...
 !> \param just_sum ...
+!> \param local_only ...
 !> \return ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! **************************************************************************************************
-   FUNCTION pw_integral_ab(pw1, pw2, sumtype, just_sum) RESULT(integral_value)
+   FUNCTION pw_integral_ab(pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
-      LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum
+      LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum, local_only
       REAL(KIND=dp)                                      :: integral_value
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab'
 
       INTEGER                                            :: handle, loc_sumtype
-      LOGICAL                                            :: my_just_sum
+      LOGICAL                                            :: my_just_sum, my_local_only
 
       CALL timeset(routineN, handle)
 
       loc_sumtype = do_accurate_sum
       IF (PRESENT(sumtype)) loc_sumtype = sumtype
+
+      my_local_only = .FALSE.
+      IF (PRESENT(local_only)) my_local_only = local_only
 
       IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
          CPABORT("Grids incompatible")
@@ -2231,7 +2239,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
+      IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
          CALL pw1%pw_grid%para%group%sum(integral_value)
       CALL timestop(handle)
 
@@ -2400,13 +2408,13 @@ CONTAINS
 !>      Created 12.2016
 !> \author Nico Holmberg
 ! **************************************************************************************************
-   SUBROUTINE pw_set(pw, values)
+   SUBROUTINE pw_set_array(pw, values)
 
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: values
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_array'
 
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: is_match
@@ -2441,6 +2449,32 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_set
+   END SUBROUTINE pw_set_array
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param value ...
+! **************************************************************************************************
+   SUBROUTINE pw_set_value(pw, value)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: value
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_value'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,value)
+         pw%cr3d = value
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Illegal pw type, should be REALDATA3D.")
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_set_value
 
 END MODULE pw_methods
