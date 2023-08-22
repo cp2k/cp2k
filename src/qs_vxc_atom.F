@@ -1022,15 +1022,17 @@ CONTAINS
                      END IF
                   END IF
                   !
-                  drho_h(4, :, :, :) = SQRT( &
-                                       drho_h(1, :, :, :)*drho_h(1, :, :, :) + &
-                                       drho_h(2, :, :, :)*drho_h(2, :, :, :) + &
-                                       drho_h(3, :, :, :)*drho_h(3, :, :, :))
+                  IF (gradient_f) THEN
+                     drho_h(4, :, :, :) = SQRT( &
+                                          drho_h(1, :, :, :)*drho_h(1, :, :, :) + &
+                                          drho_h(2, :, :, :)*drho_h(2, :, :, :) + &
+                                          drho_h(3, :, :, :)*drho_h(3, :, :, :))
 
-                  drho_s(4, :, :, :) = SQRT( &
-                                       drho_s(1, :, :, :)*drho_s(1, :, :, :) + &
-                                       drho_s(2, :, :, :)*drho_s(2, :, :, :) + &
-                                       drho_s(3, :, :, :)*drho_s(3, :, :, :))
+                     drho_s(4, :, :, :) = SQRT( &
+                                          drho_s(1, :, :, :)*drho_s(1, :, :, :) + &
+                                          drho_s(2, :, :, :)*drho_s(2, :, :, :) + &
+                                          drho_s(3, :, :, :)*drho_s(3, :, :, :))
+                  END IF
 
                   DO ir = 1, nr
                      IF (tau_f) THEN
