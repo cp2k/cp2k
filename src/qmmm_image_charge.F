@@ -945,7 +945,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_image_pot_to_hartree_pot(v_hartree, v_metal, qs_env)
 
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree, v_metal
+      TYPE(pw_type), INTENT(INOUT)                       :: v_hartree
+      TYPE(pw_type), INTENT(IN)                          :: v_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'add_image_pot_to_hartree_pot'

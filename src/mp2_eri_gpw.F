@@ -40,6 +40,7 @@ MODULE mp2_eri_gpw
                                               pw_env_type
    USE pw_methods,                      ONLY: &
         pw_compl_gauss_damp, pw_copy, pw_derive, pw_gauss_damp, pw_gauss_damp_mix, pw_integral_ab, &
+        pw_log_deriv_compl_gauss, pw_log_deriv_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc, &
         pw_scale, pw_transfer, pw_truncated, pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -761,12 +762,8 @@ CONTAINS
 !> \param potential_parameter parameters of potential V(g)
 ! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-
-      INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: omega_2, rchalf, scale_coul, scale_long, &
-                                                            tmp
 
       IF (.NOT. (pw%in_space == RECIPROCALSPACE .AND. pw%in_use == COMPLEXDATA1D)) &
          CPABORT("pw in wrong space or wrong data type")
@@ -774,51 +771,16 @@ CONTAINS
       CASE (do_potential_coulomb)
          RETURN
       CASE (do_potential_long)
-         omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,potential_parameter,omega_2)
-         pw%cc(:) = pw%cc(:)*(1.0_dp + omega_2*pw%pw_grid%gsq(:))
-!$OMP END PARALLEL WORKSHARE
+         CALL pw_log_deriv_gauss(pw, potential_parameter%omega)
       CASE (do_potential_short)
-         omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
-!$OMP             SHARED(pw,omega_2)
-         DO i = 1, SIZE(pw%cc)
-            tmp = omega_2*pw%pw_grid%gsq(i)
-            ! For too small arguments, use the Taylor polynomial to prevent division by zero
-            IF (ABS(tmp) >= 0.003_dp) THEN
-               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp*EXP(-tmp)/(1.0_dp - EXP(-tmp)))
-            ELSE
-               pw%cc(i) = pw%cc(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
-            END IF
-         END DO
-!$OMP END PARALLEL DO
+         CALL pw_log_deriv_compl_gauss(pw, potential_parameter%omega)
       CASE (do_potential_mix_cl)
-         omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
-         scale_coul = potential_parameter%scale_coulomb
-         scale_long = potential_parameter%scale_longrange
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
-!$OMP             SHARED(pw,omega_2,scale_long,scale_coul)
-         DO i = 1, SIZE(pw%cc)
-            tmp = omega_2*pw%pw_grid%gsq(i)
-            pw%cc(i) = pw%cc(i)*(1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp)))
-         END DO
-!$OMP END PARALLEL DO
+         CALL pw_log_deriv_mix_cl(pw, potential_parameter%omega, &
+                                  potential_parameter%scale_coulomb, potential_parameter%scale_longrange)
       CASE (do_potential_truncated)
-         rchalf = 0.5_dp*potential_parameter%cutoff_radius
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
-!$OMP             SHARED(pw,rchalf)
-         DO i = 1, SIZE(pw%cc)
-            tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
-            ! For too small arguments, use the Taylor polynomial to prevent division by zero
-            IF (ABS(tmp) >= 0.0001_dp) THEN
-               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp/TAN(tmp))
-            ELSE
-               pw%cc(i) = pw%cc(i)*tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
-            END IF
-         END DO
-!$OMP END PARALLEL DO
+         CALL pw_log_deriv_trunc(pw, potential_parameter%cutoff_radius)
       CASE (do_potential_id)
-         pw%cc = 0.0_dp
+         CALL pw_zero(pw)
       CASE DEFAULT
          CPABORT("Unknown potential type")
       END SELECT

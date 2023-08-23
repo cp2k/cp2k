@@ -66,6 +66,7 @@ MODULE pw_methods
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
    PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_laplace, pw_dr2, pw_write, pw_multiply
+   PUBLIC :: pw_log_deriv_gauss, pw_log_deriv_compl_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc
    PUBLIC :: pw_gauss_damp_mix
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
@@ -406,7 +407,8 @@ CONTAINS
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(omega_2, pw)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,omega_2)
          pw%cc(:) = pw%cc(:)*EXP(-pw%pw_grid%gsq(:)*omega_2)
 !$OMP END PARALLEL WORKSHARE
       ELSE
@@ -416,6 +418,46 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp
+
+! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of a Gaussian
+!> \param pw ...
+!> \param omega ...
+!> \note
+!>      Performs a Gaussian damping
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_gauss(pw, omega)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_gauss'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: omega_2
+
+      CALL timeset(routineN, handle)
+      CPASSERT(omega >= 0)
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,omega_2)
+         pw%cc(:) = pw%cc(:)*(1.0_dp + omega_2*pw%pw_grid%gsq(:))
+!$OMP END PARALLEL WORKSHARE
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_log_deriv_gauss
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -473,6 +515,54 @@ CONTAINS
    END SUBROUTINE pw_compl_gauss_damp
 
 ! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of the complementary Gaussian damping factor
+!> \param pw ...
+!> \param omega ...
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_compl_gauss(pw, omega)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_compl_gauss'
+
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: omega_2, tmp
+
+      CALL timeset(routineN, handle)
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,omega_2)
+         DO i = 1, SIZE(pw%cc)
+            tmp = omega_2*pw%pw_grid%gsq(i)
+            ! For too small arguments, use the Taylor polynomial to prevent division by zero
+            IF (ABS(tmp) >= 0.003_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp*EXP(-tmp)/(1.0_dp - EXP(-tmp)))
+            ELSE
+               pw%cc(i) = pw%cc(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_log_deriv_compl_gauss
+
+! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor and mixes it with the original function
 !>        Needed for mixed longrange/Coulomb potential
 !>        V(\vec r)=(a+b*erf(omega*r))/r
@@ -519,6 +609,52 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp_mix
+
+! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of the mixed longrange/Coulomb potential
+!>        Needed for mixed longrange/Coulomb potential
+!> \param pw ...
+!> \param omega ...
+!> \param scale_coul ...
+!> \param scale_long ...
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_mix_cl(pw, omega, scale_coul, scale_long)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_mix_cl'
+
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: omega_2, tmp
+
+      CALL timeset(routineN, handle)
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,omega_2,scale_long,scale_coul)
+         DO i = 1, SIZE(pw%cc)
+            tmp = omega_2*pw%pw_grid%gsq(i)
+            pw%cc(i) = pw%cc(i)*(1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp)))
+         END DO
+!$OMP END PARALLEL DO
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_log_deriv_mix_cl
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a complementary cosine
@@ -572,6 +708,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_truncated
+
+! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of the complementary cosine
+!>        This function is needed for virials using truncated Coulomb potentials
+!> \param pw ...
+!> \param rcutoff ...
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_trunc(pw, rcutoff)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: rcutoff
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_trunc'
+
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: rchalf, tmp
+
+      CALL timeset(routineN, handle)
+      CPASSERT(rcutoff >= 0)
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         rchalf = 0.5_dp*rcutoff
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,rchalf)
+         DO i = 1, SIZE(pw%cc)
+            tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
+            ! For too small arguments, use the Taylor polynomial to prevent division by zero
+            IF (ABS(tmp) >= 0.0001_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp/TAN(tmp))
+            ELSE
+               pw%cc(i) = pw%cc(i)*tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_log_deriv_trunc
 
 ! **************************************************************************************************
 !> \brief Calculate the derivative of a plane wave vector

@@ -906,14 +906,15 @@ CONTAINS
                CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               rho_g_out(i)%cc(:) = rho_g_in(1)%cc(:)*ospin
+               CALL pw_copy(rho_g_in(1), rho_g_out(i))
+               CALL pw_scale(rho_g_out(i), ospin)
             END DO
          ELSE
             DO i = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               rho_g_out(i)%cc(:) = rho_g_in(i)%cc(:)
+               CALL pw_copy(rho_g_in(i), rho_g_out(i))
             END DO
          END IF
       END IF
@@ -965,7 +966,8 @@ CONTAINS
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j), &
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
-                  drho_g_out(i, j)%cc(:) = drho_g_in(i, 1)%cc(:)*ospin
+                  CALL pw_copy(drho_g_in(i, 1), drho_g_out(i, j))
+                  CALL pw_scale(drho_g_out(i, j), ospin)
                END DO
             END DO
          ELSE
@@ -974,7 +976,7 @@ CONTAINS
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j), &
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
-                  drho_g_out(i, j)%cc(:) = drho_g_in(i, j)%cc(:)
+                  CALL pw_copy(drho_g_in(i, j), drho_g_out(i, j))
                END DO
             END DO
          END IF
@@ -1013,14 +1015,15 @@ CONTAINS
                CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               tau_g_out(i)%cc(:) = tau_g_in(1)%cc(:)*ospin
+               CALL pw_copy(tau_g_in(1), tau_g_out(i))
+               CALL pw_scale(tau_g_out(i), ospin)
             END DO
          ELSE
             DO i = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               tau_g_out(i)%cc(:) = tau_g_in(i)%cc(:)
+               CALL pw_copy(tau_g_in(i), tau_g_out(i))
             END DO
          END IF
       END IF
