@@ -2571,6 +2571,9 @@ CONTAINS
 
                DO ispin = 1, 2
                   CALL duplicate_mo_set(restart_mos(ispin), mos(1))
+                  ! Set the new occupation number in the case of spin-independent based calculaltion since the restart is spin-depedent
+                  IF (SIZE(mos) == 1) &
+                     restart_mos(ispin)%occupation_numbers = mos(1)%occupation_numbers/2
                END DO
 
                CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=restart_mos(1)%mo_coeff, nrow=nao, &
