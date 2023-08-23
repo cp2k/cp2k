@@ -9,19 +9,19 @@
        &END XC
        NSTATES      1
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-9
+       CONVERGENCE [eV] 1.0e-8
     &END TDDFPT
   &END PROPERTIES
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 280
-      REL_CUTOFF 60
+      CUTOFF 180
+      REL_CUTOFF 40
     &END MGRID
     &QS
       METHOD GAPW
-      EPS_DEFAULT 1.E-12
+      EPS_DEFAULT 1.E-10
     &END QS
     &EFIELD
     &END
@@ -38,10 +38,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  20
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  20
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -54,7 +54,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.5 4.5 4.5
       PERIODIC NONE
     &END
     &COORD
@@ -91,5 +91,7 @@
    DEBUG_STRESS_TENSOR .FALSE.
    DEBUG_DIPOLE .FALSE.
    DEBUG_POLARIZABILITY .FALSE.
-   DE 0.002
+   CHECK_ATOM_FORCE   3 y
+   DE 0.001
+   MAX_RELATIVE_ERROR 0.30
 &END

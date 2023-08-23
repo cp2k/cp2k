@@ -765,7 +765,7 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
                                                             istep, mspins, myfun, na, natom, nf, &
-                                                            nr, ns, nspins, nstep, num_pe, nx
+                                                            nr, ns, nspins, nstep, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
@@ -918,12 +918,11 @@ CONTAINS
                NULLIFY (int_hh, int_ss)
                rho0_atom => rho0_atom_set(iatom)
                CALL get_rho_atom(rho_atom=rho0_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
-               ALLOCATE (fint_ss(mspins), fint_hh(mspins))
-               DO ns = 1, mspins
-                  nx = MIN(nspins, ns)
-                  nf = SIZE(int_ss(nx)%r_coef, 1)
+               ALLOCATE (fint_ss(nspins), fint_hh(nspins))
+               DO ns = 1, nspins
+                  nf = SIZE(int_ss(ns)%r_coef, 1)
                   ALLOCATE (fint_ss(ns)%r_coef(nf, nf))
-                  nf = SIZE(int_hh(nx)%r_coef, 1)
+                  nf = SIZE(int_hh(ns)%r_coef, 1)
                   ALLOCATE (fint_hh(ns)%r_coef(nf, nf))
                END DO
 
@@ -1022,6 +1021,18 @@ CONTAINS
                         tau_s = tau0_s + beta*tau1_s
                      END IF
                   END IF
+                  !
+                  IF (gradient_f) THEN
+                     drho_h(4, :, :, :) = SQRT( &
+                                          drho_h(1, :, :, :)*drho_h(1, :, :, :) + &
+                                          drho_h(2, :, :, :)*drho_h(2, :, :, :) + &
+                                          drho_h(3, :, :, :)*drho_h(3, :, :, :))
+
+                     drho_s(4, :, :, :) = SQRT( &
+                                          drho_s(1, :, :, :)*drho_s(1, :, :, :) + &
+                                          drho_s(2, :, :, :)*drho_s(2, :, :, :) + &
+                                          drho_s(3, :, :, :)*drho_s(3, :, :, :))
+                  END IF
 
                   DO ir = 1, nr
                      IF (tau_f) THEN
@@ -1063,20 +1074,20 @@ CONTAINS
                      END IF
                   END IF
                   ! potentials
-                  DO ns = 1, mspins
-                     fint_ss(ns)%r_coef(:, :) = 0.0_dp
+                  DO ns = 1, nspins
                      fint_hh(ns)%r_coef(:, :) = 0.0_dp
+                     fint_ss(ns)%r_coef(:, :) = 0.0_dp
                   END DO
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, fint_hh, fint_ss, &
-                                     grid_atom, basis_1c, harmonics, mspins)
+                                     grid_atom, basis_1c, harmonics, nspins)
                   ELSE
                      CALL gaVxcgb_noGC(vxc_h, vxc_s, fint_hh, fint_ss, &
-                                       grid_atom, basis_1c, harmonics, mspins)
+                                       grid_atom, basis_1c, harmonics, nspins)
                   END IF
                   IF (tau_f) THEN
                      CALL dgaVtaudgb(vtau_h, vtau_s, fint_hh, fint_ss, &
-                                     grid_atom, basis_1c, harmonics, mspins)
+                                     grid_atom, basis_1c, harmonics, nspins)
                   END IF
                   ! first derivative fxc
                   NULLIFY (int_hh, int_ss)
@@ -1094,7 +1105,7 @@ CONTAINS
                   END DO
                END DO
                !
-               DO ns = 1, mspins
+               DO ns = 1, nspins
                   DEALLOCATE (fint_ss(ns)%r_coef)
                   DEALLOCATE (fint_hh(ns)%r_coef)
                END DO

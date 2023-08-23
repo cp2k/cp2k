@@ -348,7 +348,9 @@ CONTAINS
          NULLIFY (vxc00, v_tau_rspace)
          IF (is_triplet) THEN
             CPASSERT(nspins == 1)
+            ! rhoin = (0.5 rho0, 0.5 rho0)
             CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, 2)
+            ! rhoin = (0.5 rho0 + 0.5 rho1, 0.5 rho0)
             CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, 0.5_dp*beta)
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rhoin, xc_section=xc_section, &
                                vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
