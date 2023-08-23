@@ -870,13 +870,13 @@ CONTAINS
       TYPE(pw_type) :: rho_tot_gspace, rho_tot_gspace_gs, rho_tot_gspace_t, rhoz_tot_gspace, &
          v_hartree_gspace_gs, v_hartree_gspace_t, v_hartree_rspace_gs, v_hartree_rspace_t, &
          vhxc_rspace, zv_hartree_gspace, zv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER :: rho_g, rho_g_aux, rho_g_gs, rho_g_t, rho_r, &
-         rho_r_aux, rho_r_gs, rho_r_t, rhoz_g, rhoz_g_aux, rhoz_r, rhoz_r_aux, tau_r_aux, tauz_r, &
-         v_xc, v_xc_tau
+      TYPE(pw_type), DIMENSION(:), POINTER :: rho_g_aux, rho_g_gs, rho_g_t, rho_r_aux, rho_r_gs, &
+         rho_r_t, rhoz_g, rhoz_g_aux, rhoz_g_xc, rhoz_r, rhoz_r_aux, rhoz_r_xc, tau_r_aux, tauz_r, &
+         tauz_r_xc, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
@@ -1158,7 +1158,7 @@ CONTAINS
       IF (gapw .OR. gapw_xc) THEN
          NULLIFY (oce, sab_orb)
          CALL get_qs_env(qs_env=qs_env, oce=oce, sab_orb=sab_orb)
-!         ! set up local_rho_set for GS density
+         ! set up local_rho_set for GS density
          NULLIFY (local_rho_set_gs)
          CALL get_qs_env(qs_env=qs_env, rho=rho)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -1170,7 +1170,7 @@ CONTAINS
          CALL calculate_rho_atom_coeff(qs_env, matrix_p(:, 1), local_rho_set_gs%rho_atom_set, &
                                        qs_kind_set, oce, sab_orb, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_gs, do_rho0=gapw)
-!         ! set up local_rho_set for response density
+         ! set up local_rho_set for response density
          NULLIFY (local_rho_set_t)
          CALL local_rho_set_create(local_rho_set_t)
          CALL allocate_rho_atom_internals(local_rho_set_t%rho_atom_set, atomic_kind_set, &
@@ -1182,7 +1182,7 @@ CONTAINS
                                        qs_kind_set, oce, sab_orb, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_t, do_rho0=gapw)
 
-!         ! compute soft GS potential
+         ! compute soft GS potential
          ALLOCATE (rho_r_gs(nspins), rho_g_gs(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_gs(ispin), &
@@ -1454,6 +1454,21 @@ CONTAINS
                                  soft_valid=gapw)
          CALL pw_axpy(rhoz_g(ispin), rhoz_tot_gspace)
       END DO
+      IF (gapw_xc) THEN
+         NULLIFY (tauz_r_xc)
+         ALLOCATE (rhoz_r_xc(nspins), rhoz_g_xc(nspins))
+         DO ispin = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r_xc(ispin), &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_xc(ispin), &
+                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         END DO
+         DO ispin = 1, nspins
+            CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
+                                    rho=rhoz_r_xc(ispin), rho_gspace=rhoz_g_xc(ispin), &
+                                    soft_valid=gapw_xc)
+         END DO
+      END IF
 
       IF (ASSOCIATED(vtau_rspace)) THEN
          CPASSERT(.NOT. (gapw .OR. gapw_xc))
@@ -1584,8 +1599,11 @@ CONTAINS
       END IF
 
       !
-      CALL get_qs_env(qs_env=qs_env, rho=rho)
-      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
+      IF (gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+      END IF
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          xc_section => admm_env%xc_section_primary
@@ -1598,16 +1616,15 @@ CONTAINS
       END IF
       !
       NULLIFY (v_xc, v_xc_tau)
-      CALL create_kernel(qs_env, &
-                         vxc=v_xc, &
-                         vxc_tau=v_xc_tau, &
-                         rho=rho, &
-                         rho1_r=rhoz_r, &
-                         rho1_g=rhoz_g, &
-                         tau1_r=tauz_r, &
-                         xc_section=xc_section, &
-                         compute_virial=use_virial, &
-                         virial_xc=virial%pv_xc)
+      IF (gapw_xc) THEN
+         CALL create_kernel(qs_env, vxc=v_xc, vxc_tau=v_xc_tau, &
+                            rho=rho_xc, rho1_r=rhoz_r_xc, rho1_g=rhoz_g_xc, tau1_r=tauz_r_xc, &
+                            xc_section=xc_section, compute_virial=use_virial, virial_xc=virial%pv_xc)
+      ELSE
+         CALL create_kernel(qs_env, vxc=v_xc, vxc_tau=v_xc_tau, &
+                            rho=rho, rho1_r=rhoz_r, rho1_g=rhoz_g, tau1_r=tauz_r, &
+                            xc_section=xc_section, compute_virial=use_virial, virial_xc=virial%pv_xc)
+      END IF
 
       IF (gapw .OR. gapw_xc) THEN
          !get local_rho_set for GS density and response potential / density
@@ -1716,6 +1733,7 @@ CONTAINS
          pv_loc = virial%pv_virial
       END IF
 
+      CALL get_qs_env(qs_env=qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -1728,7 +1746,7 @@ CONTAINS
                                     v_rspace=v_xc(ispin), &
                                     hmat=matrix_hz(ispin), &
                                     pmat=matrix_p(ispin, 1), &
-                                    gapw=(gapw .OR. gapw_xc), &
+                                    gapw=.FALSE., &
                                     calculate_forces=.TRUE.)
          ELSE
             IF (myfun /= xc_none) THEN
@@ -1737,7 +1755,7 @@ CONTAINS
                                        v_rspace=v_xc(ispin), &
                                        hmat=matrix_hz(ispin), &
                                        pmat=matrix_p(ispin, 1), &
-                                       gapw=(gapw .OR. gapw_xc), &
+                                       gapw=.TRUE., &
                                        calculate_forces=.TRUE.)
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -1908,6 +1926,13 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
       END DO
       DEALLOCATE (rhoz_r, rhoz_g, v_xc)
+      IF (gapw_xc) THEN
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_r_xc(ispin))
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_g_xc(ispin))
+         END DO
+         DEALLOCATE (rhoz_r_xc, rhoz_g_xc)
+      END IF
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_r(ispin))
