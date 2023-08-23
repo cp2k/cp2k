@@ -22,26 +22,36 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE pw_pool_types
-   USE cp_linked_list_pw,               ONLY: &
-        cp_sll_3d_r_dealloc, cp_sll_3d_r_get_first_el, cp_sll_3d_r_get_length, &
-        cp_sll_3d_r_insert_el, cp_sll_3d_r_next, cp_sll_3d_r_rm_first_el, cp_sll_3d_r_type, &
-        cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
-        cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE kinds,                           ONLY: dp
-   USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_compare,&
-                                              pw_grid_release,&
-                                              pw_grid_retain
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              REALDATA1D,&
-                                              REALDATA3D,&
-                                              pw_create,&
-                                              pw_release,&
-                                              pw_type
+   #:include 'pw_types.fypp'
+   #:for kind in pw_kinds
+      USE cp_linked_list_pw, ONLY: &
+cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el, cp_sll_${kind[1:]}$_${kind[0]}$_get_length, &
+         cp_sll_${kind[1:]}$_${kind[0]}$_insert_el, cp_sll_${kind[1:]}$_${kind[0]}$_next, cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el, cp_sll_${kind[1:]}$_${kind[0]}$_type, &
+         cp_sll_pw_${kind}$_dealloc, cp_sll_pw_${kind}$_get_first_el, cp_sll_pw_${kind}$_get_length, cp_sll_pw_${kind}$_insert_el, &
+         cp_sll_pw_${kind}$_next, cp_sll_pw_${kind}$_rm_first_el, cp_sll_pw_${kind}$_type
+   #:endfor
+   USE cp_linked_list_pw, ONLY: &
+      cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
+      cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type
+   USE kinds, ONLY: dp
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_grids, ONLY: pw_grid_compare, &
+                       pw_grid_release, &
+                       pw_grid_retain
+   USE pw_types, ONLY: COMPLEXDATA1D, &
+                       COMPLEXDATA3D, &
+                       REALDATA3D, &
+                       pw_create, &
+                       pw_release, &
+#:for kind in pw_kinds
+                       pw_${kind}$_type, &
+      #:endfor
+                       pw_type
 #include "../base/base_uses.f90"
+
+   #:include 'pw_types.fypp'
 
    IMPLICIT NONE
    PRIVATE
@@ -52,7 +62,7 @@ MODULE pw_pool_types
    PUBLIC :: pw_pool_type, pw_pool_p_type
    PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release, &
              pw_pool_create_pw, pw_pool_give_back_pw, &
-             pw_pool_create_cr3d, pw_pool_give_back_cr3d
+             pw_pool_create_array, pw_pool_give_back_array
    PUBLIC :: pw_pools_copy, pw_pools_dealloc, &
              pw_pools_create_pws, pw_pools_give_back_pws
 
@@ -73,9 +83,12 @@ MODULE pw_pool_types
    TYPE pw_pool_type
       INTEGER :: ref_count = 0, max_cache = 0
       TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
-      TYPE(cp_sll_pw_type), POINTER :: real1d_pw => NULL(), real3d_pw => NULL(), &
+      #:for kind in pw_kinds
+         TYPE(cp_sll_pw_${kind}$_type), POINTER :: ${kind}$_pw => NULL()
+         TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: ${kind}$_array => NULL()
+      #:endfor
+      TYPE(cp_sll_pw_type), POINTER :: real3d_pw => NULL(), &
                                        complex1d_pw => NULL(), complex3d_pw => NULL()
-      TYPE(cp_sll_3d_r_type), POINTER :: real3d_array => NULL()
    END TYPE pw_pool_type
 
 ! **************************************************************************************************
@@ -88,6 +101,53 @@ MODULE pw_pool_types
    TYPE pw_pool_p_type
       TYPE(pw_pool_type), POINTER :: pool => NULL()
    END TYPE pw_pool_p_type
+
+   INTERFACE try_pop
+      MODULE PROCEDURE try_pop_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE try_pop_${kind}$
+      #:endfor
+   END INTERFACE
+
+   INTERFACE pw_pool_create_pw
+      MODULE PROCEDURE pw_pool_create_pw_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pool_create_pw_${kind}$
+      #:endfor
+   END INTERFACE
+
+   INTERFACE pw_pool_give_back_pw
+      MODULE PROCEDURE pw_pool_give_back_pw_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pool_give_back_pw_${kind}$
+      #:endfor
+   END INTERFACE
+
+   INTERFACE pw_pools_create_pws
+      MODULE PROCEDURE pw_pools_create_pws_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pools_create_pws_${kind}$
+      #:endfor
+   END INTERFACE
+
+   INTERFACE pw_pools_give_back_pws
+      MODULE PROCEDURE pw_pools_give_back_pws_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pools_give_back_pws_${kind}$
+      #:endfor
+   END INTERFACE
+
+   INTERFACE pw_pool_create_array
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pool_create_array_${kind}$
+      #:endfor
+   END INTERFACE
+
+   INTERFACE pw_pool_give_back_array
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pool_give_back_array_${kind}$
+      #:endfor
+   END INTERFACE
 
 CONTAINS
 
@@ -116,8 +176,6 @@ CONTAINS
       pool%max_cache = default_max_cache
       IF (PRESENT(max_cache)) pool%max_cache = max_cache
       pool%max_cache = MIN(max_max_cache, pool%max_cache)
-      NULLIFY (pool%real1d_pw, pool%real3d_pw, &
-               pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
    END SUBROUTINE pw_pool_create
 
 ! **************************************************************************************************
@@ -150,23 +208,39 @@ CONTAINS
    SUBROUTINE pw_pool_flush_cache(pool)
       TYPE(pw_pool_type), INTENT(INOUT)                  :: pool
 
-      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: array_att
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_sll_3d_r_type), POINTER                    :: array_iterator
       TYPE(cp_sll_pw_type), POINTER                      :: iterator
       TYPE(pw_type), POINTER                             :: pw_el
+      #:for kind, type in zip(pw_kinds, pw_types)
+         ${type}$, CONTIGUOUS, POINTER                      :: array_att_${kind}$
+         TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: array_iterator_${kind}$
+         TYPE(cp_sll_pw_${kind}$_type), POINTER             :: iterator_${kind}$
+         TYPE(pw_${kind}$_type), POINTER                    :: pw_el_${kind}$
+      #:endfor
 
-      NULLIFY (iterator, array_iterator, pw_el, array_att)
+      NULLIFY (iterator, pw_el)
+      #:for kind in pw_kinds
+         NULLIFY (array_att_${kind}$, array_iterator_${kind}$, iterator_${kind}$, pw_el_${kind}$)
+      #:endfor
       logger => cp_get_default_logger()
 
-      iterator => pool%real1d_pw
-      DO
-         IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
-         DEALLOCATE (pw_el)
-      END DO
-      CALL cp_sll_pw_dealloc(pool%real1d_pw)
+      #:for kind in pw_kinds
+         iterator_${kind}$ => pool%${kind}$_pw
+         DO
+            IF (.NOT. cp_sll_pw_${kind}$_next(iterator_${kind}$, el_att=pw_el_${kind}$)) EXIT
+            CALL pw_release(pw_el_${kind}$)
+            DEALLOCATE (pw_el_${kind}$)
+         END DO
+         CALL cp_sll_pw_${kind}$_dealloc(pool%${kind}$_pw)
+
+         array_iterator_${kind}$ => pool%${kind}$_array
+         DO
+            IF (.NOT. cp_sll_${kind[1:]}$_${kind[0]}$_next(array_iterator_${kind}$, el_att=array_att_${kind}$) &
+                ) EXIT
+            DEALLOCATE (array_att_${kind}$)
+         END DO
+         CALL cp_sll_${kind[1:]}$_${kind[0]}$_dealloc(pool%${kind}$_array)
+      #:endfor
 
       iterator => pool%real3d_pw
       DO
@@ -191,14 +265,6 @@ CONTAINS
          DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%complex3d_pw)
-
-      array_iterator => pool%real3d_array
-      DO
-         IF (.NOT. cp_sll_3d_r_next(array_iterator, el_att=array_att) &
-             ) EXIT
-         DEALLOCATE (array_att)
-      END DO
-      CALL cp_sll_3d_r_dealloc(pool%real3d_array)
 
    END SUBROUTINE pw_pool_flush_cache
 
@@ -239,7 +305,7 @@ CONTAINS
 !> \note
 !>      private function
 ! **************************************************************************************************
-   FUNCTION try_pop(list) RESULT(res)
+   FUNCTION try_pop_pw(list) RESULT(res)
       TYPE(cp_sll_pw_type), POINTER                      :: list
       TYPE(pw_type), POINTER                             :: res
 
@@ -249,25 +315,287 @@ CONTAINS
       ELSE
          NULLIFY (res)
       END IF
-   END FUNCTION try_pop
+   END FUNCTION try_pop_pw
+
+   #:for kind, type in zip(pw_kinds, pw_types)
+
+! **************************************************************************************************
+!> \brief tries to pop an element from the given list (no error on failure)
+!> \param list the list to pop
+!> \return ...
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      private function
+! **************************************************************************************************
+      FUNCTION try_pop_${kind}$ (list) RESULT(res)
+         TYPE(cp_sll_pw_${kind}$_type), POINTER             :: list
+         TYPE(pw_${kind}$_type), POINTER                    :: res
+
+         IF (ASSOCIATED(list)) THEN
+            res => cp_sll_pw_${kind}$_get_first_el(list)
+            CALL cp_sll_pw_${kind}$_rm_first_el(list)
+         ELSE
+            NULLIFY (res)
+         END IF
+      END FUNCTION try_pop_${kind}$
 
 ! **************************************************************************************************
 !> \brief returns a pw, allocating it if none is in the pool
 !> \param pool the pool from where you get the pw
 !> \param pw will contain the new pw
-!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
+!> \param use_data which data it uses: COMPLEXDATA1D,
 !>        REALDATA3D, COMPLEXDATA3D
 !> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space)
+      SUBROUTINE pw_pool_create_pw_${kind}$ (pool, pw, in_space)
+         TYPE(pw_pool_type), INTENT(IN)                     :: pool
+         TYPE(pw_${kind}$_type), INTENT(OUT)                :: pw
+         INTEGER, INTENT(in)                                :: in_space
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw_${kind}$'
+
+         INTEGER                                            :: handle
+         ${type}$, CONTIGUOUS, &
+            POINTER                                         :: array_ptr
+         TYPE(cp_logger_type), POINTER                      :: logger
+         TYPE(pw_${kind}$_type), POINTER                    :: el
+
+         CALL timeset(routineN, handle)
+         NULLIFY (array_ptr)
+         logger => cp_get_default_logger()
+
+         el => try_pop(pool%${kind}$_pw)
+         IF (.NOT. ASSOCIATED(el)) THEN
+            IF (ASSOCIATED(pool%${kind}$_array)) THEN
+               array_ptr => cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el(pool%${kind}$_array)
+               CALL cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el(pool%${kind}$_array)
+            END IF
+         END IF
+
+         IF (.NOT. ASSOCIATED(el)) THEN
+            CALL pw_create(pw, pool%pw_grid, in_space=in_space, &
+                           array_ptr=array_ptr)
+         ELSE
+            pw = el
+            DEALLOCATE (el)
+            pw%in_space = in_space
+         END IF
+
+         CALL timestop(handle)
+
+      END SUBROUTINE pw_pool_create_pw_${kind}$
+
+! **************************************************************************************************
+!> \brief returns the pw to the pool
+!> \param pool the pool where to reintegrate the pw
+!> \param pw the pw to give back
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+      SUBROUTINE pw_pool_give_back_pw_${kind}$ (pool, pw)
+         TYPE(pw_pool_type), INTENT(IN)                     :: pool
+         TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw_${kind}$'
+
+         INTEGER                                            :: handle
+         TYPE(cp_logger_type), POINTER                      :: logger
+         TYPE(pw_${kind}$_type), POINTER                    :: el
+
+         logger => cp_get_default_logger()
+
+         CALL timeset(routineN, handle)
+         IF (ASSOCIATED(pw%pw_grid)) THEN
+            IF (.NOT. pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
+               CALL pw_release(pw)
+            ELSE
+               NULLIFY (el)
+               ALLOCATE (el)
+               el = pw
+
+               IF (cp_sll_pw_${kind}$_get_length(pool%${kind}$_pw) < pool%max_cache) THEN
+                  CALL cp_sll_pw_${kind}$_insert_el(pool%${kind}$_pw, el=el)
+               ELSE
+                  IF (max_max_cache >= 0) &
+                     CPWARN("hit max_cache")
+                  CALL pw_release(el)
+                  DEALLOCATE (el)
+               END IF
+            END IF
+         ELSE
+            IF (ASSOCIATED(pw%array)) DEALLOCATE (pw%array)
+         END IF
+         pw = pw_${kind}$_type()
+         CALL timestop(handle)
+      END SUBROUTINE pw_pool_give_back_pw_${kind}$
+
+! **************************************************************************************************
+!> \brief creates a multigrid structure
+!> \param pools the multigrid pool (i.e. an array of pw_pool)
+!> \param pws the multigrid of coefficent you want to initialize
+!> \param use_data which data it uses: COMPLEXDATA1D,
+!>        REALDATA3D, COMPLEXDATA3D
+!> \param in_space ...
+!> \par History
+!>      07.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+      SUBROUTINE pw_pools_create_pws_${kind}$ (pools, pws, in_space)
+         TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
+         TYPE(pw_${kind}$_type), ALLOCATABLE, DIMENSION(:), &
+            INTENT(OUT)                                     :: pws
+         INTEGER, INTENT(in)                                :: in_space
+
+         INTEGER                                            :: i
+
+         ALLOCATE (pws(SIZE(pools)))
+         DO i = 1, SIZE(pools)
+            CALL pw_pool_create_pw_${kind}$ (pools(i)%pool, pws(i), &
+                                             in_space=in_space)
+         END DO
+      END SUBROUTINE pw_pools_create_pws_${kind}$
+
+! **************************************************************************************************
+!> \brief returns the pw part of the coefficients into the pools
+!> \param pools the pools that will cache the pws %pw
+!> \param pws the coefficients to give back
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+      SUBROUTINE pw_pools_give_back_pws_${kind}$ (pools, pws)
+         TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
+         TYPE(pw_${kind}$_type), ALLOCATABLE, DIMENSION(:), &
+            INTENT(INOUT)                                   :: pws
+
+         INTEGER                                            :: i
+
+         CPASSERT(SIZE(pws) == SIZE(pools))
+         DO i = 1, SIZE(pools)
+            CALL pw_pool_give_back_pw_${kind}$ (pools(i)%pool, pws(i))
+         END DO
+         DEALLOCATE (pws)
+      END SUBROUTINE pw_pools_give_back_pws_${kind}$
+
+! **************************************************************************************************
+!> \brief returns a 3d real array of coefficients as the one used by pw with
+!>      REALDATA3D, allocating it if none is present in the pool
+!> \param pw_pool the pool that caches the cr3d
+!> \param cr3d the pointer that will contain the array
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      SUBROUTINE pw_pool_create_array_${kind}$ (pw_pool, array)
+         TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
+         ${type}$, POINTER                                  :: array
+
+         TYPE(cp_logger_type), POINTER                      :: logger
+         TYPE(pw_${kind}$_type), POINTER                    :: pw
+
+         NULLIFY (pw)
+         logger => cp_get_default_logger()
+
+         IF (ASSOCIATED(pw_pool%${kind}$_array)) THEN
+            array => cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el(pw_pool%${kind}$_array)
+            CALL cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el(pw_pool%${kind}$_array)
+         ELSE
+            pw => try_pop(pw_pool%${kind}$_pw)
+            IF (ASSOCIATED(pw)) THEN
+               array => pw%array
+               NULLIFY (pw%array)
+               CALL pw_release(pw)
+               DEALLOCATE (pw)
+            END IF
+         END IF
+         IF (.NOT. ASSOCIATED(array)) THEN
+            #:if kind.endswith('1d')
+               ALLOCATE (array(pw_pool%pw_grid%ngpts_cut_local))
+            #:else
+               ALLOCATE (array(pw_pool%pw_grid%bounds_local(1, 1):pw_pool%pw_grid%bounds_local(2, 1), &
+                               pw_pool%pw_grid%bounds_local(1, 2):pw_pool%pw_grid%bounds_local(2, 2), &
+                               pw_pool%pw_grid%bounds_local(1, 3):pw_pool%pw_grid%bounds_local(2, 3)))
+            #:endif
+         END IF
+      END SUBROUTINE pw_pool_create_array_${kind}$
+
+! **************************************************************************************************
+!> \brief returns an array of coefficients as the one used by pw,
+!>      allocating it if none is present in the pool
+!> \param pw_pool the pool that caches the cr3d
+!> \param array the pointer that will contain the array
+!> \param accept_non_compatible if true deallocates the non compatible
+!>        arrays passed in, if false (the default) stops with an error
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      SUBROUTINE pw_pool_give_back_array_${kind}$ (pw_pool, array, accept_non_compatible)
+         TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
+         ${type}$, CONTIGUOUS, POINTER                      :: array
+         LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
+
+         LOGICAL                                            :: compatible, my_accept_non_compatible
+         TYPE(cp_logger_type), POINTER                      :: logger
+
+         my_accept_non_compatible = .FALSE.
+         logger => cp_get_default_logger()
+         IF (PRESENT(accept_non_compatible)) my_accept_non_compatible = accept_non_compatible
+
+         IF (ASSOCIATED(array)) THEN
+            #:if kind.endswith('3d')
+               compatible = ALL(MERGE(pw_pool%pw_grid%bounds_local(1, :) == LBOUND(array) .AND. &
+                                      pw_pool%pw_grid%bounds_local(2, :) == UBOUND(array), &
+                                      pw_pool%pw_grid%bounds_local(2, :) < pw_pool%pw_grid%bounds_local(1, :), &
+                                      UBOUND(array) >= LBOUND(array)))
+            #:else
+               compatible = UBOUND(array, 1) >= LBOUND(array, 1) .AND. &
+                            (1 == LBOUND(array, 1) .AND. pw_pool%pw_grid%ngpts_cut_local == UBOUND(array, 1)) .OR. &
+                            (UBOUND(array, 1) < LBOUND(array, 1) .AND. pw_pool%pw_grid%ngpts_cut_local < 0)
+            #:endif
+            CPASSERT(compatible .OR. my_accept_non_compatible)
+            IF (compatible) THEN
+               IF (cp_sll_${kind[1:]}$_${kind[0]}$_get_length(pw_pool%${kind}$_array) < pw_pool%max_cache) THEN
+                  CALL cp_sll_${kind[1:]}$_${kind[0]}$_insert_el(pw_pool%${kind}$_array, el=array)
+               ELSE
+                  IF (max_max_cache >= 0) &
+                     CPWARN("hit max_cache")
+                  DEALLOCATE (array)
+               END IF
+            ELSE
+               DEALLOCATE (array)
+            END IF
+         ELSE
+            CPASSERT(my_accept_non_compatible)
+         END IF
+         NULLIFY (array)
+      END SUBROUTINE pw_pool_give_back_array_${kind}$
+
+   #:endfor
+
+! **************************************************************************************************
+!> \brief returns a pw, allocating it if none is in the pool
+!> \param pool the pool from where you get the pw
+!> \param pw will contain the new pw
+!> \param use_data which data it uses: COMPLEXDATA1D,
+!>        REALDATA3D, COMPLEXDATA3D
+!> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+   SUBROUTINE pw_pool_create_pw_pw(pool, pw, use_data, in_space)
       TYPE(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(OUT)                         :: pw
       INTEGER, INTENT(in)                                :: use_data, in_space
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw_pw'
 
       INTEGER                                            :: handle
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
@@ -280,14 +608,12 @@ CONTAINS
       logger => cp_get_default_logger()
 
       SELECT CASE (use_data)
-      CASE (REALDATA1D)
-         el => try_pop(pool%real1d_pw)
       CASE (REALDATA3D)
          el => try_pop(pool%real3d_pw)
          IF (.NOT. ASSOCIATED(el)) THEN
-            IF (ASSOCIATED(pool%real3d_array)) THEN
-               cr3d_ptr => cp_sll_3d_r_get_first_el(pool%real3d_array)
-               CALL cp_sll_3d_r_rm_first_el(pool%real3d_array)
+            IF (ASSOCIATED(pool%r3d_array)) THEN
+               cr3d_ptr => cp_sll_3d_r_get_first_el(pool%r3d_array)
+               CALL cp_sll_3d_r_rm_first_el(pool%r3d_array)
             END IF
          END IF
       CASE (COMPLEXDATA1D)
@@ -310,7 +636,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_pool_create_pw
+   END SUBROUTINE pw_pool_create_pw_pw
 
 ! **************************************************************************************************
 !> \brief returns the pw to the pool
@@ -320,11 +646,11 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_pool_give_back_pw(pool, pw)
+   SUBROUTINE pw_pool_give_back_pw_pw(pool, pw)
       TYPE(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(INOUT)                       :: pw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw_pw'
 
       INTEGER                                            :: handle
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -342,15 +668,6 @@ CONTAINS
             el = pw
 
             SELECT CASE (el%in_use)
-            CASE (REALDATA1D)
-               IF (cp_sll_pw_get_length(pool%real1d_pw) < pool%max_cache) THEN
-                  CALL cp_sll_pw_insert_el(pool%real1d_pw, el=el)
-               ELSE
-                  IF (max_max_cache >= 0) &
-                     CPWARN("hit max_cache")
-                  CALL pw_release(el)
-                  DEALLOCATE (el)
-               END IF
             CASE (REALDATA3D)
                IF (ASSOCIATED(el%cr3d)) THEN
                   IF (cp_sll_pw_get_length(pool%real3d_pw) < pool%max_cache) THEN
@@ -393,115 +710,29 @@ CONTAINS
       ELSE
          IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
          IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
-         IF (ASSOCIATED(pw%cr)) DEALLOCATE (pw%cr)
          IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       END IF
-      NULLIFY (pw%cc, pw%cc3d, pw%cr, pw%cr3d, pw%pw_grid)
+      NULLIFY (pw%cc, pw%cc3d, pw%cr3d, pw%pw_grid)
       CALL timestop(handle)
-   END SUBROUTINE pw_pool_give_back_pw
-
-! **************************************************************************************************
-!> \brief returns a 3d real array of coefficients as the one used by pw with
-!>      REALDATA3D, allocating it if none is present in the pool
-!> \param pw_pool the pool that caches the cr3d
-!> \param cr3d the pointer that will contain the array
-!> \par History
-!>      11.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE pw_pool_create_cr3d(pw_pool, cr3d)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
-
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type), POINTER                             :: pw
-
-      NULLIFY (pw)
-      logger => cp_get_default_logger()
-
-      IF (ASSOCIATED(pw_pool%real3d_array)) THEN
-         cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array)
-         CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array)
-      ELSE
-         pw => try_pop(pw_pool%real3d_pw)
-         IF (ASSOCIATED(pw)) THEN
-            cr3d => pw%cr3d
-            NULLIFY (pw%cr3d)
-            CALL pw_release(pw)
-            DEALLOCATE (pw)
-         END IF
-      END IF
-      IF (.NOT. ASSOCIATED(cr3d)) THEN
-         ALLOCATE (cr3d(pw_pool%pw_grid%bounds_local(1, 1):pw_pool%pw_grid%bounds_local(2, 1), &
-                        pw_pool%pw_grid%bounds_local(1, 2):pw_pool%pw_grid%bounds_local(2, 2), &
-                        pw_pool%pw_grid%bounds_local(1, 3):pw_pool%pw_grid%bounds_local(2, 3)))
-      END IF
-   END SUBROUTINE pw_pool_create_cr3d
-
-! **************************************************************************************************
-!> \brief returns a 3d real array of coefficients as the one used by pw with
-!>      REALDATA3D, allocating it if none is present in the pool
-!> \param pw_pool the pool that caches the cr3d
-!> \param cr3d the pointer that will contain the array
-!> \param accept_non_compatible if true deallocates the non compatible
-!>        arrays passed in, if false (the default) stops with an error
-!> \par History
-!>      11.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d, accept_non_compatible)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
-      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: cr3d
-      LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
-
-      LOGICAL                                            :: compatible, my_accept_non_compatible
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      my_accept_non_compatible = .FALSE.
-      logger => cp_get_default_logger()
-      IF (PRESENT(accept_non_compatible)) my_accept_non_compatible = accept_non_compatible
-
-      IF (ASSOCIATED(cr3d)) THEN
-         compatible = ALL(MERGE(pw_pool%pw_grid%bounds_local(1, :) == LBOUND(cr3d) .AND. &
-                                pw_pool%pw_grid%bounds_local(2, :) == UBOUND(cr3d), &
-                                pw_pool%pw_grid%bounds_local(2, :) < pw_pool%pw_grid%bounds_local(1, :), &
-                                UBOUND(cr3d) >= LBOUND(cr3d)))
-         CPASSERT(compatible .OR. my_accept_non_compatible)
-         IF (compatible) THEN
-            IF (cp_sll_3d_r_get_length(pw_pool%real3d_array) < pw_pool%max_cache) THEN
-               CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d)
-            ELSE
-               IF (max_max_cache >= 0) &
-                  CPWARN("hit max_cache")
-               DEALLOCATE (cr3d)
-            END IF
-         ELSE
-            DEALLOCATE (cr3d)
-         END IF
-      ELSE
-         CPASSERT(my_accept_non_compatible)
-      END IF
-      NULLIFY (cr3d)
-   END SUBROUTINE pw_pool_give_back_cr3d
+   END SUBROUTINE pw_pool_give_back_pw_pw
 
 ! **************************************************************************************************
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
+!> \param use_data which data it uses: COMPLEXDATA1D,
 !>        REALDATA3D, COMPLEXDATA3D
 !> \param in_space ...
 !> \par History
 !>      07.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space)
+   SUBROUTINE pw_pools_create_pws_pw(pools, pws, use_data, in_space)
       TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: pws
       INTEGER, INTENT(in)                                :: use_data
-      INTEGER, INTENT(in), OPTIONAL                      :: in_space
+      INTEGER, INTENT(in)                                :: in_space
 
       INTEGER                                            :: i
 
@@ -510,7 +741,7 @@ CONTAINS
          CALL pw_pool_create_pw(pools(i)%pool, pws(i), use_data, &
                                 in_space=in_space)
       END DO
-   END SUBROUTINE pw_pools_create_pws
+   END SUBROUTINE pw_pools_create_pws_pw
 
 ! **************************************************************************************************
 !> \brief returns the pw part of the coefficients into the pools
@@ -520,7 +751,7 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_pools_give_back_pws(pools, pws)
+   SUBROUTINE pw_pools_give_back_pws_pw(pools, pws)
       TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: pws
@@ -532,7 +763,7 @@ CONTAINS
          CALL pw_pool_give_back_pw(pools(i)%pool, pws(i))
       END DO
       DEALLOCATE (pws)
-   END SUBROUTINE pw_pools_give_back_pws
+   END SUBROUTINE pw_pools_give_back_pws_pw
 
 ! **************************************************************************************************
 !> \brief copies a multigrid pool, the underlying pools are shared

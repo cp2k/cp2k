@@ -23,7 +23,7 @@ MODULE xc_derivative_set_types
                                               pw_grid_release
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_create_cr3d,&
+                                              pw_pool_create_array,&
                                               pw_pool_create_pw,&
                                               pw_pool_release,&
                                               pw_pool_retain,&
@@ -98,7 +98,7 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. ASSOCIATED(res) .AND. my_allocate_deriv) THEN
-         CALL pw_pool_create_cr3d(derivative_set%pw_pool, cr3d_ptr)
+         CALL pw_pool_create_array(derivative_set%pw_pool, cr3d_ptr)
          cr3d_ptr = 0.0_dp
          ALLOCATE (res)
          CALL xc_derivative_create(res, std_deriv_desc, &

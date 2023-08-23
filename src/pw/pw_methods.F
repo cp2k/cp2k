@@ -20,45 +20,47 @@
 !>      JGH (01-Dec-2007) : Removed and renamed routines
 !>      JGH (04-Jul-2019) : added pw_multiply routine
 !>      03.2008 [tlaino] : Splitting pw_types into pw_types and pw_methods
+!>      08.2023 (F.Stein) : Major refactoring
 !> \author apsi
 ! **************************************************************************************************
 MODULE pw_methods
 
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
-                                              cp_to_string
-   USE fast,                            ONLY: copy_cr,&
-                                              copy_rc,&
-                                              zero_c
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              FWFFT,&
-                                              fft3d
-   USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: dp
-   USE machine,                         ONLY: m_memory
-   USE pw_copy_all,                     ONLY: pw_copy_match
-   USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
-                                              pw_fpga_c1dr3d_3d_sp,&
-                                              pw_fpga_init_bitstream,&
-                                              pw_fpga_r3dc1d_3d_dp,&
-                                              pw_fpga_r3dc1d_3d_sp
-   USE pw_gpu,                          ONLY: pw_gpu_c1dr3d_3d,&
-                                              pw_gpu_c1dr3d_3d_ps,&
-                                              pw_gpu_r3dc1d_3d,&
-                                              pw_gpu_r3dc1d_3d_ps
-   USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                              PW_MODE_DISTRIBUTED,&
-                                              PW_MODE_LOCAL,&
-                                              pw_grid_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              REALDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit, &
+                              cp_to_string
+   USE fast, ONLY: copy_cr, &
+                   copy_rc, &
+                   zero_c
+   USE fft_tools, ONLY: BWFFT, &
+                        FWFFT, &
+                        fft3d
+   USE kahan_sum, ONLY: accurate_sum
+   USE kinds, ONLY: dp
+   USE machine, ONLY: m_memory
+   USE pw_copy_all, ONLY: pw_copy_match
+   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
+                      pw_fpga_c1dr3d_3d_sp, &
+                      pw_fpga_init_bitstream, &
+                      pw_fpga_r3dc1d_3d_dp, &
+                      pw_fpga_r3dc1d_3d_sp
+   USE pw_gpu, ONLY: pw_gpu_c1dr3d_3d, &
+                     pw_gpu_c1dr3d_3d_ps, &
+                     pw_gpu_r3dc1d_3d, &
+                     pw_gpu_r3dc1d_3d_ps
+   USE pw_grid_types, ONLY: HALFSPACE, &
+                            PW_MODE_DISTRIBUTED, &
+                            PW_MODE_LOCAL, &
+                            pw_grid_type
+   USE pw_types, ONLY: COMPLEXDATA1D, &
+                       COMPLEXDATA3D, &
+                       REALDATA3D, &
+                       REALSPACE, &
+                       RECIPROCALSPACE, &
+                       pw_type, pw_r1d_type, pw_r3d_type, pw_c1d_type, pw_c3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
+
+   #:include 'pw_types.fypp'
 
    PRIVATE
 
@@ -76,6 +78,75 @@ MODULE pw_methods
    INTEGER, PARAMETER, PUBLIC  ::  do_accurate_sum = 0, &
                                   do_standard_sum = 1
 
+   INTERFACE pw_zero
+      MODULE PROCEDURE pw_zero_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_zero_${kind}$
+      #:endfor
+   END INTERFACE pw_zero
+
+   INTERFACE pw_copy
+      MODULE PROCEDURE pw_copy_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_copy_${kind}$
+      #:endfor
+   END INTERFACE pw_copy
+
+   INTERFACE pw_scale
+      MODULE PROCEDURE pw_scale_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_scale_${kind}$
+      #:endfor
+   END INTERFACE pw_scale
+
+   INTERFACE pw_axpy
+      MODULE PROCEDURE pw_axpy_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_axpy_${kind}$
+      #:endfor
+   END INTERFACE pw_axpy
+
+   INTERFACE pw_write
+      MODULE PROCEDURE pw_write_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_write_${kind}$
+      #:endfor
+   END INTERFACE pw_WRITE
+
+   INTERFACE pw_multiply
+      MODULE PROCEDURE pw_multiply_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_multiply_${kind}$
+      #:endfor
+      MODULE PROCEDURE pw_multiply_c1d_real
+   END INTERFACE pw_multiply
+
+   INTERFACE pw_integral_ab
+      MODULE PROCEDURE pw_integral_ab_pw
+      #:for kind, kind2 in zip(pw_kinds, pw_kinds)
+         #:if kind[1:] == kind2[1:]
+            MODULE PROCEDURE pw_integral_ab_${kind}$_${kind2}$
+         #:endif
+      #:endfor
+   END INTERFACE pw_integral_ab
+
+   INTERFACE pw_integral_a2b
+      MODULE PROCEDURE pw_integral_a2b_pw
+      #:for kind in pw_kinds
+         #:if kind.endswith('1d')
+            MODULE PROCEDURE pw_integral_a2b_${kind}$
+         #:endif
+      #:endfor
+   END INTERFACE pw_integral_a2b
+
+   INTERFACE pw_multiply_with
+      MODULE PROCEDURE pw_multiply_with_pw
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_multiply_with_${kind}$
+      #:endfor
+      MODULE PROCEDURE pw_multiply_with_pw_r1d
+   END INTERFACE pw_multiply_with
+
    INTERFACE pw_gather
       MODULE PROCEDURE pw_gather_s, pw_gather_p
    END INTERFACE
@@ -90,6 +161,7 @@ MODULE pw_methods
 
 CONTAINS
 
+   #:for kind, type in zip(pw_kinds, pw_types)
 ! **************************************************************************************************
 !> \brief Set values of a pw type to zero
 !> \param pw ...
@@ -97,21 +169,512 @@ CONTAINS
 !>      none
 !> \author apsi
 ! **************************************************************************************************
-   SUBROUTINE pw_zero(pw)
+      SUBROUTINE pw_zero_${kind}$ (pw)
+         TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero_${kind}$'
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero'
+         INTEGER                                            :: handle
+
+         CALL timeset(routineN, handle)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
+         pw%array = 0.0_dp
+!$OMP END PARALLEL WORKSHARE
+
+         CALL timestop(handle)
+
+      END SUBROUTINE pw_zero_${kind}$
+
+! **************************************************************************************************
+!> \brief copy a pw type variable
+!> \param pw1 ...
+!> \param pw2 ...
+! **************************************************************************************************
+      SUBROUTINE pw_copy_${kind}$ (pw1, pw2)
+
+         TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1
+         TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw2
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_${kind}$'
+
+         INTEGER                                            :: handle
+
+         CALL timeset(routineN, handle)
+
+         IF (pw1%in_space /= pw2%in_space) &
+            CPABORT("Copy requires both PW grids to be in the same space!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw2%array = pw1%array
+!$OMP END PARALLEL WORKSHARE
+
+         CALL timestop(handle)
+
+      END SUBROUTINE pw_copy_${kind}$
+
+! **************************************************************************************************
+!> \brief multiplies pw coeffs with a number
+!> \param pw ...
+!> \param a ...
+! **************************************************************************************************
+      SUBROUTINE pw_scale_${kind}$ (pw, a)
+
+         TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw
+         REAL(KIND=dp), INTENT(IN)                          :: a
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale_${kind}$'
+
+         INTEGER                                            :: handle
+
+         CALL timeset(routineN, handle)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(A, pw)
+         pw%array = a*pw%array
+!$OMP END PARALLEL WORKSHARE
+
+         CALL timestop(handle)
+      END SUBROUTINE pw_scale_${kind}$
+
+! **************************************************************************************************
+!> \brief pw2 = alpha*pw1 + beta*pw2
+!>      alpha defaults to 1, beta defaults to 1
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param alpha ...
+!> \param beta ...
+!> \param allow_noncompatible_grids ...
+!> \par History
+!>      JGH (21-Feb-2003) : added reference grid functionality
+!>      JGH (01-Dec-2007) : rename and remove complex alpha
+!> \author apsi
+!> \note
+!>      Currently only summing up of respective types allowed,
+!>      in order to avoid errors
+! **************************************************************************************************
+      SUBROUTINE pw_axpy_${kind}$ (pw1, pw2, alpha, beta, allow_noncompatible_grids)
+
+         TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1
+         TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw2
+         REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
+         LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy_${kind}$'
+
+         INTEGER                                            :: handle
+         LOGICAL                                            :: my_allow_noncompatible_grids
+         REAL(KIND=dp)                                      :: my_alpha, my_beta
+
+         CALL timeset(routineN, handle)
+
+         IF (pw1%in_space /= pw2%in_space) &
+            CPABORT("Both pw grids must be in the same space to add them!")
+
+         my_alpha = 1.0_dp
+         IF (PRESENT(alpha)) my_alpha = alpha
+
+         my_beta = 1.0_dp
+         IF (PRESENT(beta)) my_beta = beta
+
+         my_allow_noncompatible_grids = .FALSE.
+         IF (PRESENT(allow_noncompatible_grids)) my_allow_noncompatible_grids = allow_noncompatible_grids
+
+         IF (my_beta /= 1.0_dp) THEN
+            IF (my_beta == 0.0_dp) THEN
+               IF (my_alpha == 0.0_dp) THEN
+                  CALL pw_zero(pw2)
+                  RETURN
+               ELSE IF (my_alpha /= 1.0_dp) THEN
+                  IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid) .OR. &
+                      pw_compatible(pw1%pw_grid, pw2%pw_grid) .OR. my_allow_noncompatible_grids) THEN
+                     IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,pw1,my_alpha)
+                        pw2%array = my_alpha*pw1%array
+!$OMP END PARALLEL WORKSHARE
+                     END IF
+                  END IF
+               ELSE
+                  CPABORT("Incompatible grids!")
+               END IF
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%array = pw2%array*my_beta
+!$OMP END PARALLEL WORKSHARE
+            END IF
+         END IF
+
+       IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid) .OR. pw_compatible(pw1%pw_grid, pw2%pw_grid) .OR. my_allow_noncompatible_grids) THEN
+
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
+               pw2%array = pw2%array + pw1%array
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,pw1,my_alpha)
+               pw2%array = pw2%array + my_alpha*pw1%array
+!$OMP END PARALLEL WORKSHARE
+            END IF
+         ELSE
+            CPABORT("Incompatible grids!")
+         END IF
+         CALL timestop(handle)
+      END SUBROUTINE pw_axpy_${kind}$
+
+! **************************************************************************************************
+!> \brief pw_out = pw_out + alpha * pw1 * pw2
+!>      alpha defaults to 1
+!> \param pw_out ...
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param alpha ...
+! **************************************************************************************************
+      SUBROUTINE pw_multiply_${kind}$ (pw_out, pw1, pw2, alpha)
+
+         TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw_out
+         TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1, pw2
+         REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply_${kind}$'
+
+         INTEGER                                            :: handle
+         REAL(KIND=dp)                                      :: my_alpha
+
+         CALL timeset(routineN, handle)
+
+         my_alpha = 1.0_dp
+         IF (PRESENT(alpha)) my_alpha = alpha
+
+         IF (ASSOCIATED(pw_out%pw_grid, pw1%pw_grid) .AND. &
+             ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
+
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+               pw_out%array = pw_out%array + pw1%array*pw2%array
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
+               pw_out%array = pw_out%array + my_alpha*pw1%array*pw2%array
+!$OMP END PARALLEL WORKSHARE
+            END IF
+         ELSE
+            CPABORT("Incompatible grids!")
+         END IF
+
+         CALL timestop(handle)
+      END SUBROUTINE pw_multiply_${kind}$
+
+! **************************************************************************************************
+!> \brief writes a small description of the actual grid
+!>      (change to output the data as cube file, maybe with an
+!>      optional long_description arg?)
+!> \param pw the pw data to output
+!> \param unit_nr the unit to output to
+!> \author Fawzi Mohamed, Frederick Stein
+! **************************************************************************************************
+      SUBROUTINE pw_write_${kind}$ (pw, unit_nr)
+
+         TYPE(pw_${kind}$_type), INTENT(in)                 :: pw
+         INTEGER, INTENT(in)                                :: unit_nr
+
+         INTEGER                                            :: iostatus
+
+         WRITE (unit=unit_nr, fmt="('<pw>:{ ')", iostat=iostatus)
+
+         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=${kind}$"
+         IF (ASSOCIATED(pw%array)) THEN
+            #:if kind.endswith('1d')
+               WRITE (unit=unit_nr, fmt="(' c${kind}$=<${type.split(", ")[0]}$(',i8,':',i8,')>')") &
+                  LBOUND(pw%array, 1), UBOUND(pw%array, 1)
+            #:elif kind.endswith('3d')
+               WRITE (unit=unit_nr, fmt="(' c${kind}$=<${type.split(", ")[0]}$(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')") &
+                  LBOUND(pw%array, 1), UBOUND(pw%array, 1), LBOUND(pw%array, 2), UBOUND(pw%array, 2), &
+                  LBOUND(pw%array, 3), UBOUND(pw%array, 3)
+            #:else
+               #:stop 'Unknown pw kind:', kind
+            #:endif
+         ELSE
+            WRITE (unit=unit_nr, fmt="(' c${kind}$=*null*')")
+         END IF
+
+         SELECT CASE (pw%in_space)
+         CASE (REALSPACE)
+            WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=REALSPACE"
+         CASE (RECIPROCALSPACE)
+            WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=RECIPROCALSPACE"
+         CASE default
+            WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')", iostat=iostatus) &
+               pw%in_space
+         END SELECT
+
+         WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')", iostat=iostatus) &
+            pw%pw_grid%id_nr
+
+      END SUBROUTINE pw_write_${kind}$
+
+      #:for kind2, type2 in zip(pw_kinds, pw_types)
+         #! Mixed 1D/3D case is not meaningful
+         #:if kind[1:] == kind2[1:]
+! **************************************************************************************************
+!> \brief Calculate integral over unit cell for functions in plane wave basis
+!>      only returns the real part of it ......
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param sumtype ...
+!> \param just_sum ...
+!> \param local_only ...
+!> \return ...
+! **************************************************************************************************
+            FUNCTION pw_integral_ab_${kind}$_${kind2}$ (pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
+
+               TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1
+               TYPE(pw_${kind2}$_type), INTENT(IN)                :: pw2
+               INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
+               LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum, local_only
+               REAL(KIND=dp)                                      :: integral_value
+
+               CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab_${kind}$_${kind2}$'
+
+               INTEGER                                            :: handle, loc_sumtype
+               LOGICAL                                            :: my_just_sum, my_local_only
+
+               CALL timeset(routineN, handle)
+
+               loc_sumtype = do_accurate_sum
+               IF (PRESENT(sumtype)) loc_sumtype = sumtype
+
+               my_local_only = .FALSE.
+               IF (PRESENT(local_only)) my_local_only = local_only
+
+               IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
+                  CPABORT("Grids incompatible")
+               END IF
+
+               IF (pw1%in_space /= pw2%in_space) &
+                  CPABORT("Both grids must be in the same space for integration!")
+
+               my_just_sum = .FALSE.
+               IF (PRESENT(just_sum)) my_just_sum = just_sum
+
+               ! since we are only interested into the real part, we drop the imaginary part
+               ! the dot product is assumed to be hermitian implying a complex conjugation of the first grid
+               IF (loc_sumtype == do_standard_sum) THEN
+
+                  ! Do standard sum
+                  #:if kind[0] == 'r'
+                     #:if kind2[0] == 'r'
+                        integral_value = SUM(pw1%array*pw2%array)
+                     #:else
+                        integral_value = SUM(pw1%array*REAL(pw2%array, KIND=dp))
+                     #:endif
+                  #:else
+                     #:if kind2[0] == 'r'
+                        integral_value = SUM(REAL(pw1%array, KIND=dp)*pw2%array)
+                     #:else
+                        integral_value = SUM(REAL(CONJG(pw1%array)*pw2%array, KIND=dp))
+                     #:endif
+                  #:endif
+
+               ELSE
+
+                  ! Do accurate sum
+
+                  #:if kind[0] == 'r'
+                     #:if kind2[0] == 'r'
+                        integral_value = accurate_sum(pw1%array*pw2%array)
+                     #:else
+                        integral_value = accurate_sum(pw1%array*REAL(pw2%array, KIND=dp))
+                     #:endif
+                  #:else
+                     #:if kind2[0] == 'r'
+                        integral_value = accurate_sum(REAL(pw1%array, KIND=dp)*pw2%array)
+                     #:else
+                        integral_value = accurate_sum(REAL(CONJG(pw1%array)*pw2%array, KIND=dp))
+                     #:endif
+                  #:endif
+
+               END IF
+
+               IF (.NOT. my_just_sum) THEN
+                  #:if kind.endswith('3d')
+                     integral_value = integral_value*pw1%pw_grid%dvol
+                  #:else
+                     integral_value = integral_value*pw1%pw_grid%vol
+                  #:endif
+               END IF
+
+               #:if kind=='c1d'
+                  IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
+                     integral_value = 2.0_dp*integral_value
+                     IF (pw1%pw_grid%have_g0) integral_value = integral_value - &
+                                                               REAL(CONJG(pw1%array(1))*pw2%array(1), KIND=dp)
+                  END IF
+               #:endif
+
+               IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
+                  CALL pw1%pw_grid%para%group%sum(integral_value)
+               CALL timestop(handle)
+
+            END FUNCTION pw_integral_ab_${kind}$_${kind2}$
+         #:endif
+      #:endfor
+
+      #:if kind.endswith('1d')
+! **************************************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param pw2 ...
+!> \return ...
+! **************************************************************************************************
+         FUNCTION pw_integral_a2b_${kind}$ (pw1, pw2) RESULT(integral_value)
+
+            TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw1, pw2
+            REAL(KIND=dp)                                      :: integral_value
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_a2b_${kind}$'
+
+            INTEGER                                            :: handle
+
+            CALL timeset(routineN, handle)
+
+            IF (pw1%in_space /= RECIPROCALSPACE .OR. pw2%in_space /= RECIPROCALSPACE) &
+               CPABORT("Both grids must be in reciprocal space for this kind of integration!")
+
+            IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
+               CPABORT("Grids incompatible")
+            END IF
+
+            #:if kind[0] == 'r'
+               integral_value = accurate_sum(pw1%array(:)*pw2%array(:) &
+                                             *pw1%pw_grid%gsq(:))
+            #:else
+               integral_value = accurate_sum(REAL(CONJG(pw1%array(:)) &
+                                                  *pw2%array(:), KIND=dp)*pw1%pw_grid%gsq(:))
+            #:endif
+
+            IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
+               integral_value = 2.0_dp*integral_value
+            END IF
+
+            integral_value = integral_value*pw1%pw_grid%vol
+
+            IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
+               CALL pw1%pw_grid%para%group%sum(integral_value)
+            CALL timestop(handle)
+
+         END FUNCTION pw_integral_a2b_${kind}$
+      #:endif
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param pw2 ...
+! **************************************************************************************************
+      SUBROUTINE pw_multiply_with_${kind}$ (pw1, pw2)
+         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw1
+         TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw2
+
+         CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with_${kind}$'
+
+         INTEGER                                            :: handle
+
+         CALL timeset(routineN, handle)
+
+         IF (pw1%in_space /= pw2%in_space) &
+            CPABORT("Invalid space combination!")
+         IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
+            CPABORT("Incompatible grids!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%array = pw1%array*pw2%array
+!$OMP END PARALLEL WORKSHARE
+
+         CALL timestop(handle)
+      END SUBROUTINE pw_multiply_with_${kind}$
+   #:endfor
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param pw2 ...
+! **************************************************************************************************
+   SUBROUTINE pw_multiply_with_pw_r1d(pw1, pw2)
+      TYPE(pw_type), INTENT(INOUT)                       :: pw1
+      TYPE(pw_r1d_type), INTENT(IN)                      :: pw2
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with_${kind}$'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      IF (pw%in_use == REALDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-         pw%cr(:) = 0.0_dp
+      IF (pw1%in_space /= pw2%in_space) &
+         CPABORT("Invalid space combination!")
+      IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
+         CPABORT("Incompatible grids!")
+      IF (pw1%in_use /= COMPLEXDATA1D) &
+         CPABORT("Only C1D is implemented!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+      pw1%cc = pw1%cc*pw2%array
 !$OMP END PARALLEL WORKSHARE
-      ELSE IF (pw%in_use == COMPLEXDATA1D) THEN
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_multiply_with_pw_r1d
+
+   SUBROUTINE pw_multiply_c1d_real(pw_out, pw1, pw2, alpha)
+
+      TYPE(pw_type), INTENT(INOUT)              :: pw_out
+      TYPE(pw_type), INTENT(IN)                 :: pw1
+      TYPE(pw_r1d_type), INTENT(IN) :: pw2
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply_c1d_real'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: my_alpha
+
+      CALL timeset(routineN, handle)
+
+      my_alpha = 1.0_dp
+      IF (PRESENT(alpha)) my_alpha = alpha
+
+      IF (ASSOCIATED(pw_out%pw_grid, pw1%pw_grid) .AND. &
+          ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
+
+         IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+            pw_out%cc = pw_out%cc + pw1%cc*pw2%array
+!$OMP END PARALLEL WORKSHARE
+         ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
+            pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%array
+!$OMP END PARALLEL WORKSHARE
+         END IF
+      ELSE
+         CPABORT("Incompatible grids!")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_multiply_c1d_real
+
+! **************************************************************************************************
+!> \brief Set values of a pw type to zero
+!> \param pw ...
+!> \par History
+!>      none
+!> \author apsi
+! **************************************************************************************************
+   SUBROUTINE pw_zero_pw(pw)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero_pw'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == COMPLEXDATA1D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
          pw%cc(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
@@ -129,7 +692,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_zero
+   END SUBROUTINE pw_zero_pw
 
 ! **************************************************************************************************
 !> \brief copy a pw type variable
@@ -144,12 +707,12 @@ CONTAINS
 !>      Currently only copying of respective types allowed,
 !>      in order to avoid errors
 ! **************************************************************************************************
-   SUBROUTINE pw_copy(pw1, pw2)
+   SUBROUTINE pw_copy_pw(pw1, pw2)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_pw'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, ns, out_unit
 
@@ -289,15 +852,8 @@ CONTAINS
 
       ELSE
 
-         IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D) THEN
-            ns = SIZE(pw1%cr)
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(ns, pw1, pw2)
-            DO i = 1, ns
-               pw2%cr(i) = pw1%cr(i)
-            END DO
-!$OMP END PARALLEL DO
-         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
-                  pw2%in_use == COMPLEXDATA1D) THEN
+         IF (pw1%in_use == COMPLEXDATA1D .AND. &
+             pw2%in_use == COMPLEXDATA1D) THEN
             ns = SIZE(pw1%cc)
 !$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(ns, pw1, pw2)
             DO i = 1, ns
@@ -329,7 +885,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_copy
+   END SUBROUTINE pw_copy_pw
 
 ! **************************************************************************************************
 !> \brief multiplies pw coeffs with a number
@@ -338,22 +894,18 @@ CONTAINS
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE pw_scale(pw, a)
+   SUBROUTINE pw_scale_pw(pw, a)
 
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), INTENT(IN)                          :: a
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale_pw'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (pw%in_use)
-      CASE (REALDATA1D)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(A, pw)
-         pw%cr(:) = a*pw%cr(:)
-!$OMP END PARALLEL WORKSHARE
       CASE (COMPLEXDATA1D)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(A, pw)
          pw%cc(:) = a*pw%cc(:)
@@ -372,7 +924,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_scale
+   END SUBROUTINE pw_scale_pw
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -1113,14 +1665,14 @@ CONTAINS
 !>      Currently only summing up of respective types allowed,
 !>      in order to avoid errors
 ! **************************************************************************************************
-   SUBROUTINE pw_axpy(pw1, pw2, alpha, beta, allow_noncompatible_grids)
+   SUBROUTINE pw_axpy_pw(pw1, pw2, alpha, beta, allow_noncompatible_grids)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy_pw'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
       LOGICAL                                            :: my_allow_noncompatible_grids
@@ -1143,11 +1695,7 @@ CONTAINS
          IF (my_beta == 0.0_dp) THEN
             CALL pw_zero(pw2)
          ELSE
-            IF (pw2%in_use == REALDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
-               pw2%cr = pw2%cr*my_beta
-!$OMP END PARALLEL WORKSHARE
-            ELSE IF (pw2%in_use == REALDATA3D) THEN
+            IF (pw2%in_use == REALDATA3D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
                pw2%cr3d = pw2%cr3d*my_beta
 !$OMP END PARALLEL WORKSHARE
@@ -1167,22 +1715,8 @@ CONTAINS
 
       IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
 
-         IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D) THEN
-            IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw1, pw2)
-               DO i = 1, SIZE(pw2%cr)
-                  pw2%cr(i) = pw2%cr(i) + pw1%cr(i)
-               END DO
-!$OMP END PARALLEL DO
-            ELSE IF (my_alpha /= 0.0_dp) THEN
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,pw1,my_alpha)
-               DO i = 1, SIZE(pw2%cr)
-                  pw2%cr(i) = pw2%cr(i) + my_alpha*pw1%cr(i)
-               END DO
-!$OMP END PARALLEL DO
-            END IF
-         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
-                  pw2%in_use == COMPLEXDATA1D) THEN
+         IF (pw1%in_use == COMPLEXDATA1D .AND. &
+             pw2%in_use == COMPLEXDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw1, pw2)
                DO i = 1, SIZE(pw2%cc)
@@ -1373,7 +1907,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_axpy
+   END SUBROUTINE pw_axpy_pw
 
 ! **************************************************************************************************
 !> \brief pw_out = pw_out + alpha * pw1 * pw2
@@ -1384,13 +1918,13 @@ CONTAINS
 !> \param alpha ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE pw_multiply(pw_out, pw1, pw2, alpha)
+   SUBROUTINE pw_multiply_pw(pw_out, pw1, pw2, alpha)
 
       TYPE(pw_type), INTENT(INOUT)                       :: pw_out
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply_pw'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: my_alpha
@@ -1403,20 +1937,9 @@ CONTAINS
       IF (ASSOCIATED(pw_out%pw_grid, pw2%pw_grid) .AND. &
           ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
 
-         IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D .AND. &
-             pw_out%in_use == REALDATA1D) THEN
-            IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-               pw_out%cr = pw_out%cr + pw1%cr*pw2%cr
-!$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
-               pw_out%cr = pw_out%cr + my_alpha*pw1%cr*pw2%cr
-!$OMP END PARALLEL WORKSHARE
-            END IF
-         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
-                  pw2%in_use == COMPLEXDATA1D .AND. &
-                  pw_out%in_use == COMPLEXDATA1D) THEN
+         IF (pw1%in_use == COMPLEXDATA1D .AND. &
+             pw2%in_use == COMPLEXDATA1D .AND. &
+             pw_out%in_use == COMPLEXDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cc = pw_out%cc + pw1%cc*pw2%cc
@@ -1424,18 +1947,6 @@ CONTAINS
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
-!$OMP END PARALLEL WORKSHARE
-            END IF
-         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
-                  pw2%in_use == REALDATA1D .AND. &
-                  pw_out%in_use == COMPLEXDATA1D) THEN
-            IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-               pw_out%cc = pw_out%cc + pw1%cc*pw2%cr
-!$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-               pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cr
 !$OMP END PARALLEL WORKSHARE
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
@@ -1483,7 +1994,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_multiply
+   END SUBROUTINE pw_multiply_pw
 
 ! **************************************************************************************************
 !> \brief Gathers the pw vector from a 3d data field
@@ -2178,8 +2689,6 @@ CONTAINS
          mode(4:6) = "R3D"
       CASE (COMPLEXDATA1D)
          mode(4:6) = "C1D"
-      CASE (REALDATA1D)
-         mode(4:6) = "R1D"
       CASE DEFAULT
          CPABORT("Error in use1 tag")
       END SELECT
@@ -2191,8 +2700,6 @@ CONTAINS
          mode(7:9) = "R3D"
       CASE (COMPLEXDATA1D)
          mode(7:9) = "C1D"
-      CASE (REALDATA1D)
-         mode(7:9) = "R1D"
       CASE DEFAULT
          CPABORT("Error in use1 tag")
       END SELECT
@@ -2209,7 +2716,7 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_write(pw, unit_nr)
+   SUBROUTINE pw_write_pw(pw, unit_nr)
 
       TYPE(pw_type), INTENT(in)                          :: pw
       INTEGER, INTENT(in)                                :: unit_nr
@@ -2219,14 +2726,6 @@ CONTAINS
       WRITE (unit=unit_nr, fmt="('<pw>:{ ')", iostat=iostatus)
 
       SELECT CASE (pw%in_use)
-      CASE (REALDATA1D)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=REALDATA1D"
-         IF (ASSOCIATED(pw%cr)) THEN
-            WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')>')") &
-               LBOUND(pw%cr, 1), UBOUND(pw%cr, 1)
-         ELSE
-            WRITE (unit=unit_nr, fmt="(' cr=*null*')")
-         END IF
       CASE (REALDATA3D)
          WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=REALDATA3D"
          IF (ASSOCIATED(pw%cr3d)) THEN
@@ -2271,7 +2770,7 @@ CONTAINS
       WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')", iostat=iostatus) &
          pw%pw_grid%id_nr
 
-   END SUBROUTINE pw_write
+   END SUBROUTINE pw_write_pw
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2309,14 +2808,14 @@ CONTAINS
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! **************************************************************************************************
-   FUNCTION pw_integral_ab(pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
+   FUNCTION pw_integral_ab_pw(pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
       LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum, local_only
       REAL(KIND=dp)                                      :: integral_value
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab_pw'
 
       INTEGER                                            :: handle, loc_sumtype
       LOGICAL                                            :: my_just_sum, my_local_only
@@ -2365,21 +2864,6 @@ CONTAINS
             integral_value = REAL(SUM(CONJG(pw1%cc3d(:, :, :)) &
                                       *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
 !$OMP END PARALLEL WORKSHARE
-         ELSE IF (pw1%in_use == REALDATA1D &
-                  .AND. pw2%in_use == REALDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
-            integral_value = DOT_PRODUCT(pw1%cr(:), pw2%cr(:))
-!$OMP END PARALLEL WORKSHARE
-         ELSE IF (pw1%in_use == REALDATA1D &
-                  .AND. pw2%in_use == COMPLEXDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
-            integral_value = REAL(DOT_PRODUCT(pw1%cr(:), pw2%cc(:)), KIND=dp) !? complex bit
-!$OMP END PARALLEL WORKSHARE
-         ELSE IF (pw1%in_use == COMPLEXDATA1D &
-                  .AND. pw2%in_use == REALDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
-            integral_value = REAL(DOT_PRODUCT(pw1%cc(:), pw2%cr(:)), KIND=dp) !? complex bit
-!$OMP END PARALLEL WORKSHARE
          ELSE IF (pw1%in_use == COMPLEXDATA1D &
                   .AND. pw2%in_use == COMPLEXDATA1D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
@@ -2410,15 +2894,6 @@ CONTAINS
             integral_value = REAL(accurate_sum(CONJG(pw1%cc3d(:, :, :)) &
                                                *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
 
-         ELSE IF (pw1%in_use == REALDATA1D &
-                  .AND. pw2%in_use == REALDATA1D) THEN
-            integral_value = accurate_sum(pw1%cr(:)*pw2%cr(:))
-         ELSE IF (pw1%in_use == REALDATA1D &
-                  .AND. pw2%in_use == COMPLEXDATA1D) THEN
-            integral_value = REAL(accurate_sum(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
-         ELSE IF (pw1%in_use == COMPLEXDATA1D &
-                  .AND. pw2%in_use == REALDATA1D) THEN
-            integral_value = REAL(accurate_sum(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
          ELSE IF (pw1%in_use == COMPLEXDATA1D &
                   .AND. pw2%in_use == COMPLEXDATA1D) THEN
             integral_value = REAL(accurate_sum(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
@@ -2448,7 +2923,7 @@ CONTAINS
          CALL pw1%pw_grid%para%group%sum(integral_value)
       CALL timestop(handle)
 
-   END FUNCTION pw_integral_ab
+   END FUNCTION pw_integral_ab_pw
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2456,12 +2931,12 @@ CONTAINS
 !> \param pw2 ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION pw_integral_a2b(pw1, pw2) RESULT(integral_value)
+   FUNCTION pw_integral_a2b_pw(pw1, pw2) RESULT(integral_value)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp)                                      :: integral_value
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_a2b'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_a2b_pw'
 
       INTEGER                                            :: handle
 
@@ -2471,12 +2946,8 @@ CONTAINS
          CPABORT("Grids incompatible")
       END IF
 
-      IF (pw1%in_use == REALDATA1D .AND. &
-          pw2%in_use == REALDATA1D) THEN
-         integral_value = accurate_sum(pw1%cr(:)*pw2%cr(:) &
-                                       *pw1%pw_grid%gsq(:))
-      ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
-               pw2%in_use == COMPLEXDATA1D) THEN
+      IF (pw1%in_use == COMPLEXDATA1D .AND. &
+          pw2%in_use == COMPLEXDATA1D) THEN
          integral_value = accurate_sum(REAL(CONJG(pw1%cc(:)) &
                                             *pw2%cc(:), KIND=dp)*pw1%pw_grid%gsq(:))
          IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
@@ -2496,7 +2967,7 @@ CONTAINS
          CALL pw1%pw_grid%para%group%sum(integral_value)
       CALL timestop(handle)
 
-   END FUNCTION pw_integral_a2b
+   END FUNCTION pw_integral_a2b_pw
 
 ! **************************************************************************************************
 !> \brief Calculate the structure factor for point r
@@ -2687,11 +3158,11 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 ! **************************************************************************************************
-   SUBROUTINE pw_multiply_with(pw1, pw2)
+   SUBROUTINE pw_multiply_with_pw(pw1, pw2)
       TYPE(pw_type), INTENT(INOUT)                       :: pw1
       TYPE(pw_type), INTENT(IN)                          :: pw2
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with_pw'
 
       INTEGER                                            :: handle
 
@@ -2702,21 +3173,13 @@ CONTAINS
       IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
          CPABORT("Incompatible grids!")
 
-      IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-         pw1%cr = pw1%cr*pw2%cr
-!$OMP END PARALLEL WORKSHARE
-      ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+      IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
          pw1%cr3d = pw1%cr3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
       ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. pw2%in_use == COMPLEXDATA1D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
          pw1%cc = pw1%cc*pw2%cc
-!$OMP END PARALLEL WORKSHARE
-      ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. pw2%in_use == REALDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-         pw1%cc = pw1%cc*pw2%cr
 !$OMP END PARALLEL WORKSHARE
       ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == COMPLEXDATA3D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
@@ -2731,6 +3194,6 @@ CONTAINS
       END IF
       CALL timestop(handle)
 
-   END SUBROUTINE pw_multiply_with
+   END SUBROUTINE pw_multiply_with_pw
 
 END MODULE pw_methods

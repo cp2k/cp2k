@@ -49,8 +49,8 @@ MODULE pw_poisson_types
                                               pw_pool_type,&
                                               pw_pools_dealloc
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA1D,&
                                               RECIPROCALSPACE,&
+                                              pw_r1d_type,&
                                               pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
@@ -166,7 +166,7 @@ MODULE pw_poisson_types
       TYPE(pw_type) :: influence_fn = pw_type()
       TYPE(pw_type), POINTER :: dct_influence_fn => NULL()
       TYPE(pw_type), POINTER :: screen_fn => NULL()
-      TYPE(pw_type), POINTER :: p3m_charge => NULL()
+      TYPE(pw_r1d_type), POINTER :: p3m_charge => NULL()
    END TYPE greens_fn_type
 
 CONTAINS
@@ -285,7 +285,7 @@ CONTAINS
             CALL spme_coeff_calculate(n, green%p3m_coeff)
             NULLIFY (green%p3m_charge)
             ALLOCATE (green%p3m_charge)
-            CALL pw_pool_create_pw(pw_pool, green%p3m_charge, use_data=REALDATA1D, &
+            CALL pw_pool_create_pw(pw_pool, green%p3m_charge, &
                                    in_space=RECIPROCALSPACE)
             CALL influence_factor(green)
             CALL calc_p3m_charge(green)
@@ -549,8 +549,8 @@ CONTAINS
             l = grid%g_hat(1, ig)
             m = grid%g_hat(2, ig)
             n = grid%g_hat(3, ig)
-            gf%p3m_charge%cr(ig) = novol*EXP(-arg*grid%gsq(ig))* &
-                                   bm2(1, l)*bm2(2, m)*bm2(3, n)
+            gf%p3m_charge%array(ig) = novol*EXP(-arg*grid%gsq(ig))* &
+                                      bm2(1, l)*bm2(2, m)*bm2(3, n)
          END DO
       END ASSOCIATE
 

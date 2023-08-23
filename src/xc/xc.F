@@ -42,7 +42,7 @@ MODULE xc
                          pw_transfer, &
                          pw_zero, pw_integrate_function
    USE pw_pool_types, ONLY: pw_pool_create_pw, &
-                            pw_pool_give_back_cr3d, &
+                            pw_pool_give_back_array, &
                             pw_pool_give_back_pw, &
                             pw_pool_type
    USE pw_types, ONLY: COMPLEXDATA1D, &
@@ -1259,7 +1259,7 @@ CONTAINS
          END DO
 
          ! Deallocate pw to save memory
-         CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data)
+         CALL pw_pool_give_back_array(pw_pool, deriv_att%deriv_data)
 
       END IF
 
