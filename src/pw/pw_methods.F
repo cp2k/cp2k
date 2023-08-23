@@ -67,7 +67,7 @@ MODULE pw_methods
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
    PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_laplace, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_log_deriv_gauss, pw_log_deriv_compl_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc
-   PUBLIC :: pw_gauss_damp_mix
+   PUBLIC :: pw_gauss_damp_mix, pw_multiply_with
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
    PUBLIC :: pw_set, pw_truncated
@@ -1427,6 +1427,18 @@ CONTAINS
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
 !$OMP END PARALLEL WORKSHARE
             END IF
+         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
+                  pw2%in_use == REALDATA1D .AND. &
+                  pw_out%in_use == COMPLEXDATA1D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+               pw_out%cc = pw_out%cc + pw1%cc*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+               pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+            END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
                   pw_out%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
@@ -1448,6 +1460,18 @@ CONTAINS
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
                pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cc3d
+!$OMP END PARALLEL WORKSHARE
+            END IF
+         ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
+                  pw2%in_use == REALDATA3D .AND. &
+                  pw_out%in_use == COMPLEXDATA3D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+               pw_out%cc3d = pw_out%cc3d + pw1%cc3d*pw2%cr3d
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+               pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
             END IF
          ELSE
@@ -2660,5 +2684,55 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_set_value
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param pw2 ...
+! **************************************************************************************************
+   SUBROUTINE pw_multiply_with(pw1, pw2)
+      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_space /= pw2%in_space .OR. pw1%in_space == NOSPACE) &
+         CPABORT("Invalid space combination!")
+      IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
+         CPABORT("Incompatible grids!")
+
+      IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cr = pw1%cr*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cr3d = pw1%cr3d*pw2%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. pw2%in_use == COMPLEXDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc = pw1%cc*pw2%cc
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. pw2%in_use == REALDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc = pw1%cc*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc3d = pw1%cc3d*pw2%cc3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc3d = pw1%cc3d*pw2%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Invalid combination of grids!")
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_multiply_with
 
 END MODULE pw_methods

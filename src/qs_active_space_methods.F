@@ -81,6 +81,8 @@ MODULE qs_active_space_methods
                            pw_env_release, &
                            pw_env_type
    USE pw_methods, ONLY: pw_integrate_function, &
+                         pw_multiply, &
+                         pw_multiply_with, &
                          pw_transfer, &
                          pw_zero
    USE pw_poisson_methods, ONLY: pw_poisson_rebuild, &
@@ -1400,7 +1402,8 @@ CONTAINS
                   CPABORT("")
                END IF
                ! calculate charge distribution and potential
-               rho_r%cr3d = wfn1%cr3d*wfn2%cr3d
+               CALL pw_zero(rho_r)
+               CALL pw_multiply(rho_r, wfn1, wfn2)
                IF (print2 .AND. iw > 0) THEN
                   ! TODO: this call hangs in parallel
                   erint = pw_integrate_function(rho_r)/dvol
@@ -1440,7 +1443,9 @@ CONTAINS
                            ELSE
                               CPABORT("")
                            END IF
-                           wfn_r%cr3d = rho_r%cr3d*wfn3%cr3d*wfn4%cr3d
+                           CALL pw_zero(wfn_r)
+                           CALL pw_multiply(wfn_r, rho_r, wfn3)
+                           CALL pw_multiply_with(wfn_r, wfn4)
                            erint = pw_integrate_function(wfn_r)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1

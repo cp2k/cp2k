@@ -32,7 +32,10 @@ MODULE ewald_methods_tb
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_derive,&
                                               pw_integral_a2b,&
-                                              pw_transfer
+                                              pw_multiply,&
+                                              pw_multiply_with,&
+                                              pw_transfer,&
+                                              pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                               pw_poisson_solve
    USE pw_poisson_types,                ONLY: greens_fn_type,&
@@ -178,7 +181,7 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
-      rhob_g%cc = rhob_g%cc*green%p3m_charge%cr
+      CALL pw_multiply_with(rhob_g, green%p3m_charge)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
 
@@ -206,7 +209,8 @@ CONTAINS
             IF (atprop%stress .AND. use_virial) THEN
 
                CALL rs_grid_zero(rpot)
-               rhob_g%cc = phi_g%cc*green%p3m_charge%cr
+               CALL pw_zero(rhob_g)
+               CALL pw_multiply(rhob_g, phi_g, green%p3m_charge)
                CALL pw_transfer(rhob_g, rhob_r)
                CALL transfer_pw2rs(rpot, rhob_r)
                ipart = 0
@@ -239,7 +243,7 @@ CONTAINS
                      nd(j) = 1
                      CALL pw_copy(phib_g, rhob_g)
                      CALL pw_derive(rhob_g, nd)
-                     rhob_g%cc = rhob_g%cc*green%p3m_charge%cr
+                     CALL pw_multiply_with(rhob_g, green%p3m_charge)
                      CALL pw_transfer(rhob_g, rhob_r)
                      CALL transfer_pw2rs(rpot, rhob_r)
 
@@ -269,7 +273,7 @@ CONTAINS
       DEALLOCATE (rhob_g)
 
       CALL rs_grid_zero(rpot)
-      phi_g%cc = phi_g%cc*green%p3m_charge%cr
+      CALL pw_multiply_with(phi_g, green%p3m_charge)
       CALL pw_transfer(phi_g, rhob_r)
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       DEALLOCATE (phi_g)
@@ -299,7 +303,7 @@ CONTAINS
          DO i = 1, 3
             CALL rs_grid_create(drpot(i), rs_desc)
             CALL rs_grid_set_box(grid_spme, rs=drpot(i))
-            dphi_g(i)%cc = dphi_g(i)%cc*green%p3m_charge%cr
+            CALL pw_multiply_with(dphi_g(i), green%p3m_charge)
             CALL pw_transfer(dphi_g(i), rhob_r)
             CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
             CALL transfer_pw2rs(drpot(i), rhob_r)
@@ -521,7 +525,7 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
-      rhob_g%cc = rhob_g%cc*green%p3m_charge%cr
+      CALL pw_multiply_with(rhob_g, green%p3m_charge)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
 
@@ -543,7 +547,7 @@ CONTAINS
       DEALLOCATE (rhob_g)
 
       CALL rs_grid_zero(rpot)
-      phi_g%cc = phi_g%cc*green%p3m_charge%cr
+      CALL pw_multiply_with(phi_g, green%p3m_charge)
       CALL pw_transfer(phi_g, rhob_r)
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       DEALLOCATE (phi_g)
@@ -556,7 +560,7 @@ CONTAINS
       DO i = 1, 3
          CALL rs_grid_create(drpot(i), rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i))
-         dphi_g(i)%cc = dphi_g(i)%cc*green%p3m_charge%cr
+         CALL pw_multiply_with(dphi_g(i), green%p3m_charge)
          CALL pw_transfer(dphi_g(i), rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
          CALL transfer_pw2rs(drpot(i), rhob_r)

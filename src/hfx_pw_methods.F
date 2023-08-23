@@ -40,7 +40,9 @@ MODULE hfx_pw_methods
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_transfer
+                                              pw_multiply,&
+                                              pw_transfer,&
+                                              pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -233,7 +235,8 @@ CONTAINS
                         IF (jorb < iorb) CYCLE
 
                         ! compute the pair density
-                        rho_r%cr3d = rho_i(iloc)%cr3d*rho_j(jloc)%cr3d
+                        CALL pw_zero(rho_r)
+                        CALL pw_multiply(rho_r, rho_i(iloc), rho_j(jloc))
 
                         ! go the g-space and compute hartree energy
                         CALL pw_transfer(rho_r, rho_g)

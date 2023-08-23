@@ -1042,7 +1042,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
-      rho_r%cr3d = 0.0D0
+      CALL pw_zero(rho_r)
       CALL pw_transfer(rho_r, rho_g)
 
       CALL timestop(handle)
