@@ -494,7 +494,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), INTENT(IN)                          :: rhotot_elec_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rhotot_elec_gspace
       REAL(KIND=dp), INTENT(IN)                          :: q_max
       REAL(KIND=dp), INTENT(OUT)                         :: rho_hard, rho_soft
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign

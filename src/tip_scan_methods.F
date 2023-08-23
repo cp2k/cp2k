@@ -231,8 +231,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE shift_tip_potential(vref, sf, vtip, rpos)
 
-      TYPE(pw_type), INTENT(IN)                          :: vref, sf
-      TYPE(pw_type), INTENT(INOUT)                       :: vtip
+      TYPE(pw_type), INTENT(INOUT)                       :: vref, sf, vtip
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rpos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_tip_potential'

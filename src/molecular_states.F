@@ -96,8 +96,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(dbcsr_type), POINTER                          :: Hks, matrix_S
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
-      TYPE(pw_type), INTENT(IN)                          :: wf_g
+      TYPE(pw_type), INTENT(INOUT)                       :: wf_r, wf_g
       TYPE(section_vals_type), POINTER                   :: loc_print_section
       TYPE(particle_list_type), POINTER                  :: particles
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
