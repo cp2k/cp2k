@@ -2691,7 +2691,8 @@ CONTAINS
 !> \param pw2 ...
 ! **************************************************************************************************
    SUBROUTINE pw_multiply_with(pw1, pw2)
-      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
+      TYPE(pw_type), INTENT(INOUT)                       :: pw1
+      TYPE(pw_type), INTENT(IN)                          :: pw2
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with'
 
