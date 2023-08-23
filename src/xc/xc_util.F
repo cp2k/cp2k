@@ -195,9 +195,7 @@ CONTAINS
    SUBROUTINE xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_r)
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: pw_to_deriv
-      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g
-      TYPE(pw_type), INTENT(IN)                          :: vxc_g
-      TYPE(pw_type), INTENT(INOUT)                       :: vxc_r
+      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g, vxc_g, vxc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_divergence'
 

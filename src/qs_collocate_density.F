@@ -510,8 +510,7 @@ CONTAINS
    SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
                                      lri_coef, total_rho, basis_type, exact_1c_terms, pmat, atomlist)
 
-      TYPE(pw_type), INTENT(IN)                          :: lri_rho_g
-      TYPE(pw_type), INTENT(INOUT)                       :: lri_rho_r
+      TYPE(pw_type), INTENT(INOUT)                       :: lri_rho_g, lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
@@ -2419,8 +2418,7 @@ CONTAINS
                                         atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                         pw_env, required_function, basis_type)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_type), INTENT(IN)                          :: rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -2614,8 +2612,7 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_vectors
       INTEGER, INTENT(IN)                                :: ivector
-      TYPE(pw_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_type), INTENT(IN)                          :: rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell

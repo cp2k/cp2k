@@ -72,8 +72,7 @@ CONTAINS
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_section
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_local
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
-      TYPE(pw_type), INTENT(IN)                          :: wf_g
+      TYPE(pw_type), INTENT(INOUT)                       :: wf_r, wf_g
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: coeff
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals

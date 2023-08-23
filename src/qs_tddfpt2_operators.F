@@ -158,14 +158,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
                                    qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
-      TYPE(pw_type), INTENT(IN)                          :: rho_ia_g
+      TYPE(pw_type), DIMENSION(:), INTENT(INOUT)         :: A_ia_rspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_ia_g
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       LOGICAL, INTENT(IN)                                :: gapw
-      TYPE(pw_type), INTENT(inout)                       :: work_v_gspace, work_v_rspace
+      TYPE(pw_type), INTENT(INOUT)                       :: work_v_gspace, work_v_rspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb'
 
@@ -233,8 +233,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
                               pw_env, work_v_xc, work_v_xc_tau)
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
-      TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
+
+      TYPE(pw_type), DIMENSION(:), INTENT(INOUT)         :: A_ia_rspace
+      TYPE(full_kernel_env_type), INTENT(IN)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -243,6 +244,7 @@ CONTAINS
       INTEGER                                            :: ispin, nspins
 
       nspins = SIZE(A_ia_rspace)
+
       IF (kernel_env%deriv2_analytic) THEN
          CALL tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, is_rks_triplets, nspins, &
                                        pw_env, work_v_xc, work_v_xc_tau)
@@ -267,7 +269,8 @@ CONTAINS
 !> \param is_rks_triplets ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc_potential(A_ia_rspace, fxc_rspace, rho_ia_struct, is_rks_triplets)
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
+
+      TYPE(pw_type), DIMENSION(:), INTENT(INOUT)         :: A_ia_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rspace
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
@@ -277,8 +280,11 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r
 
       nspins = SIZE(A_ia_rspace)
+
       alpha = 1.0_dp
+
       CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r)
+
       IF (nspins == 2) THEN
          CALL pw_multiply(A_ia_rspace(1), fxc_rspace(1), rho1_r(1), alpha)
          CALL pw_multiply(A_ia_rspace(1), fxc_rspace(2), rho1_r(2), alpha)

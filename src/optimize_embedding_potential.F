@@ -1395,7 +1395,8 @@ CONTAINS
 !> \param reg_term ...
 ! **************************************************************************************************
    SUBROUTINE grid_regularize(potential, pw_env, lambda, reg_term)
-      TYPE(pw_type), INTENT(IN)                          :: potential
+
+      TYPE(pw_type), INTENT(INOUT)                       :: potential
       TYPE(pw_env_type), POINTER                         :: pw_env
       REAL(KIND=dp)                                      :: lambda, reg_term
 
@@ -1470,9 +1471,9 @@ CONTAINS
 
       lb(1:3) = square_norm_dpot%pw_grid%bounds_local(1, 1:3)
       ub(1:3) = square_norm_dpot%pw_grid%bounds_local(2, 1:3)
-!$OMP    PARALLEL DO DEFAULT(NONE) &
-!$OMP                PRIVATE(i,j,k) &
-!$OMP                SHARED(dpot,lb,square_norm_dpot,ub)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(i,j,k) &
+!$OMP             SHARED(dpot, lb, square_norm_dpot, ub)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -1485,7 +1486,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP    END PARALLEL DO
+!$OMP END PARALLEL DO
 
       reg_term = 2*lambda*pw_integrate_function(fun=square_norm_dpot)
 
@@ -1514,7 +1515,8 @@ CONTAINS
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, rho_r_ref, qs_env)
-      TYPE(pw_type), INTENT(IN)                          :: diff_rho_r, diff_rho_spin
+
+      TYPE(pw_type), INTENT(INOUT)                       :: diff_rho_r, diff_rho_spin
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
@@ -1705,11 +1707,12 @@ CONTAINS
 !> \param spin_embed_pot ...
 ! **************************************************************************************************
    SUBROUTINE grid_based_step(diff_rho_r, diff_rho_spin, pw_env, opt_embed, embed_pot, spin_embed_pot)
-      TYPE(pw_type), INTENT(IN)                          :: diff_rho_r, diff_rho_spin
+
+      TYPE(pw_type), INTENT(INOUT)                       :: diff_rho_r, diff_rho_spin
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(opt_embed_pot_type)                           :: opt_embed
-      TYPE(pw_type), INTENT(IN)                          :: embed_pot
-      TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
+      TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
+      TYPE(pw_type), POINTER                             :: spin_embed_pot
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grid_based_step'
 
