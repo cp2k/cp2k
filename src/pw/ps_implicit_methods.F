@@ -1279,6 +1279,11 @@ CONTAINS
 
          ALLOCATE (ps_implicit_env%idx_1dto3d(data_size))
          l = 1
+         ! Suppress OpenMP (at least the Intel compiler has an issue here)
+         ! An automatic OpenMP parallelization of this loop might be tricky
+         ! because of the incrementation of l
+!$OMP PARALLEL IF(.FALSE.)
+!$OMP DO
          DO k = lb3, ub3
             DO j = lb2, ub2
                DO i = lb1, ub1
@@ -1289,6 +1294,8 @@ CONTAINS
                END DO
             END DO
          END DO
+!$OMP END DO
+!$OMP END PARALLEL
 
          n_contacts = SIZE(ps_implicit_env%contacts)
          n_tiles_tot = 0
