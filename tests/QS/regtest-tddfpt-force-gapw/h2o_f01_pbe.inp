@@ -16,17 +16,8 @@
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-<<<<<<< HEAD
-<<<<<<< HEAD
       CUTOFF 180
       REL_CUTOFF 40
-=======
-      CUTOFF 240
-=======
-      CUTOFF 200
->>>>>>> c8fdd6bed (Even faster regtest)
-      REL_CUTOFF 60
->>>>>>> cc8c69436 (Speed up regtest)
     &END MGRID
     &QS
       METHOD GAPW
@@ -63,11 +54,7 @@
   &END DFT
   &SUBSYS
     &CELL
-<<<<<<< HEAD
       ABC [angstrom] 4.5 4.5 4.5
-=======
-      ABC [angstrom] 5.0 5.0 5.0
->>>>>>> cc8c69436 (Speed up regtest)
       PERIODIC NONE
     &END
     &COORD
