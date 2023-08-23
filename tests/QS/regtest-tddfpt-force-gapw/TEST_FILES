@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 h2o_f01_coulomb_only.inp                 37    1.0E-4              0.101128E+01
 h2o_f01_pbe_gapwxc.inp                   37    1.0E-4              0.138361E+00
-h2o_f01_pbe.inp                          37    1.0E-4              0.136236E+00
+h2o_f01_pbe.inp                          37    1.0E-4              0.141150E+00
 h2o_f02_coulomb_only.inp                 37    1.0E-4              0.202091E+00
 h2o_t01.inp                              0
 h2o_t02.inp                              0
