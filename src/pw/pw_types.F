@@ -137,6 +137,9 @@ CONTAINS
          CALL print_stack(cp_logger_get_default_unit_nr(logger))
       END IF
 
+      IF (in_space /= REALSPACE .AND. in_space /= RECIPROCALSPACE) &
+         CPABORT("Choose a proper space in which the grid lives!")
+
       IF (PRESENT(cr3d_ptr)) THEN
          IF (ASSOCIATED(cr3d_ptr)) THEN
             CPASSERT(use_data == REALDATA3D)
