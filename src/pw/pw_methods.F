@@ -51,7 +51,6 @@ MODULE pw_methods
                                               pw_grid_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               COMPLEXDATA3D,&
-                                              NOSPACE,&
                                               REALDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -2260,8 +2259,6 @@ CONTAINS
       END SELECT
 
       SELECT CASE (pw%in_space)
-      CASE (NOSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=NOSPACE"
       CASE (REALSPACE)
          WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=REALSPACE"
       CASE (RECIPROCALSPACE)
@@ -2700,7 +2697,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (pw1%in_space /= pw2%in_space .OR. pw1%in_space == NOSPACE) &
+      IF (pw1%in_space /= pw2%in_space) &
          CPABORT("Invalid space combination!")
       IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
          CPABORT("Incompatible grids!")

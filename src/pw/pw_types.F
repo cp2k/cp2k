@@ -41,12 +41,15 @@ MODULE pw_types
    PUBLIC :: pw_release, pw_create
 
    ! Flags for the structure member 'in_use'
+   ! NODATA only for internal use, we enforce a certain data type
    INTEGER, PARAMETER, PUBLIC :: REALDATA1D = 301, COMPLEXDATA1D = 302
-   INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303, COMPLEXDATA3D = 304, NODATA = 305
+   INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303, COMPLEXDATA3D = 304
+   INTEGER, PARAMETER         :: NODATA = 305
 
    ! Flags for the structure member 'in_space'
-   INTEGER, PARAMETER, PUBLIC :: NOSPACE = 371, REALSPACE = 372, RECIPROCALSPACE = 373
-   INTEGER, PUBLIC, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
+   ! NOSPACE only for internal usage, we enforce the choice of a proper space
+   INTEGER, PARAMETER :: NOSPACE = 371
+   INTEGER, PARAMETER, PUBLIC :: REALSPACE = 372, RECIPROCALSPACE = 373
 
 ! **************************************************************************************************
    TYPE pw_type
@@ -93,11 +96,13 @@ CONTAINS
       CASE (COMPLEXDATA3D)
          IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
       CASE (NODATA)
+         ! Only, if the pw grid was never created
       CASE default
          CPABORT("unknown data type "//cp_to_string(pw%in_use))
       END SELECT
       CALL pw_grid_release(pw%pw_grid)
       pw%in_space = NOSPACE
+      pw%in_use = NODATA
    END SUBROUTINE pw_release
 
 ! **************************************************************************************************
@@ -181,6 +186,7 @@ CONTAINS
                    bounds(1, 2):bounds(2, 2), &
                    bounds(1, 3):bounds(2, 3)))
       CASE (NODATA)
+         CPABORT("Choose a proper data type!")
       CASE default
          CPABORT("unknown data type")
       END SELECT
