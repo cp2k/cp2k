@@ -42,7 +42,9 @@ MODULE mp2_gpw_method
                                               prepare_gpw
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_methods,                      ONLY: pw_transfer
+   USE pw_methods,                      ONLY: pw_multiply,&
+                                              pw_transfer,&
+                                              pw_zero
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
@@ -412,7 +414,8 @@ CONTAINS
             i_counter = i_counter + 1
 
             ! potential
-            rho_r%cr3d = psi_i(i)%cr3d*psi_a%cr3d
+            CALL pw_zero(rho_r)
+            CALL pw_multiply(rho_r, psi_i(i), psi_a)
             CALL pw_transfer(rho_r, rho_g)
             CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, qs_env%mp2_env%potential_parameter)
 

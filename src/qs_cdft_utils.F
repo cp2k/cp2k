@@ -54,6 +54,7 @@ MODULE qs_cdft_utils
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
@@ -198,11 +199,11 @@ CONTAINS
       END IF
       ! Zero weight functions
       DO igroup = 1, SIZE(group)
-         group(igroup)%weight%cr3d = 0.0_dp
+         CALL pw_zero(group(igroup)%weight)
       END DO
       IF (cdft_control%atomic_charges) THEN
          DO iatom = 1, cdft_control%natoms
-            cdft_control%charge(iatom)%cr3d = 0.0_dp
+            CALL pw_zero(cdft_control%charge(iatom))
          END DO
       END IF
       ! Allocate storage for cell adjustment coefficients and needed distance vectors

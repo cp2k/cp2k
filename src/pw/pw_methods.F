@@ -51,7 +51,6 @@ MODULE pw_methods
                                               pw_grid_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               COMPLEXDATA3D,&
-                                              NOSPACE,&
                                               REALDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -66,7 +65,8 @@ MODULE pw_methods
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
    PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_laplace, pw_dr2, pw_write, pw_multiply
-   PUBLIC :: pw_gauss_damp_mix
+   PUBLIC :: pw_log_deriv_gauss, pw_log_deriv_compl_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc
+   PUBLIC :: pw_gauss_damp_mix, pw_multiply_with
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
    PUBLIC :: pw_set, pw_truncated
@@ -82,6 +82,10 @@ MODULE pw_methods
 
    INTERFACE pw_scatter
       MODULE PROCEDURE pw_scatter_s, pw_scatter_p
+   END INTERFACE
+
+   INTERFACE pw_set
+      MODULE PROCEDURE pw_set_value, pw_set_array
    END INTERFACE
 
 CONTAINS
@@ -199,13 +203,13 @@ CONTAINS
          ELSE IF (.NOT. (pw1%pw_grid%spherical .OR. &
                          pw2%pw_grid%spherical)) THEN
 
-            ng1 = SIZE(pw1%cc)
-            ng2 = SIZE(pw2%cc)
-            ns = 2*MAX(ng1, ng2)
-
             IF (pw1%in_use == COMPLEXDATA1D .AND. &
                 pw2%in_use == COMPLEXDATA1D .AND. &
                 pw1%in_space == RECIPROCALSPACE) THEN
+
+               ng1 = SIZE(pw1%cc)
+               ng2 = SIZE(pw2%cc)
+               ns = 2*MAX(ng1, ng2)
 
                IF ((pw1%pw_grid%id_nr == pw2%pw_grid%reference)) THEN
                   IF (ng1 >= ng2) THEN
@@ -255,11 +259,16 @@ CONTAINS
                   CALL pw_copy_match(pw1, pw2)
                END IF
 
+               pw2%in_space = RECIPROCALSPACE
+
+            ELSE IF (pw1%in_use == REALDATA3D .AND. pw1%in_use == pw2%in_use .AND. &
+                     pw1%in_space == REALSPACE) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
             ELSE
                CPABORT("No suitable data field")
             END IF
-
-            pw2%in_space = RECIPROCALSPACE
 
          ELSE
 
@@ -397,7 +406,8 @@ CONTAINS
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(omega_2, pw)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,omega_2)
          pw%cc(:) = pw%cc(:)*EXP(-pw%pw_grid%gsq(:)*omega_2)
 !$OMP END PARALLEL WORKSHARE
       ELSE
@@ -407,6 +417,46 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp
+
+! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of a Gaussian
+!> \param pw ...
+!> \param omega ...
+!> \note
+!>      Performs a Gaussian damping
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_gauss(pw, omega)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_gauss'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: omega_2
+
+      CALL timeset(routineN, handle)
+      CPASSERT(omega >= 0)
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,omega_2)
+         pw%cc(:) = pw%cc(:)*(1.0_dp + omega_2*pw%pw_grid%gsq(:))
+!$OMP END PARALLEL WORKSHARE
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_log_deriv_gauss
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -464,6 +514,54 @@ CONTAINS
    END SUBROUTINE pw_compl_gauss_damp
 
 ! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of the complementary Gaussian damping factor
+!> \param pw ...
+!> \param omega ...
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_compl_gauss(pw, omega)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_compl_gauss'
+
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: omega_2, tmp
+
+      CALL timeset(routineN, handle)
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,omega_2)
+         DO i = 1, SIZE(pw%cc)
+            tmp = omega_2*pw%pw_grid%gsq(i)
+            ! For too small arguments, use the Taylor polynomial to prevent division by zero
+            IF (ABS(tmp) >= 0.003_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp*EXP(-tmp)/(1.0_dp - EXP(-tmp)))
+            ELSE
+               pw%cc(i) = pw%cc(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_log_deriv_compl_gauss
+
+! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor and mixes it with the original function
 !>        Needed for mixed longrange/Coulomb potential
 !>        V(\vec r)=(a+b*erf(omega*r))/r
@@ -510,6 +608,52 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp_mix
+
+! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of the mixed longrange/Coulomb potential
+!>        Needed for mixed longrange/Coulomb potential
+!> \param pw ...
+!> \param omega ...
+!> \param scale_coul ...
+!> \param scale_long ...
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_mix_cl(pw, omega, scale_coul, scale_long)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_mix_cl'
+
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: omega_2, tmp
+
+      CALL timeset(routineN, handle)
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,omega_2,scale_long,scale_coul)
+         DO i = 1, SIZE(pw%cc)
+            tmp = omega_2*pw%pw_grid%gsq(i)
+            pw%cc(i) = pw%cc(i)*(1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp)))
+         END DO
+!$OMP END PARALLEL DO
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_log_deriv_mix_cl
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a complementary cosine
@@ -563,6 +707,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_truncated
+
+! **************************************************************************************************
+!> \brief Multiply all data points with the logarithmic derivative of the complementary cosine
+!>        This function is needed for virials using truncated Coulomb potentials
+!> \param pw ...
+!> \param rcutoff ...
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_log_deriv_trunc(pw, rcutoff)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: rcutoff
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_trunc'
+
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: rchalf, tmp
+
+      CALL timeset(routineN, handle)
+      CPASSERT(rcutoff >= 0)
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         rchalf = 0.5_dp*rcutoff
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,rchalf)
+         DO i = 1, SIZE(pw%cc)
+            tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
+            ! For too small arguments, use the Taylor polynomial to prevent division by zero
+            IF (ABS(tmp) >= 0.0001_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp/TAN(tmp))
+            ELSE
+               pw%cc(i) = pw%cc(i)*tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_log_deriv_trunc
 
 ! **************************************************************************************************
 !> \brief Calculate the derivative of a plane wave vector
@@ -906,11 +1098,13 @@ CONTAINS
    END SUBROUTINE pw_transfer
 
 ! **************************************************************************************************
-!> \brief pw2 = alpha*pw1 + pw2
-!>      alpha defaults to 1
+!> \brief pw2 = alpha*pw1 + beta*pw2
+!>      alpha defaults to 1, beta defaults to 1
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param alpha ...
+!> \param beta ...
+!> \param allow_noncompatible_grids ...
 !> \par History
 !>      JGH (21-Feb-2003) : added reference grid functionality
 !>      JGH (01-Dec-2007) : rename and remove complex alpha
@@ -919,16 +1113,18 @@ CONTAINS
 !>      Currently only summing up of respective types allowed,
 !>      in order to avoid errors
 ! **************************************************************************************************
-   SUBROUTINE pw_axpy(pw1, pw2, alpha)
+   SUBROUTINE pw_axpy(pw1, pw2, alpha, beta, allow_noncompatible_grids)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
+      REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
-      REAL(KIND=dp)                                      :: my_alpha
+      LOGICAL                                            :: my_allow_noncompatible_grids
+      REAL(KIND=dp)                                      :: my_alpha, my_beta
 
       CALL timeset(routineN, handle)
 
@@ -936,6 +1132,38 @@ CONTAINS
 
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
+
+      my_beta = 1.0_dp
+      IF (PRESENT(beta)) my_beta = beta
+
+      my_allow_noncompatible_grids = .FALSE.
+      IF (PRESENT(allow_noncompatible_grids)) my_allow_noncompatible_grids = allow_noncompatible_grids
+
+      IF (my_beta /= 1.0_dp) THEN
+         IF (my_beta == 0.0_dp) THEN
+            CALL pw_zero(pw2)
+         ELSE
+            IF (pw2%in_use == REALDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cr = pw2%cr*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw2%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cr3d = pw2%cr3d*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw2%in_use == COMPLEXDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cc = pw2%cc*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw2%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
+               pw2%cc3d = pw2%cc3d*my_beta
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+               CPABORT("Unknown array type in use for PW!")
+            END IF
+         END IF
+      END IF
 
       IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
 
@@ -946,8 +1174,8 @@ CONTAINS
                   pw2%cr(i) = pw2%cr(i) + pw1%cr(i)
                END DO
 !$OMP END PARALLEL DO
-            ELSE
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,pw1,my_alpha)
                DO i = 1, SIZE(pw2%cr)
                   pw2%cr(i) = pw2%cr(i) + my_alpha*pw1%cr(i)
                END DO
@@ -961,8 +1189,8 @@ CONTAINS
                   pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
                END DO
 !$OMP END PARALLEL DO
-            ELSE
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,my_alpha,pw1)
                DO i = 1, SIZE(pw2%cc)
                   pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
                END DO
@@ -973,8 +1201,8 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cr3d = pw2%cr3d + pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cr3d = pw2%cr3d + my_alpha*pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
             END IF
@@ -984,8 +1212,8 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cc3d = pw2%cc3d + pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw1, pw2)
+            ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cc3d = pw2%cc3d + my_alpha*pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
             END IF
@@ -993,7 +1221,7 @@ CONTAINS
             CPABORT("No suitable data field")
          END IF
 
-      ELSE IF (pw_compatible(pw1%pw_grid, pw2%pw_grid)) THEN
+      ELSE IF (pw_compatible(pw1%pw_grid, pw2%pw_grid) .OR. my_allow_noncompatible_grids) THEN
 
          IF (pw1%in_use == COMPLEXDATA1D .AND. &
              pw2%in_use == COMPLEXDATA1D .AND. &
@@ -1012,8 +1240,8 @@ CONTAINS
                      pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
                   END DO
 !$OMP END PARALLEL DO
-               ELSE
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(my_alpha, ng, pw1, pw2)
+               ELSE IF (my_alpha /= 0.0_dp) THEN
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(pw2,pw1,my_alpha,ng)
                   DO i = 1, ng
                      pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
                   END DO
@@ -1038,7 +1266,7 @@ CONTAINS
                      END DO
 !$OMP END PARALLEL DO
                   END IF
-               ELSE
+               ELSE IF (my_alpha /= 0.0_dp) THEN
                   IF (ng1 >= ng2) THEN
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(my_alpha, ng2, pw1, pw2)
                      DO i = 1, ng2
@@ -1073,7 +1301,7 @@ CONTAINS
                      END DO
 !$OMP END PARALLEL DO
                   END IF
-               ELSE
+               ELSE IF (my_alpha /= 0.0_dp) THEN
                   IF (ng1 >= ng2) THEN
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(my_alpha, ng2, pw1, pw2)
                      DO i = 1, ng2
@@ -1103,6 +1331,24 @@ CONTAINS
                END IF
                CPABORT("Grids not compatible")
 
+            END IF
+
+         ELSE IF (pw1%in_use == REALDATA3D .AND. &
+                  pw2%in_use == REALDATA3D .AND. &
+                  pw1%in_space == REALSPACE .AND. &
+                  pw2%in_space == REALSPACE) THEN
+
+            IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(pw2%cr3d))) &
+               CPABORT("Noncommensurate grids not implemented for real-valued grids!")
+
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cr3d(:, :, :) = pw2%cr3d(:, :, :) + pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2,my_alpha)
+               pw2%cr3d(:, :, :) = pw2%cr3d(:, :, :) + my_alpha*pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
             END IF
          ELSE
             CPABORT("No suitable data field")
@@ -1180,6 +1426,18 @@ CONTAINS
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
 !$OMP END PARALLEL WORKSHARE
             END IF
+         ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
+                  pw2%in_use == REALDATA1D .AND. &
+                  pw_out%in_use == COMPLEXDATA1D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+               pw_out%cc = pw_out%cc + pw1%cc*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+               pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+            END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
                   pw_out%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
@@ -1201,6 +1459,18 @@ CONTAINS
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
                pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cc3d
+!$OMP END PARALLEL WORKSHARE
+            END IF
+         ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
+                  pw2%in_use == REALDATA3D .AND. &
+                  pw_out%in_use == COMPLEXDATA3D) THEN
+            IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+               pw_out%cc3d = pw_out%cc3d + pw1%cc3d*pw2%cr3d
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+               pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
             END IF
          ELSE
@@ -1989,8 +2259,6 @@ CONTAINS
       END SELECT
 
       SELECT CASE (pw%in_space)
-      CASE (NOSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=NOSPACE"
       CASE (REALSPACE)
          WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=REALSPACE"
       CASE (RECIPROCALSPACE)
@@ -2034,30 +2302,41 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param sumtype ...
+!> \param just_sum ...
+!> \param local_only ...
 !> \return ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! **************************************************************************************************
-   FUNCTION pw_integral_ab(pw1, pw2, sumtype) RESULT(integral_value)
+   FUNCTION pw_integral_ab(pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
+      LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum, local_only
       REAL(KIND=dp)                                      :: integral_value
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab'
 
       INTEGER                                            :: handle, loc_sumtype
+      LOGICAL                                            :: my_just_sum, my_local_only
 
       CALL timeset(routineN, handle)
 
       loc_sumtype = do_accurate_sum
       IF (PRESENT(sumtype)) loc_sumtype = sumtype
 
+      my_local_only = .FALSE.
+      IF (PRESENT(local_only)) my_local_only = local_only
+
       IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
          CPABORT("Grids incompatible")
       END IF
 
+      my_just_sum = .FALSE.
+      IF (PRESENT(just_sum)) my_just_sum = just_sum
+
+      ! do standard sum
       IF (loc_sumtype == do_standard_sum) THEN
 
          ! Do standard sum
@@ -2149,10 +2428,12 @@ CONTAINS
 
       END IF
 
-      IF (pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D) THEN
-         integral_value = integral_value*pw1%pw_grid%dvol
-      ELSE
-         integral_value = integral_value*pw1%pw_grid%vol
+      IF (.NOT. my_just_sum) THEN
+         IF (pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D) THEN
+            integral_value = integral_value*pw1%pw_grid%dvol
+         ELSE
+            integral_value = integral_value*pw1%pw_grid%vol
+         END IF
       END IF
 
       IF (pw1%in_use == COMPLEXDATA1D) THEN
@@ -2163,7 +2444,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
+      IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
          CALL pw1%pw_grid%para%group%sum(integral_value)
       CALL timestop(handle)
 
@@ -2332,13 +2613,13 @@ CONTAINS
 !>      Created 12.2016
 !> \author Nico Holmberg
 ! **************************************************************************************************
-   SUBROUTINE pw_set(pw, values)
+   SUBROUTINE pw_set_array(pw, values)
 
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: values
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_array'
 
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: is_match
@@ -2373,6 +2654,83 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_set
+   END SUBROUTINE pw_set_array
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param value ...
+! **************************************************************************************************
+   SUBROUTINE pw_set_value(pw, value)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: value
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_value'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,value)
+         pw%cr3d = value
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Illegal pw type, should be REALDATA3D.")
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_set_value
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param pw2 ...
+! **************************************************************************************************
+   SUBROUTINE pw_multiply_with(pw1, pw2)
+      TYPE(pw_type), INTENT(INOUT)                       :: pw1
+      TYPE(pw_type), INTENT(IN)                          :: pw2
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_with'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_space /= pw2%in_space) &
+         CPABORT("Invalid space combination!")
+      IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
+         CPABORT("Incompatible grids!")
+
+      IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cr = pw1%cr*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cr3d = pw1%cr3d*pw2%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. pw2%in_use == COMPLEXDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc = pw1%cc*pw2%cc
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. pw2%in_use == REALDATA1D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc = pw1%cc*pw2%cr
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc3d = pw1%cc3d*pw2%cc3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+         pw1%cc3d = pw1%cc3d*pw2%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Invalid combination of grids!")
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_multiply_with
 
 END MODULE pw_methods

@@ -33,6 +33,7 @@ MODULE qs_external_potential
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
+   USE pw_methods,                      ONLY: pw_zero
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -96,7 +97,7 @@ CONTAINS
 
                dr = v_ee%pw_grid%dr
                dvol = v_ee%pw_grid%dvol
-               v_ee%cr3d = 0.0_dp
+               CALL pw_zero(v_ee)
 
                bo_local = v_ee%pw_grid%bounds_local
                bo_global = v_ee%pw_grid%bounds

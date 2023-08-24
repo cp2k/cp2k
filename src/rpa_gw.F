@@ -105,6 +105,10 @@ MODULE rpa_gw
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
+                                              pw_scale,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -2337,8 +2341,8 @@ CONTAINS
       n_z_start = LBOUND(LDOS(1)%cr3d, 3)
       n_z_end = UBOUND(LDOS(1)%cr3d, 3)
 
-      E_VBM_rspace%cr3d(:, :, :) = 0.0_dp
-      E_CBM_rspace%cr3d(:, :, :) = 0.0_dp
+      CALL pw_zero(E_VBM_rspace)
+      CALL pw_zero(E_CBM_rspace)
 
       DO i_x = n_x_start, n_x_end
          DO i_y = n_y_start, n_y_end
@@ -2376,10 +2380,11 @@ CONTAINS
          END DO
       END DO
 
-      E_VBM_rspace%cr3d(:, :, :) = E_VBM_rspace%cr3d(:, :, :)*evolt
-      E_CBM_rspace%cr3d(:, :, :) = E_CBM_rspace%cr3d(:, :, :)*evolt
+      CALL pw_scale(E_VBM_rspace, evolt)
+      CALL pw_scale(E_CBM_rspace, evolt)
 
-      E_gap_rspace%cr3d(:, :, :) = E_CBM_rspace%cr3d(:, :, :) - E_VBM_rspace%cr3d(:, :, :)
+      CALL pw_copy(E_CBM_rspace, E_gap_rspace)
+      CALL pw_axpy(E_VBM_rspace, E_gap_rspace, -1.0_dp)
 
       gw_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%GW")
       CALL qs_subsys_get(subsys, particles=particles)

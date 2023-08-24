@@ -1027,7 +1027,7 @@ CONTAINS
       CALL pw_scale(v_resp_rspace, normalize_factor)
 
       ! Hard copy potential
-      v_rspace%cr3d(:, :, :) = v_resp_rspace%cr3d(:, :, :)
+      CALL pw_copy(v_resp_rspace, v_rspace)
 
       ! Release plane waves
       CALL pw_release(v_resp_gspace)
@@ -1079,7 +1079,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       ! Hard copy the grid
-      embed_pot_subsys%cr3d(:, :, :) = embed_pot%cr3d(:, :, :)
+      CALL pw_copy(embed_pot, embed_pot_subsys)
 
       IF (open_shell_embed) THEN
          NULLIFY (spin_embed_pot_subsys)
@@ -1089,9 +1089,9 @@ CONTAINS
                                 in_space=REALSPACE)
          ! Hard copy the grid
          IF (change_spin_sign) THEN
-            spin_embed_pot_subsys%cr3d(:, :, :) = -spin_embed_pot%cr3d(:, :, :)
+            CALL pw_axpy(spin_embed_pot, spin_embed_pot_subsys, -1.0_dp, 0.0_dp, allow_noncompatible_grids=.TRUE.)
          ELSE
-            spin_embed_pot_subsys%cr3d(:, :, :) = spin_embed_pot%cr3d(:, :, :)
+            CALL pw_copy(spin_embed_pot, spin_embed_pot_subsys)
          END IF
       END IF
 
@@ -3535,8 +3535,8 @@ CONTAINS
       i_dens_start = SUM(opt_embed%all_nspins(1:subsys_num)) - nspins + 1
 
       DO i_spin = 1, nspins
-         opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%cr3d(:, :, :) = &
-            rho_r(i_spin)%cr3d(:, :, :) - opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%cr3d(:, :, :)
+         CALL pw_axpy(rho_r(i_spin), opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1), 1.0_dp, -1.0_dp, &
+                      allow_noncompatible_grids=.TRUE.)
          opt_embed%max_subsys_dens_diff(i_dens_start + i_spin - 1) = &
             max_dens_diff(opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1))
       END DO

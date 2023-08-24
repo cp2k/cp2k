@@ -31,6 +31,7 @@ MODULE qs_rho0_ggrid
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integrate_function,&
+                                              pw_scale,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -300,8 +301,7 @@ CONTAINS
          ALLOCATE (rho0_mpole%rho0_s_gs)
       END IF
       CALL pw_pool_create_pw(auxbas_pw_pool, rho0_mpole%rho0_s_gs, &
-                             use_data=COMPLEXDATA1D)
-      rho0_mpole%rho0_s_gs%in_space = RECIPROCALSPACE
+                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! Find the grid level suitable for rho0_soft
       rho0_mpole%igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info, 2.0_dp*rho0_mpole%zet0_h)
@@ -458,7 +458,7 @@ CONTAINS
          CALL pw_pool_create_pw(pw_aux, coeff_raux, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          fscale = coeff_rspace%pw_grid%dvol/coeff_raux%pw_grid%dvol
-         coeff_rspace%cr3d = fscale*coeff_rspace%cr3d
+         CALL pw_scale(coeff_rspace, fscale)
          CALL pw_pool_give_back_pw(pw_aux, coeff_raux)
       ELSE
 

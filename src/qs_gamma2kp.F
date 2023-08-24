@@ -25,6 +25,7 @@ MODULE qs_gamma2kp
    USE kpoint_types,                    ONLY: kpoint_create,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
+   USE pw_methods,                      ONLY: pw_copy
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment,                  ONLY: qs_init
@@ -123,8 +124,8 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_r=rho_r_kp, rho_g=rho_g_kp)
 
       DO ispin = 1, SIZE(rho_r_gamma)
-         rho_r_kp(ispin)%cr3d(:, :, :) = rho_r_gamma(ispin)%cr3d(:, :, :)
-         rho_g_kp(ispin)%cc(:) = rho_g_gamma(ispin)%cc(:)
+         CALL pw_copy(rho_r_gamma(ispin), rho_r_kp(ispin))
+         CALL pw_copy(rho_g_gamma(ispin), rho_g_kp(ispin))
          CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, 1)%matrix, alpha_scalar=0.0_dp, &
                         matrix_b=rho_ao_kp_gamma(ispin, 1)%matrix, beta_scalar=1.0_dp)
       END DO

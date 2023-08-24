@@ -744,8 +744,7 @@ CONTAINS
       CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
-      CALL pw_create(ca, grid, REALDATA3D)
-      ca%in_space = REALSPACE
+      CALL pw_create(ca, grid, REALDATA3D, REALSPACE)
       CALL pw_zero(ca)
 
       ! .. rs input setting type
@@ -941,15 +940,14 @@ CONTAINS
             ! note that the number of grid points might be different from what the user requested (fft-able needed)
             no = grid%npts
 
-            CALL pw_create(ca, grid, COMPLEXDATA1D)
-            CALL pw_create(cb, grid, COMPLEXDATA3D)
-            CALL pw_create(cc, grid, COMPLEXDATA1D)
+            CALL pw_create(ca, grid, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL pw_create(cb, grid, COMPLEXDATA3D, REALSPACE)
+            CALL pw_create(cc, grid, COMPLEXDATA1D, RECIPROCALSPACE)
 
             ! initialize data
             CALL pw_zero(ca)
             CALL pw_zero(cb)
             CALL pw_zero(cc)
-            ca%in_space = RECIPROCALSPACE
             nn = SIZE(ca%cc)
             DO ig = 1, nn
                gsq = grid%gsq(ig)

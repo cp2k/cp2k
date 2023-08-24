@@ -43,7 +43,10 @@ MODULE xc_pot_saop
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_zero
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
+                                              pw_scale,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -142,7 +145,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_col
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_uniform
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_uniform
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: single_mo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
@@ -168,7 +171,7 @@ CONTAINS
       NULLIFY (rho_g, rho_r, tau, rho_struct, e_uniform)
       NULLIFY (vxc_LB, vxc_tmp, vxc_tau)
       NULLIFY (mo_eigenvalues, deriv, rho_struct_r, rho_struct_ao)
-      NULLIFY (orbital_density_matrix, dummy, xc_section_tmp, xc_fun_section_tmp)
+      NULLIFY (orbital_density_matrix, xc_section_tmp, xc_fun_section_tmp)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -270,15 +273,13 @@ CONTAINS
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       DO ispin = 1, nspins
-         vxc_LB(ispin)%cr3d = vxc_LB(ispin)%cr3d + alpha*vxc_tmp(ispin)%cr3d
+         CALL pw_axpy(vxc_tmp(ispin), vxc_LB(ispin), alpha)
       END DO
 
       DO ispin = 1, nspins
-         dummy => vxc_tmp(ispin)%cr3d
-         CALL add_lb_pot(dummy, rho_set, lsd, ispin)
-         vxc_LB(ispin)%cr3d = vxc_LB(ispin)%cr3d - vxc_tmp(ispin)%cr3d
+         CALL add_lb_pot(vxc_tmp(ispin)%cr3d, rho_set, lsd, ispin)
+         CALL pw_axpy(vxc_tmp(ispin), vxc_LB(ispin), -1.0_dp)
       END DO
-      NULLIFY (dummy)
 
       !-----------------------------------------------------------------------------------!
       ! Construct 2 times PBE one particle density from the PZ correlation energy density !
@@ -301,10 +302,8 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         dummy => vxc_GLLB(ispin)%cr3d
-         CALL calc_2excpbe(dummy, rho_set, e_uniform, lsd)
+         CALL calc_2excpbe(vxc_GLLB(ispin)%cr3d, rho_set, e_uniform, lsd)
       END DO
-      NULLIFY (dummy)
 
       CALL xc_dset_release(deriv_set)
 
@@ -352,8 +351,7 @@ CONTAINS
                                     rho=orbital, rho_gspace=orbital_g, &
                                     ks_env=ks_env)
 
-            vxc_tmp(ispin)%cr3d = vxc_tmp(ispin)%cr3d + &
-                                  efac*orbital%cr3d
+            CALL pw_axpy(orbital, vxc_tmp(ispin), efac)
 
          END DO
          DEALLOCATE (coeff_col)
@@ -371,7 +369,7 @@ CONTAINS
             END DO
          END DO
 
-         vxc_GLLB(ispin)%cr3d = vxc_GLLB(ispin)%cr3d + vxc_tmp(ispin)%cr3d
+         CALL pw_axpy(vxc_tmp(ispin), vxc_GLLB(ispin), 1.0_dp)
 
       END DO
 
@@ -456,11 +454,11 @@ CONTAINS
       DO ispin = 1, nspins
 
          IF (oe_corr == oe_lb) THEN
-            vxc_SAOP(ispin)%cr3d = vxc_LB(ispin)%cr3d
+            CALL pw_copy(vxc_LB(ispin), vxc_SAOP(ispin))
          ELSE IF (oe_corr == oe_gllb) THEN
-            vxc_SAOP(ispin)%cr3d = vxc_GLLB(ispin)%cr3d
+            CALL pw_copy(vxc_GLLB(ispin), vxc_SAOP(ispin))
          END IF
-         vxc_SAOP(ispin)%cr3d = vxc_SAOP(ispin)%cr3d*vxc_SAOP(ispin)%pw_grid%dvol
+         CALL pw_scale(vxc_SAOP(ispin), vxc_SAOP(ispin)%pw_grid%dvol)
 
          CALL integrate_v_rspace(v_rspace=vxc_SAOP(ispin), pmat=rho_struct_ao(ispin), &
                                  hmat=ks_matrix(ispin), qs_env=qs_env, &

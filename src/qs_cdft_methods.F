@@ -43,7 +43,10 @@ MODULE qs_cdft_methods
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
-                                              pw_integrate_function
+                                              pw_integral_ab,&
+                                              pw_integrate_function,&
+                                              pw_set,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -751,22 +754,22 @@ CONTAINS
          END IF
 
          ! Setup pw
-         cdft_control%group(igroup)%weight%cr3d = 0.0_dp
+         CALL pw_zero(cdft_control%group(igroup)%weight)
 
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         cdft_control%group(igroup)%hw_rho_total_constraint%cr3d = 1.0_dp
+         CALL pw_set(cdft_control%group(igroup)%hw_rho_total_constraint, 1.0_dp)
 
          IF (igroup == 1) THEN
             CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            cdft_control%group(igroup)%hw_rho_total%cr3d = 1.0_dp
+            CALL pw_set(cdft_control%group(igroup)%hw_rho_total, 1.0_dp)
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
                   CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(iatom), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  cdft_control%group(igroup)%hw_rho_atomic(iatom)%cr3d = 1.0_dp
+                  CALL pw_set(cdft_control%group(igroup)%hw_rho_atomic(iatom), 1.0_dp)
                END DO
             END IF
          END IF
@@ -786,7 +789,7 @@ CONTAINS
             DO iatom = 1, cdft_control%natoms
                CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%cr3d = 1.0_dp
+               CALL pw_set(cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), 1.0_dp)
             END DO
          END IF
 
@@ -974,7 +977,7 @@ CONTAINS
                DO i = 1, num_species
                   CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i), use_data=REALDATA3D, &
                                          in_space=REALSPACE)
-                  pw_single_dr(i)%cr3d(:, :, :) = 0.0_dp
+                  CALL pw_zero(pw_single_dr(i))
                END DO
 
                atoms_memory_num = SIZE((/(j, j=1, num_species, atoms_memory)/))
@@ -1236,12 +1239,12 @@ CONTAINS
                dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%cr3d, &
                                                                    becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%cr3d, rho_r(i)%cr3d)*dvol
+               dE(igroup) = dE(igroup) + sign*pw_integral_ab(group(igroup)%weight, rho_r(i), local_only=.TRUE.)
             END IF
          END DO
          IF (cdft_control%atomic_charges) THEN
             DO iatom = 1, cdft_control%natoms
-               electronic_charge(iatom, i) = accurate_dot_product(charge(iatom)%cr3d, rho_r(i)%cr3d)*dvol
+               electronic_charge(iatom, i) = pw_integral_ab(charge(iatom), rho_r(i), local_only=.TRUE.)
             END DO
          END IF
       END DO
@@ -1716,7 +1719,7 @@ CONTAINS
                                                                becke_control%cavity_mat, becke_control%eps_cavity)*dvol
          ELSE
             cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%cr3d, rho_frag(i)%cr3d)*dvol
+                                          pw_integral_ab(group(igroup)%weight, rho_frag(i), local_only=.TRUE.)
          END IF
       END DO
       CALL para_env%sum(cdft_control%target)
@@ -1726,7 +1729,7 @@ CONTAINS
          DO i = 1, nfrag_spins
             DO iatom = 1, cdft_control%natoms
                cdft_control%charges_fragment(iatom, i) = &
-                  accurate_dot_product(cdft_control%charge(iatom)%cr3d, rho_frag(i)%cr3d)*dvol
+                  pw_integral_ab(cdft_control%charge(iatom), rho_frag(i), local_only=.TRUE.)
             END DO
          END DO
          CALL para_env%sum(cdft_control%charges_fragment)

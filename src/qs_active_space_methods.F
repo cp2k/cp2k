@@ -27,9 +27,12 @@ MODULE qs_active_space_methods
    USE cp_dbcsr_operations, ONLY: cp_dbcsr_plus_fm_fm_t, &
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set
+   USE cp_external_control, ONLY: external_control
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
+   USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale
+   USE cp_fm_diag, ONLY: cp_fm_syevd
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
@@ -78,7 +81,10 @@ MODULE qs_active_space_methods
                            pw_env_release, &
                            pw_env_type
    USE pw_methods, ONLY: pw_integrate_function, &
-                         pw_transfer
+                         pw_multiply, &
+                         pw_multiply_with, &
+                         pw_transfer, &
+                         pw_zero
    USE pw_poisson_methods, ONLY: pw_poisson_rebuild, &
                                  pw_poisson_solve
    USE pw_poisson_types, ONLY: ANALYTIC0D, &
@@ -1364,7 +1370,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
-      rho_r%cr3d = 0.0D0
+      CALL pw_zero(rho_r)
       CALL pw_transfer(rho_r, rho_g)
       dvol = rho_r%pw_grid%dvol
       CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group%get_handle())
@@ -1396,7 +1402,8 @@ CONTAINS
                   CPABORT("")
                END IF
                ! calculate charge distribution and potential
-               rho_r%cr3d = wfn1%cr3d*wfn2%cr3d
+               CALL pw_zero(rho_r)
+               CALL pw_multiply(rho_r, wfn1, wfn2)
                IF (print2 .AND. iw > 0) THEN
                   ! TODO: this call hangs in parallel
                   erint = pw_integrate_function(rho_r)/dvol
@@ -1436,7 +1443,9 @@ CONTAINS
                            ELSE
                               CPABORT("")
                            END IF
-                           wfn_r%cr3d = rho_r%cr3d*wfn3%cr3d*wfn4%cr3d
+                           CALL pw_zero(wfn_r)
+                           CALL pw_multiply(wfn_r, rho_r, wfn3)
+                           CALL pw_multiply_with(wfn_r, wfn4)
                            erint = pw_integrate_function(wfn_r)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1

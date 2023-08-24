@@ -92,7 +92,9 @@ MODULE mixed_cdft_methods
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_scale
+   USE pw_methods,                      ONLY: pw_copy,&
+                                              pw_scale,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -653,7 +655,7 @@ CONTAINS
       ALLOCATE (cdft_control_target%group(1)%weight)
       CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control_target%group(1)%weight, &
                              use_data=REALDATA3D, in_space=REALSPACE)
-      cdft_control_target%group(1)%weight%cr3d = 0.0_dp
+      CALL pw_zero(cdft_control_target%group(1)%weight)
       ! Assemble the recved slices
       DO j = 1, SIZE(mixed_cdft%source_list)
          cdft_control_target%group(1)%weight%cr3d(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
@@ -949,7 +951,7 @@ CONTAINS
                                       cdft_control_target%group(igroup)%weight, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! We have ensured that the grids are consistent => no danger in using explicit copy
-               cdft_control_target%group(igroup)%weight%cr3d = cdft_control_source%group(igroup)%weight%cr3d
+               CALL pw_copy(cdft_control_source%group(igroup)%weight, cdft_control_target%group(igroup)%weight)
                CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%group(igroup)%weight)
                DEALLOCATE (cdft_control_source%group(igroup)%weight)
             END DO
@@ -958,8 +960,7 @@ CONTAINS
                IF (cdft_control_source%becke_control%cavity_confine) THEN
                   CALL pw_pool_create_pw(auxbas_pw_pool_target, cdft_control_target%becke_control%cavity, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  cdft_control_target%becke_control%cavity%cr3d(:, :, :) = &
-                     cdft_control_source%becke_control%cavity%cr3d
+                  CALL pw_copy(cdft_control_source%becke_control%cavity, cdft_control_target%becke_control%cavity)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%becke_control%cavity)
                END IF
             END IF
@@ -989,7 +990,7 @@ CONTAINS
                   CALL pw_pool_create_pw(auxbas_pw_pool_target, &
                                          cdft_control_target%charge(iatom), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  cdft_control_target%charge(iatom)%cr3d = cdft_control_source%charge(iatom)%cr3d
+                  CALL pw_copy(cdft_control_source%charge(iatom), cdft_control_target%charge(iatom))
                   CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%charge(iatom))
                END DO
             END IF

@@ -325,7 +325,7 @@ CONTAINS
             IF (do_adiabatic_rescaling) THEN
                IF (ASSOCIATED(my_vxc_rho)) THEN
                   DO ispin = 1, SIZE(my_vxc_rho)
-                     my_vxc_rho(ispin)%cr3d = my_vxc_rho(ispin)%cr3d*my_adiabatic_rescale_factor
+                     CALL pw_scale(my_vxc_rho(ispin), my_adiabatic_rescale_factor)
                   END DO
                END IF
             END IF
@@ -335,12 +335,12 @@ CONTAINS
             exc = exc*my_scaling
             IF (ASSOCIATED(my_vxc_rho)) THEN
                DO ispin = 1, SIZE(my_vxc_rho)
-                  my_vxc_rho(ispin)%cr3d = my_vxc_rho(ispin)%cr3d*my_scaling
+                  CALL pw_scale(my_vxc_rho(ispin), my_scaling)
                END DO
             END IF
             IF (ASSOCIATED(my_vxc_tau)) THEN
                DO ispin = 1, SIZE(my_vxc_tau)
-                  my_vxc_tau(ispin)%cr3d = my_vxc_tau(ispin)%cr3d*my_scaling
+                  CALL pw_scale(my_vxc_tau(ispin), my_scaling)
                END DO
             END IF
          END IF
@@ -410,10 +410,8 @@ CONTAINS
 
             ! and take care of the potential only vxc_rho is taken into account
             IF (.NOT. my_just_energy) THEN
-               vxc_rho(1)%cr3d = vxc_rho(1)%cr3d - dft_control%sic_scaling_b* &
-                                 my_vxc_rho(1)%cr3d
-               vxc_rho(2)%cr3d = vxc_rho(2)%cr3d + dft_control%sic_scaling_b* &
-                                 my_vxc_rho(1)%cr3d ! 1=m
+               CALL pw_axpy(my_vxc_rho(1), vxc_rho(1), -dft_control%sic_scaling_b)
+               CALL pw_axpy(my_vxc_rho(1), vxc_rho(2), dft_control%sic_scaling_b)
                CALL pw_release(my_vxc_rho(1))
                CALL pw_release(my_vxc_rho(2))
                DEALLOCATE (my_vxc_rho)
@@ -477,8 +475,7 @@ CONTAINS
 
                ! and take care of the potential only vxc_rho is taken into account
                IF (.NOT. my_just_energy) THEN
-                  vxc_rho(ispin)%cr3d = vxc_rho(ispin)%cr3d - dft_control%sic_scaling_b* &
-                                        my_vxc_rho(1)%cr3d
+                  CALL pw_axpy(my_vxc_rho(1), vxc_rho(ispin), -dft_control%sic_scaling_b)
                   CALL pw_release(my_vxc_rho(1))
                   CALL pw_release(my_vxc_rho(2))
                   DEALLOCATE (my_vxc_rho)
@@ -525,8 +522,7 @@ CONTAINS
             ! and take care of the potential
             IF (.NOT. my_just_energy) THEN
                ! both go to minority spin
-               vxc_rho(2)%cr3d = vxc_rho(2)%cr3d + &
-                                 2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%cr3d
+               CALL pw_axpy(my_vxc_rho(1), vxc_rho(2), 2.0_dp*dft_control%sic_scaling_b)
                CALL pw_release(my_vxc_rho(1))
                CALL pw_release(my_vxc_rho(2))
                DEALLOCATE (my_vxc_rho)

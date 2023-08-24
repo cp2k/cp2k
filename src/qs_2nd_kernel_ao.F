@@ -38,6 +38,7 @@ MODULE qs_2nd_kernel_ao
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_type
@@ -337,13 +338,13 @@ CONTAINS
 
          CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux, ncol_global=nao)
          DO ispin = 1, nspins
-            v_xc(ispin)%cr3d = v_xc(ispin)%cr3d*v_xc(ispin)%pw_grid%dvol
+            CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
             CALL dbcsr_set(work_hmat%matrix, 0.0_dp)
             CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=work_hmat, qs_env=qs_env, &
                                     calculate_forces=my_calc_forces, basis_type="AUX_FIT", &
                                     task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
             IF (ASSOCIATED(v_xc_tau)) THEN
-               v_xc_tau(ispin)%cr3d = v_xc_tau(ispin)%cr3d*v_xc_tau(ispin)%pw_grid%dvol
+               CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
                CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), hmat=work_hmat, qs_env=qs_env, &
                                        compute_tau=.TRUE., &
                                        calculate_forces=my_calc_forces, basis_type="AUX_FIT", &

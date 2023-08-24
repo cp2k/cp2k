@@ -43,7 +43,8 @@ MODULE qmmm_image_charge
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_integral_ab,&
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_integral_ab,&
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
@@ -944,7 +945,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_image_pot_to_hartree_pot(v_hartree, v_metal, qs_env)
 
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree, v_metal
+      TYPE(pw_type), INTENT(INOUT)                       :: v_hartree
+      TYPE(pw_type), INTENT(IN)                          :: v_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'add_image_pot_to_hartree_pot'
@@ -959,7 +961,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       !add image charge potential
-      v_hartree%cr3d = v_hartree%cr3d + v_metal%cr3d
+      CALL pw_axpy(v_metal, v_hartree)
 
       ! print info
       CALL get_qs_env(qs_env=qs_env, &

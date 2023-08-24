@@ -100,7 +100,7 @@ CONTAINS
          nspin = SIZE(rho_g, 1)
          nimg = dft_control%nimages
          ng = SIZE(rho_g(1)%pw_grid%gsq)
-         CPASSERT((ng == SIZE(mixing_store%rhoin(1)%cc)))
+         CPASSERT(ng == SIZE(mixing_store%rhoin(1)%cc))
 
          alpha = mixing_store%alpha
          gapw = dft_control%qs_control%gapw
@@ -331,8 +331,8 @@ CONTAINS
       ALLOCATE (cc_mix(ng))
 
       IF (nspin == 2) THEN
+         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
          DO ig = 1, ng
-            rho_g(2)%cc(ig) = rho_g(1)%cc(ig) - rho_g(2)%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
          IF (gapw .AND. mixing_store%gmix_p) THEN
@@ -527,8 +527,8 @@ CONTAINS
       DEALLOCATE (cc_mix)
 
       IF (nspin == 2) THEN
+         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
          DO ig = 1, ng
-            rho_g(2)%cc(ig) = rho_g(1)%cc(ig) - rho_g(2)%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
          IF (gapw .AND. mixing_store%gmix_p) THEN
@@ -623,8 +623,8 @@ CONTAINS
       END IF
 
       IF (nspin == 2) THEN
+         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
          DO ig = 1, ng
-            rho_g(2)%cc(ig) = rho_g(1)%cc(ig) - rho_g(2)%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
          IF (gapw .AND. mixing_store%gmix_p) THEN
@@ -850,8 +850,8 @@ CONTAINS
 
       END DO ! ispin
       IF (nspin == 2) THEN
+         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
          DO ig = 1, ng
-            rho_g(2)%cc(ig) = rho_g(1)%cc(ig) - rho_g(2)%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
          IF (gapw .AND. mixing_store%gmix_p) THEN
