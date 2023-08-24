@@ -2645,11 +2645,14 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
 
       socket_fd = 0
-      protocol = 0
 
       ! protocol == 0 for UNIX, protocol > 0 for INET
       CALL section_vals_val_get(as_input, "SOCKET%UNIX", l_val=unix)
-      IF (.NOT. unix) protocol = 1
+      IF (unix) THEN
+         protocol = 0
+      ELSE
+         protocol = 1
+      END IF
       CALL section_vals_val_get(as_input, "SOCKET%HOST", c_val=hostname)
       CALL section_vals_val_get(as_input, "SOCKET%PORT", i_val=port)
 
