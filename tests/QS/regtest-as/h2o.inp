@@ -16,29 +16,27 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-       &ACTIVE_SPACE
-          ACTIVE_ELECTRONS 4
-          ACTIVE_ORBITALS  6
-          ORBITAL_SELECTION CANONICAL
-          &ERI
-             METHOD   FULL_GPW
-             OPERATOR <1/R>
-          &END
-          &ERI_GPW
-             STORE_WFN T
-             PRINT_LEVEL MEDIUM
-          &END
-          &PRINT_ORBITAL_CUBES
-             ALIST 3 4 1
-             BLIST
-             STRIDE 3
-             FILENAME  Active_orbital
-          &END
-          &FCIDUMP
-          &END
-       &END ACTIVE_SPACE
-    &END
+    &ACTIVE_SPACE
+      ACTIVE_ELECTRONS 4
+      ACTIVE_ORBITALS  6
+      ORBITAL_SELECTION CANONICAL
+      &ERI
+         METHOD   FULL_GPW
+         OPERATOR <1/R>
+      &END
+      &ERI_GPW
+         STORE_WFN T
+         PRINT_LEVEL MEDIUM
+      &END
+      &PRINT_ORBITAL_CUBES
+         ALIST 3 4 1
+         BLIST
+         STRIDE 3
+         FILENAME  Active_orbital
+      &END
+      &FCIDUMP
+      &END
+    &END ACTIVE_SPACE
   &END DFT
   &SUBSYS
     &CELL

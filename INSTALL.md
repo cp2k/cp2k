@@ -116,7 +116,7 @@ If using this framework, `-D__ACCELERATE` must be defined to account for some
 interface incompatibilities between Accelerate and reference BLAS/LAPACK.
 
 When building on/for Windows using the Minimalist GNU for Windows (MinGW) environment,
-you must set `-D__MINGW`,  `-D__NO_STATM_ACCESS` and `-D__NO_IPI_DRIVER` to avoid
+you must set `-D__MINGW`, `-D__NO_STATM_ACCESS` and `-D__NO_SOCKETS` to avoid
 undefined references during linking, respectively errors while printing the statistics.
 
 ### 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
@@ -547,12 +547,15 @@ partially depending on installed libraries (see 2.)
   switch on energy profiling on Cray systems
 - `-D__NO_ABORT` to avoid calling abort, but STOP instead (useful for coverage
   testing, and to avoid core dumps on some systems)
+- `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS, but can also
+  be used by itself to allow read/write functionalities of QCSchema files in the
+  active space module.
 
 Features useful to deal with legacy systems
 
 - `-D__NO_MPI_THREAD_SUPPORT_CHECK`  - Workaround for MPI libraries that do not
   declare they are thread safe (serialized).
-- `-D__NO_IPI_DRIVER` disables the socket interface in case of troubles compiling
+- `-D__NO_SOCKETS` disables the socket interface in case of troubles compiling
   on systems that do not support POSIX sockets.
 - `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like scalapack.
 - The Makefile automatically compiles in the path to the data directory via the

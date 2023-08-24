@@ -161,8 +161,8 @@ CONTAINS
       CALL integer_to_string(__MAX_CONTR, tmp_str)
       flags = TRIM(flags)//" max_contr="//TRIM(tmp_str)
 #endif
-#if defined(__NO_IPI_DRIVER)
-      flags = TRIM(flags)//" no_ipi_driver"
+#if defined(__NO_SOCKETS)
+      flags = TRIM(flags)//" no_sockets"
 #endif
 #if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
       flags = TRIM(flags)//" no_mpi_thread_support_check"
@@ -245,6 +245,10 @@ CONTAINS
 
 #if defined(__LIBVDWXC)
       flags = TRIM(flags)//" libvdwxc"
+#endif
+
+#if defined(__HDF5)
+      flags = TRIM(flags)//" hdf5"
 #endif
 
    END FUNCTION cp2k_flags

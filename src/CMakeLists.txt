@@ -467,6 +467,10 @@ list(
   qs_2nd_kernel_ao.F
   qs_active_space_methods.F
   qs_active_space_types.F
+  qs_active_space_utils.F
+  qcschema.F
+  hdf5_wrapper.F
+  sockets_interface.F
   qs_atomic_block.F
   qs_band_structure.F
   qs_basis_gradient.F

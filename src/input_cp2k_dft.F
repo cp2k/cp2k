@@ -74,11 +74,11 @@ MODULE input_cp2k_dft
         jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, &
         kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, &
         ls_2pnt, ls_3pnt, ls_gold, ls_none, manual_selection, mao_basis_ext, mao_basis_orb, &
-        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
-        oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
-        orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, no_solver, &
+        numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+        orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
         ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
@@ -87,9 +87,9 @@ MODULE input_cp2k_dft
         outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
         outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
         outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
-        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, random_guess, &
-        real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, &
-        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        qiskit_solver, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
+        random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
+        rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
         rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
         sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
         sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
@@ -507,6 +507,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_sccs_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_active_space_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1075,10 +1079,6 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL create_wfn_mix_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_active_space_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -9054,24 +9054,9 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="INACTIVE_ELECTRONS", &
-                          description="The number of inactive electrons in the CAS space", &
-                          usage="INACTIVE_ELECTRONS 2 {2}", n_var=-1, default_i_vals=(/-1, -1/), &
-                          type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="ACTIVE_ORBITALS", &
                           description="The number of active orbitals defining the CAS space.", &
-                          usage="ACTIVE_ORBITALS 2 {2}", n_var=-1, default_i_vals=(/-1, -1/), &
-                          type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="INACTIVE_ORBITALS", &
-                          description="The number of nactive orbitals.", &
-                          usage="INACTIVE_ORBITALS 2 {2}", n_var=-1, default_i_vals=(/-1, -1/), &
-                          type_of_var=integer_t)
+                          usage="ACTIVE_ORBITALS 2", n_var=1, default_i_val=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -9122,16 +9107,42 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="READ_P_ACTIVE", &
-                          description="Active density matrix must be read", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCF_EMBEDDING", &
+                          description="Whether to turn on the self-consistent embedding scheme", &
                           default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="P_ACTIVE_FILE_NAME", &
-                          description="Name of the active DM file, may include a path", &
-                          usage="P_ACTIVE_FILE_NAME <FILENAME>", &
-                          type_of_var=lchar_t, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="QCSCHEMA", &
+                          description="Name of the QCSchema file, may include a path", &
+                          usage="QCSCHEMA <FILENAME>", &
+                          type_of_var=lchar_t, repeats=.FALSE., &
+                          default_lc_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="AS_SOLVER", &
+                          description="The external active space solver for the embedding approach", &
+                          usage="AS_SOLVER QISKIT", &
+                          default_i_val=no_solver, &
+                          enum_c_vals=s2a("NONE", "QISKIT"), &
+                          enum_i_vals=(/no_solver, qiskit_solver/), &
+                          enum_desc=s2a("NO solver, used to produce FCIDUMP/QCSchema files", &
+                                        "QISKIT active space solver"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
+                          description="Energy convergence threshold of the DFT embedding scheme.", &
+                          usage="EPS_ITER 1.0E-6 ", type_of_var=real_t, &
+                          default_r_val=1.0E-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
+                          description="Max number of iterations for the DFT embedding scheme.", &
+                          usage="MAX_ITER 50", type_of_var=integer_t, &
+                          default_i_val=50)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -9151,7 +9162,49 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_socket_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_active_space_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_socket_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="SOCKET", &
+                          description="Parameters to set up the socket communicating to the external active space solver.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="UNIX", &
+                          description="Use a UNIX socket rather than an INET socket.", &
+                          usage="unix LOGICAL", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PORT", &
+                          description="Port number for the socket client.", &
+                          usage="port <INTEGER>", &
+                          default_i_val=12345)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="HOST", &
+                          description="Host name for the socket client.", &
+                          usage="host <HOSTNAME>", &
+                          default_c_val="embedding_socket")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_socket_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -9228,7 +9281,7 @@ CONTAINS
                           enum_i_vals=(/eri_method_full_gpw, eri_method_gpw_ht/), &
                           enum_desc=s2a("Use the GPW approach with MOs", &
                                         "Use the GPW approach for half-transformed MO ERIs"), &
-                          default_i_val=eri_method_gpw_ht)
+                          default_i_val=eri_method_full_gpw)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -9251,7 +9304,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OPERATOR_PARAMETER", &
                           description="Range parameter for ERI operator.", &
                           usage="OPERATOR_PARAMETER 4.0", type_of_var=real_t, &
-                          default_r_val=8.0_dp)
+                          default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
