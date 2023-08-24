@@ -958,7 +958,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_FUNCTIONAL", &
                           description="Use parameters for this specific density functional. " &
                           //"For available D3 and D3(BJ) parameters see: " &
-                          //"https://www.chemie.uni-bonn.de/pctc/mulliken-center/software/dft-d3/dft-d3", &
+                          //"https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3", &
                           usage="REFERENCE_FUNCTIONAL <functional>", &
                           type_of_var=char_t)
       CALL section_add_keyword(subsection, keyword)
