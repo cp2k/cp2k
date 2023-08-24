@@ -35,11 +35,11 @@ LD_arch="IF_MPI(${MPIFC}|${FC})"
 # we always want good line information and backtraces
 if [ "${with_intel}" != "__DONTUSE__" ]; then
   if [ "${TARGET_CPU}" = "native" ]; then
-    BASEFLAGS="-fPIC -fp-model=precise -g -qopenmp -qopenmp-simd -traceback -xHost"
+    BASEFLAGS="-fPIC -fp-model=precise -g -qopenmp -traceback -xHost"
   elif [ "${TARGET_CPU}" = "generic" ]; then
-    BASEFLAGS="-fPIC -fp-model=precise -g -mtune=${TARGET_CPU} -qopenmp -qopenmp-simd -traceback"
+    BASEFLAGS="-fPIC -fp-model=precise -g -mtune=${TARGET_CPU} -qopenmp -traceback"
   else
-    BASEFLAGS="-fPIC -fp-model=precise -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} -qopenmp -qopenmp-simd -traceback"
+    BASEFLAGS="-fPIC -fp-model=precise -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} -qopenmp -traceback"
   fi
   OPT_FLAGS="-O2 -funroll-loops"
   LDFLAGS_C="-nofor-main"
@@ -149,7 +149,7 @@ LIBS="${CP_LIBS} -lstdc++"
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
 else
-  CXXFLAGS+=" ${G_CFLAGS} --std=c++14 \$(DFLAGS)"
+  CXXFLAGS+=" --std=c++14 \$(DFLAGS)"
 fi
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
