@@ -10,6 +10,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_dispersion_pairpot
+
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -68,6 +69,7 @@ MODULE qs_dispersion_pairpot
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE string_utilities,                ONLY: uppercase
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 
@@ -449,15 +451,16 @@ CONTAINS
 !> \param vdw_section ...
 ! **************************************************************************************************
    SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, vdw_section)
+
       REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8
       TYPE(section_vals_type), POINTER                   :: vdw_section
 
       CHARACTER(LEN=default_string_length)               :: functional
 
       CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
-
+      CALL uppercase(functional)
       ! values for different functionals from:
-      ! https://www.chemie.uni-bonn.de/pctc/mulliken-center/software/dft-d3/dft-d3
+      ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3
       ! L. Goerigk et al. PCCP 2017, 32147-32744, SI
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
@@ -527,7 +530,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.217_dp
          s8 = 0.722_dp
-      CASE ("PBEhPBE")
+      CASE ("PBEHPBE")
          s6 = 1.000_dp
          sr6 = 1.5703_dp
          s8 = 1.4010_dp
@@ -547,7 +550,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.660_dp
          s8 = 0.550_dp
-      CASE ("revPBE")
+      CASE ("REVPBE")
          ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
          ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
          s6 = 1.000_dp
@@ -569,7 +572,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.252_dp
          s8 = 1.242_dp
-      CASE ("TPSSh")
+      CASE ("TPSSH")
          s6 = 1.000_dp
          sr6 = 1.223_dp
          s8 = 1.219_dp
@@ -669,19 +672,19 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.333_dp
          s8 = 0.998_dp
-      CASE ("PBEh1PBE")
+      CASE ("PBEH1PBE")
          s6 = 1.000_dp
          sr6 = 1.3719_dp
          s8 = 1.0430_dp
-      CASE ("PBEsol")
+      CASE ("PBESOL")
          s6 = 1.000_dp
          sr6 = 1.345_dp
          s8 = 0.612_dp
-      CASE ("revSSB")
+      CASE ("REVSSB")
          s6 = 1.000_dp
          sr6 = 1.221_dp
          s8 = 0.560_dp
-      CASE ("revTPSS")
+      CASE ("REVTPSS")
          s6 = 1.000_dp
          sr6 = 1.3491_dp
          s8 = 1.3666_dp
@@ -725,7 +728,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 3.3388_dp
          s8 = 0.000_dp
-      CASE ("mPWPW91")
+      CASE ("MPWPW91")
          s6 = 1.0000_dp
          sr6 = 1.3725_dp
          s8 = 1.9467_dp
@@ -737,7 +740,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.7231_dp
          s8 = 2.2917_dp
-      CASE ("mPW1LYP")
+      CASE ("MPW1LYP")
          s6 = 1.000_dp
          sr6 = 2.0512_dp
          s8 = 1.9529_dp
@@ -765,19 +768,19 @@ CONTAINS
          s6 = 1.0000_dp
          sr6 = 2.1040_dp
          s8 = 0.8747_dp
-      CASE ("revPBE0")
+      CASE ("REVPBE0")
          s6 = 1.000_dp
          sr6 = 0.949_dp
          s8 = 0.792_dp
-      CASE ("revPBE38")
+      CASE ("REVPBE38")
          s6 = 1.000_dp
          sr6 = 1.021_dp
          s8 = 0.862_dp
-      CASE ("revTPSSh")
+      CASE ("REVTPSSh")
          s6 = 1.000_dp
          sr6 = 1.3224_dp
          s8 = 1.2504_dp
-      CASE ("revTPSS0")
+      CASE ("REVTPSS0")
          s6 = 1.000_dp
          sr6 = 1.2881_dp
          s8 = 1.0649_dp
@@ -785,11 +788,11 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.7729_dp
          s8 = 2.0902_dp
-      CASE ("tHCTHhyb")
+      CASE ("THCTHHYB")
          s6 = 1.000_dp
          sr6 = 1.5001_dp
          s8 = 1.6302_dp
-      CASE ("rPW86PBE")
+      CASE ("RPW86PBE")
          s6 = 1.000_dp
          sr6 = 1.224_dp
          s8 = 0.901_dp
@@ -797,7 +800,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.324_dp
          s8 = 0.000_dp
-      CASE ("tHCTH")
+      CASE ("THCTH")
          s6 = 1.000_dp
          sr6 = 0.932_dp
          s8 = 0.5662_dp
