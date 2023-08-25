@@ -64,6 +64,7 @@ MODULE iao_analysis
                                               do_iaoloc_pm2
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_type,&
+                                              section_vals_get,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -223,6 +224,12 @@ CONTAINS
       ibo_molden_section => iao_env%ibo_molden_section
       ibo_cubes_section => iao_env%ibo_cubes_section
       ibo_cc_section => iao_env%ibo_cc_section
+
+      !
+      CALL section_vals_get(iao_molden_section, explicit=molden_iao)
+      CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
+      CALL section_vals_get(ibo_molden_section, explicit=molden_ibo)
+      CALL section_vals_get(ibo_cubes_section, explicit=cubes_ibo)
 
       ! check for or generate reference basis
       CALL create_minbas_set(qs_env, unit_nr)
