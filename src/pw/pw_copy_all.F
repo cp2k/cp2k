@@ -107,8 +107,6 @@ CONTAINS
          CPABORT("No suitable data field")
       END IF
 
-      pw2%in_space = RECIPROCALSPACE
-
    END SUBROUTINE pw_copy_match
 
 END MODULE pw_copy_all

@@ -718,6 +718,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (pw1%in_space /= pw2%in_space) &
+         CPABORT("Both pw grids must be in the same space to perform a copy!")
+
       out_unit = cp_logger_get_default_io_unit()
 
       IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
@@ -822,8 +825,6 @@ CONTAINS
                   CALL pw_copy_match(pw1, pw2)
                END IF
 
-               pw2%in_space = RECIPROCALSPACE
-
             ELSE IF (pw1%in_use == REALDATA3D .AND. pw1%in_use == pw2%in_use .AND. &
                      pw1%in_space == REALSPACE) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
@@ -880,8 +881,6 @@ CONTAINS
          END IF
 
       END IF
-
-      pw2%in_space = pw1%in_space
 
       CALL timestop(handle)
 
@@ -2021,9 +2020,6 @@ CONTAINS
          CPABORT("Data field has to be COMPLEXDATA1D")
       END IF
 
-      ! after the gather we are in g-space
-      pw%in_space = RECIPROCALSPACE
-
       ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
                  ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
 
@@ -2078,9 +2074,6 @@ CONTAINS
       IF (pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
          CPABORT("This grid type is not distributed")
       END IF
-
-      ! after the gather we are in g-space
-      pw%in_space = RECIPROCALSPACE
 
       ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
                  ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
@@ -2649,9 +2642,6 @@ CONTAINS
          END SELECT
 
       END IF
-
-      !..update the space tag for pw2
-      pw2%in_space = out_space
 
       IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
          WRITE (out_unit, '(A)') " End of FFT Protocol "
