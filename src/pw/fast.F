@@ -16,7 +16,7 @@ MODULE fast
 
    PRIVATE
 
-   PUBLIC :: rankup, vc_x_vc, vr_x_vc, copy_cri, copy_cr, copy_rc, zero_c
+   PUBLIC :: rankup, copy_cri, copy_cr, copy_rc, zero_c
 
    INTERFACE zero_c
       MODULE PROCEDURE zero_c2, zero_c3
@@ -58,44 +58,6 @@ CONTAINS
       CALL zgeru(n2, n(3), z_one, scr, 1, ez, 1, cmat, n2)
 
    END SUBROUTINE rankup
-
-! **************************************************************************************************
-!> \brief Multiply two complex 3D arrays element-wise
-!> \param cvec2 the other complex array
-!> \param cvec the complex array returned as the result
-! **************************************************************************************************
-   SUBROUTINE vc_x_vc(cvec2, cvec)
-!
-! cvec(i) <- cvec(i) * cvec2(i)
-!
-
-      COMPLEX(KIND=dp), INTENT(IN)                       :: cvec2(:, :, :)
-      COMPLEX(KIND=dp), INTENT(INOUT)                    :: cvec(:, :, :)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(cvec,cvec2)
-      cvec(:, :, :) = cvec(:, :, :)*cvec2(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-
-   END SUBROUTINE vc_x_vc
-
-! **************************************************************************************************
-!> \brief Scale a complex array element-wise by a real array
-!> \param rvec the real array
-!> \param cvec the complex array
-! **************************************************************************************************
-   SUBROUTINE vr_x_vc(rvec, cvec)
-!
-! cvec(i) <- cvec(i) * rvec(i)
-!
-
-      REAL(KIND=dp), INTENT(IN)                          :: rvec(:, :, :)
-      COMPLEX(KIND=dp), INTENT(INOUT)                    :: cvec(:, :, :)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(cvec,rvec)
-      cvec(:, :, :) = cvec(:, :, :)*CMPLX(rvec(:, :, :), KIND=dp)
-!$OMP END PARALLEL WORKSHARE
-
-   END SUBROUTINE vr_x_vc
 
 ! **************************************************************************************************
 !> \brief Copy a the real and imag. parts of a complex 3D array into two real arrays

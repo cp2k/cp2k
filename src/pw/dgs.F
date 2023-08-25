@@ -14,9 +14,7 @@ MODULE dgs
 
    USE fast,                            ONLY: copy_cr,&
                                               copy_cri,&
-                                              rankup,&
-                                              vc_x_vc,&
-                                              vr_x_vc
+                                              rankup
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FFT_RADIX_NEXT_ODD,&
@@ -30,8 +28,12 @@ MODULE dgs
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_change,&
                                               pw_grid_setup
+   USE pw_methods,                      ONLY: pw_multiply_with,&
+                                              pw_zero
    USE pw_types,                        ONLY: COMPLEXDATA3D,&
-                                              REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_create,&
+                                              pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
@@ -861,28 +863,25 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
       INTEGER                                            :: nd(3)
+      TYPE(pw_type)                                      :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      ALLOCATE (cd(nd(1), nd(2), nd(3)))
-      cd = 0.0_dp
+      CALL pw_create(cd, rho0%pw_grid, COMPLEXDATA3D, REALSPACE)
+      CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd, zb, ex1, ey1, ez1, zs)
-      IF (rho0%in_use == REALDATA3D) &
-         CALL vr_x_vc(rho0%cr3d, cd)
-      IF (rho0%in_use == COMPLEXDATA3D) &
-         CALL vc_x_vc(rho0%cc3d, cd)
-      CALL fft3d(BWFFT, nd, cd)
-      CALL copy_cr(cd, rhos1%cr3d)
+      CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
+      CALL pw_multiply_with(cd, rho0)
+      CALL fft3d(BWFFT, nd, cd%cc3d)
+      CALL copy_cr(cd%cc3d, rhos1%cr3d)
 
       DEALLOCATE (zs)
-      DEALLOCATE (cd)
+      CALL pw_release(cd)
 
    END SUBROUTINE dg_get_patch_1
 
@@ -910,31 +909,28 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
       INTEGER                                            :: nd(3)
+      TYPE(pw_type)                                      :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      ALLOCATE (cd(nd(1), nd(2), nd(3)))
-      cd = 0.0_dp
+      CALL pw_create(cd, rho0%pw_grid, COMPLEXDATA3D, REALSPACE)
+      CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       zb = CMPLX(charge2, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd, zb, ex2, ey2, ez2, zs)
+      CALL rankup(nd, za, cd%cc3d, zb, ex2, ey2, ez2, zs)
       za = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd, zb, ex1, ey1, ez1, zs)
-      IF (rho0%in_use == REALDATA3D) &
-         CALL vr_x_vc(rho0%cr3d, cd)
-      IF (rho0%in_use == COMPLEXDATA3D) &
-         CALL vc_x_vc(rho0%cc3d, cd)
-      CALL fft3d(BWFFT, nd, cd)
-      CALL copy_cri(cd, rhos1%cr3d, rhos2%cr3d)
+      CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
+      CALL pw_multiply_with(cd, rho0)
+      CALL fft3d(BWFFT, nd, cd%cc3d)
+      CALL copy_cri(cd%cc3d, rhos1%cr3d, rhos2%cr3d)
 
       DEALLOCATE (zs)
-      DEALLOCATE (cd)
+      CALL pw_release(cd)
 
    END SUBROUTINE dg_get_patch_2
 
