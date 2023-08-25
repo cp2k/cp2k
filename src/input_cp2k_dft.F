@@ -9183,10 +9183,10 @@ CONTAINS
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="UNIX", &
-                          description="Use a UNIX socket rather than an INET socket.", &
-                          usage="unix LOGICAL", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="INET", &
+                          description="Use an INET socket rather than a UNIX socket.", &
+                          usage="INET <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

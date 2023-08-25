@@ -2482,9 +2482,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: as_input
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rsdft_embedding'
+      INTEGER                                            :: handle
 
 #ifdef __NO_SOCKETS
-      INTEGER                                            :: handle
       CALL timeset(routineN, handle)
       CPABORT("CP2K was compiled with the __NO_SOCKETS option!")
       MARK_USED(qs_env)
@@ -2492,8 +2492,7 @@ CONTAINS
       MARK_USED(as_input)
 #else
 
-      INTEGER                                            :: client_fd, handle, iter, iw, max_iter, &
-                                                            socket_fd
+      INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter
       LOGICAL                                            :: converged, do_scf_embedding, ionode
       REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, &
@@ -2645,7 +2644,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: hostname
       INTEGER                                            :: handle, iw, port, protocol
-      LOGICAL                                            :: unix
+      LOGICAL                                            :: inet
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -2653,12 +2652,13 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_logger_get_default_io_unit(logger)
 
-      socket_fd = 0
-      protocol = 0
-
       ! protocol == 0 for UNIX, protocol > 0 for INET
-      CALL section_vals_val_get(as_input, "SOCKET%UNIX", l_val=unix)
-      IF (.NOT. unix) protocol = 1
+      CALL section_vals_val_get(as_input, "SOCKET%INET", l_val=inet)
+      IF (inet) THEN
+         protocol = 1
+      ELSE
+         protocol = 0
+      END IF
       CALL section_vals_val_get(as_input, "SOCKET%HOST", c_val=hostname)
       CALL section_vals_val_get(as_input, "SOCKET%PORT", i_val=port)
 

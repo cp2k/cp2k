@@ -13,26 +13,31 @@
 ! **************************************************************************************************
 MODULE hdf5_wrapper
 
-   USE hdf5,                            ONLY: &
-        h5aclose_f, h5acreate_f, h5aopen_f, h5aread_f, h5awrite_f, h5close_f, h5dclose_f, &
-        h5dcreate_f, h5dget_space_f, h5dopen_f, h5dread_f, h5dwrite_f, h5f_acc_rdonly_f, &
-        h5f_acc_trunc_f, h5fclose_f, h5fcreate_f, h5fopen_f, h5gclose_f, h5gcreate_f, h5gopen_f, &
-        h5open_f, h5s_scalar_f, h5sclose_f, h5screate_f, h5screate_simple_f, &
-        h5sget_simple_extent_npoints_f, h5t_c_s1, h5t_cset_utf8_f, h5t_enum_f, h5t_native_double, &
-        h5t_native_integer, h5t_str_nullpad_f, h5t_string, h5tclose_f, h5tcopy_f, h5tcreate_f, &
-        h5tenum_insert_f, h5tset_cset_f, h5tset_size_f, h5tset_strpad_f, hid_t, hsize_t, size_t
-   USE iso_c_binding,                   ONLY: C_LOC,&
-                                              c_ptr
-   USE kinds,                           ONLY: dp
+#ifdef __HDF5
+   USE hdf5, ONLY: &
+      h5aclose_f, h5acreate_f, h5aopen_f, h5aread_f, h5awrite_f, h5close_f, h5dclose_f, &
+      h5dcreate_f, h5dget_space_f, h5dopen_f, h5dread_f, h5dwrite_f, h5f_acc_rdonly_f, &
+      h5f_acc_trunc_f, h5fclose_f, h5fcreate_f, h5fopen_f, h5gclose_f, h5gcreate_f, h5gopen_f, &
+      h5open_f, h5s_scalar_f, h5sclose_f, h5screate_f, h5screate_simple_f, &
+      h5sget_simple_extent_npoints_f, h5t_c_s1, h5t_cset_utf8_f, h5t_enum_f, h5t_native_double, &
+      h5t_native_integer, h5t_str_nullpad_f, h5t_string, h5tclose_f, h5tcopy_f, h5tcreate_f, &
+      h5tenum_insert_f, h5tset_cset_f, h5tset_size_f, h5tset_strpad_f, hid_t, hsize_t, size_t
+#endif
+   USE iso_c_binding, ONLY: C_LOC, &
+                            c_ptr
+   USE kinds, ONLY: dp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hdf5_wrapper'
+#ifdef __HDF5
    INTEGER, PARAMETER, PUBLIC           :: hdf5_id = hid_t
+#endif
 
 CONTAINS
 
+#ifdef __HDF5
 ! **************************************************************************************************
 !> \brief Initialize the HDF5 fortran API
 ! **************************************************************************************************
@@ -758,5 +763,7 @@ CONTAINS
       IF (error < 0) CPABORT('ERROR: failed to close HDF5 attribute')
 
    END SUBROUTINE h5aread_double_scalar
+
+#endif
 
 END MODULE hdf5_wrapper
