@@ -73,7 +73,7 @@ def build_bibliography(references_html_fn: str, output_dir: Path) -> None:
 def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
     tree = ET.parse(cp2k_input_xml_fn)
     root = tree.getroot()
-    num_files_written = process_section(root, ("CP2K_INPUT",), output_dir)
+    num_files_written = process_section(root, ("CP2K_INPUT",), False, output_dir)
 
     # Build landing page.
     cp2k_version = get_text(root.find("CP2K_VERSION"))
@@ -83,7 +83,8 @@ def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
-    output += ["# Input reference", ""]
+    output += ["(CP2K_INPUT)="]
+    output += ["# Input Reference", ""]
 
     assert compile_revision.startswith("git:")
     github_url = f"https://github.com/cp2k/cp2k/tree/{compile_revision[4:]}"
@@ -104,20 +105,27 @@ def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
 
 # ======================================================================================
 def process_section(
-    section: lxml.etree._Element, section_path: SectionPath, output_dir: Path
+    section: lxml.etree._Element,
+    section_path: SectionPath,
+    has_name_collision: bool,
+    output_dir: Path,
 ) -> int:
     # Find more section fields.
     repeats = "repeats" in section.attrib and section.attrib["repeats"] == "yes"
     description = get_text(section.find("DESCRIPTION"))
     location = get_text(section.find("LOCATION"))
     section_name = section_path[-1]  # section.find("NAME") doesn't work for root
-    section_xref = ".".join(section_path[1:])  # used for cross-referencing
+    section_xref = ".".join(section_path)  # used for cross-referencing
 
     # Find section references.
     references = [get_name(ref) for ref in section.findall("REFERENCE")]
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
+    # There are a few collisions between cross references for sections and keywords,
+    # for example CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.POTENTIAL
+    collision_resolution_suffix = "_SECTION" if has_name_collision else ""
+    output += [f"({section_xref}{collision_resolution_suffix})="]
     output += [f"# {section_name}", ""]
     if repeats:
         output += ["**Section can be repeated.**", ""]
@@ -126,14 +134,17 @@ def process_section(
         output += [f"**References:** {citations}", ""]
     output += [f"{escape_markdown(description)} {github_link(location)}", ""]
 
+    # Collect and sort subsections.
+    subsections = sorted(section.findall("SECTION"), key=get_name)
+
     # Render TOC for subsections
-    if section.findall("SECTION"):
+    if subsections:
         output += ["```{toctree}"]
         output += [":maxdepth: 1"]
         output += [":titlesonly:"]
         output += [":caption: Subsections"]
-        output += [":glob:", ""]
-        output += [f"{section_name}/*"]  # TODO maybe list subsection explicitly.
+        for subsection in subsections:
+            output += [f"{section_name}/{get_name(subsection)}"]
         output += ["```", ""]
 
     # Collect and sort keywords
@@ -153,7 +164,7 @@ def process_section(
         for keyword in keywords:
             keyword_name = get_name(keyword)
             keyword_xref = f"{section_xref}.{sanitize_name(keyword_name)}"
-            output += [f"* [{escape_markdown(keyword_name)}]({keyword_xref})"]
+            output += [f"* [{escape_markdown(keyword_name)}](#{keyword_xref})"]
         output += [""]
         # Render keywords
         output += ["## Keyword descriptions", ""]
@@ -168,9 +179,12 @@ def process_section(
     num_files_written = 1
 
     # Process subsections
-    for subsection in section.findall("SECTION"):
+    keyword_names = {get_name(keyword) for keyword in keywords}
+    for subsection in subsections:
         subsection_path = (*section_path, get_name(subsection))
-        num_files_written += process_section(subsection, subsection_path, output_dir)
+        has_name_collision = get_name(subsection) in keyword_names
+        n = process_section(subsection, subsection_path, has_name_collision, output_dir)
+        num_files_written += n
 
     return num_files_written
 
