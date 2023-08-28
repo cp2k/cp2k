@@ -62,8 +62,7 @@ MODULE qs_ks_utils
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_sum
+   USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -1736,8 +1735,7 @@ CONTAINS
       do_zmp_read = dft_control%apply_external_vxc
       IF (do_zmp_read) THEN
          CALL pw_copy(qs_env%external_vxc, v_rspace_new(1))
-         exc = accurate_dot_product(v_rspace_new(1)%cr3d, rho_r(1)%cr3d)* &
-               v_rspace_new(1)%pw_grid%dvol
+         exc = pw_integral_ab(v_rspace_new(1), rho_r(1), local_only=.TRUE.)
       ELSE
          BLOCK
             REAL(KIND=dp)                                      :: factor

@@ -24,6 +24,8 @@ MODULE dielectric_methods
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_derive,&
+                                              pw_multiply,&
+                                              pw_set,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -86,7 +88,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(pw_pool, dielectric%deps_drho, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         dielectric%eps%cr3d = 1.0_dp
+         CALL pw_set(dielectric%eps, 1.0_dp)
          CALL pw_zero(dielectric%deps_drho)
          DO i = 1, 3
             CALL pw_pool_create_pw(pw_pool, dielectric%dln_eps(i), &
@@ -433,7 +435,7 @@ CONTAINS
             ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
             CALL derive_fft(rho_elec_rs_xpndd, drho, pw_pool_xpndd)
             DO i = 1, 3
-               deps(i)%cr3d = drho(i)%cr3d*dielectric%deps_drho%cr3d
+               CALL pw_multiply(deps(i), drho(i), dielectric%deps_drho)
                dielectric%dln_eps(i)%cr3d = deps(i)%cr3d/dielectric%eps%cr3d
             END DO
          END SELECT
@@ -740,7 +742,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      eps%cr3d = dielectric_params%eps0
+      CALL pw_set(eps, dielectric_params%eps0)
 
       n_aa_cuboidal = dielectric_params%n_aa_cuboidal
       n_xaa_annular = dielectric_params%n_xaa_annular

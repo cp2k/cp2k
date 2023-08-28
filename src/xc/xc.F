@@ -3068,11 +3068,12 @@ CONTAINS
          CALL pw_pool_create_pw(pw_pool, pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_zero(pw)
       ELSE
          ALLOCATE (pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         pw%cr3d = 0.0_dp
+         pw%in_use = REALDATA3D
+         pw%in_space = REALSPACE
       END IF
+      CALL pw_zero(pw)
 
    END SUBROUTINE allocate_pw
 

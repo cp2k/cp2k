@@ -8,3 +8,13 @@
    #:set pw_kinds = ["r1d", "r3d", "c1d", "c3d"]
    #:set pw_types = ["REAL(KIND=dp), DIMENSION(:)", "REAL(KIND=dp), DIMENSION(:, :, :)", "COMPLEX(KIND=dp), DIMENSION(:)", "COMPLEX(KIND=dp), DIMENSION(:, :, :)"]
 #:endmute
+
+#:def type2type(data, type1, type2)
+   #:if type1 == type2
+      ${data}$
+   #:elif type1.split("(")[0] == "REAL"
+      CMPLX(${data}$, 0.0_dp, KIND=dp)
+   #:else
+      REAL(${data}$, KIND=dp)
+   #:endif
+#:enddef

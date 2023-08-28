@@ -24,6 +24,7 @@ MODULE rs_pw_interface
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_scale,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -164,7 +165,6 @@ CONTAINS
 
       INTEGER                                            :: auxbas_grid, handle, igrid_level, &
                                                             interp_kind
-      REAL(KIND=dp)                                      :: scale
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
@@ -200,10 +200,9 @@ CONTAINS
             END IF
             ! *** Multiply by the grid volume element ratio ***
             IF (igrid_level /= auxbas_grid) THEN
-               scale = mgrid_rspace(igrid_level)%pw_grid%dvol/ &
-                       mgrid_rspace(auxbas_grid)%pw_grid%dvol
-               mgrid_rspace(igrid_level)%cr3d = &
-                  scale*mgrid_rspace(igrid_level)%cr3d
+               CALL pw_scale(mgrid_rspace(igrid_level), &
+                             mgrid_rspace(igrid_level)%pw_grid%dvol/ &
+                             mgrid_rspace(auxbas_grid)%pw_grid%dvol)
             END IF
          END DO
          CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
@@ -215,8 +214,7 @@ CONTAINS
                                 mgrid_rspace(igrid_level + 1), pw_pools(igrid_level + 1)%pool, &
                                 pw_env%interp_section)
             ! *** Multiply by the grid volume element ratio
-            mgrid_rspace(igrid_level + 1)%cr3d = &
-               mgrid_rspace(igrid_level + 1)%cr3d*8._dp
+            CALL pw_scale(mgrid_rspace(igrid_level + 1), 8._dp)
          END DO
       CASE default
          CALL cp_abort(__LOCATION__, &

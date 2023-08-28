@@ -164,7 +164,7 @@ CONTAINS
       grid => Vloc%pw_grid
       bo => grid%bounds_local
       glb => grid%bounds(1, :)
-      Vloc%cr3d = 0.0_dp
+      CALL pw_zero(Vloc)
       box = REAL(grid%npts, kind=dp)*grid%dr
       box2 = box/2.0_dp
       omega = PRODUCT(box)

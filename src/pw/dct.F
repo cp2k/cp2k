@@ -24,6 +24,7 @@ MODULE dct
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
+   USE pw_methods,                      ONLY: pw_copy_from_array
    USE pw_types,                        ONLY: RECIPROCALSPACE,&
                                               pw_type
 #include "../base/base_uses.f90"
@@ -674,7 +675,7 @@ CONTAINS
          cr3d_xpndd(:, :, :) = catd
       END SELECT
 
-      pw_expanded%cr3d = cr3d_xpndd
+      CALL pw_copy_from_array(pw_expanded, cr3d_xpndd)
 
       DO i = 1, maxn_sendrecv
          DEALLOCATE (pcs(i)%msg)

@@ -28,6 +28,7 @@ MODULE pw_spline_utils
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integral_ab,&
+                                              pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
@@ -2681,8 +2682,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: sumtype
       LOGICAL                                            :: res
 
-      INTEGER                                            :: i, iiter, iter, j, k
-      INTEGER, DIMENSION(2, 3)                           :: bo
+      INTEGER                                            :: iiter, iter
       LOGICAL                                            :: last
       REAL(kind=dp)                                      :: alpha, beta, eps_r_att, eps_x_att, r_z, &
                                                             r_z_new
@@ -2702,7 +2702,7 @@ CONTAINS
       ext_do: DO iiter = 1, max_iter, 10
          CALL pw_zero(r)
          CALL linOp(pw_in=coeffs, pw_out=r)
-         r%cr3d = -r%cr3d
+         CALL pw_scale(r, -1.0_dp)
          CALL pw_axpy(values, r)
          CALL pw_spline_do_precond(preconditioner, in_v=r, out_v=z)
          CALL pw_copy(z, p)
@@ -2737,14 +2737,7 @@ CONTAINS
             beta = r_z_new/r_z
             r_z = r_z_new
 
-            bo = p%pw_grid%bounds_local
-            DO k = bo(1, 3), bo(2, 3)
-               DO j = bo(1, 2), bo(2, 2)
-                  DO i = bo(1, 1), bo(2, 1)
-                     p%cr3d(i, j, k) = z%cr3d(i, j, k) + beta*p%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
+            CALL pw_axpy(z, p, 1.0_dp, beta)
 
          END DO
       END DO ext_do

@@ -63,8 +63,8 @@ MODULE optimize_embedding_potential
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: &
-        pw_axpy, pw_copy, pw_derive, pw_dr2, pw_integral_ab, pw_integrate_function, pw_scale, &
-        pw_transfer, pw_zero
+        pw_axpy, pw_copy, pw_copy_to_array, pw_derive, pw_dr2, pw_integral_ab, &
+        pw_integrate_function, pw_scale, pw_transfer, pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -3060,7 +3060,7 @@ CONTAINS
       ALLOCATE (grid_3d(size_x, size_y, size_z))
 
       ! Copy density
-      grid_3d(:, :, :) = diff_rho_r%cr3d(:, :, :)
+      CALL pw_copy_to_array(diff_rho_r, grid_3d)
 
       ! Find the maximum absolute value
       max_diff = MAXVAL(ABS(grid_3d))
@@ -3505,8 +3505,7 @@ CONTAINS
       i_dens_start = SUM(opt_embed%all_nspins(1:subsys_num)) - nspins + 1
 
       DO i_spin = 1, nspins
-         opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%cr3d(:, :, :) = &
-            rho_r(i_spin)%cr3d(:, :, :)
+         CALL pw_copy(rho_r(i_spin), opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1))
       END DO
 
    END SUBROUTINE get_prev_density

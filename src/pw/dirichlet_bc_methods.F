@@ -33,6 +33,7 @@ MODULE dirichlet_bc_methods
                                               PERIODIC_BC
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_integrate_function,&
                                               pw_zero
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -292,7 +293,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_bc_partition'
 
       INTEGER                                            :: handle, i, k, n_tiles, unit_nr
-      REAL(dp)                                           :: cyl_maxval, tile_volume
+      REAL(dp)                                           :: cyl_maxval
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tile_maxvals
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: cylinder_pw
@@ -334,9 +335,7 @@ CONTAINS
 
             CALL arbitrary_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                            sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
-            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
-            CALL pw_pool%pw_grid%para%group%sum(tile_volume)
-            dirichlet_bc%tiles(k)%tile%volume = tile_volume
+            dirichlet_bc%tiles(k)%tile%volume = pw_integrate_function(dirichlet_bc%tiles(k)%tile%tile_pw, just_sum=.TRUE.)
          END DO
 
          IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
@@ -373,9 +372,7 @@ CONTAINS
             CALL arbitrary_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                            sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_axpy(dirichlet_bc%tiles(k)%tile%tile_pw, cylinder_pw)
-            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
-            CALL pw_pool%pw_grid%para%group%sum(tile_volume)
-            dirichlet_bc%tiles(k)%tile%volume = tile_volume
+            dirichlet_bc%tiles(k)%tile%volume = pw_integrate_function(dirichlet_bc%tiles(k)%tile%tile_pw, just_sum=.TRUE.)
          END DO
 
          cyl_maxval = MAXVAL(cylinder_pw%cr3d)
@@ -418,9 +415,7 @@ CONTAINS
 
             CALL aa_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                     sigma, is_periodic, dirichlet_bc%tiles(k)%tile%tile_pw)
-            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
-            CALL pw_pool%pw_grid%para%group%sum(tile_volume)
-            dirichlet_bc%tiles(k)%tile%volume = tile_volume
+            dirichlet_bc%tiles(k)%tile%volume = pw_integrate_function(dirichlet_bc%tiles(k)%tile%tile_pw, just_sum=.TRUE.)
          END DO
 
          IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)

@@ -65,7 +65,7 @@ MODULE pw_methods
    PRIVATE
 
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
-   PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
+   PUBLIC :: pw_copy, pw_copy_to_array, pw_copy_from_array, pw_axpy, pw_transfer, pw_scale
    PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_laplace, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_log_deriv_gauss, pw_log_deriv_compl_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc
    PUBLIC :: pw_gauss_damp_mix, pw_multiply_with
@@ -91,6 +91,25 @@ MODULE pw_methods
          MODULE PROCEDURE pw_copy_${kind}$
       #:endfor
    END INTERFACE pw_copy
+
+   INTERFACE pw_copy_to_array
+      MODULE PROCEDURE pw_copy_pw
+      #:for kind, kind2 in zip(pw_kinds, pw_kinds)
+         MODULE PROCEDURE pw_copy_to_array_pw_${kind}$
+         #:if kind[1:] == kind2[1:]
+            MODULE PROCEDURE pw_copy_to_array_${kind}$_${kind2}$
+         #:endif
+      #:endfor
+   END INTERFACE pw_copy_to_array
+
+   INTERFACE pw_copy_from_array
+      #:for kind, kind2 in zip(pw_kinds, pw_kinds)
+         MODULE PROCEDURE pw_copy_from_array_pw_${kind}$
+         #:if kind[1:] == kind2[1:]
+            MODULE PROCEDURE pw_copy_from_array_${kind}$_${kind2}$
+         #:endif
+      #:endfor
+   END INTERFACE pw_copy_from_array
 
    INTERFACE pw_scale
       MODULE PROCEDURE pw_scale_pw
@@ -212,6 +231,65 @@ CONTAINS
          CALL timestop(handle)
 
       END SUBROUTINE pw_copy_${kind}$
+
+      #:for kind2, type2 in zip(pw_kinds, pw_types)
+         #:if kind[1:] == kind2[1:]
+! **************************************************************************************************
+!> \brief copy a pw type into an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+            SUBROUTINE pw_copy_to_array_${kind}$_${kind2}$ (pw1, array)
+
+               TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1
+               ${type2}$, INTENT(INOUT)              :: array
+
+               CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_${kind}$_${kind2}$'
+
+               INTEGER                                            :: handle
+
+               CALL timeset(routineN, handle)
+
+               IF (ANY(SHAPE(pw1%array) /= SHAPE(array))) &
+                  CPABORT("Copy requires PW grid and array to have the same shape!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+               array = ${type2type("pw1%array", type, type2)}$
+!$OMP END PARALLEL WORKSHARE
+
+               CALL timestop(handle)
+
+            END SUBROUTINE pw_copy_to_array_${kind}$_${kind2}$
+
+! **************************************************************************************************
+!> \brief copy a pw type into an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+            SUBROUTINE pw_copy_from_array_${kind}$_${kind2}$ (pw1, array)
+
+               TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1
+               ${type2}$, INTENT(INOUT)              :: array
+
+               CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_${kind}$_${kind2}$'
+
+               INTEGER                                            :: handle
+
+               CALL timeset(routineN, handle)
+
+               IF (ANY(SHAPE(pw1%array) /= SHAPE(array))) &
+                  CPABORT("Copy requires PW grid and array to have the same shape!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+               pw1%array = ${type2type("array", type2, type)}$
+!$OMP END PARALLEL WORKSHARE
+
+               CALL timestop(handle)
+
+            END SUBROUTINE pw_copy_from_array_${kind}$_${kind2}$
+
+         #:endif
+      #:endfor
 
 ! **************************************************************************************************
 !> \brief multiplies pw coeffs with a number
@@ -885,6 +963,270 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_copy_pw
+
+! **************************************************************************************************
+!> \brief copy a pw type from an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_from_array_pw_r3d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_pw_r3d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == REALDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         pw1%cr3d = array
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cc3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         pw1%cc3d = CMPLX(array, 0.0_dp, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_from_array_pw_r3d
+
+! **************************************************************************************************
+!> \brief copy a pw type into an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_from_array_pw_c3d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_pw_c3d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == REALDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         pw1%cr3d = REAL(array, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cc3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         pw1%cc3d = array
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_from_array_pw_c3d
+
+! **************************************************************************************************
+!> \brief copy a pw type into an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_from_array_pw_r1d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_pw_r1d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == COMPLEXDATA1D) THEN
+         IF (ANY(SHAPE(pw1%cc) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         pw1%cc = CMPLX(array, 0.0_dp, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_from_array_pw_r1d
+
+! **************************************************************************************************
+!> \brief copy a pw type into an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_from_array_pw_c1d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_pw_c1d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == COMPLEXDATA1D) THEN
+         IF (ANY(SHAPE(pw1%cc) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         pw1%cc = array
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_from_array_pw_c1d
+
+! **************************************************************************************************
+!> \brief copy a pw type to an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_to_array_pw_r3d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_pw_r3d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == REALDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         array = pw1%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cc3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         array = REAL(pw1%cc3d, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_to_array_pw_r3d
+
+! **************************************************************************************************
+!> \brief copy a pw type into an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_to_array_pw_c3d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_pw_c3d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == REALDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         array = CMPLX(pw1%cr3d, 0.0_dp, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw1%in_use == COMPLEXDATA3D) THEN
+         IF (ANY(SHAPE(pw1%cc3d) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         array = pw1%cc3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_to_array_pw_c3d
+
+! **************************************************************************************************
+!> \brief copy a pw type to an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_to_array_pw_r1d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_pw_r1d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == COMPLEXDATA1D) THEN
+         IF (ANY(SHAPE(pw1%cc) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         array = REAL(pw1%cc, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_to_array_pw_r1d
+
+! **************************************************************************************************
+!> \brief copy a pw type to an array
+!> \param pw1 ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_to_array_pw_c1d(pw1, array)
+
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: array
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_pw_c1d'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw1%in_use == COMPLEXDATA1D) THEN
+         IF (ANY(SHAPE(pw1%cc) /= SHAPE(array))) &
+            CPABORT("Copy requires PW grid and array to have the same shape!")
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
+         array = pw1%cc
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("Unsupported pw%in_use!")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_copy_to_array_pw_c1d
 
 ! **************************************************************************************************
 !> \brief multiplies pw coeffs with a number
@@ -3010,14 +3352,16 @@ CONTAINS
 !> \param oprt ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION pw_integrate_function(fun, isign, oprt) RESULT(total_fun)
+   FUNCTION pw_integrate_function(fun, isign, oprt, just_sum, local_sum) RESULT(total_fun)
 
       TYPE(pw_type), INTENT(IN)                          :: fun
       INTEGER, INTENT(IN), OPTIONAL                      :: isign
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: oprt
+      LOGICAL, INTENT(IN), OPTIONAL :: just_sum, local_sum
       REAL(KIND=dp)                                      :: total_fun
 
       INTEGER                                            :: iop
+      LOGICAL :: my_just_sum, my_local_sum
 
       iop = 0
 
@@ -3030,15 +3374,21 @@ CONTAINS
          END SELECT
       END IF
 
+      my_just_sum = .FALSE.
+      IF (PRESENT(just_sum)) my_just_sum = just_sum
+
+      my_local_sum = .FALSE.
+      IF (PRESENT(local_sum)) my_local_sum = local_sum
+
       total_fun = 0.0_dp
 
       IF (fun%in_space == REALSPACE) THEN
          IF (fun%in_use == REALDATA3D) THEN
             ! do reduction using maximum accuracy
             IF (iop == 1) THEN
-               total_fun = fun%pw_grid%dvol*accurate_sum(ABS(fun%cr3d))
+               total_fun = accurate_sum(ABS(fun%cr3d))
             ELSE
-               total_fun = fun%pw_grid%dvol*accurate_sum(fun%cr3d)
+               total_fun = accurate_sum(fun%cr3d)
             END IF
          ELSE
             CPABORT("In_space/in_use combination not implemented")
@@ -3047,7 +3397,7 @@ CONTAINS
          IF (iop == 1) &
             CPABORT("Operator ABS not implemented")
          IF (fun%in_use == COMPLEXDATA1D) THEN
-            IF (fun%pw_grid%have_g0) total_fun = REAL(fun%pw_grid%vol*fun%cc(1), KIND=dp)
+            IF (fun%pw_grid%have_g0) total_fun = REAL(fun%cc(1), KIND=dp)
          ELSE
             CPABORT("In_space/in_use combination not implemented")
          END IF
@@ -3055,7 +3405,17 @@ CONTAINS
          CPABORT("No space defined")
       END IF
 
-      IF (fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
+      IF (.NOT. my_just_sum) THEN
+         IF (fun%in_use == REALDATA3D .OR. fun%in_use == COMPLEXDATA3D) THEN
+            total_fun = total_fun*fun%pw_grid%dvol
+         ELSE IF (fun%in_use == COMPLEXDATA1D) THEN
+            total_fun = total_fun*fun%pw_grid%vol
+         ELSE
+            CPABORT("Invalid data field!")
+         END IF
+      END IF
+
+      IF (.NOT. my_local_sum .AND. fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
          CALL fun%pw_grid%para%group%sum(total_fun)
       END IF
 

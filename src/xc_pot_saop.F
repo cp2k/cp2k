@@ -399,8 +399,8 @@ CONTAINS
                we_GLLB = 2.0_dp*we_GLLB
             END IF
 
-            vxc_tmp(ispin)%cr3d = we_LB*vxc_LB(ispin)%cr3d + &
-                                  we_GLLB*vxc_GLLB(ispin)%cr3d
+            CALL pw_copy(vxc_LB(ispin), vxc_tmp(ispin))
+            CALL pw_axpy(vxc_GLLB(ispin), vxc_tmp(ispin), we_GLLB, we_LB)
 
             CALL cp_fm_set_all(single_mo_coeff(ispin), 0.0_dp)
             CALL cp_fm_get_submatrix(mo_coeff, coeff_col, &
