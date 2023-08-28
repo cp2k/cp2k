@@ -5,14 +5,14 @@
 # Tested with: Intel 22.2 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2023.05.001,
 #              PLUMED 2.8.2, SPGLIB 1.16.2, LIBVORI 220621,
-#              GSL 2.7, COSMA 2.6.6
+#              GSL 2.7, COSMA 2.6.6, HDF5 1.12.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 09.08.2023
+# Last update: 28.08.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -54,6 +54,7 @@ SHARED         := no
 TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
+USE_HDF5       := 1.12.0
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 #USE_LIBTORCH   := 1.12.1
@@ -67,7 +68,6 @@ USE_SPGLIB     := 1.16.2
 LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.6
 SPLA_VER       := 1.5.5
-HDF5_VER       := 1.12.0
 # Only needed for LIBPEXSI
 SCOTCH_VER     := 6.0.0
 SUPERLU_VER    := 6.1.0
@@ -227,8 +227,6 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
-   HDF5_VER       := $(strip $(HDF5_VER))
-   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
    LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
@@ -244,7 +242,6 @@ ifneq ($(USE_SIRIUS),)
    CFLAGS         += -I$(SPFFT_INC)
    CFLAGS         += -I$(SPLA_INC)
    CFLAGS         += -I$(SIRIUS_INC)
-   DFLAGS         += -D__HDF5
    DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SPFFT
    DFLAGS         += -D__SPLA
@@ -254,13 +251,11 @@ ifneq ($(USE_SIRIUS),)
       LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
       LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
       LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
-      LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
    else
       LIBS           += $(SIRIUS_LIB)/libsirius.a
       LIBS           += $(SPLA_LIB)/libspla.a
       LIBS           += $(SPFFT_LIB)/libspfft.a
       LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
-      LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
 endif
 
@@ -289,6 +284,19 @@ ifneq ($(USE_GSL),)
       LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl
    else
       LIBS           += $(GSL_LIB)/libgsl.a
+   endif
+endif
+
+ifneq ($(USE_HDF5),)
+   USE_HDF5       := $(strip $(USE_HDF5))
+   HDF5_INC       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/include
+   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/lib
+   CFLAGS         += -I$(HDF5_INC)
+   DFLAGS         += -D__HDF5
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
+   else
+      LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
 endif
 

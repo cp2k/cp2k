@@ -2,16 +2,18 @@
 #
 # CP2K arch file for Cray-XC40 (Piz Daint, CSCS, multi-core partition)
 #
-# Tested with: GNU 11.2.0, Cray-MPICH 7.7.18, Cray-libsci 20.09.1, Cray-FFTW 3.3.8.10,
-#              COSMA 2.6.6, ELPA 2023.05.001, LIBINT 2.6.0, LIBPEXSI 1.2.0,
-#              LIBXC 6.2.2, LIBVORI 220621, LIBXSMM 1.17, PLUMED 2.8.2,
+# Tested with: GNU 11.2.0, Cray-MPICH 7.7.18, 
+#              Cray-libsci 20.09.1, Cray-FFTW 3.3.8.10,
+#              COSMA 2.6.6, ELPA 2023.05.001, HDF5 1.12.0,
+#              LIBINT 2.6.0, LIBPEXSI 1.2.0, LIBXC 6.2.2,
+#              LIBVORI 220621, LIBXSMM 1.17, PLUMED 2.8.2,
 #              SIRIUS 7.4.3, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 09.08.2023
+# Last update: 28.08.2023
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -66,6 +68,7 @@
 DO_CHECKS      := no
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
+USE_HDF5       := 1.12.0
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
@@ -79,7 +82,6 @@ USE_SPGLIB     := 1.16.2
 LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.6
 SPLA_VER       := 1.5.5
-HDF5_VER       := 1.12.0
 # Only needed for LIBPEXSI
 SCOTCH_VER     := 6.0.0
 SUPERLU_VER    := 6.1.0
@@ -207,8 +209,6 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
-   HDF5_VER       := $(strip $(HDF5_VER))
-   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
    LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
@@ -224,7 +224,6 @@ ifneq ($(USE_SIRIUS),)
    CFLAGS         += -I$(SPFFT_INC)
    CFLAGS         += -I$(SPLA_INC)
    CFLAGS         += -I$(SIRIUS_INC)
-   DFLAGS         += -D__HDF5
    DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SPFFT
    DFLAGS         += -D__SPLA
@@ -233,7 +232,6 @@ ifneq ($(USE_SIRIUS),)
    LIBS           += $(SPLA_LIB)/libspla.a
    LIBS           += $(SPFFT_LIB)/libspfft.a
    LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
-   LIBS           += $(HDF5_LIB)/libhdf5.a
 endif
 
 ifneq ($(USE_COSMA),)
@@ -254,6 +252,15 @@ ifneq ($(USE_GSL),)
    CFLAGS         += -I$(GSL_INC)
    DFLAGS         += -D__GSL
    LIBS           += $(GSL_LIB)/libgsl.a
+endif
+
+ifneq ($(USE_HDF5),)
+   USE_HDF5       := $(strip $(USE_HDF5))
+   HDF5_INC       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/include
+   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/lib
+   CFLAGS         += -I$(HDF5_INC)
+   DFLAGS         += -D__HDF5
+   LIBS           += $(HDF5_LIB)/libhdf5.a
 endif
 
 CFLAGS         += $(DFLAGS)
