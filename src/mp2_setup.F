@@ -227,6 +227,19 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%KPOINTS_SELF_ENERGY", &
                                 i_vals=mp2_env%ri_g0w0%kp_grid_Sigma)
 
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%LOWER_BOUND", &
+                                r_val=mp2_env%ri_g0w0%dos_lower)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%UPPER_BOUND", &
+                                r_val=mp2_env%ri_g0w0%dos_upper)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%STEP", &
+                                r_val=mp2_env%ri_g0w0%dos_prec)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MIN_LEVEL_SELF_ENERGY", &
+                                i_val=mp2_env%ri_g0w0%min_level_self_energy)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MAX_LEVEL_SELF_ENERGY", &
+                                i_val=mp2_env%ri_g0w0%max_level_self_energy)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%BROADENING", &
+                                r_val=mp2_env%ri_g0w0%dos_eta)
+
       mp2_env%ri_g0w0%do_kpoints_Sigma = mp2_env%ri_g0w0%n_special_kp > 0 .OR. &
                                          mp2_env%ri_g0w0%kp_grid_Sigma(1)* &
                                          mp2_env%ri_g0w0%kp_grid_Sigma(2)* &

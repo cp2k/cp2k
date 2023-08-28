@@ -993,13 +993,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
+      TYPE(section_type), POINTER                        :: gw_dos_section, print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (print_key, keyword)
+      NULLIFY (gw_dos_section, keyword)
       CALL section_create(section, __LOCATION__, name="PRINT", &
                           description="Section of possible print options specific for the GW code.", &
-                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=0, n_subsections=2, repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_BANDGAP", &
                                        description="Prints a local bandgap E_gap(r), derived from the local density of "// &
@@ -1041,6 +1042,59 @@ CONTAINS
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
+
+      CALL section_create(gw_dos_section, __LOCATION__, name="GW_DOS", &
+                          description="Section for printing the spectral funtion.", &
+                          n_keywords=6, n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="LOWER_BOUND", &
+                          description="Lower bound for GW-DOS in eV.", &
+                          usage="GW_DOS_LOWER_BOUND -20.0", &
+                          default_r_val=cp_unit_to_cp2k(value=-20.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UPPER_BOUND", &
+                          description="Upper bound for GW-DOS in eV.", &
+                          usage="GW_DOS_UPPER_BOUND 5.0", &
+                          default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STEP", &
+                          description="Difference of two consecutive energy levels for GW-DOS.", &
+                          usage="GW_DOS_PRECISION 0.1", &
+                          default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SELF_ENERGY", &
+                          description="Lowest energy level to print the self energy to files.", &
+                          usage="MIN_LEVEL_SELF_ENERGY 3", &
+                          default_i_val=1)
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_LEVEL_SELF_ENERGY", &
+                          description="Highest energy level to print the self energy to files.", &
+                          usage="MAX_LEVEL_SELF_ENERGY 6", &
+                          default_i_val=0)
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
+                          description="Broadening parameter for spectral function.", &
+                          usage="BROADENING 0.001", &
+                          default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, gw_dos_section)
+      CALL section_release(gw_dos_section)
 
    END SUBROUTINE
 

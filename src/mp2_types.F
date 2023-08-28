@@ -212,6 +212,10 @@ MODULE mp2_types
                                   ldos_thresh_print_loc_bandgap = 0.0_dp, energy_spacing_print_loc_bandgap = 0.0_dp, &
                                   regularization_minimax = 0.0_dp, soc_energy_window = 0.0_dp
       INTEGER, DIMENSION(:), POINTER :: stride_loc_bandgap => NULL()
+
+      !GW_DOS
+      REAL(KIND=dp)            :: dos_upper, dos_lower, dos_prec, dos_eta
+      INTEGER                  :: max_level_self_energy, min_level_self_energy
    END TYPE
 
    TYPE ri_basis_opt

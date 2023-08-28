@@ -51,6 +51,7 @@ MODULE rpa_gw
         cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
@@ -1296,10 +1297,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
       INTEGER :: count_ev_sc_GW_print, count_sc_GW0, count_sc_GW0_print, crossing_search, handle, &
-         ikp, ispin, n_level_gw, nspins, num_points_corr, num_poles
+         idos, ikp, ispin, iunit, n_level_gw, ndos, nspins, num_points_corr, num_poles
       LOGICAL                                            :: do_kpoints_Sigma, my_open_shell
-      REAL(KIND=dp) :: E_CBM_GW, E_CBM_GW_beta, E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, &
-         E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit
+      REAL(KIND=dp) :: dos_lower_bound, dos_precision, dos_upper_bound, E_CBM_GW, E_CBM_GW_beta, &
+         E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_gw_dos
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
 
@@ -1389,6 +1391,23 @@ CONTAINS
          E_VBM_SCF_beta = -1.0E3
          E_CBM_SCF_beta = 1.0E3
 
+         ndos = 0
+         dos_precision = mp2_env%ri_g0w0%dos_prec
+         dos_upper_bound = mp2_env%ri_g0w0%dos_upper
+         dos_lower_bound = mp2_env%ri_g0w0%dos_lower
+
+         IF (dos_lower_bound >= dos_upper_bound) THEN
+            CALL cp_abort(__LOCATION__, "Invalid settings for GW_DOS calculation!")
+            dos_precision = 0_dp
+            ndos = 0
+         END IF
+
+         IF (dos_precision /= 0) THEN
+            ndos = INT((dos_upper_bound - dos_lower_bound)/dos_precision)
+            ALLOCATE (vec_gw_dos(ndos))
+            vec_gw_dos = 0.0_dp
+         END IF
+
          ! for the normal code for molecules or Gamma only: nkp = 1
          DO ikp = 1, nkp_self_energy
 
@@ -1416,7 +1435,11 @@ CONTAINS
                                          Eigenval(:, ikp, 1), Eigenval_scf(:, ikp, 1), n_level_gw, &
                                          gw_corr_lev_occ(1), mp2_env%ri_g0w0%nparam_pade, &
                                          num_fit_points, crossing_search, homo(1), fermi_level_offset, &
-                                         do_im_time, mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW)
+                                         do_im_time, mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
+                                         vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
+                                         mp2_env%ri_g0w0%min_level_self_energy, &
+                                         mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta)
+
                CASE DEFAULT
                   CPABORT("Only two-model and Pade approximation are implemented.")
                END SELECT
@@ -1440,7 +1463,10 @@ CONTAINS
                                             gw_corr_lev_occ(2), mp2_env%ri_g0w0%nparam_pade, &
                                             num_fit_points, crossing_search, homo(2), &
                                             fermi_level_offset, do_im_time, &
-                                            mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW)
+                                            mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
+                                            vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
+                                            mp2_env%ri_g0w0%min_level_self_energy, &
+                                            mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta)
                   CASE DEFAULT
                      CPABORT("Only two-pole model and Pade approximation are implemented.")
                   END SELECT
@@ -1452,6 +1478,7 @@ CONTAINS
             CALL para_env%sum(vec_gw_energ)
             CALL para_env%sum(z_value)
             CALL para_env%sum(m_value)
+            CALL para_env%sum(vec_gw_dos)
 
             CALL check_NaN(vec_gw_energ, 0.0_dp)
             CALL check_NaN(z_value, 1.0_dp)
@@ -1532,6 +1559,22 @@ CONTAINS
                                          homo, unit_nr, do_soc_gw=.FALSE., do_soc_scf=.TRUE.)
             CALL calculate_and_print_soc(qs_env, Eigenval, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, &
                                          homo, unit_nr, do_soc_gw=.TRUE., do_soc_scf=.FALSE.)
+         END IF
+
+         iunit = cp_logger_get_default_unit_nr()
+
+         IF (dos_precision /= 0.0_dp) THEN
+            IF (iunit > 0) THEN
+               CALL open_file('spectral.dat', unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
+               DO idos = 1, ndos
+                  ! 1/pi
+                  ! [1/Hartree] -> [1/evolt]
+                  WRITE (iunit, '(E17.10, E17.10)') (dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision)*evolt, &
+                     vec_gw_dos(idos)/evolt*0.3183098861837907
+               END DO
+               CLOSE (iunit)
+            END IF
+            DEALLOCATE (vec_gw_dos)
          END IF
 
          DEALLOCATE (z_value)
@@ -4231,13 +4274,23 @@ CONTAINS
 !> \param do_gw_im_time ...
 !> \param print_self_energy ...
 !> \param count_ev_sc_GW ...
+!> \param vec_gw_dos ...
+!> \param dos_lower_bound ...
+!> \param dos_precision ...
+!> \param ndos ...
+!> \param min_level_self_energy ...
+!> \param max_level_self_energy ...
+!> \param dos_eta ...
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
                                 Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, nparam_pade, &
                                 num_fit_points, crossing_search, homo, &
-                                fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW)
+                                fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW, &
+                                vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
+                                min_level_self_energy, max_level_self_energy, dos_eta)
 
+      ! Optional arguments for spectral function
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_omega_fit_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: z_value, m_value
@@ -4250,19 +4303,27 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, print_self_energy
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), OPTIONAL :: vec_gw_dos
+      REAL(KIND=dp), OPTIONAL                            :: dos_lower_bound, dos_precision
+      INTEGER, INTENT(IN), OPTIONAL                      :: ndos, min_level_self_energy, &
+                                                            max_level_self_energy
+      REAL(KIND=dp), OPTIONAL                            :: dos_eta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
+      CHARACTER(LEN=5)                                   :: string_level
       CHARACTER(len=default_path_length)                 :: filename
       COMPLEX(KIND=dp)                                   :: sigma_c_pade, sigma_c_pade_im_freq
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeff_pade, omega_points_pade, &
                                                             Sigma_c_gw_reorder
-      INTEGER                                            :: handle, i_omega, iunit, jquad, &
+      INTEGER                                            :: handle, i_omega, idos, iunit, jquad, &
                                                             n_level_gw_ref, num_omega
       REAL(KIND=dp)                                      :: e_fermi, energy_val, level_energ_GW, &
-                                                            omega, sign_occ_virt
+                                                            omega, omega_dos, omega_dos_pade_eval, &
+                                                            sign_occ_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_fit_gw_sign, &
-                                                            vec_omega_fit_gw_sign_reorder
+                                                            vec_omega_fit_gw_sign_reorder, &
+                                                            vec_sigma_imag, vec_sigma_real
 
       CALL timeset(routineN, handle)
 
@@ -4330,6 +4391,78 @@ CONTAINS
                            REAL(sigma_c_pade) + &
                            vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
                           z_value(n_level_gw)
+      END IF
+
+      iunit = cp_logger_get_default_unit_nr()
+
+      IF (PRESENT(min_level_self_energy) .AND. PRESENT(max_level_self_energy)) THEN
+         IF (n_level_gw_ref >= min_level_self_energy .AND. n_level_gw_ref <= max_level_self_energy) THEN
+            ALLOCATE (vec_sigma_real(ndos))
+            ALLOCATE (vec_sigma_imag(ndos))
+            WRITE (string_level, "(I4)") n_level_gw_ref
+            string_level = ADJUSTL(string_level)
+         END IF
+      END IF
+
+      !*** Calculate spectral function
+      !***         1   \‾‾                    |Im 𝚺ₘ(ω)|+η
+      !*** A(ω) = ---   |    ---------------------------------------------------
+      !***         π   /__   [ω - eₘ^DFT - (Re 𝚺ₘ(ω) - vₘ^xc)]² + (|Im 𝚺ₘ(ω)|+η)²
+
+      IF (PRESENT(ndos)) THEN
+      IF (ndos /= 0) THEN
+         DO idos = 1, ndos
+            omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
+            omega_dos_pade_eval = omega_dos - e_fermi
+            CALL evaluate_pade_function(omega_dos_pade_eval, nparam_pade, omega_points_pade, &
+                                        coeff_pade, sigma_c_pade)
+
+            IF (n_level_gw_ref >= min_level_self_energy .AND. &
+                n_level_gw_ref <= max_level_self_energy .AND. iunit > 0) THEN
+
+               vec_sigma_real(idos) = (REAL(sigma_c_pade))*evolt
+               vec_sigma_imag(idos) = (AIMAG(sigma_c_pade))*evolt
+
+            END IF
+
+            vec_gw_dos(idos) = vec_gw_dos(idos) + &
+                               (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
+                               /( &
+                               (omega_dos - Eigenval(n_level_gw_ref) - &
+                                (REAL(sigma_c_pade) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)) &
+                                )**2 &
+                               + (ABS(AIMAG(sigma_c_pade)) + dos_eta)**2 &
+                               )
+
+         END DO
+      END IF
+      END IF
+
+      IF (PRESENT(min_level_self_energy) .AND. PRESENT(max_level_self_energy)) THEN
+      IF (n_level_gw_ref >= min_level_self_energy .AND. &
+          n_level_gw_ref <= max_level_self_energy .AND. iunit > 0) THEN
+
+         CALL open_file('self_energy_re_'//TRIM(string_level)//'.dat', unit_number=iunit, &
+                        file_status="UNKNOWN", file_action="WRITE")
+         DO idos = 1, ndos
+            omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
+            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_real(idos)
+         END DO
+
+         CLOSE (iunit)
+
+         CALL open_file('self_energy_im_'//TRIM(string_level)//'.dat', unit_number=iunit, &
+                        file_status="UNKNOWN", file_action="WRITE")
+         DO idos = 1, ndos
+            omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
+            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_imag(idos)
+         END DO
+
+         CLOSE (iunit)
+
+         DEALLOCATE (vec_sigma_real)
+         DEALLOCATE (vec_sigma_imag)
+      END IF
       END IF
 
       !*** perform crossing search
