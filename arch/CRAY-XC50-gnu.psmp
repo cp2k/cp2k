@@ -259,6 +259,17 @@ ifneq ($(USE_SIRIUS),)
    LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
 endif
 
+ifneq ($(USE_HDF5),)
+   USE_HDF5       := $(strip $(USE_HDF5))
+   HDF5_INC       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/include
+   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/lib
+   CFLAGS         += -I$(HDF5_INC)
+   DFLAGS         += -D__HDF5
+   LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
+   LIBS           += $(HDF5_LIB)/libhdf5_hl.a
+   LIBS           += $(HDF5_LIB)/libhdf5.a
+endif
+
 ifneq ($(USE_COSMA),)
    USE_COSMA      := $(strip $(USE_COSMA))
    ifeq ($(USE_ACC), yes)
@@ -281,15 +292,6 @@ ifneq ($(USE_GSL),)
    CFLAGS         += -I$(GSL_INC)
    DFLAGS         += -D__GSL
    LIBS           += $(GSL_LIB)/libgsl.a
-endif
-
-ifneq ($(USE_HDF5),)
-   USE_HDF5       := $(strip $(USE_HDF5))
-   HDF5_INC       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/include
-   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/lib
-   CFLAGS         += -I$(HDF5_INC)
-   DFLAGS         += -D__HDF5
-   LIBS           += $(HDF5_LIB)/libhdf5.a
 endif
 
 CFLAGS         += $(DFLAGS)
