@@ -16,6 +16,7 @@ MODULE qs_gspace_mixing
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_copy_to_array,&
                                               pw_integrate_function,&
                                               pw_scale,&
                                               pw_transfer,&
@@ -75,8 +76,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gspace_mixing'
 
-      INTEGER                                            :: handle, iatom, ig, ispin, natom, ng, &
-                                                            nimg, nspin
+      INTEGER                                            :: handle, iatom, ispin, natom, ng, nimg, &
+                                                            nspin
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
@@ -121,9 +122,7 @@ CONTAINS
          IF (iter_count + 1 <= mixing_store%nskip_mixing) THEN
             ! skip mixing
             DO ispin = 1, nspin
-               DO ig = 1, ng
-                  mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%cc(ig)
-               END DO
+               CALL pw_copy_to_array(rho_g(ispin), mixing_store%rhoin(ispin)%cc)
             END DO
             IF (mixing_store%gmix_p .AND. gapw) THEN
                CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)

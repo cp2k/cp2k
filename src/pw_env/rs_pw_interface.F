@@ -157,7 +157,7 @@ CONTAINS
    SUBROUTINE potential_pw2rs(rs_v, v_rspace, pw_env)
 
       TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_v
+         INTENT(INOUT)                                   :: rs_v
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
 

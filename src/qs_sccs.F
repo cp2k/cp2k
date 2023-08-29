@@ -65,6 +65,7 @@ MODULE qs_sccs
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_derive,&
+                                              pw_divide,&
                                               pw_integral_ab,&
                                               pw_integrate_function,&
                                               pw_transfer,&
@@ -492,10 +493,10 @@ CONTAINS
 
          ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
          ! eps_elec <- ln(eps_elec)
+         CALL pw_divide(rho_tot_zero, rho_solute, eps_elec)
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(i,j,k) &
-!$OMP             SHARED(eps_elec,lb,message,output_unit,para_env,ub) &
-!$OMP             SHARED(rho_solute,rho_tot_zero)
+!$OMP             SHARED(eps_elec,lb,message,output_unit,para_env,ub)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
@@ -505,7 +506,6 @@ CONTAINS
                         " encountered at grid point (", i, ",", j, ",", k, ")"
                      CPABORT(message)
                   END IF
-                  rho_tot_zero%cr3d(i, j, k) = rho_solute%cr3d(i, j, k)/eps_elec%cr3d(i, j, k)
                   eps_elec%cr3d(i, j, k) = LOG(eps_elec%cr3d(i, j, k))
                END DO
             END DO

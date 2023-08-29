@@ -36,7 +36,7 @@ MODULE spme
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_derive,&
                                               pw_integral_a2b,&
-                                              pw_multiply_with,&
+                                              pw_multiply_by,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                               pw_poisson_solve
@@ -233,7 +233,7 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
-      CALL pw_multiply_with(rhob_g, green%p3m_charge)
+      CALL pw_multiply_by(rhob_g, green%p3m_charge)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
       ! allocate intermediate arrays
@@ -256,7 +256,7 @@ CONTAINS
          ALLOCATE (rpot)
          CALL rs_grid_create(rpot, rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=rpot)
-         CALL pw_multiply_with(phi_g, green%p3m_charge)
+         CALL pw_multiply_by(phi_g, green%p3m_charge)
          CALL pw_transfer(phi_g, rhob_r)
          CALL transfer_pw2rs(rpot, rhob_r)
          ipart = 0
@@ -320,7 +320,7 @@ CONTAINS
                   nd(j) = 1
                   CALL pw_copy(phi_g, rhob_g)
                   CALL pw_derive(rhob_g, nd)
-                  CALL pw_multiply_with(rhob_g, green%p3m_charge)
+                  CALL pw_multiply_by(rhob_g, green%p3m_charge)
                   CALL pw_transfer(rhob_g, rhob_r)
                   CALL transfer_pw2rs(rpot, rhob_r)
 
@@ -366,7 +366,7 @@ CONTAINS
       DO i = 1, 3
          CALL rs_grid_create(drpot(i), rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i))
-         CALL pw_multiply_with(dphi_g(i), green%p3m_charge)
+         CALL pw_multiply_by(dphi_g(i), green%p3m_charge)
          CALL pw_transfer(dphi_g(i), rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
          CALL transfer_pw2rs(drpot(i), rhob_r)
@@ -558,7 +558,7 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
-      CALL pw_multiply_with(rhob_g, green%p3m_charge)
+      CALL pw_multiply_by(rhob_g, green%p3m_charge)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
       ! allocate intermediate arrays
@@ -574,7 +574,7 @@ CONTAINS
       ALLOCATE (center(3, npart_b), delta(3, npart_b))
       CALL get_center(particle_set_b, box, center, delta, npts, n)
       rpot => rden
-      CALL pw_multiply_with(phi_g, green%p3m_charge)
+      CALL pw_multiply_by(phi_g, green%p3m_charge)
       CALL pw_transfer(phi_g, rhob_r)
       CALL transfer_pw2rs(rpot, rhob_r)
       ipart = 0
@@ -707,7 +707,7 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
-      CALL pw_multiply_with(rhob_g, green%p3m_charge)
+      CALL pw_multiply_by(rhob_g, green%p3m_charge)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
       ! allocate intermediate arrays
@@ -729,7 +729,7 @@ CONTAINS
       DO i = 1, 3
          CALL rs_grid_create(drpot(i), rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=drpot(i))
-         CALL pw_multiply_with(dphi_g(i), green%p3m_charge)
+         CALL pw_multiply_by(dphi_g(i), green%p3m_charge)
          CALL pw_transfer(dphi_g(i), rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i))
          CALL transfer_pw2rs(drpot(i), rhob_r)

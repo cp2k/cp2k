@@ -45,6 +45,8 @@ MODULE xc_pot_saop
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_divide_by,&
+                                              pw_multiply,&
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -134,9 +136,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: oe_corr
 
-      INTEGER                                            :: dft_method_id, homo, i, ispin, j, k, &
-                                                            nspins, orb, xc_deriv_method_id, &
-                                                            xc_rho_smooth_id
+      INTEGER                                            :: dft_method_id, homo, ispin, nspins, orb, &
+                                                            xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2)                              :: ncol, nrow
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: compute_virial, gapw, lsd
@@ -356,18 +357,7 @@ CONTAINS
          END DO
          DEALLOCATE (coeff_col)
 
-         DO k = bo(1, 3), bo(2, 3)
-            DO j = bo(1, 2), bo(2, 2)
-               DO i = bo(1, 1), bo(2, 1)
-                  IF (rho_r(ispin)%cr3d(i, j, k) > density_cut) THEN
-                     vxc_tmp(ispin)%cr3d(i, j, k) = vxc_tmp(ispin)%cr3d(i, j, k)/ &
-                                                    rho_r(ispin)%cr3d(i, j, k)
-                  ELSE
-                     vxc_tmp(ispin)%cr3d(i, j, k) = 0.0_dp
-                  END IF
-               END DO
-            END DO
-         END DO
+         CALL pw_divide_by(vxc_tmp(ispin), rho_r(ispin), density_cut)
 
          CALL pw_axpy(vxc_tmp(ispin), vxc_GLLB(ispin), 1.0_dp)
 
@@ -418,8 +408,7 @@ CONTAINS
                                     rho=orbital, rho_gspace=orbital_g, &
                                     ks_env=ks_env)
 
-            vxc_SAOP(ispin)%cr3d = vxc_SAOP(ispin)%cr3d + &
-                                   orbital%cr3d*vxc_tmp(ispin)%cr3d
+            CALL pw_multiply(vxc_SAOP(ispin), orbital, vxc_tmp(ispin))
 
          END DO
 
@@ -427,18 +416,7 @@ CONTAINS
 
          DEALLOCATE (coeff_col)
 
-         DO k = bo(1, 3), bo(2, 3)
-            DO j = bo(1, 2), bo(2, 2)
-               DO i = bo(1, 1), bo(2, 1)
-                  IF (rho_r(ispin)%cr3d(i, j, k) > density_cut) THEN
-                     vxc_SAOP(ispin)%cr3d(i, j, k) = vxc_SAOP(ispin)%cr3d(i, j, k)/ &
-                                                     rho_r(ispin)%cr3d(i, j, k)
-                  ELSE
-                     vxc_SAOP(ispin)%cr3d(i, j, k) = 0.0_dp
-                  END IF
-               END DO
-            END DO
-         END DO
+         CALL pw_divide_by(vxc_SAOP(ispin), rho_r(ispin), density_cut)
 
       END DO
 

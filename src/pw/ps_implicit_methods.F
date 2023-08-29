@@ -38,12 +38,9 @@ MODULE ps_implicit_methods
                                               PERIODIC_BC,&
                                               ps_implicit_type
    USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_copy,&
-                                              pw_integral_ab,&
-                                              pw_scale,&
-                                              pw_transfer,&
-                                              pw_zero
+   USE pw_methods,                      ONLY: &
+        pw_axpy, pw_copy, pw_copy_from_array, pw_divide, pw_integral_ab, pw_integrate_function, &
+        pw_multiply, pw_scale, pw_transfer, pw_zero
    USE pw_poisson_types,                ONLY: greens_fn_type,&
                                               pw_poisson_parameter_type,&
                                               pw_poisson_type
@@ -238,7 +235,7 @@ CONTAINS
          CALL pw_copy(ps_implicit_env%initial_guess, v_old)
       END IF
 
-      g%cr3d = fourpi*density%cr3d/dielectric%eps%cr3d
+      CALL pw_divide(g, density, dielectric%eps, fourpi)
 
 ! res_old = g - \Delta(v_old) - P(v_old)
       CALL apply_poisson_operator_fft(pw_pool, green, dielectric, v_old, res_old)
@@ -398,7 +395,7 @@ CONTAINS
                      dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                      dct_env%flipg_stat, dct_env%bounds_shftd, v_new, v_new_xpndd)
 
-      g%cr3d = fourpi*density_xpndd%cr3d/dielectric%eps%cr3d
+      CALL pw_divide(g, density_xpndd, dielectric%eps, fourpi)
 
 ! res_old = g - \Delta(v_old) - P(v_old)
       CALL apply_poisson_operator_dct(pw_pool_xpndd, green, dielectric, v_old, res_old)
@@ -601,8 +598,8 @@ CONTAINS
          lambda0(:) = ps_implicit_env%initial_lambda
       END IF
 
-      g%cr3d = fourpi*density%cr3d/dielectric%eps%cr3d
-      g_avg = accurate_sum(g%cr3d)/ngpts
+      CALL pw_divide(g, density, dielectric%eps, fourpi)
+      g_avg = pw_integrate_function(g, local_sum=.TRUE., just_sum=.TRUE.)/ngpts
 
       lambda_old(:) = lambda0
 
@@ -630,7 +627,7 @@ CONTAINS
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))
 !        = 1^t * (g - P(\bar{v}))
          CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar)
-         Axvbar_avg = accurate_sum(Axvbar%cr3d)/ngpts
+         Axvbar_avg = pw_integrate_function(Axvbar, just_sum=.TRUE., local_sum=.TRUE.)/ngpts
          gminusAxvbar_avg = g_avg - Axvbar_avg
          CALL pw_grid%para%group%sum(gminusAxvbar_avg)
 
@@ -720,7 +717,7 @@ CONTAINS
          ps_implicit_env%initial_lambda(:) = lambda_new
       END IF
 
-      ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
+      CALL pw_copy_from_array(ps_implicit_env%cstr_charge, Btxlambda_new3D)
       IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
       CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
@@ -886,8 +883,8 @@ CONTAINS
                      dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                      dct_env%flipg_stat, dct_env%bounds_shftd, v_new, v_new_xpndd)
 
-      g%cr3d = fourpi*density_xpndd%cr3d/dielectric%eps%cr3d
-      g_avg = accurate_sum(g%cr3d)/ngpts
+      CALL pw_divide(g, density_xpndd, dielectric%eps, fourpi)
+      g_avg = pw_integrate_function(g, local_sum=.TRUE., just_sum=.TRUE.)/ngpts
 
       lambda_old(:) = lambda0
 
@@ -915,7 +912,7 @@ CONTAINS
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))
 !        = 1^t * (g - P(\bar{v}))
          CALL apply_P_operator(pw_pool_xpndd, dielectric, v_new_xpndd, Axvbar)
-         Axvbar_avg = accurate_sum(Axvbar%cr3d)/ngpts
+         Axvbar_avg = pw_integrate_function(Axvbar, local_sum=.TRUE., just_sum=.TRUE.)/ngpts
          gminusAxvbar_avg = g_avg - Axvbar_avg
          CALL dct_pw_grid%para%group%sum(gminusAxvbar_avg)
 
@@ -1009,7 +1006,7 @@ CONTAINS
          ps_implicit_env%initial_lambda(:) = lambda_new
       END IF
 
-      ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
+      CALL pw_copy_from_array(ps_implicit_env%cstr_charge, Btxlambda_new3D)
       IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
       CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
@@ -1794,7 +1791,7 @@ CONTAINS
 ! evaluate |\nabla_r(v)|^2
       dv2%cr3d = dv(1)%cr3d**2 + dv(2)%cr3d**2 + dv(3)%cr3d**2
 
-      v_eps%cr3d = -(1.0_dp/eightpi)*(dv2%cr3d*dielectric%deps_drho%cr3d)
+      CALL pw_multiply(v_eps, dv2, dielectric%deps_drho, -(1.0_dp/eightpi), 0.0_dp)
 
       CALL pw_pool_give_back_pw(pw_pool, dv2)
       DO i = 1, 3
@@ -1869,11 +1866,9 @@ CONTAINS
 ! E_H = \frac{1}{2} * \int \rho * v dr + \frac{1}{8 \pi} * \int Btxlambda * v dr
 ! the sign of the second term depends on the sign chosen for the Lagrange multiplier
 ! term in the variational form
-      ehartree_rho = accurate_sum(density%cr3d*v%cr3d)
-      ehartree_rho_cstr = accurate_sum(dielectric%eps%cr3d*Btxlambda*v%cr3d/fourpi)
-      ehartree_rho = 0.5_dp*ehartree_rho*dvol
+      ehartree_rho = 0.5_dp*pw_integral_ab(density, v)
+      ehartree_rho_cstr = accurate_sum(dielectric%eps%cr3d*Btxlambda*v%cr3d)/fourpi
       ehartree_rho_cstr = 0.5_dp*ehartree_rho_cstr*dvol
-      CALL pw_grid%para%group%sum(ehartree_rho)
       CALL pw_grid%para%group%sum(ehartree_rho_cstr)
       electric_enthalpy = ehartree_rho + ehartree_rho_cstr
       ehartree = ehartree_rho - ehartree_rho_cstr
@@ -1918,9 +1913,7 @@ CONTAINS
 ! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) + Bt \lambda)
       CALL apply_inv_laplace_operator_fft(pw_pool, green, res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
-      pres_error = accurate_sum(QAinvxres_new%cr3d(:, :, :)**2)
-      CALL pw_pool%pw_grid%para%group%sum(pres_error)
-      pres_error = SQRT(pres_error)/vol
+      pres_error = SQRT(pw_integral_ab(QAinvxres_new, QAinvxres_new, just_sum=.TRUE.))/vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
@@ -1969,9 +1962,7 @@ CONTAINS
 ! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) + Bt \lambda)
       CALL apply_inv_laplace_operator_dct(pw_pool, green, res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
-      pres_error = accurate_sum(QAinvxres_new%cr3d(:, :, :)**2)
-      CALL pw_pool%pw_grid%para%group%sum(pres_error)
-      pres_error = SQRT(pres_error)/vol
+      pres_error = SQRT(pw_integral_ab(QAinvxres_new, QAinvxres_new, just_sum=.TRUE.))/vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}

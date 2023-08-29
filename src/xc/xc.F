@@ -40,7 +40,7 @@ MODULE xc
                          pw_derive, &
                          pw_scale, &
                          pw_transfer, &
-                         pw_zero, pw_integrate_function
+                         pw_zero, pw_integrate_function, pw_integral_ab
    USE pw_pool_types, ONLY: pw_pool_create_pw, &
                             pw_pool_give_back_array, &
                             pw_pool_give_back_pw, &
@@ -230,7 +230,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER         :: split_desc
       INTEGER                                            :: i, ii, ispin, j, k, order
       INTEGER, DIMENSION(2, 3)                           :: bo
-      REAL(kind=dp)                                      :: diff, exc2, maxdiff, tmp
+      REAL(kind=dp)                                      :: diff, exc2, maxdiff
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: pot, pot2, pot3
       TYPE(cp_sll_xc_deriv_type), POINTER                :: deriv_iter
@@ -250,15 +250,8 @@ CONTAINS
          CALL pw_pool_create_pw(pw_pool, rho2_r(ispin), in_space=REALSPACE, &
                                 use_data=REALDATA3D)
       END DO
-      DO k = bo(1, 3), bo(2, 3)
-         DO j = bo(1, 2), bo(2, 2)
-            DO i = bo(1, 1), bo(2, 1)
-               tmp = rho_r(1)%cr3d(i, j, k)*0.5
-               rho2_r(1)%cr3d(i, j, k) = tmp
-               rho2_r(2)%cr3d(i, j, k) = tmp
-            END DO
-         END DO
-      END DO
+      CALL pw_axpy(rho_r(1), rho2_r(1), 0.5_dp, 0.0_dp)
+      CALL pw_axpy(rho2_r(1), rho2_r(2))
 
       IF (ASSOCIATED(tau)) THEN
          ALLOCATE (tau2(2))
@@ -267,15 +260,8 @@ CONTAINS
                                    use_data=REALDATA3D)
          END DO
 
-         DO k = bo(1, 3), bo(2, 3)
-            DO j = bo(1, 2), bo(2, 2)
-               DO i = bo(1, 1), bo(2, 1)
-                  tmp = tau(1)%cr3d(i, j, k)*0.5
-                  tau2(1)%cr3d(i, j, k) = tmp
-                  tau2(2)%cr3d(i, j, k) = tmp
-               END DO
-            END DO
-         END DO
+         CALL pw_axpy(tau(1), tau2(1), 0.5_dp, 0.0_dp)
+         CALL pw_axpy(tau2(1), tau2(2))
       END IF
 
       PRINT *, "about to calculate xc (lda)"
@@ -1243,9 +1229,7 @@ CONTAINS
                virial_pw%cr3d(:, :, :) = pw_to_deriv_rho(idir)%cr3d(:, :, :)*deriv_data(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
                DO jdir = 1, idir
-                  virial_xc(idir, jdir) = -pw_grid%dvol* &
-                                          accurate_dot_product(virial_pw%cr3d(:, :, :), &
-                                                               pw_to_deriv_rho(jdir)%cr3d(:, :, :))
+                  virial_xc(idir, jdir) = -pw_integral_ab(virial_pw, pw_to_deriv_rho(jdir), local_only=.TRUE.)
                   virial_xc(jdir, idir) = virial_xc(idir, jdir)
                END DO
             END DO
@@ -1302,9 +1286,7 @@ CONTAINS
                      virial_pw%cr3d(:, :, :) = pw_to_deriv(idir)%cr3d(:, :, :)*deriv_data(:, :, :)
 !$OMP                END PARALLEL WORKSHARE
                      DO jdir = 1, idir
-                        virial_xc(idir, jdir) = virial_xc(idir, jdir) - pw_grid%dvol* &
-                                                accurate_dot_product(virial_pw%cr3d(:, :, :), &
-                                                                     pw_to_deriv(jdir)%cr3d(:, :, :))
+                     virial_xc(idir, jdir) = virial_xc(idir, jdir) - pw_integral_ab(virial_pw, pw_to_deriv(jdir), local_only=.TRUE.)
                         virial_xc(jdir, idir) = virial_xc(idir, jdir)
                      END DO
                   END DO
@@ -2735,12 +2717,12 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspins
-         v_xc(ispin)%cr3d = 0.0_dp
+         CALL pw_zero(v_xc(ispin))
       END DO
 
       IF (tau_f) THEN
          DO ispin = 1, nspins
-            v_xc_tau(ispin)%cr3d = 0.0_dp
+            CALL pw_zero(v_xc_tau(ispin))
          END DO
       END IF
 

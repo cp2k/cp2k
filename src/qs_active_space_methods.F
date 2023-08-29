@@ -82,7 +82,7 @@ MODULE qs_active_space_methods
                            pw_env_type
    USE pw_methods, ONLY: pw_integrate_function, &
                          pw_multiply, &
-                         pw_multiply_with, &
+                         pw_multiply_by, &
                          pw_transfer, &
                          pw_zero
    USE pw_poisson_methods, ONLY: pw_poisson_rebuild, &
@@ -1445,7 +1445,7 @@ CONTAINS
                            END IF
                            CALL pw_zero(wfn_r)
                            CALL pw_multiply(wfn_r, rho_r, wfn3)
-                           CALL pw_multiply_with(wfn_r, wfn4)
+                           CALL pw_multiply_by(wfn_r, wfn4)
                            erint = pw_integrate_function(wfn_r)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1

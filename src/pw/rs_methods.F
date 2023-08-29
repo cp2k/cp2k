@@ -16,6 +16,7 @@ MODULE rs_methods
    USE kinds,                           ONLY: dp
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_integrate_function,&
+                                              pw_multiply,&
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
@@ -65,7 +66,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(IN)                          :: f
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd3'
 
@@ -134,7 +135,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(IN)                          :: f
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd5'
 
@@ -203,7 +204,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(IN)                          :: f
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd7'
 
@@ -437,7 +438,7 @@ CONTAINS
 
       CALL pw_transfer(G, G_gs)
       CALL pw_transfer(pw_in, pw_in_gs)
-      pw_out_gs%cc = G_gs%cc*pw_in_gs%cc
+      CALL pw_multiply(pw_out_gs, G_gs, pw_in_gs, 1.0_dp, 0.0_dp)
       CALL pw_transfer(pw_out_gs, pw_out)
 
       ! multiply by the reciprocal of the forward Fourier transform normalization prefactor (here 1/N, by convention)

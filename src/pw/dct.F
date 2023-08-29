@@ -15,7 +15,6 @@
 ! **************************************************************************************************
 MODULE dct
 
-   USE fast,                            ONLY: copy_cr
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_request_null,&
@@ -24,9 +23,9 @@ MODULE dct
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
-   USE pw_methods,                      ONLY: pw_copy_from_array
-   USE pw_types,                        ONLY: RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_methods,                      ONLY: pw_copy_from_array,&
+                                              pw_copy_to_array
+   USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -523,7 +522,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_expanded
+      TYPE(pw_type), INTENT(IN)                          :: pw_in
+      TYPE(pw_type), INTENT(INOUT)                       :: pw_expanded
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
@@ -750,12 +750,8 @@ CONTAINS
       ub2_xpnd = bounds_local_xpnd(2, 2)
       lb3_xpnd = bounds_local_xpnd(1, 3)
       ub3_xpnd = bounds_local_xpnd(2, 3)
-      IF (in_space .EQ. RECIPROCALSPACE) THEN
-         CALL copy_cr(pw_in%cc3d, cr3d)
-      ELSE
-         ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-         cr3d = pw_in%cr3d
-      END IF
+      ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
+      CALL pw_copy_to_array(pw_in, cr3d)
 
 ! let all the nodes know about each others shifted local bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))

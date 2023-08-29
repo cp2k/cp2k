@@ -44,6 +44,7 @@ MODULE pw_poisson_methods
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_derive,&
                                               pw_integral_ab,&
+                                              pw_multiply_by,&
                                               pw_transfer
    USE pw_poisson_types,                ONLY: &
         ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MULTIPOLE0D, PERIODIC3D, PS_IMPLICIT, do_ewald_spme, &
@@ -306,9 +307,9 @@ CONTAINS
             ELSE
                influence_fn = poisson_env%green_fft%influence_fn
             END IF
-            rhog%cc(:) = rhog%cc(:)*influence_fn%cc(:)
+            CALL pw_multiply_by(rhog, influence_fn)
             IF (PRESENT(aux_density)) THEN
-               rhog_aux%cc(:) = rhog_aux%cc(:)*influence_fn%cc(:)
+               CALL pw_multiply_by(rhog_aux, influence_fn)
             END IF
             IF (PRESENT(vhartree)) THEN
                CALL pw_transfer(rhog, vhartree)

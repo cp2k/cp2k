@@ -19,6 +19,7 @@ MODULE qs_mixing_utils
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE pw_methods,                      ONLY: pw_copy_to_array
    USE pw_types,                        ONLY: pw_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
@@ -484,7 +485,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mixing_store%rhoin(ispin)%cc)) THEN
             ALLOCATE (mixing_store%rhoin(ispin)%cc(ng))
          END IF
-         mixing_store%rhoin(ispin)%cc = rho_g(ispin)%cc
+         CALL pw_copy_to_array(rho_g(ispin), mixing_store%rhoin(ispin)%cc)
 
          IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
             IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1, ispin)%cc)) THEN
@@ -492,8 +493,7 @@ CONTAINS
                   ALLOCATE (mixing_store%rhoin_buffer(ib, ispin)%cc(ng))
                END DO
             END IF
-            mixing_store%rhoin_buffer(1, ispin)%cc(1:ng) = &
-               rho_g(ispin)%cc(1:ng)
+            CALL pw_copy_to_array(rho_g(ispin), mixing_store%rhoin_buffer(1, ispin)%cc)
          END IF
          IF (ASSOCIATED(mixing_store%res_buffer)) THEN
             IF (.NOT. ASSOCIATED(mixing_store%res_buffer(1, ispin)%cc)) THEN

@@ -85,7 +85,7 @@ MODULE pw_grid_types
       INTEGER :: first_gne0 = 0 ! first g index /= 0 [1/2]
       INTEGER :: id_nr = -1 ! tag of this grid
       INTEGER :: reference = 0 ! reference grid identifier
-      INTEGER, DIMENSION(:), POINTER :: gidx => NULL() ! ref grid index
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER :: gidx => NULL() ! ref grid index
       INTEGER :: ref_count = 0 ! reference count
       LOGICAL :: spherical = .FALSE. ! spherical cutoff?
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER :: grays => NULL() ! used by parallel 3D FFT routine

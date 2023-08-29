@@ -14,7 +14,9 @@ MODULE xc_atom
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_type
    USE xc,                              ONLY: divide_by_norm_drho,&
                                               xc_calc_2nd_deriv_analytical
    USE xc_derivative_desc,              ONLY: &
@@ -402,6 +404,8 @@ CONTAINS
       ALLOCATE (vxc_pw(nspins))
       DO ispin = 1, nspins
          vxc_pw(ispin)%cr3d => vxc(:, :, ispin:ispin)
+         vxc_pw(ispin)%in_use = REALDATA3D
+         vxc_pw(ispin)%in_space = REALSPACE
       END DO
 
       NULLIFY (vxc_tau_pw)

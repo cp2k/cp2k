@@ -81,6 +81,7 @@ MODULE qs_scf_post_tb
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_derive,&
+                                              pw_multiply_by,&
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
@@ -1271,7 +1272,7 @@ CONTAINS
                TYPE(pw_grid_type), POINTER                        :: pwdummy
                NULLIFY (pwdummy)
                CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
-               rho_tot_gspace%cc(:) = rho_tot_gspace%cc(:)*green_fft%influence_fn%cc(:)
+               CALL pw_multiply_by(rho_tot_gspace, green_fft%influence_fn)
                CALL pw_green_release(green_fft, auxbas_pw_pool)
             END BLOCK
             IF (my_v_hartree) THEN
