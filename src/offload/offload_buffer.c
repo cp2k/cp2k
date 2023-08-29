@@ -46,8 +46,8 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
                               hipHostMallocDefault));
   OFFLOAD_CHECK(hipMalloc((void **)&(*buffer)->device_buffer, requested_size));
 #else
-  OFFLOAD_CHECK(hipMallocManaged((void **)&(*buffer)->host_buffer,
-                                 requested_size, hipMemAttachGlobal));
+  OFFLOAD_CHECK(hipMalloc((void **)&(*buffer)->host_buffer, requested_size,
+                          hipMemAttachGlobal));
   (*buffer)->device_buffer = (*buffer)->host_buffer;
 #endif
 
