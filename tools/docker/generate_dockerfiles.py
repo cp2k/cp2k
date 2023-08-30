@@ -136,7 +136,7 @@ def regtest(
 ARG TESTOPTS="{testopts}"
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
-    TESTOPTS="${{TESTOPTS}}" \
+    TESTOPTS='${{TESTOPTS}}' \
     ./test_regtest.sh '{arch}' '{version}' |& tee report.log && \
     rm -rf regtesting"
 """
@@ -326,7 +326,7 @@ def production(version: str, arch: str = "local", intel: bool = False) -> str:
 ARG TESTOPTS
 RUN /bin/bash -c " \
     source /opt/cp2k-toolchain/install/setup && \
-    ./tools/regtesting/do_regtest.py '{arch}' '{version}' --skipdir=UNIT/libcp2k_unittest "${{TESTOPTS}}" |& tee regtests.log && \
+    ./tools/regtesting/do_regtest.py '{arch}' '{version}' --skipdir=UNIT/libcp2k_unittest '${{TESTOPTS}}' |& tee regtests.log && \
     rm -rf regtesting"
 
 # Setup entry point for production.
