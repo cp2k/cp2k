@@ -89,10 +89,10 @@ MODULE library_tests
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c3d_type,&
                                               pw_create,&
                                               pw_release,&
                                               pw_type
@@ -832,8 +832,9 @@ CONTAINS
                                                             t_min, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_end, t_start
       TYPE(cell_type), POINTER                           :: box
+      TYPE(pw_c3d_type)                                  :: cb
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: ca, cb, cc
+      TYPE(pw_type)                                      :: ca, cc
 
 !..set fft lib
 
@@ -941,7 +942,7 @@ CONTAINS
             no = grid%npts
 
             CALL pw_create(ca, grid, COMPLEXDATA1D, RECIPROCALSPACE)
-            CALL pw_create(cb, grid, COMPLEXDATA3D, REALSPACE)
+            CALL pw_create(cb, grid, REALSPACE)
             CALL pw_create(cc, grid, COMPLEXDATA1D, RECIPROCALSPACE)
 
             ! initialize data

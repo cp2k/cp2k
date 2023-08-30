@@ -49,7 +49,7 @@ MODULE pw_types
    ! Flags for the structure member 'in_use'
    ! NODATA only for internal use, we enforce a certain data type
    INTEGER, PARAMETER, PUBLIC :: COMPLEXDATA1D = 302
-   INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303, COMPLEXDATA3D = 304
+   INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303
    INTEGER, PARAMETER         :: NODATA = 305
 
    ! Flags for the structure member 'in_space'
@@ -61,7 +61,6 @@ MODULE pw_types
    TYPE pw_type
       REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cr3d => NULL()
       COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cc => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cc3d => NULL()
 
       INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
       INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
@@ -215,8 +214,6 @@ CONTAINS
          IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
       CASE (REALDATA3D)
          IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
-      CASE (COMPLEXDATA3D)
-         IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
       CASE (NODATA)
          ! Only, if the pw grid was never created
       CASE default
@@ -299,11 +296,6 @@ CONTAINS
                       bounds(1, 3):bounds(2, 3)))
          END IF
 
-      CASE (COMPLEXDATA3D)
-         ALLOCATE (pw%cc3d( &
-                   bounds(1, 1):bounds(2, 1), &
-                   bounds(1, 2):bounds(2, 2), &
-                   bounds(1, 3):bounds(2, 3)))
       CASE (NODATA)
          CPABORT("Choose a proper data type!")
       CASE default
