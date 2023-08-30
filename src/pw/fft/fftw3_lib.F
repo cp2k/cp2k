@@ -180,7 +180,9 @@ CONTAINS
       INTEGER(KIND=C_INT) :: isuccess
       LOGICAL                                  :: exist
 
+#if defined(__MKL)
 !$    LOGICAL                                  :: mkl_is_safe
+#endif
 
 ! If using the Intel compiler then we need to declare
 ! a C interface to a global variable in MKL that sets
@@ -188,7 +190,7 @@ CONTAINS
 ! an FFT
 ! We need __INTEL_COMPILER so we can be sure that the compiler
 ! understands the !DEC$ version definitions
-#if defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
+#if defined (__INTEL_COMPILER) && defined (__MKL)
 !$    include "mkl.fi"
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .EQ. 110100
@@ -198,7 +200,7 @@ CONTAINS
 !$    BIND(c) :: /fftw3_mkl/
 !DEC$ ENDIF
 !DEC$ ENDIF
-#elif defined (__MKL) && defined (__FFTW3)
+#elif defined (__MKL)
 ! Preprocessing is enabled by default, and below header is not language specific
 #include <mkl_version.h>
 #endif
@@ -219,15 +221,16 @@ CONTAINS
          END IF
       END IF
 
+#if defined (__MKL)
       ! Now check if we have a real FFTW3 library, or are using MKL wrappers
 
 !$    IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
 ! If we are not using the Intel compiler, there is no way to tell which
 ! MKL version is in use, so fail safe...
 !$       mkl_is_safe = .FALSE.
-#if defined (__MKL) && defined (__FFTW3) && defined(INTEL_MKL_VERSION) && (110100 < INTEL_MKL_VERSION)
+#if defined(INTEL_MKL_VERSION) && (110100 < INTEL_MKL_VERSION)
 !$       mkl_is_safe = .TRUE.
-#elif defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
+#elif defined (__INTEL_COMPILER)
 ! If we have an Intel compiler (__INTEL_COMPILER is defined) then check the
 ! MKL version and make the appropriate action
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
@@ -247,6 +250,7 @@ CONTAINS
 !$             "Now exiting..."
 !$       END IF
 !$    END IF
+#endif
 #else
       MARK_USED(wisdom_file)
 #endif

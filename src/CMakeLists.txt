@@ -1684,7 +1684,7 @@ target_compile_definitions(
   PRIVATE $<$<CONFIG:Release>:NDEBUG> $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
           $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
 
-if(NOT CP2K_DISABLE_DBM_GPU)
+if(CP2K_DISABLE_DBM_GPU)
   target_compile_definitions(dbm_miniapp PRIVATE __NO_OFFLOAD_DBM)
 else()
   target_compile_definitions(dbm_miniapp PRIVATE ${CP2K_GPU_DFLAGS})
