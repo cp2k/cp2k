@@ -3316,7 +3316,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: array
 
       CHARACTER(LEN=10)                                  :: sfmt
-      CHARACTER(LEN=4)                                   :: my_atm1, my_atm2, my_atm3, my_atm4
+      CHARACTER(LEN=9)                                   :: my_atm1, my_atm2, my_atm3, my_atm4
       CHARACTER(LEN=default_path_length)                 :: my_format
       INTEGER                                            :: fmt, i, nsize
       LOGICAL                                            :: found
@@ -3324,14 +3324,14 @@ CONTAINS
       nsize = 0
       fmt = 1
       my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)// &
-                  '",T40,"(",A4,")")'
+                  '",T40,"(",A9,")")'
       IF (PRESENT(atm2)) fmt = fmt + 1
       IF (PRESENT(atm3)) fmt = fmt + 1
       IF (PRESENT(atm4)) fmt = fmt + 1
       CALL integer_to_string(fmt - 1, sfmt)
       IF (fmt > 1) &
          my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)// &
-                     '",T40,"(",A4,'//TRIM(sfmt)//'(",",A4),")")'
+                     '",T40,"(",A9,'//TRIM(sfmt)//'(",",A9),")")'
       IF (PRESENT(fatal)) fatal = .TRUE.
       ! Check for previous already stored equal force fields
       IF (ASSOCIATED(array)) nsize = SIZE(array)
@@ -3341,17 +3341,17 @@ CONTAINS
             SELECT CASE (type_name)
             CASE ("Bond")
                IF (INDEX(array(i) (21:39), "Bond") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                IF (((atm1 == my_atm1) .AND. (atm2 == my_atm2)) .OR. &
                    ((atm1 == my_atm2) .AND. (atm2 == my_atm1))) found = .TRUE.
             CASE ("Angle")
                IF (INDEX(array(i) (21:39), "Angle") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
-               my_atm3 = array(i) (51:54)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
+               my_atm3 = array(i) (61:69)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                CALL compress(my_atm3, .TRUE.)
@@ -3360,9 +3360,9 @@ CONTAINS
                   found = .TRUE.
             CASE ("Urey-Bradley")
                IF (INDEX(array(i) (21:39), "Urey-Bradley") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
-               my_atm3 = array(i) (51:54)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
+               my_atm3 = array(i) (61:69)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                CALL compress(my_atm3, .TRUE.)
@@ -3371,10 +3371,10 @@ CONTAINS
                   found = .TRUE.
             CASE ("Torsion")
                IF (INDEX(array(i) (21:39), "Torsion") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
-               my_atm3 = array(i) (51:54)
-               my_atm4 = array(i) (56:59)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
+               my_atm3 = array(i) (61:69)
+               my_atm4 = array(i) (71:79)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                CALL compress(my_atm3, .TRUE.)
@@ -3384,10 +3384,10 @@ CONTAINS
                   found = .TRUE.
             CASE ("Improper")
                IF (INDEX(array(i) (21:39), "Improper") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
-               my_atm3 = array(i) (51:54)
-               my_atm4 = array(i) (56:59)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
+               my_atm3 = array(i) (61:69)
+               my_atm4 = array(i) (71:79)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                CALL compress(my_atm3, .TRUE.)
@@ -3402,10 +3402,10 @@ CONTAINS
 
             CASE ("Out of plane bend")
                IF (INDEX(array(i) (21:39), "Out of plane bend") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
-               my_atm3 = array(i) (51:54)
-               my_atm4 = array(i) (56:59)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
+               my_atm3 = array(i) (61:69)
+               my_atm4 = array(i) (71:79)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                CALL compress(my_atm3, .TRUE.)
@@ -3416,14 +3416,14 @@ CONTAINS
 
             CASE ("Charge")
                IF (INDEX(array(i) (21:39), "Charge") == 0) CYCLE
-               my_atm1 = array(i) (41:44)
+               my_atm1 = array(i) (41:49)
                CALL compress(my_atm1, .TRUE.)
                IF (atm1 == my_atm1) found = .TRUE.
             CASE ("Spline_Bond_Env", "Spline_Non_Bond_Env")
                IF (INDEX(array(i) (21:39), "Spline_") == 0) CYCLE
                fmt = 0
-               my_atm1 = array(i) (41:44)
-               my_atm2 = array(i) (46:49)
+               my_atm1 = array(i) (41:49)
+               my_atm2 = array(i) (51:59)
                CALL compress(my_atm1, .TRUE.)
                CALL compress(my_atm2, .TRUE.)
                IF (((atm1 == my_atm1) .AND. (atm2 == my_atm2)) .OR. &
