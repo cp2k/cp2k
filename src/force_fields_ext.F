@@ -322,10 +322,10 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: label, string, string2, string3, string4
       CHARACTER(LEN=default_string_length), DIMENSION(1) :: bond_section
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(19)                                   :: avail_section
       CHARACTER(LEN=default_string_length), DIMENSION(2) :: angl_section, impr_section, &
                                                             nbon_section, thet_section
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(20)                                   :: avail_section
       INTEGER                                            :: dummy, handle, ilab, iw, nbend, nbond, &
                                                             nimpr, nnonbond, nonfo, ntorsion, nub
       LOGICAL                                            :: found
@@ -350,6 +350,7 @@ CONTAINS
       avail_section(15) = "DIHEDRALS"
       avail_section(5) = "PHI"; thet_section(2) = avail_section(5)
       avail_section(6) = "IMPROPER"; impr_section(1) = avail_section(6)
+      avail_section(20) = "IMPROPERS"
       avail_section(7) = "IMPH"; impr_section(2) = avail_section(7)
       avail_section(16) = "IMPHI"
       avail_section(8) = "NONBONDED"; nbon_section(1) = avail_section(8)
