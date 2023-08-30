@@ -371,18 +371,22 @@ CONTAINS
       END IF
 
       print_log = .FALSE.
-      CALL section_vals_val_get(dft_section, &
-                                "SCF%PRINT%RESTART%LOG_PRINT_KEY", &
-                                l_val=print_log)
       print_history_log = .FALSE.
-      CALL section_vals_val_get(dft_section, &
-                                "SCF%PRINT%RESTART_HISTORY%LOG_PRINT_KEY", &
-                                l_val=print_history_log)
+      IF (para_env%is_source()) THEN
+         CALL section_vals_val_get(dft_section, &
+                                   "SCF%PRINT%RESTART%LOG_PRINT_KEY", &
+                                   l_val=print_log)
+         CALL section_vals_val_get(dft_section, &
+                                   "SCF%PRINT%RESTART_HISTORY%LOG_PRINT_KEY", &
+                                   l_val=print_history_log)
+      END IF
 
       IF (density_guess == restart_guess) THEN
-         IF (print_log .OR. print_history_log) THEN
-            WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
-               "WFN_RESTART| Reading restart file"
+         IF (para_env%is_source()) THEN
+            IF (print_log .OR. print_history_log) THEN
+               WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
+                  "WFN_RESTART| Reading restart file"
+            END IF
          END IF
          IF (do_kpoints) THEN
             natoms = SIZE(particle_set)
@@ -458,9 +462,11 @@ CONTAINS
 
       IF (density_guess == history_guess) THEN
          IF (not_read > 1) THEN
-            IF (print_log .OR. print_history_log) THEN
-               WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
-                  "WFN_RESTART| Reading restart file history"
+            IF (para_env%is_source()) THEN
+               IF (print_log .OR. print_history_log) THEN
+                  WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
+                     "WFN_RESTART| Reading restart file history"
+               END IF
             END IF
             DO i = 1, last_read
                j = last_read - i
