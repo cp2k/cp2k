@@ -76,7 +76,7 @@ if [ "${with_hdf5}" != "__DONTUSE__" ]; then
   else
     HDF5_LIBS="-lhdf5_fortran -lhdf5_hl -lhdf5 -lz"
   fi
-  if [ "$(with_hdf5)" != "__SYSTEM__" ]; then
+  if [ "${with_hdf5}" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_hdf5"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
