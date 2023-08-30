@@ -78,7 +78,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, md_section, "PRINT%PROGRAM_RUN_INFO", extension=".log")
 
       CALL read_md_low(simpar, motion_section, md_section)
-      IF (iw > 0) WRITE (iw, *)
+      IF (iw > 0) WRITE (UNIT=iw, FMT="(A)") ""
 
       ! Begin setup Langevin dynamics
       IF (simpar%ensemble == langevin_ensemble) THEN
@@ -88,6 +88,8 @@ CONTAINS
          ! Normalization factor using a normal Gaussian random number distribution
          simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma + simpar%noisy_gamma)
          IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(T2,A)") &
+               "LD| Parameters for Langevin dynamics"
             tmp_r1 = cp_unit_from_cp2k(simpar%gamma, "fs^-1")
             tmp_r2 = cp_unit_from_cp2k(simpar%noisy_gamma, "fs^-1")
             tmp_r3 = cp_unit_from_cp2k(simpar%shadow_gamma, "fs^-1")
@@ -95,7 +97,8 @@ CONTAINS
                "LD| Gamma [1/fs] ", tmp_r1, &
                "LD| Noisy Gamma [1/fs]", tmp_r2, &
                "LD| Shadow Gamma [1/fs]", tmp_r3, &
-               "LD| Variance [a.u.]", simpar%var_w
+               "LD| Variance [a.u.]", simpar%var_w, &
+               ""
          END IF
       END IF
 

@@ -505,7 +505,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: handle, ispin, natom, nspin, restart_unit
-      LOGICAL                                            :: exist, my_cdft
+      LOGICAL                                            :: exist, my_cdft, print_history_log, &
+                                                            print_log
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -548,7 +549,19 @@ CONTAINS
       END IF
 
       ! Close restart file
-      IF (para_env%is_source()) CALL close_file(unit_number=restart_unit)
+      IF (para_env%is_source()) THEN
+         CALL section_vals_val_get(dft_section, &
+                                   "SCF%PRINT%RESTART%LOG_PRINT_KEY", &
+                                   l_val=print_log)
+         CALL section_vals_val_get(dft_section, &
+                                   "SCF%PRINT%RESTART_HISTORY%LOG_PRINT_KEY", &
+                                   l_val=print_history_log)
+         IF (print_log .OR. print_history_log) THEN
+            WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(T2,A)") &
+               "WFN_RESTART| Restart file "//TRIM(file_name)//" read"
+         END IF
+         CALL close_file(unit_number=restart_unit)
+      END IF
 
       ! CDFT has no real dft_section and does not need to print
       IF (.NOT. my_cdft) THEN

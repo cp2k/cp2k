@@ -32,6 +32,7 @@ MODULE qs_initial_guess
         cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -56,7 +57,8 @@ MODULE qs_initial_guess
                                               sparse_guess
    USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE kpoint_io,                       ONLY: read_kpoints_restart
@@ -146,7 +148,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
                                                             sort_kind
       LOGICAL :: did_guess, do_hfx_ri_mo, do_kpoints, do_std_diag, exist, has_unit_metric, &
-         natom_mismatch, need_mos, need_wm, ofgpw, owns_ortho
+         natom_mismatch, need_mos, need_wm, ofgpw, owns_ortho, print_history_log, print_log
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: buff, buff2
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: checksum, eps, length, maxocc, occ, &
@@ -313,8 +315,9 @@ CONTAINS
          IF (do_kpoints) THEN
             CPABORT("calculate_first_density_matrix: history_guess not implemented for k-points")
          END IF
-         IF (para_env%is_source()) &
+         IF (para_env%is_source()) THEN
             CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
+         END IF
          CALL para_env%bcast(exist)
          CALL para_env%bcast(file_name)
          nvec = qs_env%wf_history%memory_depth
@@ -323,7 +326,9 @@ CONTAINS
          DO i = 1, nvec
             j = i - 1
             filename = TRIM(file_name)
-            IF (j /= 0) filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
+            IF (j /= 0) THEN
+               filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
+            END IF
             IF (para_env%is_source()) &
                INQUIRE (FILE=filename, exist=exist)
             CALL para_env%bcast(exist)
@@ -365,8 +370,20 @@ CONTAINS
          END IF
       END IF
 
-      IF (density_guess == restart_guess) THEN
+      print_log = .FALSE.
+      CALL section_vals_val_get(dft_section, &
+                                "SCF%PRINT%RESTART%LOG_PRINT_KEY", &
+                                l_val=print_log)
+      print_history_log = .FALSE.
+      CALL section_vals_val_get(dft_section, &
+                                "SCF%PRINT%RESTART_HISTORY%LOG_PRINT_KEY", &
+                                l_val=print_history_log)
 
+      IF (density_guess == restart_guess) THEN
+         IF (print_log .OR. print_history_log) THEN
+            WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
+               "WFN_RESTART| Reading restart file"
+         END IF
          IF (do_kpoints) THEN
             natoms = SIZE(particle_set)
             CALL read_kpoints_restart(rho_ao_kp, kpoints, work1, &
@@ -441,6 +458,10 @@ CONTAINS
 
       IF (density_guess == history_guess) THEN
          IF (not_read > 1) THEN
+            IF (print_log .OR. print_history_log) THEN
+               WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
+                  "WFN_RESTART| Reading restart file history"
+            END IF
             DO i = 1, last_read
                j = last_read - i
                CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
