@@ -371,12 +371,10 @@ def install_cp2k(
         input_lines.append(f"COPY ./arch/{arch}.{version} /opt/cp2k/arch/")
         run_lines.append(f"ln -s /opt/cp2k-toolchain /opt/cp2k/tools/toolchain")
 
-    run_lines.append("echo 'Compiling cp2k...'")
-    run_lines.append("source /opt/cp2k-toolchain/install/setup")
-
-    build_command = f"make -j ARCH={arch} VERSION={version}"
     if prod:
-        run_lines.append(build_command)
+        run_lines.append("echo 'Compiling cp2k...'")
+        run_lines.append("source /opt/cp2k-toolchain/install/setup")
+        run_lines.append(f"make -j ARCH={arch} VERSION={version}")
         run_lines.append(f"ln -sf ./cp2k.{version} ./exe/{arch}/cp2k")
         run_lines.append(f"ln -sf ./cp2k_shell.{version} ./exe/{arch}/cp2k_shell")
         run_lines.append(f"ln -sf ./graph.{version} ./exe/{arch}/graph")
@@ -384,14 +382,11 @@ def install_cp2k(
         run_lines.append(f"ln -sf ./xyz2dcd.{version} ./exe/{arch}/xyz2dcd")
         # Remove libcp2k_unittest to reduce image size.
         run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
-    else:
-        run_lines.append(f"( {build_command} &> /dev/null || true )")
-        run_lines.append(f"rm -rf lib obj")
 
-    # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
-    if version.startswith("p") and not intel:
-        binary = f"./exe/{arch}/cp2k.{version}"
-        run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep -q libmpi )")
+        # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
+        if version.startswith("p") and not intel:
+            binary = f"./exe/{arch}/cp2k.{version}"
+            run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep -q libmpi )")
 
     input_block = "\n".join(input_lines)
     run_block = " && \\\n    ".join(run_lines)

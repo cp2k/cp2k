@@ -94,11 +94,7 @@ COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
 RUN /bin/bash -c " \
     mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local.ssmp ./arch/ && \
-    echo 'Compiling cp2k...' && \
-    source /opt/cp2k-toolchain/install/setup && \
-    ( make -j ARCH=local VERSION=ssmp &> /dev/null || true ) && \
-    rm -rf lib obj"
+    ln -vs /opt/cp2k-toolchain/install/arch/local.ssmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
