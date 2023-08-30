@@ -516,7 +516,7 @@ CONTAINS
       ! create a fixed-length string datatype
       CALL h5tcopy_f(h5t_c_s1, type_id, error)
       CALL h5tset_cset_f(type_id, h5t_cset_utf8_f, error)
-      CALL h5tset_size_f(type_id, dims(1), error)
+      CALL h5tset_size_f(type_id, INT(dims(1), size_t), error)
 
       ! create a simple dataspace
       CALL h5screate_simple_f(1, dims(2:2), space_id, error)
