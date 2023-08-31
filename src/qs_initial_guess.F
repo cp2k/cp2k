@@ -32,7 +32,6 @@ MODULE qs_initial_guess
         cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
-                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -370,6 +369,7 @@ CONTAINS
          END IF
       END IF
 
+      ounit = -1
       print_log = .FALSE.
       print_history_log = .FALSE.
       IF (para_env%is_source()) THEN
@@ -379,14 +379,15 @@ CONTAINS
          CALL section_vals_val_get(dft_section, &
                                    "SCF%PRINT%RESTART_HISTORY%LOG_PRINT_KEY", &
                                    l_val=print_history_log)
+         IF (print_log .OR. print_history_log) THEN
+            ounit = cp_logger_get_default_io_unit(logger)
+         END IF
       END IF
 
       IF (density_guess == restart_guess) THEN
-         IF (para_env%is_source()) THEN
-            IF (print_log .OR. print_history_log) THEN
-               WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
-                  "WFN_RESTART| Reading restart file"
-            END IF
+         IF (ounit > 0) THEN
+            WRITE (UNIT=ounit, FMT="(/,T2,A)") &
+               "WFN_RESTART| Reading restart file"
          END IF
          IF (do_kpoints) THEN
             natoms = SIZE(particle_set)
@@ -396,7 +397,7 @@ CONTAINS
          ELSE
             CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                           id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
-                                          natom_mismatch=natom_mismatch)
+                                          natom_mismatch=natom_mismatch, out_unit=ounit)
 
             IF (natom_mismatch) THEN
                density_guess = safe_density_guess
@@ -462,17 +463,15 @@ CONTAINS
 
       IF (density_guess == history_guess) THEN
          IF (not_read > 1) THEN
-            IF (para_env%is_source()) THEN
-               IF (print_log .OR. print_history_log) THEN
-                  WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A)") &
-                     "WFN_RESTART| Reading restart file history"
-               END IF
+            IF (ounit > 0) THEN
+               WRITE (UNIT=ounit, FMT="(/,T2,A)") &
+                  "WFN_RESTART| Reading restart file history"
             END IF
             DO i = 1, last_read
                j = last_read - i
                CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                              id_nr=j, multiplicity=dft_control%multiplicity, &
-                                             dft_section=dft_section)
+                                             dft_section=dft_section, out_unit=ounit)
 
                DO ispin = 1, nspin
                   IF (scf_control%level_shift /= 0.0_dp) THEN
