@@ -27,6 +27,11 @@
       &OT ON
         MINIMIZER DIIS
       &END OT
+      &PRINT
+        &RESTART_HISTORY
+          LOG_PRINT_KEY
+        &END RESTART_HISTORY
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
