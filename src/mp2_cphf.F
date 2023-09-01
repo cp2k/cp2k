@@ -1618,10 +1618,12 @@ CONTAINS
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
+
+         CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g, dvhartree=dvg)
+      ELSE
+         CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g)
       END IF
 
-      ! calculate the MP2 potential
-      CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g, dvhartree=dvg)
       CALL pw_transfer(pot_g, pot_r)
       CALL pw_scale(pot_r, pot_r%pw_grid%dvol)
       CALL pw_axpy(pot_r, vh_rspace)
