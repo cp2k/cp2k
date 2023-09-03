@@ -13,4 +13,4 @@ FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -I $(LIBINT_INCLUDE_DIR) -fopenmp -funroll-lo
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -framework Accelerate \
            -L$(LIBXC_LIB_DIR) -lxcf03 -lxc \
-           -L$(LIBINT_LIB_DIR) -lint2
+           -L$(LIBINT_LIB_DIR) -lint2 -lstdc++

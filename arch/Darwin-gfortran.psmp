@@ -15,4 +15,4 @@ FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -I $(LIBINT_INCLUDE_DIR) -fopenmp -O2 -g \
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -framework Accelerate -lscalapack \
            -L$(LIBXC_LIB_DIR) -lxcf03 -lxc \
-           -L$(LIBINT_LIB_DIR) -lint2
+           -L$(LIBINT_LIB_DIR) -lint2 -lstdc++
