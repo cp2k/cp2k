@@ -570,7 +570,7 @@ def html_header(title: str) -> str:
     output += "</style>\n"
     output += f"<title>{title}</title>\n"
     output += "</head><body>\n"
-    output += '<div class="ribbon"><a href="https://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
+    output += '<div class="ribbon"><a href="https://github.com/cp2k/cp2k/tree/master/tools/dashboard#readme">Need Help?</a></div>\n'
     output += f"<center><h1>{title.upper()}</h1></center>\n"
     return output
 
