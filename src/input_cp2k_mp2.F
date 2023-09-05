@@ -1044,7 +1044,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL section_create(gw_dos_section, __LOCATION__, name="GW_DOS", &
-                          description="Section for printing the spectral funtion.", &
+                          description="Section for printing the spectral function.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOWER_BOUND", &

@@ -1398,8 +1398,6 @@ CONTAINS
 
          IF (dos_lower_bound >= dos_upper_bound) THEN
             CALL cp_abort(__LOCATION__, "Invalid settings for GW_DOS calculation!")
-            dos_precision = 0_dp
-            ndos = 0
          END IF
 
          IF (dos_precision /= 0) THEN
@@ -1478,7 +1476,10 @@ CONTAINS
             CALL para_env%sum(vec_gw_energ)
             CALL para_env%sum(z_value)
             CALL para_env%sum(m_value)
-            CALL para_env%sum(vec_gw_dos)
+
+            IF (dos_precision /= 0.0_dp) THEN
+               CALL para_env%sum(vec_gw_dos)
+            END IF
 
             CALL check_NaN(vec_gw_energ, 0.0_dp)
             CALL check_NaN(z_value, 1.0_dp)
@@ -1570,9 +1571,9 @@ CONTAINS
                   ! 1/pi
                   ! [1/Hartree] -> [1/evolt]
                   WRITE (iunit, '(E17.10, E17.10)') (dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision)*evolt, &
-                     vec_gw_dos(idos)/evolt*0.3183098861837907
+                     vec_gw_dos(idos)/evolt/pi
                END DO
-               CLOSE (iunit)
+               CALL close_file(iunit)
             END IF
             DEALLOCATE (vec_gw_dos)
          END IF
@@ -4420,8 +4421,8 @@ CONTAINS
             IF (n_level_gw_ref >= min_level_self_energy .AND. &
                 n_level_gw_ref <= max_level_self_energy .AND. iunit > 0) THEN
 
-               vec_sigma_real(idos) = (REAL(sigma_c_pade))*evolt
-               vec_sigma_imag(idos) = (AIMAG(sigma_c_pade))*evolt
+               vec_sigma_real(idos) = (REAL(sigma_c_pade))
+               vec_sigma_imag(idos) = (AIMAG(sigma_c_pade))
 
             END IF
 
@@ -4446,19 +4447,19 @@ CONTAINS
                         file_status="UNKNOWN", file_action="WRITE")
          DO idos = 1, ndos
             omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
-            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_real(idos)
+            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_real(idos)*evolt
          END DO
 
-         CLOSE (iunit)
+         CALL close_file(iunit)
 
          CALL open_file('self_energy_im_'//TRIM(string_level)//'.dat', unit_number=iunit, &
                         file_status="UNKNOWN", file_action="WRITE")
          DO idos = 1, ndos
             omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
-            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_imag(idos)
+            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_imag(idos)*evolt
          END DO
 
-         CLOSE (iunit)
+         CALL close_file(iunit)
 
          DEALLOCATE (vec_sigma_real)
          DEALLOCATE (vec_sigma_imag)
