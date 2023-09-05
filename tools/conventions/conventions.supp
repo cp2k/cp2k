@@ -188,13 +188,13 @@ message_passing.F: Found CLOSE statement in procedure "mp_file_close" https://cp
 message_passing.F: Found OPEN statement in procedure "mp_file_open" https://cp2k.org/conv#c203
 message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
+message_passing.F: Type mismatch between actual argument at (1) and actual argument at (2) (REAL(4)/INTEGER(4)).
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-4)
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-message_passing.F: Type mismatch between actual argument at (1) and actual argument at (2) (REAL(4)/INTEGER(4)).
 metadynamics_types.F: Found type hills_env_type without initializer https://cp2k.org/conv#c016
 metadynamics_types.F: Found type meta_env_type without initializer https://cp2k.org/conv#c016
 metadynamics_types.F: Found type metavar_type without initializer https://cp2k.org/conv#c016
@@ -256,6 +256,7 @@ preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
 preconditioner_types.F: Found type preconditioner_p_type without initializer https://cp2k.org/conv#c016
 preconditioner_types.F: Found type preconditioner_type without initializer https://cp2k.org/conv#c016
+ps_implicit_methods.F: OMP PARALLEL without DEFAULT(NONE) found in "ps_implicit_prepare_blocks" https://cp2k.org/conv#c006
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "f_poissonsolver" https://cp2k.org/conv#c012
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "p_poissonsolver" https://cp2k.org/conv#c012
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "s_poissonsolver" https://cp2k.org/conv#c012
