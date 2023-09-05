@@ -66,6 +66,8 @@ CONTAINS
 
 #if defined(__FFTW3)
          TYPE(C_PTR) :: data_ptr
+         IF (PRODUCT(n) <= 0) &
+            CPABORT("FFT length must be positive!")
          data_ptr = fftw_alloc_complex(INT(PRODUCT(n), KIND=C_SIZE_T))
          CALL C_F_POINTER(data_ptr, array, n)
 #else

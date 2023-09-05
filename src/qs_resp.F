@@ -74,10 +74,10 @@ MODULE qs_resp
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
@@ -925,10 +925,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: normalize_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vpot
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type)                                  :: rho_ga, va_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_ga, va_gspace, va_rspace
+      TYPE(pw_type)                                      :: va_rspace
 
       CALL timeset(routineN, handle)
 
@@ -948,11 +949,9 @@ CONTAINS
                       poisson_env=poisson_env)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_ga, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              va_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              va_rspace, &
@@ -1695,11 +1694,11 @@ CONTAINS
                                                             sum_diff, sum_hartree, udvol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type)                                  :: rho_resp, v_resp_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: aux_r, rho_resp, v_resp_gspace, &
-                                                            v_resp_rspace
+      TYPE(pw_type)                                      :: aux_r, v_resp_rspace
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(section_vals_type), POINTER                   :: input, print_key, resp_section
 
@@ -1724,11 +1723,9 @@ CONTAINS
 
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_resp, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_resp_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_resp_rspace, &

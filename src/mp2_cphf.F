@@ -88,10 +88,10 @@ MODULE mp2_cphf
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
@@ -1331,16 +1331,17 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: pot_g, rho_tot_g, temp_pw_g
+      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: dvg
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g, rho_mp2_g
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
-                                                            vh_rspace, vhxc_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, rho_mp2_r, &
-                                                            rho_mp2_r_aux, rho_r, tau_mp2_r, &
-                                                            vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_type), POINTER                             :: rho_core
+      TYPE(pw_type)                                      :: pot_r, vh_rspace, vhxc_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_mp2_r, rho_mp2_r_aux, rho_r, &
+                                                            tau_mp2_r, vadmm_rspace, vtau_rspace, &
+                                                            vxc_rspace
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -1598,10 +1599,8 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_g, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL pw_zero(rho_tot_g)
@@ -1615,7 +1614,6 @@ CONTAINS
          ALLOCATE (dvg(3))
          DO idir = 1, 3
             CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir), &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
 
@@ -1646,7 +1644,6 @@ CONTAINS
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
          CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          ! make a copy of the MP2 density in G space

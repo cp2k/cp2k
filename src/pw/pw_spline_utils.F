@@ -35,10 +35,10 @@ MODULE pw_spline_utils
                                               pw_pool_release,&
                                               pw_pool_retain,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -133,7 +133,7 @@ CONTAINS
 !>      does not work with spherical cutoff
 ! **************************************************************************************************
    SUBROUTINE pw_spline2_interpolate_values_g(spline_g)
-      TYPE(pw_type), INTENT(IN)                          :: spline_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: spline_g
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_interpolate_values_g'
 
@@ -148,7 +148,6 @@ CONTAINS
       n_tot(1:3) = spline_g%pw_grid%npts(1:3)
       gbo = spline_g%pw_grid%bounds
 
-      CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
       CPASSERT(spline_g%pw_grid%grid_span == FULLSPACE)
@@ -173,7 +172,7 @@ CONTAINS
       END DO
 
 !$OMP     PARALLEL DO PRIVATE(i,j,k,ii,coeff,c23) DEFAULT(NONE) SHARED(spline_g,cosIVals,cosJVals,cosKVals)
-      DO ii = 1, SIZE(spline_g%cc)
+      DO ii = 1, SIZE(spline_g%array)
          i = spline_g%pw_grid%g_hat(1, ii)
          j = spline_g%pw_grid%g_hat(2, ii)
          k = spline_g%pw_grid%g_hat(3, ii)
@@ -184,7 +183,7 @@ CONTAINS
                           (cosIVals(i) + cosJVals(j) + cosKVals(k))*9.0_dp + &
                           27.0_dp)
 
-         spline_g%cc(ii) = spline_g%cc(ii)*coeff
+         spline_g%array(ii) = spline_g%array(ii)*coeff
 
       END DO
       DEALLOCATE (cosIVals, cosJVals, cosKVals)
@@ -206,7 +205,7 @@ CONTAINS
 !>      needed cos, and avoid the mpi_allreduce
 ! **************************************************************************************************
    SUBROUTINE pw_spline3_interpolate_values_g(spline_g)
-      TYPE(pw_type), INTENT(IN)                          :: spline_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: spline_g
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_interpolate_values_g'
 
@@ -221,7 +220,6 @@ CONTAINS
       n_tot(1:3) = spline_g%pw_grid%npts(1:3)
       gbo = spline_g%pw_grid%bounds
 
-      CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
       CPASSERT(spline_g%pw_grid%grid_span == FULLSPACE)
@@ -247,7 +245,7 @@ CONTAINS
       END DO
 
 !$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k,ii,coeff,c23) SHARED(spline_g,cosIVals,cosJVals,cosKVals)
-      DO ii = 1, SIZE(spline_g%cc)
+      DO ii = 1, SIZE(spline_g%array)
          i = spline_g%pw_grid%g_hat(1, ii)
          j = spline_g%pw_grid%g_hat(2, ii)
          k = spline_g%pw_grid%g_hat(3, ii)
@@ -264,7 +262,7 @@ CONTAINS
                           (cosIVals(i) + cosJVals(j) + cosKVals(k))*4.0_dp + &
                           8.0_dp)
 
-         spline_g%cc(ii) = spline_g%cc(ii)*coeff
+         spline_g%array(ii) = spline_g%array(ii)*coeff
 
       END DO
       DEALLOCATE (cosIVals, cosJVals, cosKVals)
@@ -374,7 +372,7 @@ CONTAINS
 !>      the distance between gridpoints is assumed to be 1
 ! **************************************************************************************************
    SUBROUTINE pw_spline3_deriv_g(spline_g, idir)
-      TYPE(pw_type), INTENT(IN)                          :: spline_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: spline_g
       INTEGER, INTENT(in)                                :: idir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g'
@@ -393,7 +391,6 @@ CONTAINS
       bo = spline_g%pw_grid%bounds_local
       gbo = spline_g%pw_grid%bounds
 
-      CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
       CPASSERT(spline_g%pw_grid%grid_span == FULLSPACE)
@@ -443,7 +440,7 @@ CONTAINS
       CASE (1)
          ! x deriv
 !$OMP        PARALLEL DO PRIVATE(ii,k,j,i,coeff,tmp) DEFAULT(NONE) SHARED(spline_g,csIVals,csJVals,csKVals)
-         DO ii = 1, SIZE(spline_g%cc)
+         DO ii = 1, SIZE(spline_g%array)
             i = spline_g%pw_grid%g_hat(1, ii)
             j = spline_g%pw_grid%g_hat(2, ii)
             k = spline_g%pw_grid%g_hat(3, ii)
@@ -456,13 +453,13 @@ CONTAINS
                      (tmp + csIVals(i)*csKVals(k))*2.0_dp + &
                      csIVals(i)*4.0_dp)*inv9
 
-            spline_g%cc(ii) = spline_g%cc(ii)* &
-                              CMPLX(0.0_dp, coeff, dp)
+            spline_g%array(ii) = spline_g%array(ii)* &
+                                 CMPLX(0.0_dp, coeff, dp)
          END DO
       CASE (2)
          ! y deriv
 !$OMP        PARALLEL DO PRIVATE(ii,k,j,i,coeff,tmp) DEFAULT(NONE) SHARED(spline_g,csIVals,csJVals,csKVals)
-         DO ii = 1, SIZE(spline_g%cc)
+         DO ii = 1, SIZE(spline_g%array)
             i = spline_g%pw_grid%g_hat(1, ii)
             j = spline_g%pw_grid%g_hat(2, ii)
             k = spline_g%pw_grid%g_hat(3, ii)
@@ -472,13 +469,13 @@ CONTAINS
                      (tmp + csJVals(j)*csKVals(k))*2.0_dp + &
                      csJVals(j)*4.0_dp)*inv9
 
-            spline_g%cc(ii) = spline_g%cc(ii)* &
-                              CMPLX(0.0_dp, coeff, dp)
+            spline_g%array(ii) = spline_g%array(ii)* &
+                                 CMPLX(0.0_dp, coeff, dp)
          END DO
       CASE (3)
          ! z deriv
 !$OMP        PARALLEL DO PRIVATE(ii,k,j,i,coeff,tmp) DEFAULT(NONE) SHARED(spline_g,csIVals,csJVals,csKVals)
-         DO ii = 1, SIZE(spline_g%cc)
+         DO ii = 1, SIZE(spline_g%array)
             i = spline_g%pw_grid%g_hat(1, ii)
             j = spline_g%pw_grid%g_hat(2, ii)
             k = spline_g%pw_grid%g_hat(3, ii)
@@ -488,8 +485,8 @@ CONTAINS
                      (tmp + csJVals(j)*csKVals(k))*2.0_dp + &
                      csKVals(k)*4.0_dp)*inv9
 
-            spline_g%cc(ii) = spline_g%cc(ii)* &
-                              CMPLX(0.0_dp, coeff, dp)
+            spline_g%array(ii) = spline_g%array(ii)* &
+                                 CMPLX(0.0_dp, coeff, dp)
          END DO
       END SELECT
 
@@ -511,7 +508,7 @@ CONTAINS
 !>      the distance between gridpoints is assumed to be 1
 ! **************************************************************************************************
    SUBROUTINE pw_spline2_deriv_g(spline_g, idir)
-      TYPE(pw_type), INTENT(IN)                          :: spline_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: spline_g
       INTEGER, INTENT(in)                                :: idir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g'
@@ -529,7 +526,6 @@ CONTAINS
       n_tot(1:3) = spline_g%pw_grid%npts(1:3)
       bo = spline_g%pw_grid%bounds
 
-      CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
       CPASSERT(spline_g%pw_grid%grid_span == FULLSPACE)
@@ -578,7 +574,7 @@ CONTAINS
       CASE (1)
          ! x deriv
 !$OMP        PARALLEL DO PRIVATE(ii,k,j,i,coeff,tmp) SHARED(spline_g,csIVals,csJVals,csKVals) DEFAULT(NONE)
-         DO ii = 1, SIZE(spline_g%cc)
+         DO ii = 1, SIZE(spline_g%array)
             i = spline_g%pw_grid%g_hat(1, ii)
             j = spline_g%pw_grid%g_hat(2, ii)
             k = spline_g%pw_grid%g_hat(3, ii)
@@ -591,13 +587,13 @@ CONTAINS
                      (tmp + csIVals(i)*csKVals(k))*3.0_dp + &
                      csIVals(i)*9.0_dp)*inv16
 
-            spline_g%cc(ii) = spline_g%cc(ii)* &
-                              CMPLX(0.0_dp, coeff, dp)
+            spline_g%array(ii) = spline_g%array(ii)* &
+                                 CMPLX(0.0_dp, coeff, dp)
          END DO
       CASE (2)
          ! y deriv
 !$OMP        PARALLEL DO PRIVATE(ii,k,j,i,coeff,tmp) DEFAULT(NONE) SHARED(spline_g,csIVals,csJVals,csKVals)
-         DO ii = 1, SIZE(spline_g%cc)
+         DO ii = 1, SIZE(spline_g%array)
             i = spline_g%pw_grid%g_hat(1, ii)
             j = spline_g%pw_grid%g_hat(2, ii)
             k = spline_g%pw_grid%g_hat(3, ii)
@@ -607,13 +603,13 @@ CONTAINS
                      (tmp + csJVals(j)*csKVals(k))*3.0_dp + &
                      csJVals(j)*9.0_dp)*inv16
 
-            spline_g%cc(ii) = spline_g%cc(ii)* &
-                              CMPLX(0.0_dp, coeff, dp)
+            spline_g%array(ii) = spline_g%array(ii)* &
+                                 CMPLX(0.0_dp, coeff, dp)
          END DO
       CASE (3)
          ! z deriv
 !$OMP        PARALLEL DO PRIVATE(ii,k,j,i,coeff,tmp) DEFAULT(NONE) SHARED(spline_g,csIVals,csJVals,csKVals)
-         DO ii = 1, SIZE(spline_g%cc)
+         DO ii = 1, SIZE(spline_g%array)
             i = spline_g%pw_grid%g_hat(1, ii)
             j = spline_g%pw_grid%g_hat(2, ii)
             k = spline_g%pw_grid%g_hat(3, ii)
@@ -623,8 +619,8 @@ CONTAINS
                      (tmp + csJVals(j)*csKVals(k))*3.0_dp + &
                      csKVals(k)*9.0_dp)*inv16
 
-            spline_g%cc(ii) = spline_g%cc(ii)* &
-                              CMPLX(0.0_dp, coeff, dp)
+            spline_g%array(ii) = spline_g%array(ii)* &
+                                 CMPLX(0.0_dp, coeff, dp)
          END DO
       END SELECT
 

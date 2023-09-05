@@ -60,10 +60,10 @@ MODULE qs_kpp1_env_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_create,&
                                               pw_release,&
                                               pw_type
@@ -222,13 +222,14 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type)                                  :: rho1_tot_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g, rho1_g_pw
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho1_tot_gspace, v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
-                                                            tau1_r, tau1_r_pw, v_rspace_new, v_xc, &
-                                                            v_xc_tau
+      TYPE(pw_type)                                      :: v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
+                                                            v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, scf_section
@@ -287,7 +288,6 @@ CONTAINS
 
       ! *** calculate the hartree potential on the total density ***
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
@@ -309,9 +309,8 @@ CONTAINS
 
       IF (.NOT. (nspins == 1 .AND. do_excitations .AND. do_triplet)) THEN
          BLOCK
-            TYPE(pw_type) :: v_hartree_gspace
+            TYPE(pw_c1d_type) :: v_hartree_gspace
             CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_poisson_solve(poisson_env, rho1_tot_gspace, &
                                   energy_hartree, &
@@ -589,7 +588,8 @@ CONTAINS
       INTEGER                                            :: ispin, nspins
       REAL(KIND=dp)                                      :: my_diff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_2, matrix_s, rho1_ao, rho_ao
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_g, rho1_r, rho_g, rho_r
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g, rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho_r
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       NULLIFY (ks_2, matrix_s, qs_energy, rho_ao, rho1_ao, rho_r, rho1_r, rho_g, rho1_g)
@@ -806,7 +806,7 @@ CONTAINS
    SUBROUTINE print_densities(rho1, rho1_tot_gspace, out_unit)
 
       TYPE(qs_rho_type), POINTER                         :: rho1
-      TYPE(pw_type), INTENT(IN)                          :: rho1_tot_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho1_tot_gspace
       INTEGER                                            :: out_unit
 
       REAL(KIND=dp)                                      :: total_rho_gspace

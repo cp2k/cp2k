@@ -23,7 +23,7 @@ MODULE xc_rho_set_types
                             pw_pool_give_back_pw, &
                             pw_pool_type
    USE pw_spline_utils, ONLY: pw_spline_scale_deriv
-   USE pw_types, ONLY: COMPLEXDATA1D, &
+   USE pw_types, ONLY: pw_c1d_type, &
                        REALDATA3D, &
                        REALSPACE, &
                        RECIPROCALSPACE, &
@@ -626,7 +626,7 @@ CONTAINS
                                       xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
             TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
             TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: rho_r
-            TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+            TYPE(pw_c1d_type), DIMENSION(:), POINTER               :: rho_g
             TYPE(pw_type), DIMENSION(:), POINTER, INTENT(IN)   :: tau
             TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
             INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
@@ -640,7 +640,7 @@ CONTAINS
             REAL(kind=dp)                                      :: rho_cutoff
             TYPE(pw_type), DIMENSION(2)                      :: laplace_rho_r
             TYPE(pw_type), DIMENSION(3, 2)                   :: drho_r
-            TYPE(pw_type)                                      :: my_rho_g, tmp_g
+            TYPE(pw_c1d_type)                                      :: my_rho_g, tmp_g
             TYPE(pw_type), DIMENSION(2)                        :: my_rho_r
 
             IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
@@ -690,7 +690,7 @@ CONTAINS
 
             IF (needs_rho_g) THEN
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                      in_space=RECIPROCALSPACE)
             END IF
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin), &
@@ -721,13 +721,13 @@ CONTAINS
                      IF (.NOT. ASSOCIATED(my_rho_g%pw_grid)) THEN
                         my_rho_g_local = .TRUE.
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
-                                               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                               in_space=RECIPROCALSPACE)
                         CALL pw_transfer(my_rho_r(ispin), my_rho_g)
                      END IF
                      IF (.NOT. my_rho_g_local .AND. (xc_deriv_method_id == xc_deriv_spline2 .OR. &
                                                      xc_deriv_method_id == xc_deriv_spline3)) THEN
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
-                                               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                               in_space=RECIPROCALSPACE)
                         my_rho_g_local = .TRUE.
                         CALL pw_copy(rho_g(ispin), my_rho_g)
                      END IF

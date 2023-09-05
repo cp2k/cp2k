@@ -95,10 +95,10 @@ MODULE qs_scf_post_tb
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                               calculate_rho_elec,&
@@ -1016,10 +1016,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1163,12 +1164,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type)                                  :: rho_core, vhartree_g
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_core, rho_tot_rspace, vhartree
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_type)                                      :: rho_tot_rspace, vhartree_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1220,7 +1223,6 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=rho_core, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
 
@@ -1260,25 +1262,25 @@ CONTAINS
       END IF
       IF (my_v_hartree .OR. my_efield) THEN
          BLOCK
-            TYPE(pw_type) :: rho_tot_gspace
+            TYPE(pw_c1d_type) :: rho_tot_gspace
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_gspace, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                   in_space=RECIPROCALSPACE)
             CALL pw_transfer(rho_tot_rspace, rho_tot_gspace)
             poisson_params%solver = pw_poisson_analytic
             poisson_params%periodic = cell%perd
             poisson_params%ewald_type = do_ewald_none
             BLOCK
                TYPE(greens_fn_type)                     :: green_fft
-               TYPE(pw_grid_type), POINTER                        :: pwdummy
+               TYPE(pw_grid_type), POINTER              :: pwdummy
                NULLIFY (pwdummy)
                CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
                CALL pw_multiply_by(rho_tot_gspace, green_fft%influence_fn)
                CALL pw_green_release(green_fft, auxbas_pw_pool)
             END BLOCK
             IF (my_v_hartree) THEN
-               CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree, &
+               CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree_r, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_transfer(rho_tot_gspace, vhartree)
+               CALL pw_transfer(rho_tot_gspace, vhartree_r)
                filename = "V_HARTREE"
                mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, cube_section, '', &
@@ -1293,22 +1295,22 @@ CONTAINS
                   WRITE (UNIT=iounit, FMT="(T2,A,/,T2,A79)") &
                      "The Hartree potential is written in cube file format to the file:", ADJUSTR(TRIM(filename))
                END IF
-               CALL cp_pw_to_cube(vhartree, unit_nr, "Hartree Potential", &
+               CALL cp_pw_to_cube(vhartree_r, unit_nr, "Hartree Potential", &
                                   particles=particles, &
                                   stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree_r)
             END IF
             IF (my_efield) THEN
-               CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree_g, &
+                                      in_space=RECIPROCALSPACE)
                udvol = 1.0_dp/rho_tot_rspace%pw_grid%dvol
                DO id = 1, 3
-                  CALL pw_transfer(rho_tot_gspace, vhartree)
+                  CALL pw_transfer(rho_tot_gspace, vhartree_g)
                   nd = 0
                   nd(id) = 1
-                  CALL pw_derive(vhartree, nd)
-                  CALL pw_transfer(vhartree, rho_tot_rspace)
+                  CALL pw_derive(vhartree_g, nd)
+                  CALL pw_transfer(vhartree_g, rho_tot_rspace)
                   CALL pw_scale(rho_tot_rspace, udvol)
 
                   filename = "EFIELD_"//cdir(id)
@@ -1330,7 +1332,7 @@ CONTAINS
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
                END DO
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree_g)
             END IF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
          END BLOCK
@@ -1362,11 +1364,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: elf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1467,10 +1470,11 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_type)                                      :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -1522,7 +1526,6 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL get_qs_env(qs_env, subsys=subsys)

@@ -65,7 +65,8 @@ MODULE admm_methods
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -131,7 +132,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g_aux
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(task_list_type), POINTER                      :: task_list
@@ -1505,8 +1507,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(local_rho_type), POINTER                      :: local_rho_buffer
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, v_rspace_dummy, &
-                                                            v_tau_rspace_dummy
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_dummy, v_tau_rspace_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(section_vals_type), POINTER                   :: xc_section_aux

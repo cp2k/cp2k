@@ -16,9 +16,8 @@ MODULE pw_copy_all
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
    USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
+                                              pw_c1d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,8 +40,8 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE pw_copy_match(pw1, pw2)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cc
       INTEGER                                            :: group_size, ig1, ig2, ip, jg2, me, ng1, &
@@ -53,12 +52,10 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
       TYPE(pw_grid_type), POINTER                        :: pg1, pg2
 
-      IF (pw1%in_use == COMPLEXDATA1D .AND. &
-          pw2%in_use == COMPLEXDATA1D .AND. &
-          pw1%in_space == RECIPROCALSPACE) THEN
+      IF (pw1%in_space == RECIPROCALSPACE) THEN
 
-         ng1 = SIZE(pw1%cc)
-         ng2 = SIZE(pw2%cc)
+         ng1 = SIZE(pw1%array)
+         ng2 = SIZE(pw2%array)
 
          pg1 => pw1%pw_grid
          pg2 => pw2%pw_grid
@@ -72,7 +69,7 @@ CONTAINS
          CALL group%sum(ngr)
          ngm = MAXVAL(ngr)
          ALLOCATE (cc(ngm))
-         cc(1:ng1) = pw1%cc(1:ng1)
+         cc(1:ng1) = pw1%array(1:ng1)
          cc(ng1 + 1:ngm) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
          ALLOCATE (g_hat(3, ngm))
          g_hat = 0
@@ -92,7 +89,7 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               IF (jg2 /= 0) pw2%cc(jg2) = cc(ig1)
+               IF (jg2 /= 0) pw2%array(jg2) = cc(ig1)
             END DO
             IF (ip /= group_size) THEN
                CALL group%shift(cc)

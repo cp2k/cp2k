@@ -52,10 +52,10 @@ MODULE qmmm_image_charge
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_release,&
                                               pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
@@ -99,7 +99,8 @@ CONTAINS
    SUBROUTINE calculate_image_pot(v_hartree_rspace, rho_hartree_gspace, energy, &
                                   qmmm_env, qs_env)
 
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_rspace, rho_hartree_gspace
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_rspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_hartree_gspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -706,10 +707,11 @@ CONTAINS
       INTEGER                                            :: handle, iatom, iatom_ref, natom
       REAL(KIND=dp), DIMENSION(:), POINTER               :: int_res
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type)                                  :: rho_gb, vb_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_gb, vb_gspace, vb_rspace
+      TYPE(pw_type)                                      :: vb_rspace
 
       CALL timeset(routineN, handle)
       NULLIFY (pw_env, auxbas_pw_pool, poisson_env, para_env, int_res)
@@ -725,11 +727,9 @@ CONTAINS
                       poisson_env=poisson_env)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_gb, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              vb_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              vb_rspace, &
@@ -871,7 +871,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(OUT)                         :: v_metal_rspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_hartree_gspace
+      TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: rho_hartree_gspace
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -880,10 +880,10 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: en_external, en_vmetal_rhohartree, &
                                                             total_rho_metal
+      TYPE(pw_c1d_type)                                  :: rho_metal, v_metal_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_metal, v_metal_gspace
 
       CALL timeset(routineN, handle)
 
@@ -897,12 +897,10 @@ CONTAINS
 
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_metal, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_metal_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL pw_pool_create_pw(auxbas_pw_pool, &

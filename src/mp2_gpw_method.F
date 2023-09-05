@@ -50,6 +50,7 @@ MODULE mp2_gpw_method
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
+                                              pw_c1d_type,&
                                               pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
@@ -165,10 +166,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(group_dist_d1_type)                           :: gd_exchange
       TYPE(mp_comm_type)                                 :: comm_exchange
+      TYPE(pw_c1d_type)                                  :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, psi_a, rho_g, rho_r
+      TYPE(pw_type)                                      :: psi_a, rho_r
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: psi_i
       TYPE(task_list_type), POINTER                      :: task_list_sub
 

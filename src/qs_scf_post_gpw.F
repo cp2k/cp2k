@@ -121,10 +121,10 @@ MODULE qs_scf_post_gpw
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_chargemol,                    ONLY: write_wfx
    USE qs_collocate_density,            ONLY: calculate_wavefunction
@@ -274,10 +274,11 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_type)                                      :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo, qs_loc_env_lumo, &
                                                             qs_loc_env_mixed
@@ -456,7 +457,6 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END IF
 
@@ -1017,7 +1017,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_g, wf_r
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: wf_g
+      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
 
@@ -1121,7 +1122,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: unoccupied_orbs
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_g, wf_r
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: wf_g
+      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
       INTEGER, INTENT(IN), OPTIONAL                      :: lumo
@@ -1908,14 +1910,14 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: aux_g, rho_elec_gspace
+      TYPE(pw_c1d_type), POINTER                         :: rho0_s_gs, rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: aux_g, aux_r, rho_elec_gspace, &
-                                                            rho_elec_rspace, wf_r
+      TYPE(pw_type)                                      :: aux_r, rho_elec_rspace, wf_r
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(pw_type), POINTER                             :: mb_rho, rho0_s_gs, rho_core, &
-                                                            v_hartree_rspace, vee
+      TYPE(pw_type), POINTER                             :: mb_rho, v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1968,9 +1970,12 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          IF (dft_control%qs_control%gapw) THEN
-            CALL pw_transfer(rho0_s_gs, wf_r)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CALL pw_axpy(rho_core, wf_r)
+               CALL pw_axpy(rho_core, rho0_s_gs)
+               CALL pw_transfer(rho0_s_gs, wf_r)
+               CALL pw_axpy(rho_core, rho0_s_gs, -1.0_dp)
+            ELSE
+               CALL pw_transfer(rho0_s_gs, wf_r)
             END IF
          ELSE
             CALL pw_transfer(rho_core, wf_r)
@@ -2135,7 +2140,6 @@ CONTAINS
             CALL pw_zero(rho_elec_rspace)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=rho_elec_gspace, &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_zero(rho_elec_gspace)
             CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw_grid, &
@@ -2391,7 +2395,6 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_g, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          append_cube = section_get_lval(input, "DFT%PRINT%EFIELD_CUBE%APPEND")
@@ -3366,11 +3369,12 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       LOGICAL                                            :: use_virial
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_type), POINTER                             :: rho_core, v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(virial_type), POINTER                         :: virial
 
@@ -3387,11 +3391,9 @@ CONTAINS
                          poisson_env=poisson_env)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 v_hartree_gspace, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 rho_tot_gspace, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)

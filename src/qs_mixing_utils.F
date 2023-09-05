@@ -20,7 +20,7 @@ MODULE qs_mixing_utils
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_methods,                      ONLY: pw_copy_to_array
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               gspace_mixing_nr,&
@@ -434,7 +434,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), DIMENSION(:, :), POINTER                 :: g_vec
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
 
       CALL timeset(routineN, handle)
 
@@ -505,11 +505,11 @@ CONTAINS
       END DO
 
       IF (nspin == 2) THEN
-         mixing_store%rhoin(1)%cc = rho_g(1)%cc + rho_g(2)%cc
-         mixing_store%rhoin(2)%cc = rho_g(1)%cc - rho_g(2)%cc
+         mixing_store%rhoin(1)%cc = rho_g(1)%array + rho_g(2)%array
+         mixing_store%rhoin(2)%cc = rho_g(1)%array - rho_g(2)%array
          IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%cc + rho_g(2)%cc
-            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%cc - rho_g(2)%cc
+            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%array + rho_g(2)%array
+            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%array - rho_g(2)%array
          END IF
       END IF
 

@@ -38,10 +38,10 @@ MODULE qs_ks_reference
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_create,&
                                               pw_release,&
                                               pw_type
@@ -114,15 +114,15 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
+      TYPE(pw_type)                                      :: v_hartree_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: v_admm_rspace, v_admm_tau_rspace, &
                                                             v_rspace, v_tau_rspace
-      TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_xc
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -148,11 +148,11 @@ CONTAINS
 
       ! Calculate the Hartree potential
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
 
       ! Get the total density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)

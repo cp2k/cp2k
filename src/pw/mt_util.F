@@ -22,10 +22,10 @@ MODULE mt_util
                                               pw_pool_give_back_pw,&
                                               pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -55,7 +55,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, &
                                     special_dimension, slab_size, super_ref_pw_grid)
-      TYPE(pw_type), POINTER                             :: screen_function
+      TYPE(pw_c1d_type), POINTER                         :: screen_function
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp), INTENT(in)                          :: alpha
@@ -67,8 +67,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ig, iz
       REAL(KIND=dp)                                      :: alpha2, g2, g3d, gxy, gz, zlength
+      TYPE(pw_c1d_type), POINTER                         :: Vlocg
       TYPE(pw_pool_type), POINTER                        :: pw_pool_aux
-      TYPE(pw_type), POINTER                             :: Vloc, Vlocg
+      TYPE(pw_type), POINTER                             :: Vloc
 
       CALL timeset(routineN, handle)
       NULLIFY (Vloc, Vlocg, pw_pool_aux)
@@ -81,7 +82,7 @@ CONTAINS
       END IF
       NULLIFY (screen_function)
       ALLOCATE (screen_function)
-      CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D, &
+      CALL pw_pool_create_pw(pw_pool, screen_function, &
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(screen_function)
       SELECT CASE (method)
@@ -90,10 +91,10 @@ CONTAINS
          ALLOCATE (Vloc, Vlocg)
          IF (ASSOCIATED(pw_pool_aux)) THEN
             CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL pw_pool_create_pw(pw_pool_aux, Vlocg, in_space=RECIPROCALSPACE)
          ELSE
             CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(pw_pool, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL pw_pool_create_pw(pw_pool, Vlocg, in_space=RECIPROCALSPACE)
          END IF
          CALL mt0din(Vloc, alpha)
          CALL pw_transfer(Vloc, Vlocg)
@@ -113,10 +114,10 @@ CONTAINS
          DO ig = screen_function%pw_grid%first_gne0, screen_function%pw_grid%ngpts_cut_local
             g2 = screen_function%pw_grid%gsq(ig)
             g3d = fourpi/g2
-            screen_function%cc(ig) = screen_function%cc(ig) - g3d*EXP(-g2/(4.0E0_dp*alpha2))
+            screen_function%array(ig) = screen_function%array(ig) - g3d*EXP(-g2/(4.0E0_dp*alpha2))
          END DO
          IF (screen_function%pw_grid%have_g0) &
-            screen_function%cc(1) = screen_function%cc(1) + fourpi/(4.0E0_dp*alpha2)
+            screen_function%array(1) = screen_function%array(1) + fourpi/(4.0E0_dp*alpha2)
       CASE (MT2D)
          iz = special_dimension ! iz is the direction with NO PBC
          zlength = slab_size ! zlength is the thickness of the cell
@@ -125,9 +126,9 @@ CONTAINS
             g2 = screen_function%pw_grid%gsq(ig)
             gxy = SQRT(ABS(g2 - gz*gz))
             g3d = fourpi/g2
-            screen_function%cc(ig) = -g3d*COS(gz*zlength/2.0_dp)*EXP(-gxy*zlength/2.0_dp)
+            screen_function%array(ig) = -g3d*COS(gz*zlength/2.0_dp)*EXP(-gxy*zlength/2.0_dp)
          END DO
-         IF (screen_function%pw_grid%have_g0) screen_function%cc(1) = pi*zlength*zlength/2.0_dp
+         IF (screen_function%pw_grid%have_g0) screen_function%array(1) = pi*zlength*zlength/2.0_dp
       CASE (MT1D)
          iz = special_dimension ! iz is the direction with PBC
          CALL mt1din(screen_function)
@@ -207,7 +208,7 @@ CONTAINS
 !> \author Teodoro Laino (11.2005)
 ! **************************************************************************************************
    SUBROUTINE mt1din(screen_function)
-      TYPE(pw_type), POINTER                             :: screen_function
+      TYPE(pw_c1d_type), POINTER                         :: screen_function
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt1din'
 

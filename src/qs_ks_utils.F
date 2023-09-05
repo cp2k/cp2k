@@ -95,10 +95,10 @@ MODULE qs_ks_utils
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
@@ -177,10 +177,11 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_type)                                      :: work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau, vxc, vxc_tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau, vxc, vxc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
@@ -319,7 +320,6 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin), &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace, &
@@ -495,11 +495,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
+      TYPE(pw_c1d_type)                                  :: work_v_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_type), TARGET                          :: orb_rho_g, tmp_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
-      TYPE(pw_type)                                      :: work_v_gspace, work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau, vxc, vxc_tau
-      TYPE(pw_type), TARGET                              :: orb_rho_g, orb_rho_r, tmp_g, tmp_r
+      TYPE(pw_type)                                      :: work_v_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau, vxc, vxc_tau
+      TYPE(pw_type), TARGET                              :: orb_rho_r, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -624,13 +627,10 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_g, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, work_v_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace, &
                              use_data=REALDATA3D, &
@@ -787,8 +787,8 @@ CONTAINS
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: store_forces
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
-      TYPE(pw_type)                                      :: work_rho, work_v
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_c1d_type)                                  :: work_rho, work_v
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (mo_array, rho_g)
@@ -803,10 +803,8 @@ CONTAINS
       CPASSERT(dft_control%nspins == 2)
 
       CALL pw_pool_create_pw(auxbas_pw_pool, work_rho, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, work_v, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL qs_rho_get(rho, rho_g=rho_g)
@@ -1696,11 +1694,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: lambda
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_ext_r
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_ext_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: v_xc_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_g, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: ext_den_section, input
 
@@ -1739,14 +1738,12 @@ CONTAINS
       ELSE
          BLOCK
             REAL(KIND=dp)                                      :: factor
-            TYPE(pw_type) :: rho_eff_gspace, v_xc_gspace
+            TYPE(pw_c1d_type) :: rho_eff_gspace, v_xc_gspace
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=rho_eff_gspace, &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=v_xc_gspace, &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_zero(rho_eff_gspace)
             CALL pw_zero(v_xc_gspace)

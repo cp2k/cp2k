@@ -40,8 +40,7 @@ cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_fir
    USE pw_grids, ONLY: pw_grid_compare, &
                        pw_grid_release, &
                        pw_grid_retain
-   USE pw_types, ONLY: COMPLEXDATA1D, &
-                       REALDATA3D, &
+   USE pw_types, ONLY: REALDATA3D, &
                        pw_create, &
                        pw_release, &
 #:for kind in pw_kinds
@@ -86,8 +85,7 @@ cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_fir
          TYPE(cp_sll_pw_${kind}$_type), POINTER :: ${kind}$_pw => NULL()
          TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: ${kind}$_array => NULL()
       #:endfor
-      TYPE(cp_sll_pw_type), POINTER :: real3d_pw => NULL(), &
-                                       complex1d_pw => NULL()
+      TYPE(cp_sll_pw_type), POINTER :: real3d_pw => NULL()
    END TYPE pw_pool_type
 
 ! **************************************************************************************************
@@ -248,14 +246,6 @@ CONTAINS
          DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%real3d_pw)
-
-      iterator => pool%complex1d_pw
-      DO
-         IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
-         DEALLOCATE (pw_el)
-      END DO
-      CALL cp_sll_pw_dealloc(pool%complex1d_pw)
 
    END SUBROUTINE pw_pool_flush_cache
 
@@ -428,8 +418,7 @@ CONTAINS
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: COMPLEXDATA1D,
-!>        REALDATA3D
+!> \param use_data which data it uses: REALDATA3D
 !> \param in_space ...
 !> \par History
 !>      07.2004 created [fawzi]
@@ -572,8 +561,7 @@ CONTAINS
 !> \brief returns a pw, allocating it if none is in the pool
 !> \param pool the pool from where you get the pw
 !> \param pw will contain the new pw
-!> \param use_data which data it uses: COMPLEXDATA1D,
-!>        REALDATA3D
+!> \param use_data which data it uses: REALDATA3D
 !> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
 !> \par History
 !>      08.2002 created [fawzi]
@@ -605,8 +593,6 @@ CONTAINS
                CALL cp_sll_3d_r_rm_first_el(pool%r3d_array)
             END IF
          END IF
-      CASE (COMPLEXDATA1D)
-         el => try_pop(pool%complex1d_pw)
       CASE default
 ! unknown use_data
          CPABORT("")
@@ -669,15 +655,6 @@ CONTAINS
                   CALL pw_release(el)
                   DEALLOCATE (el)
                END IF
-            CASE (COMPLEXDATA1D)
-               IF (cp_sll_pw_get_length(pool%complex1d_pw) < pool%max_cache) THEN
-                  CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=el)
-               ELSE
-                  IF (max_max_cache >= 0) &
-                     CPWARN("hit max_cache")
-                  CALL pw_release(el)
-                  DEALLOCATE (el)
-               END IF
             CASE default
                ! unknown in_use
                CPABORT("")
@@ -686,10 +663,9 @@ CONTAINS
             !FM (s)he gets problems
          END IF
       ELSE
-         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
          IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       END IF
-      NULLIFY (pw%cc, pw%cr3d, pw%pw_grid)
+      NULLIFY (pw%cr3d, pw%pw_grid)
       CALL timestop(handle)
    END SUBROUTINE pw_pool_give_back_pw_pw
 
@@ -697,8 +673,7 @@ CONTAINS
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: COMPLEXDATA1D,
-!>        REALDATA3D
+!> \param use_data which data it uses: REALDATA3D
 !> \param in_space ...
 !> \par History
 !>      07.2004 created [fawzi]

@@ -88,6 +88,7 @@ MODULE qs_linres_current
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -215,10 +216,11 @@ CONTAINS
          POINTER                                         :: sab_all
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g, jrho1_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -581,7 +583,8 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
-      TYPE(pw_type), INTENT(INOUT)                       :: current_rs, current_gs
+      TYPE(pw_type), INTENT(INOUT)                       :: current_rs
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, retain_rsgrid

@@ -49,10 +49,10 @@ MODULE qs_linres_epr_ownutils
                                               pw_spline_precond_set_kind,&
                                               pw_spline_precond_type,&
                                               spl3_pbc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -782,12 +782,14 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: pw_gspace_work
+      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:, :)    :: shift_pw_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: epr_rho_r, jrho1_g
+      TYPE(pw_type)                                      :: shift_pw_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: epr_rho_r
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
 
       CALL timeset(routineN, handle)
@@ -816,7 +818,6 @@ CONTAINS
       DO ispin = 1, nspins
          DO idir = 1, 3
             CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin), &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
@@ -825,7 +826,6 @@ CONTAINS
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(shift_pw_rspace)
       CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(pw_gspace_work)
       !

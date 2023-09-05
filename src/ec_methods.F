@@ -31,7 +31,8 @@ MODULE ec_methods
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -88,7 +89,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), DIMENSION(:), POINTER               :: vxc, vxc_tau
       TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho
-      TYPE(pw_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_r, rho1_g, tau1_r
+      TYPE(pw_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_r
+      TYPE(pw_c1d_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: rho1_g
+      TYPE(pw_type), DIMENSION(:), INTENT(IN), POINTER   :: tau1_r
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &

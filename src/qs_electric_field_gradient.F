@@ -53,10 +53,10 @@ MODULE qs_electric_field_gradient
         Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, pw_spline_do_precond, &
         pw_spline_precond_create, pw_spline_precond_release, pw_spline_precond_set_kind, &
         pw_spline_precond_type, spl3_pbc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -110,13 +110,15 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, structure_factor, &
+                                                            v_hartree_gspace
+      TYPE(pw_c1d_type), DIMENSION(6)                    :: dvr2
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type)                       :: precond
-      TYPE(pw_type)                                      :: dvr2rs, rho_tot_gspace, &
-                                                            structure_factor, v_hartree_gspace
-      TYPE(pw_type), DIMENSION(6)                        :: dvr2, dvspl
+      TYPE(pw_type)                                      :: dvr2rs
+      TYPE(pw_type), DIMENSION(6)                        :: dvspl
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -214,9 +216,9 @@ CONTAINS
 
       !calculate electrostatic potential
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace, ehartree, &
@@ -230,14 +232,14 @@ CONTAINS
          DO j = 1, i
             ij = (i*(i - 1))/2 + j
             CALL pw_pool_create_pw(auxbas_pw_pool, dvr2(ij), &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                   in_space=RECIPROCALSPACE)
             CALL pw_dr2(v_hartree_gspace, dvr2(ij), i, j)
          END DO
       END DO
 
       IF (.NOT. efg_interpolation) THEN
          CALL pw_pool_create_pw(auxbas_pw_pool, structure_factor, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                in_space=RECIPROCALSPACE)
       ELSE
 
          interp_section => section_vals_get_subs_vals(dft_section, &

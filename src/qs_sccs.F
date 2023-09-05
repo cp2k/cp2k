@@ -78,10 +78,10 @@ MODULE qs_sccs
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -127,7 +127,8 @@ CONTAINS
    SUBROUTINE sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs, h_stress)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace, v_hartree_gspace, v_sccs
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: v_sccs
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
 
@@ -1008,8 +1009,8 @@ CONTAINS
 
       INTEGER                                            :: border_points, handle, i
       INTEGER, DIMENSION(3)                              :: lb, n, ub
+      TYPE(pw_c1d_type), DIMENSION(2)                    :: work_g1d
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(2)                        :: work_g1d
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
@@ -1048,7 +1049,6 @@ CONTAINS
          DO i = 1, SIZE(work_g1d)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    work_g1d(i), &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
       END SELECT

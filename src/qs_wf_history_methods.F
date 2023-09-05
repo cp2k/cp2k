@@ -64,10 +64,10 @@ MODULE qs_wf_history_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -150,9 +150,10 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -217,7 +218,7 @@ CONTAINS
             ALLOCATE (snapshot%rho_g(nspins))
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_g(ispin), &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+                                      in_space=RECIPROCALSPACE)
             END DO
          END IF
          DO ispin = 1, nspins

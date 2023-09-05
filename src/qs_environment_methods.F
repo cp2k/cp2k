@@ -38,10 +38,10 @@ MODULE qs_environment_methods
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_release,&
                                               pw_type
    USE qs_charges_types,                ONLY: qs_charges_create,&
@@ -205,11 +205,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(pw_c1d_type), POINTER                         :: rho_core, rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: new_pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: embed_pot, external_vxc, rho_core, &
-                                                            rho_nlcc, rho_nlcc_g, spin_embed_pot, &
-                                                            v_hartree_rspace, vee, vppl
+      TYPE(pw_type), POINTER                             :: embed_pot, external_vxc, rho_nlcc, &
+                                                            spin_embed_pot, v_hartree_rspace, vee, &
+                                                            vppl
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -248,7 +249,7 @@ CONTAINS
                ALLOCATE (rho_core)
                CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
                CALL pw_pool_create_pw(auxbas_pw_pool, rho_core, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                      in_space=RECIPROCALSPACE)
                CALL set_ks_env(ks_env, rho_core=rho_core)
             END IF
             CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
@@ -280,7 +281,7 @@ CONTAINS
             ALLOCATE (rho_core)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_core, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                   in_space=RECIPROCALSPACE)
             CALL set_ks_env(ks_env, rho_core=rho_core)
          END IF
 
@@ -322,7 +323,7 @@ CONTAINS
                ALLOCATE (rho_nlcc_g)
             END IF
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g, RECIPROCALSPACE)
             CALL set_ks_env(ks_env, rho_nlcc_g=rho_nlcc_g)
          END IF
 

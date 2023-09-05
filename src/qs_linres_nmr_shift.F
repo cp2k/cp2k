@@ -53,10 +53,10 @@ MODULE qs_linres_nmr_shift
                                               pw_spline_precond_set_kind,&
                                               pw_spline_precond_type,&
                                               spl3_pbc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -118,12 +118,13 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: pw_gspace_work
+      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:, :)    :: shift_pw_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g
+      TYPE(pw_type)                                      :: shift_pw_rspace
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -160,7 +161,7 @@ CONTAINS
       DO ispin = 1, nspins
          DO idir = 1, 3
             CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin), &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                   in_space=RECIPROCALSPACE)
             CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
       END DO
@@ -169,7 +170,7 @@ CONTAINS
       CALL set_vecp(iB, iiB, iiiB)
       !
       CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
       CALL pw_zero(pw_gspace_work)
       DO ispin = 1, nspins
          !
@@ -606,7 +607,7 @@ CONTAINS
       TYPE(nmr_env_type)                                 :: nmr_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pw_type), INTENT(IN)                          :: shift_pw_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: shift_pw_gspace
       INTEGER, INTENT(IN)                                :: i_B, idir
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gsum_shift_pwgrid'
@@ -665,7 +666,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gsumr(r, pw, cplx)
       REAL(dp), INTENT(IN)                               :: r(3)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw
       COMPLEX(dp)                                        :: cplx
 
       COMPLEX(dp)                                        :: rg
@@ -676,9 +677,9 @@ CONTAINS
       cplx = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       DO ig = grid%first_gne0, grid%ngpts_cut_local
          rg = (grid%g(1, ig)*r(1) + grid%g(2, ig)*r(2) + grid%g(3, ig)*r(3))*gaussi
-         cplx = cplx + pw%cc(ig)*EXP(rg)
+         cplx = cplx + pw%array(ig)*EXP(rg)
       END DO
-      IF (grid%have_g0) cplx = cplx + pw%cc(1)
+      IF (grid%have_g0) cplx = cplx + pw%array(1)
       CALL grid%para%group%sum(cplx)
    END SUBROUTINE gsumr
 

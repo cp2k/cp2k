@@ -44,10 +44,10 @@ MODULE cp_ddapc
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -86,7 +86,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_type), POINTER                             :: v_spin_ddapc_rest_r
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
@@ -101,7 +101,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_type)                                      :: v_spin_ddapc_rest_g
+      TYPE(pw_c1d_type)                                  :: v_spin_ddapc_rest_g
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
 
       NULLIFY (v_hartree_rspace, dft_control)
@@ -140,7 +140,7 @@ CONTAINS
       dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
       IF (explicit_potential) THEN
          CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_g, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                in_space=RECIPROCALSPACE)
          CALL pw_zero(v_spin_ddapc_rest_g)
          NULLIFY (v_spin_ddapc_rest_r)
          ALLOCATE (v_spin_ddapc_rest_r)
@@ -231,9 +231,9 @@ CONTAINS
    SUBROUTINE cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace, &
                                 calculate_forces, Itype_of_density)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_gspace
       REAL(KIND=dp), INTENT(INOUT)                       :: energy
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: v_hartree_gspace
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       CHARACTER(LEN=*)                                   :: Itype_of_density
 
@@ -366,7 +366,7 @@ CONTAINS
                                 v_spin_ddapc_rest_g, ddapc_restraint_control, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: energy_res
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace, v_spin_ddapc_rest_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: v_hartree_gspace, v_spin_ddapc_rest_g
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
@@ -469,9 +469,9 @@ CONTAINS
    SUBROUTINE cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy, &
                                 v_hartree_gspace, calculate_forces, Itype_of_density)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_gspace
       REAL(KIND=dp), INTENT(INOUT)                       :: energy
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: v_hartree_gspace
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       CHARACTER(LEN=*)                                   :: Itype_of_density
 

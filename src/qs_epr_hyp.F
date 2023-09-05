@@ -45,9 +45,8 @@ MODULE qs_epr_hyp
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
+                                              pw_c1d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -99,11 +98,11 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: hypaniso_gspace, rhototspin_elec_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: hypaniso_gspace, rhototspin_elec_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: rho_rad_h, rho_rad_s
@@ -286,7 +285,6 @@ CONTAINS
 
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rhototspin_elec_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(rhototspin_elec_gspace)
 
@@ -300,7 +298,6 @@ CONTAINS
       ! grid to assemble anisotropic hyperfine terms
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              hypaniso_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       DO idir1 = 1, 3
@@ -311,10 +308,10 @@ CONTAINS
             DO iatom = 1, natom
                esum = 0.0_dp
                ra(:) = pbc(particle_set(iatom)%r, cell)
-               DO ig = 1, SIZE(hypaniso_gspace%cc)
+               DO ig = 1, SIZE(hypaniso_gspace%array)
                   arg = DOT_PRODUCT(pw_grid%g(:, ig), ra)
-                  esum = esum + COS(arg)*REAL(hypaniso_gspace%cc(ig), dp) &
-                         - SIN(arg)*AIMAG(hypaniso_gspace%cc(ig))
+                  esum = esum + COS(arg)*REAL(hypaniso_gspace%array(ig), dp) &
+                         - SIN(arg)*AIMAG(hypaniso_gspace%array(ig))
                END DO
                ! Actually, we need -1.0 * fourpi * hypaniso_gspace
                esum = esum*fourpi*(-1.0_dp)

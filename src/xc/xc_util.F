@@ -26,8 +26,8 @@ MODULE xc_util
         pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
         pw_spline3_interpolate_values_g, pw_spline_scale_deriv, spline2_coeffs, &
         spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE xc_input_constants,              ONLY: &
         xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
@@ -41,6 +41,10 @@ MODULE xc_util
 
    PUBLIC :: xc_pw_smooth, xc_pw_laplace, xc_pw_divergence, xc_pw_derive, xc_requires_tmp_g, xc_pw_gradient
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_util'
+
+   INTERFACE xc_pw_laplace
+      MODULE PROCEDURE xc_pw_laplace_c1d, xc_pw_laplace_r3d
+   END INTERFACE
 
 CONTAINS
 
@@ -116,7 +120,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_pw_gradient(pw_r, pw_g, tmp_g, gradient, xc_deriv_method_id)
       TYPE(pw_type), INTENT(IN)                          :: pw_r
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_g, tmp_g
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw_g, tmp_g
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: gradient
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
 
@@ -137,18 +141,18 @@ CONTAINS
 !> \param pw_out if present, save the Laplacian of pw here
 !> \param tmp_g scratch grid in reciprocal space, used instead of the internal grid if given explicitly to save memory
 ! **************************************************************************************************
-   SUBROUTINE xc_pw_laplace(pw, pw_pool, deriv_method_id, pw_out, tmp_g)
+   SUBROUTINE xc_pw_laplace_r3d(pw, pw_pool, deriv_method_id, pw_out, tmp_g)
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       INTEGER, INTENT(IN)                                :: deriv_method_id
       TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: pw_out
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: tmp_g
+      TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: tmp_g
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_laplace'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_laplace_r3d'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: owns_tmp_g
-      TYPE(pw_type)                                      :: my_tmp_g
+      TYPE(pw_c1d_type)                                  :: my_tmp_g
 
       CALL timeset(routineN, handle)
 
@@ -160,10 +164,9 @@ CONTAINS
          owns_tmp_g = .FALSE.
          IF (.NOT. ASSOCIATED(my_tmp_g%pw_grid)) THEN
             CALL pw_pool_create_pw(pw_pool, my_tmp_g, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                   in_space=RECIPROCALSPACE)
             owns_tmp_g = .TRUE.
          END IF
-         CALL pw_zero(my_tmp_g)
          CALL pw_transfer(pw, my_tmp_g)
 
          CALL pw_laplace(my_tmp_g)
@@ -182,7 +185,62 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE xc_pw_laplace
+   END SUBROUTINE xc_pw_laplace_r3d
+
+! **************************************************************************************************
+!> \brief Calculates the Laplacian of pw
+!> \param pw on input: pw of which the Laplacian shall be calculated, on output if pw_out is absent: Laplacian of input
+!> \param pw_pool ...
+!> \param deriv_method_id ...
+!> \param pw_out if present, save the Laplacian of pw here
+!> \param tmp_g scratch grid in reciprocal space, used instead of the internal grid if given explicitly to save memory
+! **************************************************************************************************
+   SUBROUTINE xc_pw_laplace_c1d(pw, pw_pool, deriv_method_id, pw_out, tmp_g)
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+      INTEGER, INTENT(IN)                                :: deriv_method_id
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: pw_out
+      TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: tmp_g
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_laplace_c1d'
+
+      INTEGER                                            :: handle
+      LOGICAL                                            :: owns_tmp_g
+      TYPE(pw_c1d_type)                                  :: my_tmp_g
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (deriv_method_id)
+      CASE (xc_deriv_pw)
+
+         IF (PRESENT(pw_out)) THEN
+            IF (PRESENT(tmp_g)) my_tmp_g = tmp_g
+
+            owns_tmp_g = .FALSE.
+            IF (.NOT. ASSOCIATED(my_tmp_g%pw_grid)) THEN
+               CALL pw_pool_create_pw(pw_pool, my_tmp_g, &
+                                      in_space=RECIPROCALSPACE)
+               owns_tmp_g = .TRUE.
+            END IF
+            CALL pw_copy(pw, my_tmp_g)
+
+            CALL pw_laplace(my_tmp_g)
+
+            CALL pw_transfer(my_tmp_g, pw_out)
+
+            IF (owns_tmp_g) THEN
+               CALL pw_pool_give_back_pw(pw_pool, my_tmp_g)
+            END IF
+         ELSE
+            CALL pw_laplace(pw)
+         END IF
+      CASE default
+         CPABORT("Unsupported derivative method")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xc_pw_laplace_c1d
 
 ! **************************************************************************************************
 !> \brief Calculates the divergence of pw_to_deriv
@@ -195,7 +253,8 @@ CONTAINS
    SUBROUTINE xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_r)
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: pw_to_deriv
-      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g, vxc_g, vxc_r
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: tmp_g, vxc_g
+      TYPE(pw_type), INTENT(INOUT)                       :: vxc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_divergence'
 
@@ -236,10 +295,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_pw_derive(pw, tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr, pw_g)
       TYPE(pw_type), INTENT(IN)                          :: pw
-      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g, vxc_r
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: tmp_g
+      TYPE(pw_type), INTENT(INOUT)                       :: vxc_r
       INTEGER, INTENT(IN)                                :: idir, xc_deriv_method_id
       LOGICAL, INTENT(IN), OPTIONAL                      :: copy_to_vxcr
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: pw_g
+      TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: pw_g
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_derive'
       INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))

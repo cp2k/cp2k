@@ -52,10 +52,10 @@ MODULE xc_pot_saop
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -151,11 +151,13 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: molecular_orbitals
+      TYPE(pw_c1d_type)                                  :: orbital_g
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: orbital, orbital_g
+      TYPE(pw_type)                                      :: orbital
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc_GLLB, vxc_SAOP
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, rho_struct_r, tau, vxc_LB, &
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, rho_struct_r, tau, vxc_LB, &
                                                             vxc_tau, vxc_tmp
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -312,7 +314,6 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, orbital_g, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       DO ispin = 1, nspins

@@ -34,10 +34,10 @@ MODULE localization_tb
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -98,10 +98,11 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_type)                                      :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -184,7 +185,6 @@ CONTAINS
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
 
             NULLIFY (marked_states, qs_loc_env_homo)

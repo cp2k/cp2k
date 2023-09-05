@@ -48,7 +48,6 @@ MODULE pw_types
 
    ! Flags for the structure member 'in_use'
    ! NODATA only for internal use, we enforce a certain data type
-   INTEGER, PARAMETER, PUBLIC :: COMPLEXDATA1D = 302
    INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303
    INTEGER, PARAMETER         :: NODATA = 305
 
@@ -60,7 +59,6 @@ MODULE pw_types
 ! **************************************************************************************************
    TYPE pw_type
       REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cr3d => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cc => NULL()
 
       INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
       INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
@@ -164,10 +162,8 @@ CONTAINS
          #:if kind.endswith("1d")
             IF (PRESENT(array_ptr)) THEN
                IF (ASSOCIATED(array_ptr)) THEN
-                  IF (ALL(bounds(1, :) <= bounds(2, :))) THEN
-                     CPASSERT(SIZE(array_ptr) == pw%pw_grid%ngpts_cut_local)
-                     CPASSERT(UBOUND(array_ptr, 1) == pw%pw_grid%ngpts_cut_local)
-                  END IF
+                  CPASSERT(SIZE(array_ptr) == pw%pw_grid%ngpts_cut_local)
+                  CPASSERT(UBOUND(array_ptr, 1) == pw%pw_grid%ngpts_cut_local)
                   pw%array => array_ptr
                END IF
             END IF
@@ -191,6 +187,7 @@ CONTAINS
                          bounds(1, 3):bounds(2, 3)))
             END IF
          #:else
+            #:stop "Unknown array dimensions!"
          #:endif
          pw%in_space = in_space
          CALL timestop(handle)
@@ -210,8 +207,6 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
 
       SELECT CASE (pw%in_use)
-      CASE (COMPLEXDATA1D)
-         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
       CASE (REALDATA3D)
          IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       CASE (NODATA)
@@ -276,9 +271,6 @@ CONTAINS
       bounds => pw%pw_grid%bounds_local
 
       SELECT CASE (use_data)
-      CASE (COMPLEXDATA1D)
-         ALLOCATE (pw%cc(pw%pw_grid%ngpts_cut_local))
-
       CASE (REALDATA3D)
          IF (PRESENT(cr3d_ptr)) THEN
             IF (ASSOCIATED(cr3d_ptr)) THEN

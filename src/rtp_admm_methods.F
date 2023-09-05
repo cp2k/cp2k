@@ -41,7 +41,8 @@ MODULE rtp_admm_methods
                                               zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -96,7 +97,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g_aux
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp

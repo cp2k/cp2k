@@ -23,10 +23,10 @@ MODULE rs_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
@@ -384,8 +384,9 @@ CONTAINS
       REAL(dp)                                           :: normfact, xi, xmax, xmin, yj, ymax, &
                                                             ymin, zk, zmax, zmin
       REAL(dp), DIMENSION(3, 3)                          :: dh
+      TYPE(pw_c1d_type)                                  :: G_gs, pw_in_gs, pw_out_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: G, G_gs, pw_in_gs, pw_out_gs
+      TYPE(pw_type)                                      :: G
 
       CALL timeset(routineN, handle)
 
@@ -399,9 +400,9 @@ CONTAINS
       lb3 = bounds_local(1, 3); ub3 = bounds_local(2, 3)
 
       CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(pw_pool, pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(pw_pool, G_gs, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(pw_pool, pw_in_gs, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(pw_pool, pw_out_gs, in_space=RECIPROCALSPACE)
 
       CALL pw_zero(G)
       xmin = x_glbl(bounds(1, 1)); xmax = x_glbl(bounds(2, 1))

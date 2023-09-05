@@ -48,11 +48,10 @@ MODULE pw_poisson_types
                                               pw_pool_release,&
                                               pw_pool_type,&
                                               pw_pools_dealloc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_r1d_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_release
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs_grid_release
 #include "../base/base_uses.f90"
@@ -163,9 +162,9 @@ MODULE pw_poisson_types
       LOGICAL :: sr_screening = .FALSE.
       REAL(KIND=dp) :: sr_alpha = 1.0_dp
       REAL(KIND=dp) :: sr_rc = 0.0_dp
-      TYPE(pw_type) :: influence_fn = pw_type()
-      TYPE(pw_type), POINTER :: dct_influence_fn => NULL()
-      TYPE(pw_type), POINTER :: screen_fn => NULL()
+      TYPE(pw_c1d_type) :: influence_fn = pw_c1d_type()
+      TYPE(pw_c1d_type), POINTER :: dct_influence_fn => NULL()
+      TYPE(pw_c1d_type), POINTER :: screen_fn => NULL()
       TYPE(pw_r1d_type), POINTER :: p3m_charge => NULL()
    END TYPE greens_fn_type
 
@@ -194,9 +193,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: g2, g3d, gg, gxy, gz, j0g, j1g, k0g, &
                                                             k1g, rlength, zlength
       REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(pw_c1d_type), POINTER                         :: dct_gf
       TYPE(pw_grid_type), POINTER                        :: dct_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
-      TYPE(pw_type), POINTER                             :: dct_gf
 
       !CPASSERT(cell%orthorhombic)
       DO i = 1, 3
@@ -274,7 +273,7 @@ CONTAINS
       SELECT CASE (green%method)
       CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT)
          CALL pw_pool_create_pw(pw_pool, green%influence_fn, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                in_space=RECIPROCALSPACE)
 
          IF (poisson_params%ewald_type == do_ewald_spme) THEN
             green%p3m = .TRUE.
@@ -306,7 +305,7 @@ CONTAINS
                NULLIFY (green%dct_influence_fn)
                ALLOCATE (green%dct_influence_fn)
                CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                      in_space=RECIPROCALSPACE)
                CALL pw_pool_release(pw_pool_xpndd)
             END IF
          END SELECT
@@ -322,9 +321,9 @@ CONTAINS
 
             DO ig = grid%first_gne0, grid%ngpts_cut_local
                g2 = grid%gsq(ig)
-               gf%cc(ig) = fourpi/g2
+               gf%array(ig) = fourpi/g2
             END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            IF (grid%have_g0) gf%array(1) = 0.0_dp
 
          CASE (ANALYTIC2D)
 
@@ -336,9 +335,9 @@ CONTAINS
                g3d = fourpi/g2
                gxy = MAX(0.0_dp, g2 - grid%g(iz, ig)*grid%g(iz, ig))
                gg = 0.5_dp*SQRT(gxy)
-               gf%cc(ig) = g3d*(1.0_dp - (-1.0_dp)**nz*EXP(-gg*zlength))
+               gf%array(ig) = g3d*(1.0_dp - (-1.0_dp)**nz*EXP(-gg*zlength))
             END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            IF (grid%have_g0) gf%array(1) = 0.0_dp
 
          CASE (ANALYTIC1D)
             ! see 'ab initio molecular dynamics' table 3.1
@@ -360,10 +359,10 @@ CONTAINS
                   k0g = 0
                   k1g = 0
                END IF
-               gf%cc(ig) = g3d*(1.0_dp + rlength* &
-                                (gxy*j1g*k0g - gz*j0g*k1g))
+               gf%array(ig) = g3d*(1.0_dp + rlength* &
+                                   (gxy*j1g*k0g - gz*j0g*k1g))
             END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            IF (grid%have_g0) gf%array(1) = 0.0_dp
 
          CASE (ANALYTIC0D)
 
@@ -372,28 +371,28 @@ CONTAINS
                g2 = grid%gsq(ig)
                gg = SQRT(g2)
                g3d = fourpi/g2
-               gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
+               gf%array(ig) = g3d*(1.0_dp - COS(rlength*gg))
             END DO
             IF (grid%have_g0) &
-               gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+               gf%array(1) = 0.5_dp*fourpi*rlength*rlength
 
          CASE (MT2D, MT1D, MT0D)
 
             DO ig = grid%first_gne0, grid%ngpts_cut_local
                g2 = grid%gsq(ig)
                g3d = fourpi/g2
-               gf%cc(ig) = g3d + green%screen_fn%cc(ig)
+               gf%array(ig) = g3d + green%screen_fn%array(ig)
             END DO
             IF (grid%have_g0) &
-               gf%cc(1) = green%screen_fn%cc(1)
+               gf%array(1) = green%screen_fn%array(1)
 
          CASE (PS_IMPLICIT)
 
             DO ig = grid%first_gne0, grid%ngpts_cut_local
                g2 = grid%gsq(ig)
-               gf%cc(ig) = fourpi/g2
+               gf%array(ig) = fourpi/g2
             END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            IF (grid%have_g0) gf%array(1) = 0.0_dp
 
             IF (ASSOCIATED(green%dct_influence_fn)) THEN
                dct_gf => green%dct_influence_fn
@@ -401,9 +400,9 @@ CONTAINS
 
                DO ig = dct_grid%first_gne0, dct_grid%ngpts_cut_local
                   g2 = dct_grid%gsq(ig)
-                  dct_gf%cc(ig) = fourpi/g2
+                  dct_gf%array(ig) = fourpi/g2
                END DO
-               IF (dct_grid%have_g0) dct_gf%cc(1) = 0.0_dp
+               IF (dct_grid%have_g0) dct_gf%array(1) = 0.0_dp
             END IF
 
          CASE DEFAULT

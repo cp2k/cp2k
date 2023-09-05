@@ -49,10 +49,10 @@ MODULE ps_implicit_methods
                                               pw_pool_give_back_pw,&
                                               pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -1481,8 +1481,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: prefactor
+      TYPE(pw_c1d_type)                                  :: pw_in_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: pw_in_gs
 
       CALL timeset(routineN, handle)
 
@@ -1493,11 +1493,11 @@ CONTAINS
       ng = SIZE(pw_grid%gsq)
 
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
 
       CALL pw_transfer(pw_in, pw_in_gs)
       DO ig = 1, ng
-         pw_in_gs%cc(ig) = prefactor*pw_in_gs%cc(ig)*green%influence_fn%cc(ig)
+         pw_in_gs%array(ig) = prefactor*pw_in_gs%array(ig)*green%influence_fn%array(ig)
       END DO
       CALL pw_transfer(pw_in_gs, pw_out)
 
@@ -1530,8 +1530,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: prefactor
+      TYPE(pw_c1d_type)                                  :: pw_in_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: pw_in_gs
 
       CALL timeset(routineN, handle)
 
@@ -1542,11 +1542,11 @@ CONTAINS
       ng = SIZE(pw_grid%gsq)
 
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
 
       CALL pw_transfer(pw_in, pw_in_gs)
       DO ig = 1, ng
-         pw_in_gs%cc(ig) = prefactor*pw_in_gs%cc(ig)*green%dct_influence_fn%cc(ig)
+         pw_in_gs%array(ig) = prefactor*pw_in_gs%array(ig)*green%dct_influence_fn%array(ig)
       END DO
       CALL pw_transfer(pw_in_gs, pw_out)
 
@@ -1578,8 +1578,8 @@ CONTAINS
       INTEGER                                            :: g0_index, handle, ig, ng
       LOGICAL                                            :: have_g0
       REAL(dp)                                           :: prefactor
+      TYPE(pw_c1d_type)                                  :: pw_in_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: pw_in_gs
 
       CALL timeset(routineN, handle)
 
@@ -1591,16 +1591,16 @@ CONTAINS
       have_g0 = green%influence_fn%pw_grid%have_g0
 
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
 
       CALL pw_transfer(pw_in, pw_in_gs)
 
       IF (have_g0) THEN
          g0_index = green%influence_fn%pw_grid%first_gne0 - 1
-         pw_in_gs%cc(g0_index) = 0.0_dp
+         pw_in_gs%array(g0_index) = 0.0_dp
       END IF
       DO ig = green%influence_fn%pw_grid%first_gne0, ng
-         pw_in_gs%cc(ig) = prefactor*(pw_in_gs%cc(ig)/green%influence_fn%cc(ig))
+         pw_in_gs%array(ig) = prefactor*(pw_in_gs%array(ig)/green%influence_fn%array(ig))
       END DO
 
       CALL pw_transfer(pw_in_gs, pw_out)
@@ -1634,8 +1634,8 @@ CONTAINS
       INTEGER                                            :: g0_index, handle, ig, ng
       LOGICAL                                            :: have_g0
       REAL(dp)                                           :: prefactor
+      TYPE(pw_c1d_type)                                  :: pw_in_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: pw_in_gs
 
       CALL timeset(routineN, handle)
 
@@ -1647,16 +1647,16 @@ CONTAINS
       have_g0 = green%dct_influence_fn%pw_grid%have_g0
 
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                             in_space=RECIPROCALSPACE)
 
       CALL pw_transfer(pw_in, pw_in_gs)
 
       IF (have_g0) THEN
          g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
-         pw_in_gs%cc(g0_index) = 0.0_dp
+         pw_in_gs%array(g0_index) = 0.0_dp
       END IF
       DO ig = green%dct_influence_fn%pw_grid%first_gne0, ng
-         pw_in_gs%cc(ig) = prefactor*(pw_in_gs%cc(ig)/green%dct_influence_fn%cc(ig))
+         pw_in_gs%array(ig) = prefactor*(pw_in_gs%array(ig)/green%dct_influence_fn%array(ig))
       END DO
 
       CALL pw_transfer(pw_in_gs, pw_out)

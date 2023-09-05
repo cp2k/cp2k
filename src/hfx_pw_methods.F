@@ -48,10 +48,10 @@ MODULE hfx_pw_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_create,&
                                               pw_release,&
                                               pw_type
@@ -111,9 +111,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: greenfn, pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: greenfn, pot_g, rho_g, rho_r
+      TYPE(pw_type)                                      :: rho_r
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_i, rho_j
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ip_section
@@ -140,17 +141,14 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          ALLOCATE (rho_i(blocksize))
          ALLOCATE (rho_j(blocksize))
 
          CALL pw_pool_create_pw(auxbas_pw_pool, greenfn, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          ip_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL")
          CALL section_vals_get(ip_section, explicit=explicit)
@@ -167,10 +165,10 @@ CONTAINS
                g2 = grid%gsq(ig)
                gg = SQRT(g2)
                g3d = fourpi/g2
-               greenfn%cc(ig) = g3d*(1.0_dp - COS(rcut*gg))
+               greenfn%array(ig) = g3d*(1.0_dp - COS(rcut*gg))
             END DO
             IF (grid%have_g0) &
-               greenfn%cc(1) = 0.5_dp*fourpi*rcut*rcut
+               greenfn%array(1) = 0.5_dp*fourpi*rcut*rcut
          ELSEIF (potential_type == do_potential_short) THEN
             CALL section_vals_val_get(ip_section, "OMEGA", r_val=omega)
             IF (omega > 0.0_dp) omega = 0.25_dp/(omega*omega)
@@ -179,9 +177,9 @@ CONTAINS
                g2 = grid%gsq(ig)
                gg = -omega*g2
                g3d = fourpi/g2
-               greenfn%cc(ig) = g3d*(1.0_dp - EXP(gg))
+               greenfn%array(ig) = g3d*(1.0_dp - EXP(gg))
             END DO
-            IF (grid%have_g0) greenfn%cc(1) = 0.0_dp
+            IF (grid%have_g0) greenfn%array(1) = 0.0_dp
          ELSE
             CPWARN("PW_SCF: Potential type not supported, calculation uses Coulomb potential.")
          END IF

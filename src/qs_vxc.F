@@ -40,10 +40,10 @@ MODULE qs_vxc
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_release,&
                                               pw_type
    USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
@@ -126,14 +126,13 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g, rho_m_gspace, rho_struct_g
+      TYPE(pw_c1d_type), POINTER                         :: rho_nlcc_g, tmp_g, tmp_g2
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: my_vxc_rho, my_vxc_tau, rho_g, &
-                                                            rho_m_gspace, rho_m_rspace, rho_r, &
-                                                            rho_struct_g, rho_struct_r, tau, &
-                                                            tau_struct_r
-      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g, tmp_g, tmp_g2, &
-                                                            tmp_pw
+      TYPE(pw_type), DIMENSION(:), POINTER               :: my_vxc_rho, my_vxc_tau, rho_m_rspace, &
+                                                            rho_r, rho_struct_r, tau, tau_struct_r
+      TYPE(pw_type), POINTER                             :: rho_nlcc, tmp_pw
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -250,9 +249,8 @@ CONTAINS
             ALLOCATE (rho_r(mspin))
             ALLOCATE (rho_g(mspin))
             DO ispin = 1, mspin
-               CALL pw_pool_create_pw(xc_pw_pool, rho_g(ispin), &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-               CALL pw_transfer(rho_struct_g(ispin), rho_g(ispin))
+               CALL pw_pool_create_pw(xc_pw_pool, rho_g(ispin), in_space=RECIPROCALSPACE)
+               CALL pw_copy(rho_struct_g(ispin), rho_g(ispin))
             END DO
             DO ispin = 1, mspin
                CALL pw_pool_create_pw(xc_pw_pool, rho_r(ispin), &
@@ -372,7 +370,6 @@ CONTAINS
          IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1), &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1), &
                                    use_data=REALDATA3D, &
@@ -383,7 +380,6 @@ CONTAINS
             CALL pw_axpy(rho_struct_g(2), rho_m_gspace(1), alpha=-1._dp)
             ! bit sad, these will be just zero...
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2), &
-                                   use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2), &
                                    use_data=REALDATA3D, &
@@ -435,7 +431,6 @@ CONTAINS
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
             DO ispin = 1, 2
                CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin), &
-                                      use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
                CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin), &
                                       use_data=REALDATA3D, &
@@ -536,11 +531,10 @@ CONTAINS
          !
          IF (uf_grid .AND. (ASSOCIATED(vxc_rho) .OR. ASSOCIATED(vxc_tau))) THEN
             BLOCK
-               TYPE(pw_type) :: tmp_pw, tmp_g, tmp_g2
-               CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+               TYPE(pw_type) :: tmp_pw
+               TYPE(pw_c1d_type) :: tmp_g, tmp_g2
+               CALL pw_pool_create_pw(xc_pw_pool, tmp_g, in_space=RECIPROCALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, in_space=RECIPROCALSPACE)
                IF (ASSOCIATED(vxc_rho)) THEN
                   DO ispin = 1, SIZE(vxc_rho)
                      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
@@ -611,11 +605,13 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_type), POINTER                         :: rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
-      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r, vxc_rho, vxc_tau
+      TYPE(pw_type), POINTER                             :: rho_nlcc
 
       CALL timeset(routineN, handle)
 
