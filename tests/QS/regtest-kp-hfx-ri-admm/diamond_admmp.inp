@@ -1,0 +1,79 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+        BASIS_SET_FILE_NAME BASIS_ADMM_UZH
+        POTENTIAL_FILE_NAME POTENTIAL
+        SORT_BASIS EXP
+        AUTO_BASIS RI_HFX SMALL
+        &PRINT
+          &DERIVATIVES
+          &END
+        &END
+        &AUXILIARY_DENSITY_MATRIX_METHOD
+          ADMM_PURIFICATION_METHOD NONE
+          EXCH_CORRECTION_FUNC PBEX
+          METHOD BASIS_PROJECTION
+          EXCH_SCALING_MODEL MERLOT
+        &END
+        &QS
+           PW_GRID_BLOCKED FALSE
+           METHOD GPW
+        &END
+        &MGRID
+            CUTOFF 200
+            REL_CUTOFF 30
+        &END MGRID
+        &SCF
+            SCF_GUESS ATOMIC
+            MAX_SCF 3
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL NONE
+            &END XC_FUNCTIONAL
+            &HF
+                FRACTION 1.0
+                &RI
+                   RI_METRIC IDENTITY
+                   NGROUPS 2
+                   MEMORY_CUT 2
+                &END
+                &INTERACTION_POTENTIAL
+                    POTENTIAL_TYPE TRUNCATED
+                    !this is too small for a real calculation. The only requirement is that it is
+                    !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
+                    !on efficiency, as it greatly increses the number of periodic images to consider
+                    CUTOFF_RADIUS 1.0
+                &END
+            &END
+        &END XC
+       &KPOINTS
+          SCHEME  MONKHORST-PACK  3 3 3
+       &END KPOINTS
+    &END DFT
+    &SUBSYS
+      &CELL
+            !this is not a realistic cell, but denser systems would be too expensive for a test
+            ABC 5.0 5.0 5.0
+            ALPHA_BETA_GAMMA 60.0 60.0 60.0
+            SYMMETRY RHOMBOHEDRAL
+        &END CELL
+        &TOPOLOGY
+        &END
+        &COORD
+           SCALED
+           C   0.00000000  0.00000000  0.00000000
+           C   0.25000000  0.25000000  0.25000000
+        &END COORD
+        &KIND C
+            BASIS_SET ccGRB-D-q4
+            BASIS_SET AUX_FIT admm-dz-q4
+            POTENTIAL GTH-PBE
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT diamond
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL

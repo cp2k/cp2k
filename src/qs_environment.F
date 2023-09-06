@@ -110,7 +110,8 @@ MODULE qs_environment
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_initialize,&
                                               kpoint_initialize_mos
-   USE kpoint_types,                    ONLY: kpoint_create,&
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_create,&
                                               kpoint_type,&
                                               read_kpoint_section,&
                                               write_kpoint_info
@@ -250,7 +251,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      INTEGER                                            :: ikind, method_id, nelectron_total, nkind
+      INTEGER                                            :: ikind, method_id, nelectron_total, &
+                                                            nkind, nkp_grid(3)
       LOGICAL :: do_admm_rpa, do_ec_hfx, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
          mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, silent, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
@@ -387,7 +389,7 @@ CONTAINS
       ! more kpoint stuff
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, blacs_env=blacs_env)
       IF (do_kpoints) THEN
-         CALL kpoint_env_initialize(kpoints, para_env, blacs_env)
+         CALL kpoint_env_initialize(kpoints, para_env, blacs_env, with_aux_fit=dft_control%do_admm)
          CALL kpoint_initialize_mos(kpoints, qs_env%mos)
          CALL get_qs_env(qs_env=qs_env, wf_history=wf_history)
          CALL wfi_create_for_kp(wf_history)
@@ -399,9 +401,11 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control, scf_control=scf_control, nelectron_total=nelectron_total)
       IF (do_hfx) THEN
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
+         nkp_grid = 1
+         IF (do_kpoints) CALL get_kpoint_info(kpoints, nkp_grid=nkp_grid)
          CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
                          qs_kind_set, particle_set, dft_control, my_cell, &
-                         nelectron_total=nelectron_total)
+                         nelectron_total=nelectron_total, nkp_grid=nkp_grid)
       END IF
 
       mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")

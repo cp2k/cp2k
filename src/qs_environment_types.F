@@ -344,6 +344,7 @@ CONTAINS
 !> \param sab_xtb_nonbond ...
 !> \param sab_almo ...
 !> \param sab_kp ...
+!> \param sab_kp_nosym ...
 !> \param particle_set ...
 !> \param energy ...
 !> \param force ...
@@ -475,7 +476,7 @@ CONTAINS
    SUBROUTINE get_qs_env(qs_env, atomic_kind_set, qs_kind_set, cell, super_cell, cell_ref, use_ref_cell, kpoints, &
                          dft_control, mos, sab_orb, sab_all, qmmm, qmmm_periodic, sac_ae, sac_ppl, sac_lri, &
                          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-                         sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, particle_set, energy, force, &
+                         sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym, particle_set, energy, force, &
                          matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
                          matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, &
                          matrix_w_kp, matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
@@ -513,7 +514,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-         sab_xb, sab_xtb_nonbond, sab_almo, sab_kp
+         sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
@@ -780,6 +781,7 @@ CONTAINS
                       sab_xtb_nonbond=sab_xtb_nonbond, &
                       sab_almo=sab_almo, &
                       sab_kp=sab_kp, &
+                      sab_kp_nosym=sab_kp_nosym, &
                       task_list=task_list, &
                       task_list_soft=task_list_soft, &
                       kpoints=kpoints, &

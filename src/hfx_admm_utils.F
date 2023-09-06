@@ -16,11 +16,13 @@
 ! **************************************************************************************************
 MODULE hfx_admm_utils
    USE admm_dm_types,                   ONLY: admm_dm_create
-   USE admm_methods,                    ONLY: scale_dm
+   USE admm_methods,                    ONLY: kpoint_calc_admm_matrices,&
+                                              scale_dm
    USE admm_types,                      ONLY: admm_env_create,&
                                               admm_gapw_type,&
                                               admm_type,&
-                                              get_admm_env
+                                              get_admm_env,&
+                                              set_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: copy_gto_basis_set,&
@@ -32,8 +34,8 @@ MODULE hfx_admm_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
-                                              dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
+                                              dbcsr_allocate_matrix_set
+   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -60,14 +62,18 @@ MODULE hfx_admm_utils
    USE hfx_pw_methods,                  ONLY: pw_hfx
    USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
                                               hfx_ri_update_ks
+   USE hfx_ri_kp,                       ONLY: hfx_ri_update_forces_kp,&
+                                              hfx_ri_update_ks_kp
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
         do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
-        do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, do_potential_coulomb, &
-        do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
-        do_potential_truncated, xc_funct_no_shortcut, xc_none
+        do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, &
+        do_admm_basis_projection, do_admm_charge_constrained_projection, do_admm_purify_none, &
+        do_potential_coulomb, do_potential_id, do_potential_long, do_potential_mix_cl, &
+        do_potential_mix_cl_trunc, do_potential_short, do_potential_truncated, &
+        xc_funct_no_shortcut, xc_none
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -77,7 +83,13 @@ MODULE hfx_admm_utils
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_methods,                  ONLY: kpoint_initialize_mos
+   USE kpoint_transitional,             ONLY: kpoint_transitional_release,&
+                                              set_2d_pointer
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
+   USE libint_2c_3c,                    ONLY: cutoff_screen_factor
+   USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -100,6 +112,7 @@ MODULE hfx_admm_utils
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_set_create
+   USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
@@ -134,7 +147,7 @@ MODULE hfx_admm_utils
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: hfx_ks_matrix, hfx_admm_init, create_admm_xc_section, tddft_hfx_matrix
+   PUBLIC :: hfx_ks_matrix, hfx_admm_init, create_admm_xc_section, tddft_hfx_matrix, hfx_ks_matrix_kp
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_admm_utils'
 
@@ -143,34 +156,38 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_admm_init(qs_env)
+   SUBROUTINE hfx_admm_init(qs_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_admm_init'
 
       INTEGER                                            :: handle, ispin, n_rep_hf, nao_aux_fit, &
                                                             natoms, nelectron, nmo
-      LOGICAL                                            :: s_mstruct_changed, use_virial
+      LOGICAL                                            :: calc_forces, do_kpoints, &
+                                                            s_mstruct_changed, use_virial
       REAL(dp)                                           :: maxocc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: aux_fit_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_aux_fit_kp
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
       NULLIFY (admm_env, hfx_sections, mos, mos_aux_fit, para_env, virial, &
-               mo_coeff_aux_fit, xc_section, rho, ks_env, dft_control, input, &
+               mo_coeff_aux_fit, xc_section, ks_env, dft_control, input, &
                qs_kind_set, mo_coeff_b, aux_fit_fm_struct, blacs_env)
 
       CALL get_qs_env(qs_env, &
@@ -179,11 +196,14 @@ CONTAINS
                       para_env=para_env, &
                       blacs_env=blacs_env, &
                       s_mstruct_changed=s_mstruct_changed, &
-                      rho=rho, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       input=input, &
-                      virial=virial)
+                      virial=virial, &
+                      do_kpoints=do_kpoints)
+
+      calc_forces = .FALSE.
+      IF (PRESENT(calculate_forces)) calc_forces = .TRUE.
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
@@ -247,8 +267,9 @@ CONTAINS
             IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
                CALL cp_fm_get_info(mos_aux_fit(ispin)%mo_coeff, ncol_global=nmo)
                CALL dbcsr_init_p(mos_aux_fit(ispin)%mo_coeff_b)
+               CALL get_admm_env(admm_env, matrix_s_aux_fit_kp=matrix_s_aux_fit_kp)
                CALL cp_dbcsr_m_by_n_from_row_template(mos_aux_fit(ispin)%mo_coeff_b, &
-                                                      template=admm_env%matrix_s_aux_fit(1)%matrix, &
+                                                      template=matrix_s_aux_fit_kp(1, 1)%matrix, &
                                                       n=nmo, sym=dbcsr_type_no_symmetry)
             END IF
          END DO
@@ -261,11 +282,80 @@ CONTAINS
             END DO
          END IF
 
+         IF (do_kpoints) THEN
+            BLOCK
+               TYPE(kpoint_type), POINTER :: kpoints
+               TYPE(mo_set_type), DIMENSION(:, :), POINTER           :: mos_aux_fit_kp
+               TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools_aux_fit
+               TYPE(cp_fm_struct_type), POINTER                      :: ao_ao_fm_struct
+               INTEGER                                               :: ic, ik, ikk, is
+               INTEGER, PARAMETER                                    :: nwork1 = 4
+               LOGICAL                                               :: use_real_wfn
+
+               NULLIFY (ao_mo_fm_pools_aux_fit, mos_aux_fit_kp)
+
+               CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+               CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
+
+               !Test combinations of input values. So far, only ADMM2 is availavle
+               IF (.NOT. admm_env%purification_method == do_admm_purify_none) &
+                  CPABORT("Only ADMM_PURIFICATION_METHOD NONE implemeted for ADMM K-points")
+               IF (.NOT. (dft_control%admm_control%method == do_admm_basis_projection &
+                          .OR. dft_control%admm_control%method == do_admm_charge_constrained_projection)) &
+                  CPABORT("Only BASIS_PROJECTION and CHARGE_CONSTRAINED_PROJECTION implemented for KP")
+               IF (admm_env%do_admms .OR. admm_env%do_admmp .OR. admm_env%do_admmq) THEN
+                  IF (use_real_wfn) CPABORT("Only KP-HFX ADMM2 is implemented with REAL wavefunctions")
+               END IF
+
+               CALL kpoint_initialize_mos(kpoints, admm_env%mos_aux_fit, for_aux_fit=.TRUE.)
+
+               CALL mpools_get(kpoints%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
+               DO ik = 1, SIZE(kpoints%kp_aux_env)
+                  mos_aux_fit_kp => kpoints%kp_aux_env(ik)%kpoint_env%mos
+                  ikk = kpoints%kp_range(1) + ik - 1
+                  DO ispin = 1, SIZE(mos_aux_fit_kp, 2)
+                     DO ic = 1, SIZE(mos_aux_fit_kp, 1)
+                        CALL get_mo_set(mos_aux_fit_kp(ic, ispin), mo_coeff=mo_coeff_aux_fit, mo_coeff_b=mo_coeff_b)
+
+                        ! no sparse matrix representation of kpoint MO vectors
+                        CPASSERT(.NOT. ASSOCIATED(mo_coeff_b))
+
+                        IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
+                           CALL init_mo_set(mos_aux_fit_kp(ic, ispin), &
+                                            fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
+                                            name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
+                                            "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
+                        END IF
+                     END DO
+                  END DO
+               END DO
+
+               ALLOCATE (admm_env%scf_work_aux_fit(nwork1))
+
+               ! create an ao_ao parallel matrix structure
+               CALL cp_fm_struct_create(ao_ao_fm_struct, context=blacs_env, para_env=para_env, &
+                                        nrow_global=nao_aux_fit, &
+                                        ncol_global=nao_aux_fit)
+
+               DO is = 1, nwork1
+                  CALL cp_fm_create(admm_env%scf_work_aux_fit(is), &
+                                    matrix_struct=ao_ao_fm_struct, &
+                                    name="SCF-WORK_MATRIX-AUX-"//TRIM(ADJUSTL(cp_to_string(is))))
+               END DO
+               CALL cp_fm_struct_release(ao_ao_fm_struct)
+
+               ! Create and populate the internal ADMM overlap matrices at each KP
+               CALL kpoint_calc_admm_matrices(qs_env, calc_forces)
+
+            END BLOCK
+         END IF
+
       ELSE IF (s_mstruct_changed) THEN
          CALL admm_init_hamiltonians(admm_env, qs_env)
          CALL admm_update_s_mstruct(admm_env, qs_env)
          CALL admm_alloc_ks_matrices(admm_env, qs_env)
          IF (admm_env%do_gapw) CALL update_admm_gapw(qs_env)
+         IF (do_kpoints) CALL kpoint_calc_admm_matrices(qs_env, calc_forces)
       END IF
 
       IF (admm_env%do_gapw .AND. dft_control%do_admm_dm) THEN
@@ -397,14 +487,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_init_hamiltonians'
 
-      INTEGER                                            :: handle, ikind, nkind
-      LOGICAL                                            :: mic, molecule_only
+      INTEGER                                            :: handle, hfx_pot, ikind, nkind
+      LOGICAL                                            :: do_kpoints, mic, molecule_only
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: aux_fit_present, orb_present
-      REAL(dp)                                           :: pdist, subcells
+      REAL(dp)                                           :: eps_schwarz, omega, pdist, roperator, &
+                                                            subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: aux_fit_radius, orb_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_aux_fit_kp, &
+                                                            matrix_s_aux_fit_vs_orb_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
@@ -416,17 +509,17 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(section_vals_type), POINTER                   :: neighbor_list_section
+      TYPE(section_vals_type), POINTER                   :: hfx_sections, neighbor_list_section
 
       NULLIFY (particle_set, cell, kpoints, distribution_1d, distribution_2d, molecule_set, &
                atomic_kind_set, dft_control, neighbor_list_section, aux_fit_basis_set, orb_basis_set, &
-               ks_env, para_env, qs_kind_set)
+               ks_env, para_env, qs_kind_set, matrix_s_aux_fit_kp, matrix_s_aux_fit_vs_orb_kp)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set, cell=cell, kpoints=kpoints, &
                       local_particles=distribution_1d, distribution_2d=distribution_2d, &
-                      molecule_set=molecule_set, atomic_kind_set=atomic_kind_set, &
+                      molecule_set=molecule_set, atomic_kind_set=atomic_kind_set, do_kpoints=do_kpoints, &
                       dft_control=dft_control, para_env=para_env, qs_kind_set=qs_kind_set)
       ALLOCATE (orb_present(nkind), aux_fit_present(nkind))
       ALLOCATE (orb_radius(nkind), aux_fit_radius(nkind), pair_radius(nkind, nkind))
@@ -473,7 +566,30 @@ CONTAINS
                      plane_distance(0, 1, 0, cell), &
                      plane_distance(0, 0, 1, cell))
       END IF
+
+      !In case of K-points, we need to add the HFX potential range to sab_aux_fit, because it is used
+      !to populate AUX density and KS matrices
+      roperator = 0.0_dp
+      IF (do_kpoints) THEN
+         hfx_sections => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
+         CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", i_val=hfx_pot)
+
+         SELECT CASE (hfx_pot)
+         CASE (do_potential_id)
+            roperator = 0.0_dp
+         CASE (do_potential_truncated)
+            CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=roperator)
+         CASE (do_potential_short)
+            CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%OMEGA", r_val=omega)
+            CALL section_vals_val_get(hfx_sections, "SCREENING%EPS_SCHWARZ", r_val=eps_schwarz)
+            CALL erfc_cutoff(eps_schwarz, omega, roperator)
+         CASE DEFAULT
+            CPABORT("HFX potential not available for K-points (NYI)")
+         END SELECT
+      END IF
+
       CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius, pdist)
+      pair_radius = pair_radius + cutoff_screen_factor*roperator
       CALL build_neighbor_lists(admm_env%sab_aux_fit, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux_fit")
       CALL build_neighbor_lists(admm_env%sab_aux_fit_asymm, particle_set, atom2d, cell, pair_radius, &
@@ -494,18 +610,20 @@ CONTAINS
       !The ADMM overlap matrices (initially in qs_core_hamiltonian.F)
       CALL get_qs_env(qs_env, ks_env=ks_env)
 
-      IF (ASSOCIATED(admm_env%matrix_s_aux_fit)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_s_aux_fit)
-      CALL build_overlap_matrix(ks_env, matrix_s=admm_env%matrix_s_aux_fit, &
+      CALL kpoint_transitional_release(admm_env%matrix_s_aux_fit)
+      CALL build_overlap_matrix(ks_env, matrixkp_s=matrix_s_aux_fit_kp, &
                                 matrix_name="AUX_FIT_OVERLAP", &
                                 basis_type_a="AUX_FIT", &
                                 basis_type_b="AUX_FIT", &
                                 sab_nl=admm_env%sab_aux_fit)
-      IF (ASSOCIATED(admm_env%matrix_s_aux_fit_vs_orb)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_s_aux_fit_vs_orb)
-      CALL build_overlap_matrix(ks_env, matrix_s=admm_env%matrix_s_aux_fit_vs_orb, &
+      CALL set_2d_pointer(admm_env%matrix_s_aux_fit, matrix_s_aux_fit_kp)
+      CALL kpoint_transitional_release(admm_env%matrix_s_aux_fit_vs_orb)
+      CALL build_overlap_matrix(ks_env, matrixkp_s=matrix_s_aux_fit_vs_orb_kp, &
                                 matrix_name="MIXED_OVERLAP", &
                                 basis_type_a="AUX_FIT", &
                                 basis_type_b="ORB", &
                                 sab_nl=admm_env%sab_aux_fit_vs_orb)
+      CALL set_2d_pointer(admm_env%matrix_s_aux_fit_vs_orb, matrix_s_aux_fit_vs_orb_kp)
 
       CALL timestop(handle)
 
@@ -671,50 +789,230 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_alloc_ks_matrices'
 
-      INTEGER                                            :: handle, ispin
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit
+      INTEGER                                            :: handle, ic, ispin
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_aux_fit_dft_kp, &
+                                                            matrix_ks_aux_fit_hfx_kp, &
+                                                            matrix_ks_aux_fit_kp, &
+                                                            matrix_s_aux_fit_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      NULLIFY (dft_control, matrix_s_aux_fit)
+      NULLIFY (dft_control, matrix_s_aux_fit_kp, matrix_ks_aux_fit_kp, matrix_ks_aux_fit_dft_kp, matrix_ks_aux_fit_hfx_kp)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL get_admm_env(admm_env, matrix_s_aux_fit_kp=matrix_s_aux_fit_kp)
 
-      matrix_s_aux_fit => admm_env%matrix_s_aux_fit
-      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit)
-      CALL dbcsr_allocate_matrix_set(admm_env%matrix_ks_aux_fit, dft_control%nspins)
+      CALL kpoint_transitional_release(admm_env%matrix_ks_aux_fit)
+      CALL kpoint_transitional_release(admm_env%matrix_ks_aux_fit_dft)
+      CALL kpoint_transitional_release(admm_env%matrix_ks_aux_fit_hfx)
+
+      CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_kp, dft_control%nspins, dft_control%nimages)
+      CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_dft_kp, dft_control%nspins, dft_control%nimages)
+      CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_hfx_kp, dft_control%nspins, dft_control%nimages)
+
       DO ispin = 1, dft_control%nspins
-         ALLOCATE (admm_env%matrix_ks_aux_fit(ispin)%matrix)
-         CALL dbcsr_create(admm_env%matrix_ks_aux_fit(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
-                           name="KOHN-SHAM_MATRIX for ADMM")
-         CALL cp_dbcsr_alloc_block_from_nbl(admm_env%matrix_ks_aux_fit(ispin)%matrix, admm_env%sab_aux_fit)
-         CALL dbcsr_set(admm_env%matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
+         DO ic = 1, dft_control%nimages
+            ALLOCATE (matrix_ks_aux_fit_kp(ispin, ic)%matrix)
+            CALL dbcsr_create(matrix_ks_aux_fit_kp(ispin, ic)%matrix, template=matrix_s_aux_fit_kp(1, ic)%matrix, &
+                              name="KOHN-SHAM_MATRIX for ADMM")
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_kp(ispin, ic)%matrix, admm_env%sab_aux_fit)
+            CALL dbcsr_set(matrix_ks_aux_fit_kp(ispin, ic)%matrix, 0.0_dp)
+
+            ALLOCATE (matrix_ks_aux_fit_dft_kp(ispin, ic)%matrix)
+            CALL dbcsr_create(matrix_ks_aux_fit_dft_kp(ispin, ic)%matrix, template=matrix_s_aux_fit_kp(1, 1)%matrix, &
+                              name="KOHN-SHAM_MATRIX for ADMM")
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft_kp(ispin, ic)%matrix, admm_env%sab_aux_fit)
+            CALL dbcsr_set(matrix_ks_aux_fit_dft_kp(ispin, ic)%matrix, 0.0_dp)
+
+            ALLOCATE (matrix_ks_aux_fit_hfx_kp(ispin, ic)%matrix)
+            CALL dbcsr_create(matrix_ks_aux_fit_hfx_kp(ispin, ic)%matrix, template=matrix_s_aux_fit_kp(1, 1)%matrix, &
+                              name="KOHN-SHAM_MATRIX for ADMM")
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx_kp(ispin, ic)%matrix, admm_env%sab_aux_fit)
+            CALL dbcsr_set(matrix_ks_aux_fit_hfx_kp(ispin, ic)%matrix, 0.0_dp)
+         END DO
       END DO
 
-      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit_dft)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit_dft)
-      CALL dbcsr_allocate_matrix_set(admm_env%matrix_ks_aux_fit_dft, dft_control%nspins)
-      DO ispin = 1, dft_control%nspins
-         ALLOCATE (admm_env%matrix_ks_aux_fit_dft(ispin)%matrix)
-         CALL dbcsr_create(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
-                           name="KOHN-SHAM_MATRIX for ADMM")
-         CALL cp_dbcsr_alloc_block_from_nbl(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, admm_env%sab_aux_fit)
-         CALL dbcsr_set(admm_env%matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
-      END DO
-
-      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit_hfx)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit_hfx)
-      CALL dbcsr_allocate_matrix_set(admm_env%matrix_ks_aux_fit_hfx, dft_control%nspins)
-      DO ispin = 1, dft_control%nspins
-         ALLOCATE (admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix)
-         CALL dbcsr_create(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
-                           name="KOHN-SHAM_MATRIX for ADMM")
-         CALL cp_dbcsr_alloc_block_from_nbl(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, admm_env%sab_aux_fit)
-         CALL dbcsr_set(admm_env%matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
-      END DO
+      CALL set_admm_env(admm_env, &
+                        matrix_ks_aux_fit_kp=matrix_ks_aux_fit_kp, &
+                        matrix_ks_aux_fit_dft_kp=matrix_ks_aux_fit_dft_kp, &
+                        matrix_ks_aux_fit_hfx_kp=matrix_ks_aux_fit_hfx_kp)
 
       CALL timestop(handle)
 
    END SUBROUTINE admm_alloc_ks_matrices
+
+! **************************************************************************************************
+!> \brief Add the HFX K-point contribution to the real-space Hamiltonians
+!> \param qs_env ...
+!> \param matrix_ks ...
+!> \param energy ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE hfx_ks_matrix_kp(qs_env, matrix_ks, energy, calculate_forces)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
+      TYPE(qs_energy_type), POINTER                      :: energy
+      LOGICAL, INTENT(in)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ks_matrix_kp'
+
+      INTEGER                                            :: handle, img, irep, ispin, n_rep_hf, &
+                                                            nimages, nspins
+      LOGICAL                                            :: do_adiabatic_rescaling, &
+                                                            s_mstruct_changed, use_virial
+      REAL(dp)                                           :: eh1, ehfx, eold
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_im, matrix_ks_im
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_aux_fit_hfx_kp, &
+                                                            matrix_ks_aux_fit_kp, matrix_ks_orb, &
+                                                            rho_ao_orb
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_rho_type), POINTER                         :: rho_orb
+      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
+                                                            hfx_sections, input
+      TYPE(virial_type), POINTER                         :: virial
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (auxbas_pw_pool, dft_control, hfx_sections, input, &
+               para_env, poisson_env, pw_env, virial, matrix_ks_im, &
+               matrix_ks_orb, rho_ao_orb, matrix_h, matrix_ks_aux_fit_kp, &
+               matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx_kp)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      dft_control=dft_control, &
+                      input=input, &
+                      matrix_h_kp=matrix_h, &
+                      para_env=para_env, &
+                      pw_env=pw_env, &
+                      virial=virial, &
+                      matrix_ks_im=matrix_ks_im, &
+                      s_mstruct_changed=s_mstruct_changed, &
+                      x_data=x_data)
+
+      ! No RTP
+      IF (qs_env%run_rtp) CPABORT("No RTP implementation with K-points HFX")
+
+      ! No adiabatic rescaling
+      adiabatic_rescaling_section => section_vals_get_subs_vals(input, "DFT%XC%ADIABATIC_RESCALING")
+      CALL section_vals_get(adiabatic_rescaling_section, explicit=do_adiabatic_rescaling)
+      IF (do_adiabatic_rescaling) CPABORT("No adiabatic rescaling implementation with K-points HFX")
+
+      IF (dft_control%do_admm) THEN
+         CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit_kp=matrix_ks_aux_fit_kp, &
+                           matrix_ks_aux_fit_im=matrix_ks_aux_fit_im, &
+                           matrix_ks_aux_fit_hfx_kp=matrix_ks_aux_fit_hfx_kp)
+      END IF
+
+      nspins = dft_control%nspins
+      nimages = dft_control%nimages
+
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (use_virial .AND. calculate_forces) virial%pv_fock_4c = 0.0_dp
+
+      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
+
+      ! *** Initialize the auxiliary ks matrix to zero if required
+      IF (dft_control%do_admm) THEN
+         DO ispin = 1, nspins
+            DO img = 1, nimages
+               CALL dbcsr_set(matrix_ks_aux_fit_kp(ispin, img)%matrix, 0.0_dp)
+            END DO
+         END DO
+      END IF
+      DO ispin = 1, nspins
+         DO img = 1, nimages
+            CALL dbcsr_set(matrix_ks(ispin, img)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+      ALLOCATE (hf_energy(n_rep_hf))
+
+      eold = 0.0_dp
+
+      DO irep = 1, n_rep_hf
+
+         ! fetch the correct matrices for normal HFX or ADMM
+         IF (dft_control%do_admm) THEN
+            CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit_kp=matrix_ks_orb, rho_aux_fit=rho_orb)
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=matrix_ks_orb, rho=rho_orb)
+         END IF
+         CALL qs_rho_get(rho_struct=rho_orb, rho_ao_kp=rho_ao_orb)
+
+         ! Finally the real hfx calulation
+         ehfx = 0.0_dp
+
+         IF (.NOT. x_data(irep, 1)%do_hfx_ri) THEN
+            CPABORT("Only RI-HFX is implemented for K-points")
+         END IF
+
+         CALL hfx_ri_update_ks_kp(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
+                                  rho_ao_orb, s_mstruct_changed, nspins, &
+                                  x_data(irep, 1)%general_parameter%fraction, &
+                                  calculate_forces)
+
+         IF (calculate_forces) THEN
+            !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
+            !Note: scale twice (gsi**2) because the non-scaled density matrix from previous energy call is reused
+            IF (dft_control%do_admm) THEN
+               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
+               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
+            END IF
+
+            CALL hfx_ri_update_forces_kp(qs_env, x_data(irep, 1)%ri_data, nspins, &
+                                         x_data(irep, 1)%general_parameter%fraction, &
+                                         rho_ao_orb, use_virial=use_virial)
+
+            IF (dft_control%do_admm) THEN
+               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE.)
+               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE.)
+            END IF
+         END IF
+
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+         eh1 = ehfx - eold
+         CALL pw_hfx(qs_env, eh1, hfx_sections, poisson_env, auxbas_pw_pool, irep)
+         eold = ehfx
+
+      END DO
+
+      ! *** Set the total HFX energy
+      energy%ex = ehfx
+
+      ! *** Add Core-Hamiltonian-Matrix ***
+      DO ispin = 1, nspins
+         DO img = 1, nimages
+            CALL dbcsr_add(matrix_ks(ispin, img)%matrix, matrix_h(1, img)%matrix, &
+                           1.0_dp, 1.0_dp)
+         END DO
+      END DO
+      IF (use_virial .AND. calculate_forces) THEN
+         virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
+         virial%pv_virial = virial%pv_virial - virial%pv_fock_4c
+         virial%pv_calculate = .FALSE.
+      END IF
+
+      !update the hfx aux_fit matrix
+      IF (dft_control%do_admm) THEN
+         DO ispin = 1, nspins
+            DO img = 1, nimages
+               CALL dbcsr_add(matrix_ks_aux_fit_hfx_kp(ispin, img)%matrix, matrix_ks_aux_fit_kp(ispin, img)%matrix, &
+                              0.0_dp, 1.0_dp)
+            END DO
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE hfx_ks_matrix_kp
 
 ! **************************************************************************************************
 !> \brief Add the hfx contributions to the Hamiltonian
@@ -851,6 +1149,7 @@ CONTAINS
          ehfx = 0.0_dp
 
          IF (x_data(irep, 1)%do_hfx_ri) THEN
+
             CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
                                   mo_array, rho_ao_orb, &
                                   s_mstruct_changed, nspins, &

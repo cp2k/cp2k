@@ -301,7 +301,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (do_forces, ldsab, maxder, use_cell_mapping, do_symmetric, maxs, dokp, &
-!$OMP         ncoset, nder, use_virial, ndod, sab_nl, &
+!$OMP         ncoset, nder, use_virial, ndod, sab_nl, nimg,&
 !$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, cell_to_index, &
 !$OMP         matrixkp_s, matrixkp_p, locks, natom)  &
 !$OMP PRIVATE (oint, owork, pmat, sint, ikind, jkind, iatom, jatom, rab, cell, &
@@ -373,7 +373,7 @@ CONTAINS
 
          IF (use_cell_mapping) THEN
             ic = cell_to_index(cell(1), cell(2), cell(3))
-            CPASSERT(ic > 0)
+            IF (ic < 1 .OR. ic > nimg) CYCLE
          ELSE
             ic = 1
          END IF
@@ -766,6 +766,7 @@ CONTAINS
 !> \param   basis_type_b basis set to be used for ket in <a|b>
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   matrix_p density matrix for force calculation
+!> \param matrixkp_p ...
 !> \date    11.03.2002
 !> \par     History
 !>          Enlarged functionality of this routine. Now overlap matrices based
@@ -779,25 +780,27 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE build_overlap_force(ks_env, force, basis_type_a, basis_type_b, &
-                                  sab_nl, matrix_p)
+                                  sab_nl, matrix_p, matrixkp_p)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: force
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(dbcsr_type), POINTER                          :: matrix_p
+      TYPE(dbcsr_type), OPTIONAL                         :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL         :: matrixkp_p
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_force'
 
-      INTEGER                                            :: handle, iatom, icol, ikind, irow, iset, &
-                                                            jatom, jkind, jset, ldsab, n1, n2, &
-                                                            natom, ncoa, ncob, nder, nkind, nseta, &
-                                                            nsetb, sgfa, sgfb, slot
+      INTEGER :: handle, iatom, ic, icol, ikind, irow, iset, jatom, jkind, jset, ldsab, n1, n2, &
+         natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb, slot
+      INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: do_symmetric, found, trans, use_virial
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: do_symmetric, dokp, found, trans, &
+                                                            use_cell_mapping, use_virial
       REAL(KIND=dp)                                      :: dab, f0, ff, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, sab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drab
@@ -807,15 +810,31 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, SIZE(force, 2))        :: force_thread
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, rpgfa, rpgfb, scon_a, scon_b, &
                                                             zeta, zetb
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set)
-      CALL get_ks_env(ks_env=ks_env, qs_kind_set=qs_kind_set)
+      CALL get_ks_env(ks_env=ks_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
+      nimg = dft_control%nimages
+
+      ! test for matrices (kpoints or standard gamma point)
+      IF (PRESENT(matrix_p)) THEN
+         dokp = .FALSE.
+         use_cell_mapping = .FALSE.
+      ELSEIF (PRESENT(matrixkp_p)) THEN
+         dokp = .TRUE.
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         use_cell_mapping = (SIZE(cell_to_index) > 1)
+      ELSE
+         CPABORT("")
+      END IF
 
       nkind = SIZE(qs_kind_set)
       nder = 1
@@ -838,14 +857,14 @@ CONTAINS
       force_thread = 0.0_dp
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (ldsab, do_symmetric, ncoset, nder, use_virial, force, virial, ndod, sab_nl, &
-!$OMP         matrix_p, basis_set_list_a, basis_set_list_b)  &
-!$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, &
+!$OMP SHARED (ldsab, do_symmetric, ncoset, nder, use_virial, force, virial, ndod, sab_nl, cell_to_index, &
+!$OMP         matrix_p, basis_set_list_a, basis_set_list_b, dokp, use_cell_mapping, nimg, matrixkp_p)  &
+!$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, ic, &
 !$OMP          basis_set_a, basis_set_b, sab, pab, drab, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, &
 !$OMP          zetb, scon_a, scon_b, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &
-!$OMP          slot) &
+!$OMP          slot, cell) &
 !$OMP REDUCTION (+ : virial_thread, force_thread )
 
       ! *** Allocate work storage ***
@@ -859,6 +878,7 @@ CONTAINS
          jkind = sab_nl(1)%nlist_task(slot)%jkind
          iatom = sab_nl(1)%nlist_task(slot)%iatom
          jatom = sab_nl(1)%nlist_task(slot)%jatom
+         cell(:) = sab_nl(1)%nlist_task(slot)%cell(:)
          rab(1:3) = sab_nl(1)%nlist_task(slot)%r(1:3)
 
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
@@ -888,6 +908,13 @@ CONTAINS
          scon_b => basis_set_b%scon
          zetb => basis_set_b%zet
 
+         IF (use_cell_mapping) THEN
+            ic = cell_to_index(cell(1), cell(2), cell(3))
+            IF (ic < 1 .OR. ic > nimg) CYCLE
+         ELSE
+            ic = 1
+         END IF
+
          IF (do_symmetric) THEN
             IF (iatom <= jatom) THEN
                irow = iatom
@@ -906,8 +933,13 @@ CONTAINS
             ff = 1.0_dp
          END IF
          NULLIFY (p_block)
-         CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
-                                block=p_block, found=found)
+         IF (dokp) THEN
+            CALL dbcsr_get_block_p(matrix=matrixkp_p(ic)%matrix, row=irow, col=icol, &
+                                   block=p_block, found=found)
+         ELSE
+            CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
+                                   block=p_block, found=found)
+         END IF
 
          trans = do_symmetric .AND. (iatom > jatom)
 
@@ -1153,4 +1185,3 @@ CONTAINS
    END SUBROUTINE create_sab_matrix_2d
 
 END MODULE qs_overlap
-

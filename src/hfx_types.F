@@ -26,6 +26,7 @@ MODULE hfx_types
                                               get_cell,&
                                               plane_distance,&
                                               scaled_to_real
+   USE cp_array_utils,                  ONLY: cp_1d_logical_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               file_exists,&
@@ -35,6 +36,8 @@ MODULE hfx_types
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE dbcsr_api,                       ONLY: dbcsr_release,&
+                                              dbcsr_type
    USE dbt_api,                         ONLY: &
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &
         dbt_distribution_new, dbt_distribution_type, dbt_mp_dims_create, dbt_pgrid_create, &
@@ -367,9 +370,11 @@ MODULE hfx_types
    TYPE hfx_ri_type
       ! input parameters (see input_cp2k_hfx)
       REAL(KIND=dp) :: filter_eps = 0.0_dp, filter_eps_2c = 0.0_dp, filter_eps_storage = 0.0_dp, filter_eps_mo = 0.0_dp, &
-                       eps_lanczos = 0.0_dp, eps_pgf_orb = 0.0_dp, eps_eigval = 0.0_dp
+                       eps_lanczos = 0.0_dp, eps_pgf_orb = 0.0_dp, eps_eigval = 0.0_dp, kp_RI_range = 0.0_dp, &
+                       kp_image_range = 0.0_dp, kp_bump_rad = 0.0_dp
       INTEGER :: t2c_sqrt_order = 0, max_iter_lanczos = 0, flavor = 0, unit_nr_dbcsr = -1, unit_nr = -1, &
-                 min_bsize = 0, max_bsize_MO = 0, t2c_method = 0, nelectron_total = 0, input_flavor = 0
+                 min_bsize = 0, max_bsize_MO = 0, t2c_method = 0, nelectron_total = 0, input_flavor = 0, &
+                 ncell_RI = 0, nimg = 0, kp_stack_size = 0, nimg_nze = 0
       LOGICAL :: check_2c_inv = .FALSE., calc_condnum = .FALSE.
 
       TYPE(libint_potential_type) :: ri_metric = libint_potential_type()
@@ -393,12 +398,29 @@ MODULE hfx_types
       INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split, &
                                             bsizes_RI_fit, bsizes_AO_fit
 
+      ! KP RI-HFX basis info
+      INTEGER, DIMENSION(:), ALLOCATABLE ::  img_to_RI_cell, present_images, idx_to_img, img_to_idx, &
+                                            RI_cell_to_img
+
+      ! KP RI-HFX cost information for a given atom pair i,j at a given cell b
+      REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: kp_cost
+
+      ! KP distribution of iatom (of i,j atom pairs) to subgroups
+      TYPE(cp_1d_logical_p_type), DIMENSION(:), ALLOCATABLE :: iatom_to_subgroup
+
+      ! KP 3c tensors replicated on the subgroups
+      TYPE(dbt_type), DIMENSION(:), ALLOCATABLE :: kp_t_3c_int
+      TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE :: kp_t_3c_apc
+
       ! Note: changed static DIMENSION(1,1) of dbt_type to allocatables as workaround for gfortran 8.3.0,
       ! with static dimension gfortran gets stuck during compilation
 
       ! 2c tensors in (RI | RI) format for forces
       TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_inv
       TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_pot
+
+      ! 2c tensor in matrix format for K-points RI-HFX
+      TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE  :: kp_mat_2c_pot
 
       ! 2c tensor in (RI | RI) format for contraction
       TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_int
@@ -551,6 +573,7 @@ CONTAINS
 !> \param cell ...
 !> \param do_exx ...
 !> \param nelectron_total ...
+!> \param nkp_grid ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -559,7 +582,7 @@ CONTAINS
 !>        unknown at invocation time
 ! **************************************************************************************************
    SUBROUTINE hfx_create(x_data, para_env, hfx_section, atomic_kind_set, qs_kind_set, &
-                         particle_set, dft_control, cell, do_exx, nelectron_total)
+                         particle_set, dft_control, cell, do_exx, nelectron_total, nkp_grid)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mp_para_env_type)                             :: para_env
       TYPE(section_vals_type), POINTER                   :: hfx_section
@@ -570,6 +593,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, OPTIONAL                                  :: do_exx
       INTEGER, OPTIONAL                                  :: nelectron_total
+      INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_create'
 
@@ -679,6 +703,9 @@ CONTAINS
                CALL erfc_cutoff(actual_x_data%screening_parameter%eps_schwarz, &
                                 actual_x_data%potential_parameter%omega, &
                                 actual_x_data%potential_parameter%cutoff_radius)
+            END IF
+            IF (actual_x_data%potential_parameter%potential_type == do_potential_id) THEN
+               actual_x_data%potential_parameter%cutoff_radius = 0.0_dp
             END IF
 
             !! LOAD_BALANCE section
@@ -820,7 +847,7 @@ CONTAINS
                CALL section_vals_val_get(hf_pbc_section, "NUMBER_OF_SHELLS", i_val=pbc_shells)
                actual_x_data%periodic_parameter%number_of_shells_from_input = pbc_shells
                ALLOCATE (actual_x_data%neighbor_cells(1))
-               CALL hfx_create_neighbor_cells(actual_x_data, pbc_shells, cell, i_thread)
+               CALL hfx_create_neighbor_cells(actual_x_data, pbc_shells, cell, i_thread, nkp_grid=nkp_grid)
             ELSE
                ALLOCATE (actual_x_data%neighbor_cells(1))
                ! ** Initialize this guy to enable non periodic stress regtests
@@ -1111,6 +1138,10 @@ CONTAINS
          IF (.NOT. explicit) THEN
             ri_metric%cutoff_radius = hfx_pot%cutoff_radius
          END IF
+
+         IF (ri_metric%potential_type == do_potential_short) &
+            CALL erfc_cutoff(ri_data%eps_schwarz, ri_metric%omega, ri_metric%cutoff_radius)
+         IF (ri_metric%potential_type == do_potential_id) ri_metric%cutoff_radius = 0.0_dp
       END ASSOCIATE
 
       CALL section_vals_val_get(ri_section, "2C_MATRIX_FUNCTIONS", i_val=ri_data%t2c_method)
@@ -1391,11 +1422,11 @@ CONTAINS
                  dbcsr_time => ri_data%dbcsr_time, num_pe => ri_data%num_pe)
          my_flop_rate = REAL(dbcsr_nflop, dp)/(1.0E09_dp*ri_data%dbcsr_time)
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(/T2,A,T73,ES8.2)") &
-            "RI-HFX PERFORMANCE| DBCSR total number of flops:", REAL(dbcsr_nflop*num_pe, dp)
+            "RI-HFX PERFORMANCE| DBT total number of flops:", REAL(dbcsr_nflop*num_pe, dp)
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A,T66,F15.2)") &
-            "RI-HFX PERFORMANCE| DBCSR total execution time:", dbcsr_time
+            "RI-HFX PERFORMANCE| DBT total execution time:", dbcsr_time
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A,T66,F15.2)") &
-            "RI-HFX PERFORMANCE| DBCSR flop rate (Gflops / MPI rank):", my_flop_rate
+            "RI-HFX PERFORMANCE| DBT flop rate (Gflops / MPI rank):", my_flop_rate
       END ASSOCIATE
    END SUBROUTINE
 
@@ -1410,7 +1441,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_release'
 
-      INTEGER                                            :: handle, i_mem, ispin, j_mem, unused
+      INTEGER                                            :: handle, i, i_mem, ispin, j, j_mem, unused
       LOGICAL                                            :: my_write_stats
 
       CALL timeset(routineN, handle)
@@ -1455,14 +1486,35 @@ CONTAINS
             CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
          END DO
          END DO
-         CALL dbt_destroy(ri_data%t_3c_int_ctr_1(1, 1))
+
+         DO j = 1, SIZE(ri_data%t_3c_int_ctr_1, 2)
+            DO i = 1, SIZE(ri_data%t_3c_int_ctr_1, 1)
+               CALL dbt_destroy(ri_data%t_3c_int_ctr_1(i, j))
+            END DO
+         END DO
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
-         CALL dbt_destroy(ri_data%t_3c_int_ctr_2(1, 1))
+
+         DO j = 1, SIZE(ri_data%t_3c_int_ctr_2, 2)
+            DO i = 1, SIZE(ri_data%t_3c_int_ctr_2, 1)
+               CALL dbt_destroy(ri_data%t_3c_int_ctr_2(i, j))
+            END DO
+         END DO
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
-         CALL dbt_destroy(ri_data%t_3c_int_ctr_3(1, 1))
+
+         DO j = 1, SIZE(ri_data%t_3c_int_ctr_3, 2)
+            DO i = 1, SIZE(ri_data%t_3c_int_ctr_3, 1)
+               CALL dbt_destroy(ri_data%t_3c_int_ctr_3(i, j))
+            END DO
+         END DO
          DEALLOCATE (ri_data%t_3c_int_ctr_3)
-         CALL dbt_destroy(ri_data%t_2c_int(1, 1))
+
+         DO j = 1, SIZE(ri_data%t_2c_int, 2)
+            DO i = 1, SIZE(ri_data%t_2c_int, 1)
+               CALL dbt_destroy(ri_data%t_2c_int(i, j))
+            END DO
+         END DO
          DEALLOCATE (ri_data%t_2c_int)
+
          DEALLOCATE (ri_data%starts_array_mem_block, ri_data%ends_array_mem_block, &
                      ri_data%starts_array_mem, ri_data%ends_array_mem)
          DEALLOCATE (ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block, &
@@ -1492,10 +1544,51 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_ctr_KS_copy)
       END IF
 
-      CALL dbt_destroy(ri_data%t_2c_inv(1, 1))
+      DO j = 1, SIZE(ri_data%t_2c_inv, 2)
+         DO i = 1, SIZE(ri_data%t_2c_inv, 1)
+            CALL dbt_destroy(ri_data%t_2c_inv(i, j))
+         END DO
+      END DO
       DEALLOCATE (ri_data%t_2c_inv)
-      CALL dbt_destroy(ri_data%t_2c_pot(1, 1))
+
+      DO j = 1, SIZE(ri_data%t_2c_pot, 2)
+         DO i = 1, SIZE(ri_data%t_2c_pot, 1)
+            CALL dbt_destroy(ri_data%t_2c_pot(i, j))
+         END DO
+      END DO
       DEALLOCATE (ri_data%t_2c_pot)
+
+      IF (ALLOCATED(ri_data%kp_mat_2c_pot)) THEN
+         DO j = 1, SIZE(ri_data%kp_mat_2c_pot, 2)
+            DO i = 1, SIZE(ri_data%kp_mat_2c_pot, 1)
+               CALL dbcsr_release(ri_data%kp_mat_2c_pot(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%kp_mat_2c_pot)
+      END IF
+
+      IF (ALLOCATED(ri_data%kp_t_3c_int)) THEN
+         DO i = 1, SIZE(ri_data%kp_t_3c_int)
+            CALL dbt_destroy(ri_data%kp_t_3c_int(i))
+         END DO
+         DEALLOCATE (ri_data%kp_t_3c_int)
+      END IF
+
+      IF (ALLOCATED(ri_data%kp_t_3c_apc)) THEN
+         DO j = 1, SIZE(ri_data%kp_t_3c_apc, 2)
+            DO i = 1, SIZE(ri_data%kp_t_3c_apc, 1)
+               CALL dbt_destroy(ri_data%kp_t_3c_apc(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%kp_t_3c_apc)
+      END IF
+
+      IF (ALLOCATED(ri_data%iatom_to_subgroup)) THEN
+         DO i = 1, SIZE(ri_data%iatom_to_subgroup)
+            DEALLOCATE (ri_data%iatom_to_subgroup(i)%array)
+         END DO
+         DEALLOCATE (ri_data%iatom_to_subgroup)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -1907,28 +2000,35 @@ CONTAINS
 !> \param pbc_shells number of shells taken into account
 !> \param cell cell
 !> \param i_thread current thread ID
+!> \param nkp_grid ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, i_thread)
+   SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, i_thread, nkp_grid)
       TYPE(hfx_type), POINTER                            :: x_data
       INTEGER, INTENT(INOUT)                             :: pbc_shells
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: i_thread
+      INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: char_nshells
       INTEGER :: i, idx, ikind, ipgf, iset, ishell, j, jkind, jpgf, jset, jshell, k, kshell, l, &
-         m(3), max_shell, nseta, nsetb, perd(3), total_number_of_cells, ub, ub_max
+         m(3), max_shell, nkp(3), nseta, nsetb, perd(3), total_number_of_cells, ub, ub_max
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb
-      LOGICAL                                            :: image_cell_found, nothing_more_to_add
+      LOGICAL                                            :: do_kpoints, image_cell_found, &
+                                                            nothing_more_to_add
       REAL(dp) :: cross_product(3), dist_min, distance(14), l_min, normal(3, 6), P(3, 14), &
          plane_vector(3, 2), point_in_plane(3), r(3), R1, R_max, R_max_stress, s(3), x, y, z, Zeta1
       REAL(dp), DIMENSION(:, :), POINTER                 :: zeta, zetb
       TYPE(hfx_cell_type), ALLOCATABLE, DIMENSION(:)     :: tmp_neighbor_cells
 
       total_number_of_cells = 0
+
+      nkp = 1
+      IF (PRESENT(nkp_grid)) nkp = nkp_grid
+      do_kpoints = ANY(nkp > 1)
 
       ! ** Check some settings
       IF (i_thread == 1) THEN
@@ -1941,17 +2041,27 @@ CONTAINS
                          "of a truncated or shortrange potential. This may lead to unphysical total energies. "// &
                          "Use a truncated  potential to avoid possible problems.")
          ELSE IF (x_data%potential_parameter%potential_type /= do_potential_id) THEN
-            l_min = MIN(plane_distance(1, 0, 0, cell), &
-                        plane_distance(0, 1, 0, cell), &
-                        plane_distance(0, 0, 1, cell))
+            !If k-points, use the Born-von Karman super cell as reference
+            l_min = MIN(REAL(nkp(1), dp)*plane_distance(1, 0, 0, cell), &
+                        REAL(nkp(2), dp)*plane_distance(0, 1, 0, cell), &
+                        REAL(nkp(3), dp)*plane_distance(0, 0, 1, cell))
             l_min = 0.5_dp*l_min
             IF (x_data%potential_parameter%cutoff_radius >= l_min) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Periodic Hartree Fock calculation requested with use "// &
-                            "of a truncated or shortrange potential. The cutoff radius is larger than half "// &
-                            "the minimal cell dimension. This may lead to unphysical "// &
-                            "total energies. Reduce the cutoff radius in order to avoid "// &
-                            "possible problems.")
+               IF (.NOT. do_kpoints) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "Periodic Hartree Fock calculation requested with the use "// &
+                               "of a truncated or shortrange potential. The cutoff radius is larger than half "// &
+                               "the minimal cell dimension. This may lead to unphysical "// &
+                               "total energies. Reduce the cutoff radius in order to avoid "// &
+                               "possible problems.")
+               ELSE
+                  CALL cp_warn(__LOCATION__, &
+                               "K-point Hartree-Fock calculation requested with the use of a "// &
+                               "truncated or shortrange potential. The cutoff radius is larger than "// &
+                               "half the minimal Born-von Karman supercell dimension. This may lead "// &
+                               "to unphysical total energies. Reduce the cutoff radius or increase "// &
+                               "the number of K-points in order to avoid possible problems.")
+               END IF
             END IF
          END IF
       END IF

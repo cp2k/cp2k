@@ -46,13 +46,10 @@ MODULE qs_neighbor_lists
                                               get_potential,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE input_constants,                 ONLY: dispersion_uff,&
-                                              do_method_lrigpw,&
-                                              do_method_rigpw,&
-                                              do_se_IS_slater,&
-                                              vdw_pairpot_dftd3,&
-                                              vdw_pairpot_dftd3bj,&
-                                              xc_vdw_fun_pairpot
+   USE input_constants,                 ONLY: &
+        dispersion_uff, do_method_lrigpw, do_method_rigpw, do_potential_id, do_potential_short, &
+        do_potential_truncated, do_se_IS_slater, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
+        xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -61,6 +58,8 @@ MODULE qs_neighbor_lists
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
+   USE libint_2c_3c,                    ONLY: cutoff_screen_factor
+   USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -294,19 +293,19 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol, element_symbol2
       CHARACTER(LEN=default_string_length)               :: print_key_path
-      INTEGER                                            :: handle, ikind, ingp, iw, jkind, maxatom, &
-                                                            ngp, nkind, numshells, zat
-      LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, gth_potential_present, &
+      INTEGER                                            :: handle, hfx_pot, ikind, ingp, iw, jkind, &
+                                                            maxatom, ngp, nkind, zat
+      LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, gth_potential_present, &
          lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, rigpw, &
          sgp_potential_present, xtb
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
          core_present, default_present, nonbond1_atom, nonbond2_atom, oce_present, orb_present, &
          ppl_present, ppnl_present, ri_present, xb1_atom, xb2_atom
-      REAL(dp)                                           :: almo_rcov, almo_rvdw, pdist, rcut, &
-                                                            roperator, subcells
+      REAL(dp)                                           :: almo_rcov, almo_rvdw, eps_schwarz, &
+                                                            omega, pdist, rcut, roperator, subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
          core_radius, oce_radius, orb_radius, ppl_radius, ppnl_radius, ri_radius, zeff
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius, pair_radius_lb
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -322,9 +321,9 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
-         sab_cn, sab_core, sab_gcp, sab_kp, sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, &
-         sab_xb, sab_xtb_nonbond, sab_xtbe, sac_ae, sac_lri, sac_ppl, sap_oce, sap_ppnl, soa_list, &
-         soo_list
+         sab_cn, sab_core, sab_gcp, sab_kp, sab_kp_nosym, sab_lrc, sab_orb, sab_scp, sab_se, &
+         sab_tbe, sab_vdw, sab_xb, sab_xtb_nonbond, sab_xtbe, sac_ae, sac_lri, sac_ppl, sap_oce, &
+         sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -364,6 +363,7 @@ CONTAINS
       NULLIFY (sab_scp)
       NULLIFY (sab_almo)
       NULLIFY (sab_kp)
+      NULLIFY (sab_kp_nosym)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -402,7 +402,8 @@ CONTAINS
                       sab_scp=sab_scp, &
                       sab_all=sab_all, &
                       sab_almo=sab_almo, &
-                      sab_kp=sab_kp)
+                      sab_kp=sab_kp, &
+                      sab_kp_nosym=sab_kp_nosym)
 
       dokp = (kpoints%nkp > 0)
       nddo = dft_control%qs_control%semi_empirical
@@ -610,35 +611,54 @@ CONTAINS
          ! We try to guess an integration radius for K-points
          ! For non-HFX calculations we use the overlap list
          ! For HFX we use the interaction radius of kinds (ORB or ADMM basis)
-         ! plus a range for the operator (some arbitrary guess, should be revisited!)
+         ! plus a range for the operator
          IF (do_hfx) THEN
-            roperator = 0.0_dp
-            CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", &
-                                      explicit=explicit)
-            IF (explicit) THEN
-               CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", &
-                                         r_val=roperator)
-            ELSE
-               CALL section_vals_val_get(hfx_sections, "PERIODIC%NUMBER_OF_SHELLS", &
-                                         i_val=numshells)
-               numshells = MAX(1, numshells)
-               roperator = MAX(plane_distance(1, 0, 0, cell), &
-                               plane_distance(0, 1, 0, cell), &
-                               plane_distance(0, 0, 1, cell))*numshells
-            END IF
+
+            !case study on the HFX potential: TC, SR or Overlap?
+            CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", i_val=hfx_pot)
+
+            SELECT CASE (hfx_pot)
+            CASE (do_potential_id)
+               roperator = 0.0_dp
+            CASE (do_potential_truncated)
+               CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=roperator)
+            CASE (do_potential_short)
+               CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%OMEGA", r_val=omega)
+               CALL section_vals_val_get(hfx_sections, "SCREENING%EPS_SCHWARZ", r_val=eps_schwarz)
+               CALL erfc_cutoff(eps_schwarz, omega, roperator)
+            CASE DEFAULT
+               CPABORT("HFX potential not available for K-points (NYI)")
+            END SELECT
+
             IF (dft_control%do_admm) THEN
                CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, &
                                       pair_radius)
+
+               !We cannot accept a pair radius smaller than the ORB overlap, for sanity reasons
+               ALLOCATE (pair_radius_lb(nkind, nkind))
+               CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius_lb)
+               DO jkind = 1, nkind
+                  DO ikind = 1, nkind
+                     IF (pair_radius(ikind, jkind) + cutoff_screen_factor*roperator .LE. pair_radius_lb(ikind, jkind)) &
+                        pair_radius(ikind, jkind) = pair_radius_lb(ikind, jkind) - roperator
+                  END DO
+               END DO
             ELSE
                CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
             END IF
-            pair_radius = pair_radius + roperator
+            pair_radius = pair_radius + cutoff_screen_factor*roperator
          ELSE
             CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
          END IF
          CALL build_neighbor_lists(sab_kp, particle_set, atom2d, cell, pair_radius, &
                                    subcells=subcells, nlname="sab_kp")
          CALL set_ks_env(ks_env=ks_env, sab_kp=sab_kp)
+
+         IF (do_hfx) THEN
+            CALL build_neighbor_lists(sab_kp_nosym, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, nlname="sab_kp_nosym", symmetric=.FALSE.)
+            CALL set_ks_env(ks_env=ks_env, sab_kp_nosym=sab_kp_nosym)
+         END IF
       END IF
 
       ! Build orbital GTH-PPL operator overlap list

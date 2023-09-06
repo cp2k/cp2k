@@ -29,7 +29,8 @@ MODULE qs_energy_init
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: kpoint_type,&
+                                              set_kpoint_info
    USE lri_environment_methods,         ONLY: build_lri_matrices,&
                                               calculate_lri_integrals
    USE lri_environment_types,           ONLY: lri_environment_type
@@ -255,7 +256,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
+         POINTER                                         :: sab_nl, sab_nl_nosym
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
@@ -276,8 +277,9 @@ CONTAINS
 
       ! calculate cell index for k-point calculations
       IF (do_kpoints) THEN
-         CALL get_qs_env(qs_env, sab_kp=sab_nl)
+         CALL get_qs_env(qs_env, sab_kp=sab_nl, sab_kp_nosym=sab_nl_nosym)
          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control)
+         CALL set_kpoint_info(kpoints, sab_nl_nosym=sab_nl_nosym)
       END IF
       IF (dft_control%qs_control%cdft) THEN
          IF (.NOT. (dft_control%qs_control%cdft_control%external_control)) &
