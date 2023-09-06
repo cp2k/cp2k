@@ -1,0 +1,84 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+        BASIS_SET_FILE_NAME BASIS_ADMM_UZH
+        POTENTIAL_FILE_NAME POTENTIAL_UZH
+        SORT_BASIS EXP
+        AUTO_BASIS RI_HFX SMALL
+        &QS
+           METHOD GPW
+        &END
+        &AUXILIARY_DENSITY_MATRIX_METHOD
+            ADMM_PURIFICATION_METHOD NONE
+            EXCH_CORRECTION_FUNC PBEX
+        &END
+        &MGRID
+            CUTOFF 200
+            REL_CUTOFF 40
+        &END MGRID
+        &SCF
+            SCF_GUESS ATOMIC
+            MAX_SCF 2
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL
+               &PBE
+                  SCALE_X 0.75
+               &END
+            &END XC_FUNCTIONAL
+            &HF
+                FRACTION 0.25
+                &RI
+                   RI_METRIC IDENTITY
+                   NGROUPS 2
+                   MEMORY_CUT 2
+                &END
+                &INTERACTION_POTENTIAL
+                    POTENTIAL_TYPE TRUNCATED
+                    !this is too small for a real calculation. The only requirement is that it is
+                    !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
+                    !on efficiency, as it greatly increses the number of periodic images to consider
+                    CUTOFF_RADIUS 0.5
+                &END
+            &END
+        &END XC 
+       &KPOINTS
+          SCHEME  MONKHORST-PACK  3 3 1
+       &END KPOINTS
+    &END DFT
+    &SUBSYS
+        &CELL
+            !note: this is not a realistic cell, but denser cells would be too expensive for a test
+            ABC 6.5 6.5 15.0
+            ALPHA_BETA_GAMMA 90.0 90.0 120.0
+        &END CELL
+        &TOPOLOGY
+        &END
+        &COORD
+           SCALED
+           B 0.3233333 0.6866667 0.0
+           N 0.6466667 0.3433333 0.0
+        &END COORD
+        &KIND B
+            BASIS_SET ccGRB-D-q3
+            BASIS_SET AUX_FIT admm-dz-q3
+            POTENTIAL GTH-PBE0-q3
+        &END KIND
+        &KIND N
+            BASIS_SET ccGRB-D-q5
+            BASIS_SET AUX_FIT admm-dz-q5
+            POTENTIAL GTH-PBE0-q5
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT hBN_gpw_pbe0
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+   &GEO_OPT
+      MAX_ITER 1
+   &END GEO_OPT
+&END MOTION

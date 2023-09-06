@@ -18,8 +18,7 @@ MODULE hfx_ri
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              real_to_scaled
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
@@ -111,11 +110,13 @@ MODULE hfx_ri
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
+!$ USE OMP_LIB, ONLY: omp_get_num_threads
+
    IMPLICIT NONE
    PRIVATE
 
    PUBLIC :: hfx_ri_update_ks, hfx_ri_update_forces, get_force_from_3c_trace, get_2c_der_force, &
-             get_idx_to_atom, print_ri_hfx
+             get_idx_to_atom, print_ri_hfx, hfx_ri_pre_scf_calc_tensors, check_inverse
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_ri'
 CONTAINS
@@ -430,29 +431,37 @@ CONTAINS
 !> v_1 is HF operator, v_2 is RI metric
 !> \param qs_env ...
 !> \param ri_data ...
-!> \param t_2c_int_RI K_2(P, R)
+!> \param t_2c_int_RI K_2(P, R) note: even with k-point, only need on central cell
 !> \param t_2c_int_pot K_1(P, R)
 !> \param t_3c_int int_3c(mu, lambda, P)
+!> \param do_kpoints ...
+!> \notes the integral tensor arrays are already allocated on entry
 ! **************************************************************************************************
-   SUBROUTINE hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_int_RI, t_2c_int_pot, t_3c_int)
+   SUBROUTINE hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_int_RI, t_2c_int_pot, t_3c_int, do_kpoints)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
-      TYPE(dbcsr_type), DIMENSION(1), INTENT(OUT)        :: t_2c_int_RI, t_2c_int_pot
-      TYPE(dbt_type), DIMENSION(1, 1), INTENT(OUT)       :: t_3c_int
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(OUT)        :: t_2c_int_RI, t_2c_int_pot
+      TYPE(dbt_type), DIMENSION(:, :)                    :: t_3c_int
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_calc_tensors'
 
-      INTEGER                                            :: handle, i_mem, ibasis, n_mem, natom, &
-                                                            nkind
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
-         ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_RI, &
-         starts_array_mc_block_int, starts_array_mc_int
+      CHARACTER                                          :: symm
+      INTEGER                                            :: handle, i_img, i_mem, ibasis, j_img, &
+                                                            n_mem, natom, nblks, nimg, nkind, &
+                                                            nthreads
+      INTEGER(int_8)                                     :: nze
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, dist_RI_ext, &
+         ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_RI, sizes_RI_ext, &
+         sizes_RI_ext_split, starts_array_mc_block_int, starts_array_mc_int
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
-      LOGICAL                                            :: converged
-      REAL(dp)                                           :: max_ev, min_ev
+      LOGICAL                                            :: converged, do_kpoints_prv
+      REAL(dp)                                           :: max_ev, min_ev, occ, RI_range
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
+      TYPE(dbt_distribution_type)                        :: t_dist
+      TYPE(dbt_pgrid_type)                               :: pgrid
       TYPE(dbt_type)                                     :: t_3c_tmp
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_int_batched
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -462,6 +471,7 @@ CONTAINS
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(mp_cart_type)                                 :: mp_comm_t3c
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c_pot, nl_2c_RI
@@ -471,17 +481,25 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (col_bsize, row_bsize, dist_2d, nl_2c_pot, nl_2c_RI, &
-               particle_set, qs_kind_set, ks_env)
+               particle_set, qs_kind_set, ks_env, para_env)
 
       CALL get_qs_env(qs_env, natom=natom, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                      distribution_2d=dist_2d, ks_env=ks_env, dft_control=dft_control)
+                      distribution_2d=dist_2d, ks_env=ks_env, dft_control=dft_control, para_env=para_env)
+
+      RI_range = 0.0_dp
+      do_kpoints_prv = .FALSE.
+      IF (PRESENT(do_kpoints)) do_kpoints_prv = do_kpoints
+      nimg = 1
+      IF (do_kpoints_prv) THEN
+         nimg = ri_data%nimg
+         RI_range = ri_data%kp_RI_range
+      END IF
 
       ALLOCATE (sizes_RI(natom), sizes_AO(natom))
       ALLOCATE (basis_set_RI(nkind), basis_set_AO(nkind))
       CALL basis_set_list_setup(basis_set_RI, ri_data%ri_basis_type, qs_kind_set)
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=basis_set_RI)
       CALL basis_set_list_setup(basis_set_AO, ri_data%orb_basis_type, qs_kind_set)
-
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_AO)
 
       DO ibasis = 1, SIZE(basis_set_AO)
@@ -500,61 +518,151 @@ CONTAINS
 
       DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
 
-      ALLOCATE (t_3c_int_batched(1, 1))
-      CALL create_3c_tensor(t_3c_int_batched(1, 1), dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &
-                            sizes_RI, sizes_AO, sizes_AO, map1=[1], map2=[2, 3], &
-                            name="(RI | AO AO)")
+      !We separate the K-points and standard 3c integrals, because handle quite differently
+      IF (.NOT. do_kpoints_prv) THEN
 
-      CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
-      CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims, pcoord)
-      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims)
-      CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
-                                  nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
-      DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
+         nthreads = 1
+!$       nthreads = omp_get_num_threads()
+         pdims = 0
+         CALL dbt_pgrid_create(para_env, pdims, pgrid, tensor_dims=[MAX(1, natom/(n_mem*nthreads)), natom, natom])
 
-      CALL create_3c_tensor(t_3c_int(1, 1), dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &
-                            ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                            map1=[1], map2=[2, 3], &
-                            name="O (RI AO | AO)")
+         ALLOCATE (t_3c_int_batched(1, 1))
+         CALL create_3c_tensor(t_3c_int_batched(1, 1), dist_RI, dist_AO_1, dist_AO_2, pgrid, &
+                               sizes_RI, sizes_AO, sizes_AO, map1=[1], map2=[2, 3], &
+                               name="(RI | AO AO)")
 
-      ! create 3c tensor for storage of ints
+         CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
+         CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+         CALL mp_comm_t3c%create(pgrid%mp_comm_2d, 3, pdims)
+         CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
+                                     nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
+         DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
 
-      CALL build_3c_neighbor_lists(nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, dist_3d, ri_data%ri_metric, &
-                                   "HFX_3c_nl", qs_env, op_pos=1, sym_jk=.TRUE., own_dist=.TRUE.)
+         CALL create_3c_tensor(t_3c_int(1, 1), dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &
+                               ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                               map1=[1], map2=[2, 3], &
+                               name="O (RI AO | AO)")
 
-      DO i_mem = 1, n_mem
-         CALL build_3c_integrals(t_3c_int_batched, ri_data%filter_eps/2, qs_env, nl_3c, &
-                                 basis_set_RI, basis_set_AO, basis_set_AO, &
-                                 ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1, &
-                                 desymmetrize=.FALSE., &
-                                 bounds_i=[starts_array_mc_block_int(i_mem), ends_array_mc_block_int(i_mem)])
-         CALL dbt_copy(t_3c_int_batched(1, 1), t_3c_int(1, 1), summation=.TRUE., move_data=.TRUE.)
-         CALL dbt_filter(t_3c_int(1, 1), ri_data%filter_eps/2)
-      END DO
+         CALL build_3c_neighbor_lists(nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, dist_3d, ri_data%ri_metric, &
+                                      "HFX_3c_nl", qs_env, op_pos=1, sym_jk=.TRUE., own_dist=.TRUE.)
 
-      CALL dbt_destroy(t_3c_int_batched(1, 1))
+         DO i_mem = 1, n_mem
+            CALL build_3c_integrals(t_3c_int_batched, ri_data%filter_eps/2, qs_env, nl_3c, &
+                                    basis_set_RI, basis_set_AO, basis_set_AO, &
+                                    ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1, &
+                                    desymmetrize=.FALSE., &
+                                    bounds_i=[starts_array_mc_block_int(i_mem), ends_array_mc_block_int(i_mem)])
+            CALL dbt_copy(t_3c_int_batched(1, 1), t_3c_int(1, 1), summation=.TRUE., move_data=.TRUE.)
+            CALL dbt_filter(t_3c_int(1, 1), ri_data%filter_eps/2)
+         END DO
 
-      CALL neighbor_list_3c_destroy(nl_3c)
+         CALL dbt_destroy(t_3c_int_batched(1, 1))
 
-      CALL dbt_create(t_3c_int(1, 1), t_3c_tmp)
+         CALL neighbor_list_3c_destroy(nl_3c)
 
-      IF (ri_data%flavor == ri_pmat) THEN ! desymmetrize
-         ! desymmetrize
-         CALL dbt_copy(t_3c_int(1, 1), t_3c_tmp)
-         CALL dbt_copy(t_3c_tmp, t_3c_int(1, 1), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
+         CALL dbt_create(t_3c_int(1, 1), t_3c_tmp)
 
-         ! For RI-RHO filter_eps_storage is reserved for screening tensor contracted with RI-metric
-         ! with RI metric but not to bare integral tensor
-         CALL dbt_filter(t_3c_int(1, 1), ri_data%filter_eps)
-      ELSE
-         CALL dbt_filter(t_3c_int(1, 1), ri_data%filter_eps_storage/2)
+         IF (ri_data%flavor == ri_pmat) THEN ! desymmetrize
+            ! desymmetrize
+            CALL dbt_copy(t_3c_int(1, 1), t_3c_tmp)
+            CALL dbt_copy(t_3c_tmp, t_3c_int(1, 1), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
+
+            ! For RI-RHO filter_eps_storage is reserved for screening tensor contracted with RI-metric
+            ! with RI metric but not to bare integral tensor
+            CALL dbt_filter(t_3c_int(1, 1), ri_data%filter_eps)
+         ELSE
+            CALL dbt_filter(t_3c_int(1, 1), ri_data%filter_eps_storage/2)
+         END IF
+
+         CALL dbt_destroy(t_3c_tmp)
+
+      ELSE !do_kpoints
+
+         nthreads = 1
+!$       nthreads = omp_get_num_threads()
+         pdims = 0
+         CALL dbt_pgrid_create(para_env, pdims, pgrid, tensor_dims=[natom, natom, MAX(1, natom/(n_mem*nthreads))])
+
+         !In k-points HFX, we stack all images along the RI direction in the same tensors, in order
+         !to avoid storing nimg x ncell_RI different tensors (very memory intensive)
+         nblks = SIZE(ri_data%bsizes_RI_split)
+         ALLOCATE (sizes_RI_ext(natom*ri_data%ncell_RI), sizes_RI_ext_split(nblks*ri_data%ncell_RI))
+         DO i_img = 1, ri_data%ncell_RI
+            sizes_RI_ext((i_img - 1)*natom + 1:i_img*natom) = sizes_RI(:)
+            sizes_RI_ext_split((i_img - 1)*nblks + 1:i_img*nblks) = ri_data%bsizes_RI_split(:)
+         END DO
+
+         CALL create_3c_tensor(t_3c_tmp, dist_AO_1, dist_AO_2, dist_RI, &
+                               pgrid, sizes_AO, sizes_AO, sizes_RI, map1=[1, 2], map2=[3], &
+                               name="(AO AO | RI)")
+         CALL dbt_destroy(t_3c_tmp)
+
+         !For the integrals to work, the distribution along the RI direction must be repeated
+         ALLOCATE (dist_RI_ext(natom*ri_data%ncell_RI))
+         DO i_img = 1, ri_data%ncell_RI
+            dist_RI_ext((i_img - 1)*natom + 1:i_img*natom) = dist_RI(:)
+         END DO
+
+         ALLOCATE (t_3c_int_batched(nimg, 1))
+         CALL dbt_distribution_new(t_dist, pgrid, dist_AO_1, dist_AO_2, dist_RI_ext)
+         CALL dbt_create(t_3c_int_batched(1, 1), "KP_3c_ints", t_dist, [1, 2], [3], &
+                         sizes_AO, sizes_AO, sizes_RI_ext)
+         DO i_img = 2, nimg
+            CALL dbt_create(t_3c_int_batched(1, 1), t_3c_int_batched(i_img, 1))
+         END DO
+         CALL dbt_distribution_destroy(t_dist)
+
+         CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
+         CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+         CALL mp_comm_t3c%create(pgrid%mp_comm_2d, 3, pdims)
+         CALL distribution_3d_create(dist_3d, dist_AO_1, dist_AO_2, dist_RI, &
+                                     nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
+         DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
+
+         ! create 3c tensor for storage of ints
+         CALL build_3c_neighbor_lists(nl_3c, basis_set_AO, basis_set_AO, basis_set_RI, dist_3d, ri_data%ri_metric, &
+                                      "HFX_3c_nl", qs_env, op_pos=2, sym_ij=.FALSE., own_dist=.TRUE.)
+
+         CALL create_3c_tensor(t_3c_int(1, 1), dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &
+                               sizes_RI_ext_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                               map1=[1], map2=[2, 3], &
+                               name="O (RI AO | AO)")
+         DO j_img = 2, nimg
+            CALL dbt_create(t_3c_int(1, 1), t_3c_int(1, j_img))
+         END DO
+
+         CALL dbt_create(t_3c_int(1, 1), t_3c_tmp)
+         DO i_mem = 1, n_mem
+            CALL build_3c_integrals(t_3c_int_batched, ri_data%filter_eps, qs_env, nl_3c, &
+                                    basis_set_AO, basis_set_AO, basis_set_RI, &
+                                    ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=2, &
+                                    desymmetrize=.FALSE., do_kpoints=.TRUE., do_hfx_kpoints=.TRUE., &
+                                    bounds_k=[starts_array_mc_block_int(i_mem), ends_array_mc_block_int(i_mem)], &
+                                    RI_range=RI_range, img_to_RI_cell=ri_data%img_to_RI_cell)
+
+            DO i_img = 1, nimg
+               !we start with (mu^0 sigma^i | P^j) and finish with (P^i | mu^0 sigma^j)
+               CALL get_tensor_occupancy(t_3c_int_batched(i_img, 1), nze, occ)
+               IF (nze > 0) THEN
+                  CALL dbt_copy(t_3c_int_batched(i_img, 1), t_3c_tmp, order=[3, 2, 1], move_data=.TRUE.)
+                  CALL dbt_filter(t_3c_tmp, ri_data%filter_eps)
+                  CALL dbt_copy(t_3c_tmp, t_3c_int(1, i_img), order=[1, 3, 2], &
+                                summation=.TRUE., move_data=.TRUE.)
+               END IF
+            END DO
+         END DO
+
+         DO i_img = 1, nimg
+            CALL dbt_destroy(t_3c_int_batched(i_img, 1))
+         END DO
+         DEALLOCATE (t_3c_int_batched)
+         CALL neighbor_list_3c_destroy(nl_3c)
+         CALL dbt_destroy(t_3c_tmp)
       END IF
-
-      CALL dbt_destroy(t_3c_tmp)
+      CALL dbt_pgrid_destroy(pgrid)
 
       CALL build_2c_neighbor_lists(nl_2c_pot, basis_set_RI, basis_set_RI, ri_data%hfx_pot, &
-                                   "HFX_2c_nl_pot", &
-                                   qs_env, sym_ij=.TRUE., &
+                                   "HFX_2c_nl_pot", qs_env, sym_ij=.NOT. do_kpoints_prv, &
                                    dist_2d=dist_2d)
 
       CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
@@ -563,24 +671,36 @@ CONTAINS
       row_bsize(:) = sizes_RI
       col_bsize(:) = sizes_RI
 
-      CALL dbcsr_create(t_2c_int_pot(1), "(R|P) HFX", dbcsr_dist, dbcsr_type_symmetric, &
-                        row_bsize, col_bsize, reuse_arrays=.TRUE.)
+      !Use non-symmetric nl and matrices for k-points
+      symm = dbcsr_type_symmetric
+      IF (do_kpoints_prv) symm = dbcsr_type_no_symmetry
+
+      CALL dbcsr_create(t_2c_int_pot(1), "(R|P) HFX", dbcsr_dist, symm, row_bsize, col_bsize)
+      DO i_img = 2, nimg
+         CALL dbcsr_create(t_2c_int_pot(i_img), template=t_2c_int_pot(1))
+      END DO
+
+      IF (.NOT. ri_data%same_op) THEN
+         CALL dbcsr_create(t_2c_int_RI(1), "(R|P) HFX", dbcsr_dist, symm, row_bsize, col_bsize)
+         DO i_img = 2, nimg
+            CALL dbcsr_create(t_2c_int_RI(i_img), template=t_2c_int_RI(1))
+         END DO
+      END IF
+      DEALLOCATE (col_bsize, row_bsize)
 
       CALL dbcsr_distribution_release(dbcsr_dist)
 
       CALL build_2c_integrals(t_2c_int_pot, ri_data%filter_eps_2c, qs_env, nl_2c_pot, basis_set_RI, basis_set_RI, &
-                              ri_data%hfx_pot)
+                              ri_data%hfx_pot, do_kpoints=do_kpoints_prv, do_hfx_kpoints=do_kpoints_prv)
       CALL release_neighbor_list_sets(nl_2c_pot)
 
       IF (.NOT. ri_data%same_op) THEN
          CALL build_2c_neighbor_lists(nl_2c_RI, basis_set_RI, basis_set_RI, ri_data%ri_metric, &
-                                      "HFX_2c_nl_RI", &
-                                      qs_env, sym_ij=.TRUE., &
+                                      "HFX_2c_nl_RI", qs_env, sym_ij=.NOT. do_kpoints_prv, &
                                       dist_2d=dist_2d)
 
-         CALL dbcsr_create(t_2c_int_RI(1), template=t_2c_int_pot(1), matrix_type=dbcsr_type_symmetric, name="(R|P) RI")
          CALL build_2c_integrals(t_2c_int_RI, ri_data%filter_eps_2c, qs_env, nl_2c_RI, basis_set_RI, basis_set_RI, &
-                                 ri_data%ri_metric)
+                                 ri_data%ri_metric, do_kpoints=do_kpoints_prv, do_hfx_kpoints=do_kpoints_prv)
 
          CALL release_neighbor_list_sets(nl_2c_RI)
       END IF
@@ -3004,7 +3124,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'precalc_derivatives'
 
-      INTEGER                                            :: handle, i_mem, i_xyz, n_mem, nkind
+      INTEGER                                            :: handle, i_mem, i_xyz, n_mem, natom, &
+                                                            nkind, nthreads
       INTEGER(int_8)                                     :: nze, nze_tot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI, dummy_end, dummy_start, &
@@ -3014,6 +3135,7 @@ CONTAINS
       REAL(dp)                                           :: compression_factor, memory, occ
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type), DIMENSION(1, 3)                  :: t_2c_der_metric_prv, t_2c_der_RI_prv
+      TYPE(dbt_pgrid_type)                               :: pgrid
       TYPE(dbt_type)                                     :: t_2c_template, t_2c_tmp, t_3c_template
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :, :)    :: t_3c_der_AO_prv, t_3c_der_RI_prv
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -3031,11 +3153,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, distribution_2d=dist_2d, &
+      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, distribution_2d=dist_2d, natom=natom, &
                       particle_set=particle_set, dft_control=dft_control, para_env=para_env)
 
+      !TODO: is such a pgrid correct?
       !Dealing with the 3c derivatives
-      CALL create_3c_tensor(t_3c_template, dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &
+      nthreads = 1
+!$    nthreads = omp_get_num_threads()
+      pdims = 0
+      CALL dbt_pgrid_create(para_env, pdims, pgrid, tensor_dims=[MAX(1, natom/(ri_data%n_mem*nthreads)), natom, natom])
+
+      CALL create_3c_tensor(t_3c_template, dist_RI, dist_AO_1, dist_AO_2, pgrid, &
                             ri_data%bsizes_RI, ri_data%bsizes_AO, ri_data%bsizes_AO, &
                             map1=[1], map2=[2, 3], &
                             name="der (RI AO | AO)")
@@ -3050,8 +3178,8 @@ CONTAINS
       END IF
       CALL dbt_destroy(t_3c_template)
 
-      CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims, pcoord)
-      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims)
+      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+      CALL mp_comm_t3c%create(pgrid%mp_comm_2d, 3, pdims)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                   nkind, particle_set, mp_comm_t3c, own_comm=.TRUE.)
 
@@ -3059,7 +3187,8 @@ CONTAINS
                                    "HFX_3c_nl", qs_env, op_pos=1, sym_jk=.TRUE., own_dist=.TRUE.)
 
       IF (PRESENT(nl_3c_out)) THEN
-         CALL mp_comm_t3c_out%create(ri_data%pgrid%mp_comm_2d, 3, pdims)
+         CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+         CALL mp_comm_t3c_out%create(pgrid%mp_comm_2d, 3, pdims)
          CALL distribution_3d_create(dist_3d_out, dist_RI, dist_AO_1, dist_AO_2, &
                                      nkind, particle_set, mp_comm_t3c_out, own_comm=.TRUE.)
          CALL build_3c_neighbor_lists(nl_3c_out, basis_set_RI, basis_set_AO, basis_set_AO, dist_3d_out, &
@@ -3067,6 +3196,7 @@ CONTAINS
                                       own_dist=.TRUE.)
       END IF
       DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
+      CALL dbt_pgrid_destroy(pgrid)
 
       n_mem = ri_data%n_mem
       CALL create_tensor_batches(ri_data%bsizes_RI, n_mem, dummy_start, dummy_end, &
@@ -3218,24 +3348,17 @@ CONTAINS
 !> \param kind_of ...
 !> \param idx_to_at ...
 !> \param pref ...
-!> \param work_virial ...
-!> \param cell ...
-!> \param particle_set ...
 !> \param do_mp2 ...
 !> \param deriv_dim the dimension of the tensor corresponding to the derivative (by default 1)
 ! **************************************************************************************************
    SUBROUTINE get_force_from_3c_trace(force, t_3c_contr, t_3c_der, atom_of_kind, kind_of, idx_to_at, &
-                                      pref, work_virial, cell, particle_set, do_mp2, deriv_dim)
+                                      pref, do_mp2, deriv_dim)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_contr
       TYPE(dbt_type), DIMENSION(3), INTENT(INOUT)        :: t_3c_der
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of, idx_to_at
       REAL(dp), INTENT(IN)                               :: pref
-      REAL(dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: work_virial
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
-      TYPE(particle_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: particle_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_mp2
       INTEGER, INTENT(IN), OPTIONAL                      :: deriv_dim
 
@@ -3244,16 +3367,13 @@ CONTAINS
       INTEGER                                            :: deriv_dim_prv, handle, i_xyz, iat, &
                                                             iat_of_kind, ikind, j_xyz
       INTEGER, DIMENSION(3)                              :: ind
-      LOGICAL                                            :: do_mp2_prv, found, use_virial
+      LOGICAL                                            :: do_mp2_prv, found
       REAL(dp)                                           :: new_force
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: contr_blk, der_blk
       REAL(dp), DIMENSION(3)                             :: scoord
       TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
-
-      use_virial = .FALSE.
-      IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
 
       do_mp2_prv = .FALSE.
       IF (PRESENT(do_mp2)) do_mp2_prv = do_mp2
@@ -3262,8 +3382,7 @@ CONTAINS
       IF (PRESENT(deriv_dim)) deriv_dim_prv = deriv_dim
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(t_3c_der,t_3c_contr,work_virial,force,use_virial,do_mp2_prv,deriv_dim_prv) &
-!$OMP SHARED(pref,idx_to_at,atom_of_kind,kind_of,particle_set,cell) &
+!$OMP SHARED(t_3c_der,t_3c_contr,force,do_mp2_prv,deriv_dim_prv,pref,idx_to_at,atom_of_kind,kind_of) &
 !$OMP PRIVATE(i_xyz,j_xyz,iter,ind,der_blk,contr_blk,found,new_force,iat,iat_of_kind,ikind,scoord)
       DO i_xyz = 1, 3
          CALL dbt_iterator_start(iter, t_3c_der(i_xyz))
@@ -3294,14 +3413,6 @@ CONTAINS
                                                                  + new_force
                END IF
 
-               IF (use_virial) THEN
-                  CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
-
-                  DO j_xyz = 1, 3
-!$OMP ATOMIC
-                     work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
-                  END DO
-               END IF
                DEALLOCATE (contr_blk)
             END IF
             DEALLOCATE (der_blk)
@@ -3314,95 +3425,6 @@ CONTAINS
    END SUBROUTINE get_force_from_3c_trace
 
 ! **************************************************************************************************
-!> \brief Get the force from a contraction of type SUM_a,beta (a|beta') C_a,beta, where beta is an AO
-!>        and a is a MO
-!> \param force ...
-!> \param t_mo_coeff ...
-!> \param t_2c_MO_AO ...
-!> \param atom_of_kind ...
-!> \param kind_of ...
-!> \param idx_to_at ...
-!> \param pref ...
-!> \param i_xyz ...
-!> \param work_virial ...
-!> \param cell ...
-!> \param particle_set ...
-! **************************************************************************************************
-   SUBROUTINE get_MO_AO_force(force, t_mo_coeff, t_2c_MO_AO, atom_of_kind, kind_of, idx_to_at, &
-                              pref, i_xyz, work_virial, cell, particle_set)
-
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(dbt_type), INTENT(INOUT)                      :: t_mo_coeff, t_2c_MO_AO
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of, idx_to_at
-      REAL(dp), INTENT(IN)                               :: pref
-      INTEGER, INTENT(IN)                                :: i_xyz
-      REAL(dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: work_virial
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
-      TYPE(particle_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: particle_set
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_MO_AO_force'
-
-      INTEGER                                            :: handle, iat, iat_of_kind, ikind, j_xyz
-      INTEGER, DIMENSION(2)                              :: ind
-      LOGICAL                                            :: found, use_virial
-      REAL(dp)                                           :: new_force
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: mo_ao_blk, mo_coeff_blk
-      REAL(dp), DIMENSION(3)                             :: scoord
-      TYPE(dbt_iterator_type)                            :: iter
-
-      CALL timeset(routineN, handle)
-
-      use_virial = .FALSE.
-      IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(t_2c_MO_AO,t_mo_coeff,pref,use_virial,particle_set,cell,force,work_virial) &
-!$OMP SHARED(idx_to_at,atom_of_kind,kind_of,i_xyz) &
-!$OMP PRIVATE(iter,ind,mo_ao_blk,mo_coeff_blk,found,new_force,iat,iat_of_kind,ikind,scoord,j_xyz)
-      CALL dbt_iterator_start(iter, t_2c_MO_AO)
-      DO WHILE (dbt_iterator_blocks_left(iter))
-         CALL dbt_iterator_next_block(iter, ind)
-
-         CALL dbt_get_block(t_2c_MO_AO, ind, mo_ao_blk, found)
-         CPASSERT(found)
-         CALL dbt_get_block(t_mo_coeff, ind, mo_coeff_blk, found)
-
-         IF (found) THEN
-
-            new_force = pref*SUM(mo_ao_blk(:, :)*mo_coeff_blk(:, :))
-
-            iat = idx_to_at(ind(2)) !AO index is column index
-            iat_of_kind = atom_of_kind(iat)
-            ikind = kind_of(iat)
-
-!$OMP ATOMIC
-            force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
-                                                       + new_force
-
-            IF (use_virial) THEN
-
-               CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
-
-               DO j_xyz = 1, 3
-!$OMP ATOMIC
-                  work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
-               END DO
-            END IF
-
-            DEALLOCATE (mo_coeff_blk)
-         END IF
-
-         DEALLOCATE (mo_ao_blk)
-      END DO !iter
-      CALL dbt_iterator_stop(iter)
-!$OMP END PARALLEL
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_MO_AO_force
-
-! **************************************************************************************************
 !> \brief Update the forces due to the derivative of the a 2-center product d/dR (Q|R)
 !> \param force ...
 !> \param t_2c_contr A precontracted tensor containing sum_abcdPS (ab|P)(P|Q)^-1 (R|S)^-1 (S|cd) P_ac P_bd
@@ -3411,25 +3433,18 @@ CONTAINS
 !> \param kind_of ...
 !> \param idx_to_at ...
 !> \param pref ...
-!> \param work_virial ...
-!> \param cell ...
-!> \param particle_set ...
 !> \param do_mp2 ...
 !> \param do_ovlp ...
 !> \note IMPORTANT: t_tc_contr and t_2c_der need to have the same distribution
 ! **************************************************************************************************
    SUBROUTINE get_2c_der_force(force, t_2c_contr, t_2c_der, atom_of_kind, kind_of, idx_to_at, &
-                               pref, work_virial, cell, particle_set, do_mp2, do_ovlp)
+                               pref, do_mp2, do_ovlp)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(dbt_type), INTENT(INOUT)                      :: t_2c_contr
       TYPE(dbt_type), DIMENSION(3), INTENT(INOUT)        :: t_2c_der
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of, idx_to_at
       REAL(dp), INTENT(IN)                               :: pref
-      REAL(dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: work_virial
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
-      TYPE(particle_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: particle_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_mp2, do_ovlp
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_2c_der_force'
@@ -3437,8 +3452,7 @@ CONTAINS
       INTEGER                                            :: handle, i_xyz, iat, iat_of_kind, ikind, &
                                                             j_xyz, jat, jat_of_kind, jkind
       INTEGER, DIMENSION(2)                              :: ind
-      LOGICAL                                            :: do_mp2_prv, do_ovlp_prv, found, &
-                                                            use_virial
+      LOGICAL                                            :: do_mp2_prv, do_ovlp_prv, found
       REAL(dp)                                           :: new_force
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: contr_blk, der_blk
       REAL(dp), DIMENSION(3)                             :: scoord
@@ -3449,9 +3463,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      use_virial = .FALSE.
-      IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
-
       do_mp2_prv = .FALSE.
       IF (PRESENT(do_mp2)) do_mp2_prv = do_mp2
 
@@ -3459,8 +3470,7 @@ CONTAINS
       IF (PRESENT(do_ovlp)) do_ovlp_prv = do_ovlp
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(t_2c_der,t_2c_contr,work_virial,force,use_virial,do_mp2_prv,do_ovlp_prv) &
-!$OMP SHARED(pref,idx_to_at,atom_of_kind,kind_of,particle_set,cell) &
+!$OMP SHARED(t_2c_der,t_2c_contr,force,do_mp2_prv,do_ovlp_prv,pref,idx_to_at,atom_of_kind,kind_of) &
 !$OMP PRIVATE(i_xyz,j_xyz,iter,ind,der_blk,contr_blk,found,new_force) &
 !$OMP PRIVATE(iat,jat,iat_of_kind,jat_of_kind,ikind,jkind,scoord)
       DO i_xyz = 1, 3
@@ -3498,16 +3508,6 @@ CONTAINS
                                                              + new_force
                END IF
 
-               IF (use_virial) THEN
-
-                  CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
-
-                  DO j_xyz = 1, 3
-!$OMP ATOMIC
-                     work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
-                  END DO
-               END IF
-
                jat = idx_to_at(ind(2))
                jat_of_kind = atom_of_kind(jat)
                jkind = kind_of(jat)
@@ -3526,16 +3526,6 @@ CONTAINS
                                                              - new_force
                END IF
 
-               IF (use_virial) THEN
-
-                  CALL real_to_scaled(scoord, particle_set(jat)%r, cell)
-
-                  DO j_xyz = 1, 3
-!$OMP ATOMIC
-                     work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) - new_force*scoord(j_xyz)
-                  END DO
-               END IF
-
                DEALLOCATE (contr_blk)
             END IF
 
@@ -3548,6 +3538,73 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_2c_der_force
+
+! **************************************************************************************************
+!> \brief Get the force from a contraction of type SUM_a,beta (a|beta') C_a,beta, where beta is an AO
+!>        and a is a MO
+!> \param force ...
+!> \param t_mo_coeff ...
+!> \param t_2c_MO_AO ...
+!> \param atom_of_kind ...
+!> \param kind_of ...
+!> \param idx_to_at ...
+!> \param pref ...
+!> \param i_xyz ...
+! **************************************************************************************************
+   SUBROUTINE get_MO_AO_force(force, t_mo_coeff, t_2c_MO_AO, atom_of_kind, kind_of, idx_to_at, pref, i_xyz)
+
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(dbt_type), INTENT(INOUT)                      :: t_mo_coeff, t_2c_MO_AO
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of, idx_to_at
+      REAL(dp), INTENT(IN)                               :: pref
+      INTEGER, INTENT(IN)                                :: i_xyz
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_MO_AO_force'
+
+      INTEGER                                            :: handle, iat, iat_of_kind, ikind, j_xyz
+      INTEGER, DIMENSION(2)                              :: ind
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: new_force
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: mo_ao_blk, mo_coeff_blk
+      REAL(dp), DIMENSION(3)                             :: scoord
+      TYPE(dbt_iterator_type)                            :: iter
+
+      CALL timeset(routineN, handle)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(t_2c_MO_AO,t_mo_coeff,pref,force,idx_to_at,atom_of_kind,kind_of,i_xyz) &
+!$OMP PRIVATE(iter,ind,mo_ao_blk,mo_coeff_blk,found,new_force,iat,iat_of_kind,ikind,scoord,j_xyz)
+      CALL dbt_iterator_start(iter, t_2c_MO_AO)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind)
+
+         CALL dbt_get_block(t_2c_MO_AO, ind, mo_ao_blk, found)
+         CPASSERT(found)
+         CALL dbt_get_block(t_mo_coeff, ind, mo_coeff_blk, found)
+
+         IF (found) THEN
+
+            new_force = pref*SUM(mo_ao_blk(:, :)*mo_coeff_blk(:, :))
+
+            iat = idx_to_at(ind(2)) !AO index is column index
+            iat_of_kind = atom_of_kind(iat)
+            ikind = kind_of(iat)
+
+!$OMP ATOMIC
+            force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
+                                                       + new_force
+
+            DEALLOCATE (mo_coeff_blk)
+         END IF
+
+         DEALLOCATE (mo_ao_blk)
+      END DO !iter
+      CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_MO_AO_force
 
 ! **************************************************************************************************
 !> \brief Print RI-HFX quantities, as required by the PRINT subsection
@@ -3844,6 +3901,8 @@ CONTAINS
       CALL dbt_create(rho_ao_t_3d, "rho_ao_3d", dist_3d, [1, 2], [3], ri_data%bsizes_AO_split, &
                       ri_data%bsizes_AO_split, [1])
       DEALLOCATE (dist1, dist2, dist3)
+      CALL dbt_pgrid_destroy(pgrid_3d)
+      CALL dbt_distribution_destroy(dist_3d)
 
       ! copy density
       nblks = 0
@@ -3924,20 +3983,25 @@ CONTAINS
       CALL dbt_create(density_coeffs_t, "density_coeffs", dist_2d, [1], [2], ri_data%bsizes_RI_split, [1])
       CALL dbt_create(density_coeffs_t, density_tmp)
       DEALLOCATE (dist1, dist2)
+      CALL dbt_pgrid_destroy(pgrid_2d)
+      CALL dbt_distribution_destroy(dist_2d)
 
       CALL dbt_get_info(ri_data%t_3c_int_ctr_3(1, 1), nfull_total=dims_3c)
 
       ! The 3c integrals tensor, in case we compute them here
+      pdims_3d = 0
+      CALL dbt_pgrid_create(para_env, pdims_3d, pgrid_3d, tensor_dims=[MAX(1, natom/n_mem), natom, natom])
       ALLOCATE (t_3c_int_batched(1, 1))
-      CALL create_3c_tensor(t_3c_int_batched(1, 1), dist1, dist2, dist3, ri_data%pgrid, &
+      CALL create_3c_tensor(t_3c_int_batched(1, 1), dist1, dist2, dist3, pgrid_3d, &
                             ri_data%bsizes_RI, ri_data%bsizes_AO, ri_data%bsizes_AO, map1=[1], map2=[2, 3], &
                             name="(RI | AO AO)")
 
-      CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims_3d, pcoord_3d)
-      CALL mp_comm_t3c%create(ri_data%pgrid%mp_comm_2d, 3, pdims_3d)
+      CALL dbt_mp_environ_pgrid(pgrid_3d, pdims_3d, pcoord_3d)
+      CALL mp_comm_t3c%create(pgrid_3d%mp_comm_2d, 3, pdims_3d)
       CALL distribution_3d_create(dist_nl3c, dist1, dist2, dist3, nkind, particle_set, &
                                   mp_comm_t3c, own_comm=.TRUE.)
       DEALLOCATE (dist1, dist2, dist3)
+      CALL dbt_pgrid_destroy(pgrid_3d)
 
       CALL build_3c_neighbor_lists(nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, dist_nl3c, ri_data%ri_metric, &
                                    "HFX_3c_nl", qs_env, op_pos=1, sym_jk=.TRUE., own_dist=.TRUE.)
@@ -4022,10 +4086,6 @@ CONTAINS
       CALL dbt_destroy(rho_ao_t_3d)
       CALL dbt_destroy(density_coeffs_t)
       CALL dbt_destroy(t_3c_int_batched(1, 1))
-      CALL dbt_pgrid_destroy(pgrid_2d)
-      CALL dbt_distribution_destroy(dist_2d)
-      CALL dbt_pgrid_destroy(pgrid_3d)
-      CALL dbt_distribution_destroy(dist_3d)
 
       CALL timestop(handle)
 
@@ -4083,5 +4143,4 @@ CONTAINS
 
       my_invsqrt = SQRT(1.0_dp/values)
    END FUNCTION
-
 END MODULE

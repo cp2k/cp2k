@@ -163,6 +163,10 @@ QS/regtest-dft-vdw-corr-3                                   libxc
 QS/regtest-admm-4                                           libint
 Fist/regtest-1-4
 QS/regtest-hfx-ri                                           libint
+QS/regtest-kp-hfx-ri                                        libint
+QS/regtest-kp-hfx-ri-2                                      libint
+QS/regtest-kp-hfx-ri-admm                                   libint
+QS/regtest-kp-hfx-ri-admm-2                                 libint
 QS/regtest-almo-md
 SE/regtest-2-1
 QS/regtest-lrigpw-2

@@ -645,7 +645,7 @@ CONTAINS
       END DO
 
       CALL build_2c_integrals(mat_2c, 0.0_dp, qs_env, sab_RI, basis_set_RI, basis_set_RI, &
-                              ri_metric, do_kpoints=do_kpoints, kpoints=kpoints, &
+                              ri_metric, do_kpoints=do_kpoints, ext_kpoints=kpoints, &
                               regularization_RI=my_regularization_RI)
 
       CALL dbcsr_distribution_release(dbcsr_dist)

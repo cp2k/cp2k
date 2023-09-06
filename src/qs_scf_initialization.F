@@ -630,8 +630,6 @@ CONTAINS
             ! possible for OT gamma point calculations
             qs_env%requires_mo_derivs = .FALSE.
          END IF
-         IF (dft_control%do_admm) &
-            CPABORT("No ADMM implemented with kpoints")
          IF (dft_control%do_xas_calculation) &
             CPABORT("No XAS implemented with kpoints")
          DO ik = 1, SIZE(kpoints%kp_env)

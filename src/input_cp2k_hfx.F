@@ -537,6 +537,62 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="KP_NGROUPS", &
+                          description="The number of MPI subgroup that work in parallel during the SCF. "// &
+                          "The default value is 1. Using N subgroups should speed up the "// &
+                          "calculation by a factor ~N, at the cost of N times more memory usage.", &
+                          variants=(/"NGROUPS"/), &
+                          usage="KP_NGROUPS {int}", &
+                          repeats=.FALSE., &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KP_STACK_SIZE", &
+                          description="When doing contraction over periodic cells of the type: "// &
+                          "T_mu^a,nu^b,P^c = (mu^a nu^b | Q^d) * (Q^d | P^c), with "// &
+                          "a,b,c,d labeling cells, there are in principle Ncells "// &
+                          "contractions taking place. Because a smaller number of "// &
+                          "contractions involving larger tensors is more efficient, "// &
+                          "the tensors can be stacked along the d direction. STCK_SIZE "// &
+                          "controls the size of this stack. Larger stacks are more efficient, "// &
+                          "but required more memory.", &
+                          variants=(/"STACK_SIZE"/), &
+                          usage="KP_STACK_SIZE {int}", &
+                          repeats=.FALSE., &
+                          default_i_val=32)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KP_RI_EXTENSION_FACTOR", &
+                          variants=s2a("RI_EXTENSION_FACTOR", "RI_EXT", "RI_EXT_FACT", "KP_RI_EXT", &
+                                       "KP_RI_EXT_FACT", "KP_RI_BASIS_EXT", "RI_BASIS_EXT"), &
+                          description="In KP-RI-HFX, each atom has its own local RI basis. The RI "// &
+                          "basis is defined by a sphere of radius R centered on the atom, "// &
+                          "whereby all neighboring atoms within that sphere contribute their "// &
+                          "RI basis elements. The radius of that sphere is calculated based "// &
+                          "on the systems' most diffuse orbital PGF (with exponant alpha), such "// &
+                          "that EPS_PGF_ORB * KP_RI_EXTENSION_FACTOR  = exp(-alpha*R^2). "// &
+                          "The default value of 1.0 is safe. More accurate results can be "// &
+                          "obtained with a value < 1.0, at greated computational cost.", &
+                          default_r_val=1.0_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KP_RI_BUMP_FACTOR", &
+                          variants=s2a("RI_BUMP", "BUMP", "BUMP_FACTOR"), &
+                          description="In KP-RI-HFX, the extended RI basis set has a bump radius. "// &
+                          "All basis elements within that radius contribute with full weight. "// &
+                          "All basis elements beyond that radius have decaying weight, from "// &
+                          "1 at the bump radius, to zero at the RI extension radius. The "// &
+                          "bump radius is calculated as a fraction of the RI extension radius: "// &
+                          "bump radius = KP_RI_NUMP_FACTOR * RI extension radius", &
+                          default_r_val=0.85_dp, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="RI_METRIC", &
                           description="The type of RI operator. "// &
                           "Default is POTENTIAL_TYPE from INTERACTION_POTENTIAL. "// &

@@ -1,0 +1,70 @@
+&FORCE_EVAL
+    METHOD Quickstep
+    &DFT
+        BASIS_SET_FILE_NAME BASIS_pob
+        POTENTIAL_FILE_NAME POTENTIAL
+        SORT_BASIS EXP
+        AUTO_BASIS RI_HFX SMALL
+        LSD
+        &QS
+           METHOD GAPW
+           PW_GRID_BLOCKED FALSE
+        &END
+        &MGRID
+            CUTOFF 120
+            REL_CUTOFF 30
+        &END MGRID
+        &SCF
+            SCF_GUESS ATOMIC
+            MAX_SCF 2
+        &END SCF
+        &XC
+            &XC_FUNCTIONAL NONE
+            &END XC_FUNCTIONAL
+            &HF
+                &RI
+                   RI_METRIC IDENTITY
+                   NGROUPS 2
+                   EPS_FILTER 1.0E-10
+                   MEMORY_CUT 2
+                &END
+                &INTERACTION_POTENTIAL
+                    !this is too small for a real calculation. The only requirement is that it is
+                    !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
+                    !on efficiency, as it greatly increses the number of periodic images to consider
+                    POTENTIAL_TYPE IDENTITY
+                &END
+            &END
+        &END XC 
+       &KPOINTS
+          SCHEME  MONKHORST-PACK  2 2 1
+       &END KPOINTS
+    &END DFT
+    &SUBSYS
+        &CELL
+            !note: this is not a realistic cell, but denser cells would be too expensive for a test
+            ABC 5.0 5.0 15.0
+            ALPHA_BETA_GAMMA 90.0 90.0 120.0
+        &END CELL
+        &TOPOLOGY
+        &END
+        &COORD
+           SCALED
+           B 0.3333333 0.6666667 0.0
+           N 0.6666667 0.3333333 0.0
+        &END COORD
+        &KIND B
+            BASIS_SET pob-DZVP-rev2
+            POTENTIAL ALL
+        &END KIND
+        &KIND N
+            BASIS_SET pob-DZVP-rev2
+            POTENTIAL ALL
+        &END KIND
+    &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+    PROJECT hBN_gapw_ovlp
+    PRINT_LEVEL MEDIUM
+    RUN_TYPE ENERGY
+&END GLOBAL
