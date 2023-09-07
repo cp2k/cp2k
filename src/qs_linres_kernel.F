@@ -69,11 +69,10 @@ MODULE qs_linres_kernel
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fxc,                          ONLY: qs_fxc_analytic,&
@@ -200,8 +199,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho_r, tau1_r, v_rspace_new, &
+      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho_r, tau1_r, v_rspace_new, &
                                                             v_xc, v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -281,7 +280,6 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       IF (gapw .OR. gapw_xc) &
@@ -851,7 +849,7 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_aux_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_aux_r, tau_pw, v_xc, v_xc_tau
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_aux_r, tau_pw, v_xc, v_xc_tau
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list

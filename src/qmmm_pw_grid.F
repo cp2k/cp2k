@@ -40,8 +40,8 @@ MODULE qmmm_pw_grid
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initialize the qmmm pool of pw_type.
-!>      Then Main difference w.r.t. QS pw_type pools is that this pool
+!> \brief Initialize the qmmm pool of pw_r3d_type.
+!>      Then Main difference w.r.t. QS pw_r3d_type pools is that this pool
 !>      has [0,L] as boundaries.
 !> \param qmmm_env ...
 !> \param pw_env ...

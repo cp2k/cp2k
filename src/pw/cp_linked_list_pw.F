@@ -13,7 +13,6 @@ MODULE cp_linked_list_pw
    #:for kind in pw_kinds
       USE pw_types, ONLY: pw_${kind}$_type, pw_${kind}$_p_type
    #:endfor
-   USE pw_types, ONLY: pw_type, pw_p_type
    #:for kind in pw_kinds
       USE cp_array_utils, ONLY: cp_${kind[1:]}$_${kind[0]}$_cp_type
    #:endfor
@@ -21,8 +20,8 @@ MODULE cp_linked_list_pw
 #include "../base/base_uses.f90"
 
    #:mute
-      #:set nametype1 = ['pw', 'rs']
-      #:set type1 = ['type(pw_type),pointer', 'type(realspace_grid_type),pointer']
+      #:set nametype1 = ['rs']
+      #:set type1 = ['type(realspace_grid_type),pointer']
       #:for kind, type in zip(pw_kinds, pw_types)
          $:nametype1.append(kind[1:]+'_'+kind[0])
          $:nametype1.append('pw_'+kind)
@@ -32,9 +31,9 @@ MODULE cp_linked_list_pw
       #:set type1in = type1
       #:set type1out = type1
 
-      #:set eq = ['=>','=>']
+      #:set eq = ['=>']
       #:set arrayeq = eq
-      #:set type1arrayEl = ['type(pw_p_type)','type(realspace_grid_p_type)']
+      #:set type1arrayEl = ['type(realspace_grid_p_type)']
       #:for kind, type in zip(pw_kinds, pw_types)
          $:eq.append('=>')
          $:eq.append('=>')
@@ -42,11 +41,11 @@ MODULE cp_linked_list_pw
          $:type1arrayEl.append('type(pw_'+kind+'_p_type)')
       #:endfor
 
-      #:set arrayEl = ['%pw','%rs_grid']
+      #:set arrayEl = ['%rs_grid']
 
       #:set private_routines = ''
 
-      #:set default_init = [' => NULL()', ' => NULL()']
+      #:set default_init = [' => NULL()']
 
       #:for kind, type in zip(pw_kinds, pw_types)
          $:arrayEl.append('%array')

@@ -44,11 +44,10 @@ MODULE qs_tddfpt2_types
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -159,17 +158,17 @@ MODULE qs_tddfpt2_types
       !> electron density in terms of auxiliary basis set
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit_struct_sub
       !> group-specific copy of a Coulomb/xc-potential on a real-space grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub
       !> group-specific copy of a reciprocal-space grid
       TYPE(pw_c1d_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
       !> group-specific copy of a real-space grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
       !> group-specific copy of a real-space grid for the kinetic energy density
-      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
       !
       ! *** real space pw grid to hold fxc kernel <> A_ia_rspace_sub ***
       !
-      TYPE(pw_type), DIMENSION(:), POINTER             :: fxc_rspace_sub
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: fxc_rspace_sub
       !
       ! *** globally distributed matrices required to compute exact exchange terms ***
       !
@@ -415,14 +414,14 @@ CONTAINS
                 work_matrices%wpw_tau_rspace_sub(nspins))
       DO ispin = 1, nspins
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
 
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin), &
                                 in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
       END DO
 
       ! fxc kernel potential real space grid
@@ -431,7 +430,7 @@ CONTAINS
          ALLOCATE (work_matrices%fxc_rspace_sub(3))
          DO ispin = 1, 3
             CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%fxc_rspace_sub(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
          END DO
       ELSE
          NULLIFY (work_matrices%fxc_rspace_sub)

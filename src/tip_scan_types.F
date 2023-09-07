@@ -11,8 +11,8 @@ MODULE tip_scan_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -30,7 +30,7 @@ MODULE tip_scan_types
       REAL(KIND=dp), DIMENSION(:, :), &
          ALLOCATABLE                       :: tip_pos
       CHARACTER(LEN=default_string_length) :: tip_cube_file
-      TYPE(pw_type), POINTER               :: tip_pw_r
+      TYPE(pw_r3d_type), POINTER               :: tip_pw_r
       TYPE(pw_c1d_type), POINTER               :: tip_pw_g
    END TYPE scanning_type
 ! **************************************************************************************************

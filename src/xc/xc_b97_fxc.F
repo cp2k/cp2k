@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE xc_b97_fxc
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -31,8 +31,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE b97_fxc_eval(rhos, norm_drhos, fxc, gx, cx, eps_rho)
-      TYPE(pw_type), INTENT(IN)                          :: rhos, norm_drhos
-      TYPE(pw_type), INTENT(INOUT)                       :: fxc
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos, norm_drhos
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fxc
       REAL(KIND=dp), INTENT(IN)                          :: gx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cx
       REAL(KIND=dp), INTENT(IN)                          :: eps_rho
@@ -53,8 +53,8 @@ CONTAINS
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
 
-               rho = rhos%cr3d(i, j, k)
-               drho = norm_drhos%cr3d(i, j, k)
+               rho = rhos%array(i, j, k)
+               drho = norm_drhos%array(i, j, k)
                IF (rho > eps_rho) THEN
                   sval = gx*(drho/rho**1.33333333333333_dp)**2
                   ux = sval/(1._dp + sval)
@@ -62,7 +62,7 @@ CONTAINS
                   DO io = 0, norder - 1
                      gval = gval + cx(io + 1)*(ux**io)
                   END DO
-                  fxc%cr3d(i, j, k) = fxc%cr3d(i, j, k)*gval
+                  fxc%array(i, j, k) = fxc%array(i, j, k)*gval
                END IF
 
             END DO
@@ -85,8 +85,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE b97_fcc_eval(rhoa, rhob, norm_drhoa, norm_drhob, fcc, gcc, cco, eps_rho)
-      TYPE(pw_type), INTENT(IN)                          :: rhoa, rhob, norm_drhoa, norm_drhob
-      TYPE(pw_type), INTENT(INOUT)                       :: fcc
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rhoa, rhob, norm_drhoa, norm_drhob
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fcc
       REAL(KIND=dp), INTENT(IN)                          :: gcc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cco
       REAL(KIND=dp), INTENT(IN)                          :: eps_rho
@@ -107,10 +107,10 @@ CONTAINS
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
 
-               ra = rhoa%cr3d(i, j, k)
-               rb = rhob%cr3d(i, j, k)
-               dra = norm_drhoa%cr3d(i, j, k)
-               drb = norm_drhob%cr3d(i, j, k)
+               ra = rhoa%array(i, j, k)
+               rb = rhob%array(i, j, k)
+               dra = norm_drhoa%array(i, j, k)
+               drb = norm_drhob%array(i, j, k)
                IF (ra > eps_rho .AND. rb > eps_rho) THEN
                   sa = (dra/ra**1.33333333333333_dp)**2
                   sb = (drb/rb**1.33333333333333_dp)**2
@@ -120,7 +120,7 @@ CONTAINS
                   DO io = 0, norder - 1
                      gval = gval + cco(io + 1)*(ux**io)
                   END DO
-                  fcc%cr3d(i, j, k) = fcc%cr3d(i, j, k)*gval
+                  fcc%array(i, j, k) = fcc%array(i, j, k)*gval
                END IF
 
             END DO

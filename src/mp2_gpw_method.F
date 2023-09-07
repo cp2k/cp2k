@@ -48,11 +48,10 @@ MODULE mp2_gpw_method
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               pw_c1d_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -170,8 +169,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: psi_a, rho_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: psi_i
+      TYPE(pw_r3d_type)                                  :: psi_a, rho_r
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: psi_i
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -245,7 +244,7 @@ CONTAINS
 
       virtual = nmo - homo
 
-      wfn_size = REAL(SIZE(rho_r%cr3d), KIND=dp)
+      wfn_size = REAL(SIZE(rho_r%array), KIND=dp)
       CALL para_env%max(wfn_size)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
@@ -387,7 +386,6 @@ CONTAINS
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
          CALL pw_pool_create_pw(auxbas_pw_pool, psi_i(i), &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &

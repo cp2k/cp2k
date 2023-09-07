@@ -42,7 +42,7 @@ MODULE qs_2nd_kernel_ao
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -285,7 +285,7 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_aux_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_aux_r, tau1_aux_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_aux_r, tau1_aux_r, v_xc, v_xc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(section_vals_type), POINTER                   :: xc_section

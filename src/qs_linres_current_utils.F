@@ -77,11 +77,10 @@ MODULE qs_linres_current_utils
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -604,7 +603,7 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
@@ -1266,7 +1265,7 @@ CONTAINS
          ALLOCATE (rho_r(nspins), rho_g(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_zero(rho_r(ispin))
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin), &
                                    in_space=RECIPROCALSPACE)

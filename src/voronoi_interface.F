@@ -21,7 +21,7 @@ MODULE voronoi_interface
                            Brehm2021, cite_reference
    USE kinds, ONLY: dp, default_path_length
    USE cell_types, ONLY: cell_type, pbc
-   USE pw_types, ONLY: pw_type
+   USE pw_types, ONLY: pw_r3d_type
    USE physcon, ONLY: bohr, debye
    USE mathconstants, ONLY: fourpi
    USE orbital_pointers, ONLY: indco
@@ -316,7 +316,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_voro, input_bqb
       INTEGER, INTENT(IN)                                :: unit_voro
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type)                             :: rspace_pw
+      TYPE(pw_r3d_type)                             :: rspace_pw
 
 #if defined(__LIBVORI)
 
@@ -563,11 +563,11 @@ CONTAINS
 
             IF (source == dest) THEN
                IF (my_rank == source) THEN
-                  buf(:) = rspace_pw%cr3d(I1, I2, :)
+                  buf(:) = rspace_pw%array(I1, I2, :)
                END IF
             ELSE
                IF (my_rank == source) THEN
-                  buf(:) = rspace_pw%cr3d(I1, I2, :)
+                  buf(:) = rspace_pw%array(I1, I2, :)
                   CALL para_env%send(buf, dest, tag)
                END IF
                IF (my_rank == dest) THEN

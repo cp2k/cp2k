@@ -95,11 +95,10 @@ MODULE response_solver
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_matrices,             ONLY: calculate_whz_matrix,&
@@ -816,12 +815,12 @@ CONTAINS
                              matrix_hz, matrix_pz, matrix_pz_admm, matrix_wz, &
                              zehartree, zexc, zexc_aux_fit, rhopz_r, p_env, ex_env, debug)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(IN)                          :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rspace, vtau_rspace, vadmm_rspace
+      TYPE(pw_r3d_type), INTENT(IN)                      :: vh_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz, matrix_pz, matrix_pz_admm, &
                                                             matrix_wz
       REAL(KIND=dp), OPTIONAL                            :: zehartree, zexc, zexc_aux_fit
-      TYPE(pw_type), DIMENSION(:), INTENT(INOUT), &
+      TYPE(pw_r3d_type), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: rhopz_r
       TYPE(qs_p_env_type), OPTIONAL                      :: p_env
       TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
@@ -871,9 +870,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_rspace_gs, v_hartree_rspace_t, &
+      TYPE(pw_r3d_type)                                  :: v_hartree_rspace_gs, v_hartree_rspace_t, &
                                                             vhxc_rspace, zv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_aux, rho_r_gs, rho_r_t, rhoz_r, &
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r_aux, rho_r_gs, rho_r_t, rhoz_r, &
                                                             rhoz_r_aux, rhoz_r_xc, tau_r_aux, &
                                                             tauz_r, tauz_r_xc, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -1189,7 +1188,7 @@ CONTAINS
          ALLOCATE (rho_r_gs(nspins), rho_g_gs(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_gs(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_gs(ispin), &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -1215,7 +1214,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace_gs, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace_gs, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             NULLIFY (hartree_local_gs)
             CALL hartree_local_create(hartree_local_gs)
             CALL init_coulomb_local(hartree_local_gs, natom)
@@ -1259,7 +1258,7 @@ CONTAINS
       END IF ! gapw
 
       CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+                             in_space=REALSPACE)
       !
       ! Stress-tensor: integration contribution direct term
       ! int v_Hxc[n^in]*n^z
@@ -1439,14 +1438,14 @@ CONTAINS
       ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
       DO ispin = 1, nspins
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g(ispin), &
                                 in_space=RECIPROCALSPACE)
       END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_tot_gspace, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+                             in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_gspace, &
                              in_space=RECIPROCALSPACE)
 
@@ -1462,7 +1461,7 @@ CONTAINS
          ALLOCATE (rhoz_r_xc(nspins), rhoz_g_xc(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r_xc(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_xc(ispin), &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -1482,7 +1481,7 @@ CONTAINS
                                    in_space=RECIPROCALSPACE)
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, tauz_r(ispin), &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+                                      in_space=REALSPACE)
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
                                        rho=tauz_r(ispin), rho_gspace=work_g, &
                                        compute_tau=.TRUE.)
@@ -1654,7 +1653,7 @@ CONTAINS
          ALLOCATE (rho_r_t(nspins), rho_g_t(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_t(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_t(ispin), &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -1678,7 +1677,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace_t, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace_t, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             NULLIFY (hartree_local_t)
             CALL hartree_local_create(hartree_local_t)
             CALL init_coulomb_local(hartree_local_t, natom)
@@ -2034,7 +2033,7 @@ CONTAINS
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r_aux(ispin), &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+                                      in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin), &
                                       in_space=RECIPROCALSPACE)
             END DO

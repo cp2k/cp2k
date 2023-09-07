@@ -21,7 +21,7 @@ MODULE xc_xalpha
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE xc_derivative_desc,              ONLY: deriv_rho,&
                                               deriv_rhoa,&
                                               deriv_rhob
@@ -556,8 +556,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE xalpha_fxc_eval(rho_a, rho_b, fxc_aa, fxc_bb, scale_x, eps_rho)
-      TYPE(pw_type), INTENT(IN)                          :: rho_a, rho_b
-      TYPE(pw_type), INTENT(INOUT)                       :: fxc_aa, fxc_bb
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_a, rho_b
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fxc_aa, fxc_bb
       REAL(KIND=dp), INTENT(IN)                          :: scale_x, eps_rho
 
       INTEGER                                            :: i, j, k
@@ -574,15 +574,15 @@ CONTAINS
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
 
-               rhoa = rho_a%cr3d(i, j, k)
+               rhoa = rho_a%array(i, j, k)
                IF (rhoa > eps_rho) THEN
                   eaa = rhoa**(-f23)
-                  fxc_aa%cr3d(i, j, k) = fxc_aa%cr3d(i, j, k) + f*eaa
+                  fxc_aa%array(i, j, k) = fxc_aa%array(i, j, k) + f*eaa
                END IF
-               rhob = rho_b%cr3d(i, j, k)
+               rhob = rho_b%array(i, j, k)
                IF (rhob > eps_rho) THEN
                   ebb = rhob**(-f23)
-                  fxc_bb%cr3d(i, j, k) = fxc_bb%cr3d(i, j, k) + f*ebb
+                  fxc_bb%array(i, j, k) = fxc_bb%array(i, j, k) + f*ebb
                END IF
 
             END DO

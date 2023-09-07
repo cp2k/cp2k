@@ -34,7 +34,7 @@ MODULE qs_external_potential
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_methods,                      ONLY: pw_zero
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -73,7 +73,7 @@ CONTAINS
       REAL(kind=dp)                                      :: dvol, efunc, scaling_factor
       REAL(kind=dp), DIMENSION(3)                        :: dr, grid_p
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_type), POINTER                             :: v_ee
+      TYPE(pw_r3d_type), POINTER                         :: v_ee
       TYPE(section_vals_type), POINTER                   :: ext_pot_section, input
 
       CALL timeset(routineN, handle)
@@ -109,7 +109,7 @@ CONTAINS
                         grid_p(2) = (j - bo_global(1, 2))*dr(2)
                         grid_p(3) = (k - bo_global(1, 3))*dr(3)
                         CALL get_external_potential(grid_p, ext_pot_section, func=efunc)
-                        v_ee%cr3d(i, j, k) = v_ee%cr3d(i, j, k) + efunc
+                        v_ee%array(i, j, k) = v_ee%array(i, j, k) + efunc
                      END DO
                   END DO
                END DO
@@ -144,7 +144,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_type), POINTER                             :: v_ee
+      TYPE(pw_r3d_type), POINTER                         :: v_ee
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -297,7 +297,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE interpolate_external_potential(r, grid, func, dfunc, calc_derivatives)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(pw_type), POINTER                             :: grid
+      TYPE(pw_r3d_type), POINTER                         :: grid
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 
@@ -373,13 +373,13 @@ CONTAINS
                IF (my_rank == data_source) THEN
                   IF (lower_inds(3) >= lbounds(3) .AND. upper_inds(3) <= ubounds(3)) THEN
                      bcast_buffer(:) = &
-                        grid%cr3d(i_pbc, j_pbc, lower_inds(3):upper_inds(3))
+                        grid%array(i_pbc, j_pbc, lower_inds(3):upper_inds(3))
                   ELSE
                      DO k = lower_inds(3), upper_inds(3)
                         k_pbc = pbc_index(k, lbounds(3), ubounds(3))
                         buffer_k = k - lower_inds(3) + 1 - fd_extra_point
                         bcast_buffer(buffer_k) = &
-                           grid%cr3d(i_pbc, j_pbc, k_pbc)
+                           grid%array(i_pbc, j_pbc, k_pbc)
                      END DO
                   END IF
                END IF
@@ -387,7 +387,7 @@ CONTAINS
                CALL gid%bcast(bcast_buffer, data_source)
                grid_buffer(buffer_i, buffer_j, :) = bcast_buffer
             ELSE
-               grid_buffer(buffer_i, buffer_j, :) = grid%cr3d(i_pbc, j_pbc, lower_inds(3):upper_inds(3))
+               grid_buffer(buffer_i, buffer_j, :) = grid%array(i_pbc, j_pbc, lower_inds(3):upper_inds(3))
             END IF
          END DO
       END DO

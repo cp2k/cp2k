@@ -26,7 +26,7 @@ MODULE ps_wavelet_methods
                                               S_FFT_dimensions
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE util,                            ONLY: get_limit
 #include "../base/base_uses.f90"
 
@@ -167,7 +167,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_distribution_to_z_slices(density, wavelet, pw_grid)
 
-      TYPE(pw_type), INTENT(IN)                          :: density
+      TYPE(pw_r3d_type), INTENT(IN)                      :: density
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
@@ -203,7 +203,7 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               sbuf(ii) = density%cr3d(i, j, k)
+               sbuf(ii) = density%array(i, j, k)
                ii = ii + 1
             END DO
          END DO
@@ -213,21 +213,21 @@ CONTAINS
       IF (wavelet%geocode == 'S' .OR. wavelet%geocode == 'F') THEN
          max_val_low = 0._dp
          max_val_up = 0._dp
-         IF (lb(2) == pw_grid%bounds(1, 2)) max_val_low = MAXVAL(ABS(density%cr3d(:, lb(2), :)))
-         IF (ub(2) == pw_grid%bounds(2, 2)) max_val_up = MAXVAL(ABS(density%cr3d(:, ub(2), :)))
+         IF (lb(2) == pw_grid%bounds(1, 2)) max_val_low = MAXVAL(ABS(density%array(:, lb(2), :)))
+         IF (ub(2) == pw_grid%bounds(2, 2)) max_val_up = MAXVAL(ABS(density%array(:, ub(2), :)))
          IF (max_val_low .GE. 0.0001_dp) should_warn = 1
          IF (max_val_up .GE. 0.0001_dp) should_warn = 1
          IF (wavelet%geocode == 'F') THEN
             max_val_low = 0._dp
             max_val_up = 0._dp
-            IF (lb(1) == pw_grid%bounds(1, 1)) max_val_low = MAXVAL(ABS(density%cr3d(lb(1), :, :)))
-            IF (ub(1) == pw_grid%bounds(2, 1)) max_val_up = MAXVAL(ABS(density%cr3d(ub(1), :, :)))
+            IF (lb(1) == pw_grid%bounds(1, 1)) max_val_low = MAXVAL(ABS(density%array(lb(1), :, :)))
+            IF (ub(1) == pw_grid%bounds(2, 1)) max_val_up = MAXVAL(ABS(density%array(ub(1), :, :)))
             IF (max_val_low .GE. 0.0001_dp) should_warn = 1
             IF (max_val_up .GE. 0.0001_dp) should_warn = 1
             max_val_low = 0._dp
             max_val_up = 0._dp
-            IF (lb(3) == pw_grid%bounds(1, 3)) max_val_low = MAXVAL(ABS(density%cr3d(:, :, lb(3))))
-            IF (ub(3) == pw_grid%bounds(2, 3)) max_val_up = MAXVAL(ABS(density%cr3d(:, :, ub(3))))
+            IF (lb(3) == pw_grid%bounds(1, 3)) max_val_low = MAXVAL(ABS(density%array(:, :, lb(3))))
+            IF (ub(3) == pw_grid%bounds(2, 3)) max_val_up = MAXVAL(ABS(density%array(:, :, ub(3))))
             IF (max_val_low .GE. 0.0001_dp) should_warn = 1
             IF (max_val_up .GE. 0.0001_dp) should_warn = 1
          END IF
@@ -323,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE z_slices_to_cp2k_distribution(density, wavelet, pw_grid)
 
-      TYPE(pw_type), INTENT(IN)                          :: density
+      TYPE(pw_r3d_type), INTENT(IN)                      :: density
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
@@ -424,7 +424,7 @@ CONTAINS
                   DO m = lb(1), ub(1)
                      DO l = lb(2), ub(2)
                         DO k = lb(3) + (dest*local_z_dim), lb(3) + (dest*local_z_dim) + loz - 1
-                           density%cr3d(m, l, k) = rbuf(ii + rdispl(dest + 1))
+                           density%array(m, l, k) = rbuf(ii + rdispl(dest + 1))
                            ii = ii + 1
                         END DO
                      END DO

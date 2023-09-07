@@ -52,12 +52,11 @@ MODULE xc_pot_saop
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -155,9 +154,9 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: orbital
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vxc_GLLB, vxc_SAOP
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, rho_struct_r, tau, vxc_LB, &
+      TYPE(pw_r3d_type)                                  :: orbital
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: vxc_GLLB, vxc_SAOP
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, rho_struct_r, tau, vxc_LB, &
                                                             vxc_tau, vxc_tmp
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -280,7 +279,7 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL add_lb_pot(vxc_tmp(ispin)%cr3d, rho_set, lsd, ispin)
+         CALL add_lb_pot(vxc_tmp(ispin)%array, rho_set, lsd, ispin)
          CALL pw_axpy(vxc_tmp(ispin), vxc_LB(ispin), -1.0_dp)
       END DO
 
@@ -300,18 +299,16 @@ CONTAINS
       ALLOCATE (vxc_GLLB(nspins))
       DO ispin = 1, nspins
          CALL pw_pool_create_pw(auxbas_pw_pool, vxc_GLLB(ispin), &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
       END DO
 
       DO ispin = 1, nspins
-         CALL calc_2excpbe(vxc_GLLB(ispin)%cr3d, rho_set, e_uniform, lsd)
+         CALL calc_2excpbe(vxc_GLLB(ispin)%array, rho_set, e_uniform, lsd)
       END DO
 
       CALL xc_dset_release(deriv_set)
 
       CALL pw_pool_create_pw(auxbas_pw_pool, orbital, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, orbital_g, &
                              in_space=RECIPROCALSPACE)
@@ -376,7 +373,7 @@ CONTAINS
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
          CALL pw_pool_create_pw(auxbas_pw_pool, vxc_SAOP(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL pw_zero(vxc_SAOP(ispin))
 
          ALLOCATE (coeff_col(nrow(ispin), 1))

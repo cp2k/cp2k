@@ -60,13 +60,12 @@ MODULE qs_kpp1_env_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
                                               pw_create,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
    USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                               deallocate_qs_energy,&
                                               qs_energy_type
@@ -227,8 +226,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
+      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
                                                             v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
@@ -280,7 +279,6 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       IF (gapw .OR. gapw_xc) &
@@ -337,7 +335,7 @@ CONTAINS
          ALLOCATE (rho1_r_pw(2))
          DO ispin = 1, 2
             CALL pw_create(rho1_r_pw(ispin), rho1_r(1)%pw_grid, &
-                           rho1_r(1)%in_use, rho1_r(1)%in_space)
+                           rho1_r(1)%in_space)
             CALL pw_transfer(rho1_r(1), rho1_r_pw(ispin))
          END DO
 
@@ -345,7 +343,7 @@ CONTAINS
             ALLOCATE (tau1_r_pw(2))
             DO ispin = 1, 2
                CALL pw_create(tau1_r_pw(ispin), tau1_r(1)%pw_grid, &
-                              tau1_r(1)%in_use, tau1_r(1)%in_space)
+                              tau1_r(1)%in_space)
                CALL pw_transfer(tau1_r(1), tau1_r_pw(ispin))
             END DO
          END IF
@@ -589,7 +587,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: my_diff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_2, matrix_s, rho1_ao, rho_ao
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g, rho_g
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho_r
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       NULLIFY (ks_2, matrix_s, qs_energy, rho_ao, rho1_ao, rho_r, rho1_r, rho_g, rho1_g)
@@ -680,7 +678,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: my_rho_r, my_tau_r, rho_r, tau_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: my_rho_r, my_tau_r, rho_r, tau_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: admm_xc_section, input, xc_section
 
@@ -713,14 +711,14 @@ CONTAINS
             ALLOCATE (my_rho_r(2))
             DO ispin = 1, 2
                CALL pw_pool_create_pw(auxbas_pw_pool, my_rho_r(ispin), &
-                                      use_data=rho_r(1)%in_use, in_space=rho_r(1)%in_space)
+                                      in_space=rho_r(1)%in_space)
                CALL pw_axpy(rho_r(1), my_rho_r(ispin), 0.5_dp, 0.0_dp)
             END DO
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(2))
                DO ispin = 1, 2
                   CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin), &
-                                         use_data=tau_r(1)%in_use, in_space=tau_r(1)%in_space)
+                                         in_space=tau_r(1)%in_space)
                   CALL pw_axpy(tau_r(1), my_tau_r(ispin), 0.5_dp, 0.0_dp)
                END DO
             END IF

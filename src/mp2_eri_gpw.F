@@ -47,11 +47,10 @@ MODULE mp2_eri_gpw
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction,&
                                               collocate_single_gaussian
@@ -114,7 +113,7 @@ CONTAINS
                                        potential_parameter, mat_munu, qs_env, task_list_sub)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      TYPE(pw_type), INTENT(INOUT)                       :: psi_L
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: psi_L
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
@@ -127,7 +126,7 @@ CONTAINS
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: external_vector
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rho_r
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -205,7 +204,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: psi_L, rho_r
+      TYPE(pw_r3d_type)                                  :: psi_L, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -386,7 +385,7 @@ CONTAINS
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
                                             dft_control, psi_L, factor)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rho_r
       INTEGER, INTENT(IN)                                :: LLL
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_g
@@ -410,7 +409,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
-      TYPE(pw_type), INTENT(INOUT)                       :: psi_L
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: psi_L
       REAL(KIND=dp), INTENT(IN)                          :: factor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
@@ -476,7 +475,7 @@ CONTAINS
                                                task_list_sub)
 
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
-      TYPE(pw_type), INTENT(IN)                          :: rho_r
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_r
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
@@ -531,7 +530,7 @@ CONTAINS
                                                qs_kind_set, particle_set, cell, LLL, force, dft_control)
 
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rho_r
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_g
       TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
@@ -811,7 +810,7 @@ CONTAINS
                                   G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
 
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
-      TYPE(pw_type), INTENT(IN)                          :: pot_r
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pot_r
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -981,9 +980,9 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      TYPE(pw_type), INTENT(OUT)                         :: rho_r
+      TYPE(pw_r3d_type), INTENT(OUT)                     :: rho_r
       TYPE(pw_c1d_type), INTENT(OUT)                     :: rho_g, pot_g
-      TYPE(pw_type), INTENT(OUT)                         :: psi_L
+      TYPE(pw_r3d_type), INTENT(OUT)                     :: psi_L
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
 
@@ -1035,14 +1034,12 @@ CONTAINS
 
       ! get some of the grids ready
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, psi_L, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
@@ -1078,9 +1075,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rho_r
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_g, pot_g
-      TYPE(pw_type), INTENT(INOUT)                       :: psi_L
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: psi_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cleanup_gpw'
 
@@ -1120,7 +1117,7 @@ CONTAINS
 !> \param no_transfer whether NOT to transform potential from g-space to r-space (default: do it)
 ! **************************************************************************************************
    SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg, no_transfer)
-      TYPE(pw_type), INTENT(INOUT)                       :: pot_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pot_r
       TYPE(pw_c1d_type), INTENT(IN)                      :: rho_g
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: pot_g

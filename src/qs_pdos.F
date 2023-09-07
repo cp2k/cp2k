@@ -63,11 +63,10 @@ MODULE qs_pdos
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -194,7 +193,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_r
+      TYPE(pw_r3d_type)                                  :: wf_r
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
@@ -363,7 +362,6 @@ CONTAINS
                          pw_pools=pw_pools)
 
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                                 in_space=RECIPROCALSPACE)
@@ -662,7 +660,7 @@ CONTAINS
                   jy = r_ldos_p(ildos)%ldos%index_grid_local(2, il)
                   jz = r_ldos_p(ildos)%ldos%index_grid_local(3, il)
                   r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo) + &
-                                                         wf_r%cr3d(jx, jy, jz)*wf_r%cr3d(jx, jy, jz)
+                                                         wf_r%array(jx, jy, jz)*wf_r%array(jx, jy, jz)
                END DO
                r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo)*dvol
             END IF

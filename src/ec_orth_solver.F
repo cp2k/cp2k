@@ -54,11 +54,10 @@ MODULE ec_orth_solver
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -1142,8 +1141,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho_r, tau1_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho_r, tau1_r, v_xc, v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
@@ -1190,7 +1189,6 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=v_hartree_rspace, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       ! XC-Kernel

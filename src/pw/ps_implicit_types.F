@@ -23,8 +23,8 @@ MODULE ps_implicit_types
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_type,&
+                                              pw_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -49,9 +49,9 @@ MODULE ps_implicit_types
       LOGICAL                           :: do_dbc_cube = .FALSE.
       TYPE(dielectric_type), POINTER    :: dielectric => NULL()
       TYPE(dct_type)                    :: dct_env = dct_type()
-      TYPE(pw_type), POINTER            :: initial_guess => NULL()
-      TYPE(pw_type), POINTER            :: v_eps => NULL()
-      TYPE(pw_type), POINTER            :: cstr_charge => NULL()
+      TYPE(pw_r3d_type), POINTER            :: initial_guess => NULL()
+      TYPE(pw_r3d_type), POINTER            :: v_eps => NULL()
+      TYPE(pw_r3d_type), POINTER            :: cstr_charge => NULL()
       REAL(dp), DIMENSION(:), ALLOCATABLE :: initial_lambda
       REAL(dp)                          :: ehartree = 0.0_dp
       REAL(dp)                          :: electric_enthalpy = 0.0_dp

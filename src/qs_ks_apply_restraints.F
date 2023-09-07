@@ -24,8 +24,7 @@ MODULE qs_ks_apply_restraints
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE
+   USE pw_types,                        ONLY: REALSPACE
    USE qs_cdft_methods,                 ONLY: becke_constraint,&
                                               hirshfeld_constraint
    USE qs_cdft_types,                   ONLY: cdft_control_type
@@ -84,7 +83,7 @@ CONTAINS
                DO igroup = 1, SIZE(cdft_control%group)
                   ALLOCATE (cdft_control%group(igroup)%weight)
                   CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%weight, &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
+                                         in_space=REALSPACE)
                   ! Sanity check
                   IF (cdft_control%group(igroup)%constraint_type /= cdft_charge_constraint &
                       .AND. dft_control%nspins == 1) &
@@ -96,7 +95,7 @@ CONTAINS
                      ALLOCATE (cdft_control%charge(cdft_control%natoms))
                   DO iatom = 1, cdft_control%natoms
                      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%charge(iatom), &
-                                            use_data=REALDATA3D, in_space=REALSPACE)
+                                            in_space=REALSPACE)
                   END DO
                END IF
                ! Another sanity check

@@ -18,11 +18,10 @@ MODULE dg_rho0_types
                                               do_ewald_none,&
                                               do_ewald_pme,&
                                               do_ewald_spme
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               pw_create,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,7 +46,7 @@ MODULE dg_rho0_types
       REAL(KIND=dp) :: cutoff_radius = 0.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER :: gcc => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER :: zet => NULL()
-      TYPE(pw_type), POINTER :: density => NULL()
+      TYPE(pw_r3d_type), POINTER :: density => NULL()
    END TYPE dg_rho0_type
 
 CONTAINS
@@ -71,7 +70,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: grid, kind
       REAL(KIND=dp), OPTIONAL                            :: cutoff_radius
       REAL(KIND=dp), OPTIONAL, POINTER                   :: gcc(:), zet(:)
-      TYPE(pw_type), OPTIONAL, POINTER                   :: density
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: density
 
       IF (PRESENT(grid)) dg_rho0%grid = grid
       IF (PRESENT(kind)) dg_rho0%kind = kind
@@ -101,7 +100,7 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       INTEGER, OPTIONAL                                  :: grid, kind
       REAL(KIND=dp), OPTIONAL, POINTER                   :: gcc(:), zet(:)
-      TYPE(pw_type), OPTIONAL, POINTER                   :: density
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: density
 
       IF (PRESENT(grid)) grid = dg_rho0%grid
       IF (PRESENT(kind)) kind = dg_rho0%kind
@@ -171,10 +170,10 @@ CONTAINS
       END IF
       SELECT CASE (dg_rho0%type)
       CASE (do_ewald_ewald)
-         CALL pw_create(dg_rho0%density, pw_grid, REALDATA3D, REALSPACE)
+         CALL pw_create(dg_rho0%density, pw_grid, REALSPACE)
          CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
       CASE (do_ewald_pme)
-         CALL pw_create(dg_rho0%density, pw_grid, REALDATA3D, REALSPACE)
+         CALL pw_create(dg_rho0%density, pw_grid, REALSPACE)
          CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
       CASE (do_ewald_spme)
          CPABORT('SPME type not implemented')
@@ -189,7 +188,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_rho0_pme_gauss(dg_rho0, alpha)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: dg_rho0
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: dg_rho0
       REAL(KIND=dp), INTENT(IN)                          :: alpha
 
       INTEGER, PARAMETER                                 :: IMPOSSIBLE = 10000
@@ -225,7 +224,7 @@ CONTAINS
 
       CALL pw_zero(dg_rho0)
 
-      rho0 => dg_rho0%cr3d
+      rho0 => dg_rho0%array
 
       DO gpt = 1, pw_grid%ngpts_cut_local
          ASSOCIATE (ghat => pw_grid%g_hat(:, gpt))

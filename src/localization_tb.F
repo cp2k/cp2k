@@ -34,11 +34,10 @@ MODULE localization_tb
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -102,7 +101,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_r
+      TYPE(pw_r3d_type)                                  :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -182,7 +181,6 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
             CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                   use_data=REALDATA3D, &
                                    in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                                    in_space=RECIPROCALSPACE)

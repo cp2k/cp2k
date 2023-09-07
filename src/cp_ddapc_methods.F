@@ -29,7 +29,7 @@ MODULE cp_ddapc_methods
    USE particle_types,                  ONLY: particle_type
    USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE spherical_harmonics,             ONLY: legendre
 #include "./base/base_uses.f90"
 
@@ -625,7 +625,7 @@ CONTAINS
    RECURSIVE SUBROUTINE ewald_ddapc_pot(cp_para_env, coeff, factor, cell, multipole_section, &
                                         particle_set, M, radii)
       TYPE(mp_para_env_type), INTENT(IN)                 :: cp_para_env
-      TYPE(pw_type), INTENT(IN), POINTER                 :: coeff
+      TYPE(pw_r3d_type), INTENT(IN), POINTER             :: coeff
       REAL(KIND=dp), INTENT(IN)                          :: factor
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: multipole_section

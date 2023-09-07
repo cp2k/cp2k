@@ -48,7 +48,7 @@ MODULE molecular_states
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -97,7 +97,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(dbcsr_type), POINTER                          :: Hks, matrix_S
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: wf_r
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: wf_g
       TYPE(section_vals_type), POINTER                   :: loc_print_section
       TYPE(particle_list_type), POINTER                  :: particles

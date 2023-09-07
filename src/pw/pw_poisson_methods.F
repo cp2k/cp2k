@@ -60,11 +60,11 @@ MODULE pw_poisson_methods
                             pw_pool_type, &
                             pw_pools_copy, &
                             pw_pools_dealloc
-   USE pw_types, ONLY: REALDATA3D, &
-                       REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_c1d_type, &
-                       pw_type
+   USE pw_types, ONLY: &
+      REALSPACE, &
+      RECIPROCALSPACE, &
+      pw_c1d_type, &
+      pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -244,7 +244,7 @@ CONTAINS
 
    END SUBROUTINE pw_poisson_rebuild_nodens
 
-   #:for kind, type in [('r3d', 'pw_type'), ('c1d', 'pw_c1d_type')]
+   #:for kind, type in [('r3d', 'pw_r3d_type'), ('c1d', 'pw_c1d_type')]
       SUBROUTINE pw_poisson_rebuild_${kind}$ (poisson_env, density)
          TYPE(pw_poisson_type), POINTER                     :: poisson_env
          TYPE(${type}$), INTENT(IN)                         :: density
@@ -296,7 +296,7 @@ CONTAINS
       END SUBROUTINE pw_poisson_rebuild_${kind}$
    #:endfor
 
-   #:for kindd, typed in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_type')]
+   #:for kindd, typed in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_r3d_type')]
 ! **************************************************************************************************
 !> \brief Solve Poisson equation in a plane wave basis set
 !>      Obtains electrostatic potential and its derivatives with respect to r
@@ -333,7 +333,7 @@ CONTAINS
          TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
          TYPE(pw_pool_type), POINTER                        :: pw_pool
          TYPE(pw_c1d_type) :: influence_fn
-         TYPE(pw_type)                                      :: rhor, vhartree_rs
+         TYPE(pw_r3d_type)                                      :: rhor, vhartree_rs
 
          CALL timeset(routineN, handle)
 
@@ -402,8 +402,8 @@ CONTAINS
                   END SELECT
                END IF
 
-               CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
+               CALL pw_pool_create_pw(pw_pool, vhartree_rs, in_space=REALSPACE)
                CALL pw_transfer(density, rhor)
 
                SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
@@ -436,7 +436,7 @@ CONTAINS
 
          CASE (use_rs_grid)
 
-            CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
             CALL pw_transfer(density, rhor)
             CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
             CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -485,7 +485,7 @@ CONTAINS
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! **************************************************************************************************
-      #:for kindv, typev in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_type')]
+      #:for kindv, typev in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_r3d_type')]
          SUBROUTINE pw_poisson_solve_v_nodv_${kindd}$_${kindv}$ (poisson_env, density, ehartree, vhartree, &
                                                                  h_stress, rho_core, greenfn, aux_density)
 
@@ -509,7 +509,7 @@ CONTAINS
             TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
             TYPE(pw_pool_type), POINTER                        :: pw_pool
             TYPE(pw_c1d_type) :: influence_fn
-            TYPE(pw_type)                                      :: rhor, vhartree_rs
+            TYPE(pw_r3d_type)                                      :: rhor, vhartree_rs
 
             CALL timeset(routineN, handle)
 
@@ -591,8 +591,8 @@ CONTAINS
                      END SELECT
                   END IF
 
-                  CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(pw_pool, vhartree_rs, in_space=REALSPACE)
                   CALL pw_transfer(density, rhor)
 
                   SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
@@ -626,7 +626,7 @@ CONTAINS
 
             CASE (use_rs_grid)
 
-               CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
                CALL pw_transfer(density, rhor)
                CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
                CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -681,7 +681,7 @@ CONTAINS
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! **************************************************************************************************
-      #:for kindg, typeg in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_type')]
+      #:for kindg, typeg in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_r3d_type')]
          SUBROUTINE pw_poisson_solve_nov_dv_${kindd}$_${kindg}$ (poisson_env, density, ehartree, &
                                                                  dvhartree, h_stress, rho_core, greenfn, aux_density)
 
@@ -705,7 +705,7 @@ CONTAINS
             TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
             TYPE(pw_pool_type), POINTER                        :: pw_pool
             TYPE(pw_c1d_type) :: influence_fn
-            TYPE(pw_type)                                      :: rhor, vhartree_rs
+            TYPE(pw_r3d_type)                                      :: rhor, vhartree_rs
 
             CALL timeset(routineN, handle)
 
@@ -778,8 +778,8 @@ CONTAINS
                      END SELECT
                   END IF
 
-                  CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(pw_pool, vhartree_rs, in_space=REALSPACE)
                   CALL pw_transfer(density, rhor)
 
                   SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
@@ -813,7 +813,7 @@ CONTAINS
 
             CASE (use_rs_grid)
 
-               CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
                CALL pw_transfer(density, rhor)
                CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
                CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -863,7 +863,7 @@ CONTAINS
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! **************************************************************************************************
-         #:for kindv, typev in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_type')]
+         #:for kindv, typev in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_r3d_type')]
             SUBROUTINE pw_poisson_solve_v_dv_${kindd}$_${kindv}$_${kindg}$ (poisson_env, density, ehartree, vhartree, &
                                                                             dvhartree, h_stress, rho_core, greenfn, aux_density)
 
@@ -888,7 +888,7 @@ CONTAINS
                TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
                TYPE(pw_pool_type), POINTER                        :: pw_pool
                TYPE(pw_c1d_type) :: influence_fn
-               TYPE(pw_type)                                      :: rhor, vhartree_rs
+               TYPE(pw_r3d_type)                                      :: rhor, vhartree_rs
 
                CALL timeset(routineN, handle)
 
@@ -970,8 +970,8 @@ CONTAINS
                         END SELECT
                      END IF
 
-                     CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
-                     CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
+                     CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
+                     CALL pw_pool_create_pw(pw_pool, vhartree_rs, in_space=REALSPACE)
                      CALL pw_transfer(density, rhor)
 
                      SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
@@ -1006,7 +1006,7 @@ CONTAINS
 
                CASE (use_rs_grid)
 
-                  CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(pw_pool, rhor, in_space=REALSPACE)
                   CALL pw_transfer(density, rhor)
                   CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
                   CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -1053,7 +1053,7 @@ CONTAINS
 !> \param dvhartree ...
 !> \param rhog_aux ...
 ! **************************************************************************************************
-   #:for kindg, typeg in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_type')]
+   #:for kindg, typeg in [('c1d', 'pw_c1d_type'), ('r3d', 'pw_r3d_type')]
       SUBROUTINE pw_poisson_stress_dv_${kindg}$ (poisson_env, pw_pool, rhog, ehartree, h_stress, dvhartree, rhog_aux)
 
          TYPE(pw_poisson_type), POINTER                     :: poisson_env

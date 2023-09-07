@@ -30,23 +30,16 @@ cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_fir
          cp_sll_pw_${kind}$_dealloc, cp_sll_pw_${kind}$_get_first_el, cp_sll_pw_${kind}$_get_length, cp_sll_pw_${kind}$_insert_el, &
          cp_sll_pw_${kind}$_next, cp_sll_pw_${kind}$_rm_first_el, cp_sll_pw_${kind}$_type
    #:endfor
-   USE cp_linked_list_pw, ONLY: &
-      cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
-      cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_type
    USE kinds, ONLY: dp
    USE pw_grid_types, ONLY: pw_grid_type
    USE pw_grids, ONLY: pw_grid_compare, &
                        pw_grid_release, &
                        pw_grid_retain
-   USE pw_types, ONLY: REALDATA3D, &
-                       pw_create, &
-                       pw_release, &
+   USE pw_types, ONLY: pw_create, &
 #:for kind in pw_kinds
                        pw_${kind}$_type, &
       #:endfor
-                       pw_type
+                       pw_release
 #include "../base/base_uses.f90"
 
    #:include 'pw_types.fypp'
@@ -85,7 +78,6 @@ cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_fir
          TYPE(cp_sll_pw_${kind}$_type), POINTER :: ${kind}$_pw => NULL()
          TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: ${kind}$_array => NULL()
       #:endfor
-      TYPE(cp_sll_pw_type), POINTER :: real3d_pw => NULL()
    END TYPE pw_pool_type
 
 ! **************************************************************************************************
@@ -100,35 +92,30 @@ cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_fir
    END TYPE pw_pool_p_type
 
    INTERFACE try_pop
-      MODULE PROCEDURE try_pop_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE try_pop_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_pool_create_pw
-      MODULE PROCEDURE pw_pool_create_pw_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_pool_create_pw_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_pool_give_back_pw
-      MODULE PROCEDURE pw_pool_give_back_pw_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_pool_give_back_pw_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_pools_create_pws
-      MODULE PROCEDURE pw_pools_create_pws_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_pools_create_pws_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_pools_give_back_pws
-      MODULE PROCEDURE pw_pools_give_back_pws_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_pools_give_back_pws_${kind}$
       #:endfor
@@ -162,10 +149,6 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, OPTIONAL                                  :: max_cache
 
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
-
       ALLOCATE (pool)
       pool%pw_grid => pw_grid
       CALL pw_grid_retain(pw_grid)
@@ -185,10 +168,6 @@ CONTAINS
    SUBROUTINE pw_pool_retain(pool)
       TYPE(pw_pool_type), POINTER                        :: pool
 
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
-
       CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
 
@@ -205,9 +184,6 @@ CONTAINS
    SUBROUTINE pw_pool_flush_cache(pool)
       TYPE(pw_pool_type), INTENT(INOUT)                  :: pool
 
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_sll_pw_type), POINTER                      :: iterator
-      TYPE(pw_type), POINTER                             :: pw_el
       #:for kind, type in zip(pw_kinds, pw_types)
          ${type}$, CONTIGUOUS, POINTER                      :: array_att_${kind}$
          TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: array_iterator_${kind}$
@@ -215,11 +191,9 @@ CONTAINS
          TYPE(pw_${kind}$_type), POINTER                    :: pw_el_${kind}$
       #:endfor
 
-      NULLIFY (iterator, pw_el)
       #:for kind in pw_kinds
          NULLIFY (array_att_${kind}$, array_iterator_${kind}$, iterator_${kind}$, pw_el_${kind}$)
       #:endfor
-      logger => cp_get_default_logger()
 
       #:for kind in pw_kinds
          iterator_${kind}$ => pool%${kind}$_pw
@@ -239,14 +213,6 @@ CONTAINS
          CALL cp_sll_${kind[1:]}$_${kind[0]}$_dealloc(pool%${kind}$_array)
       #:endfor
 
-      iterator => pool%real3d_pw
-      DO
-         IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
-         DEALLOCATE (pw_el)
-      END DO
-      CALL cp_sll_pw_dealloc(pool%real3d_pw)
-
    END SUBROUTINE pw_pool_flush_cache
 
 ! **************************************************************************************************
@@ -258,10 +224,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_pool_release(pool)
       TYPE(pw_pool_type), POINTER                        :: pool
-
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
 
       IF (ASSOCIATED(pool)) THEN
          CPASSERT(pool%ref_count > 0)
@@ -275,28 +237,6 @@ CONTAINS
       END IF
       NULLIFY (pool)
    END SUBROUTINE pw_pool_release
-
-! **************************************************************************************************
-!> \brief tries to pop an element from the given list (no error on failure)
-!> \param list the list to pop
-!> \return ...
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-!> \note
-!>      private function
-! **************************************************************************************************
-   FUNCTION try_pop_pw(list) RESULT(res)
-      TYPE(cp_sll_pw_type), POINTER                      :: list
-      TYPE(pw_type), POINTER                             :: res
-
-      IF (ASSOCIATED(list)) THEN
-         res => cp_sll_pw_get_first_el(list)
-         CALL cp_sll_pw_rm_first_el(list)
-      ELSE
-         NULLIFY (res)
-      END IF
-   END FUNCTION try_pop_pw
 
    #:for kind, type in zip(pw_kinds, pw_types)
 
@@ -341,12 +281,10 @@ CONTAINS
          INTEGER                                            :: handle
          ${type}$, CONTIGUOUS, &
             POINTER                                         :: array_ptr
-         TYPE(cp_logger_type), POINTER                      :: logger
          TYPE(pw_${kind}$_type), POINTER                    :: el
 
          CALL timeset(routineN, handle)
          NULLIFY (array_ptr)
-         logger => cp_get_default_logger()
 
          el => try_pop(pool%${kind}$_pw)
          IF (.NOT. ASSOCIATED(el)) THEN
@@ -384,10 +322,7 @@ CONTAINS
          CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw_${kind}$'
 
          INTEGER                                            :: handle
-         TYPE(cp_logger_type), POINTER                      :: logger
          TYPE(pw_${kind}$_type), POINTER                    :: el
-
-         logger => cp_get_default_logger()
 
          CALL timeset(routineN, handle)
          IF (ASSOCIATED(pw%pw_grid)) THEN
@@ -398,11 +333,16 @@ CONTAINS
                ALLOCATE (el)
                el = pw
 
-               IF (cp_sll_pw_${kind}$_get_length(pool%${kind}$_pw) < pool%max_cache) THEN
-                  CALL cp_sll_pw_${kind}$_insert_el(pool%${kind}$_pw, el=el)
+               IF (ASSOCIATED(pw%array)) THEN
+                  IF (cp_sll_pw_${kind}$_get_length(pool%${kind}$_pw) < pool%max_cache) THEN
+                     CALL cp_sll_pw_${kind}$_insert_el(pool%${kind}$_pw, el=el)
+                  ELSE
+                     IF (max_max_cache >= 0) &
+                        CPWARN("hit max_cache")
+                     CALL pw_release(el)
+                     DEALLOCATE (el)
+                  END IF
                ELSE
-                  IF (max_max_cache >= 0) &
-                     CPWARN("hit max_cache")
                   CALL pw_release(el)
                   DEALLOCATE (el)
                END IF
@@ -418,7 +358,6 @@ CONTAINS
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: REALDATA3D
 !> \param in_space ...
 !> \par History
 !>      07.2004 created [fawzi]
@@ -462,10 +401,10 @@ CONTAINS
       END SUBROUTINE pw_pools_give_back_pws_${kind}$
 
 ! **************************************************************************************************
-!> \brief returns a 3d real array of coefficients as the one used by pw with
-!>      REALDATA3D, allocating it if none is present in the pool
+!> \brief returns an array of coefficients as the one used by pw
+!>      allocating it if none is present in the pool
 !> \param pw_pool the pool that caches the cr3d
-!> \param cr3d the pointer that will contain the array
+!> \param array the pointer that will contain the array
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -474,11 +413,9 @@ CONTAINS
          TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
          ${type}$, POINTER                                  :: array
 
-         TYPE(cp_logger_type), POINTER                      :: logger
          TYPE(pw_${kind}$_type), POINTER                    :: pw
 
          NULLIFY (pw)
-         logger => cp_get_default_logger()
 
          IF (ASSOCIATED(pw_pool%${kind}$_array)) THEN
             array => cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el(pw_pool%${kind}$_array)
@@ -520,10 +457,8 @@ CONTAINS
          LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
 
          LOGICAL                                            :: compatible, my_accept_non_compatible
-         TYPE(cp_logger_type), POINTER                      :: logger
 
          my_accept_non_compatible = .FALSE.
-         logger => cp_get_default_logger()
          IF (PRESENT(accept_non_compatible)) my_accept_non_compatible = accept_non_compatible
 
          IF (ASSOCIATED(array)) THEN
@@ -556,166 +491,6 @@ CONTAINS
       END SUBROUTINE pw_pool_give_back_array_${kind}$
 
    #:endfor
-
-! **************************************************************************************************
-!> \brief returns a pw, allocating it if none is in the pool
-!> \param pool the pool from where you get the pw
-!> \param pw will contain the new pw
-!> \param use_data which data it uses: REALDATA3D
-!> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE pw_pool_create_pw_pw(pool, pw, use_data, in_space)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pool
-      TYPE(pw_type), INTENT(OUT)                         :: pw
-      INTEGER, INTENT(in)                                :: use_data, in_space
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw_pw'
-
-      INTEGER                                            :: handle
-      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: cr3d_ptr
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type), POINTER                             :: el
-
-      CALL timeset(routineN, handle)
-      NULLIFY (cr3d_ptr)
-      logger => cp_get_default_logger()
-
-      SELECT CASE (use_data)
-      CASE (REALDATA3D)
-         el => try_pop(pool%real3d_pw)
-         IF (.NOT. ASSOCIATED(el)) THEN
-            IF (ASSOCIATED(pool%r3d_array)) THEN
-               cr3d_ptr => cp_sll_3d_r_get_first_el(pool%r3d_array)
-               CALL cp_sll_3d_r_rm_first_el(pool%r3d_array)
-            END IF
-         END IF
-      CASE default
-! unknown use_data
-         CPABORT("")
-      END SELECT
-
-      IF (.NOT. ASSOCIATED(el)) THEN
-         CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
-                        in_space=in_space, cr3d_ptr=cr3d_ptr)
-      ELSE
-         pw = el
-         DEALLOCATE (el)
-         pw%in_space = in_space
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_pool_create_pw_pw
-
-! **************************************************************************************************
-!> \brief returns the pw to the pool
-!> \param pool the pool where to reintegrate the pw
-!> \param pw the pw to give back
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE pw_pool_give_back_pw_pw(pool, pw)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pool
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw_pw'
-
-      INTEGER                                            :: handle
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type), POINTER                             :: el
-
-      logger => cp_get_default_logger()
-
-      CALL timeset(routineN, handle)
-      IF (ASSOCIATED(pw%pw_grid)) THEN
-         IF (.NOT. pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
-            CALL pw_release(pw)
-         ELSE
-            NULLIFY (el)
-            ALLOCATE (el)
-            el = pw
-
-            SELECT CASE (el%in_use)
-            CASE (REALDATA3D)
-               IF (ASSOCIATED(el%cr3d)) THEN
-                  IF (cp_sll_pw_get_length(pool%real3d_pw) < pool%max_cache) THEN
-                     CALL cp_sll_pw_insert_el(pool%real3d_pw, el=el)
-                  ELSE
-                     IF (max_max_cache >= 0) &
-                        CPWARN("hit max_cache")
-                     CALL pw_release(el)
-                     DEALLOCATE (el)
-                  END IF
-               ELSE
-                  CALL pw_release(el)
-                  DEALLOCATE (el)
-               END IF
-            CASE default
-               ! unknown in_use
-               CPABORT("")
-            END SELECT
-            !FM so that if someone tries to use a pw that is in the pool
-            !FM (s)he gets problems
-         END IF
-      ELSE
-         IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
-      END IF
-      NULLIFY (pw%cr3d, pw%pw_grid)
-      CALL timestop(handle)
-   END SUBROUTINE pw_pool_give_back_pw_pw
-
-! **************************************************************************************************
-!> \brief creates a multigrid structure
-!> \param pools the multigrid pool (i.e. an array of pw_pool)
-!> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: REALDATA3D
-!> \param in_space ...
-!> \par History
-!>      07.2004 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE pw_pools_create_pws_pw(pools, pws, use_data, in_space)
-      TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: pws
-      INTEGER, INTENT(in)                                :: use_data
-      INTEGER, INTENT(in)                                :: in_space
-
-      INTEGER                                            :: i
-
-      ALLOCATE (pws(SIZE(pools)))
-      DO i = 1, SIZE(pools)
-         CALL pw_pool_create_pw(pools(i)%pool, pws(i), use_data, &
-                                in_space=in_space)
-      END DO
-   END SUBROUTINE pw_pools_create_pws_pw
-
-! **************************************************************************************************
-!> \brief returns the pw part of the coefficients into the pools
-!> \param pools the pools that will cache the pws %pw
-!> \param pws the coefficients to give back
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE pw_pools_give_back_pws_pw(pools, pws)
-      TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: pws
-
-      INTEGER                                            :: i
-
-      CPASSERT(SIZE(pws) == SIZE(pools))
-      DO i = 1, SIZE(pools)
-         CALL pw_pool_give_back_pw(pools(i)%pool, pws(i))
-      END DO
-      DEALLOCATE (pws)
-   END SUBROUTINE pw_pools_give_back_pws_pw
 
 ! **************************************************************************************************
 !> \brief copies a multigrid pool, the underlying pools are shared

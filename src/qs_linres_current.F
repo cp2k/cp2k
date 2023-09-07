@@ -86,10 +86,9 @@ MODULE qs_linres_current
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -219,8 +218,8 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_r
+      TYPE(pw_r3d_type)                                  :: wf_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: jrho1_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -482,7 +481,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                          auxbas_pw_pool=auxbas_pw_pool)
          !
-         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                                 in_space=REALSPACE)
          !
          DO idir = 1, 3
@@ -583,7 +582,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
-      TYPE(pw_type), INTENT(INOUT)                       :: current_rs
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: current_rs
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env

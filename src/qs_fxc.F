@@ -38,10 +38,9 @@ MODULE qs_fxc
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
@@ -88,11 +87,11 @@ CONTAINS
    SUBROUTINE qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, auxbas_pw_pool, is_triplet, v_xc, v_xc_tau)
 
       TYPE(qs_rho_type), POINTER                         :: rho0
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, tau1_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, tau1_r
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL, INTENT(IN)                                :: is_triplet
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_xc, v_xc_tau
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_xc, v_xc_tau
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_analytic'
 
@@ -101,7 +100,7 @@ CONTAINS
       LOGICAL                                            :: lsd
       REAL(KIND=dp)                                      :: fac
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho0_g, rho1_g
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho0_r, tau0_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho0_r, tau0_r
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
@@ -153,7 +152,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: accuracy
       LOGICAL, INTENT(IN)                                :: is_triplet
-      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rho, fxc_tau
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rho, fxc_tau
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_fdiff'
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
@@ -164,7 +163,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_tau_rspace, vxc00
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_tau_rspace, vxc00
       TYPE(qs_rho_type), POINTER                         :: rhoin
 
       CALL timeset(routineN, handle)
@@ -225,7 +224,7 @@ CONTAINS
                ALLOCATE (fxc_rho(nspins))
                DO ispin = 1, nspins
                   CALL pw_pool_create_pw(auxbas_pw_pool, fxc_rho(ispin), &
-                                         in_space=REALSPACE, use_data=REALDATA3D)
+                                         in_space=REALSPACE)
                   CALL pw_zero(fxc_rho(ispin))
                END DO
             END IF
@@ -241,7 +240,7 @@ CONTAINS
                   ALLOCATE (fxc_tau(nspins))
                   DO ispin = 1, nspins
                      CALL pw_pool_create_pw(auxbas_pw_pool, fxc_tau(ispin), &
-                                            in_space=REALSPACE, use_data=REALDATA3D)
+                                            in_space=REALSPACE)
                      CALL pw_zero(fxc_tau(ispin))
                   END DO
                END IF
@@ -292,7 +291,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: accuracy
       LOGICAL, INTENT(IN)                                :: is_triplet
-      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_create'
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
@@ -303,7 +302,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_tau_rspace, vxc00
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_tau_rspace, vxc00
       TYPE(qs_rho_type), POINTER                         :: rhoin
 
       CALL timeset(routineN, handle)
@@ -369,7 +368,7 @@ CONTAINS
             ALLOCATE (fxc_rho(nspins))
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, fxc_rho(ispin), &
-                                      in_space=REALSPACE, use_data=REALDATA3D)
+                                      in_space=REALSPACE)
                CALL pw_zero(fxc_rho(ispin))
             END DO
          END IF
@@ -377,7 +376,7 @@ CONTAINS
             ALLOCATE (gxc_rho(nspins))
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, gxc_rho(ispin), &
-                                      in_space=REALSPACE, use_data=REALDATA3D)
+                                      in_space=REALSPACE)
                CALL pw_zero(gxc_rho(ispin))
             END DO
          END IF
@@ -419,7 +418,7 @@ CONTAINS
    SUBROUTINE qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
 
       INTEGER                                            :: ispin
       TYPE(pw_env_type), POINTER                         :: pw_env

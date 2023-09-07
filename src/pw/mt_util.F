@@ -22,11 +22,10 @@ MODULE mt_util
                                               pw_pool_give_back_pw,&
                                               pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -69,7 +68,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha2, g2, g3d, gxy, gz, zlength
       TYPE(pw_c1d_type), POINTER                         :: Vlocg
       TYPE(pw_pool_type), POINTER                        :: pw_pool_aux
-      TYPE(pw_type), POINTER                             :: Vloc
+      TYPE(pw_r3d_type), POINTER                         :: Vloc
 
       CALL timeset(routineN, handle)
       NULLIFY (Vloc, Vlocg, pw_pool_aux)
@@ -90,10 +89,10 @@ CONTAINS
          NULLIFY (Vloc, Vlocg)
          ALLOCATE (Vloc, Vlocg)
          IF (ASSOCIATED(pw_pool_aux)) THEN
-            CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(pw_pool_aux, Vloc, in_space=REALSPACE)
             CALL pw_pool_create_pw(pw_pool_aux, Vlocg, in_space=RECIPROCALSPACE)
          ELSE
-            CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(pw_pool, Vloc, in_space=REALSPACE)
             CALL pw_pool_create_pw(pw_pool, Vlocg, in_space=RECIPROCALSPACE)
          END IF
          CALL mt0din(Vloc, alpha)
@@ -147,7 +146,7 @@ CONTAINS
 !> \author Teodoro Laino (09.03.2005)
 ! **************************************************************************************************
    SUBROUTINE mt0din(Vloc, alpha)
-      TYPE(pw_type), POINTER                             :: Vloc
+      TYPE(pw_r3d_type), POINTER                         :: Vloc
       REAL(KIND=dp), INTENT(in)                          :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt0din'
@@ -187,9 +186,9 @@ CONTAINS
                r2 = x*x + y2 + z2
                r = SQRT(r2)
                IF (r .GT. 1.0E-10_dp) THEN
-                  Vloc%cr3d(ii, jj, kk) = erf(alpha*r)/r*fact
+                  Vloc%array(ii, jj, kk) = erf(alpha*r)/r*fact
                ELSE
-                  Vloc%cr3d(ii, jj, kk) = 2.0_dp*alpha*oorootpi*fact
+                  Vloc%array(ii, jj, kk) = 2.0_dp*alpha*oorootpi*fact
                END IF
                ii = ii + 1
             END DO

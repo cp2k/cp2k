@@ -45,11 +45,10 @@ MODULE spme
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
                                               rs_grid_create,&
@@ -132,7 +131,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type)                                      :: rhob_r
+      TYPE(pw_r3d_type)                                  :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
@@ -221,7 +220,7 @@ CONTAINS
       END IF
       !----------- END OF DENSITY CALCULATION -------------
 
-      CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
+      CALL pw_pool_create_pw(pw_pool, rhob_r, &
                              in_space=REALSPACE)
       CALL transfer_rs2pw(rden, rhob_r)
       ! transform density to G space and add charge function
@@ -489,7 +488,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: rhob_r
+      TYPE(pw_r3d_type), POINTER                         :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
 
@@ -538,7 +537,7 @@ CONTAINS
 
       NULLIFY (rhob_r)
       ALLOCATE (rhob_r)
-      CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
+      CALL pw_pool_create_pw(pw_pool, rhob_r, &
                              in_space=REALSPACE)
       CALL transfer_rs2pw(rden, rhob_r)
       ! transform density to G space and add charge function
@@ -636,7 +635,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: rhob_r
+      TYPE(pw_r3d_type), POINTER                         :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden
@@ -686,7 +685,7 @@ CONTAINS
 
       NULLIFY (rhob_r)
       ALLOCATE (rhob_r)
-      CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
+      CALL pw_pool_create_pw(pw_pool, rhob_r, &
                              in_space=REALSPACE)
       CALL transfer_rs2pw(rden, rhob_r)
       ! transform density to G space and add charge function

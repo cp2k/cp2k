@@ -38,12 +38,11 @@ MODULE qs_environment_methods
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
    USE qs_charges_types,                ONLY: qs_charges_create,&
                                               qs_charges_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -208,7 +207,7 @@ CONTAINS
       TYPE(pw_c1d_type), POINTER                         :: rho_core, rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: new_pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: embed_pot, external_vxc, rho_nlcc, &
+      TYPE(pw_r3d_type), POINTER                         :: embed_pot, external_vxc, rho_nlcc, &
                                                             spin_embed_pot, v_hartree_rspace, vee, &
                                                             vppl
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -295,7 +294,7 @@ CONTAINS
                ALLOCATE (vppl)
             END IF
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, vppl, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, vppl, in_space=REALSPACE)
             CALL set_ks_env(ks_env, vppl=vppl)
          END IF
 
@@ -312,7 +311,7 @@ CONTAINS
                ALLOCATE (rho_nlcc)
             END IF
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc, REALDATA3D, REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc, REALSPACE)
             CALL set_ks_env(ks_env, rho_nlcc=rho_nlcc)
             ! the g-space version
             NULLIFY (rho_nlcc_g)
@@ -337,7 +336,7 @@ CONTAINS
             END IF
             ALLOCATE (vee)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, vee, REALDATA3D, REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, vee, REALSPACE)
             CALL set_ks_env(ks_env, vee=vee)
             dft_control%eval_external_potential = .TRUE.
          END IF
@@ -352,7 +351,7 @@ CONTAINS
                ALLOCATE (external_vxc)
             END IF
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc, REALDATA3D, REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc, REALSPACE)
             CALL set_qs_env(qs_env, external_vxc=external_vxc)
             dft_control%read_external_vxc = .TRUE.
          END IF
@@ -367,7 +366,7 @@ CONTAINS
                ALLOCATE (embed_pot)
             END IF
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, embed_pot, REALDATA3D, REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, embed_pot, REALSPACE)
             CALL set_qs_env(qs_env, embed_pot=embed_pot)
 
             NULLIFY (spin_embed_pot)
@@ -379,7 +378,7 @@ CONTAINS
                ALLOCATE (spin_embed_pot)
             END IF
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, spin_embed_pot, REALDATA3D, REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, spin_embed_pot, REALSPACE)
             CALL set_qs_env(qs_env, spin_embed_pot=spin_embed_pot)
          END IF
 
@@ -392,7 +391,7 @@ CONTAINS
          CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ALLOCATE (v_hartree_rspace)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                                REALDATA3D, REALSPACE)
+                                REALSPACE)
          CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
       END IF
 

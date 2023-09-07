@@ -88,11 +88,10 @@ MODULE qs_tddfpt2_fhxc_forces
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -205,8 +204,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: xv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+      TYPE(pw_r3d_type)                                  :: xv_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
                                                             rho_r_aux, rhox_r, rhox_r_aux, rhoxx_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -366,7 +365,7 @@ CONTAINS
       ALLOCATE (rhox_r(nspins), rhox_g(nspins))
       DO ispin = 1, nspins
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin), &
                                 in_space=RECIPROCALSPACE)
       END DO
@@ -387,7 +386,7 @@ CONTAINS
          ALLOCATE (rhoxx_r(nspins), rhoxx_g(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, rhoxx_r(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rhoxx_g(ispin), &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -404,7 +403,7 @@ CONTAINS
 
       IF (.NOT. is_rks_triplets) THEN
          CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace, &
                                 in_space=RECIPROCALSPACE)
          ! calculate associated hartree potential
@@ -625,7 +624,7 @@ CONTAINS
                ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
                DO ispin = 1, nspins
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r_aux(ispin), &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
+                                         in_space=REALSPACE)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g_aux(ispin), &
                                          in_space=RECIPROCALSPACE)
                END DO

@@ -128,7 +128,7 @@ CONTAINS
       CALL ewald_env_get(ewald_env, alpha=alpha, group=group)
       CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_pool, dg=dg)
       CALL dg_get(dg, dg_rho0=dg_rho0)
-      rho0 => dg_rho0%density%cr3d
+      rho0 => dg_rho0%density%array
       pw_grid => pw_pool%pw_grid
       bds => pw_grid%bounds
 

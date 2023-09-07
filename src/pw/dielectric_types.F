@@ -16,8 +16,8 @@ MODULE dielectric_types
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_type,&
+                                              pw_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -63,9 +63,9 @@ MODULE dielectric_types
 
    TYPE dielectric_type
       TYPE(dielectric_parameters)       :: params = dielectric_parameters()
-      TYPE(pw_type), POINTER            :: eps => NULL()
-      TYPE(pw_type), POINTER            :: deps_drho => NULL()
-      TYPE(pw_type), DIMENSION(3)     :: dln_eps = pw_type()
+      TYPE(pw_r3d_type), POINTER            :: eps => NULL()
+      TYPE(pw_r3d_type), POINTER            :: deps_drho => NULL()
+      TYPE(pw_r3d_type), DIMENSION(3)     :: dln_eps = pw_r3d_type()
    END TYPE dielectric_type
 
    PUBLIC :: dielectric_type, dielectric_parameters

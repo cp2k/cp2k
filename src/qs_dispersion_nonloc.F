@@ -39,11 +39,10 @@ MODULE qs_dispersion_nonloc
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -166,7 +165,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
                                           dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rho, rho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: vxc_rho, rho_r
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       REAL(KIND=dp), INTENT(OUT)                         :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
@@ -189,8 +188,8 @@ CONTAINS
       TYPE(pw_c1d_type)                                  :: tmp_g, vxc_g
       TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: thetas_g
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: tmp_r, vxc_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: drho_r
+      TYPE(pw_r3d_type)                                  :: tmp_r, vxc_r
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:, :)    :: drho_r
 
       CALL timeset(routineN, handle)
 
@@ -220,25 +219,25 @@ CONTAINS
 
       ! temporary arrays for FFT
       CALL pw_pool_create_pw(pw_pool, tmp_g, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(pw_pool, tmp_r, in_space=REALSPACE)
 
       ! get density derivatives
       ALLOCATE (drho_r(3, nspin))
       DO ispin = 1, nspin
          DO idir = 1, 3
             CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_transfer(rho_g(ispin), tmp_g)
             CALL pw_derive(tmp_g, nd(:, idir))
             CALL pw_transfer(tmp_g, drho_r(idir, ispin))
          END DO
       END DO
 
-      np = SIZE(tmp_r%cr3d)
+      np = SIZE(tmp_r%array)
       ALLOCATE (rho(np), drho(np, 3)) !in the following loops, rho and drho _will_ have the same bounds
       DO i = 1, 3
-         lo(i) = LBOUND(tmp_r%cr3d, i)
-         hi(i) = UBOUND(tmp_r%cr3d, i)
+         lo(i) = LBOUND(tmp_r%array, i)
+         hi(i) = UBOUND(tmp_r%array, i)
          n(i) = hi(i) - lo(i) + 1
       END DO
 !$OMP PARALLEL DO DEFAULT(NONE)              &
@@ -266,7 +265,6 @@ CONTAINS
 !$OMP END PARALLEL DO
       END DO
       DO ispin = 1, nspin
-         CPASSERT(rho_r(ispin)%in_use == REALDATA3D)
          CALL pw_transfer(rho_g(ispin), tmp_g)
          CALL pw_transfer(tmp_g, tmp_r)
 !$OMP PARALLEL DO DEFAULT(NONE)            &
@@ -277,7 +275,7 @@ CONTAINS
             DO q = 0, n(2) - 1
                DO p = 0, n(1) - 1
                   s = r*n(2)*n(1) + q*n(1) + p + 1
-                  rho(s) = rho(s) + tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3))
+                  rho(s) = rho(s) + tmp_r%array(p + lo(1), q + lo(2), r + lo(3))
                END DO
             END DO
          END DO
@@ -291,7 +289,7 @@ CONTAINS
                DO q = 0, n(2) - 1
                   DO p = 0, n(1) - 1
                      s = r*n(2)*n(1) + q*n(1) + p + 1
-                     drho(s, i) = drho(s, i) + drho_r(i, ispin)%cr3d(p + lo(1), q + lo(2), r + lo(3))
+                     drho(s, i) = drho(s, i) + drho_r(i, ispin)%array(p + lo(1), q + lo(2), r + lo(3))
                   END DO
                END DO
             END DO
@@ -379,8 +377,8 @@ CONTAINS
       !! ------------------------------------------------------------------------------------
       !! Get thetas in reciprocal space.
       DO i = 1, 3
-         lo(i) = LBOUND(tmp_r%cr3d, i)
-         hi(i) = UBOUND(tmp_r%cr3d, i)
+         lo(i) = LBOUND(tmp_r%array, i)
+         hi(i) = UBOUND(tmp_r%array, i)
          n(i) = hi(i) - lo(i) + 1
       END DO
       ALLOCATE (thetas_g(dispersion_env%nqs))
@@ -391,7 +389,7 @@ CONTAINS
          DO r = 0, n(3) - 1
             DO q = 0, n(2) - 1
                DO p = 0, n(1) - 1
-                  tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = thetas(r*n(2)*n(1) + q*n(1) + p + 1, i)
+                  tmp_r%array(p + lo(1), q + lo(2), r + lo(3)) = thetas(r*n(2)*n(1) + q*n(1) + p + 1, i)
                END DO
             END DO
          END DO
@@ -437,8 +435,8 @@ CONTAINS
          !! Inverse Fourier transform the u_i(k) to get the u_i(r) of SOLER equation 11.
          !!-----------------------------------------------------------------------------
          DO i = 1, 3
-            lo(i) = LBOUND(tmp_r%cr3d, i)
-            hi(i) = UBOUND(tmp_r%cr3d, i)
+            lo(i) = LBOUND(tmp_r%array, i)
+            hi(i) = UBOUND(tmp_r%array, i)
             n(i) = hi(i) - lo(i) + 1
          END DO
          DO i = 1, dispersion_env%nqs
@@ -449,7 +447,7 @@ CONTAINS
             DO r = 0, n(3) - 1
                DO q = 0, n(2) - 1
                   DO p = 0, n(1) - 1
-                     thetas(r*n(2)*n(1) + q*n(1) + p + 1, i) = tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3))
+                     thetas(r*n(2)*n(1) + q*n(1) + p + 1, i) = tmp_r%array(p + lo(1), q + lo(2), r + lo(3))
                   END DO
                END DO
             END DO
@@ -477,10 +475,10 @@ CONTAINS
             potential(:) = (0.5_dp*potential(:) + beta)*dispersion_env%scale_rvv10
             hpot(:) = 0.5_dp*dispersion_env%scale_rvv10*hpot(:)
          END SELECT
-         CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(pw_pool, vxc_r, in_space=REALSPACE)
          DO i = 1, 3
-            lo(i) = LBOUND(vxc_r%cr3d, i)
-            hi(i) = UBOUND(vxc_r%cr3d, i)
+            lo(i) = LBOUND(vxc_r%array, i)
+            hi(i) = UBOUND(vxc_r%array, i)
             n(i) = hi(i) - lo(i) + 1
          END DO
 !$OMP PARALLEL DO DEFAULT(NONE)                         &
@@ -489,14 +487,14 @@ CONTAINS
          DO r = 0, n(3) - 1
             DO q = 0, n(2) - 1
                DO p = 0, n(1) - 1
-                  vxc_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = potential(r*n(2)*n(1) + q*n(1) + p + 1)
+                  vxc_r%array(p + lo(1), q + lo(2), r + lo(3)) = potential(r*n(2)*n(1) + q*n(1) + p + 1)
                END DO
             END DO
          END DO
 !$OMP END PARALLEL DO
          DO i = 1, 3
-            lo(i) = LBOUND(tmp_r%cr3d, i)
-            hi(i) = UBOUND(tmp_r%cr3d, i)
+            lo(i) = LBOUND(tmp_r%array, i)
+            hi(i) = UBOUND(tmp_r%array, i)
             n(i) = hi(i) - lo(i) + 1
          END DO
          DO idir = 1, 3
@@ -506,7 +504,7 @@ CONTAINS
             DO r = 0, n(3) - 1
                DO q = 0, n(2) - 1
                   DO p = 0, n(1) - 1
-                     tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = 0.0_dp
+                     tmp_r%array(p + lo(1), q + lo(2), r + lo(3)) = 0.0_dp
                   END DO
                END DO
             END DO
@@ -518,9 +516,9 @@ CONTAINS
                DO r = 0, n(3) - 1
                   DO q = 0, n(2) - 1
                      DO p = 0, n(1) - 1
-                        tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) &
-                                                                      + hpot(r*n(2)*n(1) + q*n(1) + p + 1) &
-                                                                      *drho_r(idir, ispin)%cr3d(p + lo(1), q + lo(2), r + lo(3))
+                        tmp_r%array(p + lo(1), q + lo(2), r + lo(3)) = tmp_r%array(p + lo(1), q + lo(2), r + lo(3)) &
+                                                                       + hpot(r*n(2)*n(1) + q*n(1) + p + 1) &
+                                                                       *drho_r(idir, ispin)%array(p + lo(1), q + lo(2), r + lo(3))
                      END DO
                   END DO
                END DO
@@ -533,7 +531,7 @@ CONTAINS
          END DO
          CALL pw_transfer(vxc_r, tmp_g)
          CALL pw_pool_give_back_pw(pw_pool, vxc_r)
-         CALL pw_pool_create_pw(xc_pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(xc_pw_pool, vxc_r, in_space=REALSPACE)
          CALL pw_pool_create_pw(xc_pw_pool, vxc_g, in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_g, vxc_g)
          CALL pw_transfer(vxc_g, vxc_r)

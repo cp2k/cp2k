@@ -121,11 +121,10 @@ MODULE qs_scf_post_gpw
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_chargemol,                    ONLY: write_wfx
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
@@ -278,7 +277,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_r
+      TYPE(pw_r3d_type)                                  :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo, qs_loc_env_lumo, &
                                                             qs_loc_env_mixed
@@ -454,7 +453,6 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
                                 in_space=RECIPROCALSPACE)
@@ -1018,7 +1016,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: wf_g
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
 
@@ -1123,7 +1121,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: unoccupied_orbs
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: wf_g
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_r
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
       INTEGER, INTENT(IN), OPTIONAL                      :: lumo
@@ -1457,7 +1455,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: elf_r
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: elf_r
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: elf_section
 
@@ -1480,7 +1478,6 @@ CONTAINS
                             pw_pools=pw_pools)
             DO ispin = 1, dft_control%nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin), &
-                                      use_data=REALDATA3D, &
                                       in_space=REALSPACE)
                CALL pw_zero(elf_r(ispin))
             END DO
@@ -1705,8 +1702,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_type)                                  :: wf_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1824,7 +1821,6 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_copy(rho_r(1), wf_r)
          CALL pw_axpy(rho_r(2), wf_r, alpha=-1._dp)
@@ -1915,9 +1911,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: aux_r, rho_elec_rspace, wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(pw_type), POINTER                             :: mb_rho, v_hartree_rspace, vee
+      TYPE(pw_r3d_type)                                  :: aux_r, rho_elec_rspace, wf_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_type), POINTER                         :: mb_rho, v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1967,7 +1963,6 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          IF (dft_control%qs_control%gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -2135,7 +2130,6 @@ CONTAINS
                             pw_pools=pw_pools)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=rho_elec_rspace, &
-                                   use_data=REALDATA3D, &
                                    in_space=REALSPACE)
             CALL pw_zero(rho_elec_rspace)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
@@ -2237,7 +2231,6 @@ CONTAINS
                                pw_pools=pw_pools)
                CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                       pw=rho_elec_rspace, &
-                                      use_data=REALDATA3D, &
                                       in_space=REALSPACE)
                CALL pw_copy(rho_r(1), rho_elec_rspace)
                CALL pw_axpy(rho_r(2), rho_elec_rspace)
@@ -2326,7 +2319,6 @@ CONTAINS
                          v_hartree_rspace=v_hartree_rspace)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
 
          append_cube = section_get_lval(input, "DFT%PRINT%V_HARTREE_CUBE%APPEND")
@@ -2360,7 +2352,6 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, vee=vee)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, &
-                                   use_data=REALDATA3D, &
                                    in_space=REALSPACE)
 
             append_cube = section_get_lval(input, "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE%APPEND")
@@ -2392,7 +2383,6 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_g, &
                                 in_space=RECIPROCALSPACE)
@@ -2597,7 +2587,6 @@ CONTAINS
                ALLOCATE (mb_rho)
                CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                       pw=mb_rho, &
-                                      use_data=REALDATA3D, &
                                       in_space=REALSPACE)
                CALL pw_copy(rho_r(1), mb_rho)
                CALL pw_axpy(rho_r(2), mb_rho)
@@ -2900,7 +2889,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: eden
+      TYPE(pw_r3d_type)                                  :: eden
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section
 
@@ -2915,7 +2904,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL pw_pool_create_pw(auxbas_pw_pool, eden, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, eden, in_space=REALSPACE)
          !
          CALL qs_local_energy(qs_env, eden)
          !
@@ -2976,7 +2965,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: stress
+      TYPE(pw_r3d_type)                                  :: stress
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section
 
@@ -2991,7 +2980,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL pw_pool_create_pw(auxbas_pw_pool, stress, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, stress, in_space=REALSPACE)
          !
          ! use beta=0: kinetic energy density in symmetric form
          beta = 0.0_dp
@@ -3057,8 +3046,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: aux_r
-      TYPE(pw_type), POINTER                             :: dirichlet_tile
+      TYPE(pw_r3d_type)                                  :: aux_r
+      TYPE(pw_r3d_type), POINTER                         :: dirichlet_tile
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section
 
@@ -3089,7 +3078,7 @@ CONTAINS
                                         extension=".cube", middle_name="DIELECTRIC_CONSTANT", file_position=my_pos_cube, &
                                         mpi_io=mpi_io)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, in_space=REALSPACE)
 
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
          SELECT CASE (boundary_condition)
@@ -3137,7 +3126,7 @@ CONTAINS
                                         extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube, &
                                         mpi_io=mpi_io)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, in_space=REALSPACE)
 
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
          SELECT CASE (boundary_condition)
@@ -3180,7 +3169,7 @@ CONTAINS
          tile_cubes = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%TILE_CUBES")
 
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, in_space=REALSPACE)
          CALL pw_zero(aux_r)
 
          IF (tile_cubes) THEN
@@ -3209,7 +3198,7 @@ CONTAINS
             ! a single cube file
             NULLIFY (dirichlet_tile)
             ALLOCATE (dirichlet_tile)
-            CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, in_space=REALSPACE)
             CALL pw_zero(dirichlet_tile)
             mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", &
@@ -3374,7 +3363,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(virial_type), POINTER                         :: virial
 

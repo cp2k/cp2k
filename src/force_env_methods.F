@@ -134,10 +134,9 @@ MODULE force_env_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: REALSPACE,&
+                                              pw_r3d_type,&
+                                              pw_release
    USE pwdft_environment,               ONLY: pwdft_calc_energy_force
    USE pwdft_environment_types,         ONLY: pwdft_environment_type
    USE qmmm_force,                      ONLY: qmmm_calc_energy_force
@@ -1396,7 +1395,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles_embed
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: embed_pot, spin_embed_pot
+      TYPE(pw_r3d_type), POINTER                         :: embed_pot, spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: embed_section, force_env_section, &
                                                             mapping_section, root_section
 
@@ -1607,9 +1606,9 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: diff_rho_r, diff_rho_spin
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_ref, rho_r_subsys
-      TYPE(pw_type), POINTER                             :: embed_pot, embed_pot_subsys, &
+      TYPE(pw_r3d_type)                                  :: diff_rho_r, diff_rho_spin
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r_ref, rho_r_subsys
+      TYPE(pw_r3d_type), POINTER                         :: embed_pot, embed_pot_subsys, &
                                                             spin_embed_pot, spin_embed_pot_subsys
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, subsys_rho
@@ -1666,12 +1665,10 @@ CONTAINS
       ! Prepare the pw object to store density differences
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_r, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_zero(diff_rho_r)
       IF (opt_embed%open_shell_embed) THEN
          CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_spin, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_zero(diff_rho_spin)
       END IF

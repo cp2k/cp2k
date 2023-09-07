@@ -50,11 +50,10 @@ MODULE qs_energy_window
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -112,7 +111,7 @@ CONTAINS
       TYPE(pw_c1d_type)                                  :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_r
+      TYPE(pw_r3d_type)                                  :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -161,7 +160,7 @@ CONTAINS
       CALL cp_fm_create(S_minus_half_fm, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, in_space=RECIPROCALSPACE)
 
       !calculate S_minus_half

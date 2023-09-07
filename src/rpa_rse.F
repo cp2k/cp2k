@@ -51,8 +51,8 @@ MODULE rpa_rse
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_type,&
+                                              pw_release
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -426,7 +426,7 @@ CONTAINS
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: exc
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_rspace, v_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: tau_rspace, v_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section

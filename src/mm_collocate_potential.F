@@ -18,7 +18,7 @@ MODULE mm_collocate_potential
    USE cube_utils,                      ONLY: cube_info_type,&
                                               return_cube
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -173,7 +173,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rp
       REAL(KIND=dp), INTENT(IN)                          :: scale, W
-      TYPE(pw_type), INTENT(IN)                          :: pwgrid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pwgrid
       TYPE(cube_info_type), INTENT(IN)                   :: cube_info
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xdat, ydat, zdat
@@ -198,7 +198,7 @@ CONTAINS
 !   *** properties of the grid ***
       rpl = rp
       dr(:) = pwgrid%pw_grid%dr(:)
-      grid => pwgrid%cr3d
+      grid => pwgrid%array
       bo = pwgrid%pw_grid%bounds_local
       gbo = pwgrid%pw_grid%bounds
 
@@ -296,7 +296,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rp
       REAL(KIND=dp), INTENT(IN)                          :: scale, W
-      TYPE(pw_type), INTENT(IN)                          :: pwgrid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pwgrid
       TYPE(cube_info_type), INTENT(IN)                   :: cube_info
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
@@ -323,7 +323,7 @@ CONTAINS
 !   *** properties of the grid ***
       rpl = rp
       dr(:) = pwgrid%pw_grid%dr(:)
-      grid => pwgrid%cr3d(:, :, :)
+      grid => pwgrid%array(:, :, :)
       gbo = pwgrid%pw_grid%bounds
 
 !   *** get the sub grid properties for the given radius ***

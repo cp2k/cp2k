@@ -57,8 +57,7 @@ MODULE qs_cdft_utils
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE
+   USE pw_types,                        ONLY: REALSPACE
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
                                               cdft_control_type,&
                                               cdft_group_type,&
@@ -392,7 +391,7 @@ CONTAINS
          END DO
          DEALLOCATE (pab)
          CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%cavity, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL transfer_rs2pw(rs_cavity, becke_control%cavity)
          ! Grid points where the Gaussian density falls below eps_cavity are ignored
          ! We can calculate the smallest/largest values along z-direction outside
@@ -400,7 +399,7 @@ CONTAINS
          ! If gradients are needed storage needs to be allocated only for grid points within
          ! these bounds
          IF (in_memory .OR. cdft_control%save_pot) THEN
-            CALL hfun_zero(becke_control%cavity%cr3d, eps_cavity, just_bounds=.TRUE., bounds=bounds)
+            CALL hfun_zero(becke_control%cavity%array, eps_cavity, just_bounds=.TRUE., bounds=bounds)
             ! Save bounds (first nonzero grid point indices)
             bo = group(1)%weight%pw_grid%bounds_local
             IF (bounds(2) .LT. bo(2, 3)) THEN
@@ -420,7 +419,7 @@ CONTAINS
          END IF
          ! Optional printing of cavity (meant for testing, so options currently hardcoded...)
          IF (becke_control%print_cavity) THEN
-            CALL hfun_zero(becke_control%cavity%cr3d, eps_cavity, just_bounds=.FALSE.)
+            CALL hfun_zero(becke_control%cavity%array, eps_cavity, just_bounds=.FALSE.)
             ALLOCATE (stride(3))
             stride = (/2, 2, 2/)
             mpi_io = .TRUE.

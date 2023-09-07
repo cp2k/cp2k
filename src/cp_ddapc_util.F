@@ -51,7 +51,7 @@ MODULE cp_ddapc_util
                                               pw_pool_type
    USE pw_types,                        ONLY: RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -238,7 +238,7 @@ CONTAINS
       TYPE(pw_c1d_type), POINTER                         :: rho0_s_gs, rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho

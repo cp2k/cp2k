@@ -71,11 +71,10 @@ MODULE qs_tddfpt2_forces
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_matrices,             ONLY: calculate_wx_matrix,&
                                               calculate_xwx_matrix
@@ -681,8 +680,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, rho_r_aux, rhoz_r_aux, tau_r, &
+      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, rho_r_aux, rhoz_r_aux, tau_r, &
                                                             trho_r, trho_xc_r, v_xc, v_xc_tau
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -711,12 +710,12 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+                             in_space=REALSPACE)
 
       ALLOCATE (trho_r(nspins), trho_g(nspins))
       DO ispin = 1, nspins
          CALL pw_pool_create_pw(auxbas_pw_pool, trho_r(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, trho_g(ispin), &
                                 in_space=RECIPROCALSPACE)
       END DO
@@ -724,7 +723,7 @@ CONTAINS
          ALLOCATE (trho_xc_r(nspins), trho_xc_g(nspins))
          DO ispin = 1, nspins
             CALL pw_pool_create_pw(auxbas_pw_pool, trho_xc_r(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, trho_xc_g(ispin), &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -947,7 +946,7 @@ CONTAINS
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r_aux(ispin), &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+                                      in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin), &
                                       in_space=RECIPROCALSPACE)
             END DO

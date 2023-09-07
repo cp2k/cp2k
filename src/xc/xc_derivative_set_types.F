@@ -28,10 +28,9 @@ MODULE xc_derivative_set_types
                                               pw_pool_release,&
                                               pw_pool_retain,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               pw_create,&
-                                              pw_type
+                                              pw_r3d_type
    USE xc_derivative_desc,              ONLY: standardize_desc
    USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                               xc_derivative_release,&
@@ -188,8 +187,8 @@ CONTAINS
    END SUBROUTINE xc_dset_zero_all
 
 ! **************************************************************************************************
-!> \brief Recovers a derivative on a pw_type, the caller is responsible to release the grid later
-!>        If the derivative is not found, either creates a blank pw_type from pw_pool or leaves it unassociated
+!> \brief Recovers a derivative on a pw_r3d_type, the caller is responsible to release the grid later
+!>        If the derivative is not found, either creates a blank pw_r3d_type from pw_pool or leaves it unassociated
 !> \param deriv_set ...
 !> \param description ...
 !> \param pw ...
@@ -199,7 +198,7 @@ CONTAINS
    SUBROUTINE xc_dset_recover_pw(deriv_set, description, pw, pw_grid, pw_pool)
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: description
-      TYPE(pw_type), INTENT(OUT)                         :: pw
+      TYPE(pw_r3d_type), INTENT(OUT)                     :: pw
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       TYPE(pw_pool_type), INTENT(IN), OPTIONAL, POINTER  :: pw_pool
 
@@ -207,11 +206,11 @@ CONTAINS
 
       deriv_att => xc_dset_get_derivative(deriv_set, description)
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL pw_create(pw, pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
-                        use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_create(pw, pw_grid=pw_grid, array_ptr=deriv_att%deriv_data, &
+                        in_space=REALSPACE)
          NULLIFY (deriv_att%deriv_data)
       ELSE IF (PRESENT(pw_pool)) THEN
-         CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(pw_pool, pw, in_space=REALSPACE)
          CALL pw_zero(pw)
       END IF
 

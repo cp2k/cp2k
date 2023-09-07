@@ -24,11 +24,10 @@ MODULE qs_elf_methods
                                               pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -58,7 +57,7 @@ CONTAINS
    SUBROUTINE qs_elf_calc(qs_env, elf_r, rho_cutoff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: elf_r
+      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)        :: elf_r
       REAL(kind=dp), INTENT(IN)                          :: rho_cutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_elf_calc'
@@ -79,10 +78,10 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(3)                        :: drho_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_struct_r, tau_struct_r
-      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_struct_r
-      TYPE(pw_type), POINTER                             :: rho_r, tau_r
+      TYPE(pw_r3d_type), DIMENSION(3)                    :: drho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_struct_r, tau_struct_r
+      TYPE(pw_r3d_type), DIMENSION(:, :), POINTER        :: drho_struct_r
+      TYPE(pw_r3d_type), POINTER                         :: rho_r, tau_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
 
@@ -112,7 +111,7 @@ CONTAINS
       IF (.NOT. tau_r_valid) THEN
          ALLOCATE (tau_r)
          CALL pw_pool_create_pw(auxbas_pw_pool, tau_r, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+                                in_space=REALSPACE)
       END IF
       IF (.NOT. tau_r_valid .OR. .NOT. drho_r_valid) THEN
          CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
@@ -121,7 +120,7 @@ CONTAINS
       IF (.NOT. drho_r_valid) THEN
          DO idir = 1, 3
             CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(idir), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
          END DO
       END IF
 
@@ -170,15 +169,15 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  norm_drho = drho_r(1)%cr3d(i, j, k)**2 + &
-                              drho_r(2)%cr3d(i, j, k)**2 + &
-                              drho_r(3)%cr3d(i, j, k)**2
-                  norm_drho = norm_drho/MAX(rho_r%cr3d(i, j, k), rho_cutoff)
-                  rho_53 = cfermi*MAX(rho_r%cr3d(i, j, k), rho_cutoff)**f53
-                  elf_kernel = (tau_r%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
+                  norm_drho = drho_r(1)%array(i, j, k)**2 + &
+                              drho_r(2)%array(i, j, k)**2 + &
+                              drho_r(3)%array(i, j, k)**2
+                  norm_drho = norm_drho/MAX(rho_r%array(i, j, k), rho_cutoff)
+                  rho_53 = cfermi*MAX(rho_r%array(i, j, k), rho_cutoff)**f53
+                  elf_kernel = (tau_r%array(i, j, k) - f18*norm_drho) + 2.87E-5_dp
                   elf_kernel = (elf_kernel/rho_53)**2
-                  elf_r(ispin)%cr3d(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
-                  IF (elf_r(ispin)%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%cr3d(i, j, k) = 0.0_dp
+                  elf_r(ispin)%array(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
+                  IF (elf_r(ispin)%array(i, j, k) < ELFCUT) elf_r(ispin)%array(i, j, k) = 0.0_dp
                END DO
             END DO
          END DO

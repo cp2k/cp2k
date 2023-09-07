@@ -48,10 +48,7 @@ MODULE pw_methods
                             PW_MODE_DISTRIBUTED, &
                             PW_MODE_LOCAL, &
                             pw_grid_type
-   USE pw_types, ONLY: REALDATA3D, &
-                       REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_type, pw_r1d_type, pw_r3d_type, pw_c1d_type, pw_c3d_type, pw_create, pw_release
+   USE pw_types, ONLY: pw_r1d_type, pw_r3d_type, pw_c1d_type, pw_c3d_type, REALSPACE, RECIPROCALSPACE, pw_create, pw_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -76,15 +73,12 @@ MODULE pw_methods
                                   do_standard_sum = 1
 
    INTERFACE pw_zero
-      MODULE PROCEDURE pw_zero_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_zero_${kind}$
       #:endfor
    END INTERFACE pw_zero
 
    INTERFACE pw_copy
-      MODULE PROCEDURE pw_copy_pw
-      MODULE PROCEDURE pw_copy_pw_c3d, pw_copy_c3d_pw
       #:for kind in pw_kinds
          #:for kind2 in pw_kinds
             #:if kind[1:] == kind2[1:]
@@ -96,9 +90,6 @@ MODULE pw_methods
 
    INTERFACE pw_copy_to_array
       #:for kind in pw_kinds
-         #:if kind.endswith('3d')
-            MODULE PROCEDURE pw_copy_to_array_pw_${kind}$
-         #:endif
          #:for kind2 in pw_kinds
             #:if kind[1:] == kind2[1:]
                MODULE PROCEDURE pw_copy_to_array_${kind}$_${kind2}$
@@ -109,9 +100,6 @@ MODULE pw_methods
 
    INTERFACE pw_copy_from_array
       #:for kind in pw_kinds
-         #:if kind.endswith('3d')
-            MODULE PROCEDURE pw_copy_from_array_pw_${kind}$
-         #:endif
          #:for kind2 in pw_kinds
             #:if kind[1:] == kind2[1:]
                MODULE PROCEDURE pw_copy_from_array_${kind}$_${kind2}$
@@ -121,28 +109,24 @@ MODULE pw_methods
    END INTERFACE pw_copy_from_array
 
    INTERFACE pw_scale
-      MODULE PROCEDURE pw_scale_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_scale_${kind}$
       #:endfor
    END INTERFACE pw_scale
 
    INTERFACE pw_axpy
-      MODULE PROCEDURE pw_axpy_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_axpy_${kind}$
       #:endfor
    END INTERFACE pw_axpy
 
    INTERFACE pw_write
-      MODULE PROCEDURE pw_write_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_write_${kind}$
       #:endfor
    END INTERFACE pw_write
 
    INTERFACE pw_multiply
-      MODULE PROCEDURE pw_multiply_pw
       #:for kind in pw_kinds
          #:for kind2 in pw_kinds
             #:if kind[1:]==kind2[1:]
@@ -153,21 +137,18 @@ MODULE pw_methods
    END INTERFACE pw_multiply
 
    INTERFACE pw_divide
-      MODULE PROCEDURE pw_divide_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_divide_${kind}$
       #:endfor
    END INTERFACE pw_divide
 
    INTERFACE pw_divide_by
-      MODULE PROCEDURE pw_divide_by_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_divide_by_${kind}$
       #:endfor
    END INTERFACE pw_divide_by
 
    INTERFACE pw_integral_ab
-      MODULE PROCEDURE pw_integral_ab_pw
       #:for kind in pw_kinds
          #:for kind2 in pw_kinds
             #:if kind[1:] == kind2[1:]
@@ -186,7 +167,6 @@ MODULE pw_methods
    END INTERFACE pw_integral_a2b
 
    INTERFACE pw_multiply_by
-      MODULE PROCEDURE pw_multiply_by_pw
       #:for kind in pw_kinds
          #:for kind2 in pw_kinds
             #:if kind[1:]==kind2[1:]
@@ -194,13 +174,9 @@ MODULE pw_methods
             #:endif
          #:endfor
       #:endfor
-      MODULE PROCEDURE pw_multiply_by_pw_c3d
    END INTERFACE pw_multiply_by
 
    INTERFACE pw_transfer
-      MODULE PROCEDURE pw_transfer_pw
-      MODULE PROCEDURE pw_transfer_c1d_pw, pw_transfer_pw_c1d
-      MODULE PROCEDURE pw_transfer_c3d_pw, pw_transfer_pw_c3d
       #:for kind in pw_kinds
          #:for kind2 in pw_kinds
             MODULE PROCEDURE pw_transfer_${kind}$_${kind2}$
@@ -211,8 +187,6 @@ MODULE pw_methods
    INTERFACE fft_wrap_pw1pw2
       #:for kind in pw_kinds
          #:if kind != 'r1d'
-            MODULE PROCEDURE fft_wrap_pw1pw2_pw_${kind}$
-            MODULE PROCEDURE fft_wrap_pw1pw2_${kind}$_pw
             #:for kind2 in pw_kinds
                #:if kind2 != 'r1d' and (kind[0] != 'r' or kind2[0] != 'r')
                   MODULE PROCEDURE fft_wrap_pw1pw2_${kind}$_${kind2}$
@@ -231,11 +205,12 @@ MODULE pw_methods
    END INTERFACE
 
    INTERFACE pw_set
-      MODULE PROCEDURE pw_set_value, pw_set_array
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_set_value_${kind}$, pw_set_array_${kind}$
+      #:endfor
    END INTERFACE
 
    INTERFACE pw_integrate_function
-      MODULE PROCEDURE pw_integrate_function_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_integrate_function_${kind}$
       #:endfor
@@ -295,13 +270,7 @@ CONTAINS
 
                IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-                  #:if kind[0] == kind2[0]
-                     pw2%array = pw1%array
-                  #:elif kind2[0] == 'c'
-                     pw2%array = CMPLX(pw1%array, 0.0_dp, KIND=dp)
-                  #:else
-                     pw2%array = REAL(pw1%array, KIND=dp)
-                  #:endif
+                  pw2%array = ${type2type('pw1%array', type, type2)}$
 !$OMP END PARALLEL WORKSHARE
                ELSE IF (pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical) THEN
                   IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
@@ -313,23 +282,13 @@ CONTAINS
                      ng = MIN(ng1, ng2)
 !$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(ng, pw1, pw2)
                      DO i = 1, ng
-                        #:if kind == kind2
-                           pw2%array(i) = pw1%array(i)
-                        #:elif kind2 == 'c1d'
-                           pw2%array(i) = CMPLX(pw1%array(i), 0.0_dp, KIND=dp)
-                        #:else
-                           pw2%array(i) = REAL(pw1%array(i), KIND=dp)
-                        #:endif
+                        pw2%array(i) = ${type2type('pw1%array(i)', type, type2)}$
                      END DO
 !$OMP END PARALLEL DO
                      IF (ng2 > ng) THEN
 !$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(ng, ng2, pw2)
                         DO i = ng + 1, ng2
-                           #:if kind2[0] == 'c'
-                              pw2%array(i) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-                           #:else
-                              pw2%array(i) = 0.0_dp
-                           #:endif
+                           pw2%array(i) = ${type2type('0.0_dp', type, type2)}$
                         END DO
 !$OMP END PARALLEL DO
                      END IF
@@ -349,26 +308,14 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(ng,pw1,pw2)
                            DO i = 1, ng
                               j = pw2%pw_grid%gidx(i)
-                              #:if kind == kind2
-                                 pw2%array(i) = pw1%array(j)
-                              #:elif kind2 == 'c1d'
-                                 pw2%array(i) = CMPLX(pw1%array(j), 0.0_dp, KIND=dp)
-                              #:else
-                                 pw2%array(i) = REAL(pw1%array(j), KIND=dp)
-                              #:endif
+                              pw2%array(i) = ${type2type('pw1%array(j)', type, type2)}$
                            END DO
 !$OMP END PARALLEL DO
                         ELSE
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(ng,pw1,pw2)
                            DO i = 1, ng
                               j = pw2%pw_grid%gidx(i)
-                              #:if kind == kind2
-                                 pw2%array(j) = pw1%array(i)
-                              #:elif kind2 == 'c1d'
-                                 pw2%array(j) = CMPLX(pw1%array(i), 0.0_dp, KIND=dp)
-                              #:else
-                                 pw2%array(j) = REAL(pw1%array(i), KIND=dp)
-                              #:endif
+                              pw2%array(j) = ${type2type('pw1%array(i)', type, type2)}$
                            END DO
 !$OMP END PARALLEL DO
                         END IF
@@ -377,26 +324,14 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(ng,pw1,pw2)
                            DO i = 1, ng
                               j = pw1%pw_grid%gidx(i)
-                              #:if kind == kind2
-                                 pw2%array(i) = pw1%array(j)
-                              #:elif kind2 == 'c1d'
-                                 pw2%array(i) = CMPLX(pw1%array(j), 0.0_dp, KIND=dp)
-                              #:else
-                                 pw2%array(i) = REAL(pw1%array(j), KIND=dp)
-                              #:endif
+                              pw2%array(i) = ${type2type('pw1%array(j)', type, type2)}$
                            END DO
 !$OMP END PARALLEL DO
                         ELSE
 !$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(ng,pw1,pw2)
                            DO i = 1, ng
                               j = pw1%pw_grid%gidx(i)
-                              #:if kind == kind2
-                                 pw2%array(j) = pw1%array(i)
-                              #:elif kind2 == 'c1d'
-                                 pw2%array(j) = CMPLX(pw1%array(i), 0.0_dp, KIND=dp)
-                              #:else
-                                 pw2%array(j) = REAL(pw1%array(i), KIND=dp)
-                              #:endif
+                              pw2%array(j) = ${type2type('pw1%array(i)', type, type2)}$
                            END DO
 !$OMP END PARALLEL DO
                         END IF
@@ -409,7 +344,16 @@ CONTAINS
                         #:endif
                      END IF
                      #! 1D/3D grids
+                  #:elif kind[1:]=='3d' and kind[1:]=='3d'
+                     IF (ALL(SHAPE(pw1%array) == SHAPE(pw2%array))) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+                        pw2%array = ${type2type('pw1%array', type, type2)}$
+!$OMP END PARALLEL WORKSHARE
+                     ELSE
+                        CPABORT("Arrays must have the same shape for a copy!")
+                     END IF
                   #:else
+                     CPABORT("Copy not available for mixed 1D/3D grids!")
                   #:endif
                ELSE
                   CPABORT("Incompatible grids")
@@ -793,21 +737,26 @@ CONTAINS
 !> \param pw2 ...
 !> \param alpha ...
 ! **************************************************************************************************
-      SUBROUTINE pw_divide_${kind}$ (pw_out, pw1, pw2, alpha, threshold)
+      SUBROUTINE pw_divide_${kind}$ (pw_out, pw1, pw2, alpha, beta, threshold)
 
          TYPE(pw_${kind}$_type), INTENT(INOUT)              :: pw_out
          TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1, pw2
-         REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha, threshold
+         REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha, beta, threshold
 
          CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_divide_${kind}$'
 
          INTEGER                                            :: handle
-         REAL(KIND=dp)                                      :: my_alpha, my_threshold
+         REAL(KIND=dp)                                      :: my_alpha, my_beta, my_threshold
 
          CALL timeset(routineN, handle)
 
          my_alpha = 1.0_dp
          IF (PRESENT(alpha)) my_alpha = alpha
+
+         my_beta = 1.0_dp
+         IF (PRESENT(beta)) my_beta = beta
+
+         IF (my_beta /= 1.0_dp) CALL pw_scale(pw_out, my_beta)
 
          IF (ASSOCIATED(pw_out%pw_grid, pw1%pw_grid) .AND. &
              ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
@@ -1094,7 +1043,7 @@ CONTAINS
                   #:if kind==kind2 or kind[0]=='c'
                      pw1%array = my_alpha*pw1%array*pw2%array
                   #:else
-                     pw1%array = pw1%array*REAL(pw2%array, KIND=dp)
+                     pw1%array = my_alpha*pw1%array*REAL(pw2%array, KIND=dp)
                   #:endif
 !$OMP END PARALLEL WORKSHARE
                END IF
@@ -1145,338 +1094,6 @@ CONTAINS
          CALL timestop(handle)
       END SUBROUTINE pw_divide_by_${kind}$
    #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw1 ...
-!> \param pw2 ...
-! **************************************************************************************************
-   SUBROUTINE pw_multiply_by_pw_c3d(pw1, pw2)
-      TYPE(pw_c3d_type), INTENT(INOUT)                       :: pw1
-      TYPE(pw_type), INTENT(IN)                      :: pw2
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_by_pw_r1d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) &
-         CPABORT("Invalid space combination!")
-      IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
-         CPABORT("Incompatible grids!")
-      IF (pw2%in_use /= REALDATA3D) &
-         CPABORT("Only R3D is implemented!")
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-      pw1%array = pw1%array*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-
-      CALL timestop(handle)
-   END SUBROUTINE pw_multiply_by_pw_c3d
-
-! **************************************************************************************************
-!> \brief Set values of a pw type to zero
-!> \param pw ...
-!> \par History
-!>      none
-!> \author apsi
-! **************************************************************************************************
-   SUBROUTINE pw_zero_pw(pw)
-
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero_pw'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-         pw%cr3d(:, :, :) = 0.0_dp
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("No possible data field!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_zero_pw
-
-! **************************************************************************************************
-!> \brief copy a pw type variable
-!> \param pw1 ...
-!> \param pw2 ...
-! **************************************************************************************************
-   SUBROUTINE pw_copy_c3d_pw(pw1, pw2)
-
-      TYPE(pw_c3d_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_pw_c3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) &
-         CPABORT("Both pw grids must be in the same space to perform a copy!")
-
-      IF (pw2%in_use == REALDATA3D) THEN
-         CPASSERT(ALL(SHAPE(pw1%array) == SHAPE(pw2%cr3d)))
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-         pw2%cr3d = REAL(pw1%array, KIND=dp)
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Unsupported pw2%in_use!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_c3d_pw
-   SUBROUTINE pw_copy_pw_c3d(pw1, pw2)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_c3d_type), INTENT(INOUT)                       :: pw2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_pw_c3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) &
-         CPABORT("Both pw grids must be in the same space to perform a copy!")
-
-      IF (pw1%in_use == REALDATA3D) THEN
-         CPASSERT(ALL(SHAPE(pw2%array) == SHAPE(pw1%cr3d)))
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-         pw2%array = CMPLX(pw1%cr3d, 0.0_dp, KIND=dp)
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Unsupported pw2%in_use!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_pw_c3d
-
-! **************************************************************************************************
-!> \brief copy a pw type variable
-!> \param pw1 ...
-!> \param pw2 ...
-! **************************************************************************************************
-   SUBROUTINE pw_copy_pw(pw1, pw2)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_pw'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) &
-         CPABORT("Both pw grids must be in the same space to perform a copy!")
-
-      IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-
-         IF (pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical) THEN
-
-            IF (pw_compatible(pw1%pw_grid, pw2%pw_grid)) THEN
-
-               CPABORT("No suitable data field")
-
-            ELSE
-               CPABORT("Incompatible grids")
-            END IF
-
-         ELSE IF (.NOT. (pw1%pw_grid%spherical .OR. &
-                         pw2%pw_grid%spherical)) THEN
-
-            IF (pw1%in_use == REALDATA3D .AND. pw1%in_use == pw2%in_use .AND. &
-                pw1%in_space == REALSPACE) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-               pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-            ELSE
-               CPABORT("No suitable data field")
-            END IF
-
-         ELSE
-
-            CPABORT("Incompatible grids")
-
-         END IF
-
-      ELSE
-
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-            pw2%cr3d = pw1%cr3d
-!$OMP END PARALLEL WORKSHARE
-         ELSE
-            CPABORT("No suitable data field")
-         END IF
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_pw
-
-! **************************************************************************************************
-!> \brief copy a pw type from an array
-!> \param pw1 ...
-!> \param array ...
-! **************************************************************************************************
-   SUBROUTINE pw_copy_from_array_pw_r3d(pw1, array)
-
-      TYPE(pw_type), INTENT(INOUT)                       :: pw1
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: array
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_pw_r3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_use == REALDATA3D) THEN
-         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
-            CPABORT("Copy requires PW grid and array to have the same shape!")
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
-         pw1%cr3d = array
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Unsupported pw%in_use!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_from_array_pw_r3d
-
-! **************************************************************************************************
-!> \brief copy a pw type into an array
-!> \param pw1 ...
-!> \param array ...
-! **************************************************************************************************
-   SUBROUTINE pw_copy_from_array_pw_c3d(pw1, array)
-
-      TYPE(pw_type), INTENT(INOUT)                       :: pw1
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: array
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_from_array_pw_c3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_use == REALDATA3D) THEN
-         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
-            CPABORT("Copy requires PW grid and array to have the same shape!")
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
-         pw1%cr3d = REAL(array, KIND=dp)
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Unsupported pw%in_use!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_from_array_pw_c3d
-
-! **************************************************************************************************
-!> \brief copy a pw type to an array
-!> \param pw1 ...
-!> \param array ...
-! **************************************************************************************************
-   SUBROUTINE pw_copy_to_array_pw_r3d(pw1, array)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_pw_r3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_use == REALDATA3D) THEN
-         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
-            CPABORT("Copy requires PW grid and array to have the same shape!")
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
-         array = pw1%cr3d
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Unsupported pw%in_use!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_to_array_pw_r3d
-
-! **************************************************************************************************
-!> \brief copy a pw type into an array
-!> \param pw1 ...
-!> \param array ...
-! **************************************************************************************************
-   SUBROUTINE pw_copy_to_array_pw_c3d(pw1, array)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_to_array_pw_c3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_use == REALDATA3D) THEN
-         IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(array))) &
-            CPABORT("Copy requires PW grid and array to have the same shape!")
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,array)
-         array = CMPLX(pw1%cr3d, 0.0_dp, KIND=dp)
-!$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Unsupported pw%in_use!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_copy_to_array_pw_c3d
-
-! **************************************************************************************************
-!> \brief multiplies pw coeffs with a number
-!> \param pw ...
-!> \param a ...
-!> \par History
-!>      11.2004 created [Joost VandeVondele]
-! **************************************************************************************************
-   SUBROUTINE pw_scale_pw(pw, a)
-
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
-      REAL(KIND=dp), INTENT(IN)                          :: a
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale_pw'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      SELECT CASE (pw%in_use)
-      CASE (REALDATA3D)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(A, pw)
-         pw%cr3d(:, :, :) = a*pw%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-      CASE DEFAULT
-         CPABORT("No suitable data field")
-      END SELECT
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_scale_pw
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -2197,403 +1814,6 @@ CONTAINS
    #:endfor
 
 ! **************************************************************************************************
-!> \brief Generalize copy of pw types
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (13-Mar-2001) : added gather/scatter cases
-!> \author JGH (25-Feb-2001)
-!> \note
-!>      Copy routine that allows for in_space changes
-! **************************************************************************************************
-   SUBROUTINE pw_transfer_c3d_pw(pw1, pw2, debug)
-
-      TYPE(pw_c3d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer_c3d_pw'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      !sample peak memory
-      CALL m_memory()
-
-      IF (pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE) THEN
-         ! simple copy should do
-         CALL pw_copy(pw1, pw2)
-      ELSE IF (pw1%in_space == RECIPROCALSPACE .AND. &
-               pw2%in_space == RECIPROCALSPACE) THEN
-
-         CPABORT("Do not know what to do")
-      ELSE
-         ! FFT needed, all further tests done in fft_wrap_pw1pw2
-         CALL fft_wrap_pw1pw2(pw1, pw2, debug)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_transfer_c3d_pw
-
-   SUBROUTINE pw_transfer_pw_c3d(pw1, pw2, debug)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_c3d_type), INTENT(INOUT)                       :: pw2
-      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer_pw_c3d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      !sample peak memory
-      CALL m_memory()
-
-      IF (pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE) THEN
-         ! simple copy should do
-         CALL pw_copy(pw1, pw2)
-      ELSE IF (pw1%in_space == RECIPROCALSPACE .AND. &
-               pw2%in_space == RECIPROCALSPACE) THEN
-
-         CPABORT("Do not know what to do")
-      ELSE
-         ! FFT needed, all further tests done in fft_wrap_pw1pw2
-         CALL fft_wrap_pw1pw2(pw1, pw2, debug)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_transfer_pw_c3d
-
-   SUBROUTINE pw_transfer_c1d_pw(pw1, pw2, debug)
-
-      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer_c1d_pw'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      !sample peak memory
-      CALL m_memory()
-
-      IF (pw1%in_space /= pw2%in_space) THEN
-         CALL fft_wrap_pw1pw2(pw1, pw2, debug)
-      ELSE
-         CPABORT("Copy not implemented!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_transfer_c1d_pw
-
-   SUBROUTINE pw_transfer_pw_c1d(pw1, pw2, debug)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_c1d_type), INTENT(INOUT)                       :: pw2
-      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer_pw_c1d'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) THEN
-         CALL fft_wrap_pw1pw2(pw1, pw2, debug)
-      ELSE
-         CPABORT("Copy not implemented!")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_transfer_pw_c1d
-
-! **************************************************************************************************
-!> \brief Generalize copy of pw types
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (13-Mar-2001) : added gather/scatter cases
-!> \author JGH (25-Feb-2001)
-!> \note
-!>      Copy routine that allows for in_space changes
-! **************************************************************************************************
-   SUBROUTINE pw_transfer_pw(pw1, pw2)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer_pw'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      !sample peak memory
-      CALL m_memory()
-
-      IF (pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE) THEN
-
-         ! simple copy should do
-         CALL pw_copy(pw1, pw2)
-
-      ELSE IF (pw1%in_space == RECIPROCALSPACE .AND. &
-               pw2%in_space == RECIPROCALSPACE) THEN
-
-         IF (pw1%in_use == pw2%in_use) THEN
-
-            ! simple copy should do
-            CALL pw_copy(pw1, pw2)
-
-         ELSE
-
-            CPABORT("Do not know what to do")
-
-         END IF
-
-      ELSE
-
-         CPABORT("PW grids must be in the same space now!")
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_transfer_pw
-
-! **************************************************************************************************
-!> \brief pw2 = alpha*pw1 + beta*pw2
-!>      alpha defaults to 1, beta defaults to 1
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-!> \param beta ...
-!> \param allow_noncompatible_grids ...
-!> \par History
-!>      JGH (21-Feb-2003) : added reference grid functionality
-!>      JGH (01-Dec-2007) : rename and remove complex alpha
-!> \author apsi
-!> \note
-!>      Currently only summing up of respective types allowed,
-!>      in order to avoid errors
-! **************************************************************************************************
-   SUBROUTINE pw_axpy_pw(pw1, pw2, alpha, beta, allow_noncompatible_grids)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
-      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy_pw'
-
-      INTEGER                                            :: handle
-      LOGICAL                                            :: my_allow_noncompatible_grids
-      REAL(KIND=dp)                                      :: my_alpha, my_beta
-
-      CALL timeset(routineN, handle)
-
-      my_alpha = 1.0_dp
-      IF (PRESENT(alpha)) my_alpha = alpha
-
-      my_beta = 1.0_dp
-      IF (PRESENT(beta)) my_beta = beta
-
-      my_allow_noncompatible_grids = .FALSE.
-      IF (PRESENT(allow_noncompatible_grids)) my_allow_noncompatible_grids = allow_noncompatible_grids
-
-      IF (my_beta /= 1.0_dp) THEN
-         IF (my_beta == 0.0_dp) THEN
-            CALL pw_zero(pw2)
-         ELSE
-            IF (pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw2,my_beta)
-               pw2%cr3d = pw2%cr3d*my_beta
-!$OMP END PARALLEL WORKSHARE
-            ELSE
-               CPABORT("Unknown array type in use for PW!")
-            END IF
-         END IF
-      END IF
-
-      IF (ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-            IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
-               pw2%cr3d = pw2%cr3d + pw1%cr3d
-!$OMP END PARALLEL WORKSHARE
-            ELSE IF (my_alpha /= 0.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
-               pw2%cr3d = pw2%cr3d + my_alpha*pw1%cr3d
-!$OMP END PARALLEL WORKSHARE
-            END IF
-         ELSE
-            CPABORT("No suitable data field")
-         END IF
-
-      ELSE IF (pw_compatible(pw1%pw_grid, pw2%pw_grid) .OR. my_allow_noncompatible_grids) THEN
-
-         IF (pw1%in_use == REALDATA3D .AND. &
-             pw2%in_use == REALDATA3D .AND. &
-             pw1%in_space == REALSPACE .AND. &
-             pw2%in_space == REALSPACE) THEN
-
-            IF (ANY(SHAPE(pw1%cr3d) /= SHAPE(pw2%cr3d))) &
-               CPABORT("Noncommensurate grids not implemented for real-valued grids!")
-
-            IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-               pw2%cr3d(:, :, :) = pw2%cr3d(:, :, :) + pw1%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2,my_alpha)
-               pw2%cr3d(:, :, :) = pw2%cr3d(:, :, :) + my_alpha*pw1%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-            END IF
-         ELSE
-            CPABORT("No suitable data field")
-         END IF
-
-      ELSE
-
-         CPABORT("Grids not compatible")
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_axpy_pw
-
-! **************************************************************************************************
-!> \brief pw_out = pw_out + alpha * pw1 / pw2
-!>      alpha defaults to 1, threshold provides a lower bound on the magnitude of each element
-!> \param pw_out ...
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-! **************************************************************************************************
-   SUBROUTINE pw_divide_pw(pw_out, pw1, pw2, alpha, beta, threshold)
-
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
-      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha, beta, threshold
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_divide_pw'
-
-      INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: my_alpha, my_beta, my_threshold
-
-      CALL timeset(routineN, handle)
-
-      my_alpha = 1.0_dp
-      IF (PRESENT(alpha)) my_alpha = alpha
-
-      my_beta = 0.0_dp
-      IF (PRESENT(beta)) my_beta = beta
-
-      CALL pw_scale(pw_out, my_beta)
-
-      IF (ASSOCIATED(pw_out%pw_grid, pw2%pw_grid) .AND. &
-          ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
-         IF (PRESENT(threshold)) THEN
-            my_threshold = MAX(threshold, 0.0_dp)
-            IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
-                pw_out%in_use == REALDATA3D) THEN
-               IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out,pw1,pw2,my_threshold)
-                  pw_out%cr3d = pw_out%cr3d + pw1%cr3d/SIGN(MAX(ABS(pw2%cr3d), my_threshold), pw2%cr3d)
-!$OMP END PARALLEL WORKSHARE
-               ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha,pw_out,pw1,pw2,my_threshold)
-                  pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d/SIGN(MAX(ABS(pw2%cr3d), my_threshold), pw2%cr3d)
-!$OMP END PARALLEL WORKSHARE
-               END IF
-            ELSE
-               CPABORT("No suitable data field")
-            END IF
-         ELSE
-            IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
-                pw_out%in_use == REALDATA3D) THEN
-               IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-                  pw_out%cr3d = pw_out%cr3d + pw1%cr3d/pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-               ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
-                  pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d/pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-               END IF
-            ELSE
-               CPABORT("No suitable data field")
-            END IF
-         END IF
-      ELSE
-         CPABORT("Grids not compatible")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_divide_pw
-
-! **************************************************************************************************
-!> \brief pw_out = pw_out + alpha * pw1 * pw2
-!>      alpha defaults to 1
-!> \param pw_out ...
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-!> \author JGH
-! **************************************************************************************************
-   SUBROUTINE pw_multiply_pw(pw_out, pw1, pw2, alpha, beta)
-
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
-      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha, beta
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply_pw'
-
-      INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: my_alpha
-
-      CALL timeset(routineN, handle)
-
-      my_alpha = 1.0_dp
-      IF (PRESENT(alpha)) my_alpha = alpha
-
-      IF (ASSOCIATED(pw_out%pw_grid, pw2%pw_grid) .AND. &
-          ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
-
-         IF (PRESENT(beta)) CALL pw_scale(pw_out, beta)
-
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
-             pw_out%in_use == REALDATA3D) THEN
-            IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-               pw_out%cr3d = pw_out%cr3d + pw1%cr3d*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-            ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
-               pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-            END IF
-         ELSE
-            CPABORT("No suitable data field")
-         END IF
-
-      ELSE
-         CPABORT("Grids not compatible")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_multiply_pw
-
-! **************************************************************************************************
 !> \brief Gathers the pw vector from a 3d data field
 !> \param pw ...
 !> \param c ...
@@ -2890,7 +2110,7 @@ CONTAINS
             #! real to real transforms are very special Fourier transforms not covered here
             #:if kind2 != 'r1d' and (kind[0] != 'r' or kind2[0] != 'r')
 ! **************************************************************************************************
-!> \brief Generic function for 3d FFT of a coefficient_type or pw_type
+!> \brief Generic function for 3d FFT of a pw grid
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param debug ...
@@ -3353,554 +2573,8 @@ CONTAINS
                END SUBROUTINE fft_wrap_pw1pw2_${kind}$_${kind2}$
             #:endif
          #:endfor
-
-! **************************************************************************************************
-!> \brief Generic function for 3d FFT of a coefficient_type or pw_type
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (30-12-2000): New setup of functions and adaptation to parallelism
-!>      JGH (04-01-2001): Moved routine from pws to this module, only covers
-!>                        pw_types, no more coefficient types
-!> \author apsi
-!> \note
-!>       fft_wrap_pw1pw2
-! **************************************************************************************************
-         SUBROUTINE fft_wrap_pw1pw2_${kind}$_pw(pw1, pw2, debug)
-
-            TYPE(pw_${kind}$_type), INTENT(IN)                 :: pw1
-            TYPE(pw_type), INTENT(INOUT)                       :: pw2
-            LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-            CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2_${kind}$_pw'
-
-            CHARACTER(LEN=9)                                   :: mode
-            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
-            COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER      :: c_in, c_out
-            INTEGER                                            :: dir, handle, handle2, my_pos, nrays, &
-                                                                  out_space, out_unit
-            INTEGER, DIMENSION(:), POINTER                     :: n
-            LOGICAL                                            :: test
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-            LOGICAL                                            :: use_pw_gpu
-#endif
-            REAL(KIND=dp)                                      :: norm
-            #:if kind == 'c1d'
-               INTEGER, DIMENSION(3) :: nloc
-            #:endif
-
-            CALL timeset(routineN, handle2)
-            out_unit = cp_logger_get_default_io_unit()
-            CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
-                                                     CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
-
-            NULLIFY (c_in)
-            NULLIFY (c_out)
-
-            IF (PRESENT(debug)) THEN
-               test = debug
-            ELSE
-               test = .FALSE.
-            END IF
-
-            !..check if grids are compatible
-            IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-               IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
-                  CPABORT("PW grids not compatible")
-               END IF
-               IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
-                  CPABORT("PW grids have not compatible MPI groups")
-               END IF
-            END IF
-
-            !..prepare input
-            IF (pw1%in_space == REALSPACE) THEN
-               dir = FWFFT
-               norm = 1.0_dp/pw1%pw_grid%ngpts
-               out_space = RECIPROCALSPACE
-            ELSE IF (pw1%in_space == RECIPROCALSPACE) THEN
-               dir = BWFFT
-               norm = 1.0_dp
-               out_space = REALSPACE
-            ELSE
-               CPABORT("Error in space tag")
-            END IF
-
-            n => pw1%pw_grid%npts
-
-            mode = fftselect(pw2%in_use, pw2%in_use, pw1%in_space)
-
-            IF (pw1%pw_grid%para%mode == PW_MODE_LOCAL) THEN
-
-               !
-               !..replicated data, use local FFT
-               !
-
-               IF (test .AND. out_unit > 0) THEN
-                  WRITE (out_unit, '(A)') " FFT Protocol "
-                  IF (dir == FWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                  IF (dir == BWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                  IF (pw1%in_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                  IF (pw1%in_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                  IF (out_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                  IF (out_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                  WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
-               END IF
-
-               SELECT CASE (mode)
-               CASE DEFAULT
-                  CPABORT("Illegal combination of in_use and in_space")
-               CASE ("BW_R3DR3D")
-                  #:if kind == 'c3d'
-                     c_in => pw1%array
-                     ALLOCATE (c_out(n(1), n(2), n(3)))
-                     CALL fft3d(dir, n, c_in, c_out, scale=norm, debug=test)
-                     ! use real part only
-                     IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                     pw2%cr3d = REAL(c_out, KIND=dp)
-                     DEALLOCATE (c_out)
-                  #:elif kind == 'c1d'
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                     CALL pw_gpu_c1dr3d_3d(pw1, pw2, scale=norm)
-#elif defined (__PW_FPGA)
-                     ALLOCATE (c_out(n(1), n(2), n(3)))
-                     ! check if bitstream for the fft size is present
-                     ! if not, perform fft3d in CPU
-                     IF (pw_fpga_init_bitstream(n) == 1) THEN
-                        CALL pw_scatter(pw1, c_out)
-                        ! transform using FPGA
-#if (__PW_FPGA_SP && __PW_FPGA)
-                        CALL pw_fpga_c1dr3d_3d_sp(n, c_out)
-#else
-                        CALL pw_fpga_c1dr3d_3d_dp(n, c_out)
-#endif
-                        CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
-                        ! use real part only
-                        CALL pw_copy_from_array(pw2, c_out)
-                     ELSE
-                        IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                        CALL pw_scatter(pw1, c_out)
-                        ! transform
-                        CALL fft3d(dir, n, c_out, scale=norm, debug=test)
-                        ! use real part only
-                        IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                        CALL pw_copy_from_array(pw2, c_out)
-                     END IF
-                     DEALLOCATE (c_out)
-#else
-                     ALLOCATE (c_out(n(1), n(2), n(3)))
-                     IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                     CALL pw_scatter(pw1, c_out)
-                     ! transform
-                     CALL fft3d(dir, n, c_out, scale=norm, debug=test)
-                     ! use real part only
-                     IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                     CALL pw_copy_from_array(pw2, c_out)
-                     DEALLOCATE (c_out)
-#endif
-                  #:else
-                     CPABORT("Unknown kind ${kind}$!")
-                  #:endif
-               END SELECT
-
-               IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') " End of FFT Protocol "
-
-            ELSE
-
-               !
-               !..parallel FFT
-               !
-
-               IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
-                  WRITE (out_unit, '(A)') " FFT Protocol "
-                  IF (dir == FWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                  IF (dir == BWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                  IF (pw1%in_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                  IF (pw1%in_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                  IF (out_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                  IF (out_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                  WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
-               END IF
-
-               my_pos = pw1%pw_grid%para%my_pos
-               nrays = pw1%pw_grid%para%nyzray(my_pos)
-               grays => pw1%pw_grid%grays
-               CPASSERT(SIZE(grays, 1) == n(1))
-               CPASSERT(SIZE(grays, 2) == nrays)
-
-               SELECT CASE (mode)
-               CASE DEFAULT
-                  CALL cp_abort(__LOCATION__, &
-                                "Illegal combination of in_use and in_space "// &
-                                "in parallel 3d FFT")
-               CASE ("BW_R3DR3D")
-                  #:if kind == 'c1d'
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                     ! (no ray dist. is not efficient in CUDA)
-                     use_pw_gpu = pw1%pw_grid%para%ray_distribution
-                     IF (use_pw_gpu) THEN
-                        CALL pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale=norm)
-                     ELSE
-#endif
-!..   prepare input
-                        IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
-                           WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                        grays = z_zero
-                        CALL pw_scatter(pw1, grays)
-                        nloc = pw2%pw_grid%npts_local
-                        ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-                        !..transform
-                        IF (pw1%pw_grid%para%ray_distribution) THEN
-                           CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
-                                      pw1%pw_grid%para%rs_group, &
-                                      pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                                      pw1%pw_grid%para%bo, scale=norm, debug=test)
-                        ELSE
-                           CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
-                                      pw1%pw_grid%para%bo, scale=norm, debug=test)
-                        END IF
-                        !..prepare output
-                        IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
-                           WRITE (out_unit, '(A)') "  Real part "
-                        CALL pw_copy_from_array(pw2, c_in)
-                        DEALLOCATE (c_in)
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                     END IF
-#endif
-                  #:else
-                     CPABORT("Unknown kind ${kind}$!")
-                  #:endif
-               END SELECT
-
-            END IF
-
-            IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
-               WRITE (out_unit, '(A)') " End of FFT Protocol "
-            END IF
-
-            CALL timestop(handle)
-            CALL timestop(handle2)
-
-         END SUBROUTINE fft_wrap_pw1pw2_${kind}$_pw
-
-! **************************************************************************************************
-!> \brief Generic function for 3d FFT of a coefficient_type or pw_type
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (30-12-2000): New setup of functions and adaptation to parallelism
-!>      JGH (04-01-2001): Moved routine from pws to this module, only covers
-!>                        pw_types, no more coefficient types
-!> \author apsi
-!> \note
-!>       fft_wrap_pw1pw2
-! **************************************************************************************************
-         SUBROUTINE fft_wrap_pw1pw2_pw_${kind}$ (pw1, pw2, debug)
-
-            TYPE(pw_type), INTENT(IN)                  :: pw1
-            TYPE(pw_${kind}$_type), INTENT(INOUT)               :: pw2
-            LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-            CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2_pw_${kind}$'
-
-            CHARACTER(LEN=9)                                   :: mode
-            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
-            COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER      :: c_in, c_out
-            INTEGER                                            :: dir, handle, handle2, my_pos, nrays, &
-                                                                  out_space, out_unit
-            INTEGER, DIMENSION(:), POINTER                     :: n
-            LOGICAL                                            :: test
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-            LOGICAL                                            :: use_pw_gpu
-#endif
-            REAL(KIND=dp)                                      :: norm
-            #:if kind == 'c1d'
-               INTEGER, DIMENSION(3) :: nloc
-            #:endif
-
-            CALL timeset(routineN, handle2)
-            out_unit = cp_logger_get_default_io_unit()
-            CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
-                                                     CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
-
-            NULLIFY (c_in)
-            NULLIFY (c_out)
-
-            IF (PRESENT(debug)) THEN
-               test = debug
-            ELSE
-               test = .FALSE.
-            END IF
-
-            !..check if grids are compatible
-            IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-               IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
-                  CPABORT("PW grids not compatible")
-               END IF
-               IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
-                  CPABORT("PW grids have not compatible MPI groups")
-               END IF
-            END IF
-
-            !..prepare input
-            IF (pw1%in_space == REALSPACE) THEN
-               dir = FWFFT
-               norm = 1.0_dp/pw1%pw_grid%ngpts
-               out_space = RECIPROCALSPACE
-            ELSE IF (pw1%in_space == RECIPROCALSPACE) THEN
-               dir = BWFFT
-               norm = 1.0_dp
-               out_space = REALSPACE
-            ELSE
-               CPABORT("Error in space tag")
-            END IF
-
-            n => pw1%pw_grid%npts
-
-            mode = fftselect(pw1%in_use, pw1%in_use, pw1%in_space)
-
-            IF (pw1%pw_grid%para%mode == PW_MODE_LOCAL) THEN
-
-               !
-               !..replicated data, use local FFT
-               !
-
-               IF (test .AND. out_unit > 0) THEN
-                  WRITE (out_unit, '(A)') " FFT Protocol "
-                  IF (dir == FWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                  IF (dir == BWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                  IF (pw1%in_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                  IF (pw1%in_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                  IF (out_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                  IF (out_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                  WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
-               END IF
-
-               SELECT CASE (mode)
-               CASE DEFAULT
-                  CPABORT("Illegal combination of in_use and in_space")
-               CASE ("FW_R3DR3D")
-                  #:if kind == 'c3d'
-                     pw2%array = CMPLX(pw1%cr3d, 0.0_dp, KIND=dp)
-                     c_out => pw2%array
-                     CALL fft3d(dir, n, c_out, scale=norm, debug=test)
-                  #:elif kind == 'c1d'
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                     CALL pw_gpu_r3dc1d_3d(pw1, pw2, scale=norm)
-#elif defined (__PW_FPGA)
-                     ALLOCATE (c_out(n(1), n(2), n(3)))
-                     ! check if bitstream for the fft size is present
-                     ! if not, perform fft3d in CPU
-                     IF (pw_fpga_init_bitstream(n) == 1) THEN
-                        CALL pw_copy_to_array(pw1, c_out)
-#if (__PW_FPGA_SP && __PW_FPGA)
-                        CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
-#else
-                        CALL pw_fpga_r3dc1d_3d_dp(n, c_out)
-#endif
-                        CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
-                        CALL pw_gather(pw2, c_out)
-                     ELSE
-                        CALL pw_copy_to_array(pw1, c_out)
-                        CALL fft3d(dir, n, c_out, scale=norm, debug=test)
-                        CALL pw_gather(pw2, c_out)
-                     END IF
-                     DEALLOCATE (c_out)
-#else
-                     ALLOCATE (c_out(n(1), n(2), n(3)))
-                     CALL pw_copy_to_array(pw1, c_out)
-                     CALL fft3d(dir, n, c_out, scale=norm, debug=test)
-                     CALL pw_gather(pw2, c_out)
-                     DEALLOCATE (c_out)
-#endif
-                  #:else
-                     CPABORT("Unknown kind ${kind}$!")
-                  #:endif
-               END SELECT
-
-               IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') " End of FFT Protocol "
-
-            ELSE
-
-               !
-               !..parallel FFT
-               !
-
-               IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
-                  WRITE (out_unit, '(A)') " FFT Protocol "
-                  IF (dir == FWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                  IF (dir == BWFFT) WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                  IF (pw1%in_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                  IF (pw1%in_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                  IF (out_space == REALSPACE) &
-                     WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                  IF (out_space == RECIPROCALSPACE) &
-                     WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                  WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
-               END IF
-
-               my_pos = pw1%pw_grid%para%my_pos
-               nrays = pw1%pw_grid%para%nyzray(my_pos)
-               grays => pw1%pw_grid%grays
-               CPASSERT(SIZE(grays, 1) == n(1))
-               CPASSERT(SIZE(grays, 2) == nrays)
-
-               SELECT CASE (mode)
-               CASE DEFAULT
-                  CALL cp_abort(__LOCATION__, &
-                                "Illegal combination of in_use and in_space "// &
-                                "in parallel 3d FFT")
-               CASE ("FW_R3DR3D")
-                  #:if kind == 'c1d'
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                     ! (no ray dist. is not efficient in CUDA)
-                     use_pw_gpu = pw1%pw_grid%para%ray_distribution
-                     IF (use_pw_gpu) THEN
-                        CALL pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale=norm)
-                     ELSE
-#endif
-!..   prepare input
-                        nloc = pw1%pw_grid%npts_local
-                        ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-                        CALL pw_copy_to_array(pw1, c_in)
-                        grays = z_zero
-                        !..transform
-                        IF (pw1%pw_grid%para%ray_distribution) THEN
-                           CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
-                                      pw1%pw_grid%para%rs_group, &
-                                      pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                                      pw1%pw_grid%para%bo, scale=norm, debug=test)
-                        ELSE
-                           CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
-                                      pw1%pw_grid%para%bo, scale=norm, debug=test)
-                        END IF
-                        !..prepare output
-                        IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
-                           WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                        CALL pw_gather(pw2, grays)
-                        DEALLOCATE (c_in)
-
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                     END IF
-#endif
-                  #:else
-                     CPABORT("Unknown kind ${kind}$!")
-                  #:endif
-               END SELECT
-
-            END IF
-
-            IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
-               WRITE (out_unit, '(A)') " End of FFT Protocol "
-            END IF
-
-            CALL timestop(handle)
-            CALL timestop(handle2)
-
-         END SUBROUTINE fft_wrap_pw1pw2_pw_${kind}$
       #:endif
    #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-!> \param use1 ...
-!> \param use2 ...
-!> \param space1 ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION fftselect(use1, use2, space1) RESULT(mode)
-
-      INTEGER, INTENT(IN)                                :: use1, use2, space1
-      CHARACTER(LEN=9)                                   :: mode
-
-      IF (space1 == REALSPACE) THEN
-         mode(1:3) = "FW_"
-      ELSE IF (space1 == RECIPROCALSPACE) THEN
-         mode(1:3) = "BW_"
-      ELSE
-         CPABORT("Error in space tag")
-      END IF
-
-      SELECT CASE (use1)
-      CASE (REALDATA3D)
-         mode(4:6) = "R3D"
-      CASE DEFAULT
-         CPABORT("Error in use1 tag")
-      END SELECT
-
-      SELECT CASE (use2)
-      CASE (REALDATA3D)
-         mode(7:9) = "R3D"
-      CASE DEFAULT
-         CPABORT("Error in use1 tag")
-      END SELECT
-
-   END FUNCTION fftselect
-
-! **************************************************************************************************
-!> \brief writes a small description of the actual grid
-!>      (change to output the data as cube file, maybe with an
-!>      optional long_description arg?)
-!> \param pw the pw data to output
-!> \param unit_nr the unit to output to
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE pw_write_pw(pw, unit_nr)
-
-      TYPE(pw_type), INTENT(in)                          :: pw
-      INTEGER, INTENT(in)                                :: unit_nr
-
-      INTEGER                                            :: iostatus
-
-      WRITE (unit=unit_nr, fmt="('<pw>:{ ')", iostat=iostatus)
-
-      SELECT CASE (pw%in_use)
-      CASE (REALDATA3D)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=REALDATA3D"
-         IF (ASSOCIATED(pw%cr3d)) THEN
-            WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')") &
-               LBOUND(pw%cr3d, 1), UBOUND(pw%cr3d, 1), LBOUND(pw%cr3d, 2), UBOUND(pw%cr3d, 2), &
-               LBOUND(pw%cr3d, 3), UBOUND(pw%cr3d, 3)
-         ELSE
-            WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
-         END IF
-      CASE default
-         WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')", iostat=iostatus) &
-            pw%in_use
-      END SELECT
-
-      SELECT CASE (pw%in_space)
-      CASE (REALSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=REALSPACE"
-      CASE (RECIPROCALSPACE)
-         WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=RECIPROCALSPACE"
-      CASE default
-         WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')", iostat=iostatus) &
-            pw%in_space
-      END SELECT
-
-      WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')", iostat=iostatus) &
-         pw%pw_grid%id_nr
-
-   END SUBROUTINE pw_write_pw
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3924,89 +2598,6 @@ CONTAINS
       END IF
 
    END FUNCTION pw_compatible
-
-! **************************************************************************************************
-!> \brief Calculate integral over unit cell for functions in plane wave basis
-!>      only returns the real part of it ......
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param sumtype ...
-!> \param just_sum ...
-!> \param local_only ...
-!> \return ...
-!> \par History
-!>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
-!> \author apsi
-! **************************************************************************************************
-   FUNCTION pw_integral_ab_pw(pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
-
-      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
-      INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
-      LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum, local_only
-      REAL(KIND=dp)                                      :: integral_value
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab_pw'
-
-      INTEGER                                            :: handle, loc_sumtype
-      LOGICAL                                            :: my_just_sum, my_local_only
-
-      CALL timeset(routineN, handle)
-
-      loc_sumtype = do_accurate_sum
-      IF (PRESENT(sumtype)) loc_sumtype = sumtype
-
-      my_local_only = .FALSE.
-      IF (PRESENT(local_only)) my_local_only = local_only
-
-      IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-         CPABORT("Grids incompatible")
-      END IF
-
-      my_just_sum = .FALSE.
-      IF (PRESENT(just_sum)) my_just_sum = just_sum
-
-      ! do standard sum
-      IF (loc_sumtype == do_standard_sum) THEN
-
-         ! Do standard sum
-
-         ! since the return value is real, only do accurate sum on the real bit ?
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
-            integral_value = SUM(pw1%cr3d(:, :, :) &
-                                 *pw2%cr3d(:, :, :))
-!$OMP END PARALLEL WORKSHARE
-         ELSE
-            CPABORT("No possible DATA")
-         END IF
-
-      ELSE
-
-         ! Do accurate sum
-
-         ! since the return value is real, only do accurate sum on the real bit ?
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-            integral_value = accurate_sum(pw1%cr3d(:, :, :) &
-                                          *pw2%cr3d(:, :, :))
-         ELSE
-            CPABORT("No possible DATA")
-         END IF
-
-      END IF
-
-      IF (.NOT. my_just_sum) THEN
-         IF (pw1%in_use == REALDATA3D) THEN
-            integral_value = integral_value*pw1%pw_grid%dvol
-         ELSE
-            integral_value = integral_value*pw1%pw_grid%vol
-         END IF
-      END IF
-
-      IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
-         CALL pw1%pw_grid%para%group%sum(integral_value)
-      CALL timestop(handle)
-
-   END FUNCTION pw_integral_ab_pw
 
 ! **************************************************************************************************
 !> \brief Calculate the structure factor for point r
@@ -4051,7 +2642,7 @@ CONTAINS
 
    END SUBROUTINE pw_structure_factor
 
-   #:for kind in pw_kinds
+   #:for kind, type in zip(pw_kinds, pw_types)
 ! **************************************************************************************************
 !> \brief ...
 !> \param fun ...
@@ -4127,68 +2718,6 @@ CONTAINS
          END IF
 
       END FUNCTION pw_integrate_function_${kind}$
-   #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fun ...
-!> \param isign ...
-!> \param oprt ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION pw_integrate_function_pw(fun, isign, oprt, just_sum, local_sum) RESULT(total_fun)
-
-      TYPE(pw_type), INTENT(IN)                          :: fun
-      INTEGER, INTENT(IN), OPTIONAL                      :: isign
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: oprt
-      LOGICAL, INTENT(IN), OPTIONAL :: just_sum, local_sum
-      REAL(KIND=dp)                                      :: total_fun
-
-      INTEGER                                            :: iop
-      LOGICAL :: my_just_sum, my_local_sum
-
-      iop = 0
-
-      IF (PRESENT(oprt)) THEN
-         SELECT CASE (oprt)
-         CASE ("ABS", "abs")
-            iop = 1
-         CASE DEFAULT
-            CPABORT("Unknown operator")
-         END SELECT
-      END IF
-
-      IF (fun%in_use /= REALDATA3D .OR. fun%in_space /= REALSPACE) &
-         CPABORT("Only real 3D PW grids in real space are still accepted!")
-
-      my_just_sum = .FALSE.
-      IF (PRESENT(just_sum)) my_just_sum = just_sum
-
-      my_local_sum = .FALSE.
-      IF (PRESENT(local_sum)) my_local_sum = local_sum
-
-      total_fun = 0.0_dp
-
-      ! do reduction using maximum accuracy
-      IF (iop == 1) THEN
-         total_fun = accurate_sum(ABS(fun%cr3d))
-      ELSE
-         total_fun = accurate_sum(fun%cr3d)
-      END IF
-
-      IF (.NOT. my_just_sum) THEN
-         total_fun = total_fun*fun%pw_grid%dvol
-      END IF
-
-      IF (.NOT. my_local_sum .AND. fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CALL fun%pw_grid%para%group%sum(total_fun)
-      END IF
-
-      IF (PRESENT(isign)) THEN
-         total_fun = total_fun*SIGN(1._dp, REAL(isign, dp))
-      END IF
-
-   END FUNCTION pw_integrate_function_pw
 
 ! **************************************************************************************************
 !> \brief Initialize pw values using values from a real array data, which might be defined on a
@@ -4199,163 +2728,50 @@ CONTAINS
 !>      Created 12.2016
 !> \author Nico Holmberg
 ! **************************************************************************************************
-   SUBROUTINE pw_set_array(pw, values)
+      SUBROUTINE pw_set_array_${kind}$ (pw, values)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
-         POINTER                                         :: values
+         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw
+         ${type}$, INTENT(IN)                                        :: values
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_array'
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_array'
 
-      INTEGER                                            :: handle, i, j, k
-      LOGICAL                                            :: is_match
+         INTEGER                                            :: handle
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      IF (pw%in_use == REALDATA3D) THEN
+         IF (ANY(SHAPE(pw%array) /= SHAPE(values))) &
+            CPABORT("Arrays must have the same shape")
 
-         is_match = .TRUE.
-         is_match = is_match .AND. (LBOUND(values, 1) .GE. LBOUND(pw%cr3d, 1))
-         is_match = is_match .AND. (UBOUND(values, 1) .LE. UBOUND(pw%cr3d, 1))
-         is_match = is_match .AND. (LBOUND(values, 2) .GE. LBOUND(pw%cr3d, 2))
-         is_match = is_match .AND. (UBOUND(values, 2) .LE. UBOUND(pw%cr3d, 2))
-         is_match = is_match .AND. (LBOUND(values, 3) .GE. LBOUND(pw%cr3d, 3))
-         is_match = is_match .AND. (UBOUND(values, 3) .LE. UBOUND(pw%cr3d, 3))
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, values)
+         pw%array = values
+!$OMP END PARALLEL WORKSHARE
 
-         IF (.NOT. is_match) &
-            CPABORT("Incompatible data fields")
-         DO i = LBOUND(values, 3), UBOUND(values, 3)
-            DO j = LBOUND(values, 2), UBOUND(values, 2)
-               DO k = LBOUND(values, 1), UBOUND(values, 1)
-                  pw%cr3d(k, j, i) = values(k, j, i)
-               END DO
-            END DO
-         END DO
+         CALL timestop(handle)
 
-      ELSE
-
-         CPABORT("Illegal pw type, should be REALDATA3D")
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_set_array
+      END SUBROUTINE pw_set_array_${kind}$
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param pw ...
 !> \param value ...
 ! **************************************************************************************************
-   SUBROUTINE pw_set_value(pw, value)
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      REAL(KIND=dp), INTENT(IN)                          :: value
+      SUBROUTINE pw_set_value_${kind}$ (pw, value)
+         TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw
+         REAL(KIND=dp), INTENT(IN)                          :: value
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_value'
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_value'
 
-      INTEGER                                            :: handle
+         INTEGER                                            :: handle
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      IF (pw%in_use == REALDATA3D) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,value)
-         pw%cr3d = value
+         pw%array = value
 !$OMP END PARALLEL WORKSHARE
-      ELSE
-         CPABORT("Illegal pw type, should be REALDATA3D.")
-      END IF
-      CALL timestop(handle)
 
-   END SUBROUTINE pw_set_value
+         CALL timestop(handle)
 
-! **************************************************************************************************
-!> \brief ...
-!> \param pw1 ...
-!> \param pw2 ...
-! **************************************************************************************************
-   SUBROUTINE pw_multiply_by_pw(pw1, pw2, alpha)
-      TYPE(pw_type), INTENT(INOUT)                       :: pw1
-      TYPE(pw_type), INTENT(IN)                          :: pw2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL :: alpha
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_multiply_by_pw'
-
-      INTEGER                                            :: handle
-      REAL(KIND=dp) :: my_alpha
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) &
-         CPABORT("Invalid space combination!")
-      IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
-         CPABORT("Incompatible grids!")
-
-      my_alpha = 1.0_dp
-      IF (PRESENT(alpha)) my_alpha = alpha
-
-      IF (my_alpha == 1.0_dp) THEN
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-            pw1%cr3d = pw1%cr3d*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-         ELSE
-            CPABORT("Invalid combination of grids!")
-         END IF
-      ELSE IF (my_alpha /= 0.0_dp) THEN
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2,my_alpha)
-            pw1%cr3d = my_alpha*pw1%cr3d*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-         ELSE
-            CPABORT("Invalid combination of grids!")
-         END IF
-      END IF
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_multiply_by_pw
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw1 ...
-!> \param pw2 ...
-! **************************************************************************************************
-   SUBROUTINE pw_divide_by_pw(pw1, pw2, threshold)
-      TYPE(pw_type), INTENT(INOUT)                       :: pw1
-      TYPE(pw_type), INTENT(IN)                          :: pw2
-      REAL(KIND=dp), INTENT(IN), OPTIONAL :: threshold
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_divide_by_pw'
-
-      INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: my_threshold
-
-      CALL timeset(routineN, handle)
-
-      IF (pw1%in_space /= pw2%in_space) &
-         CPABORT("Invalid space combination!")
-      IF (.NOT. pw_compatible(pw1%pw_grid, pw2%pw_grid)) &
-         CPABORT("Incompatible grids!")
-
-      IF (PRESENT(threshold)) THEN
-         my_threshold = MAX(threshold, 0.0_dp)
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2,my_threshold)
-            pw1%cr3d = pw1%cr3d/SIGN(MAX(ABS(pw2%cr3d), my_threshold), pw2%cr3d)
-!$OMP END PARALLEL WORKSHARE
-         ELSE
-            CPABORT("Invalid combination of grids!")
-         END IF
-      ELSE
-         IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
-            pw1%cr3d = pw1%cr3d/pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-         ELSE
-            CPABORT("Invalid combination of grids!")
-         END IF
-      END IF
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_divide_by_pw
+      END SUBROUTINE pw_set_value_${kind}$
+   #:endfor
 
 END MODULE pw_methods

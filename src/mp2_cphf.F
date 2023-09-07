@@ -88,11 +88,10 @@ MODULE mp2_cphf
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
@@ -1338,8 +1337,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_r, vh_rspace, vhxc_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_mp2_r, rho_mp2_r_aux, rho_r, &
+      TYPE(pw_r3d_type)                                  :: pot_r, vh_rspace, vhxc_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_mp2_r, rho_mp2_r_aux, rho_r, &
                                                             tau_mp2_r, vadmm_rspace, vtau_rspace, &
                                                             vxc_rspace
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
@@ -1508,7 +1507,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+                             in_space=REALSPACE)
       IF (use_virial) h_stress = virial%pv_virial
       IF (debug_forces) THEN
          deb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -1596,7 +1595,6 @@ CONTAINS
 
       ! get some of the grids ready
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_r, &
-                             use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
                              in_space=RECIPROCALSPACE)

@@ -48,13 +48,12 @@ MODULE hfx_pw_methods
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
                                               pw_create,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_r3d_type,&
+                                              pw_release
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -114,8 +113,8 @@ CONTAINS
       TYPE(pw_c1d_type)                                  :: greenfn, pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: rho_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_i, rho_j
+      TYPE(pw_r3d_type)                                  :: rho_r
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: rho_i, rho_j
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ip_section
 
@@ -138,7 +137,6 @@ CONTAINS
          blocksize = MAX(1, MIN(blocksize, norb))
 
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, &
-                                use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
                                 in_space=RECIPROCALSPACE)
@@ -186,10 +184,8 @@ CONTAINS
 
          DO iorb_block = 1, blocksize
             CALL pw_create(rho_i(iorb_block), rho_r%pw_grid, &
-                           use_data=REALDATA3D, &
                            in_space=REALSPACE)
             CALL pw_create(rho_j(iorb_block), rho_r%pw_grid, &
-                           use_data=REALDATA3D, &
                            in_space=REALSPACE)
          END DO
 

@@ -18,7 +18,7 @@ MODULE realspace_grid_cube
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,7 +48,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
                          silent, mpi_io)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -175,11 +175,11 @@ CONTAINS
 
                IF (source == dest) THEN
                   IF (my_rank == source) THEN
-                     buf(:) = pw%cr3d(I1, I2, :)
+                     buf(:) = pw%array(I1, I2, :)
                   END IF
                ELSE
                   IF (my_rank == source) THEN
-                     buf(:) = pw%cr3d(I1, I2, :)
+                     buf(:) = pw%array(I1, I2, :)
                      CALL gid%send(buf, dest, tag)
                   END IF
                   IF (my_rank == dest) THEN
@@ -236,7 +236,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cube_to_pw(grid, filename, scaling, parallel_read, silent)
 
-      TYPE(pw_type), INTENT(IN)                          :: grid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       LOGICAL, INTENT(in)                                :: parallel_read
@@ -329,7 +329,7 @@ CONTAINS
                IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
                    .AND. (j .LE. ubounds_local(2))) THEN
                   !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
-                  grid%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
+                  grid%array(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
                END IF
 
             END DO
@@ -368,7 +368,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cube_to_pw_parallel(grid, filename, scaling, msglen, silent)
 
-      TYPE(pw_type), INTENT(IN)                          :: grid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       INTEGER, INTENT(in)                                :: msglen
@@ -536,7 +536,7 @@ CONTAINS
             END DO
          END IF
          ! Optionally scale cube file values
-         grid%cr3d(i, j, lbounds(3):ubounds(3)) = scaling*buffer(lbounds(3):ubounds(3))
+         grid%array(i, j, lbounds(3):ubounds(3)) = scaling*buffer(lbounds(3):ubounds(3))
          j = j + 1
          IF (j > ubounds_local(2)) THEN
             j = lbounds_local(2)
@@ -591,7 +591,7 @@ CONTAINS
                IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
                    .AND. (j .LE. ubounds_local(2))) THEN
                   !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
-                  IF (ANY(grid%cr3d(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) &
+                  IF (ANY(grid%array(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) &
                      CALL cp_abort(__LOCATION__, &
                                    "Error in parallel read of input cube file.")
                END IF
@@ -623,7 +623,7 @@ CONTAINS
    SUBROUTINE pw_to_cube_parallel(grid, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
                                   msglen)
 
-      TYPE(pw_type), INTENT(IN)                          :: grid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
       TYPE(mp_file_type), INTENT(IN)                     :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -768,10 +768,10 @@ CONTAINS
                tmp = ''
                counter = 0
                DO k = lbounds(3), ubounds(3), stride(3)
-                  IF (zero_tails .AND. grid%cr3d(i, j, k) < 1.E-7_dp) THEN
+                  IF (zero_tails .AND. grid%array(i, j, k) < 1.E-7_dp) THEN
                      WRITE (value, '(E13.5)') 0.0_dp
                   ELSE
-                     WRITE (value, '(E13.5)') grid%cr3d(i, j, k)
+                     WRITE (value, '(E13.5)') grid%array(i, j, k)
                   END IF
                   tmp = TRIM(tmp)//TRIM(value)
                   counter = counter + 1
@@ -816,10 +816,10 @@ CONTAINS
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: stride
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: pw2
+      TYPE(pw_r3d_type), INTENT(IN), OPTIONAL            :: pw2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric'
 
@@ -908,15 +908,15 @@ CONTAINS
 
             IF (source == dest) THEN
                IF (my_rank == source) THEN
-                  buf(:) = pw%cr3d(I1, I2, :)
-                  IF (DOUBLE) buf2(:) = pw2%cr3d(I1, I2, :)
+                  buf(:) = pw%array(I1, I2, :)
+                  IF (DOUBLE) buf2(:) = pw2%array(I1, I2, :)
                END IF
             ELSE
                IF (my_rank == source) THEN
-                  buf(:) = pw%cr3d(I1, I2, :)
+                  buf(:) = pw%array(I1, I2, :)
                   CALL gid%send(buf, dest, tag)
                   IF (DOUBLE) THEN
-                     buf2(:) = pw2%cr3d(I1, I2, :)
+                     buf2(:) = pw2%array(I1, I2, :)
                      CALL gid%send(buf2, dest, tag)
                   END IF
                END IF

@@ -37,7 +37,7 @@ MODULE pw_gpu
                                               mp_comm_type
    USE pw_grid_types,                   ONLY: FULLSPACE
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,7 +101,7 @@ CONTAINS
 !> \author Benjamin G Levine
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
@@ -128,13 +128,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ngpts = SIZE(pw2%pw_grid%gsq)
-      l1 = LBOUND(pw1%cr3d, 1)
-      l2 = LBOUND(pw1%cr3d, 2)
-      l3 = LBOUND(pw1%cr3d, 3)
+      l1 = LBOUND(pw1%array, 1)
+      l2 = LBOUND(pw1%array, 2)
+      l3 = LBOUND(pw1%array, 3)
       npts => pw1%pw_grid%npts
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cr3d(l1, l2, l3)
+      ptr_pwin => pw1%array(l1, l2, l3)
       ptr_pwout => pw2%array(1)
 
       ! pointer to map array
@@ -160,7 +160,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
       TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
@@ -185,14 +185,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ngpts = SIZE(pw1%pw_grid%gsq)
-      l1 = LBOUND(pw2%cr3d, 1)
-      l2 = LBOUND(pw2%cr3d, 2)
-      l3 = LBOUND(pw2%cr3d, 3)
+      l1 = LBOUND(pw2%array, 1)
+      l2 = LBOUND(pw2%array, 2)
+      l3 = LBOUND(pw2%array, 3)
       npts => pw1%pw_grid%npts
 
       ! pointers to data arrays
       ptr_pwin => pw1%array(1)
-      ptr_pwout => pw2%cr3d(l1, l2, l3)
+      ptr_pwout => pw2%array(l1, l2, l3)
 
       ! pointer to map array
       nmaps = SIZE(pw1%pw_grid%g_hatmap, 2)
@@ -217,7 +217,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
@@ -390,7 +390,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
       TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
@@ -566,7 +566,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cff(pw1, pwbuf)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), TARGET                           :: pwbuf
 
@@ -589,12 +589,12 @@ CONTAINS
 
       ! dimensions
       npts => pw1%pw_grid%npts_local
-      l1 = LBOUND(pw1%cr3d, 1)
-      l2 = LBOUND(pw1%cr3d, 2)
-      l3 = LBOUND(pw1%cr3d, 3)
+      l1 = LBOUND(pw1%array, 1)
+      l2 = LBOUND(pw1%array, 2)
+      l3 = LBOUND(pw1%array, 3)
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cr3d(l1, l2, l3)
+      ptr_pwin => pw1%array(l1, l2, l3)
       ptr_pwout => pwbuf(1, 1, 1)
 
       ! invoke the combined transformation
@@ -616,7 +616,7 @@ CONTAINS
    SUBROUTINE pw_gpu_ffc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_type), INTENT(IN)                          :: pw2
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_ffc'
 
@@ -637,13 +637,13 @@ CONTAINS
 
       ! dimensions
       npts => pw2%pw_grid%npts_local
-      l1 = LBOUND(pw2%cr3d, 1)
-      l2 = LBOUND(pw2%cr3d, 2)
-      l3 = LBOUND(pw2%cr3d, 3)
+      l1 = LBOUND(pw2%array, 1)
+      l2 = LBOUND(pw2%array, 2)
+      l3 = LBOUND(pw2%array, 3)
 
       ! pointers to data arrays
       ptr_pwin => pwbuf(1, 1, 1)
-      ptr_pwout => pw2%cr3d(l1, l2, l3)
+      ptr_pwout => pw2%array(l1, l2, l3)
 
       ! invoke the combined transformation
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -662,7 +662,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cf(pw1, pwbuf)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
 
@@ -685,12 +685,12 @@ CONTAINS
 
       ! dimensions
       npts => pw1%pw_grid%npts_local
-      l1 = LBOUND(pw1%cr3d, 1)
-      l2 = LBOUND(pw1%cr3d, 2)
-      l3 = LBOUND(pw1%cr3d, 3)
+      l1 = LBOUND(pw1%array, 1)
+      l2 = LBOUND(pw1%array, 2)
+      l3 = LBOUND(pw1%array, 3)
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cr3d(l1, l2, l3)
+      ptr_pwin => pw1%array(l1, l2, l3)
       ptr_pwout => pwbuf(1, 1)
 
       ! invoke the combined transformation
@@ -711,7 +711,7 @@ CONTAINS
    SUBROUTINE pw_gpu_fc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_type), INTENT(IN)                          :: pw2
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fc'
 
@@ -731,13 +731,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       npts => pw2%pw_grid%npts_local
-      l1 = LBOUND(pw2%cr3d, 1)
-      l2 = LBOUND(pw2%cr3d, 2)
-      l3 = LBOUND(pw2%cr3d, 3)
+      l1 = LBOUND(pw2%array, 1)
+      l2 = LBOUND(pw2%array, 2)
+      l3 = LBOUND(pw2%array, 3)
 
       ! pointers to data arrays
       ptr_pwin => pwbuf(1, 1)
-      ptr_pwout => pw2%cr3d(l1, l2, l3)
+      ptr_pwout => pw2%array(l1, l2, l3)
 
       ! invoke the combined transformation
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
