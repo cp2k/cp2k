@@ -124,8 +124,15 @@ CONTAINS
                DO i34l = 1, eri%nzerow_local(i12l)
                   i34 = eri%colind_local(irptr + i34l)
                   CALL csr_idx_from_combined(i34, nmo_max, i3, i4)
+! The FINDLOC intrinsic function of the Fortran 2008 standard is only available since GCC 9
+! That is why we use a custom-made implementation of this function for this compiler
+#if __GNUC__ < 9
+                  k = cp_findloc(active_orbitals(:, spin2), i3)
+                  l = cp_findloc(active_orbitals(:, spin2), i4)
+#else
                   k = FINDLOC(active_orbitals(:, spin2), i3, dim=1)
                   l = FINDLOC(active_orbitals(:, spin2), i4, dim=1)
+#endif
                   erival = eri%nzval_local%r_dp(irptr + i34l)
 
                   ! 8-fold permutational symmetry
@@ -154,5 +161,31 @@ CONTAINS
       CALL mp_group%sum(array)
 
    END SUBROUTINE eri_to_array
+
+#if __GNUC__ < 9
+! **************************************************************************************************
+!> \brief This function implements the FINDLOC function of the Fortran 2008 standard for the case needed above
+!>        To be removed as soon GCC 8 is dropped.
+!> \param array ...
+!> \param value ...
+!> \return ...
+! **************************************************************************************************
+   PURE INTEGER FUNCTION cp_findloc(array, value) RESULT(loc)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: array
+      INTEGER, INTENT(IN)                                :: value
+
+      INTEGER                                            :: idx
+
+      loc = 0
+
+      DO idx = 1, SIZE(array)
+      IF (array(idx) == value) THEN
+         loc = idx
+         RETURN
+      END IF
+      END DO
+
+   END FUNCTION cp_findloc
+#endif
 
 END MODULE qs_active_space_utils
