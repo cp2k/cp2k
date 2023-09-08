@@ -600,7 +600,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rt_mos_from_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
-      INTEGER                                            :: handle, ispin, natom, nspin, restart_unit
+      INTEGER                                            :: handle, ispin, natom, nspin, &
+                                                            restart_unit, unit_nr
       LOGICAL                                            :: exist
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -617,6 +618,11 @@ CONTAINS
          IF (id_nr /= 0) THEN
             ! Is it one of the backup files?
             file_name = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(id_nr))
+         END IF
+
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A)') "Read RTP restart from the file: "//TRIM(file_name)
          END IF
 
          CALL open_file(file_name=file_name, &

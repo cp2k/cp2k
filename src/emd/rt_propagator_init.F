@@ -115,14 +115,25 @@ CONTAINS
             CALL get_maxabs_eigval(rtp, s_mat, matrix_ks, rtp_control)
          END IF
       END IF
-      IF (rtp_control%mat_exp == do_pade .AND. rtp%linear_scaling) THEN
+      ! Safety check for the matrix exponantial scheme wrt the MO representation
+      IF ((rtp_control%mat_exp == do_pade .OR. rtp_control%mat_exp == do_arnoldi) .AND. rtp%linear_scaling) THEN
          ! get a useful output_unit
          logger => cp_get_default_logger()
          IF (logger%para_env%is_source()) THEN
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-            WRITE (unit_nr, *) "linear_scaling currently does not support pade exponentials, switching to taylor"
+            WRITE (unit_nr, *) "linear_scaling currently does not support pade nor arnoldi exponentials, switching to taylor"
          END IF
          rtp_control%mat_exp = do_taylor
+
+      ELSE IF (rtp_control%mat_exp == do_bch .AND. .NOT. rtp%linear_scaling) THEN
+         ! get a useful output_unit
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+            WRITE (unit_nr, *) "BCH exponential currently only support linear_scaling, switching to arnoldi"
+         END IF
+         rtp_control%mat_exp = do_arnoldi
+
       END IF
       ! We have no clue yet about next H so we use initial H for t and t+dt
       ! Due to different nature of the propagator the prefactor has to be adopted

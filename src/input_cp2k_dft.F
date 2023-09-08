@@ -2511,7 +2511,10 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_CUBES", &
-                                       description="Controls the printing of the molecular orbitals (MOs) as cube files.", &
+                                       description="Controls the printing of the molecular orbitals (MOs) as cube files."// &
+                                       " It can be used during a Real Time calculation to print the MOs."// &
+                                       " In this case, the density corresponding to the time dependent MO is printed"// &
+                                       " instead of the wave-function.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
