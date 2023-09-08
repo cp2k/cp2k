@@ -2815,11 +2815,14 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: header
       INTEGER                                            :: handle, iw
-      LOGICAL                                            :: debug = .FALSE., ionode
+      LOGICAL                                            :: debug, ionode
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fock_a, fock_b, p_act_mo_a, p_act_mo_b
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! Set to .TRUE. to activate debug output
+      debug = .FALSE.
 
       logger => cp_get_default_logger()
       iw = cp_logger_get_default_io_unit(logger)

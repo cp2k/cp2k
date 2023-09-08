@@ -65,9 +65,9 @@ MODULE qcschema
 !>        https://molssi-qc-schema.readthedocs.io/en/latest/spec_components.html#provenance
 ! **************************************************************************************************
    TYPE qcschema_provenance
-      CHARACTER(LEN=default_string_length) :: creator ! The name of the creator of this object
-      CHARACTER(LEN=default_string_length) :: version ! The version of the creator of this object
-      CHARACTER(LEN=default_string_length) :: routine ! The routine that was used to create this object
+      CHARACTER(LEN=default_string_length) :: creator = "" ! The name of the creator of this object
+      CHARACTER(LEN=default_string_length) :: version = "" ! The version of the creator of this object
+      CHARACTER(LEN=default_string_length) :: routine = "" ! The routine that was used to create this object
    END TYPE qcschema_provenance
 
 ! **************************************************************************************************
@@ -76,16 +76,16 @@ MODULE qcschema
 !>        https://molssi-qc-schema.readthedocs.io/en/latest/spec_components.html#topology
 ! **************************************************************************************************
    TYPE qcschema_topology
-      CHARACTER(LEN=default_string_length)         :: name        ! of the molecule
-      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE  :: symbols     ! of the atoms
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: geometry    ! row major, in bohr
+      CHARACTER(LEN=default_string_length)         :: name = "" ! of the molecule
+      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE  :: symbols   ! of the atoms
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: geometry  ! row major, in bohr
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: masses
       INTEGER, DIMENSION(:), ALLOCATABLE           :: atomic_numbers
-      INTEGER                                      :: molecular_charge
-      INTEGER                                      :: molecular_multiplicity
-      CHARACTER(LEN=default_string_length)         :: schema_name
-      INTEGER                                      :: schema_version
-      TYPE(qcschema_provenance)                    :: provenance
+      INTEGER                                      :: molecular_charge = 0
+      INTEGER                                      :: molecular_multiplicity = 1
+      CHARACTER(LEN=default_string_length)         :: schema_name = ""
+      INTEGER                                      :: schema_version = 0
+      TYPE(qcschema_provenance)                    :: provenance = qcschema_provenance()
    END TYPE qcschema_topology
 
 ! **************************************************************************************************
@@ -95,13 +95,13 @@ MODULE qcschema
 ! **************************************************************************************************
    TYPE qcschema_electron_shell
       ! The angular momenta of this electron shell as a list of integers
-      INTEGER, DIMENSION(:), POINTER               :: angular_momentum => Null()
+      INTEGER, DIMENSION(:), POINTER               :: angular_momentum => NULL()
       ! The type of this shell: spherical or cartesian
-      CHARACTER(LEN=9)                             :: harmonic_type
+      CHARACTER(LEN=9)                             :: harmonic_type = ""
       ! The exponents of this contracted shell. The official spec stores these values as strings
-      REAL(KIND=dp), DIMENSION(:), POINTER         :: exponents => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: exponents => NULL()
       ! The general contraction coefficients of this contracted shell
-      REAL(KIND=dp), DIMENSION(:, :), POINTER      :: coefficients => Null()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER      :: coefficients => NULL()
    END TYPE qcschema_electron_shell
 
 ! **************************************************************************************************
@@ -111,15 +111,15 @@ MODULE qcschema
 ! **************************************************************************************************
    TYPE qcschema_ecp
       ! The type of this potential
-      CHARACTER(LEN=default_string_length)         :: ecp_type
+      CHARACTER(LEN=default_string_length)         :: ecp_type = ""
       ! The angular momenta of this potential as a list of integers
-      INTEGER, DIMENSION(:), POINTER               :: angular_momentum => Null()
+      INTEGER, DIMENSION(:), POINTER               :: angular_momentum => NULL()
       ! The exponents of the r terms
-      INTEGER, DIMENSION(:), POINTER               :: r_exponents => Null()
+      INTEGER, DIMENSION(:), POINTER               :: r_exponents => NULL()
       ! The exponents of the Gaussian terms
-      REAL(KIND=dp), DIMENSION(:), POINTER         :: gaussian_exponents => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: gaussian_exponents => NULL()
       ! The general contraction coefficients of this potential
-      REAL(KIND=dp), DIMENSION(:, :), POINTER      :: coefficients => Null()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER      :: coefficients => NULL()
    END TYPE qcschema_ecp
 
 ! **************************************************************************************************
@@ -129,11 +129,11 @@ MODULE qcschema
 ! **************************************************************************************************
    TYPE qcschema_center_basis
       ! The list of electronic shells for this element
-      TYPE(qcschema_electron_shell), DIMENSION(:), POINTER :: electron_shells => Null()
+      TYPE(qcschema_electron_shell), DIMENSION(:), POINTER :: electron_shells => NULL()
       ! The list of effective core potentials for this element
-      TYPE(qcschema_ecp), DIMENSION(:), POINTER            :: ecp_potentials => Null()
+      TYPE(qcschema_ecp), DIMENSION(:), POINTER            :: ecp_potentials => NULL()
       ! The number of electrons replaced by an ECP
-      INTEGER                                              :: ecp_electrons
+      INTEGER                                              :: ecp_electrons = 0
    END TYPE qcschema_center_basis
 
 ! **************************************************************************************************
@@ -143,21 +143,21 @@ MODULE qcschema
 ! **************************************************************************************************
    TYPE qcschema_basis_set
       ! The name of the basis set
-      CHARACTER(LEN=default_string_length) :: name
+      CHARACTER(LEN=default_string_length) :: name = ""
       ! A dictionary mapping the keys provided by `atom_map` to their basis center data
-      TYPE(qcschema_center_basis), DIMENSION(:), POINTER :: center_data => Null()
+      TYPE(qcschema_center_basis), DIMENSION(:), POINTER :: center_data => NULL()
       ! The list of atomic kinds, indicating the keys used to store the basis in `center_data`
       ! Not clear if this will be of the length of the basis set size, or rather just one
       ! entry for atomic kind. E.g. only one entry for hydrogen even though there might be
       ! many hydrogen atoms in the molecule. If this is the case, then we really need a
       ! hash table for `center_data`
-      CHARACTER(LEN=2), DIMENSION(:), POINTER            :: atom_map => Null()
+      CHARACTER(LEN=2), DIMENSION(:), POINTER            :: atom_map => NULL()
       ! The version of this specific schema
-      INTEGER                                            :: schema_version
+      INTEGER                                            :: schema_version = -1
       ! The name of this schema. This value is expected to be `qcschema_basis`
-      CHARACTER(LEN=default_string_length)               :: schema_name
+      CHARACTER(LEN=default_string_length)               :: schema_name = ""
       ! A description of this basis set
-      CHARACTER(LEN=default_string_length)               :: description
+      CHARACTER(LEN=default_string_length)               :: description = ""
    END TYPE qcschema_basis_set
 
 ! **************************************************************************************************
@@ -169,10 +169,10 @@ MODULE qcschema
    TYPE qcschema_wavefunction
 
       ! The name of the method used to obtain the wf
-      CHARACTER(LEN=default_string_length)         :: method
+      CHARACTER(LEN=default_string_length)         :: method = ""
 
       ! The basis set used during the computation
-      TYPE(qcschema_basis_set)                     :: basis_set
+      TYPE(qcschema_basis_set)                     :: basis_set = qcschema_basis_set()
 
       ! SCF quantities in AO or MO basis
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: scf_orbitals_a
@@ -200,7 +200,7 @@ MODULE qcschema
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: localized_fock_b
 
       ! Whether the computation used restricted spin orbitals
-      LOGICAL :: restricted
+      LOGICAL :: restricted = .FALSE.
 
    END TYPE qcschema_wavefunction
 
@@ -251,14 +251,14 @@ MODULE qcschema
 !>        https://molssi-qc-schema.readthedocs.io/en/latest/spec_components.html#output-components
 ! **************************************************************************************************
    TYPE qcschema_type
-      TYPE(qcschema_topology)     :: topology
-      TYPE(qcschema_provenance)   :: provenance
-      TYPE(qcschema_properties)   :: properties
-      TYPE(qcschema_wavefunction) :: wavefunction
-      TYPE(qcschema_basis_set)    :: basis
+      TYPE(qcschema_topology)     :: topology = qcschema_topology()
+      TYPE(qcschema_provenance)   :: provenance = qcschema_provenance()
+      TYPE(qcschema_properties)   :: properties = qcschema_properties()
+      TYPE(qcschema_wavefunction) :: wavefunction = qcschema_wavefunction()
+      TYPE(qcschema_basis_set)    :: basis = qcschema_basis_set()
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: return_result
-      CHARACTER(LEN=default_string_length) :: driver
-      LOGICAL :: success
+      CHARACTER(LEN=default_string_length) :: driver = ""
+      LOGICAL :: success = .FALSE.
    END TYPE qcschema_type
 
 CONTAINS
