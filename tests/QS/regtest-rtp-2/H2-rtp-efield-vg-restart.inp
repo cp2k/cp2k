@@ -5,23 +5,20 @@
        MAX_ITER 25
        MAT_EXP TAYLOR
        EPS_ITER 1.0E-9
-       INITIAL_WFN SCF_WFN
+       INITIAL_WFN RT_RESTART
+       VELOCITY_GAUGE .TRUE. 
        &PRINT
           &FIELD
              FILENAME =applied_field
           &END
-          &CURRENT
-            &EACH
-              MD 4
-            &END
-          &END CURRENT 
        &END
     &END
     &EFIELD
-       INTENSITY 5E15
+       INTENSITY 0E1
        POLARISATION 0 1 0
        WAVELENGTH 210
        ENVELOP CONSTANT
+       VEC_POT_INITIAL 0.0 -0.18803438E+00 0.0 
        &CONSTANT_ENV
          START_STEP 1
          END_STEP 2
@@ -29,6 +26,7 @@
     &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
+    WFN_RESTART_FILE_NAME H2-rtp-efield-vg-RESTART.rtpwfn 
     &MGRID
       CUTOFF 100
     &END MGRID
@@ -50,37 +48,6 @@
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-       &MULLIKEN OFF
-       &END MULLIKEN
-       &HIRSHFELD OFF
-       &END HIRSHFELD
-       &MO
-          COEFFICIENTS .TRUE.
-          OCCUPATION_NUMBERS .TRUE.
-          MO_INDEX_RANGE 1 2
-          &EACH
-             MD 4
-          &END
-       &END MO
-       &MO_CUBES
-          NHOMO -1
-          &EACH
-             MD 4
-          &END 
-       &END MO_CUBES
-       &MOMENTS
-         PERIODIC .FALSE.
-         FILENAME =dipole
-         COMMON_ITERATION_LEVELS 100000
-         MAX_MOMENT 2 
-         COM_NL .TRUE. 
-         VEL_REPRS .TRUE.
-         &EACH
-            MD 1
-         &END EACH
-      &END MOMENTS
-    &END
   &END DFT
   &SUBSYS
     &CELL
