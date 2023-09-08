@@ -6,14 +6,16 @@
        MAT_EXP TAYLOR
        EPS_ITER 1.0E-9
        INITIAL_WFN SCF_WFN
+       VELOCITY_GAUGE .TRUE. 
+       VG_COM_NL .TRUE.
        &PRINT
           &FIELD
              FILENAME =applied_field
           &END
           &CURRENT
-            &EACH
-              MD 4
-            &END
+             &EACH
+                 MD 4
+             &END
           &END CURRENT 
        &END
     &END
@@ -55,20 +57,6 @@
        &END MULLIKEN
        &HIRSHFELD OFF
        &END HIRSHFELD
-       &MO
-          COEFFICIENTS .TRUE.
-          OCCUPATION_NUMBERS .TRUE.
-          MO_INDEX_RANGE 1 2
-          &EACH
-             MD 4
-          &END
-       &END MO
-       &MO_CUBES
-          NHOMO -1
-          &EACH
-             MD 4
-          &END 
-       &END MO_CUBES
        &MOMENTS
          PERIODIC .FALSE.
          FILENAME =dipole
@@ -107,15 +95,14 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2-rtp-efield
+  PROJECT H2-rtp-efield-vg
  RUN_TYPE RT_PROPAGATION
-!  RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 4
+    STEPS 5
     TIMESTEP [au_t] 0.25
     TEMPERATURE 300.0
   &END MD
