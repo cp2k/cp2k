@@ -69,7 +69,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_FILE_NAME", &
                           description="Name of the wavefunction file to read the reference MO form. "// &
                           "For instance a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
-                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME.", &
+                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME."// &
+                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference.", &
                           usage="REF_MO_FILE_NAME <FILENAME>", &
                           default_lc_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
