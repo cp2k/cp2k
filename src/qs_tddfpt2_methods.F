@@ -882,6 +882,8 @@ CONTAINS
 
       ! reuse Ritz vectors from the previous calculation if available
       IF (tddfpt_control%is_restart .AND. .NOT. do_soc) THEN
+         CALL get_qs_env(qs_env, blacs_env=blacs_env)
+
          nstates_read = tddfpt_read_restart( &
                         evects=evects, &
                         evals=evals, &
