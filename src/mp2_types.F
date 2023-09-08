@@ -173,7 +173,7 @@ MODULE mp2_types
                                                             kpoint_weights_W_method = kp_weights_W_auto, &
                                                             k_mesh_g_factor = 0
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid => NULL()
-      INTEGER, DIMENSION(3)                              ::  kp_grid_extra = -1
+      INTEGER, DIMENSION(3)                              :: kp_grid_extra = -1
       LOGICAL                                            :: do_im_time_kpoints = .FALSE.
       INTEGER                                            :: min_bsize = 0, &
                                                             min_bsize_mo = 0, &
@@ -227,7 +227,7 @@ MODULE mp2_types
       LOGICAL                                            :: do_ic_model = .FALSE., &
                                                             print_ic_values = .FALSE.
       REAL(KIND=dp)                                      :: eps_dist = 0.0_dp
-      TYPE(one_dim_real_array), DIMENSION(2)             :: ic_corr_list
+      TYPE(one_dim_real_array), DIMENSION(2)             :: ic_corr_list = one_dim_real_array()
       INTEGER                                            :: print_exx = 0
       LOGICAL                                            :: do_gamma_only_sigma = .FALSE.
       LOGICAL                                            :: update_xc_energy = .FALSE., &
@@ -269,9 +269,9 @@ MODULE mp2_types
    END TYPE ri_basis_opt
 
    TYPE grad_util
-      TYPE(two_dim_real_array), DIMENSION(2)             :: P_ij, &
-                                                            P_ab
-      TYPE(three_dim_real_array), DIMENSION(2)           :: Gamma_P_ia
+      TYPE(two_dim_real_array), DIMENSION(2)             :: P_ij = two_dim_real_array(), &
+                                                            P_ab = two_dim_real_array()
+      TYPE(three_dim_real_array), DIMENSION(2)           :: Gamma_P_ia = three_dim_real_array()
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: operator_half, &
                                                             PQ_half, &
                                                             Gamma_PQ, &
@@ -310,9 +310,9 @@ MODULE mp2_types
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type()
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt()
       TYPE(grad_util)                                    :: ri_grad = grad_util()
-      REAL(dp)                                           :: mp2_memory = 0.0_dp
-      REAL(dp)                                           :: scale_S = 0.0_dp
-      REAL(dp)                                           :: scale_T = 0.0_dp
+      REAL(KIND=dp)                                      :: mp2_memory = 0.0_dp, &
+                                                            scale_S = 0.0_dp, &
+                                                            scale_T = 0.0_dp
       INTEGER                                            :: mp2_num_proc = 0
       INTEGER                                            :: block_size_row = 0
       INTEGER                                            :: block_size_col = 0
