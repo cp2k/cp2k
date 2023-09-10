@@ -13,7 +13,9 @@ deca_ala3.inp                                          2    1.0E-14            -
 deca_ala_reftraj.inp                                   2    1.0E-14            -1.0361509045299999
 deca_ala4.inp                                          2      2e-12                 -1.04188113936
 deca_ala_reftraj2.inp                                  2      2e-12                 -1.04188113933
+deca_ala_reftraj2_deprecated.inp                       2      2e-12                 -1.04188113933
 deca_ala_reftraj3.inp                                  2    1.0E-14            -1.0415155385499999
+deca_ala_reftraj3_deprecated.inp                       2    1.0E-14            -1.0415155385499999
 deca_ala5.inp                                          2    1.0E-14           -0.96264611636700004
 h2po4.inp                                              2    1.0E-14            -0.793833783008E+01
 #MOL_SET

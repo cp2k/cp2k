@@ -78,7 +78,8 @@ MODULE md_energies
                                               kelvin
    USE qmmm_types,                      ONLY: qmmm_env_type
    USE qs_linres_polar_utils,           ONLY: write_polarisability_tensor
-   USE reftraj_types,                   ONLY: reftraj_type
+   USE reftraj_types,                   ONLY: REFTRAJ_EVAL_NONE,&
+                                              reftraj_type
    USE simpar_types,                    ONLY: simpar_type
    USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: print_thermal_regions_temperature
@@ -228,7 +229,7 @@ CONTAINS
       CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE.)
       CALL get_md_env(md_env=md_env, force_env=force_env, reftraj=reftraj)
 
-      IF (reftraj%info%eval_ef) THEN
+      IF (reftraj%info%eval /= REFTRAJ_EVAL_NONE) THEN
          CALL force_env_get(force_env, potential_energy=md_ener%epot)
       ELSE
          md_ener%epot = reftraj%epot

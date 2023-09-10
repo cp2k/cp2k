@@ -44,6 +44,9 @@ MODULE input_cp2k_md
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
+   USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY,&
+                                              REFTRAJ_EVAL_ENERGY_FORCES,&
+                                              REFTRAJ_EVAL_NONE
    USE string_utilities,                ONLY: s2a
 #include "../base/base_uses.f90"
 
@@ -551,15 +554,26 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EVAL", &
+                          description="Selects the properties to evaluate for each retrieved snapshot during a REFTRAJ run", &
+                          default_i_val=REFTRAJ_EVAL_NONE, &
+                          enum_i_vals=(/REFTRAJ_EVAL_NONE, REFTRAJ_EVAL_ENERGY, REFTRAJ_EVAL_ENERGY_FORCES/), &
+                          enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCES"), &
+                          enum_desc=s2a("Evaluate nothing", "Evaluate only the energy", "Evaluate energy and forces"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="eval_energy_forces", &
                           description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+                          deprecation_notice="Please use MOTION / MD / REFTRAJ / EVAL instead.")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="eval_forces", &
                           description="Evaluate the forces for each retrieved snapshot during a REFTRAJ run", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+                          deprecation_notice="Please use MOTION / MD / REFTRAJ / EVAL instead.")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

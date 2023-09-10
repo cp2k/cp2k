@@ -92,11 +92,10 @@
     ENSEMBLE REFTRAJ
     STEPS  20
     &REFTRAJ
-
       TRAJ_FILE_NAME uo2_shell_npt300-pos-1.xyz
       CELL_FILE_NAME uo2_shell_npt300-1.cell
       VARIABLE_VOLUME
-      EVAL_ENERGY_FORCES F
+      EVAL NONE
       FIRST_SNAPSHOT 3
       LAST_SNAPSHOT 15
       STRIDE 2
@@ -106,10 +105,7 @@
         DISPLACED_ATOM
         DISPLACEMENT_TOL [angstrom] 0.5
       &END
-
-
     &END
-
   &END MD
   &PRINT
     &TRAJECTORY OFF

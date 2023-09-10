@@ -38,7 +38,7 @@
     STEPS 11
     &REFTRAJ
       TRAJ_FILE_NAME deca_ala3-pos-1.xyz
-      EVAL_ENERGY_FORCES T
+      EVAL ENERGY
     &END
   &END MD
   &PRINT
