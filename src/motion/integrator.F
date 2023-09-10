@@ -86,7 +86,9 @@ MODULE integrator
    USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
    USE qmmmx_update,                    ONLY: qmmmx_update_force_env
    USE qs_environment_types,            ONLY: get_qs_env
-   USE reftraj_types,                   ONLY: reftraj_type
+   USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY_FORCES,&
+                                              REFTRAJ_EVAL_NONE,&
+                                              reftraj_type
    USE reftraj_util,                    ONLY: compute_msd_reftraj
    USE rt_propagation_methods,          ONLY: propagation_step
    USE rt_propagation_output,           ONLY: rt_prop_output
@@ -1656,8 +1658,8 @@ CONTAINS
       ! Compute energy and forces
       ![NB] let reftraj work with force mixing which does not have consistent energies and forces
       CALL force_env_calc_energy_force(force_env, &
-                                       calc_force=(reftraj_env%info%eval_forces .OR. reftraj_env%info%eval_ef), &
-                                       eval_energy_forces=reftraj_env%info%eval_ef, &
+                                       calc_force=(reftraj_env%info%eval == REFTRAJ_EVAL_ENERGY_FORCES), &
+                                       eval_energy_forces=(reftraj_env%info%eval /= REFTRAJ_EVAL_NONE), &
                                        require_consistent_energy_force=.FALSE.)
 
       ! Metadynamics

@@ -76,7 +76,7 @@
     # next MD step, overlap matrix will be sparse
     &REFTRAJ
       TRAJ_FILE_NAME Ar-ref-2.xyz
-      EVAL_ENERGY_FORCES T
+      EVAL ENERGY
     &END
   &END MD
 &END MOTION

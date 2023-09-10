@@ -109,7 +109,7 @@
     ENSEMBLE REFTRAJ
     &REFTRAJ
       TRAJ_FILE_NAME ../sample_xyz/5H2O_adaptive.xyz
-      EVAL_ENERGY_FORCES
+      EVAL ENERGY
     &END REFTRAJ
   &END MD
 

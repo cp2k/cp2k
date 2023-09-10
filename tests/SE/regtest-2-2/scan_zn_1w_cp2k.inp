@@ -87,7 +87,7 @@
     ENSEMBLE REFTRAJ
     &REFTRAJ
       TRAJ_FILE_NAME ../sample_xyz/ref_geos.xyz
-      EVAL_ENERGY_FORCES T
+      EVAL ENERGY
     &END
   &END
   &PRINT
