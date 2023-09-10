@@ -8,6 +8,23 @@
 
 % TODO: `{toctree} % :caption: Get started % % get-started/installation % get-started/tutorials % `
 
+```{toctree}
+:caption: Methods
+:titlesonly:
+:maxdepth: 1
+
+methods/dft
+methods/post_hartree_fock
+methods/semiempiricals
+methods/machine_learning
+methods/embedding
+methods/qm_mm
+methods/sampling
+methods/optimization
+methods/spectroscopy
+methods/other_properties
+```
+
 % TODO: `{toctree} % :caption: How-to guides % % dummy % `
 
 ```{toctree}
