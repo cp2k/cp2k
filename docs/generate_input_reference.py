@@ -200,11 +200,13 @@ def render_keyword(keyword: lxml.etree._Element, section_xref: str) -> List[str]
     else:
         keyword_names = [get_text(name) for name in keyword.findall("NAME")]
     assert keyword_names
+    canonical_name = sanitize_name(keyword_names[0])
 
     # Find more keyword fields.
     default_value = get_text(keyword.find("DEFAULT_VALUE"))
     usage = get_text(keyword.find("USAGE"))
     description = get_text(keyword.find("DESCRIPTION"))
+    deprecation_notice = get_text(keyword.find("DEPRECATION_NOTICE"))
     location = get_text(keyword.find("LOCATION"))
     lone_keyword_value = get_text(keyword.find("LONE_KEYWORD_VALUE"))
 
@@ -232,7 +234,7 @@ def render_keyword(keyword: lxml.etree._Element, section_xref: str) -> List[str]
     output += [f"<a id='{keyword_names[0]}'></a>", ""]
 
     # Use Sphinx's py:data directive to document keywords.
-    output += [f"```{{py:data}}  {sanitize_name(keyword_names[0])}"]
+    output += [f"```{{py:data}}  {canonical_name}"]
     n_var_brackets = f"[{n_var}]" if n_var > 1 else ""
     output += [f":module: {section_xref}"]
     output += [f":type: '{data_type}{n_var_brackets}'"]
@@ -258,8 +260,13 @@ def render_keyword(keyword: lxml.etree._Element, section_xref: str) -> List[str]
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
     output += [f"{escape_markdown(description)} {github_link(location)}", ""]
-
     output += ["```", ""]  # Close py:data directive.
+
+    if deprecation_notice:
+        output += ["```{warning}", "The keyword"]
+        output += [f"[{canonical_name}](#{section_xref}.{canonical_name})"]
+        output += [" is deprecated and may be removed in a future version.", ""]
+        output += [escape_markdown(deprecation_notice), "", "```", ""]
 
     return output
 
