@@ -31,4 +31,12 @@ add_module_names = False
 
 # https://myst-parser.readthedocs.io/en/v0.16.1/syntax/optional.html#syntax-header-anchors
 
+html_context = {
+    "display_github": True,
+    "github_user": "cp2k",
+    "github_repo": "cp2k",
+    "github_version": "master",
+    "conf_py_path": "/docs/",
+}
+
 # EOF

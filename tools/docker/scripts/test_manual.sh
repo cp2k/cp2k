@@ -43,6 +43,7 @@ set +e # disable error trapping for remainder of script
   /opt/cp2k/docs/generate_input_reference.py ./cp2k_input.xml ./references.html
   echo ""
   sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual -W -n --keep-going --jobs 16
+  /opt/cp2k/docs/fix_github_links.py /workspace/artifacts/manual
 )
 EXIT_CODE=$?
 if ((EXIT_CODE)); then
