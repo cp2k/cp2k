@@ -7,7 +7,7 @@
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_Fortran_FLAGS
-      "-mtune=native -ffree-line-length-512 -ffree-form -std=f2008 -fimplicit-none -Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable  -Werror=conversion -Werror=zerotrip -Wuninitialized -Wno-maybe-uninitialized -Wunused-parameter"
+      "${CMAKE_Fortran_FLAGS} -mtune=native -ffree-line-length-512 -ffree-form -std=f2008 -fimplicit-none -Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable  -Werror=conversion -Werror=zerotrip -Wuninitialized -Wno-maybe-uninitialized -Wunused-parameter"
   )
 
   if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER 10)
@@ -30,16 +30,19 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
         "${CMAKE_Fortran_FLAGS_DEBUG} -fsanitize=leak")
   endif()
 elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-  set(CMAKE_Fortran_FLAGS "-free -stand=f18 -fpp -heap-arrays")
+  set(CMAKE_Fortran_FLAGS
+      "${CMAKE_Fortran_FLAGS} -free -stand=f18 -fpp -heap-arrays")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -g")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -debug")
 elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
-  set(CMAKE_Fortran_FLAGS "-Mfreeform -Mextend -Mallocatable=03"
+  set(CMAKE_Fortran_FLAGS
+      "${CMAKE_Fortran_FLAGS} -Mfreeform -Mextend -Mallocatable=03"
   )# -Mallocatable=03: enable F2003+ assignment semantics
   set(CMAKE_Fortran_FLAGS_RELEASE "-fast")
   set(CMAKE_Fortran_FLAGS_DEBUG "-g")
 elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "NAG")
-  set(CMAKE_Fortran_FLAGS "-f2008 -free -Warn=reallocation -Warn=subnormal")
+  set(CMAKE_Fortran_FLAGS
+      "${CMAKE_Fortran_FLAGS} -f2008 -free -Warn=reallocation -Warn=subnormal")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O2")
   set(CMAKE_Fortran_FLAGS_DEBUG "-g -C")
   if(NOT OpenMP_FOUND)
@@ -49,12 +52,10 @@ elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "NAG")
     )# some checks are not available with OpenMP
   endif()
 elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
-  set(CMAKE_Fortran_FLAGS "-f free -M3105 -ME7212") # -M3105: hide a
-                                                    # false-positive warning
-                                                    # about modified loop
-                                                    # variables due to loop
-                                                    # fusing, promote warning
-                                                    # 7212 to an error
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -f free -M3105 -ME7212"
+  )# -M3105: hide a
+  # false-positive warning about modified loop variables due to loop fusing,
+  # promote warning 7212 to an error
   set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -G2")
   set(CMAKE_Fortran_FLAGS_DEBUG "-G2")
   set(CMAKE_Fortran_MODOUT_FLAG "-ef") # override to get lower-case module file
