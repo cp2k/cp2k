@@ -306,10 +306,18 @@ MODULE mp2_types
       TYPE(mp2_gpw_type)                                 :: mp2_gpw = mp2_gpw_type()
       TYPE(ri_mp2_type)                                  :: ri_mp2 = ri_mp2_type()
       TYPE(ri_rpa_type)                                  :: ri_rpa = ri_rpa_type()
+      ! There is a bug with some older compilers preventing a default initialization of  derived types with allocatable components
+#if __GNUC__ < 9 || (__GNUC__ == 9 && __GNUC_MINOR__ < 5)
+      TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time
+      TYPE(ri_g0w0_type)                                 :: ri_g0w0
+      TYPE(ri_basis_opt)                                 :: ri_opt_param
+      TYPE(grad_util)                                    :: ri_grad
+#else
       TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type()
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type()
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt()
       TYPE(grad_util)                                    :: ri_grad = grad_util()
+#endif
       REAL(KIND=dp)                                      :: mp2_memory = 0.0_dp, &
                                                             scale_S = 0.0_dp, &
                                                             scale_T = 0.0_dp
