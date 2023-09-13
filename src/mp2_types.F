@@ -227,7 +227,7 @@ MODULE mp2_types
       LOGICAL                                            :: do_ic_model = .FALSE., &
                                                             print_ic_values = .FALSE.
       REAL(KIND=dp)                                      :: eps_dist = 0.0_dp
-      TYPE(one_dim_real_array), DIMENSION(2)             :: ic_corr_list = one_dim_real_array()
+      TYPE(one_dim_real_array), DIMENSION(2)             :: ic_corr_list = one_dim_real_array(NULL())
       INTEGER                                            :: print_exx = 0
       LOGICAL                                            :: do_gamma_only_sigma = .FALSE.
       LOGICAL                                            :: update_xc_energy = .FALSE., &
@@ -269,9 +269,9 @@ MODULE mp2_types
    END TYPE ri_basis_opt
 
    TYPE grad_util
-      TYPE(two_dim_real_array), DIMENSION(2)             :: P_ij = two_dim_real_array(), &
-                                                            P_ab = two_dim_real_array()
-      TYPE(three_dim_real_array), DIMENSION(2)           :: Gamma_P_ia = three_dim_real_array()
+      TYPE(two_dim_real_array), DIMENSION(2)             :: P_ij = two_dim_real_array(NULL()), &
+                                                            P_ab = two_dim_real_array(NULL())
+      TYPE(three_dim_real_array), DIMENSION(2)           :: Gamma_P_ia = three_dim_real_array(NULL())
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: operator_half, &
                                                             PQ_half, &
                                                             Gamma_PQ, &
@@ -306,10 +306,36 @@ MODULE mp2_types
       TYPE(mp2_gpw_type)                                 :: mp2_gpw = mp2_gpw_type()
       TYPE(ri_mp2_type)                                  :: ri_mp2 = ri_mp2_type()
       TYPE(ri_rpa_type)                                  :: ri_rpa = ri_rpa_type()
+      ! There is a bug with some older compilers preventing requiring an explicit initialization of allocatable components
+#if __GNUC__ < 9 || (__GNUC__ == 9 && __GNUC_MINOR__ < 5)
+      TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type(Eigenval_Gamma=NULL(), &
+                                                                                                 wkp_V=NULL(), &
+                                                                                                 starts_array_mc_RI=NULL(), &
+                                                                                                 ends_array_mc_RI=NULL(), &
+                                                                                                 starts_array_mc_block_RI=NULL(), &
+                                                                                                 ends_array_mc_block_RI=NULL(), &
+                                                                                     starts_array_mc=NULL(), ends_array_mc=NULL(), &
+                                                                                                 starts_array_mc_block=NULL(), &
+                                                                                                 ends_array_mc_block=NULL())
+      TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type(vec_Sigma_x_minus_vxc_gw=NULL(), &
+                                                                                   xkp_special_kp=NULL(), &
+                                                                                   matrix_sigma_x_minus_vxc=NULL(), &
+                                                                                   matrix_ks=NULL())
+      TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt(RI_nset_per_l=NULL())
+      TYPE(grad_util)                                    :: ri_grad = grad_util(operator_half=NULL(), &
+                                                                                PQ_half=NULL(), &
+                                                                                Gamma_PQ=NULL(), &
+                                                                                Gamma_PQ_2=NULL(), &
+                                                                                G_P_ia=NULL(), &
+                                                                                mo_coeff_o=NULL(), &
+                                                                                mo_coeff_v=NULL(), &
+                                                                                P_mo=NULL(), W_mo=NULL(), L_jb=NULL())
+#else
       TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type()
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type()
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt()
       TYPE(grad_util)                                    :: ri_grad = grad_util()
+#endif
       REAL(KIND=dp)                                      :: mp2_memory = 0.0_dp, &
                                                             scale_S = 0.0_dp, &
                                                             scale_T = 0.0_dp
