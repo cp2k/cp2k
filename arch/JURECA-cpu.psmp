@@ -8,14 +8,14 @@
 #              ELPA 2023.05.001, HDF5 1.12.0,
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0,
 #              LIBXC 6.2.2, LIBVORI 220621,
-#              LIBXSMM 1.17, PLUMED 2.8.2,
+#              LIBXSMM 1.17, PLUMED 2.9.0,
 #              SIRIUS 7.4.3, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 28.08.2023
+# Last update: 13.09.2023
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -65,7 +65,7 @@ USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
 USE_OPENBLAS   := 0.3.23
-USE_PLUMED     := 2.8.2
+USE_PLUMED     := 2.9.0
 USE_QUIP       := 0.9.10
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.4.3

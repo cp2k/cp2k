@@ -6,9 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-plumed_ver="2.8.2"
+plumed_ver="2.9.0"
 plumed_pkg="plumed-src-${plumed_ver}.tgz"
-plumed_sha256="59469456565853ee0103d1834e0f2dad675becee5d40f2d71529ddfa6ce27618"
+plumed_sha256="16e3fc77f2f4bc024bd279209e4dd49bfd8ed555325a0c868fe9c6b8fae19862"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
