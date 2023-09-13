@@ -4,7 +4,7 @@
 #
 # Tested with: Intel 22.2 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2023.05.001,
-#              PLUMED 2.8.2, SPGLIB 1.16.2, LIBVORI 220621,
+#              PLUMED 2.9.0, SPGLIB 1.16.2, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6, HDF5 1.12.0
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -12,7 +12,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 28.08.2023
+# Last update: 13.09.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -61,7 +61,7 @@ USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
-USE_PLUMED     := 2.8.2
+USE_PLUMED     := 2.9.0
 #USE_SIRIUS     := 7.4.3
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
