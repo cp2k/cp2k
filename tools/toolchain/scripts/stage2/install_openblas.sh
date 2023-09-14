@@ -48,8 +48,8 @@ case "${with_openblas}" in
       # TARGET, if this fails, then make with forced
       # TARGET=NEHALEM
       #
-      # wrt NUM_THREADS=64: this is what the most common Linux distros seem to choose atm
-      #                     for a good compromise between memory usage and scalability
+      # wrt NUM_THREADS=128: this is what the most common Linux distros seem to choose atm
+      #                      for a good compromise between memory usage and scalability
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
       case "${TARGET_CPU}" in
@@ -78,7 +78,7 @@ case "${with_openblas}" in
         make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           TARGET=${TARGET} \
-          NUM_THREADS=64 \
+          NUM_THREADS=128 \
           USE_THREAD=1 \
           USE_OPENMP=1 \
           NO_AFFINITY=1 \
@@ -90,7 +90,7 @@ case "${with_openblas}" in
         make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           TARGET=NEHALEM \
-          NUM_THREADS=64 \
+          NUM_THREADS=128 \
           USE_THREAD=1 \
           USE_OPENMP=1 \
           NO_AFFINITY=1 \
@@ -102,7 +102,7 @@ case "${with_openblas}" in
       make -j $(get_nprocs) \
         MAKE_NB_JOBS=0 \
         TARGET=${TARGET} \
-        NUM_THREADS=64 \
+        NUM_THREADS=128 \
         USE_THREAD=1 \
         USE_OPENMP=1 \
         NO_AFFINITY=1 \
