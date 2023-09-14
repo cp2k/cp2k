@@ -1517,7 +1517,7 @@ CONTAINS
                  ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
 
          IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1526,7 +1526,7 @@ CONTAINS
             END DO
 !$OMP END PARALLEL DO
          ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1577,7 +1577,7 @@ CONTAINS
          IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(l, m, mn, n), &
-!$OMP             SHARED(c, pw, scale)
+!$OMP             SHARED(c, pw, scale, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1589,7 +1589,7 @@ CONTAINS
          ELSE
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(l, m, mn, n), &
-!$OMP             SHARED(c, pw)
+!$OMP             SHARED(c, pw, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1643,7 +1643,7 @@ CONTAINS
          IF (.NOT. PRESENT(scale)) c = 0.0_dp
 
          IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1652,7 +1652,7 @@ CONTAINS
             END DO
 !$OMP END PARALLEL DO
          ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1670,7 +1670,7 @@ CONTAINS
                     ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
 
             IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale, ngpts)
                DO gpt = 1, ngpts
                   l = mapl(ghat(1, gpt)) + 1
                   m = mapm(ghat(2, gpt)) + 1
@@ -1679,7 +1679,7 @@ CONTAINS
                END DO
 !$OMP END PARALLEL DO
             ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, ngpts)
                DO gpt = 1, ngpts
                   l = mapl(ghat(1, gpt)) + 1
                   m = mapm(ghat(2, gpt)) + 1
@@ -1735,7 +1735,7 @@ CONTAINS
          IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(l, m, mn, n), &
-!$OMP             SHARED(c, pw, scale)
+!$OMP             SHARED(c, pw, scale, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1747,7 +1747,7 @@ CONTAINS
          ELSE
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(l, m, mn, n), &
-!$OMP             SHARED(c, pw)
+!$OMP             SHARED(c, pw, ngpts)
             DO gpt = 1, ngpts
                l = mapl(ghat(1, gpt)) + 1
                m = mapm(ghat(2, gpt)) + 1
@@ -1768,7 +1768,7 @@ CONTAINS
             IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(l, m, mn, n), &
-!$OMP             SHARED(c, pw, scale)
+!$OMP             SHARED(c, pw, scale, ngpts)
                DO gpt = 1, ngpts
                   l = mapl(ghat(1, gpt)) + 1
                   m = mapm(ghat(2, gpt)) + 1
@@ -1780,7 +1780,7 @@ CONTAINS
             ELSE
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
+!$OMP             SHARED(c, pw, ngpts)
                DO gpt = 1, ngpts
                   l = mapl(ghat(1, gpt)) + 1
                   m = mapm(ghat(2, gpt)) + 1
