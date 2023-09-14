@@ -4,7 +4,7 @@
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
 # Tested with: GNU 12.3.0, MPICH 4.0.3,
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.23, 
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.24, 
 #              FFTW 3.3.10, HDF5 1.12.0,
 #              LIBINT 2.6.0, LIBXC 6.2.2, 
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
@@ -14,7 +14,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 13.09.2023
+# Last update: 14.09.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
