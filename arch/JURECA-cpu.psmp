@@ -3,7 +3,7 @@
 # CP2K arch file for JURECA at FZ Juelich (2 AMD EPYC 7742 CPUs per node)
 #
 # Tested with: GNU 11.3.0, ParaStationMPI, 
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.23,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.24,
 #              FFTW 3.3.10, COSMA 2.6.6,
 #              ELPA 2023.05.001, HDF5 1.12.0,
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0,
@@ -15,7 +15,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 13.09.2023
+# Last update: 14.09.2023
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
