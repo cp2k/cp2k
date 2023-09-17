@@ -62,6 +62,10 @@ echo -e "\n========== Running ASE Tests =========="
 ASE_REVISION=$(git rev-parse --short HEAD)
 echo -
 
+# Make test temp files available as artifacts.
+export PYTEST_DEBUG_TEMPROOT=/workspace/artifacts
+mkdir -p ${PYTEST_DEBUG_TEMPROOT}
+
 if ase test -j 0 -c cp2k calculator/cp2k; then
   echo -e "\nSummary: ASE commit ${ASE_REVISION} works fine."
   echo -e "Status: OK\n"
