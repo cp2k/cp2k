@@ -138,9 +138,9 @@ CONTAINS
 
       CALL set_heuristic_parameters(bs_env)
 
-      CALL allocate_and_fill_fm_ks_fm_s(qs_env, bs_env)
-
       CALL setup_kpoints_DOS(qs_env, bs_env, bs_env%kpoints_DOS)
+
+      CALL allocate_and_fill_fm_ks_fm_s(qs_env, bs_env)
 
       CALL diagonalize_ks_matrix(bs_env)
 
@@ -1312,7 +1312,8 @@ CONTAINS
 
       ! if we have done GW, we already have the band edges
       IF (bs_env%do_gw) THEN
-         band_edges_scf_guess = bs_env%band_edges_scf
+         band_edges_scf = bs_env%band_edges_scf
+         band_edges_scf_guess = band_edges_scf
       ELSE
          band_edges_scf_guess%VBM = bs_env%eigenval_scf_Gamma(homo)
          band_edges_scf_guess%CBM = bs_env%eigenval_scf_Gamma(homo + 1)

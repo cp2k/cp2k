@@ -13,7 +13,7 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     BASIS_SET_FILE_NAME  ./REGTEST_BASIS_I
     SORT_BASIS EXP
-    POTENTIAL_FILE_NAME  /pc2/groups/hpc-prf-eprop2d/eprop2d1_Jan/02_compile_CP2K/10_continue_from_trunk_and_copy_07/cp2k/data/GTH_SOC_POTENTIALS
+    POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS
     &MGRID
       CUTOFF  100
       REL_CUTOFF  20

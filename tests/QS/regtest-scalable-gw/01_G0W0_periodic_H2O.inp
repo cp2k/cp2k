@@ -37,7 +37,9 @@
       &GW
         NUM_TIME_FREQ_POINTS 6
         SIZE_LATTICE_SUM_V 3
-        KPOINTS_SIGMA 1 2 2
+      &END
+      &DOS
+        KPOINTS 1 2 2
       &END
     &END
   &END PROPERTIES
