@@ -145,7 +145,7 @@ CONTAINS
       CALL diagonalize_ks_matrix(bs_env)
 
       IF (bs_env%do_bs) THEN
-         CALL setup_kpoints_bandstructure(qs_env, bs_env, bs_env%kpoints_bandstructure)
+         CALL setup_kpoints_bandstructure(bs_env, bs_env%kpoints_bandstructure)
          CALL setup_primitive_cell_for_bandstructure(qs_env, bs_env)
       END IF
 
@@ -333,13 +333,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param bs_env ...
 !> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE setup_kpoints_bandstructure(qs_env, bs_env, kpoints)
+   SUBROUTINE setup_kpoints_bandstructure(bs_env, kpoints)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
 
@@ -1283,9 +1281,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dos_pdos_ldos'
 
-      INTEGER                                            :: handle, homo_spinor, i_E, i_kind, i_mo, &
-                                                            ikp, n_ao, n_E, n_primitive_cells, &
-                                                            nkind
+      INTEGER                                            :: handle, homo, homo_spinor, i_E, i_kind, &
+                                                            i_mo, ikp, n_ao, n_E, &
+                                                            n_primitive_cells, nkind
       REAL(KIND=dp) :: broadening, E_max, E_max_G0W0, E_min, E_min_G0W0, E_total_window, energy, &
          energy_step_DOS, energy_window_DOS, ev, wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: DOS_G0W0, DOS_G0W0_SOC, DOS_scf, &
@@ -1296,7 +1294,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: LDOS_G0W0_2d, LDOS_scf_2d, &
                                                             LDOS_scf_2d_SOC
       TYPE(band_edges_type)                              :: band_edges_G0W0, band_edges_G0W0_SOC, &
-                                                            band_edges_scf, band_edges_scf_SOC
+                                                            band_edges_scf, band_edges_scf_guess, &
+                                                            band_edges_scf_SOC
       TYPE(cp_cfm_type) :: cfm_ks_ikp, cfm_ks_ikp_spinor, cfm_mos_ikp, cfm_mos_ikp_spinor, &
          cfm_s_ikp, cfm_s_ikp_copy, cfm_s_ikp_spinor, cfm_s_ikp_spinor_copy, cfm_work_ikp, &
          cfm_work_ikp_spinor
@@ -1304,15 +1303,27 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ao = bs_env%n_ao
+      homo = bs_env%n_occ(1)
 
       energy_window_DOS = bs_env%energy_window_DOS
       energy_step_DOS = bs_env%energy_step_DOS
       broadening = bs_env%broadening_DOS
 
-      band_edges_scf = bs_env%band_edges_scf
+      ! if we have done GW, we already have the band edges
+      IF (bs_env%do_gw) THEN
+         band_edges_scf_guess = bs_env%band_edges_scf
+      ELSE
+         band_edges_scf_guess%VBM = bs_env%eigenval_scf_Gamma(homo)
+         band_edges_scf_guess%CBM = bs_env%eigenval_scf_Gamma(homo + 1)
 
-      E_min = band_edges_scf%VBM - 0.5_dp*energy_window_DOS
-      E_max = band_edges_scf%CBM + 0.5_dp*energy_window_DOS
+         ! initialization
+         band_edges_scf%VBM = -1000.0_dp
+         band_edges_scf%CBM = 1000.0_dp
+         band_edges_scf%DBG = 1000.0_dp
+      END IF
+
+      E_min = band_edges_scf_guess%VBM - 0.5_dp*energy_window_DOS
+      E_max = band_edges_scf_guess%CBM + 0.5_dp*energy_window_DOS
 
       IF (bs_env%do_gw) THEN
          band_edges_G0W0 = bs_env%band_edges_G0W0
@@ -1378,6 +1389,7 @@ CONTAINS
          band_edges_scf_SOC%CBM = 1000.0_dp
          band_edges_scf_SOC%DBG = 1000.0_dp
 
+         ! JW for later: G0W0+SOC
          IF (bs_env%do_gw) THEN
             band_edges_G0W0_SOC%VBM = -1000.0_dp
             band_edges_G0W0_SOC%CBM = 1000.0_dp
@@ -1453,12 +1465,16 @@ CONTAINS
 
          IF (bs_env%do_local_vbm_cbm_gap) THEN
             CALL add_to_LDOS_2d(LDOS_scf_2d, qs_env, ikp, bs_env, cfm_mos_ikp, &
-                                eigenval(:), band_edges_scf)
+                                eigenval(:), band_edges_scf_guess)
             IF (bs_env%do_gw) THEN
                CALL add_to_LDOS_2d(LDOS_G0W0_2d, qs_env, ikp, bs_env, cfm_mos_ikp, &
                                    bs_env%eigenval_G0W0(:, ikp), band_edges_G0W0)
             END IF
          END IF
+
+         band_edges_scf%VBM = MAX(band_edges_scf%VBM, eigenval(homo))
+         band_edges_scf%CBM = MIN(band_edges_scf%CBM, eigenval(homo + 1))
+         band_edges_scf%DBG = MIN(band_edges_scf%DBG, eigenval(homo + 1) - eigenval(homo))
 
          ! now the same with spin-orbit coupling
          IF (bs_env%do_soc) THEN
@@ -1512,10 +1528,10 @@ CONTAINS
 
             IF (bs_env%do_local_vbm_cbm_gap) THEN
                CALL add_to_LDOS_2d(LDOS_scf_2d_SOC, qs_env, ikp, bs_env, cfm_mos_ikp_spinor, &
-                                   eigenval_spinor, band_edges_scf, .TRUE., cfm_work_ikp)
+                                   eigenval_spinor, band_edges_scf_guess, .TRUE., cfm_work_ikp)
             END IF
 
-         END IF
+         END IF ! do_soc
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,T43,I5,A,I3,A,F7.1,A)') &
@@ -1525,7 +1541,10 @@ CONTAINS
 
       END DO ! ikp_DOS
 
-      band_edges_scf_SOC%IDBG = band_edges_scf_SOC%CBM - band_edges_scf_SOC%VBM
+      band_edges_scf%IDBG = band_edges_scf%CBM - band_edges_scf%VBM
+      IF (bs_env%do_soc) THEN
+         band_edges_scf_SOC%IDBG = band_edges_scf_SOC%CBM - band_edges_scf_SOC%VBM
+      END IF
 
       CALL write_band_edges(band_edges_scf, "SCF", bs_env)
       CALL write_dos_pdos(DOS_scf, PDOS_scf, bs_env, qs_env, "SCF", E_min, band_edges_scf%VBM)
@@ -1546,14 +1565,12 @@ CONTAINS
       END IF
 
       IF (bs_env%do_gw) THEN
-
          CALL write_band_edges(band_edges_G0W0, "G0W0", bs_env)
          CALL write_dos_pdos(DOS_G0W0, PDOS_G0W0, bs_env, qs_env, "G0W0", E_min, &
                              band_edges_G0W0%VBM)
          IF (bs_env%do_local_vbm_cbm_gap) THEN
             CALL compute_print_local_VBM_CBM_gap(LDOS_G0W0_2d, bs_env, band_edges_G0W0, "G0W0")
          END IF
-
       END IF
 
       CALL cp_cfm_release(cfm_s_ikp)

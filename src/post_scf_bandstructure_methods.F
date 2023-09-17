@@ -53,7 +53,7 @@ CONTAINS
 
       ! shifts of eigenvalues/bandstructure due to spin-orbit coupling from pseudopotentials
       IF (qs_env%bs_env%do_soc) THEN
-         CALL soc(qs_env, qs_env%bs_env, post_scf_bandstructure_section)
+         CALL soc(qs_env, qs_env%bs_env)
       END IF
 
       ! GW calculation for eigenvalues/bandstructure
@@ -79,12 +79,10 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param bs_env ...
-!> \param post_scf_bandstructure_section ...
 ! **************************************************************************************************
-   SUBROUTINE soc(qs_env, bs_env, post_scf_bandstructure_section)
+   SUBROUTINE soc(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(section_vals_type), POINTER                   :: post_scf_bandstructure_section
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'soc'
 

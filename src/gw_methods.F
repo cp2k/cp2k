@@ -173,7 +173,6 @@ CONTAINS
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, j_intval_idx
       INTEGER, DIMENSION(2)                              :: i_atoms, IL_atoms, j_atoms
       LOGICAL                                            :: dist_too_long_i, dist_too_long_j
-      REAL(dp)                                           :: occ
       REAL(KIND=dp)                                      :: tau
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, &
                                                             t_3c_for_Gvir, t_3c_x_Gocc, &
@@ -610,7 +609,6 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: matrix
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
@@ -812,13 +810,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
-!> \param qs_env ...
 !> \param fm_M_inv_V_sqrt_kp ...
 !> \param fm_V_sqrt_kp ...
 ! **************************************************************************************************
-   SUBROUTINE read_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
+   SUBROUTINE read_MinvVsqrt_Vsqrt(bs_env, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_MinvVsqrt_Vsqrt'
@@ -1035,7 +1031,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (bs_env%read_all_W_time) THEN
-         CALL read_W_MIC_time(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
+         CALL read_W_MIC_time(bs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
       END IF
       IF (bs_env%calc_all_W_time) THEN
          CALL compute_W_MIC_deep(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
@@ -1048,13 +1044,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
-!> \param qs_env ...
 !> \param mat_chi_Gamma_tau ...
 !> \param fm_W_MIC_time ...
 ! **************************************************************************************************
-   SUBROUTINE read_W_MIC_time(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
+   SUBROUTINE read_W_MIC_time(bs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
 
@@ -1108,7 +1102,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (bs_env%read_MinvVsqrt_Vsqrt) THEN
-         CALL read_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
+         CALL read_MinvVsqrt_Vsqrt(bs_env, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
       END IF
       IF (bs_env%calc_MinvVsqrt_Vsqrt) THEN
          ! Compute V_PQ(k) = sum_R e^(ikR) <phi_P, cell 0 | 1/r | phi_Q, cell R>
@@ -1121,7 +1115,7 @@ CONTAINS
       DO j_w = 1, bs_env%num_time_freq_points
 
          IF (bs_env%read_W_freq(j_w)) THEN
-            CALL read_fm_W_MIC_freq_j(bs_env%fm_W_MIC_freq, bs_env, bs_env%W_freq_name, j_w)
+            CALL read_fm_W_MIC_freq_j(bs_env%fm_W_MIC_freq, bs_env, j_w)
          END IF
          IF (bs_env%calc_W_freq(j_w)) THEN
             CALL compute_fm_W_MIC_freq_j(bs_env, qs_env, bs_env%fm_W_MIC_freq, j_w, &
@@ -1221,13 +1215,11 @@ CONTAINS
 !> \brief ...
 !> \param fm_W_MIC_freq ...
 !> \param bs_env ...
-!> \param W_freq_name ...
 !> \param j_w ...
 ! **************************************************************************************************
-   SUBROUTINE read_fm_W_MIC_freq_j(fm_W_MIC_freq, bs_env, W_freq_name, j_w)
+   SUBROUTINE read_fm_W_MIC_freq_j(fm_W_MIC_freq, bs_env, j_w)
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      CHARACTER(LEN=*)                                   :: W_freq_name
       INTEGER                                            :: j_w
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_fm_W_MIC_freq_j'
@@ -1312,7 +1304,7 @@ CONTAINS
 
          ! 6. K-point integration (with extrapolation): W_PQ(iω_j,k) to W_PQ^MIC(iω_j)
          CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
-                                                       cfm_W_ikp_freq_j, ikp, ikp_start)
+                                                       cfm_W_ikp_freq_j, ikp)
 
       END DO ! ikp
 
@@ -1594,15 +1586,14 @@ CONTAINS
 !> \param fm_W_MIC_freq_j ...
 !> \param cfm_W_ikp_freq_j ...
 !> \param ikp ...
-!> \param ikp_start ...
 ! **************************************************************************************************
    SUBROUTINE compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
-                                                       cfm_W_ikp_freq_j, ikp, ikp_start)
+                                                       cfm_W_ikp_freq_j, ikp)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
       TYPE(cp_cfm_type)                                  :: cfm_W_ikp_freq_j
-      INTEGER                                            :: ikp, ikp_start
+      INTEGER                                            :: ikp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j_ikp_contribution'
 
@@ -2483,7 +2474,7 @@ CONTAINS
       CALL get_VBM_CBM_bandgaps(bs_env)
 
       ! compute H^G0W0(k=0) = S(k=0)*C(k=0)ϵ^G0W0(k=0)*C(k=0)*S(k=0)
-      CALL G0W0_hamiltonian(bs_env, qs_env)
+      CALL G0W0_hamiltonian(bs_env)
 
       CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
@@ -2721,11 +2712,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief compute H^G0W0(k=0) = S(k=0)*C(k=0)ϵ^G0W0(k=0)*C(k=0)*S(k=0)
 !> \param bs_env ...
-!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE G0W0_hamiltonian(bs_env, qs_env)
+   SUBROUTINE G0W0_hamiltonian(bs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G0W0_hamiltonian'
 

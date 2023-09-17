@@ -139,7 +139,7 @@ CONTAINS
 
       CALL create_tensors(qs_env, bs_env)
 
-      CALL set_sparsity_parallelization_parameters(qs_env, bs_env)
+      CALL set_sparsity_parallelization_parameters(bs_env)
 
       CALL check_for_restart_files(qs_env, bs_env)
 
@@ -876,17 +876,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
-   SUBROUTINE set_sparsity_parallelization_parameters(qs_env, bs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE set_sparsity_parallelization_parameters(bs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_sparsity_parallelization_parameters'
 
-      INTEGER :: handle, i, i_ivl, IL_ivl, j_ivl, n_atom_per_IL_ivl, n_atom_per_ivl, &
-         n_intervals_i, n_intervals_inner_loop_atoms, n_intervals_j, u
+      INTEGER :: handle, i_ivl, IL_ivl, j_ivl, n_atom_per_IL_ivl, n_atom_per_ivl, n_intervals_i, &
+         n_intervals_inner_loop_atoms, n_intervals_j, u
 
       CALL timeset(routineN, handle)
 
