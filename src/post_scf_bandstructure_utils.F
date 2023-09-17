@@ -1604,13 +1604,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_print_local_VBM_CBM_gap'
 
-      INTEGER :: handle, i_E, i_eps, i_window, i_x, i_x_bin, i_x_end, i_x_end_bin, i_x_end_glob, &
-         i_x_start, i_x_start_bin, i_x_start_glob, i_y, i_y_bin, i_y_end, i_y_end_bin, &
-         i_y_end_glob, i_y_start, i_y_start_bin, i_y_start_glob, n_E, n_E_cut, n_E_occ_vir_max, &
-         n_E_vir_start, n_eps, n_windows
+      INTEGER :: handle, i_E, i_E_occ_end, i_E_occ_start, i_E_vir_end, i_E_vir_start, i_eps, &
+         i_window, i_x, i_x_bin, i_x_end, i_x_end_bin, i_x_end_glob, i_x_start, i_x_start_bin, &
+         i_x_start_glob, i_y, i_y_bin, i_y_end, i_y_end_bin, i_y_end_glob, i_y_start, &
+         i_y_start_bin, i_y_start_glob, n_E, n_E_occ, n_E_vir, n_eps, n_windows
       INTEGER, DIMENSION(2)                              :: bin_mesh
       LOGICAL                                            :: do_xy_bins
-      REAL(KIND=dp)                                      :: E_min, energy, energy_step_ldos, eps, &
+      REAL(KIND=dp)                                      :: E_max_i_window, E_min, E_min_i_window, &
+                                                            energy, energy_step_ldos, eps, &
                                                             max_energy_window_ldos, win
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: avg_LDOS_occ, avg_LDOS_vir, local_CBM, &
                                                             local_gap, local_VBM
@@ -1693,17 +1694,34 @@ CONTAINS
 
          win = bs_env%energy_window_ldos(i_window)
 
-         n_E_occ_vir_max = ANINT(max_energy_window_ldos/2.0_dp/energy_step_ldos)
-         n_E_vir_start = n_E - n_E_occ_vir_max
+         i_E_occ_start = 1E7
+         i_E_occ_end = -1E7
+         i_E_vir_start = 1E7
+         i_E_vir_end = -1E7
 
-         n_E_cut = ANINT((max_energy_window_ldos - win)/2.0_dp/energy_step_ldos)
+         DO i_E = 1, n_E
+
+            energy = E_min + i_E*energy_step_ldos
+
+            E_min_i_window = band_edges%VBM - win/2.0_dp
+            E_max_i_window = band_edges%CBM + win/2.0_dp
+
+            IF (energy >= E_min_i_window) i_E_occ_start = MIN(i_E_occ_start, i_E)
+            IF (energy <= band_edges%VBM) i_E_occ_end = MAX(i_E_occ_end, i_E)
+            IF (energy >= band_edges%CBM) i_E_vir_start = MIN(i_E_vir_start, i_E)
+            IF (energy <= E_max_i_window) i_E_vir_end = MAX(i_E_vir_end, i_E)
+
+         END DO
+
+         n_E_occ = i_E_occ_end - i_E_occ_start + 1
+         n_E_vir = i_E_vir_end - i_E_vir_start + 1
 
          DO i_x = i_x_start_bin, i_x_end_bin
             DO i_y = i_y_start_bin, i_y_end_bin
-               avg_LDOS_occ(i_x, i_y) = SUM(LDOS_2d_bins(i_x, i_y, 1 + n_E_cut:n_E_occ_vir_max)) &
-                                        /(n_E_occ_vir_max - n_E_cut)
-               avg_LDOS_vir(i_x, i_y) = SUM(LDOS_2d_bins(i_x, i_y, n_E_vir_start:n_E - n_E_cut)) &
-                                        /(n_E_occ_vir_max - n_E_cut)
+               avg_LDOS_occ(i_x, i_y) = SUM(LDOS_2d_bins(i_x, i_y, i_E_occ_start:i_E_occ_end)) &
+                                        /n_E_occ
+               avg_LDOS_vir(i_x, i_y) = SUM(LDOS_2d_bins(i_x, i_y, i_E_vir_start:i_E_vir_end)) &
+                                        /n_E_vir
             END DO
          END DO
 
