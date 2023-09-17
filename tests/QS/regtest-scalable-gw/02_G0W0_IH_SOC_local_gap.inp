@@ -48,6 +48,7 @@
         KPOINTS 1 1 2
       &END
       &LOCAL_VBM_CBM_GAP
+        BIN_MESH 4 4
         ENERGY_STEP 0.05 
         ENERGY_WINDOW 0.2 0.5
         INTEGRATION Z
