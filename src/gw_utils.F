@@ -624,7 +624,7 @@ CONTAINS
       occupation_sum = 0.0_dp
       non_zero_elements_sum = 0
       max_dist_AO_atoms = 0.0_dp
-      n_atom_step = ANINT(SQRT(REAL(bs_env%n_atom, KIND=dp)))
+      n_atom_step = INT(SQRT(REAL(bs_env%n_atom, KIND=dp)))
       ! do not compute full 3c integrals at once because it may cause out of memory
       DO RI_atom = 1, bs_env%n_atom, n_atom_step
 
@@ -674,7 +674,7 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,F33.1,A)') 'Max. distance between µ,ν in non-zero (µν|P)', &
             max_dist_AO_atoms*angstrom, ' A'
          WRITE (bs_env%unit_nr, '(T2,2A,I20,A)') 'Required memory if storing all 3-center ', &
-            'integrals (µν|P)', INT(non_zero_elements_sum*8/1E9), ' GB'
+            'integrals (µν|P)', INT(REAL(non_zero_elements_sum, KIND=dp)*8.0E-9_dp), ' GB'
       END IF
 
       CALL timestop(handle)
@@ -1157,7 +1157,7 @@ CONTAINS
       CALL m_memory(mem)
       CALL bs_env%para_env%max(mem)
 
-      bs_env%input_memory_per_proc = bs_env%input_memory_per_proc_GB*1E9
+      bs_env%input_memory_per_proc = INT(bs_env%input_memory_per_proc_GB*1.0E9_dp)
 
       u = bs_env%unit_nr
       IF (u > 0) THEN

@@ -64,6 +64,7 @@ list(
   auto_basis.F
   post_scf_bandstructure_methods.F
   soc_pseudopotential_methods.F
+  soc_pseudopotential_utils.F
   basis_set_output.F
   beta_gamma_psi.F
   block_p_types.F
@@ -204,6 +205,7 @@ list(
   gapw_1c_basis_set.F
   gw_communication.F
   gw_methods.F
+  gw_types.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
   gw_utils.F

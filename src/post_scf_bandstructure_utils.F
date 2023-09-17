@@ -1024,6 +1024,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bandstructure_primitive_cell_spinor'
 
+      COMPLEX(KIND=dp)                                   :: arg, s_z
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: s_dot_mo_coeff_down, s_dot_mo_coeff_up
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: h_munu_k, mo_coeff_k, s_munu_k, &
                                                             s_munu_k_single
@@ -1034,7 +1035,6 @@ CONTAINS
                                                             first_bf_of_primit_atom
       INTEGER, DIMENSION(3)                              :: cell_atom_i, cell_atom_j, min_max_cell
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: arg, s_z
 
       CALL timeset(routineN, handle)
 
@@ -1177,7 +1177,8 @@ CONTAINS
                                                mo_coeff_k(n_ao_primitive_cell + 1:, imo))
                s_z = SUM(CONJG(mo_coeff_k(1:n_ao_primitive_cell, imo))*s_dot_mo_coeff_up) - &
                      SUM(CONJG(mo_coeff_k(n_ao_primitive_cell + 1:, imo))*s_dot_mo_coeff_down)
-               WRITE (UNIT=iunit, FMT="(T2,I7,1X,2F14.8)") imo, eigenvalues(imo, ikp)*evolt, s_z
+               WRITE (UNIT=iunit, FMT="(T2,I7,1X,2F14.8)") imo, eigenvalues(imo, ikp)*evolt, &
+                  REAL(s_z, KIND=dp)
             END DO
 
          END IF
@@ -1335,7 +1336,7 @@ CONTAINS
 
       E_total_window = E_max - E_min
 
-      n_E = ANINT(E_total_window/energy_step_DOS)
+      n_E = INT(E_total_window/energy_step_DOS)
 
       ALLOCATE (DOS_scf(n_E))
       DOS_scf(:) = 0.0_dp
@@ -1950,7 +1951,7 @@ CONTAINS
       INTEGER :: handle, i_x, i_x_end, i_x_end_local, i_x_start, i_x_start_local, i_y, i_y_end, &
          i_y_end_local, i_y_start, i_y_start_local, iunit, n_x, n_y
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_VBM_CBM_gap_all
-      REAL, DIMENSION(3)                                 :: coord, idx
+      REAL(KIND=dp), DIMENSION(3)                        :: coord, idx
 
       CALL timeset(routineN, handle)
 
@@ -2073,7 +2074,7 @@ CONTAINS
       E_max = band_edges%CBM + 0.5_dp*max_energy_window_ldos
       E_total_window = E_max - E_min
 
-      n_E = ANINT(E_total_window/energy_step_ldos)
+      n_E = INT(E_total_window/energy_step_ldos)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
