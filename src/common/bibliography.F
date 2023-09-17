@@ -90,7 +90,7 @@ MODULE bibliography
                             cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020
+                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, Graml2023
 
 CONTAINS
 
@@ -4852,7 +4852,7 @@ CONTAINS
                          "   Kornbluth, M", &
                          "   Kozinsky, B", &
                          "TI Learning local equivariant representations for large-scale", &
-                         "    atomistic dynamice", &
+                         "    atomistic dynamics", &
                          "SO Nature Communications", &
                          "PY 2023", &
                          "VL 14", &
@@ -4871,6 +4871,20 @@ CONTAINS
                          "AR 214109", &
                          "ER"), &
                          DOI="10.1063/5.0030764")
+
+      CALL add_reference(key=Graml2023, ISI_record=s2a( &
+                         "AU Graml, Maximilian", &
+                         "   Zollner, Klaus", &
+                         "   Hernangómez-Pérez, Daniel", &
+                         "   Faria Junior, Paulo Eduardo", &
+                         "   Wilhelm, Jan", &
+                         "TI Low-scaling GW algorithm applied to twisted transition-metal ", &
+                         "   dichalcogenide heterobilayers", &
+                         "SO arXiv", &
+                         "PY 2023", &
+                         "AR 2306.16066", &
+                         "ER"), &
+                         DOI="10.48550/arXiv.2306.16066")
 
    END SUBROUTINE add_all_references
 

@@ -62,7 +62,8 @@ list(
   atom_utils.F
   atom_xc.F
   auto_basis.F
-  bandstructure_methods.F
+  post_scf_bandstructure_methods.F
+  soc_pseudopotential_methods.F
   basis_set_output.F
   beta_gamma_psi.F
   block_p_types.F
@@ -203,7 +204,8 @@ list(
   gapw_1c_basis_set.F
   gw_communication.F
   gw_methods.F
-  gw_types.F
+  post_scf_bandstructure_types.F
+  post_scf_bandstructure_utils.F
   gw_utils.F
   hartree_local_methods.F
   hartree_local_types.F

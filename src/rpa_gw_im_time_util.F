@@ -740,12 +740,15 @@ CONTAINS
 !> \param atom_from_basis_index ...
 !> \param basis_size ...
 !> \param basis_type ...
+!> \param first_bf_from_atom ...
 ! **************************************************************************************************
-   SUBROUTINE get_atom_index_from_basis_function_index(qs_env, atom_from_basis_index, basis_size, basis_type)
+   SUBROUTINE get_atom_index_from_basis_function_index(qs_env, atom_from_basis_index, basis_size, &
+                                                       basis_type, first_bf_from_atom)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_basis_index
       INTEGER                                            :: basis_size
       CHARACTER(LEN=*)                                   :: basis_type
+      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: first_bf_from_atom
 
       INTEGER                                            :: iatom, LLL, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_end, row_blk_start
@@ -770,6 +773,8 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      IF (PRESENT(first_bf_from_atom)) first_bf_from_atom(1:natom) = row_blk_start(:)
 
       DEALLOCATE (basis_set)
       DEALLOCATE (row_blk_start)

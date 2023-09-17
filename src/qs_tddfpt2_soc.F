@@ -78,10 +78,10 @@ MODULE qs_tddfpt2_soc
                                               soc_env_create,&
                                               soc_env_release,&
                                               soc_env_type
-   USE qs_tddfpt2_soc_utils,            ONLY: atomic_pseudopotential,&
-                                              soc_contract_evect,&
+   USE qs_tddfpt2_soc_utils,            ONLY: soc_contract_evect,&
                                               soc_dipole_operator
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
+   USE soc_pseudopotential_methods,     ONLY: V_SOC_xyz_from_pseudopotential
    USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                               clebsch_gordon_deallocate,&
                                               clebsch_gordon_init
@@ -1206,7 +1206,7 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
       IF (.NOT. all_potential_present) THEN
-         CALL atomic_pseudopotential(soc_atom_env, qs_env)
+         CALL V_SOC_xyz_from_pseudopotential(qs_env, soc_atom_env%soc_pp)
       END IF
 
       !  IF (all_potential_present) THEN

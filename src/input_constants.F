@@ -1068,7 +1068,11 @@ MODULE input_constants
                                                gw_gf_gamma = 15, &
                                                soc_none = 16, &
                                                soc_lda = 17, &
-                                               soc_pbe = 18
+                                               soc_pbe = 18, &
+                                               int_ldos_x = 19, &
+                                               int_ldos_y = 20, &
+                                               int_ldos_z = 21, &
+                                               int_ldos_none = 22
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &
