@@ -72,6 +72,7 @@ MODULE cp_control_types
       LOGICAL                              :: hfx_redistribute = .FALSE.
       INTEGER                              :: aspc_order = 0
       INTEGER                              :: sc_check_start = 0
+      LOGICAL                              :: apply_wfn_mix_init_restart = .FALSE.
       LOGICAL                              :: apply_delta_pulse = .FALSE.
       LOGICAL                              :: apply_delta_pulse_mag = .FALSE.
       LOGICAL                              :: periodic = .FALSE.

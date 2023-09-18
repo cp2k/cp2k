@@ -37,7 +37,7 @@
            ORIG_MO_INDEX 1
            ORIG_SPIN_INDEX BETA
            ORIG_SCALE .70710678118654752440
-           ORIG_IS_VIRTUAL .TRUE.
+           ORIG_TYPE VIRTUAL
        &END
        &UPDATE
            RESULT_MO_INDEX 1
@@ -46,7 +46,7 @@
            ORIG_MO_INDEX 2
            ORIG_SPIN_INDEX BETA
            ORIG_SCALE .70710678118654752440
-           ORIG_IS_VIRTUAL .TRUE.
+           ORIG_TYPE VIRTUAL
        &END
       &END
     &END

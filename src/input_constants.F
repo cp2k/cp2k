@@ -926,6 +926,7 @@ MODULE input_constants
                                                ramp_env = 3, &
                                                custom_env = 4
 
+   ! type of reference for RTP%PRINT%PROJECTION_MO
    INTEGER, PARAMETER, PUBLIC               :: proj_mo_ref_scf = 1, &
                                                proj_mo_ref_xas_tdp = 2
 
@@ -1256,5 +1257,10 @@ MODULE input_constants
                                                scan_xz = 13, &
                                                scan_yz = 23, &
                                                scan_xyz = 123
+
+   ! DFT%PRINT%WFN_MIX orgine type
+   INTEGER, PARAMETER, PUBLIC               :: wfn_mix_orig_occ = 1, &
+                                               wfn_mix_orig_virtual = 2, &
+                                               wfn_mix_orig_external = 3
 
 END MODULE input_constants

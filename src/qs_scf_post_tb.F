@@ -805,7 +805,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      INTEGER                                            :: iounit, ispin, nao, nmo
+      INTEGER                                            :: ispin, nao, nmo, output_unit
       REAL(dp), DIMENSION(:), POINTER                    :: mo_eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_lumo_struct
@@ -815,6 +815,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: wfn_mix_section
@@ -822,7 +823,7 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, matrix_ks=matrix_ks, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, mos=mos)
+                      qs_kind_set=qs_kind_set, mos=mos, para_env=para_env)
 
       wfn_mix_section => section_vals_get_subs_vals(dft_section, "PRINT%WFN_MIX")
 
@@ -855,9 +856,9 @@ CONTAINS
          CALL cp_fm_struct_release(ao_lumo_struct)
       END DO
 
-      iounit = cp_logger_get_default_io_unit(logger)
-      CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
-                   lumos, scf_env, matrix_s, iounit)
+      output_unit = cp_logger_get_default_io_unit(logger)
+      CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, para_env, output_unit, &
+                   unoccupied_orbs=lumos, scf_env=scf_env, matrix_s=matrix_s)
 
       CALL cp_fm_release(lumos)
       CALL cp_fm_release(S_tmp)

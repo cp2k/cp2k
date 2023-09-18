@@ -1,9 +1,20 @@
+#CPQA DEPENDS wfn_mix_loc-0.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     LSD
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
+    RESTART_FILE_NAME mix_loc-RESTART.wfn
+    &REAL_TIME_PROPAGATION
+       MAX_ITER 6
+       MAT_EXP ARNOLDI
+       EXP_ACCURACY 1.0E-9
+       EPS_ITER 1.0E-9
+       PROPAGATOR ETRS
+       INITIAL_WFN RESTART_WFN
+       APPLY_WFN_MIX_INIT_RESTART .TRUE. 
+    &END
     &MGRID
       CUTOFF 150
     &END MGRID
@@ -25,36 +36,36 @@
     &LOCALIZE
       METHOD CRAZY
       EPS_LOCALIZATION 1.0E-10
-      STATES ALL
-      LIST 1..4
+      STATES UNOCCUPIED
       LIST_UNOCCUPIED 1..4
       &PRINT
         &WANNIER_CENTERS
         &END
         &MOLECULAR_STATES
-           MARK_STATES 1 2
-           MARK_STATES 1 1
         &END
       &END
     &END
     &PRINT
+      &E_DENSITY_CUBE
+      &END
       &MO_CUBES
           NHOMO 4
           NLUMO 4
           WRITE_CUBE .FALSE.
       &END
       &WFN_MIX
-       ! replace HOMO with an orthonormal linear combination of lumo and lumo+1
+       ! replace HOMO with an orthonormal linear combination of homo and homo-1
        &UPDATE
-           RESULT_MARKED_STATE 2
+           RESULT_MO_INDEX 1
            RESULT_SPIN_INDEX ALPHA
-           RESULT_SCALE 0.0
+           RESULT_SCALE 0.7071067
 
-           ORIG_MARKED_STATE 1
+           ORIG_MO_INDEX 2
            ORIG_SPIN_INDEX ALPHA
-           ORIG_SCALE 1.000000000000000000000
-            
-           ORIG_TYPE VIRTUAL
+           ORIG_SCALE 0.7071067
+           
+           ORIG_TYPE EXTERNAL
+           ORIG_EXT_FILE_NAME mix_loc-RESTART.wfn
        &END
       &END
     &END
@@ -79,7 +90,13 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT mix_loc_mark
-  RUN_TYPE ENERGY_FORCE
+  PROJECT mix_loc_rtp
+  RUN_TYPE RT_PROPAGATION
   PRINT_LEVEL MEDIUM
 &END GLOBAL
+&MOTION
+   &MD
+     STEPS 3
+     TIMESTEP [au_t] 0.2
+   &END
+&END
