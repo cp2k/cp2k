@@ -52,20 +52,6 @@
           NLUMO 4
           WRITE_CUBE .FALSE.
       &END
-      &WFN_MIX
-       ! replace HOMO with an orthonormal linear combination of lumo and lumo+1
-       &UPDATE
-           RESULT_MO_INDEX 1
-           RESULT_SPIN_INDEX ALPHA
-           RESULT_SCALE 0.0
-
-           ORIG_MO_INDEX 1
-           ORIG_SPIN_INDEX ALPHA
-           ORIG_SCALE 1.000000000000000000000
-
-           ORIG_IS_VIRTUAL .TRUE.
-       &END
-      &END
     &END
   &END DFT
   &SUBSYS

@@ -101,10 +101,11 @@ MODULE input_cp2k_dft
         weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
         wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
         wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, &
-        xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, &
-        xas_dip_vel, xas_dscf, xas_none, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, &
-        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        wfi_use_prev_wf_method_nr, wfn_mix_orig_external, wfn_mix_orig_occ, wfn_mix_orig_virtual, &
+        xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
+        xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
+        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
+        xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -2849,12 +2850,19 @@ CONTAINS
                           description="A section that allows manipulation of the MO coeffs,"// &
                           " e.g. for changing a ground state into an excited state."// &
                           "Starting from a copy of the original MOs, changes can be made"// &
-                          "by adding linear combinations of HOMO/LUMO of the original MOs to the result MOs", &
+                          "by adding linear combinations of HOMO/LUMO of the original MOs to the result MOs."// &
+                          "This method is called after an SCF optimization or before an RTP run if "// &
+                          "INITIAL_WFN=RESTART_WFN. Note that if called after an SCF optimization, a restart file "// &
+                          "with the mixed MOs is saved. This is not the case for an RTP with "// &
+                          "INITIAL_WFN=RESTART_WFN.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE_MOS", &
-                          description="If the keyword is active molecular orbitals in memory will be replaced by the mixed wfn."// &
-                          " In combination with RTP or EMD no restart will be required to use the mixed wfn.", &
+                        description="If set to True, the active molecular orbitals in memory will be replaced by the mixed wfn "// &
+                        "at the end of the wfn mixing procedure. For instance, you can then use this new set of MOs to perform "// &
+                          "RTP or EMD directly. Not that in the case of an RTP run with INITIAL_WFN=RESTART_WFN, this keyword "// &
+                          "is not used: the mixed wfn is used to start the time-dependent run. "// &
+                          "Default value is False.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2865,7 +2873,8 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="RESULT_MO_INDEX", &
-                          description="Index of the MO (y) to be modified. Counting down in energy with HOMO=1", &
+                          description="Index of the MO (y) to be modified. Counting down in energy: "// &
+                          "set to 1 for the HOMO, to 3 for the HOMO-3.", &
                           usage="RESULT_MO_INDEX 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2895,7 +2904,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_MO_INDEX", &
                           description="Index of the original MO (x). "// &
-                          "Counting down in energy with HOMO=1 or up from LUMO=1, depending on ORIG_IS_VIRTUAL.", &
+                          "If ORIG_TYPE is OCCUPIED, it counts down in energy: set to 1 to point to "// &
+                          "the HOMO and to 3 for the HOMO-3. "// &
+                          "If ORIG_TYPE is VIRTUAL, it counts up in energy: set to 1 to point to "// &
+                          "the LUMO and to 3 for the LUMO+3. "// &
+                          "If ORIG_TYPE is EXTERNAL, it counts down in energy for the external "// &
+                          "set of MOs: set to 1 to point to the HOMO and to 3 for the HOMO-3."// &
+                          "Do not set to zero or negative values.", &
                           usage="ORIG_MO_INDEX 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2923,9 +2938,31 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ORIG_IS_VIRTUAL", &
-                          description="The original MO (x) is a LUMO.", &
-                          usage="ORIG_IS_VIRTUAL", type_of_var=logical_t)
+      CALL keyword_create(keyword, __LOCATION__, name="ORIG_TYPE", &
+                          description="Type of the orgine MO. Note that using VIRTUAL along with an RTP run with "// &
+                          "INITIAL_WFN=RESTART_WFN will probably crash since no virtual state "// &
+                          "will be available.", &
+                          enum_c_vals=s2a("OCCUPIED", "VIRTUAL", 'EXTERNAL'), &
+                          usage="ORIG_TYPE OCCUPIED", &
+                          default_i_val=wfn_mix_orig_occ, &
+                          enum_desc=s2a("The original MO is in the MOs matrix itself.", &
+                                        "The original MO is not in the MOs matrix but in the 'unoccupied' one. "// &
+                                        "The SCF cycle shall provide it.", &
+                                        "The orginal MO is from an external .wfn file. Use the keyword "// &
+                                        "ORIG_EXT_FILE_NAME to define its name."), &
+                          enum_i_vals=(/wfn_mix_orig_occ, wfn_mix_orig_virtual, wfn_mix_orig_external/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ORIG_EXT_FILE_NAME", &
+                          description="Name of the wavefunction file to read the original MO from. "// &
+                          "For instance, a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
+                          "If no file is specified, the run will crash."// &
+                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference."// &
+                          "Currently, this file SHALL have the basis set, number of MO and the same number of spin as the one "// &
+                          "from the SCF cycle.", &
+                          usage="ORIG_EXT_FILE_NAME <FILENAME>", &
+                          default_lc_val="EMPTY")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -8528,6 +8565,18 @@ CONTAINS
                                         " if electronic constraints or restraints are used in the previous calculation, "// &
                                         "since these do not work in the rtp scheme.", &
                                         "use the wavefunction of a real time propagation/ehrenfest run"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPLY_WFN_MIX_INIT_RESTART", &
+                          description="If set to True and in the case of INITIAL_WFN=RESTART_WFN, call the "// &
+                          "DFT%PRINT%WFN_MIX section to mix the read initial wfn. The starting wave-function of the "// &
+                          "RTP will be the mixed one. Setting this to True without a defined WFN_MIX section will "// &
+                          "not do anything as defining a WFN_MIX section without this keyword for RTP run with "// &
+                          "INITIAL_WFN=RESTART_WFN. Note that if INITIAL_WFN=SCF_WFN, this keyword is not needed to "// &
+                          "apply the mixing defined in the WFN_MIX section. Default is False.", &
+                          usage="APPLY_WFN_MIX_INIT_RESTART", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
