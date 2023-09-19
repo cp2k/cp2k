@@ -39,7 +39,7 @@
       &GW
         NUM_TIME_FREQ_POINTS 10
         SIZE_LATTICE_SUM_V    3
-        EPS_FILTER 1.0E-3
+        EPS_FILTER 1.0E-6
       &END
       &SOC
         ENERGY_WINDOW 3.0
