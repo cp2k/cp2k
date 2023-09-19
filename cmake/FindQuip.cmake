@@ -22,10 +22,10 @@ endif()
 find_package_handle_standard_args(Quip DEFAULT_MSG CP2K_LIBQUIP_INCLUDE_DIRS
                                   CP2K_QUIP_LINK_LIBRARIES)
 
-if(CP2K_LIBQUIP_FOUND AND NOT TARGET CP2K::quip::quip)
-  add_library(CP2K::quip::quip INTERFACE IMPORTED)
+if(CP2K_LIBQUIP_FOUND AND NOT TARGET cp2k::quip::quip)
+  add_library(cp2k::quip::quip INTERFACE IMPORTED)
   set_target_properties(
-    CP2K::quip::quip
+    cp2k::quip::quip
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBQUIP_INCLUDE_DIRS}"
                INTERFACE_LINK_LIBRARIES "${CP2K_LIBQUIP_LINK_LIBRARIES}")
 endif()

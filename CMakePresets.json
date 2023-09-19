@@ -1,0 +1,181 @@
+{
+   "version": 6,
+   "cmakeMinimumRequired": {
+      "major": 3,
+      "minor": 23,
+      "patch": 0
+   },
+   "configurePresets": [
+      {
+         "name": "MINIMAL",
+         "displayName": "Smallest CP2K configuration. It includes only MPI, SCALAPACK, blas, lapack and FFTW3",
+         "binaryDir": "${sourceDir}/build/minimal",
+         "cacheVariables": {
+            "CP2K_USE_FFTW3": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_MPI": {
+               "type": "BOOL",
+               "value": "ON"
+            }
+         }
+      },
+      {
+         "name": "FULL",
+         "displayName": "CP2K configuration including all dependencies.",
+         "binaryDir": "${sourceDir}/build/full",
+         "cacheVariables": {
+            "CP2K_USE_FFTW3": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_MPI": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_SIRIUS": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBXSMM": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_VORI": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_COSMA": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_SPLA": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBXC": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBINT2": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_ELPA": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_SPGLIB": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBTORCH": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_METIS": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_QUIP": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_PEXSI": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_SUPERLU": {
+               "type": "BOOL",
+               "value": "ON"
+            }
+         }
+      },
+      {
+         "name": "SERIAL",
+         "displayName": "CP2K configuration without mpi support.",
+         "binaryDir": "${sourceDir}/build/serial",
+         "cacheVariables": {
+            "CP2K_USE_FFTW3": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_MPI": {
+               "type": "BOOL",
+               "value": "OFF"
+            },
+            "CP2K_USE_LIBXSMM": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_VORI": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBXC": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBINT2": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_ELPA": {
+               "type": "BOOL",
+               "value": "OFF"
+            },
+            "CP2K_USE_SPGLIB": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBTORCH": {
+               "type": "BOOL",
+               "value": "ON"
+            }
+         }
+      },
+      {
+         "name": "DEFAULT",
+         "binaryDir": "${sourceDir}/build/default",
+         "cacheVariables": {
+            "CP2K_USE_FFTW3": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_MPI": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBXSMM": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_VORI": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_COSMA": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_SPLA": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBXC": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_LIBINT2": {
+               "type": "BOOL",
+               "value": "ON"
+            },
+            "CP2K_USE_SPGLIB": {
+               "type": "BOOL",
+               "value": "ON"
+            }
+         }
+      }
+   ]
+}

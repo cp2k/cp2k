@@ -20,11 +20,11 @@ cp2k_include_dirs(LIBCAL "cal.h")
 find_package_handle_standard_args(Cal DEFAULT_MSG CP2K_CAL_LINK_LIBRARIES
                                   CP2K_CAL_INCLUDE_DIRS)
 
-if(CP2K_LIBCAL_FOUND AND not TARGET CP2K::CAL::cal)
-  add_library(CP2K::CAL INTERFACE IMPORTED)
-  set_target_properties(CP2K::CAL::cal PROPERTIES INTERFACE_LINK_LIBRARIES
+if(CP2K_LIBCAL_FOUND AND not TARGET cp2k::CAL::cal)
+  add_library(cp2k::CAL INTERFACE IMPORTED)
+  set_target_properties(cp2k::CAL::cal PROPERTIES INTERFACE_LINK_LIBRARIES
                                                   "${CP2K_CAL_LINK_LIBRARIES}")
-  set_target_properties(CP2K::CAL::cal PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+  set_target_properties(cp2k::CAL::cal PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                                   "${CP2K_CAL_INCLUDE_DIRS}")
 endif()
 

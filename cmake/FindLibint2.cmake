@@ -42,18 +42,18 @@ find_package_handle_standard_args(
   CP2K_LIBINT2_LINK_LIBRARIES)
 
 if(CP2K_LIBINT2_FOUND)
-  if(NOT TARGET CP2K::Libint2::int2)
-    add_library(CP2K::Libint2::int2 INTERFACE IMPORTED)
+  if(NOT TARGET cp2k::Libint2::int2)
+    add_library(cp2k::Libint2::int2 INTERFACE IMPORTED)
   endif()
 
   if(CP2K_LIBINT2_INCLUDE_DIRS)
     set_target_properties(
-      CP2K::Libint2::int2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+      cp2k::Libint2::int2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                      "${CP2K_LIBINT2_INCLUDE_DIRS}")
   endif()
 
   set_target_properties(
-    CP2K::Libint2::int2 PROPERTIES INTERFACE_LINK_LIBRARIES
+    cp2k::Libint2::int2 PROPERTIES INTERFACE_LINK_LIBRARIES
                                    ${CP2K_LIBINT2_LINK_LIBRARIES})
 endif()
 

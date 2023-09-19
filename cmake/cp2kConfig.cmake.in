@@ -26,6 +26,8 @@ if (@CP2K_SCALAPACK_VENDOR@ MATCHES "CUSTOM")
    set(CP2K_SCALAPACK_LINK_LIBRARIES @CP2K_SCALAPACK_LINK_LIBRARIES@)
 endif()
 
+set(cp2k_VERSION @cp2k_VERSION@)
+
 find_package(Lapack REQUIRED)
 find_package(DBCSR 2.4 REQUIRED)
 
@@ -112,5 +114,4 @@ if(@CP2K_USE_LIBTORCH@)
   find_package(Torch REQUIRED)
 endif()
 
-# Include SIRIUS target
 include("${CMAKE_CURRENT_LIST_DIR}/cp2kTargets.cmake")
