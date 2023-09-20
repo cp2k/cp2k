@@ -16,8 +16,8 @@
            EXCH_CORRECTION_FUNC NONE
         &END
         &MGRID
-            CUTOFF 200
-            REL_CUTOFF 40
+            CUTOFF 150
+            REL_CUTOFF 30
         &END MGRID
         &SCF
             SCF_GUESS ATOMIC
@@ -43,13 +43,13 @@
             &END
         &END XC 
         &KPOINTS
-           SCHEME  MONKHORST-PACK  3 3 3
+           SCHEME  MONKHORST-PACK  2 2 2
         &END KPOINTS
     &END DFT
     &SUBSYS
         &CELL
             !this is not a realistic cell, but denser systems would be too expensive for a test
-            ABC 6.0 6.0 6.0
+            ABC 6.5 6.5 6.5
             ALPHA_BETA_GAMMA 60.0 60.0 60.0
             MULTIPLE_UNIT_CELL 1 1 1
         &END CELL
