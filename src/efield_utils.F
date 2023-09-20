@@ -205,7 +205,7 @@ CONTAINS
       NULLIFY (dft_control)
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      IF (dft_control%apply_efield_field) THEN
+      IF (dft_control%apply_efield_field .OR. dft_control%apply_vector_potential) THEN
          my_force = .FALSE.
          IF (PRESENT(calculate_forces)) my_force = calculate_forces
 
