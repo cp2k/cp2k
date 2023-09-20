@@ -571,9 +571,9 @@ CONTAINS
          ngroups = 1
          CALL section_vals_val_set(hfx_section, "KP_NGROUPS", i_val=ngroups)
       END IF
-      IF (MOD(ngroups, natom) .NE. 0) THEN
+      IF ((MOD(ngroups, natom) .NE. 0) .AND. (MOD(natom, ngroups) .NE. 0)) THEN
          IF (ngroups > 1) &
-            CPWARN("Better load balancing is achieved when NGROUPS is a multiplie of the number of atoms")
+            CPWARN("Better load balancing is reached if NGROUPS is a multiple/divisor of the number of atoms")
       END IF
       group_size = para_env%num_pe/ngroups
       igroup = para_env%mepos/group_size
@@ -1816,23 +1816,21 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: a_index, actual_img, c_index, i_pair, &
-                                                            nimg
+      INTEGER                                            :: a_index, actual_img, c_index, nimg
 
       nimg = SIZE(ac_pairs, 1)
 
       ac_pairs(:, :) = 0
-      i_pair = 0
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(ac_pairs,nimg,ri_data,qs_env,apc_index) &
+!$OMP PRIVATE(a_index,actual_img,c_index)
       DO a_index = 1, nimg
-         i_pair = i_pair + 1
          actual_img = ri_data%idx_to_img(a_index)
-         DO c_index = 1, nimg
-            IF (get_apc_index(actual_img, c_index, qs_env) == apc_index) THEN
-               ac_pairs(i_pair, 1) = a_index
-               ac_pairs(i_pair, 2) = c_index
-            END IF
-         END DO
+         !c = a+c - a
+         c_index = get_i_index(apc_index, actual_img, qs_env)
+         ac_pairs(a_index, 1) = a_index
+         ac_pairs(a_index, 2) = c_index
       END DO
+!$OMP END PARALLEL DO
 
    END SUBROUTINE get_ac_pairs
 
@@ -1853,22 +1851,21 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: actual_i_img
 
-      INTEGER                                            :: actual_img, apc_index, i_index, i_pair, &
-                                                            nimg
+      INTEGER                                            :: actual_img, apc_index, i_index, nimg
 
       nimg = SIZE(iapc_pairs, 1)
       IF (PRESENT(actual_i_img)) actual_i_img(:) = 0
 
       iapc_pairs(:, :) = 0
-      i_pair = 0
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(iapc_pairs,nimg,ri_data,qs_env,b_index,actual_i_img) &
+!$OMP PRIVATE(i_index,actual_img,apc_index)
       DO i_index = 1, nimg
-         i_pair = i_pair + 1
          actual_img = ri_data%idx_to_img(i_index)
          apc_index = get_apc_index_from_ib(actual_img, b_index, qs_env)
          IF (apc_index == 0) CYCLE
-         iapc_pairs(i_pair, 1) = i_index
-         iapc_pairs(i_pair, 2) = apc_index
-         IF (PRESENT(actual_i_img)) actual_i_img(i_pair) = actual_img
+         iapc_pairs(i_index, 1) = i_index
+         iapc_pairs(i_index, 2) = apc_index
+         IF (PRESENT(actual_i_img)) actual_i_img(i_index) = actual_img
       END DO
 
    END SUBROUTINE get_iapc_pairs
@@ -3036,14 +3033,14 @@ CONTAINS
                                                             i_RI, i_spin, ib, natom, nblks_AO, &
                                                             nblks_RI, nimg, nspins
       INTEGER(int_8)                                     :: nze
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext_split, bsizes_stack, &
-                                                            dist1, dist2, dist3, dist_stack, &
-                                                            idx_to_at
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
+                                                            bsizes_stack, dist1, dist2, dist3, &
+                                                            dist_stack, idx_to_at
       INTEGER, DIMENSION(3)                              :: pdims
       REAL(dp)                                           :: occ
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_pgrid_type)                               :: pgrid
-      TYPE(dbt_type)                                     :: tmp
+      TYPE(dbt_type)                                     :: tmp, work_atom_block, work_atom_block_sub
 
       CALL timeset(routineN, handle)
 
@@ -3051,6 +3048,13 @@ CONTAINS
       ALLOCATE (bsizes_RI_ext_split(ri_data%ncell_RI*nblks_RI))
       DO i_RI = 1, ri_data%ncell_RI
          bsizes_RI_ext_split((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = ri_data%bsizes_RI_split(:)
+      END DO
+
+      !Preparing larger block sizes for efficient communication (less, bigger messages)
+      nblks_RI = SIZE(ri_data%bsizes_RI)
+      ALLOCATE (bsizes_RI_ext(ri_data%ncell_RI*nblks_RI))
+      DO i_RI = 1, ri_data%ncell_RI
+         bsizes_RI_ext((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = ri_data%bsizes_RI(:)
       END DO
 
       batch_size = ri_data%kp_stack_size
@@ -3089,9 +3093,15 @@ CONTAINS
       CALL dbt_distribution_destroy(t_dist)
       DEALLOCATE (dist1, dist2, dist3, dist_stack)
 
-      CALL create_3c_tensor(tmp, dist1, dist2, dist3, &
-                            ri_data%pgrid, bsizes_RI_ext_split, ri_data%bsizes_AO_split, &
-                            ri_data%bsizes_AO_split, [1], [2, 3], name="(RI | AO AO)")
+      !For more efficient communication, we use intermediate tensors with larger block size
+      CALL create_3c_tensor(work_atom_block_sub, dist1, dist2, dist3, &
+                            pgrid, bsizes_RI_ext, ri_data%bsizes_AO, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(RI | AO AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(work_atom_block, dist1, dist2, dist3, &
+                            ri_data%pgrid, bsizes_RI_ext, ri_data%bsizes_AO, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(RI | AO AO)")
       DEALLOCATE (dist1, dist2, dist3)
 
       !Finally copy the integrals into the subgroups (if not there already)
@@ -3106,18 +3116,31 @@ CONTAINS
             CALL dbt_create(t_3c_int(i_img), ri_data%kp_t_3c_int(i_img))
             CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_1(1, i_img), nze, occ)
             IF (nze == 0) CYCLE
-            CALL dbt_copy(ri_data%t_3c_int_ctr_1(1, i_img), tmp, order=[2, 1, 3])
-            CALL copy_3c_to_subgroup(t_3c_int(i_img), tmp, group_size, ngroups, para_env)
+            CALL dbt_copy(ri_data%t_3c_int_ctr_1(1, i_img), work_atom_block, order=[2, 1, 3])
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, group_size, ngroups, para_env)
+            CALL dbt_copy(work_atom_block_sub, t_3c_int(i_img), move_data=.TRUE.)
          END DO
       END IF
       CALL timestop(handle2)
       CALL dbt_pgrid_destroy(pgrid)
-      CALL dbt_destroy(tmp)
+      CALL dbt_destroy(work_atom_block)
+      CALL dbt_destroy(work_atom_block_sub)
 
       !Do the same for the t_3c_ctr_2 configuration
       pdims = 0
       CALL dbt_pgrid_create(para_env_sub, pdims, pgrid, &
                             tensor_dims=[natom, SIZE(bsizes_RI_ext_split), batch_size*SIZE(ri_data%bsizes_AO_split)])
+
+      !For more efficient communication, we use intermediate tensors with larger block size
+      CALL create_3c_tensor(work_atom_block_sub, dist1, dist2, dist3, &
+                            pgrid, ri_data%bsizes_AO, bsizes_RI_ext, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(AO RI | AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(work_atom_block, dist1, dist2, dist3, &
+                            ri_data%pgrid_1, ri_data%bsizes_AO, bsizes_RI_ext, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(AO RI | AO)")
+      DEALLOCATE (dist1, dist2, dist3)
 
       !template for t_3c_apc_sub
       CALL create_3c_tensor(tmp, dist1, dist2, dist3, &
@@ -3139,8 +3162,8 @@ CONTAINS
       DEALLOCATE (dist1, dist2, dist3, dist_stack)
 
       !Finally copy data from t_3c_apc to the subgroups
-      ALLOCATE (idx_to_at(SIZE(ri_data%bsizes_AO_split)))
-      CALL get_idx_to_atom(idx_to_at, ri_data%bsizes_AO_split, ri_data%bsizes_AO)
+      ALLOCATE (idx_to_at(SIZE(ri_data%bsizes_AO)))
+      CALL get_idx_to_atom(idx_to_at, ri_data%bsizes_AO, ri_data%bsizes_AO)
       nspins = SIZE(t_3c_apc, 1)
       CALL timeset(routineN//"_apc", handle2)
       DO i_img = 1, nimg
@@ -3148,8 +3171,10 @@ CONTAINS
             CALL dbt_create(tmp, t_3c_apc_sub(i_spin, i_img))
             CALL get_tensor_occupancy(t_3c_apc(i_spin, i_img), nze, occ)
             IF (nze == 0) CYCLE
-            CALL copy_3c_to_subgroup(t_3c_apc_sub(i_spin, i_img), t_3c_apc(i_spin, i_img), group_size, &
+            CALL dbt_copy(t_3c_apc(i_spin, i_img), work_atom_block, move_data=.TRUE.)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, group_size, &
                                      ngroups, para_env, ri_data%iatom_to_subgroup, 1, idx_to_at)
+            CALL dbt_copy(work_atom_block_sub, t_3c_apc_sub(i_spin, i_img), move_data=.TRUE.)
          END DO
          DO i_spin = 1, nspins
             CALL dbt_destroy(t_3c_apc(i_spin, i_img))
@@ -3158,6 +3183,8 @@ CONTAINS
       CALL timestop(handle2)
       CALL dbt_pgrid_destroy(pgrid)
       CALL dbt_destroy(tmp)
+      CALL dbt_destroy(work_atom_block)
+      CALL dbt_destroy(work_atom_block_sub)
 
       CALL timestop(handle)
 
@@ -3381,13 +3408,36 @@ CONTAINS
       INTEGER                                            :: batch_size, handle, i_img, i_RI, i_xyz, &
                                                             ib, nblks_AO, nblks_RI, nimg, pdims(3)
       INTEGER(int_8)                                     :: nze
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext_split, bsizes_stack, &
-                                                            dist1, dist2, dist3, dist_stack
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
+                                                            bsizes_stack, dist1, dist2, dist3, &
+                                                            dist_stack
       REAL(dp)                                           :: occ
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_pgrid_type)                               :: pgrid
+      TYPE(dbt_type)                                     :: work_atom_block, work_atom_block_sub
 
       CALL timeset(routineN, handle)
+
+      !We use intermediate tensors with larger block size for more optimized communication
+      nblks_RI = SIZE(ri_data%bsizes_RI)
+      ALLOCATE (bsizes_RI_ext(ri_data%ncell_RI*nblks_RI))
+      DO i_RI = 1, ri_data%ncell_RI
+         bsizes_RI_ext((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = ri_data%bsizes_RI(:)
+      END DO
+
+      CALL dbt_get_info(ri_data%kp_t_3c_int(1), pdims=pdims)
+      CALL dbt_pgrid_create(para_env_sub, pdims, pgrid)
+
+      CALL create_3c_tensor(work_atom_block_sub, dist1, dist2, dist3, &
+                            pgrid, bsizes_RI_ext, ri_data%bsizes_AO, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(RI | AO AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(work_atom_block, dist1, dist2, dist3, &
+                            ri_data%pgrid_2, bsizes_RI_ext, ri_data%bsizes_AO, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(RI | AO AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+      CALL dbt_pgrid_destroy(pgrid)
 
       !We use the 3c integrals on the subgroup as template for the derivatives
       nimg = ri_data%nimg
@@ -3397,8 +3447,10 @@ CONTAINS
             CALL get_tensor_occupancy(t_3c_der_AO(i_img, i_xyz), nze, occ)
             IF (nze == 0) CYCLE
 
-            CALL copy_3c_to_subgroup(t_3c_der_AO_sub(i_img, i_xyz), t_3c_der_AO(i_img, i_xyz), &
+            CALL dbt_copy(t_3c_der_AO(i_img, i_xyz), work_atom_block, move_data=.TRUE.)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, &
                                      group_size, ngroups, para_env)
+            CALL dbt_copy(work_atom_block_sub, t_3c_der_AO_sub(i_img, i_xyz), move_data=.TRUE.)
          END DO
 
          DO i_img = 1, nimg
@@ -3406,8 +3458,10 @@ CONTAINS
             CALL get_tensor_occupancy(t_3c_der_RI(i_img, i_xyz), nze, occ)
             IF (nze == 0) CYCLE
 
-            CALL copy_3c_to_subgroup(t_3c_der_RI_sub(i_img, i_xyz), t_3c_der_RI(i_img, i_xyz), &
+            CALL dbt_copy(t_3c_der_RI(i_img, i_xyz), work_atom_block, move_data=.TRUE.)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, &
                                      group_size, ngroups, para_env)
+            CALL dbt_copy(work_atom_block_sub, t_3c_der_RI_sub(i_img, i_xyz), move_data=.TRUE.)
          END DO
 
          DO i_img = 1, nimg
@@ -3415,6 +3469,8 @@ CONTAINS
             CALL dbt_destroy(t_3c_der_AO(i_img, i_xyz))
          END DO
       END DO
+      CALL dbt_destroy(work_atom_block_sub)
+      CALL dbt_destroy(work_atom_block)
 
       !The stacked work tensors in the subgroup
       nblks_RI = SIZE(ri_data%bsizes_RI_split)

@@ -820,7 +820,7 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
 
-         ! fsym = =- 1 is due to real space matrices being non-symmetric (although in a symmtric type)
+         ! fsym = +- 1 is due to real space matrices being non-symmetric (although in a symmtric type)
          ! with the link S_mu^0,nu^b = S_nu^0,mu^-b, and the KP matrices beeing Hermitian
          fsym = 1.0_dp
          irow = iatom

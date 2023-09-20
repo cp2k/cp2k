@@ -15,8 +15,8 @@
            EXCH_CORRECTION_FUNC PBEX
         &END
         &MGRID
-            CUTOFF 150
-            REL_CUTOFF 30
+            CUTOFF 200
+            REL_CUTOFF 40
         &END MGRID
         &SCF
             SCF_GUESS ATOMIC
@@ -38,18 +38,18 @@
                    !this is too small for a real calculation. The only requirement is that it is
                    !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
                    !on efficiency, as it greatly increses the number of periodic images to consider
-                   CUTOFF_RADIUS 1.0
+                   CUTOFF_RADIUS 1.5
                 &END
             &END
         &END XC 
         &KPOINTS
-           SCHEME  MONKHORST-PACK  2 2 2
+           SCHEME  MONKHORST-PACK  3 3 3
         &END KPOINTS
     &END DFT
     &SUBSYS
         &CELL
             !this is not a realistic cell, but denser systems would be too expensive for a test
-            ABC 6.0 6.0 6.0
+            ABC 5.5 5.5 5.5
             ALPHA_BETA_GAMMA 60.0 60.0 60.0
             MULTIPLE_UNIT_CELL 1 1 1
         &END CELL
