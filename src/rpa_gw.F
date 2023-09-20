@@ -1792,6 +1792,12 @@ CONTAINS
          CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, 1, 1)
          CALL add_cfm_submatrix(cfm_mo_coeff_double, cfm_mo_coeff, nao + 1, nao + 1)
 
+         CALL cp_cfm_get_info(matrix=cfm_mat_h_double, &
+                              nrow_local=nrow_local, &
+                              ncol_local=ncol_local, &
+                              row_indices=row_indices, &
+                              col_indices=col_indices)
+
          CALL parallel_gemm(transa="N", transb="N", m=2*nao, n=2*nao, k=2*nao, alpha=z_one, &
                             matrix_a=cfm_mat_h_double, matrix_b=cfm_mo_coeff_double, beta=z_zero, &
                             matrix_c=cfm_mat_work_double)
@@ -2508,14 +2514,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_real_space_grids'
 
       INTEGER                                            :: handle, i_E, n_E
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(mp2_type), POINTER                            :: mp2_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, para_env=para_env, mp2_env=mp2_env, cell=cell, pw_env=pw_env)
+      CALL get_qs_env(qs_env=qs_env, mp2_env=mp2_env, pw_env=pw_env)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 

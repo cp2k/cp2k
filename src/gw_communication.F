@@ -26,6 +26,10 @@ MODULE gw_communication
 
    PRIVATE
 
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_communication'
+
+   PUBLIC :: global_matrix_to_local_matrix, local_matrix_to_global_matrix
+
    TYPE buffer_type
       REAL(KIND=dp), DIMENSION(:), POINTER  :: msg => NULL()
       INTEGER, DIMENSION(:), POINTER  :: sizes => NULL()
@@ -33,10 +37,6 @@ MODULE gw_communication
       INTEGER :: proc = -1
       INTEGER :: msg_req = -1
    END TYPE
-
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_communication'
-
-   PUBLIC :: global_matrix_to_local_matrix, local_matrix_to_global_matrix
 
 CONTAINS
 
@@ -46,11 +46,13 @@ CONTAINS
 !> \param mat_local ...
 !> \param para_env ...
 !> \param num_pe_sub ...
+!> \param atom_ranges ...
 ! **************************************************************************************************
-   SUBROUTINE global_matrix_to_local_matrix(mat_global, mat_local, para_env, num_pe_sub)
+   SUBROUTINE global_matrix_to_local_matrix(mat_global, mat_local, para_env, num_pe_sub, atom_ranges)
       TYPE(dbcsr_type)                                   :: mat_global, mat_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: num_pe_sub
+      INTEGER, DIMENSION(:, :), OPTIONAL                 :: atom_ranges
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'global_matrix_to_local_matrix'
 
@@ -87,11 +89,13 @@ CONTAINS
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
 
-         ! JW here additional check is needed for iatom and jatom range
          CALL dbcsr_get_stored_coordinates(mat_local, row, col, imep_sub)
 
          DO igroup = 0, ngroup - 1
 
+            IF (PRESENT(atom_ranges)) THEN
+               IF (row < atom_ranges(1, igroup + 1) .OR. row > atom_ranges(2, igroup + 1)) CYCLE
+            END IF
             imep = imep_sub + igroup*num_pe_sub
 
             num_entries_blocks_send(2*imep) = num_entries_blocks_send(2*imep) + row_size*col_size
@@ -157,10 +161,13 @@ CONTAINS
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
 
-         ! JW check here whether block is in iatom/jatom range
          CALL dbcsr_get_stored_coordinates(mat_local, row, col, imep_sub)
 
          DO igroup = 0, ngroup - 1
+
+            IF (PRESENT(atom_ranges)) THEN
+               IF (row < atom_ranges(1, igroup + 1) .OR. row > atom_ranges(2, igroup + 1)) CYCLE
+            END IF
 
             imep = imep_sub + igroup*num_pe_sub
 
