@@ -29,9 +29,9 @@ MODULE input_cp2k_check
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
         section_type, section_vals_create, section_vals_get, section_vals_get_subs_vals, &
-        section_vals_get_subs_vals3, section_vals_release, section_vals_remove_values, &
-        section_vals_set_subs_vals, section_vals_type, section_vals_val_get, section_vals_val_set, &
-        section_vals_val_unset, section_vals_get_subs_vals2
+        section_vals_get_subs_vals2, section_vals_get_subs_vals3, section_vals_release, &
+        section_vals_remove_values, section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
+        section_vals_val_set, section_vals_val_unset
    USE input_val_types,                 ONLY: logical_t
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -143,10 +143,10 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_functionals_expand(functionals, xc_section)
-      TYPE(section_vals_type), POINTER                   :: functionals, xc_section, xc_fun
+      TYPE(section_vals_type), POINTER                   :: functionals, xc_fun, xc_section
 
       INTEGER                                            :: shortcut, ifun, nfun
-      CHARACTER(LEN=512)                                 :: error_msg
+      CHARACTER(LEN=512)                                 :: wrn_msg
 
       CALL section_vals_val_get(functionals, "_SECTION_PARAMETERS_", &
                                 i_val=shortcut)
@@ -161,9 +161,9 @@ CONTAINS
       END DO
 !
       IF (shortcut /= xc_funct_no_shortcut .AND. shortcut /= xc_none .AND. nfun > 0) THEN
-         WRITE(error_msg, '(A)') "User requested a shortcut while defining an explicit XC functional. "// &
-            "This is not recommended as it could lead to spurious behaviour. Please check input."
-         CPWARN(error_msg)
+         WRITE(wrn_msg, '(A)') "User requested a shortcut while defining an explicit XC functional. "// &
+            "This is not recommended as it could lead to spurious behaviour. Please check input parameters."
+         CPWARN(wrn_msg)
       END IF
 
       SELECT CASE (shortcut)
