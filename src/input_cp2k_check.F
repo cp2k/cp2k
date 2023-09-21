@@ -31,7 +31,7 @@ MODULE input_cp2k_check
         section_type, section_vals_create, section_vals_get, section_vals_get_subs_vals, &
         section_vals_get_subs_vals3, section_vals_release, section_vals_remove_values, &
         section_vals_set_subs_vals, section_vals_type, section_vals_val_get, section_vals_val_set, &
-        section_vals_val_unset
+        section_vals_val_unset, section_vals_get_subs_vals2
    USE input_val_types,                 ONLY: logical_t
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -143,12 +143,29 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_functionals_expand(functionals, xc_section)
-      TYPE(section_vals_type), POINTER                   :: functionals, xc_section
+      TYPE(section_vals_type), POINTER                   :: functionals, xc_section, xc_fun
 
-      INTEGER                                            :: shortcut
+      INTEGER                                            :: shortcut, ifun, nfun
+      CHARACTER(LEN=512)                                 :: error_msg
 
       CALL section_vals_val_get(functionals, "_SECTION_PARAMETERS_", &
                                 i_val=shortcut)
+
+      ifun = 0
+      nfun = 0
+      DO
+         ifun = ifun + 1
+         xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
+         IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+         nfun = nfun + 1
+      END DO
+!
+      IF (shortcut /= xc_funct_no_shortcut .AND. shortcut /= xc_none .AND. nfun > 0) THEN
+         WRITE(error_msg, '(A)') "User requested a shortcut while defining an explicit XC functional. "// &
+            "This is not recommended as it could lead to spurious behaviour. Please check input."
+         CPWARN(error_msg)
+      END IF
+
       SELECT CASE (shortcut)
       CASE (xc_funct_no_shortcut, xc_none)
          ! nothing to expand
