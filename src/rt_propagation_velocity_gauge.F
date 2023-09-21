@@ -173,7 +173,7 @@ CONTAINS
             CALL build_core_ppnl(matrix_nl, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                  qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
                                  nimages, cell_to_index, "ORB")
-
+            
             DO image = 1, nimages
                CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_nl(1, image)%matrix, one, -one)
             END DO
