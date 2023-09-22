@@ -85,16 +85,16 @@ MODULE post_scf_bandstructure_types
                                                          i_ao_end_from_atom, &
                                                          i_RI_start_from_atom, &
                                                          i_RI_end_from_atom
-      INTEGER, DIMENSION(2)                           :: n_occ = [-1, -1], &
-                                                         n_vir = [-1, -1]
+      INTEGER, DIMENSION(2)                           :: n_occ = -1, &
+                                                         n_vir = -1
       REAL(KIND=dp)                                   :: spin_degeneracy = -1.0_dp
-      REAL(KIND=dp), DIMENSION(2)                     :: e_fermi = [-1.0_dp, -1.0_dp]
+      REAL(KIND=dp), DIMENSION(2)                     :: e_fermi = -1.0_dp
 
       ! kpoint mesh for chi, eps, W
       INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_chi_eps_W_input => NULL(), &
                                                          nkp_grid_DOS_input => NULL()
-      INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig = [-1, -1, -1], &
-                                                         nkp_grid_chi_eps_W_extra = [-1, -1, -1]
+      INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig = -1, &
+                                                         nkp_grid_chi_eps_W_extra = -1
       INTEGER                                         :: nkp_chi_eps_W_orig = -1, &
                                                          nkp_chi_eps_W_extra = -1, &
                                                          nkp_chi_eps_W_total = -1, &
@@ -113,8 +113,8 @@ MODULE post_scf_bandstructure_types
          DIMENSION(:), ALLOCATABLE                    :: kp_special_name
 
       ! parameters for GW band structure calculation of small unit cell (with multiple unit cell)
-      INTEGER, DIMENSION(3)                           :: periodic = [-1, -1, -1], &
-                                                         multiple_unit_cell = [-1, -1, -1]
+      INTEGER, DIMENSION(3)                           :: periodic = -1, &
+                                                         multiple_unit_cell = -1
       LOGICAL                                         :: calculate_bandstructure_of_primitive_cell &
                                                          = .FALSE.
       INTEGER                                         :: n_atom_in_primitive_cell = -1, &
@@ -199,8 +199,8 @@ MODULE post_scf_bandstructure_types
                                                          max_dist_AO_atoms = -1.0_dp, &
                                                          safety_factor_memory = -1.0_dp
       ! parallelization: atom range i and atom range j for tensor group
-      INTEGER, DIMENSION(2)                           :: atoms_i = [-1, -1], &
-                                                         atoms_j = [-1, -1]
+      INTEGER, DIMENSION(2)                           :: atoms_i = -1, &
+                                                         atoms_j = -1
       INTEGER                                         :: n_atom_i = -1, &
                                                          n_intervals_i = -1, &
                                                          n_atom_j = -1, &
