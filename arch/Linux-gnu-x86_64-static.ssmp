@@ -7,7 +7,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 14.09.2023
+# Last update: 22.09.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -37,7 +37,7 @@ USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
-USE_OPENBLAS   := 0.3.23
+USE_OPENBLAS   := 0.3.24
 USE_SPGLIB     := 1.16.2
 
 LMAX           := 5

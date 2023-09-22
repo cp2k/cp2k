@@ -14,7 +14,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 14.09.2023
+# Last update: 22.09.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -66,7 +66,7 @@ USE_HDF5       := 1.12.0
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
-USE_OPENBLAS   := 0.3.23
+USE_OPENBLAS   := 0.3.24
 USE_PLUMED     := 2.9.0
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.4.3
