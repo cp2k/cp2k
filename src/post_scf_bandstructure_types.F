@@ -121,10 +121,10 @@ MODULE post_scf_bandstructure_types
                                                          n_primitive_cells = -1
       INTEGER, DIMENSION(:), ALLOCATABLE              :: atoms_i_primitive_cell, &
                                                          ref_atom_primitive_cell
-      INTEGER, DIMENSION(:, :), ALLOCATABLE            :: cell_of_i_atom
-      REAL(KIND=dp), DIMENSION(3, 3)                   :: hmat_primitive_cell, &
-                                                          hinv_primitive_cell
-      REAL(KIND=dp), DIMENSION(3, 3)                   :: hmat
+      INTEGER, DIMENSION(:, :), ALLOCATABLE           :: cell_of_i_atom
+      REAL(KIND=dp), DIMENSION(3, 3)                  :: hmat_primitive_cell = -1.0_dp, &
+                                                         hinv_primitive_cell = -1.0_dp, &
+                                                         hmat = -1.0_dp
 
       ! imaginary time and frequency grids
       INTEGER                                         :: num_time_freq_points = -1, &
@@ -235,7 +235,7 @@ MODULE post_scf_bandstructure_types
       CHARACTER(LEN=7)                                :: Sigma_x_name = "Sigma_x"
       CHARACTER(LEN=13)                               :: Sigma_p_name = "Sigma_pos_tau", &
                                                          Sigma_n_name = "Sigma_neg_tau"
-      CHARACTER(LEN=default_path_length)              :: prefix
+      CHARACTER(LEN=default_path_length)              :: prefix = ""
 
       REAL(KIND=dp)                                   :: t1 = -1.0_dp, &
                                                          t2 = -1.0_dp
