@@ -91,6 +91,7 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                                :: energy_ref = 0.0_dp
       REAL(KIND=dp)                                :: energy_inactive = 0.0_dp
       REAL(KIND=dp)                                :: energy_active = 0.0_dp
+      REAL(KIND=dp)                                :: alpha = 0.0_dp
       LOGICAL                                      :: do_scf_embedding = .FALSE.
       LOGICAL                                      :: qcschema = .FALSE.
       LOGICAL                                      :: fcidump = .FALSE.

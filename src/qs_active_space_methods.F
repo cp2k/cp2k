@@ -31,6 +31,7 @@ MODULE qs_active_space_methods
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
+   USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
@@ -65,6 +66,7 @@ MODULE qs_active_space_methods
                     dp, &
                     int_8
    USE machine, ONLY: m_walltime
+   USE mathlib, ONLY: diamat_all
    USE mathconstants, ONLY: fourpi
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_comm_type, &
@@ -2691,22 +2693,88 @@ CONTAINS
       INTEGER                                            :: ispin
 
       INTEGER                                            :: i1, i2, m1, m2, nmo_active
-      REAL(KIND=dp)                                      :: mval
+      REAL(KIND=dp)                                      :: pij_new, pij_old, alpha
       TYPE(cp_fm_type), POINTER                          :: p_active
 
       p_active => active_space_env%p_active(ispin)
       nmo_active = active_space_env%nmo_active
+      alpha = active_space_env%alpha
 
       DO i1 = 1, nmo_active
          m1 = active_space_env%active_orbitals(i1, ispin)
          DO i2 = 1, nmo_active
             m2 = active_space_env%active_orbitals(i2, ispin)
-            mval = p_act_mo(i2 + (i1 - 1)*nmo_active)
-            CALL cp_fm_set_element(p_active, m1, m2, mval)
+            CALL cp_fm_get_element(p_active, m1, m2, pij_old)
+            pij_new = p_act_mo(i2 + (i1 - 1)*nmo_active)
+            pij_new = (1.0_dp - alpha)*pij_new + alpha*pij_old
+            CALL cp_fm_set_element(p_active, m1, m2, pij_new)
          END DO
       END DO
 
    END SUBROUTINE update_active_density
+
+! **************************************************************************************************
+!> \brief Compute and print the AS rdm and the natural orbitals occupation numbers
+!> \param active_space_env active space environment
+!> \param iw output unit
+!> \author Stefano Battaglia
+! **************************************************************************************************
+   SUBROUTINE print_pmat_noon(active_space_env, iw)
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      INTEGER                                            :: iw
+
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: noon, pmat
+      INTEGER                                            :: ispin, nspins, i1, i2, m1, m2, jm, &
+                                                            ii, nmo_active
+      TYPE(cp_fm_type), POINTER                          :: p_active
+
+      nspins = active_space_env%nspins
+      nmo_active = active_space_env%nmo_active
+
+      ALLOCATE(noon(nmo_active, nspins))
+      ALLOCATE(pmat(nmo_active, nmo_active))
+
+      DO ispin = 1,nspins
+         p_active => active_space_env%p_active(ispin)
+         noon(:,ispin) = 0.0_dp
+         pmat = 0.0_dp
+
+         DO i1 = 1, nmo_active
+            m1 = active_space_env%active_orbitals(i1, ispin)
+            DO i2 = 1, nmo_active
+               m2 = active_space_env%active_orbitals(i2, ispin)
+               CALL cp_fm_get_element(p_active, m1, m2, pmat(i1, i2))
+            END DO
+         END DO
+
+         IF (iw > 0) THEN
+            WRITE (iw, '(/,T3,A,I2,A)') "Active space density matrix for spin ", ispin
+            DO i1 = 1, nmo_active
+               DO ii = 1, nmo_active, 8
+                  jm = MIN(7, nmo_active - ii)
+                  WRITE (iw, '(T3,6(F9.4))') (pmat(i1, ii + i2), i2=0, jm)
+               END DO
+            END DO
+         END IF
+
+         ! diagonalize the density matrix
+         CALL diamat_all(pmat, noon(:, ispin))
+
+         IF (iw > 0) THEN
+            WRITE (iw, '(T3,A,I2,A)') "Natural orbitals occupation numbers for spin ", ispin
+            DO i1 = 1, nmo_active, 8
+               jm = MIN(7, nmo_active - i1)
+               ! noons are stored in ascending order, so reverse-print them
+               WRITE (iw, '(T3,6(F9.4))') (noon(nmo_active - i1 - i2 + 1, ispin), i2=0, jm)
+            END DO
+         END IF
+
+      END DO
+
+      DEALLOCATE(noon)
+      DEALLOCATE(pmat)
+
+   END SUBROUTINE print_pmat_noon
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2733,8 +2801,7 @@ CONTAINS
       INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter
       LOGICAL                                            :: converged, do_scf_embedding, ionode
       REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
-                                                            energy_old, energy_scf, eps_iter, t1, &
-                                                            t2
+                                                            energy_old, energy_scf, eps_iter, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
@@ -2756,8 +2823,12 @@ CONTAINS
       CALL section_vals_val_get(as_input, "SCF_EMBEDDING", l_val=do_scf_embedding)
       active_space_env%do_scf_embedding = do_scf_embedding
       CALL section_vals_val_get(as_input, "MAX_ITER", i_val=max_iter)
+      IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
-      alpha = 0.0
+      IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
+      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
+      active_space_env%alpha = alpha
 
       ! create the socket and wait for the client to connect
       CALL initialize_socket(socket_fd, client_fd, as_input, ionode)
@@ -2770,7 +2841,13 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho, energy=energy)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-      IF ((iw > 0)) THEN
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
+
+         WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
+         WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
+         WRITE (iw, '(T3,A,T66,F14.3)') "Density damping", alpha
+
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
       END IF
@@ -2837,7 +2914,7 @@ CONTAINS
          ELSEIF (ABS(delta_E) <= eps_iter) THEN
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
-                  "*** rsDFT embedding run converged in ", iter, " iteration(s) ***"
+                  "*** rs-DFT embedding run converged in ", iter, " iteration(s) ***"
             END IF
             converged = .TRUE.
             EXIT
@@ -2849,12 +2926,15 @@ CONTAINS
       IF (.NOT. converged) THEN
          IF (iw > 0) THEN
             WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
-               "*** rsDFT embedding did not converged after ", iter, " iteration(s) ***"
+               "*** rs-DFT embedding did not converged after ", iter, " iteration(s) ***"
          END IF
       END IF
 
-      ! update qs total energy to the final embedding energy
+      ! update qs total energy to the final rs-DFT energy
       energy%total = active_space_env%energy_total
+
+      ! print the AS rdm and the natural orbital occupation numbers
+      CALL print_pmat_noon(active_space_env, iw)
 
       CALL finalize_socket(socket_fd, client_fd, as_input, ionode)
       CALL para_env%sync()
