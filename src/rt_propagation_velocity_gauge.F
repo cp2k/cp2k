@@ -897,7 +897,7 @@ CONTAINS
                                                             ibc, icol, ikind, &
                                                             irow, jatom, jkind, kac, kbc, kkind, &
                                                             maxl, maxlgto, maxlppnl, na, natom, &
-                                                            nb, nkind, np, slot
+                                                            nb, nkind, np, slot, katom
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sap_ppnl, sab_orb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)         :: force_thread
@@ -910,18 +910,20 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       REAL(KIND=dp), DIMENSION(3)                        :: vec_pot, fa, fb, rab, rac, rbc
       REAL(dp)                                           :: f0, eps_ppnl
+      LOGICAL                                            :: found
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set
+      INTEGER, DIMENSION(3)                              :: cell_b
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p_real, matrix_p_imag
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: achint_cos, achint_sin, acint_cos, &
                                                             acint_sin, bchint_cos, bchint_sin, &
                                                             bcint_cos, bcint_sin
       TYPE(alist_type), POINTER                          :: alist_cos_ac, alist_cos_bc, &
                                                             alist_sin_ac, alist_sin_bc
-
 
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
@@ -1016,12 +1018,12 @@ CONTAINS
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED (basis_set, nl_term, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom) &
+!$OMP SHARED (basis_set, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom) &
 !$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
 !$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom,&
 !$OMP          cell_b, rab, irow, icol, fa, fb, f0, &
 !$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc,&
-!$OMP          na, np, nb, iatom8, hash) &
+!$OMP          na, np, nb, iatom8, hash, katom) &
 !$OMP REDUCTION (+ : force_thread )
 
 !$OMP SINGLE
@@ -1034,8 +1036,6 @@ CONTAINS
 !$       END DO
 !$OMP END DO
 
-
-         NULLIFY (matrix_p_real, matrix_p_imag)
          NULLIFY (acint_cos, bchint_cos, achint_cos, bchint_cos)
          NULLIFY (acint_sin, bchint_sin, achint_sin, bchint_sin)
 
@@ -1059,7 +1059,7 @@ CONTAINS
                irow = jatom
                icol = iatom
             END IF
-
+            NULLIFY (matrix_p_real, matrix_p_imag)
             CALL dbcsr_get_block_p(rho_ao(1)%matrix, irow, icol, matrix_p_real, found)
             CALL dbcsr_get_block_p(rho_ao_im(1)%matrix, irow, icol, matrix_p_imag, found)
 
@@ -1106,11 +1106,9 @@ CONTAINS
                            na = SIZE(acint_cos, 1)
                            np = SIZE(acint_cos, 2)
                            nb = SIZE(bcint_cos, 1)
-!$                         iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
-!$                         hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
-!$                         CALL omp_set_lock(locks(hash))
          ! Re(dV_ab/dRA) = <da/dRA|cos kr|p><p|cos kr|b> + <db/dRA|cos kr|p><p|cos kr|a> + <da/dRA|sin kr|p><p|sin kr|b> + <db/dRA|sin kr|p><p|sin|a>
          ! Im(dV_ab/dRA) = <da/dRA|sin kr|p><p|cos kr|b> - <db/dRA|sin kr|p><p|cos kr|a> - <da/dRA|cos kr|p><p|sin kr|b> + <db/dRA|cos kr|p><p|sin|a>
+                           IF (ASSOCIATED(matrix_p_real) .AND. ASSOCIATED(matrix_p_imag)) THEN 
                            katom = alist_cos_bc%clist(kac)%catom
                            DO idir = 1, 3
                               IF (iatom <= jatom) THEN
@@ -1165,8 +1163,8 @@ CONTAINS
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fb(idir)
 
                            END DO
-!$                         CALL omp_unset_lock(locks(hash))
                            EXIT
+                        END IF
                         END IF
                      END DO
                   END DO
