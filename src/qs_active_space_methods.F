@@ -65,7 +65,7 @@ MODULE qs_active_space_methods
                     default_string_length, &
                     dp, &
                     int_8
-   USE machine, ONLY: m_walltime
+   USE machine, ONLY: m_walltime, m_flush
    USE mathlib, ONLY: diamat_all
    USE mathconstants, ONLY: fourpi
    USE memory_utilities, ONLY: reallocate
@@ -2882,6 +2882,7 @@ CONTAINS
             WRITE (UNIT=iw, &
                    FMT="(T3,I4,T11,A,T21,F4.2,T28,F18.10,T49,F18.10,T70,ES11.2)") &
                iter, 'P_Mix', t2 - t1, energy_corr, energy_new, delta_E
+            CALL m_flush(iw)
          END IF
 
          ! update total density in AO basis with the AS contribution
