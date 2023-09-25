@@ -898,7 +898,7 @@ CONTAINS
          kbc, kkind, maxl, maxlgto, maxlppnl, na, natom, nb, nkind, np, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
-      LOGICAL                                            :: found_real, found_imag
+      LOGICAL                                            :: found_imag, found_real
       REAL(dp)                                           :: eps_ppnl, f0, sign_imag
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, vec_pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1031,16 +1031,16 @@ CONTAINS
             END IF
 
             fa = 0.0_dp
-            fb = 0.0_dp 
+            fb = 0.0_dp
 
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
-               sign_imag = +1.0_dp 
+               sign_imag = +1.0_dp
             ELSE
                irow = jatom
                icol = iatom
-               sign_imag = -1.0_dp 
+               sign_imag = -1.0_dp
             END IF
             NULLIFY (matrix_p_real, matrix_p_imag)
             CALL dbcsr_get_block_p(rho_ao(1)%matrix, irow, icol, matrix_p_real, found_real)
@@ -1096,41 +1096,41 @@ CONTAINS
                               IF (iatom <= jatom) THEN
                                  ! For fa:
                                  IF (found_real) &
-                                 fa(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                                (MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
-                                                +MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
+                                    fa(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
+                                                   (MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
+                                                   + MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
                                  IF (found_imag) &
-                                 fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
-                                                (MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
-                                                +MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
+                                    fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
+                                                    (MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
+                                                   + MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
                                  ! For fb:
-                                 IF (found_real) & 
-                                 fb(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                                (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir))) &
-                                                +MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir)))))
-                                 IF (found_imag) & 
-                                 fb(idir) = fb(idir) + sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
-                                                (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir))) &
-                                                +MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir)))))
+                                 IF (found_real) &
+                                    fb(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
+                                                   (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir))) &
+                                                   + MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir)))))
+                                 IF (found_imag) &
+                                    fb(idir) = fb(idir) + sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
+                                                    (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir))) &
+                                                   + MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir)))))
                               ELSE
                                  ! For fa:
                                  IF (found_real) &
-                                 fa(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
-                                                (MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
-                                                +MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
+                                    fa(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
+                                                   (MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
+                                                   + MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
                                  IF (found_imag) &
-                                 fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
-                                                (MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
-                                                +MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
+                                    fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
+                                                    (MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
+                                                   + MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
                                  ! For fb
                                  IF (found_real) &
-                                 fb(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
-                                                (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1))) &
-                                                +MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1)))))
+                                    fb(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
+                                                   (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1))) &
+                                                   + MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1)))))
                                  IF (found_imag) &
-                                 fb(idir) = fb(idir) + sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
-                                                (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1))) &
-                                                +MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1)))))
+                                    fb(idir) = fb(idir) + sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
+                                                    (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1))) &
+                                                   + MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1)))))
                               END IF
                               force_thread(idir, iatom) = force_thread(idir, iatom) + f0*fa(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fa(idir)
