@@ -646,7 +646,6 @@ CONTAINS
                                  END DO
 
                                  IF (use_virial) THEN
-                                    WRITE (*, *) 'I AM USING VIRIAL!!!'
                                     rac = alist_ac%clist(kac)%rac
                                     rbc = alist_bc%clist(kbc)%rac
                                     CALL virial_pair_force(pv_thread, f0, fa, rac)

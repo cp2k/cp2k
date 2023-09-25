@@ -678,13 +678,13 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED (basis_set, gpotential, ncoset, sap_ppnl, sap_int_cos, sap_int_sin, nkind, &
-!$OMP         ldints, maxco, nco, cell, particle_set, kvec) &
+!$OMP         ldints, maxco, nco, cell, particle_set, kvec, derivative) &
 !$OMP PRIVATE (slot, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, dac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta,&
 !$OMP          rpgfa, set_radius_a, sphi_a, zeta, alpha_ppnl, cprj, lppnl, nppnl, nprj_ppnl,&
 !$OMP          ppnl_radius, vprj_ppnl, clist, clist_sin, ra, rc, ncoa, sgfa, prjc, work_cos, work_sin,&
 !$OMP          nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_sin, ai_work_cos, na, nb, np, dogth, &
-!$OMP          raf, rcf, derivative, work_dcos, work_dsin, ai_work_dcos, ai_work_dsin, idir)
+!$OMP          raf, rcf,  work_dcos, work_dsin, ai_work_dcos, ai_work_dsin, idir)
 
       ALLOCATE (work_cos(ldints, ldints), work_sin(ldints, ldints))
       ALLOCATE (ai_work_cos(maxco, maxco), ai_work_sin(maxco, maxco))
@@ -898,8 +898,8 @@ CONTAINS
          kbc, kkind, maxl, maxlgto, maxlppnl, na, natom, nb, nkind, np, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
-      LOGICAL                                            :: found
-      REAL(dp)                                           :: eps_ppnl, f0
+      LOGICAL                                            :: found_real, found_imag
+      REAL(dp)                                           :: eps_ppnl, f0, sign_imag
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, vec_pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
@@ -922,14 +922,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
 
-! !$    INTEGER(kind=omp_lock_kind), &
-! !$       ALLOCATABLE, DIMENSION(:) :: locks
-! !$    INTEGER(KIND=int_8)                                :: iatom8
-! !$    INTEGER                                            :: lock_num, hash
-! !$    INTEGER, PARAMETER                                 :: nlock = 501
-
-      MARK_USED(int_8)
-
       CALL timeset(routiuneN, handle)
 
       NULLIFY (sap_ppnl)
@@ -938,8 +930,6 @@ CONTAINS
                       sap_ppnl=sap_ppnl)
 
       IF (ASSOCIATED(sap_ppnl)) THEN
-         WRITE (*, *) 'OK IT IS CALLED!'
-
          NULLIFY (qs_kind_set, cell, dft_control, force, sab_orb, atomic_kind_set, &
                   sap_int_cos, sap_int_sin)
          ! Load and initialized the required quantities
@@ -998,43 +988,30 @@ CONTAINS
                            alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          END IF
 
-         WRITE (*, *) 'before build_sap_exp_ints'
          ! Compute cosap = <a|cos kr|p>, sindap = <a|sin kr|p>, cosdap = <da/dRA|cos kr|p>, and sindap = <da/dRA|sin kr|p>
          CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
                                  cell, kvec=vec_pot, basis_set=basis_set, nkind=nkind, derivative=.TRUE.)
-         WRITE (*, *) 'after build_sap_exp_ints'
-
          CALL sap_sort(sap_int_cos)
          CALL sap_sort(sap_int_sin)
 
          ! Compute the force, on nuclei A it is given by: Re(P_ab) Re(dV_ab/dRA) - Im(P_ab) Im(dV_ab/dRA)
 
-! !$OMP PARALLEL &
-! !$OMP DEFAULT (NONE) &
-! !$OMP SHARED (basis_set, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom,&
-! !$OMP         rho_ao, rho_ao_im) &
-! !$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
-! !$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom,&
-! !$OMP          cell_b, rab, irow, icol, fa, fb, f0,&
-! !$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc,&
-! !$OMP          na, np, nb, iatom8, hash, katom) &
-! !$OMP REDUCTION (+ : force_thread )
-
-! !$OMP SINGLE
-! !$       ALLOCATE (locks(nlock))
-! !$OMP END SINGLE
-
-! !$OMP DO
-! !$       DO lock_num = 1, nlock
-! !$          call omp_init_lock(locks(lock_num))
-! !$       END DO
-! !$OMP END DO
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED (basis_set, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, nkind, natom,&
+!$OMP         rho_ao, rho_ao_im) &
+!$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
+!$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom,&
+!$OMP          cell_b, rab, irow, icol, fa, fb, f0, found_real, found_imag, sign_imag, &
+!$OMP          kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc,&
+!$OMP          na, np, nb,  katom) &
+!$OMP REDUCTION (+ : force_thread )
 
          NULLIFY (acint_cos, bcint_cos, achint_cos, bchint_cos)
          NULLIFY (acint_sin, bcint_sin, achint_sin, bchint_sin)
 
          ! loop over atom pairs
- !!$OMP DO SCHEDULE(GUIDED)
+!$OMP DO SCHEDULE(GUIDED)
          DO slot = 1, sab_orb(1)%nl_size
             ikind = sab_orb(1)%nlist_task(slot)%ikind
             jkind = sab_orb(1)%nlist_task(slot)%jkind
@@ -1059,15 +1036,17 @@ CONTAINS
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
+               sign_imag = +1.0_dp 
             ELSE
                irow = jatom
                icol = iatom
+               sign_imag = -1.0_dp 
             END IF
             NULLIFY (matrix_p_real, matrix_p_imag)
-            CALL dbcsr_get_block_p(rho_ao(1)%matrix, irow, icol, matrix_p_real, found)
-            CALL dbcsr_get_block_p(rho_ao_im(1)%matrix, irow, icol, matrix_p_imag, found)
+            CALL dbcsr_get_block_p(rho_ao(1)%matrix, irow, icol, matrix_p_real, found_real)
+            CALL dbcsr_get_block_p(rho_ao_im(1)%matrix, irow, icol, matrix_p_imag, found_imag)
 
-            IF (ASSOCIATED(matrix_p_real) .AND. ASSOCIATED(matrix_p_imag)) THEN
+            IF (found_real .OR. found_imag) THEN
                ! loop over the <gto_a|ppln_c>h_ij<ppnl_c|gto_b> pairs
                DO kkind = 1, nkind
                   iac = ikind + nkind*(kkind - 1)
@@ -1113,65 +1092,50 @@ CONTAINS
                            ! Re(dV_ab/dRA) = <da/dRA|cos kr|p><p|cos kr|b> + <db/dRA|cos kr|p><p|cos kr|a> + <da/dRA|sin kr|p><p|sin kr|b> + <db/dRA|sin kr|p><p|sin|a>
                            ! Im(dV_ab/dRA) = <da/dRA|sin kr|p><p|cos kr|b> - <db/dRA|sin kr|p><p|cos kr|a> - <da/dRA|cos kr|p><p|sin kr|b> + <db/dRA|cos kr|p><p|sin|a>
                            katom = alist_cos_bc%clist(kac)%catom
-                           WRITE (*, *) fa, fb
                            DO idir = 1, 3
                               IF (iatom <= jatom) THEN
-                                 ! Real fa
+                                 ! For fa:
+                                 IF (found_real) &
                                  fa(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
                                                 (MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
-                                                 + MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom <= jatom Real fa', fa(idir)
-                                 ! Imag fa
-                                 fa(idir) = fa(idir) - SUM(matrix_p_imag(1:na, 1:nb)* &
-                                                    (MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
-                                                   + MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom <= jatom Imag fa', fa(idir)
-                                 ! Real fb
+                                                +MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
+                                 IF (found_imag) &
+                                 fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
+                                                (MATMUL(acint_sin(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_cos(1:nb, 1:np, 1))) &
+                                                +MATMUL(acint_cos(1:na, 1:np, 1 + idir), TRANSPOSE(bchint_sin(1:nb, 1:np, 1)))))
+                                 ! For fb:
+                                 IF (found_real) & 
                                  fb(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
                                                 (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir))) &
-                                                 + MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom <= jatom Real fb', fb(idir)
-                                 !Imag fb
-                                 fb(idir) = fb(idir) + SUM(matrix_p_imag(1:na, 1:nb)* &
-                                                    (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir))) &
-                                                   + MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom <= jatom Imag fb', fb(idir)
-
+                                                +MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir)))))
+                                 IF (found_imag) & 
+                                 fb(idir) = fb(idir) + sign_imag*SUM(matrix_p_imag(1:na, 1:nb)* &
+                                                (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1 + idir))) &
+                                                +MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1 + idir)))))
                               ELSE
-                                 ! Real
+                                 ! For fa:
+                                 IF (found_real) &
                                  fa(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
                                                 (MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
-                                                 + MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom > jatom Real fa', fa(idir)
-                                 ! Imag
-                                 fa(idir) = fa(idir) - SUM(matrix_p_imag(1:nb, 1:na)* &
-                                                    (MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
-                                                   + MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom > jatom Imag fa', fa(idir)
-                                 ! Real
+                                                +MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
+                                 IF (found_imag) &
+                                 fa(idir) = fa(idir) - sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
+                                                (MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1 + idir))) &
+                                                +MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1 + idir)))))
+                                 ! For fb
+                                 IF (found_real) &
                                  fb(idir) = SUM(matrix_p_real(1:nb, 1:na)* &
                                                 (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1))) &
-                                                 + MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom > jatom Real fb', fb(idir)
-                                 !Imag
-                                 fb(idir) = fb(idir) + SUM(matrix_p_imag(1:nb, 1:na)* &
-                                                    (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1))) &
-                                                   + MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1)))))
-                                 WRITE (*, *) kac, kbc, iatom, jatom, 'iatom > jatom Imag fb', fb(idir)
+                                                +MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1)))))
+                                 IF (found_imag) &
+                                 fb(idir) = fb(idir) + sign_imag*SUM(matrix_p_imag(1:nb, 1:na)* &
+                                                (MATMUL(bcint_cos(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_sin(1:na, 1:np, 1))) &
+                                                +MATMUL(bcint_sin(1:nb, 1:np, 1 + idir), TRANSPOSE(achint_cos(1:na, 1:np, 1)))))
                               END IF
-                              WRITE (*, *) 'fa and fb', fa(idir), fb(idir)
-                              WRITE (*, *) 'force thread iatom', force_thread(idir, iatom)
-                              WRITE (*, *) 'force thread katom', force_thread(idir, katom)
-                              WRITE (*, *) 'force thread jatom', force_thread(idir, jatom)
                               force_thread(idir, iatom) = force_thread(idir, iatom) + f0*fa(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fa(idir)
                               force_thread(idir, jatom) = force_thread(idir, jatom) + f0*fb(idir)
                               force_thread(idir, katom) = force_thread(idir, katom) - f0*fb(idir)
-                              WRITE (*, *) 'After application of the force'
-                              WRITE (*, *) 'force thread iatom', force_thread(idir, iatom)
-                              WRITE (*, *) 'force thread katom', force_thread(idir, katom)
-                              WRITE (*, *) 'force thread jatom', force_thread(idir, jatom)
-
                            END DO
                            EXIT
                         END IF
@@ -1182,37 +1146,19 @@ CONTAINS
 
          END DO
 
-! !$OMP DO
-! !$       DO lock_num = 1, nlock
-! !$          call omp_destroy_lock(locks(lock_num))
-! !$       END DO
-! !$OMP END DO
-
-! !$OMP SINGLE
-! !$       DEALLOCATE (locks)
-! !$OMP END SINGLE NOWAIT
-
-! !$OMP END PARALLEL
-
-         ! Re(dV_ab/dRA) = <da/dRA|cos kr|p><p|cos kr|b> + <db/dRA|cos kr|p><p|cos kr|a> + <da/dRA|sin kr|p><p|sin kr|b> + <db/dRA|sin kr|p><p|sin|a>
-         ! Im(dV_ab/dRA) = <da/dRA|sin kr|p><p|cos kr|b> - <db/dRA|sin kr|p><p|cos kr|a> - <da/dRA|cos kr|p><p|sin kr|b> + <db/dRA|cos kr|p><p|sin|a>
+!$OMP END PARALLEL
 
          ! Update the force
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
-! !$OMP DO
+!$OMP DO
          DO iatom = 1, natom
             i = atom_of_kind(iatom)
             ikind = kind_of(iatom)
-            WRITE (*, *) 'Initial value: '
-            WRITE (*, *) force(ikind)%gth_ppnl(:, i)
-            WRITE (*, *) 'FORCE APPLIED: force_thread(:, iatom)'
-            WRITE (*, *) force_thread(:, iatom)
             force(ikind)%gth_ppnl(:, i) = force(ikind)%gth_ppnl(:, i) + force_thread(:, iatom)
          END DO
-! !$OMP END DO
+!$OMP END DO
 
          ! Clean up
-
          IF (SIZE(rho_ao) == 2) THEN
             CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
