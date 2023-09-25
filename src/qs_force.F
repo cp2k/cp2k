@@ -221,7 +221,7 @@ CONTAINS
          CALL calc_c_mat_force(qs_env)
          IF (dft_control%do_admm) CALL rt_admm_force(qs_env)
          IF (dft_control%rtp_control%velocity_gauge .AND. dft_control%rtp_control%nl_gauge_transform) & 
-            CALL velocity_gauge_nl_force(qs_env)
+            CALL velocity_gauge_nl_force(qs_env, particle_set)
       END IF
       ! from an eventual Mulliken restraint
       IF (dft_control%qs_control%mulliken_restraint) THEN

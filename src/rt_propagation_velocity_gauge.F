@@ -887,8 +887,9 @@ CONTAINS
 !> \date    09.2023
 !> \author  Guillaume Le Breton
 ! **************************************************************************************************
-   SUBROUTINE velocity_gauge_nl_force(qs_env)
+   SUBROUTINE velocity_gauge_nl_force(qs_env, particle_set)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "velocity_gauge_nl_force"
 
@@ -900,16 +901,15 @@ CONTAINS
                                                             nb, nkind, np, slot, katom
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sap_ppnl, sab_orb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)         :: force_thread
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      REAL(KIND=dp), DIMENSION(3)                        :: vec_pot, fa, fb, rab, rac, rbc
-      REAL(dp)                                           :: f0, eps_ppnl
+      REAL(KIND=dp), DIMENSION(3)                        :: vec_pot, fa, fb, rab
+      REAL(dp)                                           :: eps_ppnl
       LOGICAL                                            :: found
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
@@ -918,7 +918,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p_real, matrix_p_imag
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix_p_real, matrix_p_imag
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: achint_cos, achint_sin, acint_cos, &
                                                             acint_sin, bchint_cos, bchint_sin, &
                                                             bcint_cos, bcint_sin
@@ -944,7 +944,7 @@ CONTAINS
       IF (ASSOCIATED(sap_ppnl)) THEN
          WRITE(*, *) 'OK IT IS CALLED!'
          
-         NULLIFY (qs_kind_set, particle_set, cell, dft_control, force, sab_orb, atomic_kind_set, &
+         NULLIFY (qs_kind_set, cell, dft_control, force, sab_orb, atomic_kind_set, &
             sap_int_cos, sap_int_sin) 
          ! Load and initialized the required quantities
 
@@ -952,7 +952,6 @@ CONTAINS
                       sab_orb=sab_orb, &
                       force=force, &
                       dft_control=dft_control, &
-                      particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &
                       cell=cell, &
                       atomic_kind_set=atomic_kind_set, & 
@@ -992,7 +991,6 @@ CONTAINS
          !get vector potential
          vec_pot = dft_control%rtp_control%vec_pot
 
-         ALLOCATE(force_thread(3, SIZE(particle_set)))
          force_thread = 0.0_dp 
 
          CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
@@ -1018,10 +1016,11 @@ CONTAINS
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED (basis_set, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom) &
+!$OMP SHARED (basis_set, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom,&
+!$OMP         rho_ao, rho_ao_im) &
 !$OMP PRIVATE (matrix_p_real, matrix_p_imag, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
 !$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom,&
-!$OMP          cell_b, rab, irow, icol, fa, fb, f0, &
+!$OMP          cell_b, rab, irow, icol, fa, fb, &
 !$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc,&
 !$OMP          na, np, nb, iatom8, hash, katom) &
 !$OMP REDUCTION (+ : force_thread )
@@ -1114,53 +1113,45 @@ CONTAINS
                               IF (iatom <= jatom) THEN
                                  ! Real
                                  fa(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(achint_cos(1:na, 1:np, 1+idir), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))))
-                                 fa(idir) = fa(idir) + SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(achint_sin(1:na, 1:np, 1+idir), TRANSPOSE(bcint_sin(1:nb, 1:np, 1))))
+                                            (MATMUL(achint_cos(1:na, 1:np, 1+idir), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) &
+                                            +MATMUL(achint_sin(1:na, 1:np, 1+idir), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))))
                                  ! Imag 
                                  fa(idir) = fa(idir) - SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(achint_sin(1:na, 1:np, 1+idir), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))))
-                                 fa(idir) = fa(idir) + SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(achint_cos(1:na, 1:np, 1+idir), TRANSPOSE(bcint_sin(1:nb, 1:np, 1))))
+                                            (MATMUL(achint_sin(1:na, 1:np, 1+idir), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) &
+                                            +MATMUL(achint_cos(1:na, 1:np, 1+idir), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))))
 
                                  ! Real
                                  fb(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1+idir))))
-                                 fb(idir) = fb(idir) + SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1+idir))))
+                                            (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1+idir))) &
+                                            +MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1+idir)))))
                                  !Imag
                                  fb(idir) = fb(idir) + SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1+idir))))
-                                 fb(idir) = fb(idir) - SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1+idir))))
+                                            (MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1+idir))) &
+                                            +MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1+idir)))))
 
                               ELSE
                                  ! Real
                                  fa(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(bchint_cos(1:na, 1:np, 1+idir), TRANSPOSE(acint_cos(1:nb, 1:np, 1))))
-                                 fa(idir) = fa(idir) + SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(bchint_sin(1:na, 1:np, 1+idir), TRANSPOSE(acint_sin(1:nb, 1:np, 1))))
+                                            (MATMUL(bchint_cos(1:na, 1:np, 1+idir), TRANSPOSE(acint_cos(1:nb, 1:np, 1))) &
+                                            +MATMUL(bchint_sin(1:na, 1:np, 1+idir), TRANSPOSE(acint_sin(1:nb, 1:np, 1)))))
                                  ! Imag
                                  fa(idir) = fa(idir) - SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(bchint_sin(1:na, 1:np, 1+idir), TRANSPOSE(acint_cos(1:nb, 1:np, 1))))
-                                 fa(idir) = fa(idir) + SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(bchint_cos(1:na, 1:np, 1+idir), TRANSPOSE(acint_sin(1:nb, 1:np, 1))))
+                                            (MATMUL(bchint_sin(1:na, 1:np, 1+idir), TRANSPOSE(acint_cos(1:nb, 1:np, 1))) &
+                                            +MATMUL(bchint_cos(1:na, 1:np, 1+idir), TRANSPOSE(acint_sin(1:nb, 1:np, 1)))))
 
                                  ! Real
                                  fb(idir) = SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(bchint_cos(1:na, 1:np, 1), TRANSPOSE(acint_cos(1:nb, 1:np, 1+idir))))
-                                 fb(idir) = fb(idir) + SUM(matrix_p_real(1:na, 1:nb)* &
-                                             MATMUL(bchint_cos(1:na, 1:np, 1), TRANSPOSE(acint_cos(1:nb, 1:np, 1+idir))))
+                                            (MATMUL(bchint_cos(1:na, 1:np, 1), TRANSPOSE(acint_cos(1:nb, 1:np, 1+idir))) &
+                                            +MATMUL(bchint_cos(1:na, 1:np, 1), TRANSPOSE(acint_cos(1:nb, 1:np, 1+idir)))))
                                  !Imag
                                  fb(idir) = fb(idir) + SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(bchint_cos(1:na, 1:np, 1), TRANSPOSE(acint_sin(1:nb, 1:np, 1+idir))))
-                                 fb(idir) = fb(idir) - SUM(matrix_p_imag(1:na, 1:nb)* &
-                                             MATMUL(bchint_sin(1:na, 1:np, 1), TRANSPOSE(acint_cos(1:nb, 1:np, 1+idir))))
+                                            (MATMUL(bchint_cos(1:na, 1:np, 1), TRANSPOSE(acint_sin(1:nb, 1:np, 1+idir))) &
+                                            +MATMUL(bchint_sin(1:na, 1:np, 1), TRANSPOSE(acint_cos(1:nb, 1:np, 1+idir)))))
                               END IF
-                              force_thread(idir, iatom) = force_thread(idir, iatom) + f0*fa(idir)
-                              force_thread(idir, katom) = force_thread(idir, katom) - f0*fa(idir)
-                              force_thread(idir, jatom) = force_thread(idir, jatom) + f0*fb(idir)
-                              force_thread(idir, katom) = force_thread(idir, katom) - f0*fb(idir)
+                              force_thread(idir, iatom) = force_thread(idir, iatom) + fa(idir)
+                              force_thread(idir, katom) = force_thread(idir, katom) - fa(idir)
+                              force_thread(idir, jatom) = force_thread(idir, jatom) + fb(idir)
+                              force_thread(idir, katom) = force_thread(idir, katom) - fb(idir)
 
                            END DO
                            EXIT
@@ -1213,7 +1204,7 @@ CONTAINS
          CALL release_sap_int(sap_int_cos)
          CALL release_sap_int(sap_int_sin)
 
-         DEALLOCATE(force_thread, basis_set, atom_of_kind, kind_of)
+         DEALLOCATE(basis_set, atom_of_kind, kind_of)
 
 
 
