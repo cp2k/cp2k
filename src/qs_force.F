@@ -28,7 +28,8 @@ MODULE qs_force
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
    USE ec_env_types,                    ONLY: energy_correction_type
-   USE efield_utils,                    ONLY: calculate_ecore_efield
+   USE efield_utils,                    ONLY: calculate_ecore_efield, &
+                                              efield_potential_lengh_gauge
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
    USE hfx_exx,                         ONLY: calculate_exx
@@ -72,7 +73,8 @@ MODULE qs_force
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
                                               rt_admm_force
-   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_nl_force
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix, &
+                                              velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE virial_types,                    ONLY: symmetrize_virial,&
@@ -293,6 +295,13 @@ CONTAINS
       ELSE
          ! Dispersion energy and forces are calculated in qs_energy?
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
+         ! The above line reset the core H, which should be re-updated in case a TD field is applied:
+         IF (qs_env%run_rtp) THEN 
+            IF (dft_control%apply_efield_field) &
+               CALL efield_potential_lengh_gauge(qs_env)
+            IF (dft_control%rtp_control%velocity_gauge) &
+               CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
+         END IF
          CALL calculate_ecore_self(qs_env)
          CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.TRUE.)
          CALL calculate_ecore_efield(qs_env, calculate_forces=.TRUE.)
