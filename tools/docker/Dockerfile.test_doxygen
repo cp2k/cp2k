@@ -17,6 +17,7 @@ COPY ./exts ./exts
 COPY ./data ./data
 COPY ./docs ./docs
 COPY ./tools ./tools
+COPY ./tests ./tests
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 COPY ./Makefile .
