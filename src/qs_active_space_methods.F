@@ -2876,12 +2876,13 @@ CONTAINS
          delta_E = energy_new - energy_old
 
          ! get timer
-         t2 = m_walltime()
+         t2 = t1
+         t1 = m_walltime()
          ! print out progress
          IF ((iw > 0)) THEN
             WRITE (UNIT=iw, &
-                   FMT="(T3,I4,T11,A,T21,F4.2,T28,F18.10,T49,F18.10,T70,ES11.2)") &
-               iter, 'P_Mix', t2 - t1, energy_corr, energy_new, delta_E
+                   FMT="(T3,I4,T11,A,T19,F6.1,T28,F18.10,T49,F18.10,T70,ES11.2)") &
+               iter, 'P_Mix', t1 - t2, energy_corr, energy_new, delta_E
             CALL m_flush(iw)
          END IF
 
@@ -2920,8 +2921,6 @@ CONTAINS
             converged = .TRUE.
             EXIT
          END IF
-
-         t1 = m_walltime()
       END DO
 
       IF (.NOT. converged) THEN
