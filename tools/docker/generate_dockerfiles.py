@@ -302,6 +302,7 @@ COPY ./exts ./exts
 COPY ./data ./data
 COPY ./docs ./docs
 COPY ./tools ./tools
+COPY ./tests ./tests
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 COPY ./Makefile .
@@ -335,7 +336,7 @@ def production(version: str, arch: str = "local", intel: bool = False) -> str:
 ARG TESTOPTS
 RUN /bin/bash -c " \
     source /opt/cp2k-toolchain/install/setup && \
-    ./tools/regtesting/do_regtest.py '{arch}' '{version}' --skipdir=UNIT/libcp2k_unittest '${{TESTOPTS}}' |& tee regtests.log && \
+    ./tests/do_regtest.py '{arch}' '{version}' --skipdir=UNIT/libcp2k_unittest "${{TESTOPTS}}" |& tee regtests.log && \
     rm -rf regtesting"
 
 # Setup entry point for production.

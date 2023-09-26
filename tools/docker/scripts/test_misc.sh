@@ -34,7 +34,6 @@ run_test ./tools/apptainer/generate_apptainer_def_files.py --check
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/dashboard/generate_regtest_survey.py
-run_test mypy --strict ./tools/regtesting/do_regtest.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
 run_test mypy --strict ./tools/precommit/precommit.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
@@ -42,6 +41,7 @@ run_test mypy --strict ./tools/precommit/format_makefile.py
 run_test mypy --strict ./tools/docker/generate_dockerfiles.py
 run_test mypy --strict ./tools/apptainer/generate_apptainer_def_files.py
 run_test mypy --strict ./tools/conventions/analyze_gfortran_ast.py
+run_test mypy --strict ./tests/do_regtest.py
 run_test mypy --strict ./docs/generate_input_reference.py
 run_test mypy --strict ./docs/fix_github_links.py
 

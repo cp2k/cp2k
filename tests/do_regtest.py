@@ -240,7 +240,7 @@ class Config:
         self.mpiranks = args.mpiranks if self.use_mpi else 1
         self.num_workers = int(args.maxtasks / self.ompthreads / self.mpiranks)
         self.workers = Semaphore(self.num_workers)
-        self.cp2k_root = Path(__file__).resolve().parent.parent.parent
+        self.cp2k_root = Path(__file__).resolve().parent.parent
         self.mpiexec = args.mpiexec.split()
         self.smoketest = args.smoketest
         self.valgrind = args.valgrind
