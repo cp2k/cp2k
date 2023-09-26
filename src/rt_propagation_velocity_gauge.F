@@ -1091,7 +1091,7 @@ CONTAINS
                            nb = SIZE(bcint_cos, 1)
                            ! Re(dV_ab/dRA) = <da/dRA|cos kr|p><p|cos kr|b> + <db/dRA|cos kr|p><p|cos kr|a> + <da/dRA|sin kr|p><p|sin kr|b> + <db/dRA|sin kr|p><p|sin|a>
                            ! Im(dV_ab/dRA) = <da/dRA|sin kr|p><p|cos kr|b> - <db/dRA|sin kr|p><p|cos kr|a> - <da/dRA|cos kr|p><p|sin kr|b> + <db/dRA|cos kr|p><p|sin|a>
-                           katom = alist_cos_bc%clist(kac)%catom
+                           katom = alist_cos_ac%clist(kac)%catom
                            DO idir = 1, 3
                               IF (iatom <= jatom) THEN
                                  ! For fa:
