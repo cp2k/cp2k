@@ -911,7 +911,7 @@ if(CP2K_ENABLE_REGTESTS OR cp2k_TESTS)
     "\n\n"
     "To run the regtests you need to run the following commands\n"
     "\n\n cd ..\n"
-    "tools/regtesting/do_regtest.py -cp2kdir . -nobuild -version ${__cp2k_cmake_exts} -arch ${__cp2k_cmake_name}\n\n"
+    "tests/do_regtest.py -cp2kdir . -nobuild -version ${__cp2k_cmake_exts} -arch ${__cp2k_cmake_name}\n\n"
   )
 endif()
 
