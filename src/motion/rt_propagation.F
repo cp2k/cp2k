@@ -535,12 +535,12 @@ CONTAINS
       IF (imag_ks) CALL qs_ks_allocate_basics(qs_env, is_complex=imag_ks)
 
       ! h
-      IF (imag_h) CALL qs_matrix_h_allocate_imag_from_real(qs_env)
+      IF (imag_h) THEN 
+         CALL qs_matrix_h_allocate_imag_from_real(qs_env)
+         IF (.NOT. dft_control%rtp_control%fixed_ions) & 
+            CALL rtp_create_SinvH_imag(rtp, dft_control%nspins)
+      END IF
       
-      ! Allocate SinvH_imag for EMD with imaginary H 
-      IF ((.NOT. dft_control%rtp_control%fixed_ions) .AND. imag_h ) &
-         CALL rtp_create_SinvH_imag(rtp, dft_control%nspins) 
-
    END SUBROUTINE rt_init_complex_quantities
 
 END MODULE rt_propagation

@@ -389,7 +389,8 @@ CONTAINS
    END SUBROUTINE compute_propagator_matrix
 
 ! **************************************************************************************************
-!> \brief computes t*S_inv*H, if needed t*Sinv*B
+!> \brief computes S_inv*H, if needed Sinv*B and S_inv*H_imag and store these quantities to the 
+!> \brief exp_H for the real and imag part (for RTP and EMD)
 !> \param rtp ...
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
@@ -463,47 +464,9 @@ CONTAINS
          END DO
       END IF 
 
-
-      !! in these two cases the argument in the matrix exponentials has a real part
-      !IF (.NOT. rtp_control%fixed_ions .OR. rtp%propagate_complex_ks) THEN
-      !   CALL get_rtp(rtp=rtp, B_mat=B_mat, SinvB=SinvB)
-      !   IF (rtp%propagate_complex_ks) THEN
-      !      DO ispin = 1, SIZE(matrix_ks)
-      !         re = ispin*2 - 1
-      !         im = ispin*2
-      !         CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
-      !         CALL dbcsr_desymmetrize(matrix_ks_im(ispin)%matrix, matrix_ks_nosym)
-      !
-      !         ! take care of the EMD case and add the velocity scaled S_derivative
-      !         IF (.NOT. rtp_control%fixed_ions) THEN
-      !            CALL dbcsr_add(matrix_ks_nosym, B_mat, 1.0_dp, -1.0_dp)
-      !         END IF
-!
-!               CALL dbcsr_multiply("N", "N", -one, S_inv, matrix_ks_nosym, zero, exp_H(re)%matrix, &
-!                                   filter_eps=rtp%filter_eps)
-!
-!               IF (.NOT. rtp_control%fixed_ions) &
-!                  CALL dbcsr_copy(SinvB(ispin)%matrix, exp_H(re)%matrix)
-!            END DO
-!         ELSE
-!            ! in case of pure EMD its only needed once as B is the same for both spins
-!            CALL dbcsr_multiply("N", "N", one, S_inv, B_mat, zero, exp_H(1)%matrix, filter_eps=rtp%filter_eps)
-!            CALL get_rtp(rtp=rtp, B_mat=B_mat, SinvB=SinvB)
-!            CALL dbcsr_copy(SinvB(1)%matrix, exp_H(1)%matrix)
-!
-!            IF (SIZE(matrix_ks) == 2) CALL dbcsr_copy(exp_H(3)%matrix, exp_H(1)%matrix)
-!            IF (SIZE(matrix_ks) == 2) CALL dbcsr_copy(SinvB(2)%matrix, SinvB(1)%matrix)
-!         END IF
-!      ELSE
-!         !set real part to zero
-!         DO ispin = 1, SIZE(exp_H)/2
-!            re = ispin*2 - 1
-!            im = ispin*2
-!            CALL dbcsr_set(exp_H(re)%matrix, zero)
-!         END DO
-!      END IF
       CALL dbcsr_release(matrix_ks_nosym)
       CALL timestop(handle)
+
    END SUBROUTINE calc_SinvH
 
 ! **************************************************************************************************

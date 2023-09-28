@@ -179,7 +179,7 @@ CONTAINS
    END SUBROUTINE calc_c_mat_force_fm
 
 ! **************************************************************************************************
-!> \brief special treatment ofr linear scaling
+!> \brief calculates the three additional force contributions needed in EMD
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !> \param qs_env ...
 !> \par History
@@ -232,6 +232,12 @@ CONTAINS
       ELSE
          CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
       END IF
+      
+      ! SinvH has an imaginary part
+      ! NOT SURE ABOUT THIS: SHOULD BE IF rtp%H_imag instead???
+      IF (rtp%propagate_complex_ks) CALL get_rtp(rtp=rtp, SinvH_imag=SinvH_imag)
+         
+      END IF
 
       DO ispin = 1, SIZE(SinvH)
          re = 2*ispin - 1
@@ -239,11 +245,17 @@ CONTAINS
          IF (rtp%linear_scaling) THEN
             CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
                              filter_eps=rtp%filter_eps)
+            IF (rtp%propagate_complex_ks) & 
+               CALL dbcsr_multiply("N", "N", one, SinvH_imag(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
+                             filter_eps=rtp%filter_eps)
             CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
                              filter_eps=rtp%filter_eps)
             CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
          ELSE
             CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_ao(ispin)%matrix, zero, tmp, &
+                             filter_eps=rtp%filter_eps)
+            IF (rtp%propagate_complex_ks) &
+               CALL dbcsr_multiply("N", "N", one, SinvH_imag(ispin)%matrix, rho_ao_im(ispin)%matrix, one, tmp, &
                              filter_eps=rtp%filter_eps)
             CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_ao_im(ispin)%matrix, one, tmp, &
                              filter_eps=rtp%filter_eps)
