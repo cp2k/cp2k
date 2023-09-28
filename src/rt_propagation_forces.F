@@ -46,6 +46,8 @@ MODULE rt_propagation_forces
    USE qs_overlap,                      ONLY: build_overlap_force
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
+   USE qs_rho_types,                    ONLY: qs_rho_get,& 
+                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -67,16 +69,16 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! **************************************************************************************************
 
-   SUBROUTINE calc_c_mat_force(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      IF (qs_env%rtp%linear_scaling) THEN
-         CALL calc_c_mat_force_ls(qs_env)
-      ELSE
-         CALL calc_c_mat_force_fm(qs_env)
-      END IF
-
-   END SUBROUTINE calc_c_mat_force
+!   SUBROUTINE calc_c_mat_force(qs_env)
+!      TYPE(qs_environment_type), POINTER                 :: qs_env
+!
+!      IF (qs_env%rtp%linear_scaling) THEN
+!         CALL calc_c_mat_force_ls(qs_env)
+!      ELSE
+!         CALL calc_c_mat_force_fm(qs_env)
+!      END IF
+!
+!   END SUBROUTINE calc_c_mat_force
 
 ! **************************************************************************************************
 !> \brief standard treatment for fm MO based calculations
@@ -185,7 +187,7 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! **************************************************************************************************
 
-   SUBROUTINE calc_c_mat_force_ls(qs_env)
+   SUBROUTINE calc_c_mat_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_ls'
@@ -194,19 +196,22 @@ CONTAINS
       INTEGER                                            :: handle, i, im, ispin, re
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_new, S_der, SinvB, SinvH
-      TYPE(dbcsr_type), POINTER                          :: S_inv, S_minus_half, tmp, tmp2, tmp3
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_new, rho_ao, rho_ao_im, &
+                                                            S_der, SinvB, SinvH
+      TYPE(dbcsr_type), POINTER                          :: S_inv, tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
       NULLIFY (rtp, particle_set, atomic_kind_set, dft_control)
 
       CALL get_qs_env(qs_env, &
                       rtp=rtp, &
+                      rho=rho, &
                       particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set, &
                       force=force, &
@@ -221,25 +226,29 @@ CONTAINS
       NULLIFY (tmp)
       ALLOCATE (tmp)
       CALL dbcsr_create(tmp, template=SinvB(1)%matrix)
-      NULLIFY (tmp2)
-      ALLOCATE (tmp2)
-      CALL dbcsr_create(tmp2, template=SinvB(1)%matrix)
-      NULLIFY (tmp3)
-      ALLOCATE (tmp3)
-      CALL dbcsr_create(tmp3, template=SinvB(1)%matrix)
 
-      CALL get_rtp(rtp=rtp, rho_new=rho_new, S_minus_half=S_minus_half)
+      IF (rtp%linear_scaling) THEN 
+         CALL get_rtp(rtp=rtp, rho_new=rho_new)
+      ELSE
+         CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
+      END IF
 
       DO ispin = 1, SIZE(SinvH)
          re = 2*ispin - 1
          im = 2*ispin
-         CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
+         IF (rtp%linear_scaling) THEN
+            CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
                              filter_eps=rtp%filter_eps)
-         CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
+            CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
                              filter_eps=rtp%filter_eps)
-
-         CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
-
+            CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
+         ELSE
+            CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_ao(ispin)%matrix, zero, tmp, &
+                             filter_eps=rtp%filter_eps)
+            CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_ao_im(ispin)%matrix, one, tmp, &
+                             filter_eps=rtp%filter_eps)
+            CALL compute_forces(force, tmp, S_der, rho_ao_im(ispin)%matrix, C_mat, kind_of, atom_of_kind)
+         END IF
       END DO
 
       ! recall QS forces, at this point have the other sign.
@@ -248,8 +257,6 @@ CONTAINS
       END DO
 
       CALL dbcsr_deallocate_matrix(tmp)
-      CALL dbcsr_deallocate_matrix(tmp2)
-      CALL dbcsr_deallocate_matrix(tmp3)
 
       CALL timestop(handle)
 
