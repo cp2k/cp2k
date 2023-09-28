@@ -179,9 +179,11 @@ def write_definition_file(
     if release == "master":
         branch = ""
         tagname = name.replace("master", r"master$(date +%Y%m%d)")
+        do_regtest_path = "tools/regtesting"
     else:
         branch = f" -b support/v{release}"
         tagname = name
+        do_regtest_path = "tests"
 
     if test_build:
         make_target = " test"
@@ -224,7 +226,7 @@ COPY --from=build /opt/cp2k/src/grid/sample_tasks/ /opt/cp2k/src/grid/sample_tas
 """
         run_tests = rf"""
 # Create shortcut for regression test
-RUN printf "/opt/cp2k/tools/regtesting/do_regtest.py {testopts} \$* {arch} {version}" \
+RUN printf "/opt/cp2k/{do_regtest_path}/do_regtest.py {testopts} \$* {arch} {version}" \
 >/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
 """
         required_packages += " python3"
