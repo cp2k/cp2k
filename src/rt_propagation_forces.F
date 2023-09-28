@@ -197,7 +197,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_new, rho_ao, rho_ao_im, &
-                                                            S_der, SinvB, SinvH
+                                                            S_der, SinvB, SinvH, SinvH_imag
       TYPE(dbcsr_type), POINTER                          :: S_inv, tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -233,11 +233,9 @@ CONTAINS
          CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
       END IF
       
-      ! SinvH has an imaginary part
+      ! If SinvH has an imaginary part (the minus sign is already in SinvH_imag)
       ! NOT SURE ABOUT THIS: SHOULD BE IF rtp%H_imag instead???
       IF (rtp%propagate_complex_ks) CALL get_rtp(rtp=rtp, SinvH_imag=SinvH_imag)
-         
-      END IF
 
       DO ispin = 1, SIZE(SinvH)
          re = 2*ispin - 1
