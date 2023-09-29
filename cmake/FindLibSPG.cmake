@@ -36,14 +36,14 @@ else()
                                     CP2K_LIBSPG_LINK_LIBRARIES)
 endif()
 
-if(CP2K_LIBSPG_FOUND AND NOT TARGET CP2K::LIBSPG::libspg)
-  add_library(CP2K::LIBSPG::libspg INTERFACE IMPORTED)
+if(CP2K_LIBSPG_FOUND AND NOT TARGET cp2k::LIBSPG::libspg)
+  add_library(cp2k::LIBSPG::libspg INTERFACE IMPORTED)
   set_target_properties(
-    CP2K::LIBSPG::libspg PROPERTIES INTERFACE_LINK_LIBRARIES
+    cp2k::LIBSPG::libspg PROPERTIES INTERFACE_LINK_LIBRARIES
                                     "${CP2K_LIBSPG_LINK_LIBRARIES}")
   if(CP2K_LIBSPG_INCLUDE_DIRS)
     set_target_properties(
-      CP2K::LIBSPG::libspg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+      cp2k::LIBSPG::libspg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                       "${CP2K_LIBSPG_INCLUDE_DIRS}")
   endif()
 endif()

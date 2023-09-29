@@ -118,3 +118,148 @@ function(cp2k_compare_src_with_list _list_files _extension)
   set(list_size_ 0)
   set(found_list_size_ 0)
 endfunction()
+
+macro(cp2k_FindPackage name)
+  #[===[.md
+    # cp2k_FindPackage
+
+    A compatibility macro that links `find_package(CONFIG)` packages with `pkg-config`. This should only
+    be called within the `Find<PackageName>.cmake` file.
+
+    Note: Version range syntax is not supported for pkg-config searching. Only the lower bound will be respected.
+          Taken from Octopus repository.
+    ]===]
+
+  set(ARGS_Options "")
+  set(ARGS_OneValue "")
+  set(ARGS_MultiValue "NAMES;PKG_MODULE_NAMES;PKG_MODULE_SPECS")
+  cmake_parse_arguments(ARGS "${ARGS_Options}" "${ARGS_OneValue}"
+                        "${ARGS_MultiValue}" ${ARGN})
+
+  # First try to find native <PackageName>Config.cmake Build the arguments
+  # COMPONENTS
+  set(_comp_args)
+  set(_opt_comp_args)
+  if(DEFINED ${name}_FIND_COMPONENTS)
+    list(APPEND _comp_args COMPONENTS)
+    foreach(_comp IN LISTS ${name}_FIND_COMPONENTS)
+      if(${name}_FIND_REQUIRED_${_comp})
+        list(APPEND _comp_args ${_comp})
+      else()
+        if(NOT DEFINED _opt_comp_args)
+          list(APPEND _opt_comp_args OPTIONAL_COMPONENTS)
+        endif()
+        list(APPEND _opt_comp_args ${_comp})
+      endif()
+    endforeach()
+  endif()
+
+  # Version Try range format first, otherwise use the default
+  set(_version_args ${${name}_FIND_VERSION_RANGE})
+  if(NOT DEFINED _version_args)
+    set(_version_args ${${name}_FIND_VERSION})
+  endif()
+  if(${name}_FIND_VERSION_EXACT)
+    list(APPEND _version_args EXACT)
+  endif()
+
+  # QUIET
+  set(_quiet_arg)
+  if(${name}_FIND_QUIETLY)
+    list(APPEND _quiet_arg QUIET)
+  endif()
+
+  # REQUIRED
+  set(_required_arg)
+  if(${name}_FIND_REQUIRED)
+    list(APPEND _required_arg REQUIRED)
+  endif()
+
+  # REGISTRY_VIEW
+  set(_registry_view_arg)
+  if(${name}_FIND_REGISTRY_VIEW)
+    list(APPEND _registry_view REGISTRY_VIEW ${${name}_FIND_REGISTRY_VIEW})
+  endif()
+
+  # NAMES
+  set(_names_args)
+  if(DEFINED ARGS_NAMES)
+    list(APPEND _names_args NAMES ${ARGS_NAMES})
+  endif()
+
+  # Try <PackageName>Config.cmake
+  find_package(
+    ${name}
+    ${_version_args}
+    ${_quiet_arg}
+    CONFIG
+    ${_comp_args}
+    ${_opt_comp_args}
+    ${_registry_view_arg}
+    ${_names_args})
+
+  if(NOT ${name}_FOUND)
+    # Try pkg-config next Construct the moduleSpec to search for
+    if(NOT DEFINED ARGS_PKG_MODULE_SPECS)
+      if(NOT DEFINED ARGS_PKG_MODULE_NAMES)
+        set(ARGS_PKG_MODULE_NAMES ${name})
+      endif()
+      if(DEFINED ${name}_FIND_VERSION_RANGE)
+        # Can only parse the minimum requirement
+        foreach(_pkg_name IN LISTS ARGS_PKG_MODULE_NAMES)
+          list(APPEND ARGS_PKG_MODULE_SPECS
+               "${_pkg_name}>=${${name}_FIND_VERSION_MIN}")
+        endforeach()
+      elseif({${name}_FIND_VERSION_EXACT)
+        # Requesting exact version
+        foreach(_pkg_name IN LISTS ARGS_PKG_MODULE_NAMES)
+          list(APPEND ARGS_PKG_MODULE_SPECS
+               "${_pkg_name}=${${name}_FIND_VERSION}")
+        endforeach()
+      elseif(DEFINED ${name}_FIND_VERSION)
+        # Otherwise treat the request as minimum requirement
+        foreach(_pkg_name IN LISTS ARGS_PKG_MODULE_NAMES)
+          list(APPEND ARGS_PKG_MODULE_SPECS
+               "${_pkg_name}>=${${name}_FIND_VERSION}")
+        endforeach()
+      else()
+        # Fallthrough if no version is required
+        foreach(_pkg_name IN LISTS ARGS_PKG_MODULE_NAMES)
+          list(APPEND ARGS_PKG_MODULE_SPECS "${_pkg_name}")
+        endforeach()
+      endif()
+    endif()
+    # Call pkg-config
+    if(CMAKE_VERSION VERSION_LESS 3.28)
+      # https://gitlab.kitware.com/cmake/cmake/-/issues/25228
+      set(ENV{PKG_CONFIG_ALLOW_SYSTEM_CFLAGS} 1)
+    endif()
+    if(CMAKE_VERSION VERSION_LESS 3.22)
+      # Back-porting
+      # https://gitlab.kitware.com/cmake/cmake/-/merge_requests/6345
+      set(ENV{PKG_CONFIG_ALLOW_SYSTEM_CFLAGS} 1)
+    endif()
+    pkg_search_module(${name} ${_required_arg} ${_quiet_arg} IMPORTED_TARGET
+                      ${ARGS_PKG_MODULE_SPECS})
+    # Mark the package as found by pkg-config
+    if(${name}_FOUND)
+      set(${name}_PKGCONFIG True)
+    endif()
+  endif()
+
+  # Sanitize local variables in order to not contaminate future calls
+  set(ARGS_Options)
+  set(ARGS_OneValue)
+  set(ARGS_MultiValue)
+  set(ARGS_UNPARSED_ARGUMENTS)
+  set(ARGS_NAMES)
+  set(ARGS_PKG_MODULE_NAMES)
+  set(ARGS_PKG_MODULE_SPECS)
+  set(_version_args)
+  set(_quiet_arg)
+  set(_comp_args)
+  set(_opt_comp_args)
+  set(_registry_view_arg)
+  set(_names_args)
+  set(_pkg_name)
+endmacro()

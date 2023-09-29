@@ -83,10 +83,11 @@ function(ADD_FYPP_SOURCES OUTVAR)
   endforeach()
 
   # build a custom target to fypp seperately (required for example by the doc
-  # target)
+  # target) cmake 3.27.5 seems to have issues with these two next commands. I do
+  # not use the fypp target anyway
 
-  add_custom_target("fypp_${OUTVAR}" DEPENDS ${outfiles})
-  add_dependencies(fypp "fypp_${OUTVAR}")
+  # add_custom_target("fypp_${OUTVAR}" DEPENDS ${outfiles})
+  # add_dependencies(fypp "fypp_${OUTVAR}")
 
   # set the output list in the calling scope
   set(${OUTVAR}

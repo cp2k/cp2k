@@ -36,10 +36,10 @@ check_symbol_exists(vdwxc_init_mpi "${CP2K_LIBVDWXC_INCLUDE_DIRS}/vdwxc_mpi.h"
 find_package_handle_standard_args(
   LibVDWXC DEFAULT_MSG CP2K_LIBVDWXC_LINK_LIBRARIES CP2K_LIBVDWXC_INCLUDE_DIRS)
 
-if(LibVDWXC_FOUND AND NOT TARGET CP2K::libvdwxc::libvdwxc)
-  add_library(CP2K::libvdwxc::libvdwxc INTERFACE IMPORTED)
+if(LibVDWXC_FOUND AND NOT TARGET cp2k::libvdwxc::libvdwxc)
+  add_library(cp2k::libvdwxc::libvdwxc INTERFACE IMPORTED)
   set_target_properties(
-    CP2K::libvdwxc::libvdwxc
+    cp2k::libvdwxc::libvdwxc
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBVDWXC_INCLUDE_DIRS}"
                INTERFACE_LINK_LIBRARIES "${CP2K_LIBVDWXC_LINK_LIBRARIES}")
 endif()

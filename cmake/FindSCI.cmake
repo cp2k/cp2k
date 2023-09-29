@@ -43,58 +43,58 @@ find_package_handle_standard_args(SCI REQUIRED_VARS CP2K_LIBSCI_INCLUDE_DIRS
 
 # add target to link against
 if(CP2K_LIBSCI_FOUND)
-  if(NOT TARGET CP2K::BLAS::SCI::sci)
-    add_library(CP2K::BLAS::SCI::sci INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::SCI::sci_mpi INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::SCI::sci_mp INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::SCI::sci_mpi_mp INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::SCI::scalapack_link INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::SCI::blas INTERFACE IMPORTED)
+  if(NOT TARGET cp2k::BLAS::SCI::sci)
+    add_library(cp2k::BLAS::SCI::sci INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::SCI::sci_mpi INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::SCI::sci_mp INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::SCI::sci_mpi_mp INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::SCI::scalapack_link INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::SCI::blas INTERFACE IMPORTED)
 
     if(CP2K_LIBSCI_INCLUDE_DIRS)
       set_property(
-        TARGET CP2K::BLAS::SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        TARGET cp2k::BLAS::SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                              "${CP2K_LIBSCI_INCLUDE_DIRS}")
       set_property(
-        TARGET CP2K::BLAS::SCI::sci_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        TARGET cp2k::BLAS::SCI::sci_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                                 "${CP2K_LIBSCI_INCLUDE_DIRS}")
       set_property(
-        TARGET CP2K::BLAS::SCI::sci_mpi PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        TARGET cp2k::BLAS::SCI::sci_mpi PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                                  "${CP2K_LIBSCI_INCLUDE_DIRS}")
       set_property(
-        TARGET CP2K::BLAS::SCI::sci_mpi_mp
+        TARGET cp2k::BLAS::SCI::sci_mpi_mp
         PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBSCI_INCLUDE_DIRS}")
     endif()
 
     set_property(
-      TARGET CP2K::BLAS::SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
+      TARGET cp2k::BLAS::SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
                                            ${CP2K_LIBSCI_LINK_LIBRARIES})
     set_property(
-      TARGET CP2K::BLAS::SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
+      TARGET cp2k::BLAS::SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
                                               ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
     set_property(
-      TARGET CP2K::BLAS::SCI::sci_mpi
+      TARGET cp2k::BLAS::SCI::sci_mpi
       PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_LIBSCI_MPI_LINK_LIBRARIES}
-               CP2K::BLAS::SCI::sci)
+               cp2k::BLAS::SCI::sci)
     set_property(
-      TARGET CP2K::BLAS::SCI::sci_mpi_mp
+      TARGET cp2k::BLAS::SCI::sci_mpi_mp
       PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES}
-               CP2K::BLAS::SCI::sci_mp)
+               cp2k::BLAS::SCI::sci_mp)
     set_property(
-      TARGET CP2K::BLAS::SCI::scalapack_link
+      TARGET cp2k::BLAS::SCI::scalapack_link
       PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBSCI_INCLUDE_DIRS}")
   endif()
 
   if(CP2K_BLAS_THREADING MATCHES "sequential")
-    set_property(TARGET CP2K::BLAS::SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                       CP2K::BLAS::SCI::sci)
-    set_property(TARGET CP2K::BLAS::SCI::scalapack_link
-                 PROPERTY INTERFACE_LINK_LIBRARIES CP2K::BLAS::SCI::sci_mpi)
+    set_property(TARGET cp2k::BLAS::SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
+                                                       cp2k::BLAS::SCI::sci)
+    set_property(TARGET cp2k::BLAS::SCI::scalapack_link
+                 PROPERTY INTERFACE_LINK_LIBRARIES cp2k::BLAS::SCI::sci_mpi)
   else()
-    set_property(TARGET CP2K::BLAS::SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
-                                                       CP2K::BLAS::SCI::sci_mp)
-    set_property(TARGET CP2K::BLAS::SCI::scalapack_link
-                 PROPERTY INTERFACE_LINK_LIBRARIES CP2K::BLAS::SCI::sci_mpi_mp)
+    set_property(TARGET cp2k::BLAS::SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES
+                                                       cp2k::BLAS::SCI::sci_mp)
+    set_property(TARGET cp2k::BLAS::SCI::scalapack_link
+                 PROPERTY INTERFACE_LINK_LIBRARIES cp2k::BLAS::SCI::sci_mpi_mp)
   endif()
 
   set(CP2K_BLAS_VENDOR "SCI")

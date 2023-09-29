@@ -74,12 +74,12 @@ set(CP2K_BLAS_FOUND FALSE)
 
 if(NOT CP2K_BLAS_VENDOR MATCHES "auto|CUSTOM")
   find_package(${CP2K_BLAS_VENDOR} REQUIRED)
-  if(TARGET CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas)
+  if(TARGET cp2k::BLAS::${CP2K_BLAS_VENDOR}::blas)
     get_target_property(
-      CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
+      CP2K_BLAS_INCLUDE_DIRS cp2k::BLAS::${CP2K_BLAS_VENDOR}::blas
       INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(
-      CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${CP2K_BLAS_VENDOR}::blas
+      CP2K_BLAS_LINK_LIBRARIES cp2k::BLAS::${CP2K_BLAS_VENDOR}::blas
       INTERFACE_LINK_LIBRARIES)
     set(CP2K_BLAS_FOUND TRUE)
   endif()
@@ -100,10 +100,10 @@ else()
     foreach(_libs ${__BLAS_VENDOR_LIST})
       # I exclude the first item of the list
       find_package(${_libs})
-      if(TARGET CP2K::BLAS::${_libs}::blas)
-        get_target_property(CP2K_BLAS_INCLUDE_DIRS CP2K::BLAS::${_libs}::blas
+      if(TARGET cp2k::BLAS::${_libs}::blas)
+        get_target_property(CP2K_BLAS_INCLUDE_DIRS cp2k::BLAS::${_libs}::blas
                             INTERFACE_INCLUDE_DIRECTORIES)
-        get_target_property(CP2K_BLAS_LINK_LIBRARIES CP2K::BLAS::${_libs}::blas
+        get_target_property(CP2K_BLAS_LINK_LIBRARIES cp2k::BLAS::${_libs}::blas
                             INTERFACE_LINK_LIBRARIES)
         set(CP2K_BLAS_VENDOR "${_libs}")
         set(CP2K_BLAS_FOUND TRUE)
@@ -120,16 +120,16 @@ endif()
 find_package_handle_standard_args(
   Blas REQUIRED_VARS CP2K_BLAS_LINK_LIBRARIES CP2K_BLAS_VENDOR CP2K_BLAS_FOUND)
 
-if(NOT TARGET CP2K::BLAS::blas)
-  add_library(CP2K::BLAS::blas INTERFACE IMPORTED)
+if(NOT TARGET cp2k::BLAS::blas)
+  add_library(cp2k::BLAS::blas INTERFACE IMPORTED)
 endif()
 
-set_target_properties(CP2K::BLAS::blas PROPERTIES INTERFACE_LINK_LIBRARIES
+set_target_properties(cp2k::BLAS::blas PROPERTIES INTERFACE_LINK_LIBRARIES
                                                   "${CP2K_BLAS_LINK_LIBRARIES}")
 
 if(CP2K_BLAS_INCLUDE_DIRS)
   set_target_properties(
-    CP2K::BLAS::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+    cp2k::BLAS::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                 "${CP2K_BLAS_INCLUDE_DIRS}")
 endif()
 
