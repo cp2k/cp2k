@@ -746,11 +746,19 @@ CONTAINS
                                         rho_atom_set_f, rho_atom_set_g, &
                                         admm_env%admm_gapw_env%admm_kind_set, xc_section, is_rks_triplets, 6)
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
-               CALL update_ks_atom(qs_env, mfx, matrix_px1_admm, forces=.TRUE., tddft=.TRUE., &
-                                   rho_atom_external=rho_atom_set_f, &
-                                   kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
-                                   oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
-                                   kintegral=1.0_dp, kforce=0.5_dp)
+               IF (nspins == 1) THEN
+                  CALL update_ks_atom(qs_env, mfx, matrix_px1_admm, forces=.TRUE., tddft=.TRUE., &
+                                      rho_atom_external=rho_atom_set_f, &
+                                      kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                      oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
+                                      kintegral=1.0_dp, kforce=0.25_dp)
+               ELSE
+                  CALL update_ks_atom(qs_env, mfx, matrix_px1_admm, forces=.TRUE., tddft=.TRUE., &
+                                      rho_atom_external=rho_atom_set_f, &
+                                      kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                      oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
+                                      kintegral=1.0_dp, kforce=0.5_dp)
+               END IF
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                   CALL para_env%sum(fodeb)
@@ -758,17 +766,17 @@ CONTAINS
                END IF
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
                IF (nspins == 1) THEN
-                  CALL update_ks_atom(qs_env, matrix_gx, matrix_p_admm, forces=.TRUE., tddft=.TRUE., &
+                  CALL update_ks_atom(qs_env, mgx, matrix_p_admm, forces=.TRUE., tddft=.TRUE., &
                                       rho_atom_external=rho_atom_set_g, &
                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                       oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
-                                      kscale=0.5_dp)
+                                      kintegral=0.5_dp, kforce=0.25_dp)
                ELSE
                   CALL update_ks_atom(qs_env, mgx, matrix_p_admm, forces=.TRUE., &
                                       rho_atom_external=rho_atom_set_g, &
                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                       oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit, &
-                                      kintegral=0.5_dp, kforce=0.25_dp)
+                                      kintegral=0.5_dp, kforce=0.5_dp)
                END IF
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
