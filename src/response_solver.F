@@ -74,7 +74,8 @@ MODULE response_solver
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: mp_para_env_type
@@ -829,6 +830,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_force'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nder, &
                                                             nimages, nocc, nspins
@@ -857,11 +859,13 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set_f, local_rho_set_gs, &
-                                                            local_rho_set_t, local_rho_set_vxc
+                                                            local_rho_set_t, local_rho_set_vxc, &
+                                                            local_rhoz_set_admm
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_aux_fit, sab_orb, sac_ae, sac_ppl, &
+                                                            sap_ppnl
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -878,7 +882,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_section, xc_section
-      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
+      TYPE(task_list_type), POINTER                      :: task_list, task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -1267,7 +1271,7 @@ CONTAINS
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
       IF (gapw .OR. gapw_xc) THEN
-!      !   ! vtot = v_xc + v_hartree
+         ! vtot = v_xc + v_hartree
          DO ispin = 1, nspins
             CALL pw_zero(vhxc_rspace)
             IF (gapw) THEN
@@ -1838,7 +1842,7 @@ CONTAINS
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_Hxc[Pz]*Pin', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
-!
+      !
       IF (ASSOCIATED(v_xc_tau)) THEN
          CPASSERT(.NOT. (gapw .OR. gapw_xc))
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -1865,7 +1869,7 @@ CONTAINS
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_xctau[Pz]*Pin', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
-!! Stress-tensor integral contribution of 2nd derivative terms
+      !! Stress-tensor integral contribution of 2nd derivative terms
       IF (use_virial) THEN
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
       END IF
@@ -1967,8 +1971,6 @@ CONTAINS
             CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=scrm, &
                               task_list_aux_fit=task_list_aux_fit)
             !
-            CPASSERT(.NOT. admm_env%do_gapw)
-            !
             NULLIFY (mpz, mhz, mhx, mhy)
             CALL dbcsr_allocate_matrix_set(mhx, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mhy, nspins, 1)
@@ -2000,13 +2002,21 @@ CONTAINS
             IF (use_virial) THEN
                pv_loc = virial%pv_virial
             END IF
+
+            basis_type = "AUX_FIT"
+            task_list => task_list_aux_fit
+            IF (admm_env%do_gapw) THEN
+               basis_type = "AUX_FIT_SOFT"
+               task_list => admm_env%admm_gapw_env%task_list
+            END IF
+            !
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
             DO ispin = 1, nspins
                CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
                                        hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
                                        qs_env=qs_env, calculate_forces=.TRUE., &
-                                       basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
+                                       basis_type=basis_type, task_list_external=task_list)
             END DO
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -2022,6 +2032,21 @@ CONTAINS
             ! Stress-tensor Pz_admm*v_xc[rho_admm]
             IF (use_virial) THEN
                virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
+            END IF
+            !
+            IF (admm_env%do_gapw) THEN
+               CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
+               IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
+               CALL update_ks_atom(qs_env, mhx(:, 1), mpz(:, 1), forces=.TRUE., tddft=.FALSE., &
+                                   rho_atom_external=ex_env%local_rho_set_admm%rho_atom_set, &
+                                   kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                   oce_external=admm_env%admm_gapw_env%oce, &
+                                   sab_external=sab_aux_fit)
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
+                  CALL para_env%sum(fodeb)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*Vxc(rho_admm)PAW", fodeb
+               END IF
             END IF
             !
             NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux)
@@ -2124,6 +2149,34 @@ CONTAINS
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_g_aux(ispin))
             END DO
             DEALLOCATE (v_xc, rhoz_r_aux, rhoz_g_aux)
+            !
+            IF (admm_env%do_gapw) THEN
+               CALL local_rho_set_create(local_rhoz_set_admm)
+               CALL allocate_rho_atom_internals(local_rhoz_set_admm%rho_atom_set, atomic_kind_set, &
+                                                admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
+               CALL calculate_rho_atom_coeff(qs_env, mpz(:, 1), local_rhoz_set_admm%rho_atom_set, &
+                                             admm_env%admm_gapw_env%admm_kind_set, &
+                                             admm_env%admm_gapw_env%oce, sab_aux_fit, para_env)
+               CALL prepare_gapw_den(qs_env, local_rho_set=local_rhoz_set_admm, &
+                                     do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+               !compute the potential due to atomic densities
+               CALL calculate_xc_2nd_deriv_atom(ex_env%local_rho_set_admm%rho_atom_set, local_rhoz_set_admm%rho_atom_set, &
+                                                qs_env, xc_section, para_env, do_tddft=.FALSE., do_triplet=.FALSE., &
+                                                kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+               !
+               IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
+               CALL update_ks_atom(qs_env, mhy(:, 1), matrix_p(:, 1), forces=.TRUE., tddft=.FALSE., &
+                                   rho_atom_external=local_rhoz_set_admm%rho_atom_set, &
+                                   kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                   oce_external=admm_env%admm_gapw_env%oce, &
+                                   sab_external=sab_aux_fit)
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
+                  CALL para_env%sum(fodeb)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dK*rhoz_admm[PAW] ", fodeb
+               END IF
+               CALL local_rho_set_release(local_rhoz_set_admm)
+            END IF
             !
             nao = admm_env%nao_orb
             nao_aux = admm_env%nao_aux_fit

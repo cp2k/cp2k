@@ -541,10 +541,10 @@ CONTAINS
       END DO
       DEALLOCATE (v_rspace_new)
       IF (ASSOCIATED(v_xc_tau)) THEN
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin))
-      END DO
-      DEALLOCATE (v_xc_tau)
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin))
+         END DO
+         DEALLOCATE (v_xc_tau)
       END IF
 
       CALL timestop(handle)
@@ -921,7 +921,6 @@ CONTAINS
                rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
                rho1_atom_set => p_env%local_rho_set_admm%rho_atom_set
                CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                                do_tddft=.FALSE., do_triplet=.FALSE., &
                                                 kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                basis_type = "AUX_FIT_SOFT"
                task_list => admm_env%admm_gapw_env%task_list
