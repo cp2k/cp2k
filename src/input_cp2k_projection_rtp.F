@@ -71,8 +71,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_FILE_NAME", &
                           description="Name of the wavefunction file to read the reference MO from. "// &
                           "For instance, a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
-                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME."// &
-                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference."// &
+                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME. "// &
+                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference. "// &
                           "Currently, this file SHALL have the same number of spin as the propagated one "// &
                           "(eventhough you use only the first spin from this reference).", &
                           usage="REF_MO_FILE_NAME <FILENAME>", &
@@ -82,7 +82,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_INDEX", &
                           description="Indexes of the reference MO read from the .wfn reference file (see REF_MO_FILE_NAME). "// &
-                          "Use this keywork if REFERENCE_TYPE=SCF."// &
+                          "Use this keywork if REFERENCE_TYPE=SCF. "// &
                           "Set to -1 to project on all the MO available. "// &
                           "One file will be generated per index defined.", &
                           usage="MO_REF_INDEX 1 2", &
@@ -131,7 +131,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SUM_ON_ALL_TD", &
                description="Set to .TRUE. in order to sum the projection done over all on TD MOs on the required MO_REF_INDEX. "// &
-                          "One file per MO_REF_INDEX will be generated."// &
+                          "One file per MO_REF_INDEX will be generated. "// &
                           "Combining SUM_ON_ALL_TD and SUM_ON_ALL_REF lead to one file one projection: "// &
                           "the population of all the defined TD_MO_INDEX over the reference MO_REF_INDEX per time step required.", &
                           usage="SUM_ON_ALL_TD .TRUE.", &

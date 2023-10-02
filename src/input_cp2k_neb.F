@@ -410,7 +410,7 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SD_LIKE", &
-                          description="Zeros velocity at each MD step emulating a steepest descent like"// &
+                          description="Zeros velocity at each MD step emulating a steepest descent like "// &
                           "(SD_LIKE) approach", &
                           usage="SD_LIKE <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -449,7 +449,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STEPSIZE", &
-                          description="Initial stepsize used for the line search, sometimes this parameter"// &
+                          description="Initial stepsize used for the line search, sometimes this parameter "// &
                           "can be reduced to stabilize DIIS", &
                           usage="STEPSIZE <REAL>", &
                           default_r_val=1.0_dp)
@@ -457,7 +457,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_STEPSIZE", &
-                          description="Maximum stepsize used for the line search, sometimes this parameter"// &
+                          description="Maximum stepsize used for the line search, sometimes this parameter "// &
                           "can be reduced to stabilize the LS for particularly difficult initial geometries", &
                           usage="MAX_STEPSIZE <REAL>", &
                           default_r_val=2.0_dp)

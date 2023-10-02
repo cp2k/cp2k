@@ -152,10 +152,10 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: message, location
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: img = "   ___   "//"  /   \  "//" [ABORT] "//"  \___/  "// &
-         "    |    "//"  O/|    "//" /| |    "//" / \     "
       INTEGER, PARAMETER :: img_height = 8, img_width = 9, screen_width = 80, &
          txt_width = screen_width - img_width - 5
+      CHARACTER(LEN=img_width), DIMENSION(img_height), PARAMETER :: img = ["   ___   ", "  /   \  "&
+         , " [ABORT] ", "  \___/  ", "    |    ", "  O/|    ", " /| |    ", " / \     "]
 
       CHARACTER(LEN=screen_width)                        :: msg_line
       INTEGER                                            :: a, b, c, fill, i, img_start, indent, &
@@ -192,8 +192,8 @@ CONTAINS
          IF (i < img_start) THEN
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", img_width)
          ELSE
-            WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c + img_width - 1)
-            c = c + img_width
+            WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c)
+            c = c + 1
          END IF
          IF (i < msg_start) THEN
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", txt_width + 2)
@@ -212,7 +212,7 @@ CONTAINS
 
       ! print location line
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') " *"
-      WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c + img_width - 1)
+      WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c)
       indent = txt_width - LEN_TRIM(location) + 1
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", indent)
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') TRIM(location)

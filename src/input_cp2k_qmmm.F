@@ -137,7 +137,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="nocompatibility", &
                           description="This keyword disables the compatibility of QM/MM "// &
                           "potential between CPMD and CP2K implementations. The compatibility"// &
-                          " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] ."// &
+                          " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2]. "// &
                           "This keyword has effect only selecting GAUSS E_COUPLING type.", &
                           usage="nocompatibility LOGICAL", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -145,7 +145,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="eps_mm_rspace", &
-                          description="Set the threshold for the collocation of the GEEP gaussian functions."// &
+                          description="Set the threshold for the collocation of the GEEP gaussian functions. "// &
                           "this keyword affects only the GAUSS E_COUPLING.", &
                           usage="eps_mm_rspace real", &
                           default_r_val=1.0E-10_dp)
@@ -324,19 +324,19 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="FORCE_MIXING", &
                           description="This section enables and defines parameters for force-mixing based QM/MM,"// &
-                          " which actually does two conventional QM/MM calculations, on a small "// &
-                          " and a large QM region, and combines the MM forces from one and QM "// &
-                          " forces from the other to create a complete set of forces.  Energy is "// &
-                          " not conserved (although the QM/MM energy from the large QM region calculation is reported) "// &
-                          " so a proper thermostat (i.e. massive, and able to handle dissipation, such as "// &
-                          " Adaptive Langevin (AD_LANGEVIN)) must be used. For some propagation algorithms "// &
-                          " (NVT and REFTRAJ MD ensembles) algorithm is adaptive, "// &
-                          " including molecules hysteretically based on their instantaneous distance from the core region. "// &
-                          " Information on core/QM/buffer labels can be written in PDB file using "// &
-                          " MOTION&PRINT&FORCE_MIXING_LABELS.  Will fail if calculation requires a "// &
-                          " meaningfull stress, or an energy that is consistent with the forces. "// &
-                          " For GEO_OPT this means "// &
-                          " only MOTION&GEO_OPT&TYPE CG, MOTION&GEO_OPT&CG&LINE_SEARCH&TYPE 2PNT, and "// &
+                          " which actually does two conventional QM/MM calculations, on a small"// &
+                          " and a large QM region, and combines the MM forces from one and QM"// &
+                          " forces from the other to create a complete set of forces.  Energy is"// &
+                          " not conserved (although the QM/MM energy from the large QM region calculation is reported)"// &
+                          " so a proper thermostat (i.e. massive, and able to handle dissipation, such as"// &
+                          " Adaptive Langevin (AD_LANGEVIN)) must be used. For some propagation algorithms"// &
+                          " (NVT and REFTRAJ MD ensembles) algorithm is adaptive,"// &
+                          " including molecules hysteretically based on their instantaneous distance from the core region."// &
+                          " Information on core/QM/buffer labels can be written in PDB file using"// &
+                          " MOTION&PRINT&FORCE_MIXING_LABELS.  Will fail if calculation requires a"// &
+                          " meaningfull stress, or an energy that is consistent with the forces."// &
+                          " For GEO_OPT this means"// &
+                          " only MOTION&GEO_OPT&TYPE CG, MOTION&GEO_OPT&CG&LINE_SEARCH&TYPE 2PNT, and"// &
                           " MOTION&GEO_OPT&CG&LINE_SEARCH&2PNT&LINMIN_GRAD_ONLY T", &
                           n_keywords=5, n_subsections=3, repeats=.FALSE., &
                           citations=(/Bernstein2009, Bernstein2012/))
@@ -372,8 +372,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="R_CORE", &
-                          description="Specify the inner and outer radii of core QM region. "// &
-                          " All molecules with any atoms within this distance (hysteretically) of any atoms "// &
+                          description="Specify the inner and outer radii of core QM region."// &
+                          " All molecules with any atoms within this distance (hysteretically) of any atoms"// &
                           " specified as QM in enclosing QM/MM section  will be core QM atoms in the force-mixing calculation.", &
                           usage="R_CORE <real> <real>", n_var=2, type_of_var=real_t, &
                           default_r_vals=(/cp_unit_to_cp2k(0.0_dp, "angstrom"), &
@@ -383,8 +383,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="R_QM", &
-                          description="Specify the inner and outer radii of QM dynamics region. "// &
-                          " All molecules with atoms within this distance (hysteretically) of any atoms in "// &
+                          description="Specify the inner and outer radii of QM dynamics region."// &
+                          " All molecules with atoms within this distance (hysteretically) of any atoms in"// &
                           " core will follow QM dynamics in the force-mixing calculation.", &
                           usage="R_QM <real> <real>", n_var=2, type_of_var=real_t, &
                           default_r_vals=(/cp_unit_to_cp2k(0.5_dp, "angstrom"), &
@@ -394,9 +394,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST", &
-                          description="Makes the extended QM zone be defined hysterestically "// &
-                          " by distance from QM core list (i.e. atoms specified explicitly by "// &
-                          " user) instead of from full QM core region (specified by user + hysteretic "// &
+                          description="Makes the extended QM zone be defined hysterestically"// &
+                          " by distance from QM core list (i.e. atoms specified explicitly by"// &
+                          " user) instead of from full QM core region (specified by user + hysteretic"// &
                           " selection + unbreakable bonds)", &
                           usage="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST <logical>", n_var=1, type_of_var=logical_t, &
                           default_l_val=.FALSE., repeats=.FALSE.)
@@ -404,8 +404,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="R_BUF", &
-                          description="Specify the inner and outer radii of buffer region. "// &
-                          " All atoms within this distance (hysteretically) of any QM atoms "// &
+                          description="Specify the inner and outer radii of buffer region."// &
+                          " All atoms within this distance (hysteretically) of any QM atoms"// &
                           " will be buffer atoms in the force-mixing calculation.", &
                           usage="R_BUF <real> <real>", n_var=2, type_of_var=real_t, &
                           default_r_vals=(/cp_unit_to_cp2k(0.5_dp, "angstrom"), &
@@ -436,7 +436,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EXTENDED_DELTA_CHARGE", &
-                          description="Additional net charge in extended region relative to core (core charge is "// &
+                          description="Additional net charge in extended region relative to core (core charge is"// &
                           " specified in DFT section, as usual for a convetional QM/MM calculation)", &
                           usage="EXTENDED_DELTA_CHARGE q", default_i_val=0, &
                           n_var=1, type_of_var=integer_t, repeats=.FALSE.)
@@ -482,7 +482,7 @@ CONTAINS
       NULLIFY (subsection)
       CALL section_create( &
          subsection, __LOCATION__, name="BUFFER_LINKS", &
-         description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."// &
+         description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation. "// &
          "Ignored - need to implement buffer selection by atom and walking of connectivity data.", &
          n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
@@ -524,7 +524,7 @@ CONTAINS
                           n_keywords=0, n_subsections=2, repeats=.FALSE.)
       NULLIFY (print_key)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
-                                       description="Activates the printing of the subcells used for the"// &
+                                       description="Activates the printing of the subcells used for the "// &
                                        "generation of neighbor lists.", unit_str="angstrom", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
@@ -586,7 +586,7 @@ CONTAINS
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="WALLS", &
-                          description="Enables Walls for the QM box. This can be used to avoid that QM "// &
+                          description="Enables Walls for the QM box. This can be used to avoid that QM"// &
                           " atoms move out of the QM box.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
@@ -960,7 +960,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RADIUS", &
-                          description="Overwrite the specification of the radius only for the MM atom involved in the link."// &
+                          description="Overwrite the specification of the radius only for the MM atom involved in the link. "// &
                           "Default is to use the same radius as for the specified type.", &
                           usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
@@ -968,7 +968,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CORR_RADIUS", &
-         description="Overwrite the specification of the correction radius only for the MM atom involved in the link."// &
+         description="Overwrite the specification of the correction radius only for the MM atom involved in the link. "// &
          "Default is to use the same correction radius as for the specified type.", &
          usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
@@ -1003,9 +1003,9 @@ CONTAINS
                                      "QMMM_CHARGE_FACTOR", &
                                      "QMMM_SCALE_CHARGE "/), &
                           description="Specifies the scaling factor for the MM charge involved in the link QM/MM."// &
-                          " This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in "// &
-                          " the classical part of the code. "// &
-                          "Default 1.0 i.e. no charge rescaling of the MM atom of the QM/MM link bond.", &
+                          " This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in"// &
+                          " the classical part of the code."// &
+                          " Default 1.0 i.e. no charge rescaling of the MM atom of the QM/MM link bond.", &
                           usage="SCALE_FACTOR real", n_var=1, type_of_var=real_t, &
                           default_r_val=CHARGE_SCALE_FACTOR)
       CALL section_add_keyword(section, keyword)
@@ -1038,7 +1038,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_2", &
                           variants=(/"MM2"/), &
-                          description="Specifies the index of the second atom defining the direction along which "// &
+                          description="Specifies the index of the second atom defining the direction along which"// &
                           " the atom will be moved", &
                           usage="ATOM_INDEX_2 integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
@@ -1080,7 +1080,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_2", &
                           variants=(/"MM2"/), &
-                          description="Specifies the index of the second atom defining the direction along which "// &
+                          description="Specifies the index of the second atom defining the direction along which"// &
                           " the atom will be added", &
                           usage="ATOM_INDEX_2 integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
@@ -1234,7 +1234,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "DIPOLE", &
                                        description="Controls the printing of the DIPOLE in a QM/MM calculations."// &
-                                       " It requires that the DIPOLE calculations is "// &
+                                       " It requires that the DIPOLE calculations is"// &
                                        " requested both for the QS  and for the MM  part.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)

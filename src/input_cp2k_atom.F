@@ -445,7 +445,7 @@ CONTAINS
       ! Print key section
       CALL cp_print_key_section_create(print_key, __LOCATION__, "SEPARABLE_GAUSSIAN_PSEUDO", &
                                        description="Creates a representation of the pseudopotential in separable "// &
-                                       " form using Gaussian functions.", &
+                                       "form using Gaussian functions.", &
                                        print_level=debug_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -799,7 +799,7 @@ CONTAINS
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RESTART", &
-                          description="Section used to specify the restart option in the ZMP"// &
+                          description="Section used to specify the restart option in the ZMP "// &
                           "procedure, and the file that must be read.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -925,7 +925,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CONFINEMENT", &
                           description="Definition of parameters for confinement potential (a,b,c)", &
-                          usage="CONFINEMENT prefactor range exponent (POLYNOM)"// &
+                          usage="CONFINEMENT prefactor range exponent (POLYNOM) "// &
                           "CONFINEMENT prefactor range r_onset (BARRIER)", &
                           default_r_vals=(/0._dp, 0._dp, 0._dp/), &
                           repeats=.FALSE., n_var=-1)

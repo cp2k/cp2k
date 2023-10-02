@@ -9,8 +9,11 @@ import re
 import sys
 from datetime import datetime
 from functools import lru_cache
-import typing
+import itertools
+from typing import Tuple, List, TypeVar
+from collections.abc import Iterable
 
+T = TypeVar("T")
 
 # We assume this script is in tools/precommit/
 CP2K_DIR = pathlib.Path(__file__).resolve().parents[2]
@@ -78,6 +81,10 @@ NUM_RE = re.compile("[0-9]+[ulUL]*")
 CP2K_FLAGS_RE = re.compile(
     r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags", re.DOTALL
 )
+STR_END_NOSPACE_RE = re.compile(r'[^ ]"\s*//\s*&')
+STR_BEGIN_NOSPACE_RE = re.compile(r'^\s*"[^ ]')
+STR_END_SPACE_RE = re.compile(r' "\s*//\s*&')
+STR_BEGIN_SPACE_RE = re.compile(r'^\s*" ')
 
 
 BANNER_F = """\
@@ -126,7 +133,7 @@ def get_flags_src() -> str:
     return match.group(1)
 
 
-def check_file(path: pathlib.Path) -> typing.List[str]:
+def check_file(path: pathlib.Path) -> List[str]:
     """
     Check the given source file for convention violations, like:
 
@@ -166,6 +173,14 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
 
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:
         warnings += [f"{path}: misses check against OpenMP usage"]
+
+    # Check spaces in Fortran multi-line strings.
+    if fn_ext == ".F":
+        for i, (a, b) in enumerate(pairwise(content.split("\n"))):
+            if STR_END_NOSPACE_RE.search(a) and STR_BEGIN_NOSPACE_RE.search(b):
+                warnings += [f"{path}:{i+1} Missing space in multi-line string"]
+            if STR_END_SPACE_RE.search(a) and STR_BEGIN_SPACE_RE.search(b):
+                warnings += [f"{path}:{i+1} Double space in multi-line string"]
 
     # check banner
     year = datetime.utcnow().year
@@ -228,6 +243,16 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
     return warnings
 
 
+# ======================================================================================
+def pairwise(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
+    """itertools.pairwise is not available before Python 3.10."""
+    # pairwise('ABCDEFG') --> AB BC CD DE EF FG
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+
+# ======================================================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Check the given FILENAME for conventions"

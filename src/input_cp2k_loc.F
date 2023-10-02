@@ -60,7 +60,7 @@ CONTAINS
 
       NULLIFY (keyword, print_key)
       CALL section_create(section, __LOCATION__, name="LOCALIZE", &
-                          description="Use one of the available methods to define the localization "// &
+                          description="Use one of the available methods to define the localization"// &
                           " and possibly to optimize it to a minimum or a maximum.", &
                           n_keywords=8, n_subsections=0, repeats=.FALSE.)
 
@@ -97,7 +97,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="USE_HISTORY", &
-         description="Generate an improved initial guess based on a history of results, which is useful during MD."// &
+         description="Generate an improved initial guess based on a history of results, which is useful during MD. "// &
          "Will only work if the number of states to be localized remains constant.", &
          usage="USE_HISTORY ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -111,7 +111,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OUT_ITER_EACH", &
-                          description="Every how many iterations of the localization algorithm"// &
+                          description="Every how many iterations of the localization algorithm "// &
                           "(Jacobi) the tolerance value is printed out", &
                           usage="OUT_ITER_EACH 100", default_i_val=100)
       CALL section_add_keyword(section, keyword)
@@ -174,7 +174,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CG_PO", &
                           description="Use conjugate gradient in conjunction with METHOD GAPO. If FALSE, "// &
-                          " steepest descent is used instead.", &
+                          "steepest descent is used instead.", &
                           usage="CG_PO", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -204,7 +204,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCHOMO_RESTART_FILE_NAME", &
-                          description="File name where to read the MOS from"// &
+                          description="File name where to read the MOS from "// &
                           "which to restart the localization procedure for occupied states", &
                           usage="LOCHOMO_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
@@ -212,7 +212,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCMIXD_RESTART_FILE_NAME", &
-                          description="File name where to read the MOS from"// &
+                          description="File name where to read the MOS from "// &
                           "which to restart the localization procedure for MIXED states", &
                           usage="LOCMIXD_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
@@ -220,7 +220,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCLUMO_RESTART_FILE_NAME", &
-                          description="File name where to read the MOS from"// &
+                          description="File name where to read the MOS from "// &
                           "which to restart the localization procedure for unoccupied states", &
                           usage="LOCLUMO_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
@@ -237,8 +237,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
-                          description="Indexes of the occupied wfn to be localized"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the occupied wfn to be localized "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -249,7 +249,7 @@ CONTAINS
                           description="Indexes of the unoccupied states to be localized, "// &
                           "up to now only valid in combination with GPW. "// &
                           "This keyword has to be present if unoccupied states should be localized. "// &
-                          "This keyword can be repeated several times"// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -278,7 +278,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="ENERGY_RANGE", &
          description="Select the orbitals to be localized within the given energy range."// &
-         "This type of selection cannot be added on top of the selection through a LIST. It reads to reals that are"// &
+         " This type of selection cannot be added on top of the selection through a LIST. It reads to reals that are"// &
          " lower and higher boundaries of the energy range.", &
          usage=" ENERGY_RANGE lower_bound {real}, higher_bound {real}", &
          repeats=.FALSE., &
@@ -369,8 +369,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
                           description="Indexes of the states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
-                          "(useful if you have to specify many indexes).", &
+                          " This keyword can be repeated several times"// &
+                          " (useful if you have to specify many indexes).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)

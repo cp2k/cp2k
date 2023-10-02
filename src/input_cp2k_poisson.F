@@ -137,7 +137,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
-                          description="Specify the directions in which PBC apply. Important notice, "// &
+                          description="Specify the directions in which PBC apply. Important notice,"// &
                           " this only applies to the electrostatics."// &
                           " See the CELL section to specify the periodicity used for e.g. the pair lists."// &
                           " Typically the settings should be the same.", &
@@ -264,9 +264,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="REL_CUTOFF", &
-                          description="Specify the multiplicative factor for the CUTOFF keyword in MULTI_GRID "// &
+                          description="Specify the multiplicative factor for the CUTOFF keyword in MULTI_GRID"// &
                           " section. The result gives the cutoff at which the 1/r non-periodic FFT3D is evaluated."// &
-                          "Default is 2.0", &
+                          " Default is 2.0", &
                           usage="REL_CUTOFF real", &
                           n_var=1, default_r_val=2.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -346,10 +346,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="gmax", &
-                          description="number of grid points (SPME and EWALD). If a single number is specified,"// &
-                          "the same number of points is used for all three directions on the grid."// &
-                          "If three numbers are given, each direction can have a different number of points."// &
-                          "The number of points needs to be FFTable (which depends on the library used) and odd for EWALD."// &
+                          description="number of grid points (SPME and EWALD). If a single number is specified, "// &
+                          "the same number of points is used for all three directions on the grid. "// &
+                          "If three numbers are given, each direction can have a different number of points. "// &
+                          "The number of points needs to be FFTable (which depends on the library used) and odd for EWALD. "// &
                           "The optimal number depends e.g. on alpha and the size of the cell. 1 point per Angstrom is common.", &
                           usage="gmax 25 25 25", n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -392,7 +392,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_MULTIPOLE_EXPANSION", &
                           description="Specify the maximum level of multipoles expansion used "// &
-                          " for the electrostatics.", &
+                          "for the electrostatics.", &
                           usage="MAX_MULTIPOLE_EXPANSION DIPOLE", &
                           enum_c_vals=s2a("NONE", "CHARGE", "DIPOLE", "QUADRUPOLE"), &
                           enum_desc=s2a("No multipolar terms! Check the codes providing a zero contribution.", &
@@ -550,9 +550,9 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="SCF_TYPE", &
-         description="Type of scaling function used in the wavelet approach, the total energy depends on this choice,"// &
-         "and the convergence with respect to cutoff depends on the selected scaling functions."// &
-         "Possible values are 8,14,16,20,24,30,40,50,60,100 ", &
+         description="Type of scaling function used in the wavelet approach, the total energy depends on this choice, "// &
+         "and the convergence with respect to cutoff depends on the selected scaling functions. "// &
+         "Possible values are 8,14,16,20,24,30,40,50,60,100", &
          usage="SCF_TYPE integer", &
          n_var=1, default_i_val=40)
       CALL section_add_keyword(section, keyword)

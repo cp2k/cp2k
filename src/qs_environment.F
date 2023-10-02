@@ -485,8 +485,8 @@ CONTAINS
             ! Hybrid functionals require same basis
             IF (ec_env%basis_inconsistent) THEN
                CALL cp_abort(__LOCATION__, &
-                             "Energy correction methods with hybrid functionals:"// &
-                             "correction and ground state need to use the same basis."// &
+                             "Energy correction methods with hybrid functionals: "// &
+                             "correction and ground state need to use the same basis. "// &
                              "Checked by comparing basis set names only.")
             END IF
 

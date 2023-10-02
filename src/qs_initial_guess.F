@@ -346,7 +346,7 @@ CONTAINS
                             TRIM(file_name)//" with extensions (.bak-n). These files do not exist."// &
                             " Even trying to switch to a plain restart wave-function failes because the"// &
                             " file named: "//TRIM(file_name)//" does not exist. Please check the existence of"// &
-                            " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME. "// &
+                            " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME."// &
                             " Calculation continues using ATOMIC GUESS. ")
                density_guess = safe_density_guess
             END IF

@@ -194,7 +194,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
                           description="Section controlling the presence of an external potential dependent "// &
-                          " on the atomic positions (X,Y,Z)", &
+                          "on the atomic positions (X,Y,Z)", &
                           n_keywords=7, n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
 

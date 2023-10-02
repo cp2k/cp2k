@@ -1209,7 +1209,7 @@ CONTAINS
                   IF (occupation(ilow) - occupation(iup) > localized_wfn_control%eps_occ) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "The selected energy range includes orbitals with different occupation number. "// &
-                                   " The localization procedure cannot be applied.")
+                                   "The localization procedure cannot be applied.")
                   END IF
                   IF (output_unit > 0) WRITE (output_unit, "(/,T2,A,I4,A,I6,A)") "LOCALIZATION| Spin ", ispin, " : ", &
                      nmoloc(ispin), " orbitals in the selected energy range are localized."
@@ -1259,7 +1259,7 @@ CONTAINS
                            CALL cp_warn(__LOCATION__, &
                                         "User requested the calculation of localized wavefunction from a subset of MOs, "// &
                                         "including MOs with different occupations. Check the selected subset, "// &
-                                        " the electronic density is not invariant with "// &
+                                        "the electronic density is not invariant with "// &
                                         "respect to rotations among orbitals with different occupation numbers!")
                         END IF
                      END DO

@@ -184,11 +184,11 @@ CONTAINS
             READ (rst_unit) xas_estate_read
 
             IF (xas_method_read /= xas_method) &
-               CPABORT(" READ XAS RESTART: restart with different XAS method is not possible. ")
+               CPABORT("READ XAS RESTART: restart with different XAS method is not possible.")
             IF (nexc_atoms_read /= nexc_atoms) &
                CALL cp_abort(__LOCATION__, &
-                             " READ XAS RESTART: restart with different excited atoms "// &
-                             " is not possible. Start instead a new XAS run with the new set of atoms. ")
+                             "READ XAS RESTART: restart with different excited atoms "// &
+                             "is not possible. Start instead a new XAS run with the new set of atoms.")
          END IF
 
          CALL para_env%bcast(xas_estate_read)

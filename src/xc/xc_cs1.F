@@ -74,8 +74,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
       IF (PRESENT(reference)) THEN
-         reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"// &
-                     "{LDA version}"
+         reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002) {LDA version}"
       END IF
       IF (PRESENT(shortform)) THEN
          shortform = "CS1: Handy improved LYP correlation energy functional {LDA}"

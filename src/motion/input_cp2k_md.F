@@ -155,7 +155,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="temp_tol", &
                           variants=s2a("temp_to", "temperature_tolerance"), &
-                          description="The maximum accepted deviation of the (global) temperature"// &
+                          description="The maximum accepted deviation of the (global) temperature "// &
                           "from the desired target temperature before a rescaling of the velocites "// &
                           "is performed. If it is 0 no rescaling is performed. NOTE: This keyword is "// &
                           "obsolescent; Using a CSVR thermostat with a short timeconstant is "// &
@@ -187,7 +187,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="angvel_tol", &
                           description="The maximum accepted angular velocity. This option is ignored "// &
-                          "when the system is periodic. Removes the components of the velocities that"// &
+                          "when the system is periodic. Removes the components of the velocities that "// &
                           "project on the external rotational degrees of freedom.", &
                           usage="angvel_tol 0.1", type_of_var=real_t, n_var=1, unit_str="bohr*au_t^-1")
       CALL section_add_keyword(section, keyword)
@@ -220,7 +220,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE_ANNEALING", &
-                          description="Specifies the rescaling factor for the external temperature."// &
+                          description="Specifies the rescaling factor for the external temperature. "// &
                           "This scheme works only for the Langevin ensemble.", &
                           usage="TEMPERATURE_ANNEALING <REAL>", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -228,9 +228,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DISPLACEMENT_TOL", &
                           description="This keyword sets a maximum atomic displacement "// &
-                          " in each Cartesian direction."// &
-                          "The maximum velocity is evaluated and if it is too large to remain"// &
-                          "within the assigned limit, the time step is rescaled accordingly,"// &
+                          "in each Cartesian direction. "// &
+                          "The maximum velocity is evaluated and if it is too large to remain "// &
+                          "within the assigned limit, the time step is rescaled accordingly, "// &
                           "and the first half step of the velocity verlet is repeated.", &
                           usage="DISPLACEMENT_TOL <REAL>", default_r_val=100.0_dp, &
                           unit_str='angstrom')
@@ -471,9 +471,9 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="RESPA", &
                           description="Multiple timestep integration based on RESPA (implemented for NVE only)."// &
                           " RESPA exploits multiple force_eval."// &
-                          " In this case the order of the force_eval maps "// &
+                          " In this case the order of the force_eval maps"// &
                           " the order of the respa shells from the slowest to the fastest force evaluation."// &
-                          " If force_evals share the same subsys, it's enough then to specify the "// &
+                          " If force_evals share the same subsys, it's enough then to specify the"// &
                           " subsys in the force_eval corresponding at the first index in the multiple_force_eval list."// &
                           " Can be used to speedup classical and ab initio MD simulations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -602,7 +602,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "displaced_atom", &
                                        description="Controls the output of index and dislacement of "// &
-                                       "atoms that moved away from the initial position of more than a"// &
+                                       "atoms that moved away from the initial position of more than a "// &
                                        "given distance (see msd%disp_tol)", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
@@ -656,7 +656,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MSD_PER_MOLKIND", &
-                          description="Set up the calculation of the MSD for each molecule kind."// &
+                          description="Set up the calculation of the MSD for each molecule kind. "// &
                           "The position of the center of mass of the molecule is considered.", &
                           usage="MSD_PER_MOLKIND <LOGICAL>", repeats=.FALSE., &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -675,7 +675,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISPLACED_ATOM", &
-                          description="Identify the atoms that moved from their initial"// &
+                          description="Identify the atoms that moved from their initial "// &
                           "position of a distance larger than a given tolerance (see msd%displacement_tol).", &
                           usage="DISPLACED_ATOM <LOGICAL>", repeats=.FALSE., &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -785,7 +785,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="temp_tol", &
                           description="Maximum accepted temperature deviation"// &
                           " from the expected value, for the internal core-shell motion."// &
-                          "If 0, no rescaling is performed", &
+                          " If 0, no rescaling is performed", &
                           usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -799,12 +799,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISPLACEMENT_SHELL_TOL", &
-                          description="This keyword sets a maximum variation of the shell "// &
-                          "core distance in each Cartesian direction."// &
-                          "The maximum internal core-shell velocity is evaluated and"// &
+                          description="This keyword sets a maximum variation of the shell"// &
+                          " core distance in each Cartesian direction."// &
+                          " The maximum internal core-shell velocity is evaluated and"// &
                           " if it is too large to remain"// &
-                          "within the assigned limit, the time step is rescaled accordingly,"// &
-                          "and the first half step of the velocity verlet is repeated.", &
+                          " within the assigned limit, the time step is rescaled accordingly,"// &
+                          " and the first half step of the velocity verlet is repeated.", &
                           usage="DISPLACEMENT_SHELL_TOL <REAL>", default_r_val=100.0_dp, &
                           unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
@@ -856,7 +856,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="temp_tol_fast", &
                           description="Maximum accepted temperature deviation"// &
                           " from the expected value, for the fast motion."// &
-                          "If 0, no rescaling is performed", &
+                          " If 0, no rescaling is performed", &
                           usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -864,7 +864,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="temp_tol_slow", &
                           description="Maximum accepted temperature deviation"// &
                           " from the expected value, for the slow motion."// &
-                          "If 0, no rescaling is performed", &
+                          " If 0, no rescaling is performed", &
                           usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1013,10 +1013,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="noisy_gamma_region", &
-                          description="Special imaginary Langevin Friction term "// &
-                          "for Langevin Dynamics with noisy forces for the atoms in this region."// &
-                          "When set, overrides the general value set by NOISY_GAMMA in the MOTION%MD%LANGEVIN section."// &
-                          "When unset for a defined region, the general NOISY_GAMMA value applies.", &
+                          description="Special imaginary Langevin Friction term"// &
+                          " for Langevin Dynamics with noisy forces for the atoms in this region."// &
+                          " When set, overrides the general value set by NOISY_GAMMA in the MOTION%MD%LANGEVIN section."// &
+                          " When unset for a defined region, the general NOISY_GAMMA value applies.", &
                           citations=(/Kuhne2007/), usage="noisy_gamma_region 4.0E-5", &
                           type_of_var=real_t, &
                           unit_str="fs^-1")
@@ -1102,7 +1102,7 @@ CONTAINS
                           description="Defines the list of atoms for which the velocities are modified. "// &
                           "Each record consists of the atomic index, the velocity vector, and "// &
                           "a weight to define which fraction of the total energy is assigned "// &
-                          "to the current atom:"// &
+                          "to the current atom: "// &
                           "<p><tt><big>Atomic_index v<sub>x</sub> v<sub>y</sub> v<sub>z</sub> "// &
                           "Weight</big></tt></p>", &
                           usage="{{Integer} {Real} {Real} {Real} {Real}}", &
@@ -1140,7 +1140,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ACQUISITION_START_TIME", &
-                          description="Setup up the simulation time when the acquisition process to compute "// &
+                          description="Setup up the simulation time when the acquisition process to compute"// &
                           " averages is started.", &
                           usage="ACQUISITION_START_TIME <REAL>", &
                           default_r_val=0.0_dp, unit_str='fs')
@@ -1370,7 +1370,7 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="VIB_EIGS_FILE_NAME", &
-                          description="The file name of vibrational frequency (eigenvalue)"// &
+                          description="The file name of vibrational frequency (eigenvalue) "// &
                           "and displacement (eigenvector) data calculated from the a "// &
                           "vibrational analysis calculation done previously. This file must "// &
                           "be the same unformatted binary file as referred to by "// &
@@ -1384,7 +1384,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PHASE", &
                           description="Controls the initial ratio of potential and kinetic "// &
-                          "contribution to the total energy. The contribution is determined by"// &
+                          "contribution to the total energy. The contribution is determined by "// &
                           "COS**2(2*pi*PHASE) for potential energy, and SIN**2(2*pi*PHASE) "// &
                           "for kinetic energy. If PHASE is negative, then for each vibration "// &
                           "mode the phase is determined randomly. Otherwise, PHASE must be "// &

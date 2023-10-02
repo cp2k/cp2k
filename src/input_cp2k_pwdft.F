@@ -418,7 +418,7 @@ CONTAINS
                                        print_level=debug_print_level, common_iter_levels=1, filename="")
 
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Append the DOS obtained at different iterations to the output file."// &
+                          description="Append the DOS obtained at different iterations to the output file. "// &
                           "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)

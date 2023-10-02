@@ -341,8 +341,8 @@ CONTAINS
                   END IF
                ELSE
                   CALL cp_warn(__LOCATION__, &
-                               "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "// &
-                               " shell model has not been implemented! Ignoring thermostat input.")
+                               "Thermostat for Shells has been defined but for the selected ensemble the adiabatic "// &
+                               "shell model has not been implemented! Ignoring thermostat input.")
                END IF
             END IF
          ELSE IF (explicit_shell) THEN

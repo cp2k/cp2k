@@ -534,9 +534,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="BETA", &
                           description="Denominator parameter in Kerker damping "// &
-                          "introduced to suppress charge sloshing: rho_mix(g) ="// &
-                          "rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-"// &
-                          "rho_in(g))", &
+                          "introduced to suppress charge sloshing: "// &
+                          "rho_mix(g) = rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-rho_in(g))", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -569,7 +568,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NMIXING", &
-                          description="Minimal number of density mixing (should be greater than 0),"// &
+                          description="Minimal number of density mixing (should be greater than 0), "// &
                           "before starting DIIS", &
                           usage="NMIXING 1", default_i_val=2)
       CALL section_add_keyword(section, keyword)

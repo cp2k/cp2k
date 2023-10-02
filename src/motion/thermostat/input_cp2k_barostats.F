@@ -140,7 +140,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY", &
                                        description="Controls the output of kinetic energy, and potential energy "// &
-                                       " of the defined barostat.", print_level=high_print_level, common_iter_levels=1, &
+                                       "of the defined barostat.", print_level=high_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)

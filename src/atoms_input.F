@@ -370,7 +370,7 @@ CONTAINS
                ALLOCATE (rc(3, nshell), at_name_c(nshell), at_index_c(nshell))
                CALL cp_warn(__LOCATION__, &
                             "Overwriting cores coordinates. "// &
-                            " Active coordinates READ from &CORE_COORD section. ")
+                            "Active coordinates READ from &CORE_COORD section. ")
                CALL section_vals_list_get(core_coord_section, "_DEFAULT_KEYWORD_", list=list)
                DO ishell = 1, nshell
                   ! we use only the first default_string_length characters of each line

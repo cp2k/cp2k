@@ -589,10 +589,8 @@ CONTAINS
 
             CALL section_vals_val_get(as_input, "ACTIVE_ORBITAL_INDICES", explicit=explicit, i_vals=invals)
             IF (.NOT. explicit) THEN
-               CALL cp_abort(__LOCATION__, "Manual orbital"// &
-                             "selection requires to explicitly "// &
-                             "set the active orbital indices via "// &
-                             "ACTIVE_ORBITAL_INDICES")
+               CALL cp_abort(__LOCATION__, "Manual orbital selection requires to explicitly "// &
+                             "set the active orbital indices via ACTIVE_ORBITAL_INDICES")
             END IF
 
             IF (nspins == 1) THEN

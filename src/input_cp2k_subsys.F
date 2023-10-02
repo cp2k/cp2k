@@ -370,7 +370,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "atomic_coordinates", &
                                        description="controls the output of the atomic coordinates when setting up the"// &
-                                       "force environment. For printing coordinates during MD or GEO refer to the keyword"// &
+                                       " force environment. For printing coordinates during MD or GEO refer to the keyword"// &
                                        " trajectory.", unit_str="angstrom", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -388,7 +388,7 @@ CONTAINS
                           description="Minimum allowed distance between two atoms. "// &
                           "A warning is printed, if a smaller interatomic distance is encountered. "// &
                           "The check is disabled for the threshold value 0 which is the default "// &
-                          "for systems with more than 2000 atoms (otherwise 0.5 A)."// &
+                          "for systems with more than 2000 atoms (otherwise 0.5 A). "// &
                           "The run is aborted, if an interatomic distance is smaller than the absolute "// &
                           "value of a negative threshold value.", &
                           default_r_val=0.5_dp*bohr, unit_str="angstrom")
@@ -621,7 +621,7 @@ CONTAINS
                           description="Specifies the dipoles of the particles.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The dipole components for each atom in the format:"// &
+                          description="The dipole components for each atom in the format: "// &
                           "<p><tt><big>D<sub>x</sub> D<sub>y</sub> D<sub>z</sub></big></tt></p>", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -634,7 +634,7 @@ CONTAINS
                           description="Specifies the quadrupoles of the particles.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The quadrupole components for each atom in the format:"// &
+                          description="The quadrupole components for each atom in the format: "// &
                           "<p><big><tt>Q<sub>xx</sub> Q<sub>xy</sub> Q<sub>xz</sub> Q<sub>yy</sub> "// &
                           "Q<sub>yz</sub> Q<sub>zz</sub></big></tt></p>", &
                           repeats=.TRUE., usage="{Real} {Real} {Real} {Real} {Real} {Real}", &
@@ -731,8 +731,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The atomic velocities in the format:"// &
-                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"// &
+                          description="The atomic velocities in the format: "// &
+                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p> "// &
                           "The same order as for the atomic coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -759,8 +759,8 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The shell particle velocities in the format:"// &
-                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"// &
+                          description="The shell particle velocities in the format: "// &
+                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p> "// &
                           "The same order as for the shell particle coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -787,8 +787,8 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The core particle velocities in the format:"// &
-                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"// &
+                          description="The core particle velocities in the format: "// &
+                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p> "// &
                           "The same order as for the core particle coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -931,8 +931,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The atomic coordinates in the format:"// &
-                          "<p><tt>ATOMIC_KIND  X Y Z  MOLNAME</tt></p>"// &
+                          description="The atomic coordinates in the format: "// &
+                          "<p><tt>ATOMIC_KIND  X Y Z  MOLNAME</tt></p> "// &
                           "The <tt>MOLNAME</tt> is optional. If not provided the molecule name "// &
                           "is internally created. All other fields after <tt>MOLNAME</tt> are simply ignored.", &
                           repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {String}}", &
@@ -973,8 +973,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The shell particle coordinates in the format:"// &
-                          "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p>"// &
+                          description="The shell particle coordinates in the format: "// &
+                          "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p> "// &
                           "The <tt>ATOMIC_INDEX</tt> refers to the atom the shell particle belongs to.", &
                           repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}", &
                           type_of_var=lchar_t)
@@ -1015,8 +1015,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The core particle coordinates in the format:"// &
-                          "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p>"// &
+                          description="The core particle coordinates in the format: "// &
+                          "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p> "// &
                           "The <tt>ATOMIC_INDEX</tt> refers to the atom the core particle belongs to.", &
                           repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}", &
                           type_of_var=lchar_t)
@@ -1054,7 +1054,7 @@ CONTAINS
                           description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST). "// &
                           "Defaults are set for TYPE {ORB} and FORM {GTO}. Possible values for TYPE are "// &
                           "{ORB, AUX, MIN, RI_AUX, LRI, ...}. Possible values for "// &
-                          "FORM are {GTO, STO}. Where STO results in a GTO expansion of a Slater type basis."// &
+                          "FORM are {GTO, STO}. Where STO results in a GTO expansion of a Slater type basis. "// &
                           "If a value for FORM is given, also TYPE has to be set explicitly.", &
                           usage="BASIS_SET [type] [form] DZVP", type_of_var=char_t, default_c_vals=(/" ", " ", " "/), &
                           citations=(/VandeVondele2005a, VandeVondele2007/), &
@@ -1216,7 +1216,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RHO0_EXP_RADIUS", &
                           description="the radius which defines the atomic region where "// &
-                          "the hard compensation density is confined."// &
+                          "the hard compensation density is confined. "// &
                           "should be less than HARD_EXP_RADIUS (GAPW) (Bohr, default equals HARD_EXP_RADIUS)", &
                           usage="RHO_EXP_RADIUS 0.9", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -1272,7 +1272,7 @@ CONTAINS
 
       ! Logicals
       CALL keyword_create(keyword, __LOCATION__, name="SE_P_ORBITALS_ON_H", &
-                          description="Forces the usage of p-orbitals on H for SEMI-EMPIRICAL calculations. "// &
+                          description="Forces the usage of p-orbitals on H for SEMI-EMPIRICAL calculations."// &
                           " This keyword applies only when the KIND is specifying an Hydrogen element."// &
                           " It is ignored in all other cases. ", &
                           usage="SE_P_ORBITALS_ON_H", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1980,7 +1980,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CREATE_MOLECULES", &
-                          description="Create molecules names and definition. Can be used to override the "// &
+                          description="Create molecules names and definition. Can be used to override the"// &
                           " molecules specifications of a possible input connectivity or to create molecules"// &
                           " specifications for file types as XYZ, missing of molecules definitions.", &
                           usage="CREATE_MOLECULES <LOGICAL>", &
@@ -2127,7 +2127,7 @@ CONTAINS
       ! ISOLATED ATOMS
       CALL section_create(subsection, __LOCATION__, name="ISOLATED_ATOMS", &
                           description=" This section specifies the  atoms that one considers isolated. Useful when present "// &
-                          " ions in solution.", n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          "ions in solution.", n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
                           description="Specifies a list of atomic indexes of the isolated ion", &
                           usage="LIST {integer}", type_of_var=integer_t, n_var=-1, &
@@ -2173,7 +2173,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
-                                       description="Activates the printing of the subcells used for the"// &
+                                       description="Activates the printing of the subcells used for the "// &
                                        "generation of neighbor lists for connectivity.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -2269,7 +2269,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="L", &
-                          description="Angular momentum quantum number of the"// &
+                          description="Angular momentum quantum number of the "// &
                           "orbitals to which the correction is applied", &
                           repeats=.FALSE., &
                           n_var=1, &
@@ -2294,7 +2294,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="N", &
-                          description="principal quantum number of the"// &
+                          description="principal quantum number of the "// &
                           "orbitals to which the correction is applied. Ignored unless pwdft is used for the calculations", &
                           repeats=.FALSE., &
                           n_var=1, &
