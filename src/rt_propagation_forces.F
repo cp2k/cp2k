@@ -184,6 +184,7 @@ CONTAINS
 !> \param qs_env ...
 !> \par History
 !>      02.2014 switched to dbcsr matrices [Samuel Andermatt]
+!>      10.2023 merge MO-based and all-atom into one routine
 !> \author Florian Schiffmann (02.09)
 ! **************************************************************************************************
 

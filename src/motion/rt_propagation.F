@@ -158,7 +158,7 @@ CONTAINS
       CALL section_vals_val_get(print_moments_section, "VEL_REPRS", l_val=vel_reprs)
 
       rtp%track_imag_density = (magnetic) .OR. (vel_reprs) .OR. (rtp_control%velocity_gauge) & 
-                               .OR. (rtp%do_hfx) .OR. .NOT. (rtp_control%fixed_ions) 
+                               .OR. (rtp%do_hfx) .OR. (.NOT. rtp_control%fixed_ions) 
       rtp%propagate_complex_ks = rtp%do_hfx .OR. rtp_control%velocity_gauge
 
       CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
@@ -532,14 +532,14 @@ CONTAINS
 
       ! ks
       CALL set_ks_env(ks_env, complex_ks=imag_ks)
-      IF (imag_ks) CALL qs_ks_allocate_basics(qs_env, is_complex=imag_ks)
-
-      ! h
-      IF (imag_h) THEN 
-         CALL qs_matrix_h_allocate_imag_from_real(qs_env)
-         IF (.NOT. dft_control%rtp_control%fixed_ions) & 
+      IF (imag_ks) THEN 
+         CALL qs_ks_allocate_basics(qs_env, is_complex=imag_ks)
+         IF (.NOT. dft_control%rtp_control%fixed_ions) &
             CALL rtp_create_SinvH_imag(rtp, dft_control%nspins)
       END IF
+
+      ! h
+      IF (imag_h) CALL qs_matrix_h_allocate_imag_from_real(qs_env)
       
    END SUBROUTINE rt_init_complex_quantities
 
