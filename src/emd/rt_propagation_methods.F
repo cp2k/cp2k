@@ -413,6 +413,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL get_rtp(rtp=rtp, S_inv=S_inv, exp_H_new=exp_H)
+      DO ispin = 1, SIZE(matrix_ks)
+         re = ispin*2 - 1
+         im = ispin*2
+         CALL dbcsr_set(exp_H(re)%matrix, zero)
+         CALL dbcsr_set(exp_H(im)%matrix, zero)
+      END DO 
       CALL dbcsr_create(matrix_ks_nosym, template=matrix_ks(1)%matrix, matrix_type="N")
 
       ! Real part of S_inv x H -> imag part of exp_H
@@ -456,13 +462,6 @@ CONTAINS
          END DO
       END IF
       ! Otherwise no real part for exp_H 
-      IF (rtp_control%fixed_ions .AND. (.NOT. rtp%propagate_complex_ks)) THEN
-         DO ispin = 1, SIZE(exp_H)/2
-            re = ispin*2 - 1
-            im = ispin*2
-            CALL dbcsr_set(exp_H(re)%matrix, zero)
-         END DO
-      END IF 
 
       CALL dbcsr_release(matrix_ks_nosym)
       CALL timestop(handle)
