@@ -1612,7 +1612,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "No &KIND section was possible to associate to the atomic kind <"// &
                        TRIM(akind_name)//">. The KIND section were also scanned for the"// &
-                       " corresponding element <"//TRIM(qs_kind%element_symbol)//"> "// &
+                       " corresponding element <"//TRIM(qs_kind%element_symbol)//">"// &
                        " and for the DEFAULT section but no match was found. Check your input file!")
       END IF
       ! Retrieve information on element

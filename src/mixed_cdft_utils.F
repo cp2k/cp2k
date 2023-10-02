@@ -595,7 +595,7 @@ CONTAINS
             END DO
             IF (.NOT. is_match) &
                CALL cp_abort(__LOCATION__, &
-                             "Mismatch detected in the &BECKE_CONSTRAINT"// &
+                             "Mismatch detected in the &BECKE_CONSTRAINT "// &
                              "&ELEMENT_CUTOFF settings of the two force_evals.")
             ALLOCATE (cdft_control%becke_control%cutoffs_tmp(nkinds))
             cdft_control%becke_control%cutoffs_tmp = settings%cutoffs(1:nkinds, 1)
@@ -609,7 +609,7 @@ CONTAINS
             END DO
             IF (.NOT. is_match) &
                CALL cp_abort(__LOCATION__, &
-                             "Mismatch detected in the &BECKE_CONSTRAINT"// &
+                             "Mismatch detected in the &BECKE_CONSTRAINT "// &
                              "&ATOMIC_RADII settings of the two force_evals.")
             ALLOCATE (cdft_control%becke_control%radii(nkinds))
             cdft_control%becke_control%radii = settings%radii(1:nkinds, 1)
@@ -745,7 +745,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "Unable to create a suitable grid distribution "// &
                           "for mixed CDFT calculations. Try decreasing the total number "// &
-                          " of processors or disabling xc_smoothing.")
+                          "of processors or disabling xc_smoothing.")
          DEALLOCATE (mixed_rs_dims)
          ! Create the pool
          bo_mixed = pw_grid%bounds_local

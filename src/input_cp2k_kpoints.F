@@ -70,8 +70,8 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCHEME", &
-                          description="Kpoint scheme to be used.<br>"// &
-                          "Available options: NONE, GAMMA, MONKHORST-PACK, MACDONALD, and GENERAL.<br>"// &
+                          description="Kpoint scheme to be used.<br> "// &
+                          "Available options: NONE, GAMMA, MONKHORST-PACK, MACDONALD, and GENERAL.<br> "// &
                           "For MONKHORST-PACK and MACDONALD the number of k points in all "// &
                           "3 dimensions has to be supplied along with the keyword. "// &
                           "E.g. <pre>MONKHORST-PACK 12 12 8.</pre>", &
@@ -127,7 +127,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_GROUP_SIZE", &
-                          description="Number of processors to be used for a single kpoint. "// &
+                          description="Number of processors to be used for a single kpoint."// &
                           " This number must divide the total number of processes."// &
                           " The number of groups must divide the total number of kpoints."// &
                           " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."// &

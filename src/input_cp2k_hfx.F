@@ -84,7 +84,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PW_HFX", &
-                          description="Compute the Hartree-Fock energy also in the plane wave basis."// &
+                          description="Compute the Hartree-Fock energy also in the plane wave basis. "// &
                           "The value is ignored, and intended for debugging only.", &
                           usage="PW_HFX FALSE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -330,7 +330,7 @@ CONTAINS
          description="Screens the near field part of the electronic repulsion "// &
          "integrals using the Schwarz inequality for the given "// &
          "threshold. This will be approximately the accuracy of the forces, "// &
-         " and should normally be similar to EPS_SCF", &
+         "and should normally be similar to EPS_SCF", &
          usage="EPS_SCHWARZ_FORCES 1.0E-5", &
          default_r_val=1.0E-6_dp)
       CALL section_add_keyword(section, keyword)

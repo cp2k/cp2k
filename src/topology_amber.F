@@ -261,7 +261,7 @@ CONTAINS
       ELSE
          IF (j /= natom) &
             CALL cp_warn(__LOCATION__, &
-                         "BOX information found in CRD file. They will be ignored."// &
+                         "BOX information found in CRD file. They will be ignored. "// &
                          "Please provide the BOX information directly from the main CP2K input!")
       END IF
       CALL parser_release(parser)

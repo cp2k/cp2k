@@ -639,7 +639,7 @@ CONTAINS
                          "Unable to perform Cholesky decomposition on the overlap "// &
                          "matrix. The new filtered basis may not be linearly "// &
                          "independent set. Revert to using inverse square-root "// &
-                         "of the overlap. To avoid this warning, you can try"// &
+                         "of the overlap. To avoid this warning, you can try "// &
                          "to use a higher filter termperature.")
             my_method = cholesky_off
          ELSE

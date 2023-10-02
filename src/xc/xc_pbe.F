@@ -85,8 +85,7 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "J.P.Perdew, K.Burke, M.Ernzerhof, "// &
-                           "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996)"// &
-                           "{spin unpolarized}"
+                           "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996) {spin unpolarized}"
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "PBE Perdew-Burke-Ernzerhof xc functional (unpolarized)"
@@ -109,8 +108,7 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "revPBE, Yingkay Zhang and Weitao Yang,"// &
-                           " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)"// &
-                           "{spin unpolarized}"
+                           " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998) {spin unpolarized}"
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "revPBE, revised PBE xc functional (unpolarized)"
@@ -191,8 +189,7 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "J.P.Perdew, K.Burke, M.Ernzerhof, "// &
-                           "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996)"// &
-                           "{spin polarized}"
+                           "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996) {spin polarized}"
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "PBE xc functional (spin polarized)"
@@ -215,8 +212,7 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "revPBE, Yingkay Zhang and Weitao Yang,"// &
-                           " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)"// &
-                           "{spin polarized}"
+                           " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998) {spin polarized}"
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "revPBE, revised PBE xc functional (spin polarized)"

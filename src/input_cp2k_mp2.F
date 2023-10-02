@@ -276,7 +276,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_INTEGRATION_GROUPS", &
-                          description="Sets the number of integration groups of the communication scheme in RI-MP2."// &
+                          description="Sets the number of integration groups of the communication scheme in RI-MP2. "// &
                           "Integrals will be replicated such that each integration group has all integrals available. "// &
                           "Must be a divisor of the number of subgroups (see GROUP_SIZE keyword in the WF_CORRELATION "// &
                           "section. Smaller groups reduce the communication costs but increase the memory developments. "// &
@@ -852,8 +852,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BSE", &
-                          description="If true, electronic excitation energies are computed from the Bethe-"// &
-                          "Salpeter equation on top of GW eigenvalues.  Parameter of BSE can be adjusted in "// &
+                          description="If true, electronic excitation energies are computed from the "// &
+                          "Bethe-Salpeter equation on top of GW eigenvalues.  Parameter of BSE can be adjusted in "// &
                           "the corresponding section.", &
                           usage="BSE", &
                           default_l_val=.FALSE., &
@@ -1234,8 +1234,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD_MIN_TRANS", &
                           variants=(/"EPS"/), &
                           description="Threshold for stopping the iteration for computing the transition energies. "// &
-                          "If the lowest excitation changes by less than THRESHOLD_MIN_TRANS (in eV), the ieration"// &
-                          "stops.", &
+                          "If the lowest excitation changes by less than THRESHOLD_MIN_TRANS (in eV), the ieration stops.", &
                           usage="THRESHOLD_MIN_TRANS 0.001", &
                           default_r_val=0.001_dp)
       CALL section_add_keyword(section, keyword)
@@ -1332,7 +1331,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_FILTER", &
-         description="Determines a threshold for the DBCSR based multiply."// &
+         description="Determines a threshold for the DBCSR based multiply. "// &
          "Normally, this EPS_FILTER determines accuracy and timing of low-scaling RPA and GW calculations.", &
          usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-9_dp)
@@ -1516,7 +1515,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="K_MESH_G_FACTOR", &
          description="The k-mesh for the Green's function can be chosen to be larger than the k-mesh for "// &
-         "W (without much higher computational cost). The factor given here multiplies the mesh for W to obtain"// &
+         "W (without much higher computational cost). The factor given here multiplies the mesh for W to obtain "// &
          "the k-mesh for G. Example: factor 4, k-mesh for W: 4x4x1 -> k-mesh for G: 16x16x1 (z-dir. is "// &
          "non-periodic).", &
          default_i_val=1)
@@ -1574,7 +1573,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_FILTER", &
-         description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID)."// &
+         description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID). "// &
          "Normally, this EPS_FILTER determines accuracy and timing of cubic-scaling RPA calculation.", &
          usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-9_dp)
@@ -1805,11 +1804,11 @@ CONTAINS
                        do_potential_mix_cl, &
                        do_potential_id/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
-                       "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"// &
+                       "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li> "// &
                        "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
                        "(2*n^2 - 7*n + 9 - 4*s)*(x - Rc)^3/(Rc^4*(n^2 - 2*n + 1)*(n - 1)) + "// &
                        "(6-3*s - 4*n + n^2)*(x - Rc)^4/(Rc^5*(n^4 - 4*n^3 + 6*n^2 - 4*n + 1)) "// &
-                       "for Rc &lt; x &le; n*Rc (4th order polynomial)</li>"// &
+                       "for Rc &lt; x &le; n*Rc (4th order polynomial)</li> "// &
                        "<li>0 for x &gt; n*Rc</li></ul>", &
                        "Longrange Coulomb potential: erf(w*r)/r)", &
                        "Shortrange Coulomb potential: erfc(w*r)/r", &
@@ -1854,7 +1853,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="SCALE_COULOMB", &
-         description="Scaling factor of (truncated) Coulomb potential in mixed (truncated) Coulomb/Longrange potential."// &
+         description="Scaling factor of (truncated) Coulomb potential in mixed (truncated) Coulomb/Longrange potential. "// &
          "Only valid when mixed potential is requested.", &
          usage="OMEGA 0.5", type_of_var=real_t, &
          default_r_val=1.0_dp)
@@ -1864,7 +1863,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="SCALE_LONGRANGE", &
-         description="Scaling factor of longrange Coulomb potential in mixed (truncated) Coulomb/Longrange potential."// &
+         description="Scaling factor of longrange Coulomb potential in mixed (truncated) Coulomb/Longrange potential. "// &
          "Only valid when mixed potential is requested.", &
          usage="OMEGA 0.5", type_of_var=real_t, &
          default_r_val=1.0_dp)
@@ -1885,7 +1884,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI", &
-                          description="Parameters influencing resolution of the identity (RI) that is"// &
+                          description="Parameters influencing resolution of the identity (RI) that is "// &
                           "used in RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
                           n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
@@ -1903,7 +1902,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="ROW_BLOCK", &
          variants=(/"ROW_BLOCK_SIZE"/), &
-         description="Size of the row block used in the SCALAPACK block cyclic data distribution."// &
+         description="Size of the row block used in the SCALAPACK block cyclic data distribution. "// &
          "Default is (ROW_BLOCK=-1) is automatic. "// &
          "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
          usage="ROW_BLOCK 512", &
@@ -1915,7 +1914,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="COL_BLOCK", &
          variants=(/"COL_BLOCK_SIZE"/), &
-         description="Size of the column block used in the SCALAPACK block cyclic data distribution."// &
+         description="Size of the column block used in the SCALAPACK block cyclic data distribution. "// &
          "Default is (COL_BLOCK=-1) is automatic. "// &
          "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
          usage="COL_BLOCK 512", &
@@ -1987,7 +1986,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ERI_METHOD", &
                           description="Method for calculating periodic electron repulsion integrals "// &
-                          "(MME method is faster but experimental, forces not yet implemented)."// &
+                          "(MME method is faster but experimental, forces not yet implemented). "// &
                           "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
                           usage="ERI_METHOD MME", &
                           enum_c_vals=s2a("DEFAULT", "GPW", "MME", "OS"), &

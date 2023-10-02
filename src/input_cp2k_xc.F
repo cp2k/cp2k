@@ -455,7 +455,7 @@ CONTAINS
                           enum_c_vals=s2a("VWN5", "VWN3"), &
                           enum_i_vals=(/do_vwn5, do_vwn3/), &
                           enum_desc=s2a("This is the recommended (correct) version of the VWN functional", &
-                                        "This version is the default in Gaussian, but not recommended."// &
+                                        "This version is the default in Gaussian, but not recommended. "// &
                                         "Notice that it is also employed in Gaussian's default version of B3LYP"), &
                           default_i_val=do_vwn5)
 
@@ -603,7 +603,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, name="BECKE_ROUSSEL", &
-                          description="Becke Roussel exchange hole model. Can be used"// &
+                          description="Becke Roussel exchange hole model. Can be used "// &
                           "as long range correction with a truncated coulomb potential", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/BeckeRoussel1989, Proynov2007/))
@@ -1022,8 +1022,8 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SHORT_RANGE_CORRECTION_PARAMETERS", &
                           description="Parameters for the short-range bond correction to the DFT-D3 model. "// &
-                          " s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
-                          " Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
+                          "s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
+                          "Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
                           usage="SHORT_RANGE_CORRECTION_PARAMETRS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
                           n_var=4, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
@@ -1100,12 +1100,12 @@ CONTAINS
       ! nonlocal section
       NULLIFY (subsection, keyword)
       CALL section_create(subsection, __LOCATION__, name="NON_LOCAL", &
-                          description="Information on the non local part of dispersion functionals."// &
+                          description="Information on the non local part of dispersion functionals. "// &
                           "Correct functionals require a corresponding setting of XC_FUNCTIONAL.", &
                           n_keywords=0, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
-                          description="Type of functional (the corresponding kernel data file should be selected)."// &
+                          description="Type of functional (the corresponding kernel data file should be selected). "// &
                           "Allows for common forms such as vdW-DF, vdW-DF2, optB88-vdW, rVV10.", &
                           usage="TYPE DRSLL", &
                           enum_c_vals=s2a("DRSLL", "LMKLL", "RVV10"), &
@@ -1124,8 +1124,8 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="KERNEL_FILE_NAME", &
-                          description="Name of the kernel data file, may include a path."// &
-                          "vdW_kernel_table.dat is for DRSLL and LMKLL and"// &
+                          description="Name of the kernel data file, may include a path. "// &
+                          "vdW_kernel_table.dat is for DRSLL and LMKLL and "// &
                           "rVV10_kernel_table.dat is for rVV10.", &
                           usage="KERNEL_FILE_NAME <FILENAME>", &
                           default_lc_val="vdW_kernel_table.dat")
@@ -1237,8 +1237,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DENSITY_SMOOTH_CUTOFF_RANGE", &
-                          description="Parameter for the smoothing procedure in"// &
-                          "xc calculation", &
+                          description="Parameter for the smoothing procedure in xc calculation", &
                           usage="gradient_cutoff {real}", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

@@ -164,8 +164,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="CONSTRAINT", &
-                          description="specifies a linear constraint on the fitted charges."// &
-                          "This can be used to give equal values to equivalent atoms."// &
+                          description="specifies a linear constraint on the fitted charges. "// &
+                          "This can be used to give equal values to equivalent atoms. "// &
                           "sum over atom_list c_i * q_i = t", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -217,8 +217,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RESTRAINT", &
-                          description="specifies a restraint on the fitted charges."// &
-                          "This can be used to restrain values to zero."// &
+                          description="specifies a restraint on the fitted charges. "// &
+                          "This can be used to restrain values to zero. "// &
                           "s*(sum over atom_list q_i - t)**2", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -289,7 +289,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="X_HI", &
                           description="Specifies the upper boundary of the box along X used to "// &
-                          " sample the potential. Only valid for nonperiodic RESP fitting.", &
+                          "sample the potential. Only valid for nonperiodic RESP fitting.", &
                           usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

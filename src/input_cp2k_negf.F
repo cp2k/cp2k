@@ -183,7 +183,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NPROC_POINT", &
-                          description="Number of MPI processes to be used per energy point. "// &
+                          description="Number of MPI processes to be used per energy point."// &
                           " Default is to use all processors (0).", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=0)

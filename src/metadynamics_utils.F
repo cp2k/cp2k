@@ -793,8 +793,8 @@ CONTAINS
             END DO
          ELSE
             CALL cp_warn(__LOCATION__, &
-                         "Section SPAWNED_HILLS_SCALE is not present! Setting the scales of the"// &
-                         "restarted hills according the parameters specified in the input file. ")
+                         "Section SPAWNED_HILLS_SCALE is not present! Setting the scales of the "// &
+                         "restarted hills according the parameters specified in the input file.")
             DO i = 1, n_hills
                DO j = 1, n_colvar
                   delta_s_history(j, i) = colvars(i)%delta_s

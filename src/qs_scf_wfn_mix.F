@@ -172,7 +172,7 @@ CONTAINS
             ELSE IF (orig_type == wfn_mix_orig_virtual) THEN
                IF (.NOT. ASSOCIATED(unoccupied_orbs)) &
                   CALL cp_abort(__LOCATION__, &
-                                "If ORIG_TYPE is set to VIRTUAL, the array unoccupied_orbs must be associated!"// &
+                                "If ORIG_TYPE is set to VIRTUAL, the array unoccupied_orbs must be associated! "// &
                                 "For instance, ask in the SCF section to compute virtual orbitals after the GS optimization.")
                CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index), matrix_x, 1, orig_mo_index, 1)
 

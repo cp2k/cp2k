@@ -178,7 +178,7 @@ CONTAINS
          description="Methods to reintroduce electron delocalization, which is excluded "// &
          "with the block-diagonal ALMO reference. Electron delocalization can "// &
          "be computed using either fully delocalized MOs or spatially restricted "// &
-         "ALMOs (called eXtended ALMOs or XALMOs). All methods below use either a PCG or trust-region"// &
+         "ALMOs (called eXtended ALMOs or XALMOs). All methods below use either a PCG or trust-region "// &
          "optimizers controlled by XALMO_OPTIMIZER_* subsections. The only exception is "// &
          "the non-iterative XALMO_1DIAG.", &
          usage="DELOCALIZE_METHOD XALMO_X", &
@@ -205,7 +205,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RETURN_ORTHOGONALIZED_MOS", &
-                          description="Orthogonalize final ALMOs before they are returned"// &
+                          description="Orthogonalize final ALMOs before they are returned "// &
                           "to Quickstep (i.e. for calculation of properties)", &
                           usage="RETURN_ORTHOGONALIZED_MOS .TRUE.", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)

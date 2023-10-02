@@ -211,7 +211,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_rm_default_logger()
       IF (stack_pointer - 1 < 0) THEN
-         CALL cp_abort(__LOCATION__, moduleN//":cp_rm_default_logger"// &
+         CALL cp_abort(__LOCATION__, moduleN//":cp_rm_default_logger "// &
                        "can not destroy default logger "//moduleN)
       END IF
 
@@ -234,12 +234,12 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: res
 
       IF (.NOT. stack_pointer > 0) THEN
-         CALL cp_abort(__LOCATION__, "cp_log_handling:cp_get_default_logger"// &
+         CALL cp_abort(__LOCATION__, "cp_log_handling:cp_get_default_logger "// &
                        "default logger not yet initialized (CALL cp_init_default_logger)")
       END IF
       res => default_logger_stack(stack_pointer)%cp_default_logger
       IF (.NOT. ASSOCIATED(res)) THEN
-         CALL cp_abort(__LOCATION__, "cp_log_handling:cp_get_default_logger"// &
+         CALL cp_abort(__LOCATION__, "cp_log_handling:cp_get_default_logger "// &
                        "default logger is null (released too much ?)")
       END IF
    END FUNCTION cp_get_default_logger

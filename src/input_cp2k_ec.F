@@ -109,9 +109,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="HARRIS_BASIS", &
-                          description="Specifies the type of basis to be used for the KG energy correction."// &
-                          "Options are: (1) the default orbital basis (ORBITAL);"// &
-                          "(2) the primitive functions of the default orbital basis (PRIMITIVE);"// &
+                          description="Specifies the type of basis to be used for the KG energy correction. "// &
+                          "Options are: (1) the default orbital basis (ORBITAL); "// &
+                          "(2) the primitive functions of the default orbital basis (PRIMITIVE); "// &
                           "(3) the basis set labeled in Kind section (HARRIS)", &
                           usage="HARRIS_BASIS ORBITAL", &
                           type_of_var=char_t, default_c_val="ORBITAL", n_var=-1)
@@ -295,7 +295,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="MATRIX_CLUSTER_TYPE", &
          description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "// &
-         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."// &
+         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used. "// &
          "Furthermore, since screening is on matrix blocks, "// &
          "slightly more accurate results can be expected with molecular.", &
          usage="MATRIX_CLUSTER_TYPE MOLECULAR", &
@@ -399,7 +399,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
-                          description="Maximum number of conjugate gradient iteration"// &
+                          description="Maximum number of conjugate gradient iteration "// &
                           "to be performed for one optimization.", &
                           usage="MAX_ITER 200", default_i_val=50)
       CALL section_add_keyword(section, keyword)
@@ -412,8 +412,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          description="Algorithm used to solve response equation."// &
-                          "Both solver are conjugate gradient based, but use either a vector (MO-coefficient)"// &
+                          description="Algorithm used to solve response equation. "// &
+                          "Both solver are conjugate gradient based, but use either a vector (MO-coefficient) "// &
                           "or density matrix formalism in the orthonormal AO-basis to obtain response density", &
                           usage="METHOD SOLVER", &
                           default_i_val=ec_ls_solver, &
@@ -428,8 +428,8 @@ CONTAINS
          keyword, __LOCATION__, name="PRECONDITIONER", &
          description="Type of preconditioner to be used with MO conjugate gradient solver. "// &
          "They differ in effectiveness, cost of construction, cost of application. "// &
-         "Properly preconditioned minimization can be orders of magnitude faster than doing nothing."// &
-         "Only multi-level conjugate gradient preconditioner (MULTI_LEVEL) available for AO response solver (AO_ORTHO).", &
+         "Properly preconditioned minimization can be orders of magnitude faster than doing nothing. "// &
+         "Only multi-level conjugate gradient preconditioner (MULTI_LEVEL) available for AO response solver (AO_ORTHO). ", &
          usage="PRECONDITIONER FULL_ALL", &
          default_i_val=precond_mlp, &
          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
@@ -485,7 +485,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="MATRIX_CLUSTER_TYPE", &
          description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "// &
-         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."// &
+         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used. "// &
          "Furthermore, since screening is on matrix blocks, "// &
          "slightly more accurate results can be expected with molecular.", &
          usage="MATRIX_CLUSTER_TYPE MOLECULAR", &

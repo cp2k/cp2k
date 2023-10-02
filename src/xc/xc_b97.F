@@ -119,8 +119,8 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "B97-D, Grimme xc functional,"// &
-                           " J Comput Chem 27: 1787-1799 (2006)"// &
-                           ", needs C6 dispersion "//pol
+                           " J Comput Chem 27: 1787-1799 (2006),"// &
+                           " needs C6 dispersion "//pol
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "B97-D, Grimme xc functional "//pol
@@ -143,8 +143,8 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "wB97X-V, xc functional,"// &
-                           " Mardirossian and Head-Gordon, PCCP DOI: 10.1039/c3cp54374a"// &
-                           ", needs HFX exchange and VV10 dispersion (NOT TESTED)"//pol
+                           " Mardirossian and Head-Gordon, PCCP DOI: 10.1039/c3cp54374a,"// &
+                           " needs HFX exchange and VV10 dispersion (NOT TESTED)"//pol
             END IF
             IF (PRESENT(shortform)) THEN
                shortform = "wB97X-V, HFX+B97+VV10 functional (NOT TESTED)"//pol
@@ -158,8 +158,8 @@ CONTAINS
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
                reference = "B97-3c composite method,"// &
-                           " S. Grimme, A. Hansen, no reference available, yet"// &
-                           ", use TZVP basis set, D3(BJ) dispersion correction"// &
+                           " S. Grimme, A. Hansen, no reference available, yet,"// &
+                           " use TZVP basis set, D3(BJ) dispersion correction"// &
                            " with CALCULATE_C9_TERM and SRB correction"//pol
             END IF
             IF (PRESENT(shortform)) THEN

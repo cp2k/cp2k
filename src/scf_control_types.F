@@ -553,8 +553,8 @@ CONTAINS
             CALL keyword_get(keyword, enum=enum)
 
             WRITE (UNIT=output_unit, &
-                   FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"// &
-                   "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"// &
+                   FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/, "// &
+                   "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'), "// &
                    "1(/,T25,A,T71,F10.6))") &
                "SCF PARAMETERS", &
                "Density guess:     ", ADJUSTR(TRIM(enum_i2c(enum, scf_control%density_guess))), &
@@ -602,7 +602,7 @@ CONTAINS
                      "Electronic temperature [a.u.]:", scf_control%smear%electronic_temperature, &
                      "Accuracy threshold:", scf_control%smear%eps_fermi_dirac
                   IF (scf_control%smear%fixed_mag_mom > 0.0_dp) WRITE (UNIT=output_unit, FMT="(T25,A,F10.5)") &
-                     "Spin channel alpha and spin channel beta are smeared independently, keeping "// &
+                     "Spin channel alpha and spin channel beta are smeared independently, keeping"// &
                      " fixed difference in number of electrons equal to ", scf_control%smear%fixed_mag_mom
                CASE (smear_energy_window)
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,F10.6)") &

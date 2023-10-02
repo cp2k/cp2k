@@ -2295,7 +2295,7 @@ CONTAINS
          IF (dft_control%rtp_control%linear_scaling) &
             CALL cp_abort(__LOCATION__, &
                           "You have defined a time dependent projection of mos, but "// &
-                          " only the density matrix is propagated (DENSITY_PROPAGATION "// &
+                          "only the density matrix is propagated (DENSITY_PROPAGATION "// &
                           ".TRUE.). Please either use MO-based real time DFT or do not "// &
                           "define any PRINT%PROJECTION_MO section")
          dft_control%rtp_control%is_proj_mo = .TRUE.
