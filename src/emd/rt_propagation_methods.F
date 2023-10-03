@@ -441,10 +441,12 @@ CONTAINS
             im = ispin*2
             CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
             CALL dbcsr_desymmetrize(matrix_ks_im(ispin)%matrix, matrix_ks_nosym)
+            ! - SinvH_imag is added to exp_H(re)%matrix
             CALL dbcsr_multiply("N", "N", -one, S_inv, matrix_ks_nosym, zero, exp_H(re)%matrix, &
                                    filter_eps=rtp%filter_eps)
             IF (.NOT. rtp_control%fixed_ions) THEN
                CALL get_rtp(rtp=rtp, SinvH_imag=SinvH_imag)
+               ! -SinvH_imag is saved 
                CALL dbcsr_copy(SinvH_imag(ispin)%matrix, exp_H(re)%matrix)
             END IF
          END DO
@@ -457,7 +459,9 @@ CONTAINS
          DO ispin = 1, SIZE(matrix_ks)
             re = ispin*2 - 1
             im = ispin*2
-            CALL dbcsr_add(exp_H(re)%matrix, matrix_ks_nosym, 1.0_dp, -1.0_dp)
+            ! + SinvB is added to exp_H(re)%matrix
+            CALL dbcsr_add(exp_H(re)%matrix, matrix_ks_nosym, 1.0_dp, 1.0_dp)
+            ! + SinvB is saved 
             CALL dbcsr_copy(SinvB(ispin)%matrix, matrix_ks_nosym)
          END DO
       END IF
