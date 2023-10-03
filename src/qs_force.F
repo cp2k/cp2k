@@ -28,7 +28,8 @@ MODULE qs_force
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
    USE ec_env_types,                    ONLY: energy_correction_type
-   USE efield_utils,                    ONLY: calculate_ecore_efield
+   USE efield_utils,                    ONLY: calculate_ecore_efield,&
+                                              efield_potential_lengh_gauge
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
    USE hfx_exx,                         ONLY: calculate_exx
@@ -290,6 +291,11 @@ CONTAINS
       ELSE
          ! Dispersion energy and forces are calculated in qs_energy?
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
+         ! The above line reset the core H, which should be re-updated in case a TD field is applied:
+         IF (qs_env%run_rtp) THEN
+            IF (dft_control%apply_efield_field) &
+               CALL efield_potential_lengh_gauge(qs_env)
+         END IF
          CALL calculate_ecore_self(qs_env)
          CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.TRUE.)
          CALL calculate_ecore_efield(qs_env, calculate_forces=.TRUE.)
@@ -587,6 +593,7 @@ CONTAINS
                   iatom, ikind, "    dispersion", qs_force(ikind)%dispersion(1:3, i), &
                   iatom, ikind, "           gCP", qs_force(ikind)%gcp(1:3, i), &
                   iatom, ikind, "       fock_4c", qs_force(ikind)%fock_4c(1:3, i), &
+                  iatom, ikind, "     ehrenfest", qs_force(ikind)%ehrenfest(1:3, i), &
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "           eev", qs_force(ikind)%eev(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
