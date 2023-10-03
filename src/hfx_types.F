@@ -410,7 +410,7 @@ MODULE hfx_types
 
       ! KP 3c tensors replicated on the subgroups
       TYPE(dbt_type), DIMENSION(:), ALLOCATABLE :: kp_t_3c_int
-      TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE :: kp_t_3c_apc
+      TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE :: kp_rho_ao_t, kp_ks_t
 
       ! Note: changed static DIMENSION(1,1) of dbt_type to allocatables as workaround for gfortran 8.3.0,
       ! with static dimension gfortran gets stuck during compilation
@@ -1574,13 +1574,22 @@ CONTAINS
          DEALLOCATE (ri_data%kp_t_3c_int)
       END IF
 
-      IF (ALLOCATED(ri_data%kp_t_3c_apc)) THEN
-         DO j = 1, SIZE(ri_data%kp_t_3c_apc, 2)
-            DO i = 1, SIZE(ri_data%kp_t_3c_apc, 1)
-               CALL dbt_destroy(ri_data%kp_t_3c_apc(i, j))
+      IF (ALLOCATED(ri_data%kp_rho_ao_t)) THEN
+         DO j = 1, SIZE(ri_data%kp_rho_ao_t, 2)
+            DO i = 1, SIZE(ri_data%kp_rho_ao_t, 1)
+               CALL dbt_destroy(ri_data%kp_rho_ao_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%kp_t_3c_apc)
+         DEALLOCATE (ri_data%kp_rho_ao_t)
+      END IF
+
+      IF (ALLOCATED(ri_data%kp_ks_t)) THEN
+         DO j = 1, SIZE(ri_data%kp_ks_t, 2)
+            DO i = 1, SIZE(ri_data%kp_ks_t, 1)
+               CALL dbt_destroy(ri_data%kp_ks_t(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%kp_ks_t)
       END IF
 
       IF (ALLOCATED(ri_data%iatom_to_subgroup)) THEN

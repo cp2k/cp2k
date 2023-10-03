@@ -2,6 +2,6 @@ hBN_gapw_lsd.inp                                         11   1.0E-10           
 hBN_gpw_pbe0.inp                                         11   1.0E-10              -11.419680658874068
 LiH_gapw_pbex.inp                                        11   1.0E-10               -7.646121340276992
 LiH_gpw_none.inp                                         11   1.0E-10               -6.189964615449504
-diamond_admmp.inp                                        11   1.0E-10               -9.597066991103514
-diamond_admmq.inp                                        11   1.0E-10              -10.061483263107078
+diamond_admmp.inp                                        11   1.0E-10               -9.597066989878867
+diamond_admmq.inp                                        11   1.0E-10              -10.061483261353713
 diamond_admms.inp                                        11   1.0E-10              -79.262739163622967

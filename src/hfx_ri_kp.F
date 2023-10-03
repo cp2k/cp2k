@@ -46,7 +46,7 @@ MODULE hfx_ri_kp
         dbt_finalize, dbt_get_block, dbt_get_info, dbt_get_stored_coordinates, &
         dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &
         dbt_iterator_type, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
-        dbt_pgrid_type, dbt_put_block, dbt_type
+        dbt_pgrid_type, dbt_put_block, dbt_scale, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE hfx_ri,                          ONLY: get_idx_to_atom,&
@@ -127,15 +127,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief I_1nitialize the ri_data for K-point. For now, we take the normal, usual existing ri_data
 !>        and we adapt it to our needs
+!> \param dbcsr_template ...
 !> \param ri_data ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE adapt_ri_data_to_kp(ri_data, qs_env)
+   SUBROUTINE adapt_ri_data_to_kp(dbcsr_template, ri_data, qs_env)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_template
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: i_img, i_RI, iatom, natom, nblks_RI, &
-                                                            nimg, nkind
+      INTEGER                                            :: i_img, i_RI, i_spin, iatom, natom, &
+                                                            nblks_RI, nimg, nkind, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, dist1, dist2, dist3
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -181,28 +183,53 @@ CONTAINS
          bsizes_RI_ext((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = ri_data%bsizes_RI(:)
       END DO
 
-      ALLOCATE (ri_data%t_2c_inv(1, natom), ri_data%t_2c_int(1, natom))
+      ALLOCATE (ri_data%t_2c_inv(1, natom), ri_data%t_2c_int(1, natom), ri_data%t_2c_pot(1, natom))
       CALL create_2c_tensor(ri_data%t_2c_inv(1, 1), dist1, dist2, ri_data%pgrid_2d, &
                             bsizes_RI_ext, bsizes_RI_ext, &
                             name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
       CALL dbt_create(ri_data%t_2c_inv(1, 1), ri_data%t_2c_int(1, 1))
+      CALL dbt_create(ri_data%t_2c_inv(1, 1), ri_data%t_2c_pot(1, 1))
       DO iatom = 2, natom
          CALL dbt_create(ri_data%t_2c_inv(1, 1), ri_data%t_2c_inv(1, iatom))
          CALL dbt_create(ri_data%t_2c_inv(1, 1), ri_data%t_2c_int(1, iatom))
+         CALL dbt_create(ri_data%t_2c_inv(1, 1), ri_data%t_2c_pot(1, iatom))
       END DO
 
       ALLOCATE (ri_data%kp_cost(natom, natom, nimg))
       ri_data%kp_cost = 0.0_dp
 
+      !We store the density and KS matrix in tensor format
+      nspins = dft_control%nspins
+      ALLOCATE (ri_data%kp_rho_ao_t(nspins, nimg), ri_data%kp_ks_t(nspins, nimg))
+      CALL create_2c_tensor(ri_data%kp_rho_ao_t(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                            ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                            name="(AO | AO)")
+      DEALLOCATE (dist1, dist2)
+
+      CALL dbt_create(dbcsr_template, ri_data%kp_ks_t(1, 1))
+
+      IF (nspins == 2) THEN
+         CALL dbt_create(ri_data%kp_rho_ao_t(1, 1), ri_data%kp_rho_ao_t(2, 1))
+         CALL dbt_create(ri_data%kp_ks_t(1, 1), ri_data%kp_ks_t(2, 1))
+      END IF
+      DO i_img = 2, nimg
+         DO i_spin = 1, nspins
+            CALL dbt_create(ri_data%kp_rho_ao_t(1, 1), ri_data%kp_rho_ao_t(i_spin, i_img))
+            CALL dbt_create(ri_data%kp_ks_t(1, 1), ri_data%kp_ks_t(i_spin, i_img))
+         END DO
+      END DO
+
    END SUBROUTINE adapt_ri_data_to_kp
 
 ! **************************************************************************************************
 !> \brief The pre-scf steps for RI-HFX k-points calculation. Namely the calculation of the integrals
+!> \param dbcsr_template ...
 !> \param ri_data ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_ri_pre_scf_kp(ri_data, qs_env)
+   SUBROUTINE hfx_ri_pre_scf_kp(dbcsr_template, ri_data, qs_env)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_template
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -236,26 +263,25 @@ CONTAINS
       CALL hfx_ri_pre_scf_calc_tensors(qs_env, ri_data, t_2c_op_RI, t_2c_op_pot, t_3c_int, do_kpoints=.TRUE.)
 
       !Make sure the internals have the k-point format
-      CALL adapt_ri_data_to_kp(ri_data, qs_env)
-
-      !We want the integral in the (mu^0 | P^i sigma^j) format
-      DO i_img = 1, nimg
-         CALL dbt_copy(t_3c_int(1, i_img), ri_data%t_3c_int_ctr_1(1, i_img), order=[2, 1, 3], move_data=.TRUE.)
-         CALL dbt_destroy(t_3c_int(1, i_img))
-      END DO
-
-      !reorder the 3c integrals such that empty images are bunched up together
-      CALL reorder_3c_ints(ri_data%t_3c_int_ctr_1(1, :), ri_data)
+      CALL adapt_ri_data_to_kp(dbcsr_template, ri_data, qs_env)
 
       !For each atom i, we calculate the inverse RI metric (P^0 | Q^0)^-1 without external bumping yet
       !Also store the off-diagonal integrals of the RI metric in case of forces, bumped from the left
       DO iatom = 1, natom
          CALL get_ext_2c_int(ri_data%t_2c_inv(1, iatom), t_2c_op_RI, iatom, iatom, 1, ri_data, qs_env, &
                              do_inverse=.TRUE.)
-         !for the forces
+         !for the forces:
+         !off-diagonl RI metric bumped from the left
          CALL get_ext_2c_int(ri_data%t_2c_int(1, iatom), t_2c_op_RI, iatom, iatom, 1, ri_data, &
                              qs_env, off_diagonal=.TRUE.)
          CALL apply_bump(ri_data%t_2c_int(1, iatom), iatom, ri_data, qs_env, from_left=.TRUE., from_right=.FALSE.)
+
+         !RI metric with bumped off-diagonal blocks (but not inverted), depumed from left and right
+         CALL get_ext_2c_int(ri_data%t_2c_pot(1, iatom), t_2c_op_RI, iatom, iatom, 1, ri_data, qs_env, &
+                             do_inverse=.TRUE., skip_inverse=.TRUE.)
+         CALL apply_bump(ri_data%t_2c_pot(1, iatom), iatom, ri_data, qs_env, from_left=.TRUE., &
+                         from_right=.TRUE., debump=.TRUE.)
+
       END DO
 
       DO i_img = 1, nimg
@@ -268,6 +294,13 @@ CONTAINS
          CALL dbcsr_copy(ri_data%kp_mat_2c_pot(1, i_img), t_2c_op_pot(i_img))
          CALL dbcsr_release(t_2c_op_pot(i_img))
       END DO
+
+      !Pre-contract all 3c integrals with the bumped inverse RI metric (P^0|Q^0)^-1,
+      !and store in ri_data%t_3c_int_ctr_1
+      CALL precontract_3c_ints(t_3c_int, ri_data, qs_env)
+
+      !reorder the 3c integrals such that empty images are bunched up together
+      CALL reorder_3c_ints(ri_data%t_3c_int_ctr_1(1, :), ri_data)
 
       CALL timestop(handle)
 
@@ -305,15 +338,6 @@ CONTAINS
          DEALLOCATE (ri_data%kp_t_3c_int)
       END IF
 
-      IF (ALLOCATED(ri_data%kp_t_3c_apc)) THEN
-         DO j = 1, SIZE(ri_data%kp_t_3c_apc, 2)
-            DO i = 1, SIZE(ri_data%kp_t_3c_apc, 1)
-               CALL dbt_destroy(ri_data%kp_t_3c_apc(i, j))
-            END DO
-         END DO
-         DEALLOCATE (ri_data%kp_t_3c_apc)
-      END IF
-
       IF (ALLOCATED(ri_data%t_2c_inv)) THEN
          DO j = 1, SIZE(ri_data%t_2c_inv, 2)
             DO i = 1, SIZE(ri_data%t_2c_inv, 1)
@@ -330,6 +354,15 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (ri_data%t_2c_int)
+      END IF
+
+      IF (ALLOCATED(ri_data%t_2c_pot)) THEN
+         DO j = 1, SIZE(ri_data%t_2c_pot, 2)
+            DO i = 1, SIZE(ri_data%t_2c_pot, 1)
+               CALL dbt_destroy(ri_data%t_2c_pot(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%t_2c_pot)
       END IF
 
       IF (ALLOCATED(ri_data%t_3c_int_ctr_1)) THEN
@@ -350,6 +383,24 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
       END IF
 
+      IF (ALLOCATED(ri_data%kp_rho_ao_t)) THEN
+         DO j = 1, SIZE(ri_data%kp_rho_ao_t, 2)
+            DO i = 1, SIZE(ri_data%kp_rho_ao_t, 1)
+               CALL dbt_destroy(ri_data%kp_rho_ao_t(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%kp_rho_ao_t)
+      END IF
+
+      IF (ALLOCATED(ri_data%kp_ks_t)) THEN
+         DO j = 1, SIZE(ri_data%kp_ks_t, 2)
+            DO i = 1, SIZE(ri_data%kp_ks_t, 1)
+               CALL dbt_destroy(ri_data%kp_ks_t(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%kp_ks_t)
+      END IF
+
    END SUBROUTINE cleanup_kp
 
 ! **************************************************************************************************
@@ -362,11 +413,9 @@ CONTAINS
 !> \param geometry_did_change ...
 !> \param nspins ...
 !> \param hf_fraction ...
-!> \param calculate_forces If forces are to be calculated, some quantities are saved to avoid recomputation
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_update_ks_kp(qs_env, ri_data, ks_matrix, ehfx, rho_ao, &
-                                  geometry_did_change, nspins, hf_fraction, &
-                                  calculate_forces)
+                                  geometry_did_change, nspins, hf_fraction)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
@@ -376,32 +425,24 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: geometry_did_change
       INTEGER, INTENT(IN)                                :: nspins
       REAL(KIND=dp), INTENT(IN)                          :: hf_fraction
-      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_kp'
 
-      INTEGER :: apc_img, b_img, batch_size, group_size, handle, handle2, i_batch, i_img, i_spin, &
-         iatom, iblk, igroup, j_batch, jatom, mb_img, n_batch_img, n_batch_nze, natom, ngroups, &
-         nimg, nimg_nze
+      INTEGER :: b_img, batch_size, group_size, handle, handle2, i_batch, i_img, i_spin, iatom, &
+         iblk, igroup, jatom, mb_img, n_batch_nze, natom, ngroups, nimg, nimg_nze
       INTEGER(int_8)                                     :: nflop, nze
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_at, batch_ranges_img, &
-                                                            batch_ranges_nze, dist1, dist2, &
-                                                            idx_to_at_AO, int_indices
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ac_pairs, iapc_pairs
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_at, batch_ranges_nze, &
+                                                            idx_to_at_AO
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iapc_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: sparsity_pattern
-      LOGICAL                                            :: calc_f
       REAL(dp)                                           :: etmp, fac, occ, pref, t1, t2, t3, t4
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(dbcsr_type)                                   :: ks_desymm, rho_desymm, tmp
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_2c_pot
       TYPE(dbcsr_type), POINTER                          :: dbcsr_template
-      TYPE(dbt_type)                                     :: t_3c_tmp
-      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ints_stack, ks_t_split, res_stack, &
-                                                            rho_stack, t_2c_ao_tmp, t_2c_inv, &
-                                                            t_2c_work, t_3c_int, t_3c_work_2, &
-                                                            t_3c_work_3
-      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: ks_t, ks_t_sub, rho_ao_t, t_3c_apc, &
-                                                            t_3c_apc_sub
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ks_t_split, t_2c_ao_tmp, t_2c_work, &
+                                                            t_3c_int, t_3c_work_2, t_3c_work_3
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: ks_t, ks_t_sub, t_3c_apc, t_3c_apc_sub
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(section_vals_type), POINTER                   :: hfx_section
 
@@ -411,9 +452,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env, natom=natom)
 
-      calc_f = .FALSE.
-      IF (PRESENT(calculate_forces)) calc_f = calculate_forces
-
       IF (nspins == 1) THEN
          fac = 0.5_dp*hf_fraction
       ELSE
@@ -421,13 +459,14 @@ CONTAINS
       END IF
 
       IF (geometry_did_change) THEN
-         CALL hfx_ri_pre_scf_kp(ri_data, qs_env)
+         CALL hfx_ri_pre_scf_kp(ks_matrix(1, 1)%matrix, ri_data, qs_env)
       END IF
       nimg = ri_data%nimg
       nimg_nze = ri_data%nimg_nze
 
       !We need to calculate the KS matrix for each periodic cell with index b: F_mu^0,nu^b
       !F_mu^0,nu^b = -0.5 sum_a,c P_sigma^0,lambda^c (mu^0, sigma^a| P^0) V_P^0,Q^b (Q^b| nu^b lambda^a+c)
+      !with V_P^0,Q^b = (P^0|R^0)^-1 * (R^0|S^b) * (S^b|Q^b)^-1
 
       !We use a local RI basis set for each atom in the system, which inlcudes RI basis elements for
       !each neighboring atom standing within the KIND radius (decay of Gaussian with smallest exponent)
@@ -436,38 +475,32 @@ CONTAINS
       !RI basis, because if V_P^0,Q^b is zero everywhere, then image b can be ignored (RI basis less diffuse)
 
       !We manage to calculate each KS matrix doing a double loop on iamges, and a double loop on atoms
-      !First, we pre-contract and store P_sigma^0,lambda^c (mu^0, sigma^a| P^0) into T_mu^0,lambda^a+c,P^0
-      !Then, we loop over b_img, iatom, jatom to calculate V_P^0,Q^b
-      !Finally, we do an additional loop over a+c images where we do V_P^0,Q^b (Q^b| nu^b lambda^a+c)
+      !First, we pre-contract and store P_sigma^0,lambda^c (mu^0, sigma^a| P^0) (P^0|R^0)^-1 into T_mu^0,lambda^a+c,P^0
+      !Then, we loop over b_img, iatom, jatom to get (R^0|S^b)
+      !Finally, we do an additional loop over a+c images where we do (R^0|S^b) (S^b|Q^b)^-1 (Q^b| nu^b lambda^a+c)
       !and the final contraction with T_mu^0,lambda^a+c,P^0
 
-      ALLOCATE (rho_ao_t(nspins, nimg), ks_t(nspins, nimg))
-      CALL create_2c_tensor(rho_ao_t(1, 1), dist1, dist2, ri_data%pgrid_2d, &
-                            ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                            name="(AO | AO)")
-      DEALLOCATE (dist1, dist2)
-      CALL dbt_create(ks_matrix(1, 1)%matrix, ks_t(1, 1))
+      !Note that the 3-center integrals are pre-contracted with the RI metric, and that the same tensor can be used
+      !(mu^0, sigma^a| P^0) (P^0|R^0)  <===> (S^b|Q^b)^-1 (Q^b| nu^b lambda^a+c) by relabelling the images
 
-      IF (nspins == 2) THEN
-         CALL dbt_create(rho_ao_t(1, 1), rho_ao_t(2, 1))
-         CALL dbt_create(ks_t(1, 1), ks_t(2, 1))
-      END IF
-      DO i_img = 2, nimg
+      !Build the density tensor based on the difference of this SCF P and that of the prev. SCF
+      CALL get_pmat_images(ri_data%kp_rho_ao_t, rho_ao, -1.0_dp, ri_data, qs_env)
+
+      ALLOCATE (ks_t(nspins, nimg))
+      DO i_img = 1, nimg
          DO i_spin = 1, nspins
-            CALL dbt_create(rho_ao_t(1, 1), rho_ao_t(i_spin, i_img))
-            CALL dbt_create(ks_t(1, 1), ks_t(i_spin, i_img))
+            CALL dbt_create(ri_data%kp_ks_t(1, 1), ks_t(i_spin, i_img))
          END DO
       END DO
-      CALL get_pmat_images(rho_ao_t, rho_ao, ri_data, qs_env)
 
       ALLOCATE (idx_to_at_AO(SIZE(ri_data%bsizes_AO_split)))
       CALL get_idx_to_atom(idx_to_at_AO, ri_data%bsizes_AO_split, ri_data%bsizes_AO)
 
-      !First we calculate and store T^1_mu^0,lambda^a+c,P = P_mu^0,lambda^c * (mu_0 sigma^a | P)
+      !First we calculate and store T^1_mu^0,lambda^a+c,P = P_mu^0,lambda^c * (mu_0 sigma^a | P^0) (P^0|R^0)^-1
       !To avoid doing nimg**2 tiny contractions that do not scale well with a large number of CPUs,
       !we instead do a single loop over the a+c image index. For each a+c, we get a list of allowed
       !combination of a,c indices. Then we build TAS tensors P_mu^0,lambda^c with all concerned c's
-      !and (mu^0 sigma^a | P) with all a's. Then we perform a single contraction with larger tensors,
+      !and (mu^0 sigma^a | P^0)*(P^0|R^0)^-1 with all a's. Then we perform a single contraction with larger tensors,
       !were the sum over a,c is automatically taken care of
       ALLOCATE (t_3c_apc(nspins, nimg))
       DO i_img = 1, nimg
@@ -475,91 +508,7 @@ CONTAINS
             CALL dbt_create(ri_data%t_3c_int_ctr_2(1, 1), t_3c_apc(i_spin, i_img))
          END DO
       END DO
-      CALL dbt_create(ri_data%t_3c_int_ctr_1(1, 1), t_3c_tmp)
-      t1 = m_walltime()
-      CALL timeset(routineN//"_3c_1", handle2)
-
-      batch_size = nimg/ri_data%n_mem
-
-      !batching over all images
-      n_batch_img = nimg/batch_size
-      IF (MODULO(nimg, batch_size) .NE. 0) n_batch_img = n_batch_img + 1
-      ALLOCATE (batch_ranges_img(n_batch_img + 1))
-      DO i_batch = 1, n_batch_img
-         batch_ranges_img(i_batch) = (i_batch - 1)*batch_size + 1
-      END DO
-      batch_ranges_img(n_batch_img + 1) = nimg + 1
-
-      !batching over images with non-zero 3c integrals
-      n_batch_nze = nimg_nze/batch_size
-      IF (MODULO(nimg_nze, batch_size) .NE. 0) n_batch_nze = n_batch_nze + 1
-      ALLOCATE (batch_ranges_nze(n_batch_nze + 1))
-      DO i_batch = 1, n_batch_nze
-         batch_ranges_nze(i_batch) = (i_batch - 1)*batch_size + 1
-      END DO
-      batch_ranges_nze(n_batch_nze + 1) = nimg_nze + 1
-
-      !Create the stack tensors in the approriate distribution
-      ALLOCATE (rho_stack(2), ints_stack(2), res_stack(2))
-      CALL get_stack_tensors(res_stack, rho_stack, ints_stack, rho_ao_t(1, 1), &
-                             ri_data%t_3c_int_ctr_1(1, 1), batch_size, ri_data, qs_env)
-
-      ALLOCATE (ac_pairs(nimg, 2), int_indices(nimg_nze))
-      DO i_img = 1, nimg_nze
-         int_indices(i_img) = i_img
-      END DO
-
-      DO j_batch = 1, n_batch_nze
-         !First batch is over the integrals. They are always in the same order, consistent with get_ac_pairs
-         CALL fill_3c_stack(ints_stack(1), ri_data%t_3c_int_ctr_1(1, :), int_indices, 3, ri_data, &
-                            img_bounds=[batch_ranges_nze(j_batch), batch_ranges_nze(j_batch + 1)])
-         CALL dbt_copy(ints_stack(1), ints_stack(2), move_data=.TRUE.)
-
-         DO i_spin = 1, nspins
-            DO i_batch = 1, n_batch_img
-               !Second batch is over the P matrix. Here we fill the stacked rho tensors col by col
-               DO apc_img = batch_ranges_img(i_batch), batch_ranges_img(i_batch + 1) - 1
-                  CALL get_ac_pairs(ac_pairs, apc_img, ri_data, qs_env)
-                  CALL fill_2c_stack(rho_stack(1), rho_ao_t(i_spin, :), ac_pairs(:, 2), 1, ri_data, &
-                                     img_bounds=[batch_ranges_nze(j_batch), batch_ranges_nze(j_batch + 1)], &
-                                     shift=apc_img - batch_ranges_img(i_batch) + 1)
-
-               END DO !apc_img
-               CALL get_tensor_occupancy(rho_stack(1), nze, occ)
-               IF (nze == 0) CYCLE
-               CALL dbt_copy(rho_stack(1), rho_stack(2), move_data=.TRUE.)
-
-               !The actual contraction
-               CALL dbt_batched_contract_init(rho_stack(2))
-               CALL dbt_contract(1.0_dp, ints_stack(2), rho_stack(2), &
-                                 0.0_dp, res_stack(2), map_1=[1, 2], map_2=[3], &
-                                 contract_1=[3], notcontract_1=[1, 2], &
-                                 contract_2=[1], notcontract_2=[2], &
-                                 filter_eps=ri_data%filter_eps, flop=nflop)
-               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-               CALL dbt_batched_contract_finalize(rho_stack(2))
-               CALL dbt_copy(res_stack(2), res_stack(1), move_data=.TRUE.)
-
-               DO apc_img = batch_ranges_img(i_batch), batch_ranges_img(i_batch + 1) - 1
-                  !Destack the resulting tensor and put it in t_3c_apc with correct apc_img
-                  CALL unstack_t_3c_apc(t_3c_tmp, res_stack(1), apc_img - batch_ranges_img(i_batch) + 1)
-                  CALL dbt_copy(t_3c_tmp, t_3c_apc(i_spin, apc_img), summation=.TRUE., move_data=.TRUE.)
-               END DO
-
-            END DO !i_batch
-         END DO !i_spin
-      END DO !j_batch
-      DEALLOCATE (batch_ranges_img)
-      DEALLOCATE (batch_ranges_nze)
-
-      CALL dbt_destroy(rho_stack(1))
-      CALL dbt_destroy(rho_stack(2))
-      CALL dbt_destroy(ints_stack(1))
-      CALL dbt_destroy(ints_stack(2))
-      CALL dbt_destroy(res_stack(1))
-      CALL dbt_destroy(res_stack(2))
-      CALL dbt_destroy(t_3c_tmp)
-      CALL timestop(handle2)
+      CALL contract_pmat_3c(t_3c_apc, ri_data%kp_rho_ao_t, ri_data, qs_env)
 
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
       CALL section_vals_val_get(hfx_section, "KP_NGROUPS", i_val=ngroups)
@@ -588,9 +537,8 @@ CONTAINS
       CALL get_sub_dist(sparsity_pattern, ngroups, ri_data)
 
       !Get all the required tensors in the subgroups
-      ALLOCATE (t_2c_inv(natom), mat_2c_pot(nimg), ks_t_sub(nspins, nimg), t_2c_ao_tmp(1), &
-                ks_t_split(2), t_2c_work(3))
-      CALL get_subgroup_2c_tensors(t_2c_inv, mat_2c_pot, t_2c_work, t_2c_ao_tmp, ks_t_split, ks_t_sub, &
+      ALLOCATE (mat_2c_pot(nimg), ks_t_sub(nspins, nimg), t_2c_ao_tmp(1), ks_t_split(2), t_2c_work(3))
+      CALL get_subgroup_2c_tensors(mat_2c_pot, t_2c_work, t_2c_ao_tmp, ks_t_split, ks_t_sub, &
                                    group_size, ngroups, para_env, para_env_sub, ri_data)
 
       ALLOCATE (t_3c_int(nimg), t_3c_apc_sub(nspins, nimg), t_3c_work_2(3), t_3c_work_3(3))
@@ -622,11 +570,7 @@ CONTAINS
       CALL dbt_batched_contract_init(t_3c_work_2(1), batch_range_1=batch_ranges_at)
       CALL dbt_batched_contract_init(t_3c_work_2(2), batch_range_1=batch_ranges_at)
 
-      !Applying the external bump to ((P|Q)_D + B*(P|Q)_OD*B)^-1 from left and right
-      DO iatom = 1, natom
-         CALL apply_bump(t_2c_inv(iatom), iatom, ri_data, qs_env, from_left=.TRUE., from_right=.TRUE.)
-      END DO
-
+      t1 = m_walltime()
       ri_data%kp_cost(:, :, :) = 0.0_dp
       ALLOCATE (iapc_pairs(nimg, 2))
       DO b_img = 1, nimg
@@ -641,39 +585,27 @@ CONTAINS
                !measure the cost of the given i, j, b configuration
                t3 = m_walltime()
 
-               !Get the proper HFX potential 2c integrals (P_i^0|Q_j^b), and multply by RI metric
+               !Get the proper HFX potential 2c integrals (R_i^0|S_j^b)
                CALL timeset(routineN//"_2c", handle2)
                CALL get_ext_2c_int(t_2c_work(1), mat_2c_pot, iatom, jatom, b_img, ri_data, qs_env, &
                                    blacs_env_ext=blacs_env_sub, para_env_ext=para_env_sub, &
                                    dbcsr_template=dbcsr_template)
-               CALL dbt_contract(1.0_dp, t_2c_work(1), t_2c_inv(jatom), &
-                                 0.0_dp, t_2c_work(2), map_1=[1], map_2=[2], &
-                                 contract_1=[2], notcontract_1=[1], &
-                                 contract_2=[1], notcontract_2=[2], &
-                                 filter_eps=ri_data%filter_eps, flop=nflop)
-               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-               CALL dbt_contract(1.0_dp, t_2c_inv(iatom), t_2c_work(2), &
-                                 0.0_dp, t_2c_work(1), map_1=[1], map_2=[2], &
-                                 contract_1=[2], notcontract_1=[1], &
-                                 contract_2=[1], notcontract_2=[2], &
-                                 filter_eps=ri_data%filter_eps, flop=nflop)
-               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-               CALL dbt_copy(t_2c_work(1), t_2c_work(3), move_data=.TRUE.) !move to split blocks
-               CALL dbt_filter(t_2c_work(3), ri_data%filter_eps)
+               CALL dbt_copy(t_2c_work(1), t_2c_work(2), move_data=.TRUE.) !move to split blocks
+               CALL dbt_filter(t_2c_work(2), ri_data%filter_eps)
                CALL timestop(handle2)
 
-               CALL dbt_batched_contract_init(t_2c_work(3))
+               CALL dbt_batched_contract_init(t_2c_work(2))
                CALL get_iapc_pairs(iapc_pairs, b_img, ri_data, qs_env)
-               CALL timeset(routineN//"_3c_2", handle2)
+               CALL timeset(routineN//"_3c", handle2)
 
-               !Stack the (Q^b| nu^b lambda^a+c) integrals over a+c and multiply by V_PQ
+               !Stack the (S^b|Q^b)^-1 * (Q^b| nu^b lambda^a+c) integrals over a+c and multiply by (R_i^0|S_j^b)
                DO i_batch = 1, n_batch_nze
                   CALL fill_3c_stack(t_3c_work_3(3), t_3c_int, iapc_pairs(:, 1), 3, ri_data, &
                                      filter_at=jatom, filter_dim=2, idx_to_at=idx_to_at_AO, &
                                      img_bounds=[batch_ranges_nze(i_batch), batch_ranges_nze(i_batch + 1)])
                   CALL dbt_copy(t_3c_work_3(3), t_3c_work_3(1), move_data=.TRUE.)
 
-                  CALL dbt_contract(1.0_dp, t_2c_work(3), t_3c_work_3(1), &
+                  CALL dbt_contract(1.0_dp, t_2c_work(2), t_3c_work_3(1), &
                                     0.0_dp, t_3c_work_3(2), map_1=[1], map_2=[2, 3], &
                                     contract_1=[2], notcontract_1=[1], &
                                     contract_2=[1], notcontract_2=[2, 3], &
@@ -682,7 +614,7 @@ CONTAINS
                   CALL dbt_copy(t_3c_work_3(2), t_3c_work_2(2), order=[2, 1, 3], move_data=.TRUE.)
                   CALL dbt_copy(t_3c_work_3(3), t_3c_work_3(1))
 
-                  !Stack the P_sigma^a,lambda^a+c * (mu^0 sigma^a | P) integrals over a+c and contract
+                  !Stack the P_sigma^a,lambda^a+c * (mu^0 sigma^a | P^0)*(P^0|R^0)^-1 integrals over a+c and contract
                   !to get the final block of the KS matrix
                   DO i_spin = 1, nspins
                      CALL fill_3c_stack(t_3c_work_2(3), t_3c_apc_sub(i_spin, :), iapc_pairs(:, 2), 3, &
@@ -701,7 +633,7 @@ CONTAINS
                   END DO
                END DO !i_batch
                CALL timestop(handle2)
-               CALL dbt_batched_contract_finalize(t_2c_work(3))
+               CALL dbt_batched_contract_finalize(t_2c_work(2))
 
                t4 = m_walltime()
                ri_data%kp_cost(iatom, jatom, b_img) = t4 - t3
@@ -732,22 +664,6 @@ CONTAINS
       DO i_img = 1, nimg
          CALL dbt_copy(t_3c_int(i_img), ri_data%kp_t_3c_int(i_img), move_data=.TRUE.)
       END DO
-      !If forces are to be calculated, then we keep t_3c_apc on the subgroups too
-      IF (calc_f) THEN
-         IF (.NOT. ALLOCATED(ri_data%kp_t_3c_apc)) THEN
-            ALLOCATE (ri_data%kp_t_3c_apc(nspins, nimg))
-            DO i_img = 1, nimg
-               DO i_spin = 1, nspins
-                  CALL dbt_create(t_3c_apc_sub(i_spin, i_img), ri_data%kp_t_3c_apc(i_spin, i_img))
-               END DO
-            END DO
-         END IF
-         DO i_img = 1, nimg
-            DO i_spin = 1, nspins
-               CALL dbt_copy(t_3c_apc_sub(i_spin, i_img), ri_data%kp_t_3c_apc(i_spin, i_img), move_data=.TRUE.)
-            END DO
-         END DO
-      END IF
 
       !clean-up subgroup tensors
       CALL dbt_destroy(t_2c_ao_tmp(1))
@@ -755,7 +671,6 @@ CONTAINS
       CALL dbt_destroy(ks_t_split(2))
       CALL dbt_destroy(t_2c_work(1))
       CALL dbt_destroy(t_2c_work(2))
-      CALL dbt_destroy(t_2c_work(3))
       CALL dbt_destroy(t_3c_work_2(1))
       CALL dbt_destroy(t_3c_work_2(2))
       CALL dbt_destroy(t_3c_work_2(3))
@@ -770,10 +685,6 @@ CONTAINS
             CALL dbt_destroy(ks_t_sub(i_spin, i_img))
          END DO
       END DO
-      DO iatom = 1, natom
-         CALL dbt_destroy(t_2c_inv(iatom))
-      END DO
-      DEALLOCATE (t_2c_ao_tmp)
       IF (ASSOCIATED(dbcsr_template)) THEN
          CALL dbcsr_release(dbcsr_template)
          DEALLOCATE (dbcsr_template)
@@ -784,37 +695,42 @@ CONTAINS
       CALL para_env_sub%free()
       DEALLOCATE (para_env_sub)
 
-      !symmetrize the KS matrices
-      ALLOCATE (t_2c_ao_tmp(nimg))
+      !Currently, rho_ao_t holds the density difference (wrt to pref SCF step).
+      !ks_t also hold that diff, while only having half the blocks => need to add to prev ks_t and symmetrize
+      !We need the full thing for the energy, on the next SCF step
+      CALL get_pmat_images(ri_data%kp_rho_ao_t, rho_ao, 0.0_dp, ri_data, qs_env)
       DO i_spin = 1, nspins
          DO b_img = 1, nimg
-            CALL dbt_create(ks_t(1, 1), t_2c_ao_tmp(b_img))
-            CALL dbt_copy(ks_t(i_spin, b_img), t_2c_ao_tmp(b_img))
-         END DO
-         DO b_img = 1, nimg
+            CALL dbt_copy(ks_t(i_spin, b_img), ri_data%kp_ks_t(i_spin, b_img), summation=.TRUE.)
+
+            !desymmetrize
             mb_img = get_opp_index(b_img, qs_env)
             IF (mb_img > 0 .AND. mb_img .LE. nimg) THEN
-               CALL dbt_copy(t_2c_ao_tmp(b_img), ks_t(i_spin, mb_img), order=[2, 1], summation=.TRUE.)
+               CALL dbt_copy(ks_t(i_spin, mb_img), ri_data%kp_ks_t(i_spin, b_img), order=[2, 1], summation=.TRUE.)
             END IF
-            CALL dbt_destroy(t_2c_ao_tmp(b_img))
+         END DO
+      END DO
+      DO b_img = 1, nimg
+         DO i_spin = 1, nspins
+            CALL dbt_destroy(ks_t(i_spin, b_img))
          END DO
       END DO
 
       !calculate the energy
-      CALL dbt_create(ks_t(1, 1), t_2c_ao_tmp(1))
+      CALL dbt_create(ri_data%kp_ks_t(1, 1), t_2c_ao_tmp(1))
       CALL dbcsr_create(tmp, template=ks_matrix(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_create(ks_desymm, template=ks_matrix(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(rho_desymm, template=ks_matrix(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       ehfx = 0.0_dp
       DO i_img = 1, nimg
          DO i_spin = 1, nspins
-            CALL dbt_filter(ks_t(i_spin, i_img), ri_data%filter_eps)
-            CALL dbt_copy(ks_t(i_spin, i_img), t_2c_ao_tmp(1))
+            CALL dbt_filter(ri_data%kp_ks_t(i_spin, i_img), ri_data%filter_eps)
+            CALL dbt_copy(ri_data%kp_ks_t(i_spin, i_img), t_2c_ao_tmp(1))
             CALL dbt_copy_tensor_to_matrix(t_2c_ao_tmp(1), ks_desymm)
             CALL dbt_copy_tensor_to_matrix(t_2c_ao_tmp(1), tmp)
             CALL dbcsr_add(ks_matrix(i_spin, i_img)%matrix, tmp, 1.0_dp, 1.0_dp)
 
-            CALL dbt_copy(rho_ao_t(i_spin, i_img), t_2c_ao_tmp(1))
+            CALL dbt_copy(ri_data%kp_rho_ao_t(i_spin, i_img), t_2c_ao_tmp(1))
             CALL dbt_copy_tensor_to_matrix(t_2c_ao_tmp(1), rho_desymm)
 
             CALL dbcsr_dot(ks_desymm, rho_desymm, etmp)
@@ -824,14 +740,7 @@ CONTAINS
       CALL dbcsr_release(rho_desymm)
       CALL dbcsr_release(ks_desymm)
       CALL dbcsr_release(tmp)
-
       CALL dbt_destroy(t_2c_ao_tmp(1))
-      DO i_img = 1, nimg
-         DO i_spin = 1, nspins
-            CALL dbt_destroy(rho_ao_t(i_spin, i_img))
-            CALL dbt_destroy(ks_t(i_spin, i_img))
-         END DO
-      END DO
 
       CALL timestop(handle)
 
@@ -880,10 +789,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: dbcsr_template
       TYPE(dbt_type)                                     :: t_2c_R, t_2c_R_split
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_2c_bint, t_2c_binv, t_2c_der_pot, &
-                                                            t_2c_inv, t_2c_work, t_3c_der_stack, &
-                                                            t_3c_work_2, t_3c_work_3
+                                                            t_2c_inv, t_2c_metric, t_2c_work, &
+                                                            t_3c_der_stack, t_3c_work_2, &
+                                                            t_3c_work_3
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :) :: rho_ao_t, rho_ao_t_sub, t_2c_der_metric, &
-         t_2c_der_metric_sub, t_3c_der_AO, t_3c_der_AO_sub, t_3c_der_RI, t_3c_der_RI_sub
+         t_2c_der_metric_sub, t_3c_apc, t_3c_apc_sub, t_3c_der_AO, t_3c_der_AO_sub, t_3c_der_RI, &
+         t_3c_der_RI_sub
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -918,7 +829,7 @@ CONTAINS
       ALLOCATE (t_3c_der_RI(nimg, 3), t_3c_der_AO(nimg, 3), mat_der_pot(nimg, 3), t_2c_der_metric(natom, 3))
 
       !We assume that the integrals are available from the SCF
-      !pre-calculate the derivs. 3c tensors as (P^0| sigma^a mu^0), with t_3c_der_AO holding deric wrt mu^0
+      !pre-calculate the derivs. 3c tensors as (P^0| sigma^a mu^0), with t_3c_der_AO holding deriv wrt mu^0
       CALL precalc_derivatives(t_3c_der_RI, t_3c_der_AO, mat_der_pot, t_2c_der_metric, ri_data, qs_env)
 
       !Calculate the density matrix at each image
@@ -933,7 +844,16 @@ CONTAINS
             CALL dbt_create(rho_ao_t(1, 1), rho_ao_t(i_spin, i_img))
          END DO
       END DO
-      CALL get_pmat_images(rho_ao_t, rho_ao, ri_data, qs_env)
+      CALL get_pmat_images(rho_ao_t, rho_ao, 0.0_dp, ri_data, qs_env)
+
+      !Contract integrals with the density matrix
+      ALLOCATE (t_3c_apc(nspins, nimg))
+      DO i_img = 1, nimg
+         DO i_spin = 1, nspins
+            CALL dbt_create(ri_data%t_3c_int_ctr_2(1, 1), t_3c_apc(i_spin, i_img))
+         END DO
+      END DO
+      CALL contract_pmat_3c(t_3c_apc, rho_ao_t, ri_data, qs_env)
 
       !Setup the subgroups
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
@@ -952,10 +872,11 @@ CONTAINS
 
       !Get the 2-center quantities in the subgroups (note: main group derivs are deleted wihtin)
       ALLOCATE (t_2c_inv(natom), mat_2c_pot(nimg), rho_ao_t_sub(nspins, nimg), t_2c_work(5), &
-                t_2c_der_metric_sub(natom, 3), mat_der_pot_sub(nimg, 3), t_2c_bint(natom))
-      CALL get_subgroup_2c_derivs(t_2c_inv, t_2c_bint, mat_2c_pot, t_2c_work, rho_ao_t, rho_ao_t_sub, &
-                                  t_2c_der_metric, t_2c_der_metric_sub, mat_der_pot, mat_der_pot_sub, &
-                                  group_size, ngroups, para_env, para_env_sub, ri_data)
+                t_2c_der_metric_sub(natom, 3), mat_der_pot_sub(nimg, 3), t_2c_bint(natom), &
+                t_2c_metric(natom), t_2c_binv(natom))
+      CALL get_subgroup_2c_derivs(t_2c_inv, t_2c_bint, t_2c_metric, mat_2c_pot, t_2c_work, rho_ao_t, &
+                                  rho_ao_t_sub, t_2c_der_metric, t_2c_der_metric_sub, mat_der_pot, &
+                                  mat_der_pot_sub, group_size, ngroups, para_env, para_env_sub, ri_data)
       CALL dbt_create(t_2c_work(1), t_2c_R) !nRI x nRI
       CALL dbt_create(t_2c_work(5), t_2c_R_split) !nRI x nRI with split blocks
 
@@ -965,10 +886,12 @@ CONTAINS
       END DO
 
       !Get the 3-center quantities in the subgroups. The integrals and t_3c_apc already there
-      ALLOCATE (t_3c_work_2(3), t_3c_work_3(4), t_3c_der_stack(6), t_3c_der_AO_sub(nimg, 3), t_3c_der_RI_sub(nimg, 3))
+      !TODO: also distribute the t_3c_apc tensors
+      ALLOCATE (t_3c_work_2(3), t_3c_work_3(4), t_3c_der_stack(6), t_3c_der_AO_sub(nimg, 3), &
+                t_3c_der_RI_sub(nimg, 3), t_3c_apc_sub(nspins, nimg))
       CALL get_subgroup_3c_derivs(t_3c_work_2, t_3c_work_3, t_3c_der_AO, t_3c_der_AO_sub, &
-                                  t_3c_der_RI, t_3c_der_RI_sub, t_3c_der_stack, group_size, ngroups, &
-                                  para_env, para_env_sub, ri_data)
+                                  t_3c_der_RI, t_3c_der_RI_sub, t_3c_apc, t_3c_apc_sub, t_3c_der_stack, &
+                                  group_size, ngroups, para_env, para_env_sub, ri_data)
 
       !Set up batched contraction (go atom by atom)
       ALLOCATE (batch_ranges_at(natom + 1))
@@ -1000,7 +923,6 @@ CONTAINS
 
       !Applying the external bump to ((P|Q)_D + B*(P|Q)_OD*B)^-1 from left and right
       !And keep the bump on LHS only version as well, with B*M^-1 = (M^-1*B)^T
-      ALLOCATE (t_2c_binv(natom))
       DO iatom = 1, natom
          CALL dbt_create(t_2c_inv(iatom), t_2c_binv(iatom))
          CALL dbt_copy(t_2c_inv(iatom), t_2c_binv(iatom))
@@ -1024,7 +946,7 @@ CONTAINS
                   IF (i_loop == 1 .AND. (.NOT. sparsity_pattern(iatom, jatom, b_img) == igroup)) CYCLE
                   IF (i_loop == 2 .AND. (.NOT. force_pattern(iatom, jatom, b_img) == igroup)) CYCLE
 
-                  !Get the proper HFX potential 2c integrals (P_i^0|Q_j^b), and multply by RI metric
+                  !Get the proper HFX potential 2c integrals (R_i^0|S_j^b), times (S_j^b|Q_j^b)^-1
                   CALL timeset(routineN//"_2c_1", handle2)
                   CALL get_ext_2c_int(t_2c_work(1), mat_2c_pot, iatom, jatom, b_img, ri_data, qs_env, &
                                       blacs_env_ext=blacs_env_sub, para_env_ext=para_env_sub, &
@@ -1034,14 +956,7 @@ CONTAINS
                                     contract_1=[2], notcontract_1=[1], &
                                     contract_2=[1], notcontract_2=[2], &
                                     filter_eps=ri_data%filter_eps, flop=nflop)
-                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                  CALL dbt_contract(1.0_dp, t_2c_inv(iatom), t_2c_work(2), &
-                                    0.0_dp, t_2c_work(1), map_1=[1], map_2=[2], &
-                                    contract_1=[2], notcontract_1=[1], &
-                                    contract_2=[1], notcontract_2=[2], &
-                                    filter_eps=ri_data%filter_eps, flop=nflop)
-                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                  CALL dbt_copy(t_2c_work(1), t_2c_work(5), move_data=.TRUE.) !move to split blocks
+                  CALL dbt_copy(t_2c_work(2), t_2c_work(5), move_data=.TRUE.) !move to split blocks
                   CALL dbt_filter(t_2c_work(5), ri_data%filter_eps)
                   CALL timestop(handle2)
 
@@ -1076,7 +991,7 @@ CONTAINS
                      DO i_spin = 1, nspins
                         !stack the t_3c_apc tensors
                         CALL dbt_clear(t_3c_work_2(3))
-                        CALL fill_3c_stack(t_3c_work_2(3), ri_data%kp_t_3c_apc(i_spin, :), iapc_pairs(:, 2), 3, &
+                        CALL fill_3c_stack(t_3c_work_2(3), t_3c_apc_sub(i_spin, :), iapc_pairs(:, 2), 3, &
                                            ri_data, filter_at=iatom, filter_dim=1, idx_to_at=idx_to_at_AO, &
                                            img_bounds=[batch_ranges_nze(i_batch), batch_ranges_nze(i_batch + 1)])
                         CALL get_tensor_occupancy(t_3c_work_2(3), nze, occ)
@@ -1084,7 +999,7 @@ CONTAINS
                         CALL dbt_copy(t_3c_work_2(3), t_3c_work_2(1), move_data=.TRUE.)
 
                         !Contract with the second density matrix: P_mu^0,nu^b * t_3c_apc,
-                        !where t_3c_apc = P_sigma^a,lambda^a+c (mu^0 P^0 sigma^a) (stacked along a+c)
+                        !where t_3c_apc = P_sigma^a,lambda^a+c (mu^0 P^0 sigma^a) *(P^0|R^0)^-1 (stacked along a+c)
                         CALL dbt_contract(1.0_dp, rho_ao_t_sub(i_spin, b_img), t_3c_work_2(1), &
                                           0.0_dp, t_3c_work_2(2), map_1=[1], map_2=[2, 3], &
                                           contract_1=[1], notcontract_1=[2], &
@@ -1123,7 +1038,7 @@ CONTAINS
                         CALL dbt_clear(t_3c_work_3(4))
 
                         !Contract with the 3-center integrals in order to have a matrix R_PQ such that
-                        !we can take the trace sum_PQ R_PQ V_PQ^(x)
+                        !we can take the trace sum_PQ R_PQ (P^0|Q^b)^(x)
                         IF (i_loop == 2) CYCLE
 
                         !Stack the 3c integrals
@@ -1155,6 +1070,7 @@ CONTAINS
                   CALL timeset(routineN//"_2c_2", handle2)
                   !Note that the derivatives are in atomic block format (not split)
                   CALL dbt_copy(t_2c_R_split, t_2c_R, move_data=.TRUE.)
+
                   CALL get_ext_2c_int(t_2c_work(1), mat_2c_pot, iatom, jatom, b_img, ri_data, qs_env, &
                                       blacs_env_ext=blacs_env_sub, para_env_ext=para_env_sub, &
                                       dbcsr_template=dbcsr_template)
@@ -1163,20 +1079,10 @@ CONTAINS
                   !                      + R_PQ * S^-1(jat) * pot^T      to trace with S^(x) (iat)
                   !                      + pot^T * S^-1(iat) *R_PQ       to trace with S^(x) (jat)
 
-                  !S^-1(iat) * R_PQ * S^-1(jat)
-                  CALL dbt_contract(1.0_dp, t_2c_R, t_2c_inv(jatom), &
-                                    0.0_dp, t_2c_work(2), map_1=[1], map_2=[2], &
-                                    contract_1=[2], notcontract_1=[1], &
-                                    contract_2=[1], notcontract_2=[2], &
-                                    filter_eps=ri_data%filter_eps, flop=nflop)
-                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-
-                  CALL dbt_contract(1.0_dp, t_2c_inv(iatom), t_2c_work(2), &
-                                    0.0_dp, t_2c_work(3), map_1=[1], map_2=[2], &
-                                    contract_1=[2], notcontract_1=[1], &
-                                    contract_2=[1], notcontract_2=[2], &
-                                    filter_eps=ri_data%filter_eps, flop=nflop)
-                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                  !Because 3c tensors are all precontracted with the inverse RI metric,
+                  !t_2c_R is currently implicitely multiplied by S^-1(iat) from the left
+                  !and S^-1(jat) from the right, directly in the proper format for the trace
+                  !with the HFX potential derivative
 
                   !Trace with HFX pot deriv, that we need to build first
                   DO i_xyz = 1, 3
@@ -1186,10 +1092,10 @@ CONTAINS
                   END DO
 
                   IF (use_virial_prv) THEN
-                     CALL get_2c_der_force(force, t_2c_work(3), t_2c_der_pot, atom_of_kind, kind_of, &
+                     CALL get_2c_der_force(force, t_2c_R, t_2c_der_pot, atom_of_kind, kind_of, &
                                            b_img, pref, ri_data, qs_env, work_virial, cell, particle_set)
                   ELSE
-                     CALL get_2c_der_force(force, t_2c_work(3), t_2c_der_pot, atom_of_kind, kind_of, &
+                     CALL get_2c_der_force(force, t_2c_R, t_2c_der_pot, atom_of_kind, kind_of, &
                                            b_img, pref, ri_data, qs_env)
                   END IF
 
@@ -1198,6 +1104,12 @@ CONTAINS
                   END DO
 
                   !R_PQ * S^-1(jat) * pot^T  (=A)
+                  CALL dbt_contract(1.0_dp, t_2c_metric(iatom), t_2c_R, & !get rid of implicit S^-1(iat)
+                                    0.0_dp, t_2c_work(2), map_1=[1], map_2=[2], &
+                                    contract_1=[2], notcontract_1=[1], &
+                                    contract_2=[1], notcontract_2=[2], &
+                                    filter_eps=ri_data%filter_eps, flop=nflop)
+                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                   CALL dbt_contract(1.0_dp, t_2c_work(2), t_2c_work(1), &
                                     0.0_dp, t_2c_work(3), map_1=[1], map_2=[2], &
                                     contract_1=[2], notcontract_1=[1], &
@@ -1275,14 +1187,14 @@ CONTAINS
                                           ri_data, qs_env, work_virial)
 
                   ! pot^T * S^-1(iat) * R_PQ (=A)
-                  CALL dbt_contract(1.0_dp, t_2c_work(1), t_2c_inv(iatom), &
+                  CALL dbt_contract(1.0_dp, t_2c_work(1), t_2c_R, &
                                     0.0_dp, t_2c_work(2), map_1=[1], map_2=[2], &
                                     contract_1=[1], notcontract_1=[2], &
                                     contract_2=[1], notcontract_2=[2], &
                                     filter_eps=ri_data%filter_eps, flop=nflop)
                   ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
-                  CALL dbt_contract(1.0_dp, t_2c_work(2), t_2c_R, &
+                  CALL dbt_contract(1.0_dp, t_2c_work(2), t_2c_metric(jatom), & !get rid of implicit S^-1(jat)
                                     0.0_dp, t_2c_work(3), map_1=[1], map_2=[2], &
                                     contract_1=[2], notcontract_1=[1], &
                                     contract_2=[1], notcontract_2=[2], &
@@ -1426,6 +1338,7 @@ CONTAINS
          CALL dbt_destroy(t_2c_inv(iatom))
          CALL dbt_destroy(t_2c_binv(iatom))
          CALL dbt_destroy(t_2c_bint(iatom))
+         CALL dbt_destroy(t_2c_metric(iatom))
          DO i_xyz = 1, 3
             CALL dbt_destroy(t_2c_der_metric_sub(iatom, i_xyz))
          END DO
@@ -1434,6 +1347,7 @@ CONTAINS
          CALL dbcsr_release(mat_2c_pot(i_img))
          DO i_spin = 1, nspins
             CALL dbt_destroy(rho_ao_t_sub(i_spin, i_img))
+            CALL dbt_destroy(t_3c_apc_sub(i_spin, i_img))
          END DO
       END DO
       DO i_xyz = 1, 3
@@ -1457,20 +1371,22 @@ CONTAINS
 !> \param qs_env ...
 !> \param from_left ...
 !> \param from_right ...
+!> \param debump ...
 ! **************************************************************************************************
-   SUBROUTINE apply_bump(t_2c_inout, atom_i, ri_data, qs_env, from_left, from_right)
+   SUBROUTINE apply_bump(t_2c_inout, atom_i, ri_data, qs_env, from_left, from_right, debump)
       TYPE(dbt_type), INTENT(INOUT)                      :: t_2c_inout
       INTEGER, INTENT(IN)                                :: atom_i
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: from_left, from_right
+      LOGICAL, INTENT(IN), OPTIONAL                      :: from_left, from_right, debump
 
       INTEGER                                            :: i_img, i_RI, iatom, ind(2), j_img, j_RI, &
                                                             jatom, natom, nblks(2), nimg, nkind
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, my_left, my_right
-      REAL(dp)                                           :: r0, r1, ri(3), rj(3), rref(3), scoord(3)
+      LOGICAL                                            :: found, my_debump, my_left, my_right
+      REAL(dp)                                           :: bval, r0, r1, ri(3), rj(3), rref(3), &
+                                                            scoord(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: blk
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbt_iterator_type)                            :: iter
@@ -1483,6 +1399,9 @@ CONTAINS
       CALL get_qs_env(qs_env, natom=natom, nkind=nkind, qs_kind_set=qs_kind_set, cell=cell, &
                       kpoints=kpoints, particle_set=particle_set)
       CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index, index_to_cell=index_to_cell)
+
+      my_debump = .FALSE.
+      IF (PRESENT(debump)) my_debump = debump
 
       my_left = .FALSE.
       IF (PRESENT(from_left)) my_left = from_left
@@ -1503,8 +1422,8 @@ CONTAINS
       rref = pbc(particle_set(atom_i)%r, cell)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(t_2c_inout,natom,ri_data,cell,particle_set,index_to_cell,my_left, &
-!$OMP                               my_right,r0,r1,rref) &
-!$OMP PRIVATE(iter,ind,blk,found,i_RI,i_img,iatom,j_RI,j_img,jatom,scoord,ri,rj)
+!$OMP                               my_right,r0,r1,rref,my_debump) &
+!$OMP PRIVATE(iter,ind,blk,found,i_RI,i_img,iatom,j_RI,j_img,jatom,scoord,ri,rj,bval)
       CALL dbt_iterator_start(iter, t_2c_inout)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind)
@@ -1525,8 +1444,17 @@ CONTAINS
          CALL real_to_scaled(scoord, pbc(particle_set(jatom)%r, cell), cell)
          CALL scaled_to_real(rj, scoord(:) + index_to_cell(:, j_img), cell)
 
-         IF (my_left) blk(:, :) = blk(:, :)*bump(NORM2(ri - rref), r0, r1)
-         IF (my_right) blk(:, :) = blk(:, :)*bump(NORM2(rj - rref), r0, r1)
+         IF (.NOT. my_debump) THEN
+            IF (my_left) blk(:, :) = blk(:, :)*bump(NORM2(ri - rref), r0, r1)
+            IF (my_right) blk(:, :) = blk(:, :)*bump(NORM2(rj - rref), r0, r1)
+         ELSE
+            !Note: by construction, the bump function is never quite zero, as its range is the same
+            !      as that of the extended RI basis (but we are safe)
+            bval = bump(NORM2(ri - rref), r0, r1)
+            IF (my_left .AND. bval > EPSILON(1.0_dp)) blk(:, :) = blk(:, :)/bval
+            bval = bump(NORM2(rj - rref), r0, r1)
+            IF (my_right .AND. bval > EPSILON(1.0_dp)) blk(:, :) = blk(:, :)/bval
+         END IF
 
          CALL dbt_put_block(t_2c_inout, ind, SHAPE(blk), blk)
 
@@ -1909,12 +1837,14 @@ CONTAINS
 !>        transforming the kpoint density matrix
 !> \param rho_ao_t ...
 !> \param rho_ao ...
+!> \param scale_prev_p ...
 !> \param ri_data ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE get_pmat_images(rho_ao_t, rho_ao, ri_data, qs_env)
+   SUBROUTINE get_pmat_images(rho_ao_t, rho_ao, scale_prev_p, ri_data, qs_env)
       TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: rho_ao_t
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: rho_ao
+      REAL(dp), INTENT(IN)                               :: scale_prev_p
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -2000,6 +1930,8 @@ CONTAINS
 
       DO i_img = 1, nimg
          DO i_spin = 1, nspins
+            CALL dbt_scale(rho_ao_t(i_spin, i_img), scale_prev_p)
+
             CALL dbt_copy_matrix_to_tensor(rho_desymm(i_spin, i_img)%matrix, tmp)
             CALL dbt_copy(tmp, rho_ao_t(i_spin, i_img), summation=.TRUE., move_data=.TRUE.)
 
@@ -2040,9 +1972,10 @@ CONTAINS
 !> \param blacs_env_ext ...
 !> \param dbcsr_template ...
 !> \param off_diagonal ...
+!> \param skip_inverse ...
 ! **************************************************************************************************
    SUBROUTINE get_ext_2c_int(t_2c_pot, mat_orig, atom_i, atom_j, img_b, ri_data, qs_env, do_inverse, &
-                             para_env_ext, blacs_env_ext, dbcsr_template, off_diagonal)
+                             para_env_ext, blacs_env_ext, dbcsr_template, off_diagonal, skip_inverse)
       TYPE(dbt_type), INTENT(INOUT)                      :: t_2c_pot
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: mat_orig
       INTEGER, INTENT(IN)                                :: atom_i, atom_j, img_b
@@ -2052,7 +1985,7 @@ CONTAINS
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_ext
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: dbcsr_template
-      LOGICAL, INTENT(IN), OPTIONAL                      :: off_diagonal
+      LOGICAL, INTENT(IN), OPTIONAL                      :: off_diagonal, skip_inverse
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_ext_2c_int'
 
@@ -2066,7 +1999,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell, pgrid
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_inverse_prv, found, my_offd, &
-                                                            use_template
+                                                            skip_inverse_prv, use_template
       REAL(dp)                                           :: bfac, dij, r0, r1, threshold
       REAL(dp), DIMENSION(3)                             :: ri, rij, rj, rref, scoord
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
@@ -2106,6 +2039,9 @@ CONTAINS
       IF (do_inverse_prv) THEN
          CPASSERT(atom_i == atom_j)
       END IF
+
+      skip_inverse_prv = .FALSE.
+      IF (PRESENT(skip_inverse)) skip_inverse_prv = skip_inverse
 
       my_offd = .FALSE.
       IF (PRESENT(off_diagonal)) my_offd = off_diagonal
@@ -2293,20 +2229,24 @@ CONTAINS
          CALL dbcsr_finalize(work_tight)
          CALL dbcsr_clear(work)
 
-         SELECT CASE (ri_data%t2c_method)
-         CASE (hfx_ri_do_2c_iter)
-            threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
-            CALL invert_hotelling(work_tight_inv, work_tight, threshold=threshold, silent=.FALSE.)
-         CASE (hfx_ri_do_2c_cholesky)
+         IF (.NOT. skip_inverse_prv) THEN
+            SELECT CASE (ri_data%t2c_method)
+            CASE (hfx_ri_do_2c_iter)
+               threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
+               CALL invert_hotelling(work_tight_inv, work_tight, threshold=threshold, silent=.FALSE.)
+            CASE (hfx_ri_do_2c_cholesky)
+               CALL dbcsr_copy(work_tight_inv, work_tight)
+               CALL cp_dbcsr_cholesky_decompose(work_tight_inv, para_env=para_env, blacs_env=blacs_env)
+               CALL cp_dbcsr_cholesky_invert(work_tight_inv, para_env=para_env, blacs_env=blacs_env, &
+                                             upper_to_full=.TRUE.)
+            CASE (hfx_ri_do_2c_diag)
+               CALL dbcsr_copy(work_tight_inv, work_tight)
+               CALL cp_dbcsr_power(work_tight_inv, -1.0_dp, ri_data%eps_eigval, n_dependent, &
+                                   para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
+            END SELECT
+         ELSE
             CALL dbcsr_copy(work_tight_inv, work_tight)
-            CALL cp_dbcsr_cholesky_decompose(work_tight_inv, para_env=para_env, blacs_env=blacs_env)
-            CALL cp_dbcsr_cholesky_invert(work_tight_inv, para_env=para_env, blacs_env=blacs_env, &
-                                          upper_to_full=.TRUE.)
-         CASE (hfx_ri_do_2c_diag)
-            CALL dbcsr_copy(work_tight_inv, work_tight)
-            CALL cp_dbcsr_power(work_tight_inv, -1.0_dp, ri_data%eps_eigval, n_dependent, &
-                                para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
-         END SELECT
+         END IF
 
          !move back data to standard extended RI pattern
          !Note: we apply the external bump to ((P|Q)_D + B*(P|Q)_OD*B)^-1 later, because this matrix
@@ -2352,6 +2292,257 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_ext_2c_int
+
+! **************************************************************************************************
+!> \brief Pre-contract the density matrices with the 3-center integrals:
+!>        P_sigma^a,lambda^a+c (mu^0 sigma^a| P^0)
+!> \param t_3c_apc ...
+!> \param rho_ao_t ...
+!> \param ri_data ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE contract_pmat_3c(t_3c_apc, rho_ao_t, ri_data, qs_env)
+      TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t_3c_apc, rho_ao_t
+      TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'contract_pmat_3c'
+
+      INTEGER                                            :: apc_img, batch_size, handle, i_batch, &
+                                                            i_img, i_spin, j_batch, n_batch_img, &
+                                                            n_batch_nze, nimg, nimg_nze, nspins
+      INTEGER(int_8)                                     :: nflop, nze
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_img, batch_ranges_nze, &
+                                                            int_indices
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ac_pairs
+      REAL(dp)                                           :: occ, t1, t2
+      TYPE(dbt_type)                                     :: t_3c_tmp
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ints_stack, res_stack, rho_stack
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      nimg = ri_data%nimg
+      nimg_nze = ri_data%nimg_nze
+      nspins = dft_control%nspins
+
+      CALL dbt_create(t_3c_apc(1, 1), t_3c_tmp)
+
+      batch_size = nimg/ri_data%n_mem
+
+      !batching over all images
+      n_batch_img = nimg/batch_size
+      IF (MODULO(nimg, batch_size) .NE. 0) n_batch_img = n_batch_img + 1
+      ALLOCATE (batch_ranges_img(n_batch_img + 1))
+      DO i_batch = 1, n_batch_img
+         batch_ranges_img(i_batch) = (i_batch - 1)*batch_size + 1
+      END DO
+      batch_ranges_img(n_batch_img + 1) = nimg + 1
+
+      !batching over images with non-zero 3c integrals
+      n_batch_nze = nimg_nze/batch_size
+      IF (MODULO(nimg_nze, batch_size) .NE. 0) n_batch_nze = n_batch_nze + 1
+      ALLOCATE (batch_ranges_nze(n_batch_nze + 1))
+      DO i_batch = 1, n_batch_nze
+         batch_ranges_nze(i_batch) = (i_batch - 1)*batch_size + 1
+      END DO
+      batch_ranges_nze(n_batch_nze + 1) = nimg_nze + 1
+
+      !Create the stack tensors in the approriate distribution
+      ALLOCATE (rho_stack(2), ints_stack(2), res_stack(2))
+      CALL get_stack_tensors(res_stack, rho_stack, ints_stack, rho_ao_t(1, 1), &
+                             ri_data%t_3c_int_ctr_1(1, 1), batch_size, ri_data, qs_env)
+
+      ALLOCATE (ac_pairs(nimg, 2), int_indices(nimg_nze))
+      DO i_img = 1, nimg_nze
+         int_indices(i_img) = i_img
+      END DO
+
+      t1 = m_walltime()
+      DO j_batch = 1, n_batch_nze
+         !First batch is over the integrals. They are always in the same order, consistent with get_ac_pairs
+         CALL fill_3c_stack(ints_stack(1), ri_data%t_3c_int_ctr_1(1, :), int_indices, 3, ri_data, &
+                            img_bounds=[batch_ranges_nze(j_batch), batch_ranges_nze(j_batch + 1)])
+         CALL dbt_copy(ints_stack(1), ints_stack(2), move_data=.TRUE.)
+
+         DO i_spin = 1, nspins
+            DO i_batch = 1, n_batch_img
+               !Second batch is over the P matrix. Here we fill the stacked rho tensors col by col
+               DO apc_img = batch_ranges_img(i_batch), batch_ranges_img(i_batch + 1) - 1
+                  CALL get_ac_pairs(ac_pairs, apc_img, ri_data, qs_env)
+                  CALL fill_2c_stack(rho_stack(1), rho_ao_t(i_spin, :), ac_pairs(:, 2), 1, ri_data, &
+                                     img_bounds=[batch_ranges_nze(j_batch), batch_ranges_nze(j_batch + 1)], &
+                                     shift=apc_img - batch_ranges_img(i_batch) + 1)
+
+               END DO !apc_img
+               CALL get_tensor_occupancy(rho_stack(1), nze, occ)
+               IF (nze == 0) CYCLE
+               CALL dbt_copy(rho_stack(1), rho_stack(2), move_data=.TRUE.)
+
+               !The actual contraction
+               CALL dbt_batched_contract_init(rho_stack(2))
+               CALL dbt_contract(1.0_dp, ints_stack(2), rho_stack(2), &
+                                 0.0_dp, res_stack(2), map_1=[1, 2], map_2=[3], &
+                                 contract_1=[3], notcontract_1=[1, 2], &
+                                 contract_2=[1], notcontract_2=[2], &
+                                 filter_eps=ri_data%filter_eps, flop=nflop)
+               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+               CALL dbt_batched_contract_finalize(rho_stack(2))
+               CALL dbt_copy(res_stack(2), res_stack(1), move_data=.TRUE.)
+
+               DO apc_img = batch_ranges_img(i_batch), batch_ranges_img(i_batch + 1) - 1
+                  !Destack the resulting tensor and put it in t_3c_apc with correct apc_img
+                  CALL unstack_t_3c_apc(t_3c_tmp, res_stack(1), apc_img - batch_ranges_img(i_batch) + 1)
+                  CALL dbt_copy(t_3c_tmp, t_3c_apc(i_spin, apc_img), summation=.TRUE., move_data=.TRUE.)
+               END DO
+
+            END DO !i_batch
+         END DO !i_spin
+      END DO !j_batch
+      DEALLOCATE (batch_ranges_img)
+      DEALLOCATE (batch_ranges_nze)
+      t2 = m_walltime()
+      ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
+
+      CALL dbt_destroy(rho_stack(1))
+      CALL dbt_destroy(rho_stack(2))
+      CALL dbt_destroy(ints_stack(1))
+      CALL dbt_destroy(ints_stack(2))
+      CALL dbt_destroy(res_stack(1))
+      CALL dbt_destroy(res_stack(2))
+      CALL dbt_destroy(t_3c_tmp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE contract_pmat_3c
+
+! **************************************************************************************************
+!> \brief Pre-contract 3-center integrals with the bumped invrse RI metric, for each atom
+!> \param t_3c_int ...
+!> \param ri_data ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE precontract_3c_ints(t_3c_int, ri_data, qs_env)
+      TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t_3c_int
+      TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'precontract_3c_ints'
+
+      INTEGER                                            :: batch_size, handle, i_batch, i_img, &
+                                                            i_RI, iatom, is, n_batch, natom, &
+                                                            nblks, nblks_3c(3), nimg
+      INTEGER(int_8)                                     :: nflop
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: batch_ranges, bsizes_RI_ext, bsizes_RI_ext_split, &
+         bsizes_stack, dist1, dist2, dist3, dist_stack3, idx_to_at_AO, int_indices
+      TYPE(dbt_distribution_type)                        :: t_dist
+      TYPE(dbt_type)                                     :: t_2c_RI_tmp(2), t_3c_tmp(3)
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, natom=natom)
+
+      nimg = ri_data%nimg
+      ALLOCATE (int_indices(nimg))
+      DO i_img = 1, nimg
+         int_indices(i_img) = i_img
+      END DO
+
+      ALLOCATE (idx_to_at_AO(SIZE(ri_data%bsizes_AO_split)))
+      CALL get_idx_to_atom(idx_to_at_AO, ri_data%bsizes_AO_split, ri_data%bsizes_AO)
+
+      nblks = SIZE(ri_data%bsizes_RI_split)
+      ALLOCATE (bsizes_RI_ext(ri_data%ncell_RI*natom))
+      ALLOCATE (bsizes_RI_ext_split(ri_data%ncell_RI*nblks))
+      DO i_RI = 1, ri_data%ncell_RI
+         bsizes_RI_ext((i_RI - 1)*natom + 1:i_RI*natom) = ri_data%bsizes_RI(:)
+         bsizes_RI_ext_split((i_RI - 1)*nblks + 1:i_RI*nblks) = ri_data%bsizes_RI_split(:)
+      END DO
+      CALL create_2c_tensor(t_2c_RI_tmp(1), dist1, dist2, ri_data%pgrid_2d, &
+                            bsizes_RI_ext, bsizes_RI_ext, &
+                            name="(RI | RI)")
+      DEALLOCATE (dist1, dist2)
+      CALL create_2c_tensor(t_2c_RI_tmp(2), dist1, dist2, ri_data%pgrid_2d, &
+                            bsizes_RI_ext_split, bsizes_RI_ext_split, &
+                            name="(RI | RI)")
+      DEALLOCATE (dist1, dist2)
+
+      !For more efficiency, we stack multiple images of the 3-center integrals into a single tensor
+      batch_size = nimg/ri_data%n_mem
+      n_batch = nimg/batch_size
+      IF (MODULO(nimg, batch_size) .NE. 0) n_batch = n_batch + 1
+      ALLOCATE (batch_ranges(n_batch + 1))
+      DO i_batch = 1, n_batch
+         batch_ranges(i_batch) = (i_batch - 1)*batch_size + 1
+      END DO
+      batch_ranges(n_batch + 1) = nimg + 1
+
+      nblks = SIZE(ri_data%bsizes_AO_split)
+      ALLOCATE (bsizes_stack(batch_size*nblks))
+      DO is = 1, batch_size
+         bsizes_stack((is - 1)*nblks + 1:is*nblks) = ri_data%bsizes_AO_split(:)
+      END DO
+
+      CALL dbt_get_info(t_3c_int(1, 1), nblks_total=nblks_3c)
+      ALLOCATE (dist1(nblks_3c(1)), dist2(nblks_3c(2)), dist3(nblks_3c(3)), dist_stack3(batch_size*nblks_3c(3)))
+      CALL dbt_get_info(t_3c_int(1, 1), proc_dist_1=dist1, proc_dist_2=dist2, proc_dist_3=dist3)
+      DO is = 1, batch_size
+         dist_stack3((is - 1)*nblks_3c(3) + 1:is*nblks_3c(3)) = dist3(:)
+      END DO
+
+      CALL dbt_distribution_new(t_dist, ri_data%pgrid, dist1, dist2, dist_stack3)
+      CALL dbt_create(t_3c_tmp(1), "ints_stack", t_dist, [1], [2, 3], bsizes_RI_ext_split, &
+                      ri_data%bsizes_AO_split, bsizes_stack)
+      CALL dbt_distribution_destroy(t_dist)
+      DEALLOCATE (dist1, dist2, dist3, dist_stack3)
+
+      CALL dbt_create(t_3c_tmp(1), t_3c_tmp(2))
+      CALL dbt_create(t_3c_int(1, 1), t_3c_tmp(3))
+
+      DO iatom = 1, natom
+         CALL dbt_copy(ri_data%t_2c_inv(1, iatom), t_2c_RI_tmp(1))
+         CALL apply_bump(t_2c_RI_tmp(1), iatom, ri_data, qs_env, from_left=.TRUE., from_right=.TRUE.)
+         CALL dbt_copy(t_2c_RI_tmp(1), t_2c_RI_tmp(2), move_data=.TRUE.)
+
+         CALL dbt_batched_contract_init(t_2c_RI_tmp(2))
+         DO i_batch = 1, n_batch
+
+            CALL fill_3c_stack(t_3c_tmp(1), t_3c_int(1, :), int_indices, 3, ri_data, &
+                               img_bounds=[batch_ranges(i_batch), batch_ranges(i_batch + 1)], &
+                               filter_at=iatom, filter_dim=2, idx_to_at=idx_to_at_AO)
+
+            CALL dbt_contract(1.0_dp, t_2c_RI_tmp(2), t_3c_tmp(1), &
+                              0.0_dp, t_3c_tmp(2), map_1=[1], map_2=[2, 3], &
+                              contract_1=[2], notcontract_1=[1], &
+                              contract_2=[1], notcontract_2=[2, 3], &
+                              filter_eps=ri_data%filter_eps, flop=nflop)
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
+            DO i_img = batch_ranges(i_batch), batch_ranges(i_batch + 1) - 1
+               CALL unstack_t_3c_apc(t_3c_tmp(3), t_3c_tmp(2), i_img - batch_ranges(i_batch) + 1)
+               CALL dbt_copy(t_3c_tmp(3), ri_data%t_3c_int_ctr_1(1, i_img), summation=.TRUE., &
+                             order=[2, 1, 3], move_data=.TRUE.)
+            END DO
+            CALL dbt_clear(t_3c_tmp(1))
+         END DO
+         CALL dbt_batched_contract_finalize(t_2c_RI_tmp(2))
+
+      END DO
+      CALL dbt_destroy(t_2c_RI_tmp(1))
+      CALL dbt_destroy(t_2c_RI_tmp(2))
+      CALL dbt_destroy(t_3c_tmp(1))
+      CALL dbt_destroy(t_3c_tmp(2))
+      CALL dbt_destroy(t_3c_tmp(3))
+
+      DO i_img = 1, nimg
+         CALL dbt_destroy(t_3c_int(1, i_img))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE precontract_3c_ints
 
 ! **************************************************************************************************
 !> \brief Copy the data of a 2D tensor living in the main MPI group to a sub-group, given the proc
@@ -2862,7 +3053,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief copy all required 2c tensors from the main MPI group to the subgroups
-!> \param t_2c_inv ...
 !> \param mat_2c_pot ...
 !> \param t_2c_work ...
 !> \param t_2c_ao_tmp ...
@@ -2874,9 +3064,8 @@ CONTAINS
 !> \param para_env_sub ...
 !> \param ri_data ...
 ! **************************************************************************************************
-   SUBROUTINE get_subgroup_2c_tensors(t_2c_inv, mat_2c_pot, t_2c_work, t_2c_ao_tmp, ks_t_split, ks_t_sub, &
+   SUBROUTINE get_subgroup_2c_tensors(mat_2c_pot, t_2c_work, t_2c_ao_tmp, ks_t_split, ks_t_sub, &
                                       group_size, ngroups, para_env, para_env_sub, ri_data)
-      TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_2c_inv
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: mat_2c_pot
       TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_2c_work, t_2c_ao_tmp, ks_t_split
       TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: ks_t_sub
@@ -2886,8 +3075,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_subgroup_2c_tensors'
 
-      INTEGER                                            :: handle, i, i_img, i_RI, i_spin, iatom, &
-                                                            iproc, j, natom, nblks, nimg, nspins
+      INTEGER                                            :: handle, i, i_img, i_RI, i_spin, iproc, &
+                                                            j, natom, nblks, nimg, nspins
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
                                                             dist1, dist2
@@ -2915,26 +3104,15 @@ CONTAINS
       END DO
 
       !nRI x nRI 2c tensors
-      CALL create_2c_tensor(t_2c_inv(1), dist1, dist2, pgrid_2d, &
+      CALL create_2c_tensor(t_2c_work(1), dist1, dist2, pgrid_2d, &
                             bsizes_RI_ext, bsizes_RI_ext, &
                             name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
 
-      DO iatom = 2, natom
-         CALL dbt_create(t_2c_inv(1), t_2c_inv(iatom))
-      END DO
-      CALL dbt_create(t_2c_inv(1), t_2c_work(1))
-      CALL dbt_create(t_2c_inv(1), t_2c_work(2))
-
-      CALL create_2c_tensor(t_2c_work(3), dist1, dist2, pgrid_2d, &
+      CALL create_2c_tensor(t_2c_work(2), dist1, dist2, pgrid_2d, &
                             bsizes_RI_ext_split, bsizes_RI_ext_split, &
                             name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
-
-      !cpoy the data from the main group.
-      DO iatom = 1, natom
-         CALL copy_2c_to_subgroup(t_2c_inv(iatom), ri_data%t_2c_inv(1, iatom), group_size, ngroups, para_env)
-      END DO
 
       !the AO based tensors
       CALL create_2c_tensor(ks_t_split(1), dist1, dist2, pgrid_2d, &
@@ -3129,7 +3307,7 @@ CONTAINS
       !Do the same for the t_3c_ctr_2 configuration
       pdims = 0
       CALL dbt_pgrid_create(para_env_sub, pdims, pgrid, &
-                            tensor_dims=[natom, SIZE(bsizes_RI_ext_split), batch_size*SIZE(ri_data%bsizes_AO_split)])
+                            tensor_dims=[1, SIZE(bsizes_RI_ext_split), batch_size*SIZE(ri_data%bsizes_AO_split)])
 
       !For more efficient communication, we use intermediate tensors with larger block size
       CALL create_3c_tensor(work_atom_block_sub, dist1, dist2, dist3, &
@@ -3194,6 +3372,7 @@ CONTAINS
 !> \brief copy all required 2c force tensors from the main MPI group to the subgroups
 !> \param t_2c_inv ...
 !> \param t_2c_bint ...
+!> \param t_2c_metric ...
 !> \param mat_2c_pot ...
 !> \param t_2c_work ...
 !> \param rho_ao_t ...
@@ -3209,10 +3388,10 @@ CONTAINS
 !> \param ri_data ...
 !> \note Main MPI group tensors are deleted within this routine, for memory optimization
 ! **************************************************************************************************
-   SUBROUTINE get_subgroup_2c_derivs(t_2c_inv, t_2c_bint, mat_2c_pot, t_2c_work, rho_ao_t, rho_ao_t_sub, &
-                                     t_2c_der_metric, t_2c_der_metric_sub, mat_der_pot, mat_der_pot_sub, &
-                                     group_size, ngroups, para_env, para_env_sub, ri_data)
-      TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_2c_inv, t_2c_bint
+   SUBROUTINE get_subgroup_2c_derivs(t_2c_inv, t_2c_bint, t_2c_metric, mat_2c_pot, t_2c_work, rho_ao_t, &
+                                     rho_ao_t_sub, t_2c_der_metric, t_2c_der_metric_sub, mat_der_pot, &
+                                     mat_der_pot_sub, group_size, ngroups, para_env, para_env_sub, ri_data)
+      TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_2c_inv, t_2c_bint, t_2c_metric
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: mat_2c_pot
       TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_2c_work
       TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: rho_ao_t, rho_ao_t_sub, t_2c_der_metric, &
@@ -3261,9 +3440,11 @@ CONTAINS
       DEALLOCATE (dist1, dist2)
 
       CALL dbt_create(t_2c_inv(1), t_2c_bint(1))
+      CALL dbt_create(t_2c_inv(1), t_2c_metric(1))
       DO iatom = 2, natom
          CALL dbt_create(t_2c_inv(1), t_2c_inv(iatom))
          CALL dbt_create(t_2c_inv(1), t_2c_bint(iatom))
+         CALL dbt_create(t_2c_inv(1), t_2c_metric(iatom))
       END DO
       CALL dbt_create(t_2c_inv(1), t_2c_work(1))
       CALL dbt_create(t_2c_inv(1), t_2c_work(2))
@@ -3279,6 +3460,7 @@ CONTAINS
       DO iatom = 1, natom
          CALL copy_2c_to_subgroup(t_2c_inv(iatom), ri_data%t_2c_inv(1, iatom), group_size, ngroups, para_env)
          CALL copy_2c_to_subgroup(t_2c_bint(iatom), ri_data%t_2c_int(1, iatom), group_size, ngroups, para_env)
+         CALL copy_2c_to_subgroup(t_2c_metric(iatom), ri_data%t_2c_pot(1, iatom), group_size, ngroups, para_env)
       END DO
 
       !This includes the derivatives of the RI metric, for which there is one per atom
@@ -3384,6 +3566,8 @@ CONTAINS
 !> \param t_3c_der_AO_sub ...
 !> \param t_3c_der_RI ...
 !> \param t_3c_der_RI_sub ...
+!> \param t_3c_apc ...
+!> \param t_3c_apc_sub ...
 !> \param t_3c_der_stack ...
 !> \param group_size ...
 !> \param ngroups ...
@@ -3393,11 +3577,13 @@ CONTAINS
 !> \note the tensor containing the derivatives in the main MPI group are deleted for memory
 ! **************************************************************************************************
    SUBROUTINE get_subgroup_3c_derivs(t_3c_work_2, t_3c_work_3, t_3c_der_AO, t_3c_der_AO_sub, &
-                                     t_3c_der_RI, t_3c_der_RI_sub, t_3c_der_stack, group_size, &
-                                     ngroups, para_env, para_env_sub, ri_data)
+                                     t_3c_der_RI, t_3c_der_RI_sub, t_3c_apc, t_3c_apc_sub, &
+                                     t_3c_der_stack, group_size, ngroups, para_env, para_env_sub, &
+                                     ri_data)
       TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_3c_work_2, t_3c_work_3
       TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t_3c_der_AO, t_3c_der_AO_sub, &
-                                                            t_3c_der_RI, t_3c_der_RI_sub
+                                                            t_3c_der_RI, t_3c_der_RI_sub, &
+                                                            t_3c_apc, t_3c_apc_sub
       TYPE(dbt_type), DIMENSION(:), INTENT(INOUT)        :: t_3c_der_stack
       INTEGER, INTENT(IN)                                :: group_size, ngroups
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -3405,16 +3591,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_subgroup_3c_derivs'
 
-      INTEGER                                            :: batch_size, handle, i_img, i_RI, i_xyz, &
-                                                            ib, nblks_AO, nblks_RI, nimg, pdims(3)
+      INTEGER                                            :: batch_size, handle, i_img, i_RI, i_spin, &
+                                                            i_xyz, ib, nblks_AO, nblks_RI, nimg, &
+                                                            nspins, pdims(3)
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
                                                             bsizes_stack, dist1, dist2, dist3, &
-                                                            dist_stack
+                                                            dist_stack, idx_to_at
       REAL(dp)                                           :: occ
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_pgrid_type)                               :: pgrid
-      TYPE(dbt_type)                                     :: work_atom_block, work_atom_block_sub
+      TYPE(dbt_type)                                     :: tmp, work_atom_block, work_atom_block_sub
 
       CALL timeset(routineN, handle)
 
@@ -3472,13 +3659,55 @@ CONTAINS
       CALL dbt_destroy(work_atom_block_sub)
       CALL dbt_destroy(work_atom_block)
 
-      !The stacked work tensors in the subgroup
+      !Deal with t_3c_apc
       nblks_RI = SIZE(ri_data%bsizes_RI_split)
       ALLOCATE (bsizes_RI_ext_split(ri_data%ncell_RI*nblks_RI))
       DO i_RI = 1, ri_data%ncell_RI
          bsizes_RI_ext_split((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = ri_data%bsizes_RI_split(:)
       END DO
 
+      pdims = 0
+      CALL dbt_pgrid_create(para_env_sub, pdims, pgrid, &
+                            tensor_dims=[1, SIZE(bsizes_RI_ext_split), batch_size*SIZE(ri_data%bsizes_AO_split)])
+
+      CALL create_3c_tensor(work_atom_block_sub, dist1, dist2, dist3, &
+                            pgrid, ri_data%bsizes_AO, bsizes_RI_ext, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(AO RI | AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(work_atom_block, dist1, dist2, dist3, &
+                            ri_data%pgrid_1, ri_data%bsizes_AO, bsizes_RI_ext, &
+                            ri_data%bsizes_AO, [1], [2, 3], name="(AO RI | AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(tmp, dist1, dist2, dist3, &
+                            pgrid, ri_data%bsizes_AO_split, bsizes_RI_ext_split, &
+                            ri_data%bsizes_AO_split, [1], [2, 3], name="(AO RI | AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      ALLOCATE (idx_to_at(SIZE(ri_data%bsizes_AO)))
+      CALL get_idx_to_atom(idx_to_at, ri_data%bsizes_AO, ri_data%bsizes_AO)
+      nspins = SIZE(t_3c_apc, 1)
+      DO i_img = 1, nimg
+         DO i_spin = 1, nspins
+            CALL dbt_create(tmp, t_3c_apc_sub(i_spin, i_img))
+            CALL get_tensor_occupancy(t_3c_apc(i_spin, i_img), nze, occ)
+            IF (nze == 0) CYCLE
+            CALL dbt_copy(t_3c_apc(i_spin, i_img), work_atom_block, move_data=.TRUE.)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, group_size, &
+                                     ngroups, para_env, ri_data%iatom_to_subgroup, 1, idx_to_at)
+            CALL dbt_copy(work_atom_block_sub, t_3c_apc_sub(i_spin, i_img), move_data=.TRUE.)
+         END DO
+         DO i_spin = 1, nspins
+            CALL dbt_destroy(t_3c_apc(i_spin, i_img))
+         END DO
+      END DO
+      CALL dbt_destroy(tmp)
+      CALL dbt_destroy(work_atom_block)
+      CALL dbt_destroy(work_atom_block_sub)
+      CALL dbt_pgrid_destroy(pgrid)
+
+      !t_3c_work_3 based on structure of 3c integrals/derivs
       batch_size = ri_data%kp_stack_size
       nblks_AO = SIZE(ri_data%bsizes_AO_split)
       ALLOCATE (bsizes_stack(batch_size*nblks_AO))
@@ -3486,7 +3715,6 @@ CONTAINS
          bsizes_stack((ib - 1)*nblks_AO + 1:ib*nblks_AO) = ri_data%bsizes_AO_split(:)
       END DO
 
-      !t_3c_work_3 based on structure of 3c integrals/derivs
       ALLOCATE (dist1(ri_data%ncell_RI*nblks_RI), dist2(nblks_AO), dist3(nblks_AO))
       CALL dbt_get_info(ri_data%kp_t_3c_int(1), proc_dist_1=dist1, proc_dist_2=dist2, &
                         proc_dist_3=dist3, pdims=pdims)
@@ -3515,9 +3743,9 @@ CONTAINS
       CALL dbt_create(t_3c_work_3(1), t_3c_der_stack(5))
       CALL dbt_create(t_3c_work_3(1), t_3c_der_stack(6))
 
-      !t_3c_work_2 based on struvture of t_3c_apc
+      !t_3c_work_2 based on structure of t_3c_apc
       ALLOCATE (dist1(nblks_AO), dist2(ri_data%ncell_RI*nblks_RI), dist3(nblks_AO))
-      CALL dbt_get_info(ri_data%kp_t_3c_apc(1, 1), proc_dist_1=dist1, proc_dist_2=dist2, &
+      CALL dbt_get_info(t_3c_apc_sub(1, 1), proc_dist_1=dist1, proc_dist_2=dist2, &
                         proc_dist_3=dist3, pdims=pdims)
 
       ALLOCATE (dist_stack(batch_size*nblks_AO))
