@@ -32,11 +32,11 @@ try:
 except ImportError:
     from typing_extensions import Literal  # type: ignore
 
-import matplotlib as mpl  # type: ignore
+import matplotlib as mpl
 
 mpl.use("Agg")  # change backend, to run without X11
-import matplotlib.pyplot as plt  # type: ignore
-from matplotlib.ticker import AutoMinorLocator  # type: ignore
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 
 # ======================================================================================
 GitSha = NewType("GitSha", str)
@@ -426,8 +426,15 @@ def make_plot_image(
         if full_archive:
             ax.plot(curve.x, curve.y, label=curve.label, linewidth=2)  # less crowded
         else:
-            style = dict(marker=next(markers), linewidth=2, markersize=6)
-            ax.errorbar(curve.x, curve.y, yerr=curve.yerr, label=curve.label, **style)
+            ax.errorbar(
+                curve.x,
+                curve.y,
+                yerr=curve.yerr,
+                label=curve.label,
+                marker=next(markers),
+                linewidth=2,
+                markersize=6,
+            )
     ax.set_xlim(-max_age - 1, 0)
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
