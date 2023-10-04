@@ -1740,11 +1740,13 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
-      IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
 
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
-         IF ((.NOT. (gapw)) .AND. (.NOT. gapw_xc)) THEN
+      END DO
+      IF ((.NOT. (gapw)) .AND. (.NOT. gapw_xc)) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         DO ispin = 1, nspins
             CALL pw_axpy(zv_hartree_rspace, v_xc(ispin)) ! Hartree potential of response density
             CALL integrate_v_rspace(qs_env=qs_env, &
                                     v_rspace=v_xc(ispin), &
@@ -1752,23 +1754,32 @@ CONTAINS
                                     pmat=matrix_p(ispin, 1), &
                                     gapw=.FALSE., &
                                     calculate_forces=.TRUE.)
-         ELSE
-            IF (myfun /= xc_none) THEN
-               IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         END DO
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKh*rhoz ", fodeb
+         END IF
+      ELSE
+         IF (myfun /= xc_none) THEN
+            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            DO ispin = 1, nspins
                CALL integrate_v_rspace(qs_env=qs_env, &
                                        v_rspace=v_xc(ispin), &
                                        hmat=matrix_hz(ispin), &
                                        pmat=matrix_p(ispin, 1), &
                                        gapw=.TRUE., &
                                        calculate_forces=.TRUE.)
-               IF (debug_forces) THEN
-                  fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-                  CALL para_env%sum(fodeb)
-                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKxc*rhoz ", fodeb
-               END IF
-            END IF ! my_fun
-            ! Coulomb T+Dz
-            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            END DO
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               CALL para_env%sum(fodeb)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKxc*rhoz ", fodeb
+            END IF
+         END IF ! my_fun
+         ! Coulomb T+Dz
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         DO ispin = 1, nspins
             CALL pw_zero(v_xc(ispin))
             IF (gapw) THEN ! Hartree potential of response density
                CALL pw_axpy(v_hartree_rspace_t, v_xc(ispin))
@@ -1781,13 +1792,13 @@ CONTAINS
                                     pmat=matrix_p(ispin, 1), &
                                     gapw=gapw, &
                                     calculate_forces=.TRUE.)
-         END IF
+         END DO
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKh*rhoz ", fodeb
          END IF
-      END DO
+      END IF
 
       IF (gapw .OR. gapw_xc) THEN
          ! compute hard and soft atomic contributions

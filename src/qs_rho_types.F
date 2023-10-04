@@ -64,13 +64,13 @@ MODULE qs_rho_types
       PRIVATE
       TYPE(kpoint_transitional_type)                 :: rho_ao
       TYPE(kpoint_transitional_type)                 :: rho_ao_im
-      TYPE(pw_type), DIMENSION(:), POINTER         :: rho_r => Null(), &
-                                                      rho_g => Null(), &
-                                                      tau_r => Null(), &
-                                                      tau_g => Null()
+      TYPE(pw_type), DIMENSION(:), POINTER           :: rho_r => Null(), &
+                                                        rho_g => Null(), &
+                                                        tau_r => Null(), &
+                                                        tau_g => Null()
       TYPE(pw_type), DIMENSION(:, :), POINTER :: drho_r => NULL(), drho_g => NULL()
       ! Final rho_iter of last SCCS cycle (r-space)
-      TYPE(pw_type), POINTER                       :: rho_r_sccs => Null()
+      TYPE(pw_type), POINTER                         :: rho_r_sccs => Null()
       LOGICAL                                        :: rho_g_valid = .FALSE., &
                                                         rho_r_valid = .FALSE., &
                                                         drho_r_valid = .FALSE., &
