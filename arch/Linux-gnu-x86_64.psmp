@@ -4,7 +4,7 @@
 #
 # Tested with: GNU 13.1.0, MPICH 4.0.3 and OpenMPI 4.1.5,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.24,
-#              FFTW 3.3.10, ELPA 2023.05.001, HDF5 1.12.0,
+#              FFTW 3.3.10, ELPA 2023.05.001, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2, PLUMED 2.9.0,
 #              SPGLIB 1.16.2, LIBVORI 220621, GSL 2.7,
 #              COSMA 2.6.6, SIRIUS 7.4.3, LIBTORCH 1.12.1
@@ -15,7 +15,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 22.09.2023
+# Last update: 04.10.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -67,7 +67,7 @@ TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
 USE_FFTW       := 3.3.10
-USE_HDF5       := 1.12.0
+USE_HDF5       := 1.14.2
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBTORCH   := 1.12.1

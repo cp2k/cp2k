@@ -5,7 +5,7 @@
 # Tested with: GNU 11.3.0, ParaStationMPI, 
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.24,
 #              FFTW 3.3.10, COSMA 2.6.6,
-#              ELPA 2023.05.001, HDF5 1.12.0,
+#              ELPA 2023.05.001, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0,
 #              LIBXC 6.2.2, LIBVORI 220621,
 #              LIBXSMM 1.17, PLUMED 2.9.0,
@@ -15,7 +15,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 22.09.2023
+# Last update: 04.10.2023
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -58,7 +58,7 @@ USE_ACC        := yes
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
 USE_FFTW       := 3.3.10
-USE_HDF5       := 1.12.0
+USE_HDF5       := 1.14.2
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBTORCH   := 1.12.1
