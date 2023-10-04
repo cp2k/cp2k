@@ -328,7 +328,8 @@ CONTAINS
                      rho1_atom_set => work_matrices%local_rho_set_admm%rho_atom_set
                      CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, &
                                                       kernel_env_admm_aux%xc_section, &
-                                                      sub_env%para_env, do_tddfpt2=.TRUE., do_triplet=.FALSE., &
+                                                      sub_env%para_env, do_tddfpt2=.TRUE., &
+                                                      do_triplet=is_rks_triplets, &
                                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                      CALL update_ks_atom(qs_env, A_xc_munu_sub, rho_ia_ao_aux_fit, forces=.FALSE., tddft=.TRUE., &
                                          rho_atom_external=rho1_atom_set, &
