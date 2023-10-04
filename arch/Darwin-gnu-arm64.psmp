@@ -5,7 +5,7 @@
 #
 # Tested with: GNU 12.3.0, MPICH 4.0.3,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.24, 
-#              FFTW 3.3.10, HDF5 1.12.0,
+#              FFTW 3.3.10, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2, 
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
 #              LIBVORI 220621, GSL 2.7, 
@@ -14,7 +14,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 22.09.2023
+# Last update: 04.10.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -62,7 +62,7 @@ SHARED         := no
 TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_FFTW       := 3.3.10
-USE_HDF5       := 1.12.0
+USE_HDF5       := 1.14.2
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
