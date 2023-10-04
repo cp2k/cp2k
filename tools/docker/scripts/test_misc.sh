@@ -19,7 +19,8 @@ function run_test {
 #===============================================================================
 cd /opt/cp2k
 
-echo "Using $(python3 --version) and $(mypy --version)."
+echo "Using $(python3 --version) and the following packages:"
+pip3 freeze
 echo ""
 
 # prepare inputs for minimax_to_fortran_source.py
