@@ -226,10 +226,22 @@ CONTAINS
       ibo_cc_section => iao_env%ibo_cc_section
 
       !
-      CALL section_vals_get(iao_molden_section, explicit=molden_iao)
-      CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
-      CALL section_vals_get(ibo_molden_section, explicit=molden_ibo)
-      CALL section_vals_get(ibo_cubes_section, explicit=cubes_ibo)
+      molden_iao = .FALSE.
+      IF(ASSOCIATED(iao_molden_section)) THEN
+         CALL section_vals_get(iao_molden_section, explicit=molden_iao)
+      END IF
+      cubes_iao = .FALSE.
+      IF(ASSOCIATED(iao_cubes_section)) THEN
+         CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
+      END IF
+      molden_ibo = .FALSE.
+      IF(ASSOCIATED(ibo_molden_section)) THEN
+         CALL section_vals_get(ibo_molden_section, explicit=molden_ibo)
+      END IF
+      cubes_ibo = .FALSE.
+      IF(ASSOCIATED(ibo_cubes_section)) THEN
+         CALL section_vals_get(ibo_cubes_section, explicit=cubes_ibo)
+      END IF
 
       ! check for or generate reference basis
       CALL create_minbas_set(qs_env, unit_nr)
