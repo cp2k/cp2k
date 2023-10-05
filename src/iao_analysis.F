@@ -63,8 +63,8 @@ MODULE iao_analysis
    USE input_constants,                 ONLY: do_iaoloc_enone,&
                                               do_iaoloc_pm2
    USE input_section_types,             ONLY: section_get_ivals,&
-                                              section_vals_type,&
                                               section_vals_get,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -227,19 +227,19 @@ CONTAINS
 
       !
       molden_iao = .FALSE.
-      IF(ASSOCIATED(iao_molden_section)) THEN
+      IF (ASSOCIATED(iao_molden_section)) THEN
          CALL section_vals_get(iao_molden_section, explicit=molden_iao)
       END IF
       cubes_iao = .FALSE.
-      IF(ASSOCIATED(iao_cubes_section)) THEN
+      IF (ASSOCIATED(iao_cubes_section)) THEN
          CALL section_vals_get(iao_cubes_section, explicit=cubes_iao)
       END IF
       molden_ibo = .FALSE.
-      IF(ASSOCIATED(ibo_molden_section)) THEN
+      IF (ASSOCIATED(ibo_molden_section)) THEN
          CALL section_vals_get(ibo_molden_section, explicit=molden_ibo)
       END IF
       cubes_ibo = .FALSE.
-      IF(ASSOCIATED(ibo_cubes_section)) THEN
+      IF (ASSOCIATED(ibo_cubes_section)) THEN
          CALL section_vals_get(ibo_cubes_section, explicit=cubes_ibo)
       END IF
 
