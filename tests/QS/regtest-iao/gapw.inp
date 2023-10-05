@@ -26,7 +26,8 @@
             &IAO_MOLDEN
             &END IAO_MOLDEN
             &IAO_CUBES 
-               ATOM_LIST 1 2 3 4
+               ATOM_LIST 1 4
+               STRIDE 3 3 3
             &END IAO_CUBES 
             &ONE_CENTER_EXPANSION
                LMAX 5

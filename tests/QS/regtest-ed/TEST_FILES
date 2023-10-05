@@ -19,4 +19,7 @@ H2O_D3.inp                                             0
 H2O_cc.inp                                             0
 si8_pmix.inp                                           0
 si8_pmix_at.inp                                        0
+H2O_detail.inp                                         0
+H2O_canon.inp                                          0
+H2O_hyb_detail.inp                                     0
 #EOF
