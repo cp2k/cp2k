@@ -3,18 +3,18 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 12.3.0, MPICH 4.0.3,
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.24, 
+# Tested with: GNU 13.2.0, MPICH 4.0.3,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.24,
 #              FFTW 3.3.10, HDF5 1.14.2,
-#              LIBINT 2.6.0, LIBXC 6.2.2, 
+#              LIBINT 2.6.0, LIBXC 6.2.2,
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
-#              LIBVORI 220621, GSL 2.7, 
+#              LIBVORI 220621, GSL 2.7,
 #              COSMA 2.6.6, SIRIUS 7.4.3
-# on an Apple M1 (macOS Ventura 13.5.2)
+# on an Apple M1 (macOS Sonoma 14.0)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 04.10.2023
+# Last update: 05.10.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -29,8 +29,9 @@
    if $(command -v brew >/dev/null 2>&1); then \
       brew install cmake; \
       brew install coreutils; \
-      brew install gcc@12; \
+      brew install gcc; \
       brew install gsed; \
+      brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
    else \
@@ -39,7 +40,9 @@
       cd ../..; \
       return 1; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-${mpi_implementation} --with-elpa=no --with-libxsmm=no --with-pexsi=no --with-quip=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} \
+      --with-cmake=system --with-gcc=system --with-${mpi_implementation} --with-elpa=no --with-libxsmm=no \
+      --with-openblas=/opt/homebrew/Cellar/openblas/0.3.24 --with-pexsi=no --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -84,6 +87,7 @@ CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g 
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
+DFLAGS         += -D__ACCELERATE
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
@@ -285,8 +289,8 @@ endif
 
 ifneq ($(USE_OPENBLAS),)
    USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
-   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
-   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
+   OPENBLAS_INC   := /opt/homebrew/Cellar/openblas/$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := /opt/homebrew/Cellar/openblas/$(USE_OPENBLAS)/lib
    CFLAGS         += -I$(OPENBLAS_INC)
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath,$(OPENBLAS_LIB) -L$(OPENBLAS_LIB) -lopenblas
