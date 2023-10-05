@@ -3,13 +3,13 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 12.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 13.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.2.2, OpenBLAS 0.3.24, SPGLIB 1.16.2
-# on an Apple M1 (macOS Ventura 13.4)
+# on an Apple M1 (macOS Sonoma 14.0)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 22.09.2023
+# Last update: 05.10.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -24,6 +24,7 @@
       brew install cmake; \
       brew install coreutils; \
       brew install gcc; \
+      brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
    else \
@@ -32,7 +33,8 @@
       cd ../..; \
       return 1; \
    fi; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
+      --with-cmake=system --with-gcc=system --with-libxsmm=no --with-openblas=/opt/homebrew/Cellar/openblas/0.3.24; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -70,6 +72,7 @@ AR             := ar -r -s
 
 CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
+DFLAGS         += -D__ACCELERATE
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
 
@@ -151,8 +154,8 @@ endif
 
 ifneq ($(USE_OPENBLAS),)
    USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
-   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
-   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
+   OPENBLAS_INC   := /opt/homebrew/Cellar/openblas/$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := /opt/homebrew/Cellar/openblas/$(USE_OPENBLAS)/lib
    CFLAGS         += -I$(OPENBLAS_INC)
    LIBS           += $(OPENBLAS_LIB)/libopenblas.a
 endif
