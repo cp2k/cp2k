@@ -221,9 +221,16 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: frac_aux_mos = 0.0_dp
       INTEGER                                            :: num_omega_points = 0
       LOGICAL                                            :: do_bse = .FALSE.
-      INTEGER                                            :: num_z_vectors = 0, &
-                                                            max_iter_bse = 0
-      REAL(KIND=dp)                                      :: eps_min_trans = 0.0_dp
+      INTEGER                                            :: spin_config = 0, &
+                                                            num_exc_en = 0, &
+                                                            num_add_start_z_space = 0, &
+                                                            fac_max_z_space = 0, &
+                                                            num_new_t = 0, &
+                                                            num_davidson_iter = 0, & 
+                                                            davidson_abort_cond = 0
+      REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
+                                                            eps_exc_en = 0.0_dp, &
+                                                            z_space_energy_cutoff = 0.0_dp
       LOGICAL                                            :: do_ic_model = .FALSE., &
                                                             print_ic_values = .FALSE.
       REAL(KIND=dp)                                      :: eps_dist = 0.0_dp

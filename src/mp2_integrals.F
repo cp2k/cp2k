@@ -1182,13 +1182,14 @@ CONTAINS
       CALL timeset(routineN//"_E_Ex_"//TRIM(intermed_mat%descr), handle)
       CALL copy_dbcsr_to_fm(intermed_mat%matrix_ia_jb, intermed_mat%fm_BIb_jb)
 
-      IF (.NOT. (TRIM(intermed_mat%descr) .EQ. "bse_ab")) THEN
+      !MG to check: Removed in prior version
+      !IF (.NOT. (TRIM(intermed_mat%descr) .EQ. "bse_ab")) THEN
 
          CALL grep_my_integrals(para_env, intermed_mat%fm_BIb_jb, BIb_jb, intermed_mat%max_row_col_local, &
                                 intermed_mat%local_col_row_info, &
                                 my_B_end, my_B_start)
 
-      END IF
+      !END IF
 
       CALL timestop(handle)
    END SUBROUTINE ao_to_mo_and_store_B

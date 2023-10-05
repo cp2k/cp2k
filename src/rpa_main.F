@@ -19,7 +19,8 @@ MODULE rpa_main
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
    USE bse,                             ONLY: do_subspace_iterations,&
-                                              mult_B_with_W_and_fill_local_3c_arrays
+                                              mult_B_with_W_and_fill_local_3c_arrays, &
+                                              deallocate_matrices_bse
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -248,6 +249,11 @@ CONTAINS
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
       TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
+
+      !MG to del
+      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: idx_array,placeholder
+      INTEGER                                            :: i_print,j_print
+
 
       CALL timeset(routineN, handle)
 
@@ -478,7 +484,9 @@ CONTAINS
          DO ispin = 1, nspins
             CALL calculate_BIb_C_2D(BIb_C_2D(ispin)%array, BIb_C(ispin)%array, para_env_sub, dimen_ia(ispin), &
                                     homo(ispin), virtual(ispin), gd_B_virtual(ispin), &
-                                    my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size)
+                                    my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size, &
+                                    placeholder) !MG
+            DEALLOCATE(placeholder)
 
             DEALLOCATE (BIb_C(ispin)%array)
             CALL release_group_dist(gd_B_virtual(ispin))
@@ -497,7 +505,9 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_BIb_C_2D(BIb_C_2D_gw(ispin)%array, BIb_C_gw(ispin)%array, para_env_sub, dimen_nm_gw, &
                                        gw_corr_lev_occ(ispin) + gw_corr_lev_virt(ispin), nmo, gd_B_all, &
-                                       my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
+                                       my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
+                                    placeholder) !MG
+               DEALLOCATE(placeholder)
                DEALLOCATE (BIb_C_gw(ispin)%array)
             END DO
 
@@ -516,7 +526,9 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo(1), homo(1), gd_B_occ_bse, &
-                                 my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
+                                 my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size, &
+                                    placeholder) !MG
+         DEALLOCATE(placeholder)
 
          DEALLOCATE (BIb_C_bse_ij)
          CALL release_group_dist(gd_B_occ_bse)
@@ -529,7 +541,9 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual(1), virtual(1), gd_B_virt_bse, &
-                                 my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
+                                 my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size, &
+                                    placeholder) !MG
+         DEALLOCATE(placeholder)
 
          DEALLOCATE (BIb_C_bse_ab)
          CALL release_group_dist(gd_B_virt_bse)
@@ -611,6 +625,7 @@ CONTAINS
 
       ! Now start the RPA calculation
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
+      !MG Check if replaceing second fm_mat_S_ij_bse by fm_mat_S_ab_bse works out
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
@@ -626,7 +641,8 @@ CONTAINS
                        starts_array_mc, ends_array_mc, &
                        starts_array_mc_block, ends_array_mc_block, &
                        matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
-                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces)
+                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces, &
+                       idx_array=idx_array) !MG
 
       CALL release_group_dist(gd_array)
 
@@ -642,7 +658,7 @@ CONTAINS
          CALL cp_fm_release(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw(1))
       END IF
-
+      !MG: originally deallocated (along fm_mat_Q_static_bse/_gemm) inside BSE Routine
       IF (do_bse) THEN
          CALL cp_fm_release(fm_mat_S_ij_bse(1))
          CALL cp_fm_release(fm_mat_S_ab_bse(1))
@@ -678,7 +694,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
                                  gd_B_virtual, &
-                                 my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
+                                 my_ia_size, my_ia_start, my_ia_end, my_group_L_size, &
+                                 idx_array) !MG
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: BIb_C_2D
@@ -697,6 +714,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BIb_C_rec_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BIb_C_rec
 
+      !MG to del
+      INTEGER, ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT):: idx_array
+      INTEGER                                            :: i_print,j_print,LLL
+
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
       my_ia_end = itmp(2)
@@ -706,15 +727,22 @@ CONTAINS
 
       ! reorder data
       ALLOCATE (BIb_C_2D(my_group_L_size, my_ia_size))
+      !MG to del
+      ALLOCATE (idx_array(homo,my_B_size))
+      idx_array = 0
 
 !$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
 !$OMP              SHARED(homo,my_B_size,virtual,my_B_virtual_start,my_ia_start,my_ia_end,BIb_C,BIb_C_2D,&
-!$OMP              my_group_L_size)
+!$OMP              my_group_L_size, idx_array)
+!MG
       DO iiB = 1, homo
          DO jjB = 1, my_B_size
             ia_global = (iiB - 1)*virtual + my_B_virtual_start + jjB - 1
             IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
                BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C(1:my_group_L_size, jjB, iiB)
+               !MG to del
+               !print *, "idx_array", jjB,iiB,shape(idx_array)
+               idx_array(iiB,jjB) = ia_global
             END IF
          END DO
       END DO
@@ -1050,7 +1078,8 @@ CONTAINS
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
-                          do_ri_sos_laplace_mp2, calc_forces)
+                          do_ri_sos_laplace_mp2, calc_forces, &
+                          idx_array) !MG
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
@@ -1104,7 +1133,9 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
          ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, max_iter_bse, min_bsize, mm_style, &
          nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         num_Z_vectors, Pspin, Qspin, size_P
+         bse_spin_config,num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t, num_davidson_iter,num_Z_vectors_init, &
+         bse_davidson_abort_cond, & !MG
+         Pspin, Qspin, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1115,7 +1146,9 @@ CONTAINS
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
-         eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
+         eps_filter_im_time, &
+         eps_res,eps_exc_en, z_space_energy_cutoff, & !MG
+         ext_scaling, fermi_level_offset, &
          fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
@@ -1151,6 +1184,10 @@ CONTAINS
       TYPE(im_time_force_type)                           :: force_data
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
+
+      !MG to del
+      INTEGER, ALLOCATABLE, DIMENSION(:,:), INTENT(IN):: idx_array
+      INTEGER                       :: i_print,j_print
 
       CALL timeset(routineN, handle)
 
@@ -1311,16 +1348,24 @@ CONTAINS
 
          IF (do_bse) THEN
 
-            num_Z_vectors = mp2_env%ri_g0w0%num_z_vectors
-            eps_min_trans = mp2_env%ri_g0w0%eps_min_trans
-            max_iter_bse = mp2_env%ri_g0w0%max_iter_bse
+            !MG to del
+            bse_spin_config         = mp2_env%ri_g0w0%spin_config
+            bse_davidson_abort_cond = mp2_env%ri_g0w0%davidson_abort_cond
+            num_exc_en              = mp2_env%ri_g0w0%num_exc_en
+            num_add_start_z_space   = mp2_env%ri_g0w0%num_add_start_z_space
+            fac_max_z_space         = mp2_env%ri_g0w0%fac_max_z_space
+            num_new_t               = mp2_env%ri_g0w0%num_new_t
+            num_davidson_iter       = mp2_env%ri_g0w0%num_davidson_iter
+            eps_res                 = mp2_env%ri_g0w0%eps_res
+            eps_exc_en              = mp2_env%ri_g0w0%eps_exc_en
+            z_space_energy_cutoff   = mp2_env%ri_g0w0%z_space_energy_cutoff
 
             CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
             CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse)
+            CALL cp_fm_to_fm(fm_mat_Q(1), fm_mat_Q_static_bse)
             CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 
          END IF
@@ -1475,14 +1520,16 @@ CONTAINS
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
-                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
+                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                               num_integ_points) !MG
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
                                   Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), &
                                   homo(2), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
-                                  fm_mat_Q_static_bse_gemm, dgemm_counter)
+                                  fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                  num_integ_points) !MG
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
@@ -1712,15 +1759,26 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
+         num_Z_vectors_init = num_exc_en + num_add_start_z_space
+
+         !MG: Prepare matrices for truncation at certain energy difference
          CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), fm_mat_Q_static_bse, &
                                                      fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                      B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &
                                                      gd_array, color_sub, para_env)
 
+         ! JW@MG: CALL deallocate_matrices_bse(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_Q_static_bse fm_mat_Q_static_bse_gemm)
+         CALL deallocate_matrices_bse(fm_mat_Q_static_bse,fm_mat_Q_static_bse_gemm)
+
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors, &
-                                     max_iter_bse, eps_min_trans, Eigenval(:, 1, 1), para_env)
+                                     B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors_init, &
+                                     num_davidson_iter, eps_res, Eigenval(:, 1, 1), para_env, &
+                                     num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t, &
+                                     bse_spin_config, unit_nr, bse_davidson_abort_cond, eps_exc_en, &
+                                     z_space_energy_cutoff)
+         !Deallocate three center integrals
+         DEALLOCATE(B_bar_ijQ_bse_local,B_abQ_bse_local,B_bar_iaQ_bse_local,B_iaQ_bse_local)
 
       END IF
 

@@ -1278,5 +1278,12 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: e_dens_total_hard_approx = 1, &
                                                e_dens_total_density = 2, &
                                                e_dens_soft_density = 3
+   ! BSE spin configuration
+   INTEGER, PARAMETER, PUBLIC               :: do_bse_singlet = 0, &
+                                               do_bse_triplet = 1
+   ! BSE abortion condition
+   INTEGER, PARAMETER, PUBLIC               :: do_bse_en = 0, &
+                                               do_bse_res = 1, &
+                                               do_bse_or = 2
 
 END MODULE input_constants

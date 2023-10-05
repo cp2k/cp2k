@@ -170,12 +170,33 @@ CONTAINS
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
                                 l_val=mp2_env%ri_g0w0%do_bse)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_Z_VECTORS", &
-                                i_val=mp2_env%ri_g0w0%num_z_vectors)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%THRESHOLD_MIN_TRANS", &
-                                r_val=mp2_env%ri_g0w0%eps_min_trans)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%MAX_ITER", &
-                                i_val=mp2_env%ri_g0w0%max_iter_bse)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%SPIN_CONFIG", &
+                                i_val=mp2_env%ri_g0w0%spin_config)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%DAVIDSON_ABORT_COND", &
+                                i_val=mp2_env%ri_g0w0%davidson_abort_cond)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_EXC_EN", &
+                                i_val=mp2_env%ri_g0w0%num_exc_en)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_ADD_START_Z_SPACE", &
+                                i_val=mp2_env%ri_g0w0%num_add_start_z_space)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%FAC_MAX_Z_SPACE", &
+                                i_val=mp2_env%ri_g0w0%fac_max_z_space)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_NEW_T", &
+                                i_val=mp2_env%ri_g0w0%num_new_t)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%EPS_RES", &
+                                r_val=mp2_env%ri_g0w0%eps_res)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%EPS_EXC_EN", &
+                                r_val=mp2_env%ri_g0w0%eps_exc_en)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_DAVIDSON_ITER", &
+                                i_val=mp2_env%ri_g0w0%num_davidson_iter)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%Z_SPACE_ENERGY_CUTOFF", &
+                                r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
+      !MG todel
+      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_Z_VECTORS", &
+      !                           i_val=mp2_env%ri_g0w0%num_z_vectors)
+      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%THRESHOLD_MIN_TRANS", &
+      !                           r_val=mp2_env%ri_g0w0%eps_min_trans)
+      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%MAX_ITER", &
+      !                           i_val=mp2_env%ri_g0w0%max_iter_bse)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)

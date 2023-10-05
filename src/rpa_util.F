@@ -657,14 +657,14 @@ CONTAINS
    SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual, &
                          Eigenval, Eigenval_scf, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
-                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
+                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, num_integ_points)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: iter_sc_GW0, virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
-      INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
+      INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia, num_integ_points
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
       LOGICAL, INTENT(IN)                                :: do_bse
@@ -692,8 +692,9 @@ CONTAINS
 
       CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, &
                            fm_mat_Q, dgemm_counter)
-
-      IF (do_bse .AND. jquad == 1) THEN
+      !MG: fm_mat_Q_static_bse_gemm does not enter W_ijab (A matrix in TDA), but only full ABBA (since only B_ij_bar enters W_ijab)
+      !MG: Changing jquad, since omega=0 is at last idx
+      IF (do_bse .AND. jquad == num_integ_points) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
       END IF
       CALL timestop(handle)
