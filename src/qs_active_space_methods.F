@@ -22,6 +22,7 @@ MODULE qs_active_space_methods
                               srules, &
                               sto_basis_set_type
    USE cell_types, ONLY: cell_type
+   USE cell_methods, ONLY: init_cell
    USE cp_blacs_env, ONLY: cp_blacs_env_type, cp_blacs_env_create, cp_blacs_env_release, BLACS_GRID_SQUARE
    USE cp_control_types, ONLY: dft_control_type, qs_control_type
    USE cp_dbcsr_operations, ONLY: cp_dbcsr_plus_fm_fm_t, &
@@ -1213,7 +1214,7 @@ CONTAINS
                                                             max_cell_dim
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      REAL(KIND=dp), DIMENSION(3,3)                      :: old_hmat
+      REAL(KIND=dp), DIMENSION(3,3)                      :: old_hmat, new_hmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_sub
@@ -1334,9 +1335,18 @@ CONTAINS
             END IF
             old_hmat = cell%hmat(:, :)
             DO iwa1 = 1, 3
-               cell%hmat(iwa1, iwa1) = max_cell_dim
+               new_hmat(iwa1, iwa1) = max_cell_dim
             END DO
          END IF
+      END IF
+      CALL init_cell(cell, new_hmat)
+
+      IF (eri_env%method == eri_method_gpw_ht) THEN
+         ! For now, we will distribute neighbor lists etc. within the global communicator
+         CALL get_qs_env(qs_env, ks_env=ks_env)
+         CALL create_mat_munu(mat_munu, qs_env, eri_env%eri_gpw%eps_grid, blacs_env_sub, sab_orb_sub=sab_orb_sub, &
+                              do_alloc_blocks_from_nbl=.TRUE., dbcsr_sym_type=dbcsr_type_symmetric)
+         CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
 
       ! Generate the appropriate  pw_env
@@ -1726,7 +1736,7 @@ CONTAINS
       dft_control%qs_control => qs_control_old
       DEALLOCATE (qs_control%e_cutoff)
       DEALLOCATE (qs_control)
-      cell%hmat = old_hmat(:,:)
+      CALL init_cell(cell, old_hmat)
 
       CALL timestop(handle)
 
