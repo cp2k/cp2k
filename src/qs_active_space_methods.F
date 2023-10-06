@@ -1208,11 +1208,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      REAL(KIND=dp)                                      :: cutoff_old, dvol, erint, pair_int, &
-                                                            progression_factor, rc, &
-                                                            relative_cutoff_old, rsize, max_cell_dim
+      REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
+                                                            progression_factor, rc, rsize, &
+                                                            max_cell_dim
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       REAL(KIND=dp), DIMENSION(3,3)                      :: old_hmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1449,6 +1449,9 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
+      CALL m_flush(iw)
+      ! pre-calculate wavefunctions on reals space grid
+      nspins = SIZE(mos)
       IF (eri_env%eri_gpw%store_wfn) THEN
          ! pre-calculate wavefunctions on reals space grid
          rsize = 0.0_dp
@@ -1497,6 +1500,7 @@ CONTAINS
       dvol = rho_r%pw_grid%dvol
       CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group%get_handle())
 
+      CALL m_flush(iw)
       ! calculate the integrals
       stored_integrals = 0
       DO isp1 = 1, nspins
