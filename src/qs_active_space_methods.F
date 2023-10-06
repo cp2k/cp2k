@@ -1327,9 +1327,12 @@ CONTAINS
                max_cell_dim = MAX(max_cell_dim, cell%hmat(iwa1, iwa1))
             END DO
             max_cell_dim = max_cell_dim*2.0_dp
-            WRITE (UNIT=iw, FMT="(/,T2,A,T66,F15.6)") &
+
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/,T2,A,T66,F15.6)") &
                      "New max cell dimensions for GPW integrals", max_cell_dim
-            old_hmat = cell%hmat
+            END IF
+            old_hmat = cell%hmat(:, :)
             DO iwa1 = 1, 3
                cell%hmat(iwa1, iwa1) = max_cell_dim
             END DO
@@ -1359,8 +1362,10 @@ CONTAINS
                rc = MIN(rc, 0.5_dp*cell%hmat(iwa1, iwa1))
             END DO
             poisson_env%green_fft%radius = rc
-            WRITE (UNIT=iw, FMT="(/,T2,A,T71,F10.4)") &
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/,T2,A,T71,F10.4)") &
                      "ERI_GPW| Poisson cutoff radius", rc
+            END IF
          END IF
 
          CALL pw_eri_green_create(poisson_env%green_fft, eri_env)
@@ -1449,7 +1454,9 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
-      CALL m_flush(iw)
+      IF (iw > 0) THEN
+         CALL m_flush(iw)
+      END IF
       ! pre-calculate wavefunctions on reals space grid
       nspins = SIZE(mos)
       IF (eri_env%eri_gpw%store_wfn) THEN
@@ -1500,7 +1507,9 @@ CONTAINS
       dvol = rho_r%pw_grid%dvol
       CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group%get_handle())
 
-      CALL m_flush(iw)
+      IF (iw > 0) THEN
+         CALL m_flush(iw)
+      END IF
       ! calculate the integrals
       stored_integrals = 0
       DO isp1 = 1, nspins
@@ -1717,7 +1726,7 @@ CONTAINS
       dft_control%qs_control => qs_control_old
       DEALLOCATE (qs_control%e_cutoff)
       DEALLOCATE (qs_control)
-      cell%hmat = old_hmat
+      cell%hmat = old_hmat(:,:)
 
       CALL timestop(handle)
 
