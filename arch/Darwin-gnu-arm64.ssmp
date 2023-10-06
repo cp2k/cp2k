@@ -8,8 +8,9 @@
 # on an Apple M1 (macOS Sonoma 14.0)
 #
 # Usage: Source this arch file and then run make as instructed.
+#        Ensure the links in /usr/local/bin to the lastest gcc version.
 #
-# Last update: 05.10.2023
+# Last update: 06.10.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -23,6 +24,7 @@
    if $(command -v brew >/dev/null 2>&1); then \
       brew install cmake; \
       brew install coreutils; \
+      brew install fftw; \
       brew install gcc; \
       brew install openblas; \
       brew install pkg-config; \
@@ -34,7 +36,8 @@
       return 1; \
    fi; \
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
-      --with-cmake=system --with-gcc=system --with-libxsmm=no --with-openblas=/opt/homebrew/Cellar/openblas/0.3.24; \
+      --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
+      --with-libxsmm=no --with-openblas=$(brew --prefix openblas); \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -54,11 +57,9 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
-USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
-USE_OPENBLAS   := 0.3.24
 USE_SPGLIB     := 1.16.2
 
 LMAX           := 5
@@ -142,23 +143,15 @@ ifneq ($(USE_SPGLIB),)
    LIBS           += $(SPGLIB_LIB)/libsymspg.a
 endif
 
-ifneq ($(USE_FFTW),)
-   USE_FFTW       := $(strip $(USE_FFTW))
-   FFTW_INC       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/include
-   FFTW_LIB       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/lib
-   CFLAGS         += -I$(FFTW_INC)
-   DFLAGS         += -D__FFTW3
-   LIBS           += $(FFTW_LIB)/libfftw3_omp.a
-   LIBS           += $(FFTW_LIB)/libfftw3.a
-endif
+FFTW_HOME      := $(shell brew --prefix fftw)
+CFLAGS         += -I$(FFTW_HOME)/include
+DFLAGS         += -D__FFTW3
+LIBS           += $(FFTW_HOME)/lib/libfftw3_omp.a
+LIBS           += $(FFTW_HOME)/lib/libfftw3.a
 
-ifneq ($(USE_OPENBLAS),)
-   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
-   OPENBLAS_INC   := /opt/homebrew/Cellar/openblas/$(USE_OPENBLAS)/include
-   OPENBLAS_LIB   := /opt/homebrew/Cellar/openblas/$(USE_OPENBLAS)/lib
-   CFLAGS         += -I$(OPENBLAS_INC)
-   LIBS           += $(OPENBLAS_LIB)/libopenblas.a
-endif
+OPENBLAS_HOME  := $(shell brew --prefix openblas)
+CFLAGS         += -I$(OPENBLAS_HOME)/include
+LIBS           += $(OPENBLAS_HOME)/lib/libopenblas.a
 
 CFLAGS         += $(DFLAGS)
 
