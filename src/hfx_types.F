@@ -1537,14 +1537,14 @@ CONTAINS
                CALL dbt_destroy(ri_data%rho_ao_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%rho_ao_t,)
+         DEALLOCATE (ri_data%rho_ao_t)
 
          DO j = 1, SIZE(ri_data%ks_t, 2)
             DO i = 1, SIZE(ri_data%ks_t, 1)
                CALL dbt_destroy(ri_data%ks_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%ks_t,)
+         DEALLOCATE (ri_data%ks_t)
 
          DEALLOCATE (ri_data%starts_array_mem_block, ri_data%ends_array_mem_block, &
                      ri_data%starts_array_mem, ri_data%ends_array_mem)
