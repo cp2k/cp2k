@@ -201,22 +201,22 @@ CONTAINS
 
       !We store the density and KS matrix in tensor format
       nspins = dft_control%nspins
-      ALLOCATE (ri_data%kp_rho_ao_t(nspins, nimg), ri_data%kp_ks_t(nspins, nimg))
-      CALL create_2c_tensor(ri_data%kp_rho_ao_t(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+      ALLOCATE (ri_data%rho_ao_t(nspins, nimg), ri_data%ks_t(nspins, nimg))
+      CALL create_2c_tensor(ri_data%rho_ao_t(1, 1), dist1, dist2, ri_data%pgrid_2d, &
                             ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
                             name="(AO | AO)")
       DEALLOCATE (dist1, dist2)
 
-      CALL dbt_create(dbcsr_template, ri_data%kp_ks_t(1, 1))
+      CALL dbt_create(dbcsr_template, ri_data%ks_t(1, 1))
 
       IF (nspins == 2) THEN
-         CALL dbt_create(ri_data%kp_rho_ao_t(1, 1), ri_data%kp_rho_ao_t(2, 1))
-         CALL dbt_create(ri_data%kp_ks_t(1, 1), ri_data%kp_ks_t(2, 1))
+         CALL dbt_create(ri_data%rho_ao_t(1, 1), ri_data%rho_ao_t(2, 1))
+         CALL dbt_create(ri_data%ks_t(1, 1), ri_data%ks_t(2, 1))
       END IF
       DO i_img = 2, nimg
          DO i_spin = 1, nspins
-            CALL dbt_create(ri_data%kp_rho_ao_t(1, 1), ri_data%kp_rho_ao_t(i_spin, i_img))
-            CALL dbt_create(ri_data%kp_ks_t(1, 1), ri_data%kp_ks_t(i_spin, i_img))
+            CALL dbt_create(ri_data%rho_ao_t(1, 1), ri_data%rho_ao_t(i_spin, i_img))
+            CALL dbt_create(ri_data%ks_t(1, 1), ri_data%ks_t(i_spin, i_img))
          END DO
       END DO
 
@@ -383,22 +383,22 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
       END IF
 
-      IF (ALLOCATED(ri_data%kp_rho_ao_t)) THEN
-         DO j = 1, SIZE(ri_data%kp_rho_ao_t, 2)
-            DO i = 1, SIZE(ri_data%kp_rho_ao_t, 1)
-               CALL dbt_destroy(ri_data%kp_rho_ao_t(i, j))
+      IF (ALLOCATED(ri_data%rho_ao_t)) THEN
+         DO j = 1, SIZE(ri_data%rho_ao_t, 2)
+            DO i = 1, SIZE(ri_data%rho_ao_t, 1)
+               CALL dbt_destroy(ri_data%rho_ao_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%kp_rho_ao_t)
+         DEALLOCATE (ri_data%rho_ao_t)
       END IF
 
-      IF (ALLOCATED(ri_data%kp_ks_t)) THEN
-         DO j = 1, SIZE(ri_data%kp_ks_t, 2)
-            DO i = 1, SIZE(ri_data%kp_ks_t, 1)
-               CALL dbt_destroy(ri_data%kp_ks_t(i, j))
+      IF (ALLOCATED(ri_data%ks_t)) THEN
+         DO j = 1, SIZE(ri_data%ks_t, 2)
+            DO i = 1, SIZE(ri_data%ks_t, 1)
+               CALL dbt_destroy(ri_data%ks_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%kp_ks_t)
+         DEALLOCATE (ri_data%ks_t)
       END IF
 
    END SUBROUTINE cleanup_kp
@@ -484,12 +484,12 @@ CONTAINS
       !(mu^0, sigma^a| P^0) (P^0|R^0)  <===> (S^b|Q^b)^-1 (Q^b| nu^b lambda^a+c) by relabelling the images
 
       !Build the density tensor based on the difference of this SCF P and that of the prev. SCF
-      CALL get_pmat_images(ri_data%kp_rho_ao_t, rho_ao, -1.0_dp, ri_data, qs_env)
+      CALL get_pmat_images(ri_data%rho_ao_t, rho_ao, -1.0_dp, ri_data, qs_env)
 
       ALLOCATE (ks_t(nspins, nimg))
       DO i_img = 1, nimg
          DO i_spin = 1, nspins
-            CALL dbt_create(ri_data%kp_ks_t(1, 1), ks_t(i_spin, i_img))
+            CALL dbt_create(ri_data%ks_t(1, 1), ks_t(i_spin, i_img))
          END DO
       END DO
 
@@ -508,7 +508,7 @@ CONTAINS
             CALL dbt_create(ri_data%t_3c_int_ctr_2(1, 1), t_3c_apc(i_spin, i_img))
          END DO
       END DO
-      CALL contract_pmat_3c(t_3c_apc, ri_data%kp_rho_ao_t, ri_data, qs_env)
+      CALL contract_pmat_3c(t_3c_apc, ri_data%rho_ao_t, ri_data, qs_env)
 
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
       CALL section_vals_val_get(hfx_section, "KP_NGROUPS", i_val=ngroups)
@@ -698,15 +698,15 @@ CONTAINS
       !Currently, rho_ao_t holds the density difference (wrt to pref SCF step).
       !ks_t also hold that diff, while only having half the blocks => need to add to prev ks_t and symmetrize
       !We need the full thing for the energy, on the next SCF step
-      CALL get_pmat_images(ri_data%kp_rho_ao_t, rho_ao, 0.0_dp, ri_data, qs_env)
+      CALL get_pmat_images(ri_data%rho_ao_t, rho_ao, 0.0_dp, ri_data, qs_env)
       DO i_spin = 1, nspins
          DO b_img = 1, nimg
-            CALL dbt_copy(ks_t(i_spin, b_img), ri_data%kp_ks_t(i_spin, b_img), summation=.TRUE.)
+            CALL dbt_copy(ks_t(i_spin, b_img), ri_data%ks_t(i_spin, b_img), summation=.TRUE.)
 
             !desymmetrize
             mb_img = get_opp_index(b_img, qs_env)
             IF (mb_img > 0 .AND. mb_img .LE. nimg) THEN
-               CALL dbt_copy(ks_t(i_spin, mb_img), ri_data%kp_ks_t(i_spin, b_img), order=[2, 1], summation=.TRUE.)
+               CALL dbt_copy(ks_t(i_spin, mb_img), ri_data%ks_t(i_spin, b_img), order=[2, 1], summation=.TRUE.)
             END IF
          END DO
       END DO
@@ -717,20 +717,20 @@ CONTAINS
       END DO
 
       !calculate the energy
-      CALL dbt_create(ri_data%kp_ks_t(1, 1), t_2c_ao_tmp(1))
+      CALL dbt_create(ri_data%ks_t(1, 1), t_2c_ao_tmp(1))
       CALL dbcsr_create(tmp, template=ks_matrix(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_create(ks_desymm, template=ks_matrix(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(rho_desymm, template=ks_matrix(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       ehfx = 0.0_dp
       DO i_img = 1, nimg
          DO i_spin = 1, nspins
-            CALL dbt_filter(ri_data%kp_ks_t(i_spin, i_img), ri_data%filter_eps)
-            CALL dbt_copy(ri_data%kp_ks_t(i_spin, i_img), t_2c_ao_tmp(1))
+            CALL dbt_filter(ri_data%ks_t(i_spin, i_img), ri_data%filter_eps)
+            CALL dbt_copy(ri_data%ks_t(i_spin, i_img), t_2c_ao_tmp(1))
             CALL dbt_copy_tensor_to_matrix(t_2c_ao_tmp(1), ks_desymm)
             CALL dbt_copy_tensor_to_matrix(t_2c_ao_tmp(1), tmp)
             CALL dbcsr_add(ks_matrix(i_spin, i_img)%matrix, tmp, 1.0_dp, 1.0_dp)
 
-            CALL dbt_copy(ri_data%kp_rho_ao_t(i_spin, i_img), t_2c_ao_tmp(1))
+            CALL dbt_copy(ri_data%rho_ao_t(i_spin, i_img), t_2c_ao_tmp(1))
             CALL dbt_copy_tensor_to_matrix(t_2c_ao_tmp(1), rho_desymm)
 
             CALL dbcsr_dot(ks_desymm, rho_desymm, etmp)

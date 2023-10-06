@@ -410,10 +410,12 @@ MODULE hfx_types
 
       ! KP 3c tensors replicated on the subgroups
       TYPE(dbt_type), DIMENSION(:), ALLOCATABLE :: kp_t_3c_int
-      TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE :: kp_rho_ao_t, kp_ks_t
 
       ! Note: changed static DIMENSION(1,1) of dbt_type to allocatables as workaround for gfortran 8.3.0,
       ! with static dimension gfortran gets stuck during compilation
+
+      ! 2c tensors in (AO | AO) format
+      TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE :: rho_ao_t, ks_t
 
       ! 2c tensors in (RI | RI) format for forces
       TYPE(dbt_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_inv
@@ -1346,6 +1348,21 @@ CONTAINS
                                name="(RI | RI)")
          DEALLOCATE (dist1, dist2)
 
+         !We store previous Pmat and KS mat, so that we can work with Delta P and gain sprasity as we go
+         ALLOCATE (ri_data%rho_ao_t(2, 1))
+         CALL create_2c_tensor(ri_data%rho_ao_t(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                               ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                               name="(AO | AO)")
+         DEALLOCATE (dist1, dist2)
+         CALL dbt_create(ri_data%rho_ao_t(1, 1), ri_data%rho_ao_t(2, 1))
+
+         ALLOCATE (ri_data%ks_t(2, 1))
+         CALL create_2c_tensor(ri_data%ks_t(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                               ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                               name="(AO | AO)")
+         DEALLOCATE (dist1, dist2)
+         CALL dbt_create(ri_data%ks_t(1, 1), ri_data%ks_t(2, 1))
+
       ELSEIF (ri_data%flavor == ri_mo) THEN
          ALLOCATE (ri_data%t_2c_int(2, 1))
 
@@ -1515,6 +1532,20 @@ CONTAINS
          END DO
          DEALLOCATE (ri_data%t_2c_int)
 
+         DO j = 1, SIZE(ri_data%rho_ao_t, 2)
+            DO i = 1, SIZE(ri_data%rho_ao_t, 1)
+               CALL dbt_destroy(ri_data%rho_ao_t(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%rho_ao_t,)
+
+         DO j = 1, SIZE(ri_data%ks_t, 2)
+            DO i = 1, SIZE(ri_data%ks_t, 1)
+               CALL dbt_destroy(ri_data%ks_t(i, j))
+            END DO
+         END DO
+         DEALLOCATE (ri_data%ks_t,)
+
          DEALLOCATE (ri_data%starts_array_mem_block, ri_data%ends_array_mem_block, &
                      ri_data%starts_array_mem, ri_data%ends_array_mem)
          DEALLOCATE (ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block, &
@@ -1574,22 +1605,22 @@ CONTAINS
          DEALLOCATE (ri_data%kp_t_3c_int)
       END IF
 
-      IF (ALLOCATED(ri_data%kp_rho_ao_t)) THEN
-         DO j = 1, SIZE(ri_data%kp_rho_ao_t, 2)
-            DO i = 1, SIZE(ri_data%kp_rho_ao_t, 1)
-               CALL dbt_destroy(ri_data%kp_rho_ao_t(i, j))
+      IF (ALLOCATED(ri_data%rho_ao_t)) THEN
+         DO j = 1, SIZE(ri_data%rho_ao_t, 2)
+            DO i = 1, SIZE(ri_data%rho_ao_t, 1)
+               CALL dbt_destroy(ri_data%rho_ao_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%kp_rho_ao_t)
+         DEALLOCATE (ri_data%rho_ao_t)
       END IF
 
-      IF (ALLOCATED(ri_data%kp_ks_t)) THEN
-         DO j = 1, SIZE(ri_data%kp_ks_t, 2)
-            DO i = 1, SIZE(ri_data%kp_ks_t, 1)
-               CALL dbt_destroy(ri_data%kp_ks_t(i, j))
+      IF (ALLOCATED(ri_data%ks_t)) THEN
+         DO j = 1, SIZE(ri_data%ks_t, 2)
+            DO i = 1, SIZE(ri_data%ks_t, 1)
+               CALL dbt_destroy(ri_data%ks_t(i, j))
             END DO
          END DO
-         DEALLOCATE (ri_data%kp_ks_t)
+         DEALLOCATE (ri_data%ks_t)
       END IF
 
       IF (ALLOCATED(ri_data%iatom_to_subgroup)) THEN

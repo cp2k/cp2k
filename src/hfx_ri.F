@@ -54,7 +54,7 @@ MODULE hfx_ri
         dbt_distribution_type, dbt_filter, dbt_get_block, dbt_get_info, dbt_get_num_blocks_total, &
         dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &
         dbt_iterator_type, dbt_mp_environ_pgrid, dbt_nd_mp_comm, dbt_pgrid_create, &
-        dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_type
+        dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_scale, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: alloc_containers,&
                                               block_ind_type,&
@@ -1555,8 +1555,8 @@ CONTAINS
       REAL(dp)                                           :: memory_3c, occ, occ_3c, occ_3c_1, &
                                                             occ_3c_2, occ_ks, occ_rho, t1, t2, &
                                                             unused
-      TYPE(dbt_type)                                     :: ks_t, ks_tmp, rho_ao_t, rho_ao_tmp, &
-                                                            t_3c_1, t_3c_3, tensor_old
+      TYPE(dbt_type)                                     :: ks_t, ks_tmp, rho_ao_tmp, t_3c_1, &
+                                                            t_3c_3, tensor_old
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       IF (.NOT. fac > EPSILON(0.0_dp)) RETURN
@@ -1575,6 +1575,10 @@ CONTAINS
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
+         DO ispin = 1, nspins
+            CALL dbt_scale(ri_data%rho_ao_t(ispin, 1), 0.0_dp)
+            CALL dbt_scale(ri_data%ks_t(ispin, 1), 0.0_dp)
+         END DO
       END IF
 
       nblks = dbt_get_num_blocks_total(ri_data%t_3c_int_ctr_2(1, 1))
@@ -1587,11 +1591,6 @@ CONTAINS
 
       CALL dbt_create(ks_matrix(1, 1)%matrix, ks_tmp)
       CALL dbt_create(rho_ao(1, 1)%matrix, rho_ao_tmp)
-
-      CALL create_2c_tensor(rho_ao_t, dist1, dist2, ri_data%pgrid_2d, &
-                            ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                            name="(AO | AO)")
-      DEALLOCATE (dist1, dist2)
 
       CALL create_2c_tensor(ks_t, dist1, dist2, ri_data%pgrid_2d, &
                             ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
@@ -1626,9 +1625,12 @@ CONTAINS
          occ_3c_2 = 0.0_dp
 
          CALL dbt_copy_matrix_to_tensor(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
-         CALL dbt_copy(rho_ao_tmp, rho_ao_t, move_data=.TRUE.)
 
-         CALL get_tensor_occupancy(rho_ao_t, nze_rho, occ_rho)
+         !We work with Delta P: the diff between previous SCF step and this one, for increased sparsity
+         CALL dbt_scale(ri_data%rho_ao_t(ispin, 1), -1.0_dp)
+         CALL dbt_copy(rho_ao_tmp, ri_data%rho_ao_t(ispin, 1), summation=.TRUE., move_data=.TRUE.)
+
+         CALL get_tensor_occupancy(ri_data%rho_ao_t(ispin, 1), nze_rho, occ_rho)
 
          CALL dbt_batched_contract_init(ri_data%t_3c_int_ctr_1(1, 1), batch_range_1=batch_ranges_AO, &
                                         batch_range_2=batch_ranges_RI)
@@ -1638,7 +1640,7 @@ CONTAINS
 
          DO i_mem = 1, n_mem
 
-            CALL dbt_batched_contract_init(rho_ao_t)
+            CALL dbt_batched_contract_init(ri_data%rho_ao_t(ispin, 1))
             CALL dbt_batched_contract_init(ri_data%t_3c_int_ctr_2(1, 1), batch_range_2=batch_ranges_RI, &
                                            batch_range_3=batch_ranges_AO)
             CALL dbt_batched_contract_init(t_3c_1, batch_range_2=batch_ranges_RI, batch_range_3=batch_ranges_AO)
@@ -1651,7 +1653,7 @@ CONTAINS
                bounds_j(:, 1) = [1, dims_3c(1)]
                bounds_j(:, 2) = [ri_data%starts_array_RI_mem(j_mem), ri_data%ends_array_RI_mem(j_mem)]
 
-               CALL dbt_contract(1.0_dp, rho_ao_t, ri_data%t_3c_int_ctr_2(1, 1), &
+               CALL dbt_contract(1.0_dp, ri_data%rho_ao_t(ispin, 1), ri_data%t_3c_int_ctr_2(1, 1), &
                                  0.0_dp, t_3c_1, &
                                  contract_1=[2], notcontract_1=[1], &
                                  contract_2=[3], notcontract_2=[1, 2], &
@@ -1701,7 +1703,7 @@ CONTAINS
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
             END DO
-            CALL dbt_batched_contract_finalize(rho_ao_t, unit_nr=unit_nr_dbcsr)
+            CALL dbt_batched_contract_finalize(ri_data%rho_ao_t(ispin, 1), unit_nr=unit_nr_dbcsr)
             CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_2(1, 1))
             CALL dbt_batched_contract_finalize(t_3c_1)
          END DO
@@ -1724,11 +1726,14 @@ CONTAINS
 
          CALL dbt_destroy(tensor_old)
 
-         CALL dbt_clear(rho_ao_t)
          CALL get_tensor_occupancy(ks_t, nze_ks, occ_ks)
 
-         CALL dbt_copy(ks_t, ks_tmp)
-         CALL dbt_clear(ks_t)
+         !rho_ao_t holds the density difference, and ks_t is built upon it => need the full picture
+         CALL dbt_copy_matrix_to_tensor(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
+         CALL dbt_copy(rho_ao_tmp, ri_data%rho_ao_t(ispin, 1), move_data=.TRUE.)
+         CALL dbt_copy(ks_t, ri_data%ks_t(ispin, 1), summation=.TRUE., move_data=.TRUE.)
+
+         CALL dbt_copy(ri_data%ks_t(ispin, 1), ks_tmp)
          CALL dbt_copy_tensor_to_matrix(ks_tmp, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
          CALL dbt_clear(ks_tmp)
 
@@ -1755,7 +1760,6 @@ CONTAINS
       CALL dbt_destroy(t_3c_1)
       CALL dbt_destroy(t_3c_3)
 
-      CALL dbt_destroy(rho_ao_t)
       CALL dbt_destroy(rho_ao_tmp)
       CALL dbt_destroy(ks_t)
       CALL dbt_destroy(ks_tmp)
