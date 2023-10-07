@@ -36,6 +36,7 @@
       brew install gsed; \
       brew install gsl; \
       brew install hdf5; \
+      brew install libxc; \
       brew install openblas; \
       brew install pkg-config; \
       brew install wget; \

@@ -26,6 +26,7 @@
       brew install coreutils; \
       brew install fftw; \
       brew install gcc; \
+      brew install libxc; \
       brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
@@ -37,7 +38,7 @@
    fi; \
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
-      --with-libxsmm=no --with-openblas=$(brew --prefix openblas); \
+      --with-libxc=$(brew --prefix libxc) --with-libxsmm=no --with-openblas=$(brew --prefix openblas); \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -113,15 +114,10 @@ ifneq ($(USE_LIBVORI),)
    LIBS           += $(LIBVORI_LIB)/libvori.a
 endif
 
-ifneq ($(USE_LIBXC),)
-   USE_LIBXC      := $(strip $(USE_LIBXC))
-   LIBXC_INC      := $(INSTALL_PATH)/libxc-$(USE_LIBXC)/include
-   LIBXC_LIB      := $(INSTALL_PATH)/libxc-$(USE_LIBXC)/lib
-   CFLAGS         += -I$(LIBXC_INC)
-   DFLAGS         += -D__LIBXC
-   LIBS           += $(LIBXC_LIB)/libxcf03.a
-   LIBS           += $(LIBXC_LIB)/libxc.a
-endif
+LIBXC_HOME     := $(shell brew --prefix libxc)
+CFLAGS         += -I$(LIBXC_HOME)/include
+DFLAGS         += -D__LIBXC
+LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
 
 ifneq ($(USE_LIBINT),)
    USE_LIBINT     := $(strip $(USE_LIBINT))
