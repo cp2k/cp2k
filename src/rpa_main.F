@@ -33,7 +33,8 @@ MODULE rpa_main
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_type,&
+                                              cp_fm_write_formatted !MG
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
@@ -599,7 +600,9 @@ CONTAINS
 
       ! for Bethe-Salpeter, we need other matrix fm_mat_S
       IF (do_bse) THEN
-
+         !MG debug
+         print *,"MG: unit nr is ",unit_nr
+         CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before BSE action in rpa_main")
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, [dimen_homo_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
@@ -626,6 +629,9 @@ CONTAINS
       ! Now start the RPA calculation
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
       !MG Check if replaceing second fm_mat_S_ij_bse by fm_mat_S_ab_bse works out
+      !MG debug
+      print *,"MG: unit nr is ",unit_nr
+      CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before rpa_num_int in rpa_main")
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
@@ -1500,6 +1506,9 @@ CONTAINS
 
             ELSE
 
+               !MG debug
+               print *,"MG: unit nr is ",unit_nr
+               CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before remove scaling factors in rpa_main")
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
@@ -1516,7 +1525,10 @@ CONTAINS
                      END DO
                   END IF
                END IF
-
+               !MG debug
+               print *,"MG: unit nr is ",unit_nr
+               CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before calc_mat_Q")
+               
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
@@ -1598,7 +1610,7 @@ CONTAINS
                   END IF
                ELSE
                   CALL compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
-                                              gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
+                                              gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                               do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
@@ -1759,6 +1771,19 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
+            !MG: Is this IF clause necessary?
+            IF (iter_sc_gw0 == 1) THEN
+               DO ispin = 1, nspins
+                  CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
+                                                 Eigenval_last(:, 1, ispin), homo(ispin), omega)
+               END DO
+            ELSE
+               DO ispin = 1, nspins
+                  CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
+                                                 Eigenval_scf(:, 1, ispin), homo(ispin), omega)
+               END DO
+            END IF
+
          num_Z_vectors_init = num_exc_en + num_add_start_z_space
 
          !MG: Prepare matrices for truncation at certain energy difference
