@@ -212,7 +212,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
                                                             explicit, isolated, stop_after_print, &
-                                                            store_wfn
+                                                            store_wfn, eri_enlarge_cell
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -820,6 +820,8 @@ CONTAINS
       CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=invals, explicit=ex_perd)
       CALL section_vals_val_get(as_input, "ERI%EPS_INTEGRAL", r_val=eri_eps_int)
       active_space_env%eri%eps_integral = eri_eps_int
+      CALL section_vals_val_get(as_input, "ERI%ENLARGE_CELL", l_val=eri_enlarge_cell)
+      active_space_env%eri%enlarge_cell = eri_enlarge_cell
       IF (active_space_env%molecule) THEN
          ! check that we are in a non-periodic setting
          CALL get_qs_env(qs_env, cell=cell)
@@ -1320,27 +1322,30 @@ CONTAINS
                               do_alloc_blocks_from_nbl=.TRUE., dbcsr_sym_type=dbcsr_type_symmetric)
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
-      ! figure out size of the box
-      IF (SUM(cell%perd) /= SUM(eri_env%periodicity)) THEN
-         ! enter here only for obc-in-pbc
-         IF (SUM(eri_env%periodicity) == 0) THEN
-            max_cell_dim = cell%hmat(1, 1)
-            DO iwa1 = 2, 3
-               max_cell_dim = MAX(max_cell_dim, cell%hmat(iwa1, iwa1))
-            END DO
-            max_cell_dim = max_cell_dim*2.0_dp
+      IF (eri_env%enlarge_cell) THEN
+         ! figure out size of the box
+         IF (SUM(cell%perd) /= SUM(eri_env%periodicity)) THEN
+            ! enter here only for obc-in-pbc
+            IF (SUM(eri_env%periodicity) == 0) THEN
+               max_cell_dim = cell%hmat(1, 1)
+               DO iwa1 = 2, 3
+                  max_cell_dim = MAX(max_cell_dim, cell%hmat(iwa1, iwa1))
+               END DO
+               max_cell_dim = max_cell_dim*2.0_dp
 
-            IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T2,A,T66,F15.6)") &
-                     "New max cell dimension for GPW integrals", max_cell_dim*angstrom
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(/,T2,A,T66,F15.6)") &
+                        "New max cell dimension for GPW integrals", max_cell_dim*angstrom
+               END IF
+               old_hmat = cell%hmat(:, :)
+               DO iwa1 = 1, 3
+                  new_hmat(iwa1, iwa1) = max_cell_dim
+               END DO
             END IF
-            old_hmat = cell%hmat(:, :)
-            DO iwa1 = 1, 3
-               new_hmat(iwa1, iwa1) = max_cell_dim
-            END DO
          END IF
+         ! set new cell
+         CALL init_cell(cell, new_hmat)
       END IF
-      CALL init_cell(cell, new_hmat)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          ! For now, we will distribute neighbor lists etc. within the global communicator
@@ -1735,7 +1740,9 @@ CONTAINS
       dft_control%qs_control => qs_control_old
       DEALLOCATE (qs_control%e_cutoff)
       DEALLOCATE (qs_control)
-      CALL init_cell(cell, old_hmat)
+      IF (eri_env%enlarge_cell) THEN
+         CALL init_cell(cell, old_hmat)
+      END IF
 
       CALL timestop(handle)
 

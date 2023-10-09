@@ -53,7 +53,8 @@ MODULE qs_active_space_types
 
    TYPE eri_type
       INTEGER                       :: method = 0
-      INTEGER                       :: OPERATOR = 0
+      INTEGER                       :: operator = 0
+      LOGICAL                       :: enlarge_cell = .FALSE.
       REAL(KIND=dp)                 :: operator_parameter = 0.0_dp
       INTEGER, DIMENSION(3)         :: periodicity = 0
       REAL(KIND=dp)                 :: cutoff_radius = 0.0_dp
