@@ -601,8 +601,8 @@ CONTAINS
       ! for Bethe-Salpeter, we need other matrix fm_mat_S
       IF (do_bse) THEN
          !MG debug
-         print *,"MG: unit nr is ",unit_nr
-         CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before BSE action in rpa_main")
+         ! print *,"MG: unit nr is ",unit_nr
+         ! CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before BSE action in rpa_main")
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, [dimen_homo_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
@@ -630,8 +630,8 @@ CONTAINS
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
       !MG Check if replaceing second fm_mat_S_ij_bse by fm_mat_S_ab_bse works out
       !MG debug
-      print *,"MG: unit nr is ",unit_nr
-      CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before rpa_num_int in rpa_main")
+      !print *,"MG: unit nr is ",unit_nr
+      !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before rpa_num_int in rpa_main")
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
@@ -1507,8 +1507,8 @@ CONTAINS
             ELSE
 
                !MG debug
-               print *,"MG: unit nr is ",unit_nr
-               CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before remove scaling factors in rpa_main")
+               !print *,"MG: unit nr is ",unit_nr
+               !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before remove scaling factors in rpa_main")
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
@@ -1526,8 +1526,8 @@ CONTAINS
                   END IF
                END IF
                !MG debug
-               print *,"MG: unit nr is ",unit_nr
-               CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before calc_mat_Q")
+               !print *,"MG: unit nr is ",unit_nr
+               !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before calc_mat_Q")
                
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &

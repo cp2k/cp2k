@@ -109,10 +109,10 @@ CONTAINS
       ! do i_print=1,SIZE(B_bar_iaQ_bse_local,3)
       !   print *, B_bar_iaQ_bse_local(:,:,i_print)
       ! end do
-       print *, "Printing B_iaQ_bse_local of shape", SHAPE(B_iaQ_bse_local)
-       do i_print=1,SIZE(B_iaQ_bse_local,3)
-         print *, B_iaQ_bse_local(:,:,i_print)
-       end do
+      !  print *, "Printing B_iaQ_bse_local of shape", SHAPE(B_iaQ_bse_local)
+      !  do i_print=1,SIZE(B_iaQ_bse_local,3)
+      !    print *, B_iaQ_bse_local(:,:,i_print)
+      !  end do
       ! print *, "Printing B_abQ_bse_local of shape", SHAPE(B_abQ_bse_local)
       ! do k_print=1,SIZE(B_abQ_bse_local,3)
       !    do j_print=1,SIZE(B_abQ_bse_local,1)
@@ -971,10 +971,10 @@ CONTAINS
       AZ(:, :, :) = 0.0_dp
       !print *, 'ProcNr',para_env%mepos,"Comuting V"
       !MG to del
-       print *,"3center Coulomb - B_iaQ, LLL=",local_RI_size
-       do i=1,local_RI_size
-          print *,"B_iaQ in LLL=",i," is: ",B_iaQ_bse_local(:,:,i)
-       end do
+      !  print *,"3center Coulomb - B_iaQ, LLL=",local_RI_size
+      !  do i=1,local_RI_size
+      !     print *,"B_iaQ in LLL=",i," is: ",B_iaQ_bse_local(:,:,i)
+      !  end do
       CALL compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
                                 num_Z_vectors, homo, virtual, bse_spin_config)
 
@@ -999,26 +999,26 @@ CONTAINS
 
       !print *, 'ProcNr',para_env%mepos,"Computed W"
 
-       W_ijab = 0.0_dp
-       W_iabj = 0.0_dp
-       !MG to del: Print screened 4c integrals for debugging purposes
-       DO LLL=1,local_RI_size
-          DO i=1,homo
-             DO j=1,homo
-                DO a=1,virtual
-                   DO b=1,virtual
-                      W_ijab(i,j,a,b) = W_ijab(i,j,a,b)  + B_bar_ijQ_bse_local(i, j, LLL)*B_abQ_bse_local(a, b, LLL)
-                      W_iabj(i,a,b,j) = W_iabj(i,a,b,j)  + B_bar_ijQ_bse_local(i, j, LLL)*B_abQ_bse_local(a, b, LLL)
-                   END DO
-                END DO
-             END DO
-          END DO
-       END DO
-      print *,"MG: printing W_ijab"
-      print *,W_ijab
+      !  W_ijab = 0.0_dp
+      !  W_iabj = 0.0_dp
+      !  !MG to del: Print screened 4c integrals for debugging purposes
+      !  DO LLL=1,local_RI_size
+      !     DO i=1,homo
+      !        DO j=1,homo
+      !           DO a=1,virtual
+      !              DO b=1,virtual
+      !                 W_ijab(i,j,a,b) = W_ijab(i,j,a,b)  + B_bar_ijQ_bse_local(i, j, LLL)*B_abQ_bse_local(a, b, LLL)
+      !                 W_iabj(i,a,b,j) = W_iabj(i,a,b,j)  + B_bar_ijQ_bse_local(i, j, LLL)*B_abQ_bse_local(a, b, LLL)
+      !              END DO
+      !           END DO
+      !        END DO
+      !     END DO
+      !  END DO
+      ! print *,"MG: printing W_ijab"
+      ! print *,W_ijab
 
-      print *,"MG: printing W_iabj"
-      print *,W_iabj
+      ! print *,"MG: printing W_iabj"
+      ! print *,W_iabj
 
       ! we make the sum over all RI basis functions
       CALL para_env%sum(AZ)
@@ -1131,26 +1131,26 @@ CONTAINS
             END DO
          END DO
       END DO
-       v_iajb = 0.0_dp
-       v_iabj = 0.0_dp
-       !MG to del: Print 4c integrals for debugging purposes
-       DO LLL=1,local_RI_size
-          DO i=1,homo
-             DO j=1,homo
-                DO a=1,virtual
-                   DO b=1,virtual
-                      v_iajb(i,a,j,b) = v_iajb(i,a,j,b)  + B_iaQ_bse_local(i, a, LLL)*B_iaQ_bse_local(j, b, LLL)
-                      v_iabj(i,a,b,j) = v_iabj(i,a,b,j)  + B_iaQ_bse_local(i, a, LLL)*B_iaQ_bse_local(b, j, LLL)
-                   END DO
-                END DO
-             END DO
-          END DO
-       END DO
-      print *,"MG: printing v_iajb"
-      print *,v_iajb
+      !  v_iajb = 0.0_dp
+      !  v_iabj = 0.0_dp
+      !  !MG to del: Print 4c integrals for debugging purposes
+      !  DO LLL=1,local_RI_size
+      !     DO i=1,homo
+      !        DO j=1,homo
+      !           DO a=1,virtual
+      !              DO b=1,virtual
+      !                 v_iajb(i,a,j,b) = v_iajb(i,a,j,b)  + B_iaQ_bse_local(i, a, LLL)*B_iaQ_bse_local(j, b, LLL)
+      !                 v_iabj(i,a,b,j) = v_iabj(i,a,b,j)  + B_iaQ_bse_local(i, a, LLL)*B_iaQ_bse_local(b, j, LLL)
+      !              END DO
+      !           END DO
+      !        END DO
+      !     END DO
+      !  END DO
+      ! print *,"MG: printing v_iajb"
+      ! print *,v_iajb
 
-      print *,"MG: printing v_iabj"
-      print *,v_iabj
+      ! print *,"MG: printing v_iabj"
+      ! print *,v_iabj
 
       CALL timestop(handle)
 
