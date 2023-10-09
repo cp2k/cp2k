@@ -1213,10 +1213,9 @@ CONTAINS
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
       REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
-                                                            progression_factor, rc, rsize, &
-                                                            max_cell_dim
+                                                            progression_factor, rc, t1, t2, &
+                                                            rsize, max_cell_dim
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       REAL(KIND=dp), DIMENSION(3,3)                      :: old_hmat, new_hmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1247,6 +1246,8 @@ CONTAINS
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
+
+      IF (iw > 0) t1 = m_walltime()
 
       ! print levels
       SELECT CASE (eri_env%eri_gpw%print_level)
@@ -1742,6 +1743,13 @@ CONTAINS
       DEALLOCATE (qs_control)
       IF (eri_env%enlarge_cell) THEN
          CALL init_cell(cell, old_hmat)
+      END IF
+
+      ! print out progress
+      IF (iw > 0) THEN
+         t2 = m_walltime()
+         WRITE (iw, '(/,T2,A,T66,F14.2)') "ERI_GPW| ERI calculation took (sec)", t2-t1
+         CALL m_flush(iw)
       END IF
 
       CALL timestop(handle)
