@@ -112,7 +112,7 @@ docker buildx build --progress=plain -f ./Dockerfile.2023.2_mpich_generic_psmp -
 The Python script [`generate_docker_files`](https://github.com/cp2k/cp2k/tree/master/tools/docker/production/generate_docker_files.py) generates all docker files in this [folder](https://github.com/cp2k/cp2k/tree/master/tools/docker/production/) if run without any further option. It provides a few command line options allowing for an adaptation of the created docker files to the actual needs, e.g. with
 
 ```
-./generate_docker_files.py -j 28 --install-tests
+./generate_docker_files.py -j 28 --test
 ```
 
-it will create docker files using 28 instead of the default 8 CPU cores for building the docker containers and the container will include all CP2K regression tests. Run `generate_docker_files -h` for more details about the available options.
+it will create docker files using 28 instead of the default 8 CPU cores for building the docker containers and the container will run a full CP2K regression test after the container has been built. Run `generate_docker_files -h` for more details about the available options.

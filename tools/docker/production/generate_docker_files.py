@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Author: Matthias Krack (August 15, 2023)
+# Author: Matthias Krack (October 9, 2023)
 
 from pathlib import Path
 from typing import Any
@@ -11,8 +11,7 @@ import os
 # ------------------------------------------------------------------------------
 
 cp2k_release_list = ["master", "2023.2"]  # append new releases to list
-mpi_implementation_list = ["mpich", "openmpi"]
-mpich_device_list = ["ch3", "ch4", "ch4:ucx"]
+mpi_implementation_list = ["intelmpi", "mpich", "openmpi"]
 target_cpu_list = ["generic", "haswell", "skylake-avx512", "native", "znver2", "znver3"]
 
 # ------------------------------------------------------------------------------
@@ -31,12 +30,6 @@ def main() -> None:
         help="Check consistency with generator script",
     )
     parser.add_argument(
-        "--install-tests",
-        action="store_true",
-        dest="install_tests",
-        help="Install tests and enable regression testing for the final container",
-    )
-    parser.add_argument(
         "--mpi",
         choices=mpi_choices,
         default=mpi_choices[0],
@@ -48,23 +41,21 @@ def main() -> None:
         type=str,
     )
     parser.add_argument(
-        "--mpich-device",
-        choices=mpich_device_list,
-        default=mpich_device_list[-1],
-        dest="mpich_device",
-        help=f"Select the MPICH device (default is {mpich_device_list[-1]})",
-        type=str,
-    )
-    parser.add_argument(
         "-j",
         "--ncores",
         default=8,
         dest="ncores",
         help=(
-            "Select the number CPU cores used for building the container "
-            "(default is 8)"
+            "Select the number of CPU cores used for building the container "
+            "and running the regression tests (default is 8)"
         ),
         type=check_ncores,
+    )
+    parser.add_argument(
+        "--no-tests",
+        action="store_true",
+        dest="no_tests",
+        help="The container will not include the files for regression testing",
     )
     parser.add_argument(
         "--release",
@@ -83,7 +74,7 @@ def main() -> None:
         default=target_cpu_choices[0],
         dest="target_cpu",
         help=(
-            "Specify the CP2K release for which docker files are generated "
+            "Specify the target CPU for which the docker files are generated "
             f"(default is {target_cpu_choices[0]})"
         ),
         type=str,
@@ -97,14 +88,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    distro = "ubuntu"
-    distro_version = "22.04"
     arch = "local"
     version = "psmp"
-    mpich_device = args.mpich_device
     ncores = args.ncores
+    no_tests = args.no_tests
     omp_stacksize = "16M"
-    install_tests = args.install_tests
     test_build = args.test_build
 
     if ncores > os.cpu_count():
@@ -124,6 +112,16 @@ def main() -> None:
             ):
                 continue
 
+            if mpi_implementation == "intelmpi":
+                distro = "intel/oneapi-hpckit"
+                distro_version = "2023.2.1-devel-ubuntu22.04"
+                if release != "master":
+                    if float(release) <= 2023.2:
+                        continue
+            else:
+                distro = "ubuntu"
+                distro_version = "22.04"
+
             for target_cpu in target_cpu_list:
                 if args.target_cpu != "all" and args.target_cpu != target_cpu:
                     continue
@@ -138,10 +136,9 @@ def main() -> None:
                             arch=arch,
                             version=version,
                             mpi_implementation=mpi_implementation,
-                            mpich_device=mpich_device,
                             ncores=ncores,
+                            no_tests=no_tests,
                             omp_stacksize=omp_stacksize,
-                            install_tests=install_tests,
                             target_cpu=target_cpu,
                             test_build=test_build,
                         )
@@ -169,21 +166,22 @@ def write_definition_file(
     arch: str,
     version: str,
     mpi_implementation: str,
-    mpich_device: str,
     ncores: int,
+    no_tests: bool,
     omp_stacksize: str,
-    install_tests: bool,
     target_cpu: str,
     test_build: bool,
 ) -> str:
+    do_regtest = "/opt/cp2k/tests/do_regtest.py"
     if release == "master":
         branch = ""
         tagname = name.replace("master", r"master$(date +%Y%m%d)")
-        do_regtest_path = "tools/regtesting"
     else:
         branch = f" -b support/v{release}"
         tagname = name
-        do_regtest_path = "tests"
+        # The location of the regression test script has changed only after v2023.2
+        if float(release) <= 2023.2:
+            do_regtest = "/opt/cp2k/tools/regtesting/do_regtest.py"
 
     if test_build:
         make_target = " test"
@@ -191,30 +189,51 @@ def write_definition_file(
         make_target = ""
 
     additional_exports = "\\"
-    with_mpi_line = ""
 
-    # Required packages for final container
+    # Required packages for the final container
     required_packages = "g++ gcc gfortran"
 
     # Default options for the regression tests
     testopts = f"--maxtasks {ncores}" " --workbasedir /mnt"
 
-    if mpi_implementation == "openmpi":
+    permissive = ""
+    with_mpi_line = f"--with-{mpi_implementation}=system"
+    if mpi_implementation == "mpich":
+        required_packages += " libmpich-dev mpich openssh-client"
+        with_gcc_line = "--with-gcc=system"
+    elif mpi_implementation == "openmpi":
         additional_exports = """\
 export OMPI_ALLOW_RUN_AS_ROOT=1\\n\\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\\n\\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\\n\\\
 """
-        with_mpi_line = f"--with-{mpi_implementation}=install"
-        required_packages += " openssh-client"
-        testopts += '--mpiexec "mpiexec --bind-to none" ' + testopts
-    elif mpi_implementation == "mpich":
-        with_mpi_line = (
-            f"--with-{mpi_implementation}=install "
-            f"--with-{mpi_implementation}-device={mpich_device}"
+        required_packages += " libopenmpi-dev openmpi-bin openssh-client"
+        testopts = '--mpiexec "mpiexec --bind-to none" ' + testopts
+        with_gcc_line = "--with-gcc=system"
+    elif mpi_implementation == "intelmpi":
+        permissive = "; true"
+        with_gcc_line = (
+            "--with-intel=system --with-intelmpi=system "
+            "--with-libtorch=no --with-mkl=system"
         )
 
-    if install_tests:
+    if no_tests:
+        install_binaries = rf"""
+# Install CP2K binaries
+COPY --from=build /opt/cp2k/exe/{arch}/cp2k.{version} \
+                  /opt/cp2k/exe/{arch}/dumpdcd.{version} \
+                  /opt/cp2k/exe/{arch}/graph.{version} \
+                  /opt/cp2k/exe/{arch}/xyz2dcd.{version} \
+                  /opt/cp2k/exe/{arch}/
+"""
+        run_tests = ""
+        run_tests = r"""
+# Create shortcut for regression test
+RUN printf "echo Sorry, this container was built without test files" \
+>/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
+"""
+        tagname += "_no_tests"
+    else:
         install_binaries = rf"""
 # Install CP2K binaries
 COPY --from=build /opt/cp2k/exe/{arch}/ /opt/cp2k/exe/{arch}/
@@ -226,20 +245,10 @@ COPY --from=build /opt/cp2k/src/grid/sample_tasks/ /opt/cp2k/src/grid/sample_tas
 """
         run_tests = rf"""
 # Create shortcut for regression test
-RUN printf "/opt/cp2k/{do_regtest_path}/do_regtest.py {testopts} \$* {arch} {version}" \
+RUN printf "{do_regtest} {testopts} \$* {arch} {version}" \
 >/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
 """
         required_packages += " python3"
-    else:
-        install_binaries = rf"""
-# Install CP2K binaries
-COPY --from=build /opt/cp2k/exe/{arch}/cp2k.{version} \
-                  /opt/cp2k/exe/{arch}/dumpdcd.{version} \
-                  /opt/cp2k/exe/{arch}/graph.{version} \
-                  /opt/cp2k/exe/{arch}/xyz2dcd.{version} \
-                  /opt/cp2k/exe/{arch}/
-"""
-        run_tests = ""
 
     return rf"""
 # Usage: docker build -f ./Dockerfile.{name} -t cp2k/cp2k:{tagname} .
@@ -248,9 +257,9 @@ COPY --from=build /opt/cp2k/exe/{arch}/cp2k.{version} \
 FROM {distro}:{distro_version} AS build
 
 # Install packages required for the CP2K toolchain build
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    bzip2 ca-certificates g++ gcc gfortran git make openssh-client patch \
-    pkg-config python3 unzip wget zlib1g-dev
+RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
+    {required_packages} \
+    bzip2 ca-certificates git make patch pkg-config python3 unzip wget zlib1g-dev
 
 # Download CP2K
 RUN git clone --recursive{branch} https://github.com/cp2k/cp2k.git /opt/cp2k
@@ -258,10 +267,10 @@ RUN git clone --recursive{branch} https://github.com/cp2k/cp2k.git /opt/cp2k
 # Build CP2K toolchain for target CPU {target_cpu}
 WORKDIR /opt/cp2k/tools/toolchain
 RUN /bin/bash -c -o pipefail \
-    "./install_cp2k_toolchain.sh \
+    "./install_cp2k_toolchain.sh -j {ncores} \
      --install-all \
      --target-cpu={target_cpu} \
-     --with-gcc=system \
+     {with_gcc_line} \
      {with_mpi_line}"
 
 # Build CP2K for target CPU {target_cpu}
@@ -285,10 +294,10 @@ RUN /bin/bash -c -o pipefail \
      unlink ./exe/{arch}/cp2k_shell.{version}"
 
 # Stage 2: install step
-FROM ubuntu:22.04 AS install
+FROM {distro}:{distro_version} AS install
 
 # Install required packages
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
     {required_packages} && rm -rf /var/lib/apt/lists/*
 {install_binaries}
 # Install CP2K database files
@@ -326,7 +335,7 @@ CMD ["cp2k", "--help"]
 # Label docker image
 LABEL author="CP2K Developers" \
       cp2k_version="{release}" \
-      dockerfile_generator_version="0.1"
+      dockerfile_generator_version="0.2"
 
 # EOF
 """
