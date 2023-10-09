@@ -78,6 +78,7 @@ MODULE qs_active_space_methods
    USE particle_list_types, ONLY: particle_list_type
    USE particle_types, ONLY: particle_type
    USE periodic_table, ONLY: ptable
+   USE physcon, ONLY: angstrom
    USE preconditioner_types, ONLY: preconditioner_type
    USE pw_env_methods, ONLY: pw_env_create, &
                              pw_env_rebuild
@@ -1331,7 +1332,7 @@ CONTAINS
 
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T2,A,T66,F15.6)") &
-                     "New max cell dimensions for GPW integrals", max_cell_dim
+                     "New max cell dimension for GPW integrals", max_cell_dim*angstrom
             END IF
             old_hmat = cell%hmat(:, :)
             DO iwa1 = 1, 3
@@ -1372,10 +1373,6 @@ CONTAINS
                rc = MIN(rc, 0.5_dp*cell%hmat(iwa1, iwa1))
             END DO
             poisson_env%green_fft%radius = rc
-            IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T2,A,T71,F10.4)") &
-                     "ERI_GPW| Poisson cutoff radius", rc
-            END IF
          END IF
 
          CALL pw_eri_green_create(poisson_env%green_fft, eri_env)
@@ -1399,6 +1396,8 @@ CONTAINS
             CASE (ANALYTIC0D)
                WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
                   "ERI_GPW| Poisson Greens function", "ANALYTIC"
+               WRITE (UNIT=iw, FMT="(T2,A,T71,F10.4)") &
+                     "ERI_GPW| Poisson cutoff radius", rc*angstrom
             CASE DEFAULT
                CPABORT("Wrong Greens function setup")
             END SELECT
@@ -2880,11 +2879,11 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       IF (iw > 0) THEN
-         WRITE (UNIT=iw, FMT="(/,/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
+         WRITE (UNIT=iw, FMT="(/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
 
          WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
          WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
-         WRITE (iw, '(T3,A,T66,F14.3)') "Density damping", alpha
+         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", alpha
 
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
@@ -2945,7 +2944,7 @@ CONTAINS
          ! check if it is a one-shot correction
          IF (.NOT. active_space_env%do_scf_embedding) THEN
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
+               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
                   "*** one-shot embedding correction finished ***"
             END IF
             converged = .TRUE.
@@ -2953,7 +2952,7 @@ CONTAINS
             ! check for convergence
          ELSEIF (ABS(delta_E) <= eps_iter) THEN
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
+               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
                   "*** rs-DFT embedding run converged in ", iter, " iteration(s) ***"
             END IF
             converged = .TRUE.
@@ -2963,7 +2962,7 @@ CONTAINS
 
       IF (.NOT. converged) THEN
          IF (iw > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
+            WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
                "*** rs-DFT embedding did not converged after ", iter, " iteration(s) ***"
          END IF
       END IF
@@ -3020,13 +3019,13 @@ CONTAINS
 
       IF (ionode) THEN
          CALL open_bind_socket(socket_fd, protocol, port, TRIM(hostname)//C_NULL_CHAR)
-         WRITE (iw, '(/,T3,A,A)') "@SERVER: Created socket with address ", TRIM(hostname)
+         WRITE (iw, '(/,T2,A,A)') "@SERVER: Created socket with address ", TRIM(hostname)
          CALL listen_socket(socket_fd, backlog)
 
          ! wait until a connetion request arrives
-         WRITE (iw, '(T3,A)') "@SERVER: Waiting for requests..."
+         WRITE (iw, '(T2,A)') "@SERVER: Waiting for requests..."
          CALL accept_socket(socket_fd, client_fd)
-         WRITE (iw, '(T3,A,I2)') "@SERVER: Accepted socket with fd ", client_fd
+         WRITE (iw, '(T2,A,I2)') "@SERVER: Accepted socket with fd ", client_fd
       END IF
 
       CALL timestop(handle)
