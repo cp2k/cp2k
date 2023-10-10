@@ -1402,8 +1402,8 @@ CONTAINS
             CASE (ANALYTIC0D)
                WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
                   "ERI_GPW| Poisson Greens function", "ANALYTIC"
-               WRITE (UNIT=iw, FMT="(T2,A,T71,F10.4)") &
-                     "ERI_GPW| Poisson cutoff radius", rc*angstrom
+               WRITE (UNIT=iw, FMT="(T2,A,T71,F10.4)") "ERI_GPW| Poisson cutoff radius", &
+                  poisson_env%green_fft%radius*angstrom
             CASE DEFAULT
                CPABORT("Wrong Greens function setup")
             END SELECT
