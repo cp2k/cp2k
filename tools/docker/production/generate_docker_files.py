@@ -207,8 +207,11 @@ export OMPI_ALLOW_RUN_AS_ROOT=1\\n\\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\\n\\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\\n\\\
 """
-        required_packages += " libopenmpi-dev openmpi-bin openssh-client"
-        testopts = '--mpiexec "mpiexec --bind-to none" ' + testopts
+        # SuperLU installation fails currently with system OpenMPI
+        # required_packages += " libopenmpi-dev openmpi-bin openssh-client"
+        with_mpi_line = f"--with-{mpi_implementation}=install"
+        required_packages += " openssh-client"
+        testopts = '--mpiexec \\"mpiexec --bind-to none\\" ' + testopts
         with_gcc_line = "--with-gcc=system"
     elif mpi_implementation == "intelmpi":
         permissive = "; true"

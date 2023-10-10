@@ -8,7 +8,7 @@ FROM ubuntu:22.04 AS build
 
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ gcc gfortran libopenmpi-dev openmpi-bin openssh-client python3 \
+    g++ gcc gfortran openssh-client python3 \
     bzip2 ca-certificates git make patch pkg-config python3 unzip wget zlib1g-dev
 
 # Download CP2K
@@ -21,7 +21,7 @@ RUN /bin/bash -c -o pipefail \
      --install-all \
      --target-cpu=generic \
      --with-gcc=system \
-     --with-openmpi=system"
+     --with-openmpi=install"
 
 # Build CP2K for target CPU generic
 WORKDIR /opt/cp2k
@@ -48,7 +48,7 @@ FROM ubuntu:22.04 AS install
 
 # Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ gcc gfortran libopenmpi-dev openmpi-bin openssh-client python3 && rm -rf /var/lib/apt/lists/*
+    g++ gcc gfortran openssh-client python3 && rm -rf /var/lib/apt/lists/*
 
 # Install CP2K binaries
 COPY --from=build /opt/cp2k/exe/local/ /opt/cp2k/exe/local/
@@ -88,7 +88,7 @@ source /opt/cp2k/tools/toolchain/install/setup\n\
 >/usr/local/bin/entrypoint.sh && chmod 755 /usr/local/bin/entrypoint.sh
 
 # Create shortcut for regression test
-RUN printf "/opt/cp2k/tests/do_regtest.py --mpiexec "mpiexec --bind-to none" --maxtasks 8 --workbasedir /mnt \$* local psmp" \
+RUN printf "/opt/cp2k/tests/do_regtest.py --mpiexec \"mpiexec --bind-to none\" --maxtasks 8 --workbasedir /mnt \$* local psmp" \
 >/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
 
 # Define entrypoint
