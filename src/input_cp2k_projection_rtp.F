@@ -118,7 +118,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SUM_ON_ALL_REF", &
-            description="Set to .TRUE. in order to sum all the projections done over the required MO_REF_INDEX for each TD MOs. "// &
+                          description="Set to .TRUE. in order to sum all the projections done "// &
+                          "over the required MO_REF_INDEX for each TD MOs. "// &
                           "Only one file will be generated containing the results for every MO_TD_INDEX.", &
                           usage="SUM_ON_ALL_REF .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
