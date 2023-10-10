@@ -418,7 +418,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="MAPPING", &
                           description="Defines the mapping of atoms for the different force_eval with the mixed force_eval."// &
                           " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"// &
-                          " geometrical structure). The mapping is based on defining fragments and the mapping the "// &
+                          " geometrical structure). The mapping is based on defining fragments and the mapping the"// &
                           " fragments between the several force_eval and the mixed force_eval", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
@@ -458,7 +458,7 @@ CONTAINS
          keyword, __LOCATION__, name="DEFINE_FRAGMENTS", &
          description="Specify the fragments definition of the force_eval through the fragments of the"// &
          " force_eval_mixed. This avoids the pedantic definition of the fragments for the force_eval,"// &
-         " assuming the order of the fragments for the specified force_eval is the same as the sequence "// &
+         " assuming the order of the fragments for the specified force_eval is the same as the sequence"// &
          " of integers provided. Easier to USE should be preferred to the specification of the single fragments.", &
          usage="DEFINE_FRAGMENTS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(sub2section, keyword)

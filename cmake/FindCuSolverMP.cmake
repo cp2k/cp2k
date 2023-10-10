@@ -21,14 +21,14 @@ find_package_handle_standard_args(
   CuSolverMP DEFAULT_MSG CP2K_CUSOLVER_MP_LINK_LIBRARIES
   CP2K_CUSOLVER_MP_INCLUDE_DIRS)
 
-if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET CP2K::CUSOLVER_MP::cusolver_mp)
-  add_library(CP2K::CUSOLVER_MP::cusolver_mp INTERFACE IMPORTED)
+if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
+  add_library(cp2k::CUSOLVER_MP::cusolver_mp INTERFACE IMPORTED)
   set_target_properties(
-    CP2K::CUSOLVER_MP::cusolver_mp
+    cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_LINK_LIBRARIES
-               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};CP2K::CAL::cal")
+               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal")
   set_target_properties(
-    CP2K::CUSOLVER_MP::cusolver_mp
+    cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")
 endif()
 

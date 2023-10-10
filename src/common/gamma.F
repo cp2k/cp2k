@@ -72,7 +72,7 @@ CONTAINS
       IF (current_nmax > -1) THEN
          CALL cp_abort(__LOCATION__, &
                        "An incomplete Gamma function table is already "// &
-                       " allocated. Use the init routine for an update")
+                       "allocated. Use the init routine for an update")
       END IF
 
       IF (nmax < 0) THEN

@@ -47,10 +47,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PROJECTION_MO", &
-                          description="Projects the time dependent MO "// &
-                          "coefficients on reference ones. You can define "// &
+                          description="Projects the Time Dependent (TD) MO "// &
+                          "coefficients to reference ones. You can define "// &
                           "several sections like this to project the TD-MOs "// &
-                          "on different reference MOs.", &
+                          "on different reference MOs. Note that each section "// &
+                          "projects from one spin of the TD MOs (TD_MO_INDEX) to "// &
+                          "one spin of the reference MOs (REF_MO_INDEX).", &
                           n_keywords=7, n_subsections=1, &
                           repeats=.TRUE.)
 
@@ -82,10 +84,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_FILE_NAME", &
-                          description="Name of the wavefunction file to read the reference MO form. "// &
-                          "For instance a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
-                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME."// &
-                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference.", &
+                          description="Name of the wavefunction file to read the reference MO from. "// &
+                          "For instance, a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
+                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME. "// &
+                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference. "// &
+                          "Currently, this file SHALL have the same number of spin as the propagated one "// &
+                          "(eventhough you use only the first spin from this reference).", &
                           usage="REF_MO_FILE_NAME <FILENAME>", &
                           default_lc_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
@@ -106,7 +110,7 @@ CONTAINS
                           description="Spin of the reference MOs to consider. "// &
                           "1 for ALPHA and 2 for BETA spin respectively. "// &
                           "If the reference MO is spin independent this key is not used.", &
-                          usage="MO_TD_SPIN 1", &
+                          usage="REF_MO_SPIN 1", &
                           default_i_val=1, &
                           n_var=1, type_of_var=integer_t, repeats=.FALSE.)
 
@@ -134,7 +138,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TD_MO_SPIN", &
                           description="Spin of the TD MOs to consider. 1 for ALPHA spin, 2 for BETA spin. "// &
                           "If the TD calculation is spin independent this key is not used.", &
-                          usage="MO_TD_SPIN 1 2", &
+                          usage="MO_TD_SPIN 1", &
                           default_i_val=1, &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -142,7 +146,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SUM_ON_ALL_TD", &
                description="Set to .TRUE. in order to sum the projection done over all on TD MOs on the required MO_REF_INDEX. "// &
-                          "One file per MO_REF_INDEX will be generated."// &
+                          "One file per MO_REF_INDEX will be generated. "// &
                           "Combining SUM_ON_ALL_TD and SUM_ON_ALL_REF lead to one file one projection: "// &
                           "the population of all the defined TD_MO_INDEX over the reference MO_REF_INDEX per time step required.", &
                           usage="SUM_ON_ALL_TD .TRUE.", &

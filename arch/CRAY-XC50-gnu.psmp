@@ -4,7 +4,7 @@
 #
 # Tested with: GNU 9.3.0, Cray-MPICH 7.7.18, Cray-libsci 20.09.1,
 #              Cray-FFTW 3.3.8.10, COSMA 2.6.6, ELPA 2023.05.001,
-#              HDF5 1.12.0, LIBINT 2.6.0, LIBPEXSI 1.2.0,
+#              HDF5 1.14.2, LIBINT 2.6.0, LIBPEXSI 1.2.0,
 #              LIBXC 6.2.2, LIBVORI 220621, LIBXSMM 1.17,
 #              PLUMED 2.9.0, SIRIUS 7.4.3, SPGLIB 1.16.2
 #
@@ -12,7 +12,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 13.09.2023
+# Last update: 04.10.2023
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -70,7 +70,7 @@ DO_CHECKS      := no
 USE_ACC        := yes
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
-USE_HDF5       := 1.12.0
+USE_HDF5       := 1.14.2
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621

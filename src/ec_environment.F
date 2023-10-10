@@ -278,7 +278,7 @@ CONTAINS
          !Density-corrected DFT must be performed with the same basis as ground-state
          IF (ec_env%energy_functional == ec_functional_dc .AND. ec_env%basis_inconsistent) THEN
             CALL cp_abort(__LOCATION__, &
-                          "DC-DFT: Correction and ground state need to use the same basis."// &
+                          "DC-DFT: Correction and ground state need to use the same basis. "// &
                           "Checked by comparing basis set names only.")
          END IF
          !

@@ -187,22 +187,22 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BETA_3", &
-                          description="Factor used to decrease temperature when escape succeeded"// &
-                          ", should be smaller than 1.", &
+                          description="Factor used to decrease temperature when escape succeeded, "// &
+                          "should be smaller than 1.", &
                           default_r_val=1.0/1.1_dp, type_of_var=real_t)
       CALL section_add_keyword(minhop_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA_1", &
-                          description="Factor used to decrease acceptance energy, when minima was accepted"// &
-                          ", should be smaller than 1.", &
+                          description="Factor used to decrease acceptance energy, when minima was accepted, "// &
+                          "should be smaller than 1.", &
                           default_r_val=0.98_dp, type_of_var=real_t)
       CALL section_add_keyword(minhop_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA_2", &
-                          description="Factor used to increase acceptance energy, when minima was rejected"// &
-                          ", should be larger than 1.", &
+                          description="Factor used to increase acceptance energy, when minima was rejected, "// &
+                          "should be larger than 1.", &
                           default_r_val=1.0/0.98_dp, type_of_var=real_t)
       CALL section_add_keyword(minhop_section, keyword)
       CALL keyword_release(keyword)

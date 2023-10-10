@@ -629,8 +629,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="IUPTRANS", &
-                          description="Every iuptrans steps update maximum translation/rotation/"// &
-                          "configurational changes.", &
+                          description="Every iuptrans steps update maximum "// &
+                          "translation/rotation/configurational changes.", &
                           usage="IUPTRANS {integer}", &
                           default_i_val=10000)
       CALL section_add_keyword(section, keyword)
@@ -965,9 +965,9 @@ CONTAINS
       CALL create_geoopt_section( &
          section, __LOCATION__, label="SHELL_OPT", &
          description="This section sets the environment for the optimization of the shell-core distances"// &
-         " that might turn to be necessary along a MD run using a shell-model potential. "// &
-         " The optimization procedure is activated when at least one of the shell-core "// &
-         "pairs becomes too elongated,  i.e. when the assumption of point dipole is not longer valid.", &
+         " that might turn to be necessary along a MD run using a shell-model potential."// &
+         " The optimization procedure is activated when at least one of the shell-core"// &
+         " pairs becomes too elongated, i.e. when the assumption of point dipole is not longer valid.", &
          just_optimizers=.TRUE., &
          use_model_hessian=.FALSE.)
 
@@ -1002,8 +1002,8 @@ CONTAINS
 
       CALL create_geoopt_section(section, __LOCATION__, label="CELL_OPT", &
                                  description="This section sets the environment for the optimization of the simulation cell."// &
-                                 " Two possible schemes are available: (1) Zero temperature optimization; "// &
-                                 " (2) Finite temperature optimization. ", &
+                                 " Two possible schemes are available: (1) Zero temperature optimization;"// &
+                                 " (2) Finite temperature optimization.", &
                                  just_optimizers=.TRUE., &
                                  use_model_hessian=.FALSE.)
 
@@ -1014,9 +1014,9 @@ CONTAINS
          usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)", &
          enum_c_vals=s2a("GEO_OPT", "MD", "DIRECT_CELL_OPT"), &
          enum_desc=s2a( &
-         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps. "// &
+         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps."// &
          " The stress tensor is computed at the optimized geometry.", &
-         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor "// &
+         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor"// &
          " used for the cell optimization.", &
          "Performs a geometry and cell optimization at the same time."// &
          " The stress tensor is computed at every step"), &
@@ -1142,14 +1142,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="INTERPOLATE_GRADIENT", &
                           description="This keyword controls the interpolation of the gradient whenever possible"// &
-                          " during the optimization of the Dimer. The use of this keywords saves 1 evaluation "// &
+                          " during the optimization of the Dimer. The use of this keywords saves 1 evaluation"// &
                           " of energy/forces.", usage="INTERPOLATE_GRADIENT {logical}", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ANGLE_TOLERANCE", &
-                          description="This keyword sets the value of the tolerance angle for the line search "// &
+                          description="This keyword sets the value of the tolerance angle for the line search"// &
                           " performed to optimize the orientation of the dimer.", &
                           usage="ANGLE_TOL {real}", unit_str='rad', &
                           default_r_val=cp_unit_to_cp2k(5.0_dp, "deg"))
@@ -1320,8 +1320,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART_LIMIT", &
                           description="Cosine of the angle between two consecutive searching directions."// &
-                          " If the angle during a CG optimization is less than the one corresponding to "// &
-                          " to the RESTART_LIMIT the CG is reset and one step of steepest descent is "// &
+                          " If the angle during a CG optimization is less than the one corresponding to"// &
+                          " to the RESTART_LIMIT the CG is reset and one step of steepest descent is"// &
                           " performed.", &
                           usage="RESTART_LIMIT {real}", &
                           default_r_val=0.9_dp)
@@ -1452,7 +1452,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_F_PER_ITER", &
                           description="Maximum number of force evaluations per iteration"// &
-                          "(used for the line search)", &
+                          " (used for the line search)", &
                           usage="MAX_F_PER_ITER {integer}", &
                           default_i_val=20)
       CALL section_add_keyword(section, keyword)
@@ -1460,8 +1460,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WANTED_PROJ_GRADIENT", &
                           description="Convergence criterion (overrides the general ones):"// &
-                          "Requested norm threshold of the gradient multiplied "// &
-                          "by the approximate Hessian.", &
+                          " Requested norm threshold of the gradient multiplied"// &
+                          " by the approximate Hessian.", &
                           usage="WANTED_PROJ_GRADIENT {real}", unit_str="internal_cp2k", &
                           default_r_val=1.0E-16_dp)
       CALL section_add_keyword(section, keyword)
@@ -1469,8 +1469,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WANTED_REL_F_ERROR", &
                           description="Convergence criterion (overrides the general ones):"// &
-                          "Requested relative error on the objective function"// &
-                          "of the optimizer (the energy)", &
+                          " Requested relative error on the objective function"// &
+                          " of the optimizer (the energy)", &
                           usage="WANTED_REL_F_ERROR {real}", unit_str="internal_cp2k", &
                           default_r_val=1.0E-16_dp)
       CALL section_add_keyword(section, keyword)
@@ -1553,7 +1553,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="Sets the temperature parameter that is used in the baising potential."// &
-                          "It is recommended to use the actual simulation temperature", &
+                          " It is recommended to use the actual simulation temperature", &
                           usage="TEMPERATURE 300", default_r_val=300.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2215,7 +2215,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="COORD_INIT_TEMP", &
                           description="Temperature for thermal gaussian initialization of the helium."// &
-                          "Negative values correspond to a hot start.", &
+                          " Negative values correspond to a hot start.", &
                           default_r_val=cp_unit_to_cp2k(300._dp, "K"), &
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
@@ -2223,7 +2223,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_RADIUS", &
                           description="Radius of the solute molecule for prevention of"// &
-                          "coordinate collision during initialization", &
+                          " coordinate collision during initialization", &
                           default_r_val=cp_unit_to_cp2k(0.0_dp, "angstrom"), &
                           repeats=.FALSE., type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
@@ -2452,8 +2452,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_HE", &
-                          description="Whether or not to calculate solute-He RDFs"// &
-                          "(if solute is present)", &
+                          description="Whether or not to calculate solute-He RDFs (if solute is present)", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

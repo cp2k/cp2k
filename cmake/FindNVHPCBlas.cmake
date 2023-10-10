@@ -65,10 +65,10 @@ find_package_handle_standard_args(
 set(CP2K_BLAS_VENDOR "NVHPCBlas")
 set(CP2K_NVHPCBLAS_FOUND "ON")
 
-if(NOT TARGET CP2K::BLAS::NVHPCBlas::nvhpcblas)
-  add_library(CP2K::BLAS::NVHPCBlas::nvhpcblas INTERFACE IMPORTED)
-  add_library(CP2K::BLAS::NVHPCBlas::blas ALIAS
-              CP2K::BLAS::NVHPCBlas::nvhpcblas)
+if(NOT TARGET cp2k::BLAS::NVHPCBlas::nvhpcblas)
+  add_library(cp2k::BLAS::NVHPCBlas::nvhpcblas INTERFACE IMPORTED)
+  add_library(cp2k::BLAS::NVHPCBlas::blas ALIAS
+              cp2k::BLAS::NVHPCBlas::nvhpcblas)
 endif()
 
 if(CP2K_BLAS_INTERFACE MATCHES "64bits")
@@ -82,7 +82,7 @@ else()
 endif()
 
 set_target_properties(
-  CP2K::BLAS::NVHPCBlas::nvhpcblas
+  cp2k::BLAS::NVHPCBlas::nvhpcblas
   PROPERTIES INTERFACE_LINK_LIBRARIES "${CP2K_NVHPC_BLAS_LINK_LIBRARIES}"
              INTERFACE_INCLUDE_DIRECTORIES "${CP2K_NVHPC_BLAS_INCLUDE_DIRS}")
 

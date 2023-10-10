@@ -1332,7 +1332,7 @@ CONTAINS
                k = const_mol(i)
                IF (k > SIZE(molecule_kind_set)) &
                   CALL cp_abort(__LOCATION__, &
-                                "A constraint has been specified providing the molecule index. But the "// &
+                                "A constraint has been specified providing the molecule index. But the"// &
                                 " molecule index ("//cp_to_string(k)//") is out of range of the possible"// &
                                 " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//").")
                isize = SIZE(constr_x_mol(k)%constr)

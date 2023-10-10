@@ -200,7 +200,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT_ELPA", &
-                                       description="Controls the printing of ELPA diagonalization information."// &
+                                       description="Controls the printing of ELPA diagonalization information. "// &
                                        "Useful for testing purposes, especially together with keyword ELPA_QR.", &
                                        filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -223,7 +223,7 @@ CONTAINS
          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
          enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &
                        "will be used in case a FFT library is specified and not available.", &
-                       "a fast portable FFT library. Recommended."// &
+                       "a fast portable FFT library. Recommended. "// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
                        "Same as FFTW3 (for compatibility with CP2K 2.3)"))
       CALL section_add_keyword(section, keyword)
@@ -245,7 +245,7 @@ CONTAINS
                           "explicit measurements which strategy is best for a given FFT. "// &
                           "While a plan based on measurements is generally faster, "// &
                           "differences in machine load will lead to different plans for the same input file, "// &
-                          "and thus numerics for the FFTs will be slightly different from run to run."// &
+                          "and thus numerics for the FFTs will be slightly different from run to run. "// &
                           "PATIENT planning is recommended for long ab initio MD runs.", &
                           usage="FFTW_PLAN_TYPE PATIENT", &
                           citations=(/Frigo2005/), &
@@ -563,8 +563,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="RNG_MATRICES", &
-                          description="Prints the transformation matrices used by the "// &
-                          " random number generator", &
+                          description="Prints the transformation matrices used by the  random number generator", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -776,8 +775,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_CUTOFF", &
                           description="When enabled the cpu backend "// &
-                          " apply a spherical cutoff on the top of the cube. "// &
-                          " There is a performance penalty using it in "// &
+                          "apply a spherical cutoff on the top of the cube. "// &
+                          "There is a performance penalty using it in "// &
                           "combination with the cpu backend but it is on by "// &
                           "default for the regtests", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)

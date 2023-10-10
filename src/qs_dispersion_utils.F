@@ -229,7 +229,7 @@ CONTAINS
                   CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol)
                   CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp)
                   IF (disp%defined) THEN
-                     WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"// &
+                     WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2, "// &
                             "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
                         symbol, disp%c6/(1000._dp*bohr**6/kjmol), disp%vdw_radii/bohr
                   ELSE

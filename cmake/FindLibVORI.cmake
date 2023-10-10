@@ -24,14 +24,14 @@ else()
                                     CP2K_LIBVORI_LINK_LIBRARIES)
 endif()
 
-if(NOT TARGET CP2K::VORI::vori)
-  add_library(CP2K::VORI::vori INTERFACE IMPORTED)
+if(NOT TARGET cp2k::VORI::vori)
+  add_library(cp2k::VORI::vori INTERFACE IMPORTED)
   set_target_properties(
-    CP2K::VORI::vori PROPERTIES INTERFACE_LINK_LIBRARIES
+    cp2k::VORI::vori PROPERTIES INTERFACE_LINK_LIBRARIES
                                 "${CP2K_LIBVORI_LINK_LIBRARIES}")
   if(CP2K_LIBVORI_INCLUDE_DIRS)
     set_target_properties(
-      CP2K::VORI::vori PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+      cp2k::VORI::vori PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                   "${CP2K_LIBVORI_INCLUDE_DIRS}")
   endif()
 endif()

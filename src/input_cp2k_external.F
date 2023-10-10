@@ -123,7 +123,7 @@ CONTAINS
 
       !keyword for scaling the external potential that is read from file by a constant factor
       CALL keyword_create(keyword, __LOCATION__, name="SCALING_FACTOR", &
-                          description="A factor for scaling the the external potential that is read from file."// &
+                          description="A factor for scaling the the external potential that is read from file. "// &
                           "The value of the potential at each grid point is multiplied by this factor.", &
                           usage="SCALING_FACTOR <REAL>", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -192,10 +192,10 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
-                          description="Specifies the filename containing the target density in *.cube format."// &
-                          "In the MGRID section it must be imposed NGRID 1, as it works with only"// &
-                          "one grid. The number of points in each direction, and the spacing must"// &
-                          "be previously defined choosing the plane waves cut-off in section MGRID"// &
+                          description="Specifies the filename containing the target density in *.cube format. "// &
+                          "In the MGRID section it must be imposed NGRID 1, as it works with only "// &
+                          "one grid. The number of points in each direction, and the spacing must "// &
+                          "be previously defined choosing the plane waves cut-off in section MGRID "// &
                           "keyword CUTOFF, and the cube dimension in section SUBSYS / CELL / keyword ABC", &
                           usage="DENSITY_FILE_NAME <FILENAME>", &
                           type_of_var=char_t, default_c_val="RHO_O.dat", n_var=-1)
@@ -203,17 +203,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
-                          description="Lagrange multiplier defined in the constraint ZMP method. When starting, use"// &
-                          "small values when starting from scratch (around 5,10). Then gradually increase"// &
-                          "the values depending, restarting from the previous calculation with the smaller"// &
-                          "value. To choose the progressive values of LAMBDA look at the convergence of the"// &
-                          " eigenvalues.", &
+                          description="Lagrange multiplier defined in the constraint ZMP method. When starting, use "// &
+                          "small values when starting from scratch (around 5,10). Then gradually increase "// &
+                          "the values depending, restarting from the previous calculation with the smaller "// &
+                          "value. To choose the progressive values of LAMBDA look at the convergence of the "// &
+                          "eigenvalues.", &
                           usage="DX <REAL>", default_r_val=10.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ZMP_CONSTRAINT", &
-                          description="Specify which kind of constraint to solve the ZMP equation. The COULOMB default"// &
+                          description="Specify which kind of constraint to solve the ZMP equation. The COULOMB default "// &
                           "option is more stable.", &
                           usage="ZMP_CONSTRAINT <CHAR>", &
                           enum_c_vals=s2a("COULOMB", "DIFF", "NONE"), &
@@ -226,7 +226,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FERMI_AMALDI", &
-                          description="Add the Fermi-Amaldi contribution to the Hartree potential."// &
+                          description="Add the Fermi-Amaldi contribution to the Hartree potential. "// &
                           "It leads to a more stable convergence.", &
                           usage="FERMI_AMALDI <LOGICAL>", &
                           repeats=.FALSE., &
@@ -250,17 +250,17 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="EXTERNAL_VXC", &
-                          description="SCF convergence with external v_xc calculated through previous ZMP"// &
+                          description="SCF convergence with external v_xc calculated through previous ZMP "// &
                           "calculation", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FILE_VXC", &
-                          description="The *.cube filename containing the v_xc potential. This works only"// &
-                          "with NGRID 1 imposed in the MGRID section. The number of points in each"// &
-                          "direction, and the spacing must equal to those previously used in the ZMP"// &
-                          "calculation and defined through the plane wave cut-off and the cube dimension"// &
-                          "respectively set in section MGRID / keyword CUTOFF, and in section SUBSYS /"// &
+                          description="The *.cube filename containing the v_xc potential. This works only "// &
+                          "with NGRID 1 imposed in the MGRID section. The number of points in each "// &
+                          "direction, and the spacing must equal to those previously used in the ZMP "// &
+                          "calculation and defined through the plane wave cut-off and the cube dimension "// &
+                          "respectively set in section MGRID / keyword CUTOFF, and in section SUBSYS / "// &
                           "CELL / keyword ABC", &
                           usage="FILE_VXC <FILENAME>", &
                           type_of_var=char_t, default_c_val="VXC_O.dat", n_var=-1)

@@ -2262,6 +2262,8 @@ CONTAINS
                                 i_val=dft_control%rtp_control%initial_wfn)
       CALL section_vals_val_get(rtp_section, "HFX_BALANCE_IN_CORE", &
                                 l_val=dft_control%rtp_control%hfx_redistribute)
+      CALL section_vals_val_get(rtp_section, "APPLY_WFN_MIX_INIT_RESTART", &
+                                l_val=dft_control%rtp_control%apply_wfn_mix_init_restart)
       CALL section_vals_val_get(rtp_section, "APPLY_DELTA_PULSE", &
                                 l_val=dft_control%rtp_control%apply_delta_pulse)
       CALL section_vals_val_get(rtp_section, "APPLY_DELTA_PULSE_MAG", &
@@ -2293,7 +2295,7 @@ CONTAINS
          IF (dft_control%rtp_control%linear_scaling) &
             CALL cp_abort(__LOCATION__, &
                           "You have defined a time dependent projection of mos, but "// &
-                          " only the density matrix is propagated (DENSITY_PROPAGATION "// &
+                          "only the density matrix is propagated (DENSITY_PROPAGATION "// &
                           ".TRUE.). Please either use MO-based real time DFT or do not "// &
                           "define any PRINT%PROJECTION_MO section")
          dft_control%rtp_control%is_proj_mo = .TRUE.

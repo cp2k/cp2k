@@ -109,7 +109,7 @@ CONTAINS
             IF ((explicit_embed .AND. (nforce_eval == 1)) .OR. (.NOT. explicit_embed .AND. (nforce_eval > 1))) THEN
                CALL cp_abort(__LOCATION__, &
                              "Error multiple force_env without RESPA or MIXED or EMBED, or RESPA with one single "// &
-                             " or MIXED with only two force_env section.")
+                             "or MIXED with only two force_env section.")
             END IF
          END IF
       END IF

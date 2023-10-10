@@ -171,9 +171,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COPY", &
-                          description="Tests the performance to copy two vectors."// &
+                          description="Tests the performance to copy two vectors. "// &
                           "The results of these tests allow to determine the size of the cache "// &
-                          "of the CPU. This can be used to optimize the performance of the"// &
+                          "of the CPU. This can be used to optimize the performance of the "// &
                           "FFTSG library. Tests are repeated the given number of times.", &
                           usage="copy 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
@@ -215,7 +215,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MPI", &
-                          description="Tests mpi, quickly adapted benchmark code,"// &
+                          description="Tests mpi, quickly adapted benchmark code, "// &
                           "will ONLY work on an even number of CPUs. comm is the relevant, "// &
                           "initialized communicator. This test will produce messages "// &
                           "of the size 8*10**requested_size, where requested_size is the value "// &
@@ -465,9 +465,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART_DEFAULT", &
-                          description="This keyword controls the default value for all possible "// &
+                          description="This keyword controls the default value for all possible"// &
                           " restartable keywords, unless explicitly defined. For example setting"// &
-                          " this keyword to .FALSE. does not restart any quantity. If, at the "// &
+                          " this keyword to .FALSE. does not restart any quantity. If, at the"// &
                           " same time, one keyword is set to .TRUE. only that quantity will be"// &
                           " restarted.", default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -705,7 +705,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
-                          description="Stride to be used when building working groups from the parent MPI comm."// &
+                          description="Stride to be used when building working groups from the parent MPI comm. "// &
                          "Can be used to layout minion groups over nodes in advanced ways (1 rank per node / 2 groups per node).", &
                           usage="STRIDE 2", default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -768,7 +768,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="JOB_ID", &
                           description="An ID used to indentify a job in DEPENDENCIES. "// &
                           "JOB_IDs do not need to be unique, dependencies will be on all jobs with a given ID. "// &
-                          "If no JOB_ID is given, the index of the &JOB section in the input file will be used. ", &
+                          "If no JOB_ID is given, the index of the &JOB section in the input file will be used.", &
                           usage="JOB_ID 13", type_of_var=integer_t)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
@@ -784,7 +784,7 @@ CONTAINS
          "3) MAX_JOBS_PER_GROUP is ignored (though only a total of MAX_JOBS_PER_GROUP*NGROUPS jobs will be executed) "// &
          "4) dependencies on jobs that will not be executed (due to RESTART or MAX_JOBS_PER_GROUP) are ignored. "// &
          "Additionally, note that, on some file systems, "// &
-         " output (restart) files might not be immediately available on all compute nodes,"// &
+         "output (restart) files might not be immediately available on all compute nodes, "// &
          "potentially resulting in unexpected failures.", &
          usage="DEPENDENCIES 13 1 7", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(sub_section, keyword)
@@ -922,7 +922,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PW_GRID_LAYOUT", &
-                          description="Expert use only, leave the default..."// &
+                          description="Expert use only, leave the default... "// &
                           "Can be used to set the distribution for ray-distributed FFT.", &
                           usage="PW_GRID_LAYOUT", &
                           repeats=.FALSE., n_var=2, &
@@ -931,7 +931,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PW_GRID_BLOCKED", &
-                          description="Expert use only, leave the default..."// &
+                          description="Expert use only, leave the default... "// &
                           "Can be used to set the distribution in g-space for the pw grids and their FFT.", &
                           usage="PW_GRID_BLOCKED FREE", &
                           enum_c_vals=s2a("FREE", "TRUE", "FALSE"), &

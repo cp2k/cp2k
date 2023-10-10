@@ -107,7 +107,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INTENSITIES", &
-                          description="Calculation of the IR/Raman-Intensities."// &
+                          description="Calculation of the IR/Raman-Intensities. "// &
                           "Calculation of dipoles and/or polarizabilities have to be "// &
                           "specified explicitly in DFT/PRINT/MOMENTS and/or "// &
                           "PROPERTIES/LINRES/POLAR", &
@@ -271,7 +271,7 @@ CONTAINS
                           "Use a negative value to print imaginary frequencies. "// &
                           "Useful for visualizing the imaginary frequency along a reaction path coordinate "// &
                           "Depending on accuracy settings, the output might include spurious low frequency "// &
-                          " imaginary modes which should be visually checked (see MOLDEN_VIB).", &
+                          "imaginary modes which should be visually checked (see MOLDEN_VIB).", &
                           usage="LOWEST_FREQUENCY <REAL>", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -309,7 +309,7 @@ CONTAINS
                        "use data from MS_RESTART as initial guess", &
                        "use a vector from MS_RESTART, useful if you want to increase accurcy by changing functionals or basis", &
                        "use the .mol file of a former run, to restart a vector"// &
-                       "(similar to Restart_vec, but a different file FORMAT is used)"), &
+                       " (similar to Restart_vec, but a different file FORMAT is used)"), &
          enum_i_vals=(/ms_guess_bfgs, ms_guess_atomic, ms_guess_restart, ms_guess_restart_vec, ms_guess_molden/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -362,7 +362,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="RANGE", &
-         description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked. "// &
+         description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked."// &
          " If not specified frequencies >400cm-1 will be used to avoid tracking of translational or rotational modes", &
          usage="RANGE {REAL} {REAL}", &
          n_var=-1, type_of_var=real_t)

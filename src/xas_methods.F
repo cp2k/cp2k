@@ -854,8 +854,7 @@ CONTAINS
          DO i = 1, 3
             ALLOCATE (xas_env%ostrength_sm(i)%matrix)
             CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix, matrix_s(1)%matrix, &
-                            "xas_env%ostrength_sm"// &
-                            "-"//TRIM(ADJUSTL(cp_to_string(i))))
+                            "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)
          END DO
       ELSEIF (xas_control%dipole_form == xas_dip_vel) THEN

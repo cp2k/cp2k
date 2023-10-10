@@ -2355,7 +2355,7 @@ CONTAINS
          CASE (becke_cutoff_element)
             IF (.NOT. SIZE(atomic_kind_set) == SIZE(cdft_control%becke_control%cutoffs_tmp)) &
                CALL cp_abort(__LOCATION__, &
-                             "Size of keyword BECKE_CONSTRAINT\ELEMENT_CUTOFFS does"// &
+                             "Size of keyword BECKE_CONSTRAINT\ELEMENT_CUTOFFS does "// &
                              "not match number of atomic kinds in the input coordinate file.")
             DO ikind = 1, SIZE(atomic_kind_set)
                CALL get_atomic_kind(atomic_kind_set(ikind), natom=katom, atom_list=atom_list)
@@ -3000,7 +3000,7 @@ CONTAINS
          IF (ANY(should_warn == 1)) &
             CALL cp_warn(__LOCATION__, &
                          "MIXED_CDFT DLB: Attempted to redistribute more array"// &
-                         " slices than actually available. Leaving a fraction of the total "// &
+                         " slices than actually available. Leaving a fraction of the total"// &
                          " slices on the overloaded processor. Perhaps you have set LOAD_SCALE too high?")
          DEALLOCATE (should_warn)
       END IF

@@ -23,15 +23,16 @@
            EPS_SVD 0.0
            EPS_OCC 0.0
            ATOMIC_CHARGES
-            &IAO_MOLDEN
-            &END IAO_MOLDEN
-            &IAO_CUBES 
-               ATOM_LIST 1 2 3 4
-            &END IAO_CUBES 
-            &ONE_CENTER_EXPANSION
-               LMAX 5
-            &END ONE_CENTER_EXPANSION
-            &BOND_ORBITALS
+           &IAO_MOLDEN ON
+           &END IAO_MOLDEN
+           &IAO_CUBES ON
+              STRIDE 3 3 3
+              ATOM_LIST 2 3
+           &END IAO_CUBES 
+           &ONE_CENTER_EXPANSION
+              LMAX 5
+           &END ONE_CENTER_EXPANSION
+           &BOND_ORBITALS
                &CHARGE_CENTER
                   POSITION_OPERATOR_BERRY  F
                &END CHARGE_CENTER

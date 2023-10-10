@@ -46,19 +46,19 @@ endif()
 
 # add target to link against
 if(CP2K_OPENBLAS_FOUND)
-  if(NOT TARGET CP2K::BLAS::OpenBLAS::openblas)
-    add_library(CP2K::BLAS::OpenBLAS::openblas INTERFACE IMPORTED)
+  if(NOT TARGET cp2k::BLAS::OpenBLAS::openblas)
+    add_library(cp2k::BLAS::OpenBLAS::openblas INTERFACE IMPORTED)
   endif()
   set_property(
-    TARGET CP2K::BLAS::OpenBLAS::openblas
+    TARGET cp2k::BLAS::OpenBLAS::openblas
     PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_OPENBLAS_LINK_LIBRARIES})
   if(CP2K_OPENBLAS_INCLUDE_DIRS)
     set_property(
-      TARGET CP2K::BLAS::OpenBLAS::openblas
+      TARGET cp2k::BLAS::OpenBLAS::openblas
       PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CP2K_OPENBLAS_INCLUDE_DIRS})
   endif()
-  if(NOT TARGET CP2K::BLAS::OpenBLAS::blas)
-    add_library(CP2K::BLAS::OpenBLAS::blas ALIAS CP2K::BLAS::OpenBLAS::openblas)
+  if(NOT TARGET cp2k::BLAS::OpenBLAS::blas)
+    add_library(cp2k::BLAS::OpenBLAS::blas ALIAS cp2k::BLAS::OpenBLAS::openblas)
   endif()
   set(CP2K_BLAS_VENDOR "OpenBLAS")
 endif()

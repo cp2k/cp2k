@@ -136,8 +136,8 @@ CONTAINS
          CASE (do_adiabatic_model_pade)
             IF (n_rep_hf /= 2) &
                CALL cp_abort(__LOCATION__, &
-                             " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "// &
-                             " Please check your input file.")
+                             "For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "// &
+                             "Please check your input file.")
             CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                                    adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA, &
                                    scale_dEx2, total_energy_xc)

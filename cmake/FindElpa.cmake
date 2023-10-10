@@ -31,15 +31,15 @@ find_package_handle_standard_args(Elpa "DEFAULT_MSG" CP2K_ELPA_LINK_LIBRARIES
                                   CP2K_ELPA_INCLUDE_DIRS)
 
 if(CP2K_ELPA_FOUND)
-  if(NOT TARGET CP2K::ELPA::elpa)
-    add_library(CP2K::ELPA::elpa INTERFACE IMPORTED)
+  if(NOT TARGET cp2k::ELPA::elpa)
+    add_library(cp2k::ELPA::elpa INTERFACE IMPORTED)
   endif()
   set_target_properties(
-    CP2K::ELPA::elpa PROPERTIES INTERFACE_LINK_LIBRARIES
+    cp2k::ELPA::elpa PROPERTIES INTERFACE_LINK_LIBRARIES
                                 "${CP2K_ELPA_LINK_LIBRARIES}")
   if(CP2K_ELPA_INCLUDE_DIRS)
     set_target_properties(
-      CP2K::ELPA::elpa
+      cp2k::ELPA::elpa
       PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                  "${CP2K_ELPA_INCLUDE_DIRS};${CP2K_ELPA_INCLUDE_DIRS}/modules")
   endif()

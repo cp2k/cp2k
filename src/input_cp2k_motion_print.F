@@ -181,8 +181,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MIXED_ENERGIES", &
-                                       description="Controls the output of the energies of the two"// &
-                                       "regular FORCE_EVALS in the MIXED method"// &
+                                       description="Controls the output of the energies of the two "// &
+                                       "regular FORCE_EVALS in the MIXED method "// &
                                        "printed is step,time,Etot,E_F1,E_F2,CONS_QNT", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
@@ -234,7 +234,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART_HISTORY", &
-                                       description="Dumps unique restart files during the run keeping all of them."// &
+                                       description="Dumps unique restart files during the run keeping all of them. "// &
                                        "Most useful if recovery is needed at a later point.", &
                                        print_level=low_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD", "GEO_OPT", "ROT_OPT"), each_iter_values=(/500, 500, 500/), &

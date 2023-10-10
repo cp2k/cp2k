@@ -600,7 +600,7 @@ CONTAINS
       IF (tmc_env%tmc_comp_set%ana_on_the_fly .GT. 1) &
          CALL cp_abort(__LOCATION__, &
                        "analysing on the fly is up to now not supported for multiple cores. "// &
-                       " Restart file witing for this case and temperature "// &
+                       "Restart file witing for this case and temperature "// &
                        "distribution has to be solved.!.")
       CALL section_vals_val_get(tmc_section, "RESULT_LIST_IN_MEMORY", l_val=tmc_env%params%USE_REDUCED_TREE)
       ! swap the variable, because of oposit meaning

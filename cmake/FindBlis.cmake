@@ -44,17 +44,17 @@ endif()
 
 # add target to link against
 if(CP2K_BLIS_FOUND)
-  if(NOT TARGET CP2K::BLAS::Blis::blis)
-    add_library(CP2K::BLAS::Blis::blis INTERFACE IMPORTED)
-    add_library(CP2K::BLAS::Blis::blas alias CP2K::BLAS::Blis::blis)
+  if(NOT TARGET cp2k::BLAS::Blis::blis)
+    add_library(cp2k::BLAS::Blis::blis INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::Blis::blas alias cp2k::BLAS::Blis::blis)
   endif()
 
-  set_property(TARGET CP2K::BLAS::Blis::blis
+  set_property(TARGET cp2k::BLAS::Blis::blis
                PROPERTY INTERFACE_LINK_LIBRARIES ${CP2K_BLIS_LINK_LIBRARIES})
 
   if(BLIS_INCLUDE_DIRS)
     set_property(
-      TARGET CP2K::BLAS::Blis::blis PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+      TARGET cp2k::BLAS::Blis::blis PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                              ${CP2K_BLIS_INCLUDE_DIRS})
   endif()
 endif()
