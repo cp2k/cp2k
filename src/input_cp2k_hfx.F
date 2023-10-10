@@ -274,7 +274,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Determines cutoff radius for the truncated 1/r potential. "// &
+                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r potential. "// &
                           "Only valid when doing truncated calculation", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, & ! default_r_val=10.0_dp,&
                           unit_str="angstrom")
@@ -529,7 +529,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="The cutoff radius (in Angstrom) for the truncated Coulomb operator. "// &
+                          description="The cutoff radius (in Angstroms) for the truncated Coulomb operator. "// &
                           "Default is CUTOFF_RADIUS from INTERACTION_POTENTIAL. ", &
                           default_r_val=0.0_dp, &
                           repeats=.FALSE., &
