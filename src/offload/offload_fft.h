@@ -18,7 +18,7 @@
 #if defined(__OFFLOAD_CUDA)
 #include <cufft.h>
 #elif defined(__OFFLOAD_HIP)
-#include <hipfft.h>
+#include <hipfft/hipfft.h>
 #endif
 
 #if defined(__OFFLOAD_CUDA)
