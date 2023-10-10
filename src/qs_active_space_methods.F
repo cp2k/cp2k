@@ -78,7 +78,7 @@ MODULE qs_active_space_methods
    USE particle_list_types, ONLY: particle_list_type
    USE particle_types, ONLY: particle_type
    USE periodic_table, ONLY: ptable
-   USE physcon, ONLY: angstrom
+   USE physcon, ONLY: angstrom, bohr
    USE preconditioner_types, ONLY: preconditioner_type
    USE pw_env_methods, ONLY: pw_env_create, &
                              pw_env_rebuild
@@ -878,7 +878,7 @@ CONTAINS
          WRITE (iw, '(T3,A,T68,E12.4)') "Accuracy of ERI", eri_eps_int
          WRITE (iw, '(T3,A,T71,3I3)') "Periodicity", active_space_env%eri%periodicity(1:3)
          IF (PRODUCT(active_space_env%eri%periodicity(1:3)) == 0) THEN
-            IF (eri_rcut > 0.0_dp) WRITE (iw, '(T3,A,T65,F14.6)') "Periodicity (Cutoff)", eri_rcut
+            IF (eri_rcut > 0.0_dp) WRITE (iw, '(T3,A,T66,F14.6)') "User-specified cutoff", eri_rcut
          END IF
          IF (nspins < 2) THEN
             WRITE (iw, '(T3,A,T68,I12)') "Total Number of ERI", (nmo_active**4)/8
@@ -1372,7 +1372,7 @@ CONTAINS
          poisson_env%parameters%periodic = eri_env%periodicity
          CALL pw_poisson_rebuild(poisson_env)
          IF (eri_env%cutoff_radius > 0.0_dp) THEN
-            poisson_env%green_fft%radius = eri_env%cutoff_radius
+            poisson_env%green_fft%radius = eri_env%cutoff_radius*bohr
          ELSE
             rc = cell%hmat(1, 1)
             DO iwa1 = 1, 3
