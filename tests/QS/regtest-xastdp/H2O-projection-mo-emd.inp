@@ -15,62 +15,6 @@
        &PRINT
          &PROJECTION_MO
            REFERENCE_TYPE SCF
-           REF_MO_INDEX 4 5
-           REF_MO_SPIN 1
-           SUM_ON_ALL_REF .FALSE.
-           TD_MO_INDEX 4 5
-           TD_MO_SPIN 1
-           SUM_ON_ALL_TD .FALSE.
-           &PRINT
-             &EACH
-               MD 1
-             &END EACH
-           &END PRINT
-         &END PROJECTION_MO
-         &PROJECTION_MO
-           REFERENCE_TYPE SCF
-           REF_MO_INDEX 4 5
-           REF_MO_SPIN 2
-           SUM_ON_ALL_REF .FALSE.
-           TD_MO_INDEX 4 5
-           TD_MO_SPIN 1
-           SUM_ON_ALL_TD .FALSE.
-           &PRINT
-             &EACH
-               MD 1
-             &END EACH
-           &END PRINT
-         &END PROJECTION_MO
-         &PROJECTION_MO
-           REFERENCE_TYPE SCF
-           REF_MO_INDEX 4 5
-           REF_MO_SPIN 1
-           SUM_ON_ALL_REF .FALSE.
-           TD_MO_INDEX 4 5
-           TD_MO_SPIN 2
-           SUM_ON_ALL_TD .FALSE.
-           &PRINT
-             &EACH
-               MD 2
-             &END EACH
-           &END PRINT
-         &END PROJECTION_MO
-         &PROJECTION_MO
-           REFERENCE_TYPE SCF
-           REF_MO_INDEX 4 5 6
-           REF_MO_SPIN 2
-           SUM_ON_ALL_REF .FALSE.
-           TD_MO_INDEX 4 5 6
-           TD_MO_SPIN 2
-           SUM_ON_ALL_TD .FALSE.
-           &PRINT
-             &EACH
-               MD 1
-             &END EACH
-           &END PRINT
-         &END PROJECTION_MO
-         &PROJECTION_MO
-           REFERENCE_TYPE SCF
            REF_MO_INDEX -1
            REF_MO_SPIN 1
            SUM_ON_ALL_REF .FALSE.
@@ -148,10 +92,87 @@
              &END EACH
            &END PRINT
          &END PROJECTION_MO
+         ! PROPAGATE_REF .TRUE.
          &PROJECTION_MO
            REFERENCE_TYPE SCF
-           PROPAGATE_REF .TRUE. ! Should do nothing for RTP
+           PROPAGATE_REF .TRUE.
+           REF_MO_INDEX -1
+           REF_MO_SPIN 1
+           SUM_ON_ALL_REF .FALSE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           REF_MO_INDEX -1
+           REF_MO_SPIN 2
+           SUM_ON_ALL_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .FALSE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           REF_MO_INDEX -1
+           REF_MO_SPIN 1
+           SUM_ON_ALL_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 2
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
            REF_MO_FILE_NAME H2O-projection-mo-RESTART.wfn
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE XAS_TDP
+           REF_MO_FILE_NAME H2O-B3LYP-full-xasat1_1s_singlet_idx1-1.wfn
+           PROPAGATE_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
            &PRINT
              &EACH
                MD 1
@@ -206,7 +227,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT H2O-projection-mo
-  RUN_TYPE RT_PROPAGATION
+  RUN_TYPE EHRENFEST_DYN
   PRINT_LEVEL LOW
 &END GLOBAL
 &MOTION

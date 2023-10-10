@@ -16,7 +16,8 @@ MODULE rt_projection_mo_utils
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -51,6 +52,8 @@ MODULE rt_projection_mo_utils
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
                                               mo_set_type
+   USE rt_propagation_types,            ONLY: get_rtp,&
+                                              rt_prop_type
 #include "./../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -83,10 +86,6 @@ CONTAINS
       NULLIFY (rtp_control%proj_mo_list, tmp_ints, proj_mo, logger, &
                input, proj_mo_section, print_key, mos)
 
-      IF (.NOT. rtp_control%fixed_ions) &
-         CALL cp_abort(__LOCATION__, &
-                       "DFT%REAL_TIME_PROPAGATION%PRINT%PROJECTION_MO not implemented for EMD yet.")
-
       CALL get_qs_env(qs_env, input=input, mos=mos)
 
       proj_mo_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%PROJECTION_MO")
@@ -105,6 +104,11 @@ CONTAINS
 
          CALL section_vals_val_get(proj_mo_section, "REF_MO_FILE_NAME", i_rep_section=i_rep, &
                                    c_val=proj_mo%ref_mo_file_name)
+
+         ! Relevent only in EMD
+         IF (.NOT. rtp_control%fixed_ions) &
+            CALL section_vals_val_get(proj_mo_section, "PROPAGATE_REF", i_rep_section=i_rep, &
+                                      l_val=proj_mo%propagate_ref)
 
          IF (reftype == proj_mo_ref_scf) THEN
             ! If no reference .wfn is provided, using the restart SCF file:
@@ -294,7 +298,9 @@ CONTAINS
                                context=mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff%matrix_struct%context, &
                                nrow_global=mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff%matrix_struct%nrow_global, &
                                ncol_global=1)
-      CALL cp_fm_create(mo_coeff_temp, mo_ref_fmstruct, 'mo_ref')
+
+      IF (dft_control%rtp_control%fixed_ions) &
+         CALL cp_fm_create(mo_coeff_temp, mo_ref_fmstruct, 'mo_ref')
 
       DO mo_index = 1, nbr_ref_mo
          real_mo_index = proj_mo%ref_mo_index(mo_index)
@@ -304,13 +310,20 @@ CONTAINS
 
          ! fill with the reference mo values
          CALL cp_fm_create(proj_mo%mo_ref(mo_index), mo_ref_fmstruct, 'mo_ref')
-         CALL cp_fm_to_fm(mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff, mo_coeff_temp, &
-                          ncol=1, &
-                          source_start=real_mo_index, &
-                          target_start=1)
-
-         ! multiply with overlap matrix to save time later on
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1, 1)%matrix, mo_coeff_temp, proj_mo%mo_ref(mo_index), ncol=1)
+         IF (dft_control%rtp_control%fixed_ions) THEN
+            ! multiply with overlap matrix to save time later on: proj_mo%mo_ref is SxMO_ref
+            CALL cp_fm_to_fm(mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff, mo_coeff_temp, &
+                             ncol=1, &
+                             source_start=real_mo_index, &
+                             target_start=1)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1, 1)%matrix, mo_coeff_temp, proj_mo%mo_ref(mo_index), ncol=1)
+         ELSE
+            ! the AO will change with times: proj_mo%mo_ref are really the MOs coeffs
+            CALL cp_fm_to_fm(mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff, proj_mo%mo_ref(mo_index), &
+                             ncol=1, &
+                             source_start=real_mo_index, &
+                             target_start=1)
+         END IF
       END DO
 
       ! Clean temporary variables
@@ -320,7 +333,8 @@ CONTAINS
       DEALLOCATE (mo_ref_temp)
 
       CALL cp_fm_struct_release(mo_ref_fmstruct)
-      CALL cp_fm_release(mo_coeff_temp)
+      IF (dft_control%rtp_control%fixed_ions) &
+         CALL cp_fm_release(mo_coeff_temp)
 
    END SUBROUTINE read_reference_mo_from_wfn
 
@@ -341,7 +355,10 @@ CONTAINS
 
       INTEGER                                            :: i_ref, nbr_ref_mo, nbr_ref_td
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: phase, popu, sum_popu_ref
+      TYPE(cp_fm_struct_type), POINTER                   :: mo_ref_fmstruct
+      TYPE(cp_fm_type)                                   :: S_mo_ref
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input, print_mo_section, proj_mo_section
 
@@ -358,15 +375,24 @@ CONTAINS
       ! The section we are dealing in this particular subroutine call: n_proj.
       print_mo_section => section_vals_get_subs_vals(proj_mo_section, "PRINT", i_rep_section=n_proj)
 
-      ! STOP if not the required time step
+      ! Propagate the reference MO if required at each time step
+      IF (proj_mo%propagate_ref) CALL propagate_ref_mo(qs_env, proj_mo)
+
+      ! Does not compute the projection if not the required time step
       IF (.NOT. BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  print_mo_section, ""), &
                       cp_p_file)) &
          RETURN
 
-      IF (.NOT. dft_control%rtp_control%fixed_ions) &
-         CALL cp_abort(__LOCATION__, &
-                       "DFT%REAL_TIME_PROPAGATION%PRINT%PROJECTION_MO not implemented for EMD yet.")
+      IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
+         CALL get_qs_env(qs_env, &
+                         matrix_s_kp=matrix_s)
+         CALL cp_fm_struct_create(mo_ref_fmstruct, &
+                                  context=proj_mo%mo_ref(1)%matrix_struct%context, &
+                                  nrow_global=proj_mo%mo_ref(1)%matrix_struct%nrow_global, &
+                                  ncol_global=1)
+         CALL cp_fm_create(S_mo_ref, mo_ref_fmstruct, 'S_mo_ref')
+      END IF
 
       nbr_ref_mo = SIZE(proj_mo%ref_mo_index)
       nbr_ref_td = SIZE(proj_mo%td_mo_index)
@@ -377,7 +403,13 @@ CONTAINS
          ALLOCATE (sum_popu_ref(nbr_ref_td))
          sum_popu_ref(:) = 0.0_dp
          DO i_ref = 1, nbr_ref_mo
-            CALL compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref)
+            ! Compute SxMO_ref for the upcoming projection later on
+            IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1, 1)%matrix, proj_mo%mo_ref(i_ref), S_mo_ref, ncol=1)
+               CALL compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref, S_mo_ref=S_mo_ref)
+            ELSE
+               CALL compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref)
+            END IF
             sum_popu_ref(:) = sum_popu_ref(:) + popu(:)
          END DO
          IF (proj_mo%sum_on_all_td) THEN
@@ -388,8 +420,12 @@ CONTAINS
          DEALLOCATE (sum_popu_ref)
       ELSE
          DO i_ref = 1, nbr_ref_mo
-            CALL compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref)
-
+            IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1, 1)%matrix, proj_mo%mo_ref(i_ref), S_mo_ref, ncol=1)
+               CALL compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref, S_mo_ref=S_mo_ref)
+            ELSE
+               CALL compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref)
+            END IF
             IF (proj_mo%sum_on_all_td) THEN
                CALL write_proj_mo(qs_env, print_mo_section, proj_mo, i_ref=i_ref, popu_tot=SUM(popu), n_proj=n_proj)
             ELSE
@@ -399,6 +435,10 @@ CONTAINS
          END DO
       END IF
 
+      IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
+         CALL cp_fm_struct_release(mo_ref_fmstruct)
+         CALL cp_fm_release(S_mo_ref)
+      END IF
       DEALLOCATE (popu)
       DEALLOCATE (phase)
 
@@ -411,22 +451,28 @@ CONTAINS
 !> \param mos_new ...
 !> \param proj_mo ...
 !> \param i_ref ...
+!> \param S_mo_ref ...
 !> \author Guillaume Le Breton
 ! **************************************************************************************************
-   SUBROUTINE compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref)
+   SUBROUTINE compute_proj_mo(popu, phase, mos_new, proj_mo, i_ref, S_mo_ref)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: popu, phase
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(proj_mo_type)                                 :: proj_mo
       INTEGER                                            :: i_ref
+      TYPE(cp_fm_type), OPTIONAL                         :: S_mo_ref
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_proj_mo'
 
       INTEGER                                            :: handle, j_td, nbr_ref_td, spin_td
+      LOGICAL                                            :: is_emd
       REAL(KIND=dp)                                      :: imag_proj, real_proj
       TYPE(cp_fm_struct_type), POINTER                   :: mo_ref_fmstruct
       TYPE(cp_fm_type)                                   :: mo_coeff_temp
 
       CALL timeset(routineN, handle)
+
+      is_emd = .FALSE.
+      IF (PRESENT(S_mo_ref)) is_emd = .TRUE.
 
       nbr_ref_td = SIZE(popu)
       spin_td = proj_mo%td_mo_spin
@@ -445,7 +491,13 @@ CONTAINS
                           source_start=proj_mo%td_mo_index(j_td), &
                           target_start=1)
 
-         CALL cp_fm_trace(mo_coeff_temp, proj_mo%mo_ref(i_ref), real_proj)
+         IF (is_emd) THEN
+            ! The reference MO have to be propagated in the new basis, so the projection
+            CALL cp_fm_trace(mo_coeff_temp, S_mo_ref, real_proj)
+         ELSE
+            ! The reference MO is time independent. proj_mo%mo_ref(i_ref) is in fact SxMO_ref already
+            CALL cp_fm_trace(mo_coeff_temp, proj_mo%mo_ref(i_ref), real_proj)
+         END IF
 
          ! Imaginary part of the projection
          imag_proj = 0.0_dp
@@ -454,12 +506,15 @@ CONTAINS
                           source_start=proj_mo%td_mo_index(j_td), &
                           target_start=1)
 
-         CALL cp_fm_trace(mo_coeff_temp, proj_mo%mo_ref(i_ref), imag_proj)
+         IF (is_emd) THEN
+            CALL cp_fm_trace(mo_coeff_temp, S_mo_ref, imag_proj)
+         ELSE
+            CALL cp_fm_trace(mo_coeff_temp, proj_mo%mo_ref(i_ref), imag_proj)
+         END IF
 
          ! Store the result
          phase(j_td) = ATAN2(imag_proj, real_proj) ! in radians
          popu(j_td) = real_proj**2 + imag_proj**2
-
       END DO
 
       CALL cp_fm_struct_release(mo_ref_fmstruct)
@@ -562,6 +617,47 @@ CONTAINS
       CALL cp_print_key_finished_output(print_unit, logger, print_mo_section, "")
 
    END SUBROUTINE write_proj_mo
+
+! **************************************************************************************************
+!> \brief Propagate the reference MO in case of EMD: since the nuclei moves, the MO coeff can be
+!>        propagate to represent the same MO (because the AO move with the nuclei).
+!>        To do so, we use the same formula as for the electrons of the system, but without the
+!>        Hamiltonian:
+!>        dc^j_alpha/dt = - sum_{beta, gamma} S^{-1}_{alpha, beta} B_{beta,gamma} c^j_gamma
+!> \param qs_env ...
+!> \param proj_mo ...
+!> \author Guillaume Le Breton
+! **************************************************************************************************
+   SUBROUTINE propagate_ref_mo(qs_env, proj_mo)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(proj_mo_type)                                 :: proj_mo
+
+      INTEGER                                            :: i_ref
+      REAL(Kind=dp)                                      :: dt
+      TYPE(cp_fm_struct_type), POINTER                   :: mo_ref_fmstruct
+      TYPE(cp_fm_type)                                   :: d_mo
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: SinvB
+      TYPE(rt_prop_type), POINTER                        :: rtp
+
+      CALL get_qs_env(qs_env, rtp=rtp)
+      CALL get_rtp(rtp=rtp, SinvB=SinvB, dt=dt)
+
+      CALL cp_fm_struct_create(mo_ref_fmstruct, &
+                               context=proj_mo%mo_ref(1)%matrix_struct%context, &
+                               nrow_global=proj_mo%mo_ref(1)%matrix_struct%nrow_global, &
+                               ncol_global=1)
+      CALL cp_fm_create(d_mo, mo_ref_fmstruct, 'd_mo')
+
+      DO i_ref = 1, SIZE(proj_mo%ref_mo_index)
+         ! MO(t+dt) = MO(t) - dtxS_inv.B(t).MO(t)
+         CALL cp_dbcsr_sm_fm_multiply(SinvB(1)%matrix, proj_mo%mo_ref(i_ref), d_mo, ncol=1, alpha=-dt)
+         CALL cp_fm_scale_and_add(1.0_dp, proj_mo%mo_ref(i_ref), 1.0_dp, d_mo)
+      END DO
+
+      CALL cp_fm_struct_release(mo_ref_fmstruct)
+      CALL cp_fm_release(d_mo)
+
+   END SUBROUTINE propagate_ref_mo
 
 END MODULE rt_projection_mo_utils
 
