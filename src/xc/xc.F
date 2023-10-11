@@ -2770,6 +2770,7 @@ CONTAINS
                CALL prepare_dr1dr(drb1drb, drhob, drho1b)
                CALL prepare_dr1dr(dr1dr, drho, drho1)
             ELSE
+               CALL prepare_dr1dr(drb1drb, drhob, drho1b)
                CALL prepare_dr1dr_ab(dr1dr, drhoa, drhob, drho1a, drho1b, fac)
             END IF
 
