@@ -55,8 +55,9 @@ MODULE qs_active_space_methods
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-      eri_operator_trunc, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
-      manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection
+      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
+      manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection, &
+      eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
                                   section_vals_type, &
@@ -97,6 +98,7 @@ MODULE qs_active_space_methods
                                greens_fn_type, &
                                pw_poisson_analytic, &
                                pw_poisson_periodic, &
+                               pw_poisson_mt, &
                                pw_poisson_type
    USE pw_pool_types, ONLY: &
       pw_pool_type
@@ -207,16 +209,17 @@ CONTAINS
       INTEGER :: as_solver, eri_method, eri_operator, eri_print, group_size, handle, i, iatom, &
          ishell, isp, ispin, iw, j, jm, m, max_orb_ind, mselect, n1, n2, nao, natom, nel, &
          nelec_active, nelec_inactive, nelec_total, nmo, nmo_active, nmo_available, nmo_inactive, &
-         nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
+         nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins, &
+         eri_poisson_solver
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
                                                             explicit, isolated, stop_after_print, &
-                                                            store_wfn, eri_enlarge_cell
+                                                            store_wfn, eri_enlarge_cell, ex_eri_cell
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
-         eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
+         eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage, mt_alpha, mt_rel_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual, eri_cell
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -822,6 +825,14 @@ CONTAINS
       active_space_env%eri%eps_integral = eri_eps_int
       CALL section_vals_val_get(as_input, "ERI%ENLARGE_CELL", l_val=eri_enlarge_cell)
       active_space_env%eri%enlarge_cell = eri_enlarge_cell
+      CALL section_vals_val_get(as_input, "ERI%POISSON_SOLVER", i_val=eri_poisson_solver)
+      active_space_env%eri%poisson_solver = eri_poisson_solver
+      CALL section_vals_val_get(as_input, "ERI%ERI_CELL", r_vals=eri_cell, explicit=ex_eri_cell)
+      IF (ex_eri_cell) active_space_env%eri%eri_cell(1:3) = eri_cell(1:3)
+      CALL section_vals_val_get(as_input, "ERI%MT%ALPHA", r_val=mt_alpha)
+      active_space_env%eri%mt_alpha = mt_alpha
+      CALL section_vals_val_get(as_input, "ERI%MT%REL_CUTOFF", r_val=mt_rel_cutoff)
+      active_space_env%eri%mt_rel_cutoff = mt_rel_cutoff
       IF (active_space_env%molecule) THEN
          ! check that we are in a non-periodic setting
          CALL get_qs_env(qs_env, cell=cell)
@@ -1185,7 +1196,7 @@ CONTAINS
    END SUBROUTINE create_subspace_matrix
 
 ! **************************************************************************************************
-!> \brief computes a electron repulsion integrals using GPW technology
+!> \brief computes the electron repulsion integrals using the GPW technology
 !> \param mos the molecular orbital set within the active subspace
 !> \param orbitals ...
 !> \param eri_env ...
@@ -1244,6 +1255,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
+      TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
@@ -1297,7 +1309,7 @@ CONTAINS
       END IF
 
       ! This should be done differently! Copied from MP2 code
-      CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell)
+      CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, input=input)
       ALLOCATE (qs_control)
       qs_control_old => dft_control%qs_control
       qs_control = qs_control_old
@@ -1323,6 +1335,25 @@ CONTAINS
                               do_alloc_blocks_from_nbl=.TRUE., dbcsr_sym_type=dbcsr_type_symmetric)
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
+      IF (SUM(eri_env%eri_cell) > 0.0_dp) THEN
+         ! figure out size of the box
+         ! IF (SUM(cell%perd) /= SUM(eri_env%periodicity)) THEN
+            ! enter here only for obc-in-pbc
+            ! IF (SUM(eri_env%periodicity) == 0) THEN
+               DO iwa1 = 1, 3
+                  new_hmat(iwa1, iwa1) = eri_env%eri_cell(iwa1)
+               END DO
+            ! END IF
+         ! END IF
+         ! set new cell
+         CALL init_cell(cell, new_hmat)
+      END IF
+      ! print info on the new cell dimension for the GPW integrals
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(T2,A,T57,3F8.2)") "ERI_GPW| New abc cell parameters", &
+            (cell%hmat(iwa1,iwa1)*angstrom, iwa1=1,3)
+      END IF
+
       IF (eri_env%enlarge_cell) THEN
          ! figure out size of the box
          IF (SUM(cell%perd) /= SUM(eri_env%periodicity)) THEN
@@ -1356,6 +1387,9 @@ CONTAINS
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
 
+      CALL section_vals_val_set(input, "DFT%POISSON%POISSON_SOLVER", r_val=my_e_range)
+            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_GAP", r_val=emin)
+
       ! Generate the appropriate  pw_env
       NULLIFY (pw_env_sub)
       CALL pw_env_create(pw_env_sub)
@@ -1364,12 +1398,39 @@ CONTAINS
                       poisson_env=poisson_env)
       IF (eri_env%eri_gpw%redo_poisson) THEN
          ! We need to rebuild the Poisson solver on the fly
+         poisson_env%parameters%periodic = eri_env%periodicity
          IF (SUM(eri_env%periodicity) /= 0) THEN
             poisson_env%parameters%solver = pw_poisson_periodic
          ELSE
-            poisson_env%parameters%solver = pw_poisson_analytic
+            IF (eri_env%poisson_solver == eri_poisson_analytic) THEN
+               poisson_env%parameters%solver = pw_poisson_analytic
+            ELSE IF (eri_env%poisson_solver == eri_poisson_mt) THEN
+               poisson_env%parameters%solver = pw_poisson_mt
+               poisson_env%parameters%mt_alpha = eri_env%mt_alpha
+               poisson_env%parameters%mt_rel_cutoff = eri_env%mt_rel_cutoff
+               !
+               ! If Tuckerman is present let's perform the set-up of the super-reference-grid
+               !
+               cutilev = dft_control%qs_control%e_cutoff(1)
+               IF (dft_control%qs_control%pw_grid_opt%spherical) THEN
+                  grid_span = HALFSPACE
+                  spherical = .TRUE.
+               ELSE IF (dft_control%qs_control%pw_grid_opt%fullspace) THEN
+                  grid_span = FULLSPACE
+                  spherical = .FALSE.
+               ELSE
+                  grid_span = HALFSPACE
+                  spherical = .FALSE.
+               END IF
+               CALL setup_super_ref_grid(super_ref_grid, mt_super_ref_grid, &
+                  xc_super_ref_grid, cutilev, grid_span, spherical, my_cell, para_env, &
+                  poisson_section, ncommensurate, uf_grid=.FALSE., &
+                  print_section=print_section)
+               poisson_env%mt_super_ref_pw_grid = super_grid
+            ELSE
+               CPABORT("Invalid non-periodic Poisson solver")
+            END IF
          END IF
-         poisson_env%parameters%periodic = eri_env%periodicity
          CALL pw_poisson_rebuild(poisson_env)
          IF (eri_env%cutoff_radius > 0.0_dp) THEN
             poisson_env%green_fft%radius = eri_env%cutoff_radius*bohr

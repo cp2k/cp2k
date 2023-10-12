@@ -57,12 +57,16 @@ MODULE qs_active_space_types
       LOGICAL                       :: enlarge_cell = .FALSE.
       REAL(KIND=dp)                 :: operator_parameter = 0.0_dp
       INTEGER, DIMENSION(3)         :: periodicity = 0
+      REAL(KIND=dp), DIMENSION(3)   :: eri_cell = 0
       REAL(KIND=dp)                 :: cutoff_radius = 0.0_dp
       REAL(KIND=dp)                 :: eps_integral = 0.0_dp
       TYPE(eri_gpw_type)            :: eri_gpw = eri_gpw_type()
       TYPE(dbcsr_csr_p_type), &
          DIMENSION(:), POINTER      :: eri => NULL()
       INTEGER                       :: norb = 0
+      INTEGER                       :: poisson_solver = 0
+      REAL(KIND=dp)                 :: mt_alpha = 0.0_dp
+      REAL(KIND=dp)                 :: mt_rel_cutoff = 0.0_dp
 
    CONTAINS
       PROCEDURE :: eri_foreach => eri_type_eri_foreach
