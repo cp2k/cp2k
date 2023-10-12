@@ -44,10 +44,10 @@ MODULE rt_propagation_forces
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_force
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,& 
-                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -59,26 +59,6 @@ MODULE rt_propagation_forces
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_forces'
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief calculates the three additional force contributions needed in EMD
-!>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
-!>        driver routine
-!> \param qs_env ...
-!> \par History
-!> \author Florian Schiffmann (02.09)
-! **************************************************************************************************
-
-!   SUBROUTINE calc_c_mat_force(qs_env)
-!      TYPE(qs_environment_type), POINTER                 :: qs_env
-!
-!      IF (qs_env%rtp%linear_scaling) THEN
-!         CALL calc_c_mat_force_ls(qs_env)
-!      ELSE
-!         CALL calc_c_mat_force_fm(qs_env)
-!      END IF
-!
-!   END SUBROUTINE calc_c_mat_force
 
 ! **************************************************************************************************
 !> \brief standard treatment for fm MO based calculations
@@ -191,21 +171,21 @@ CONTAINS
    SUBROUTINE calc_c_mat_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_ls'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_c_mat_force'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, im, ispin, re
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_new, rho_ao, rho_ao_im, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_ao, rho_ao_im, rho_new, &
                                                             S_der, SinvB, SinvH, SinvH_imag
       TYPE(dbcsr_type), POINTER                          :: S_inv, tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
       NULLIFY (rtp, particle_set, atomic_kind_set, dft_control)
@@ -228,12 +208,12 @@ CONTAINS
       ALLOCATE (tmp)
       CALL dbcsr_create(tmp, template=SinvB(1)%matrix)
 
-      IF (rtp%linear_scaling) THEN 
+      IF (rtp%linear_scaling) THEN
          CALL get_rtp(rtp=rtp, rho_new=rho_new)
       ELSE
          CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, rho_ao_im=rho_ao_im)
       END IF
-      
+
       ! If SinvH has an imaginary part (the minus sign is already in SinvH_imag)
       ! NOT SURE ABOUT THIS: SHOULD BE IF rtp%H_imag instead???
       IF (rtp%propagate_complex_ks) CALL get_rtp(rtp=rtp, SinvH_imag=SinvH_imag)
@@ -243,12 +223,12 @@ CONTAINS
          im = 2*ispin
          IF (rtp%linear_scaling) THEN
             CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
-                             filter_eps=rtp%filter_eps)
-            IF (rtp%propagate_complex_ks) & 
+                                filter_eps=rtp%filter_eps)
+            IF (rtp%propagate_complex_ks) &
                CALL dbcsr_multiply("N", "N", one, SinvH_imag(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
-                             filter_eps=rtp%filter_eps)
+                                   filter_eps=rtp%filter_eps)
             CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
-                             filter_eps=rtp%filter_eps)
+                                filter_eps=rtp%filter_eps)
             CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
          ELSE
             CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_ao(ispin)%matrix, zero, tmp)

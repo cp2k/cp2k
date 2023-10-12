@@ -225,7 +225,7 @@ CONTAINS
 
             natom = SIZE(list)
             DO iatom = 1, natom
-               IF (dft_control%apply_efield_field) THEN 
+               IF (dft_control%apply_efield_field) THEN
                   atom_a = list(iatom)
                   r(:) = pbc(particle_set(atom_a)%r(:), cell)
                   efield_ener = efield_ener - zeff*DOT_PRODUCT(r, field)

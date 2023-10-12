@@ -389,7 +389,7 @@ CONTAINS
    END SUBROUTINE compute_propagator_matrix
 
 ! **************************************************************************************************
-!> \brief computes S_inv*H, if needed Sinv*B and S_inv*H_imag and store these quantities to the 
+!> \brief computes S_inv*H, if needed Sinv*B and S_inv*H_imag and store these quantities to the
 !> \brief exp_H for the real and imag part (for RTP and EMD)
 !> \param rtp ...
 !> \param matrix_ks ...
@@ -418,7 +418,7 @@ CONTAINS
          im = ispin*2
          CALL dbcsr_set(exp_H(re)%matrix, zero)
          CALL dbcsr_set(exp_H(im)%matrix, zero)
-      END DO 
+      END DO
       CALL dbcsr_create(matrix_ks_nosym, template=matrix_ks(1)%matrix, matrix_type="N")
 
       ! Real part of S_inv x H -> imag part of exp_H
@@ -443,15 +443,15 @@ CONTAINS
             CALL dbcsr_desymmetrize(matrix_ks_im(ispin)%matrix, matrix_ks_nosym)
             ! - SinvH_imag is added to exp_H(re)%matrix
             CALL dbcsr_multiply("N", "N", -one, S_inv, matrix_ks_nosym, zero, exp_H(re)%matrix, &
-                                   filter_eps=rtp%filter_eps)
+                                filter_eps=rtp%filter_eps)
             IF (.NOT. rtp_control%fixed_ions) THEN
                CALL get_rtp(rtp=rtp, SinvH_imag=SinvH_imag)
-               ! -SinvH_imag is saved 
+               ! -SinvH_imag is saved
                CALL dbcsr_copy(SinvH_imag(ispin)%matrix, exp_H(re)%matrix)
             END IF
          END DO
       END IF
-      ! EMD case: the real part of exp_H should be updated with B 
+      ! EMD case: the real part of exp_H should be updated with B
       IF (.NOT. rtp_control%fixed_ions) THEN
          CALL get_rtp(rtp=rtp, B_mat=B_mat, SinvB=SinvB)
          CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
@@ -461,11 +461,11 @@ CONTAINS
             im = ispin*2
             ! + SinvB is added to exp_H(re)%matrix
             CALL dbcsr_add(exp_H(re)%matrix, matrix_ks_nosym, 1.0_dp, 1.0_dp)
-            ! + SinvB is saved 
+            ! + SinvB is saved
             CALL dbcsr_copy(SinvB(ispin)%matrix, matrix_ks_nosym)
          END DO
       END IF
-      ! Otherwise no real part for exp_H 
+      ! Otherwise no real part for exp_H
 
       CALL dbcsr_release(matrix_ks_nosym)
       CALL timestop(handle)

@@ -264,13 +264,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rtp_create_SinvH_imag(rtp, nspins)
       TYPE(rt_prop_type), POINTER                        :: rtp
-      INTEGER                                            :: nspins, i
+      INTEGER                                            :: nspins
+
+      INTEGER                                            :: i
 
       NULLIFY (rtp%SinvH_imag)
       CALL dbcsr_allocate_matrix_set(rtp%SinvH_imag, nspins)
       DO i = 1, nspins
-           CALL dbcsr_init_p(rtp%SinvH_imag(i)%matrix)
-           CALL dbcsr_create(rtp%SinvH_imag(i)%matrix, template=rtp%SinvH(1)%matrix, matrix_type="N")
+         CALL dbcsr_init_p(rtp%SinvH_imag(i)%matrix)
+         CALL dbcsr_create(rtp%SinvH_imag(i)%matrix, template=rtp%SinvH(1)%matrix, matrix_type="N")
       END DO
 
    END SUBROUTINE rtp_create_SinvH_imag
