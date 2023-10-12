@@ -262,7 +262,7 @@ FROM {distro}:{distro_version} AS build
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
     {required_packages} \
-    bzip2 ca-certificates git make patch pkg-config python3 unzip wget zlib1g-dev
+    bzip2 ca-certificates git make patch pkg-config unzip wget zlib1g-dev
 
 # Download CP2K
 RUN git clone --recursive{branch} https://github.com/cp2k/cp2k.git /opt/cp2k

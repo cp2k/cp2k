@@ -9,7 +9,7 @@ FROM ubuntu:22.04 AS build
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran libmpich-dev mpich openssh-client python3 \
-    bzip2 ca-certificates git make patch pkg-config python3 unzip wget zlib1g-dev
+    bzip2 ca-certificates git make patch pkg-config unzip wget zlib1g-dev
 
 # Download CP2K
 RUN git clone --recursive https://github.com/cp2k/cp2k.git /opt/cp2k
