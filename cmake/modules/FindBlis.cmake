@@ -10,8 +10,8 @@
 # authors : Mathieu Taillefumier
 
 find_package(PkgConfig)
-include(cp2k_utils)
 include(FindPackageHandleStandardArgs)
+include(cp2k_utils)
 
 cp2k_set_default_paths(BLIS "BLIS")
 
