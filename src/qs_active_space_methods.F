@@ -84,7 +84,7 @@ MODULE qs_active_space_methods
                          pw_multiply, &
                          pw_multiply_with, &
                          pw_transfer, &
-                         pw_zero
+                         pw_zero, pw_integral_ab
    USE pw_poisson_methods, ONLY: pw_poisson_rebuild, &
                                  pw_poisson_solve
    USE pw_poisson_types, ONLY: ANALYTIC0D, &
@@ -1432,6 +1432,8 @@ CONTAINS
                         ELSE
                            CPABORT("")
                         END IF
+                        CALL pw_zero(wfn_r)
+                        CALL pw_multiply(wfn_r, rho_r, wfn3)
                         iwbt = i3
                         IF (isp1 == isp2 .AND. i1 == i3) iwbt = i2
                         DO i4 = iwbt, SIZE(orbitals, 1)
@@ -1441,10 +1443,7 @@ CONTAINS
                            ELSE
                               CPABORT("")
                            END IF
-                           CALL pw_zero(wfn_r)
-                           CALL pw_multiply(wfn_r, rho_r, wfn3)
-                           CALL pw_multiply_with(wfn_r, wfn4)
-                           erint = pw_integrate_function(wfn_r)
+                           erint = pw_integral_ab(wfn_r, wfn4)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1
                               IF (print2 .AND. iw > 0) THEN
