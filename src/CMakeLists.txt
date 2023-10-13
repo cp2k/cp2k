@@ -1495,8 +1495,6 @@ else()
   add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 endif()
 
-target_compile_features(cp2k PUBLIC cxx_std_14)
-target_compile_features(cp2k PUBLIC c_std_99)
 target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
@@ -1657,8 +1655,7 @@ add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F)
 
 set_target_properties(
   cp2k-bin
-  PROPERTIES CXX_STANDARD 14
-             IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+  PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
              POSITION_INDEPENDENT_CODE ON
              LINKER_LANGUAGE "CXX"
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
@@ -1668,13 +1665,11 @@ target_link_libraries(cp2k-bin PUBLIC cp2k)
 foreach(_app ${__CP2K_APPS})
   set_target_properties(
     ${_app}
-    PROPERTIES CXX_STANDARD 14
-               IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+    PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
                POSITION_INDEPENDENT_CODE ON
                LINKER_LANGUAGE "CXX"
                OUTPUT_NAME "${_app}.${__cp2k_ext}")
 
-  target_compile_features(${_app} PUBLIC c_std_99)
   if(CP2K_USE_ACCEL MATCHES HIP)
     set_property(TARGET ${_app} PROPERTY HIP_ARCHITECTURES
                                          ${CMAKE_HIP_ARCHITECTURES})
