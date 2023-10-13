@@ -1003,6 +1003,8 @@ install(FILES "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
               "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
 
+install(FILES "${PROJECT_BINARY_DIR}/cp2k.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
