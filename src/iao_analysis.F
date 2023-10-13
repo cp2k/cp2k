@@ -37,7 +37,9 @@ MODULE iao_analysis
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_geadd,&
-                                              cp_fm_invert
+                                              cp_fm_invert,&
+                                              cp_fm_rot_cols,&
+                                              cp_fm_rot_rows
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -98,9 +100,10 @@ MODULE iao_analysis
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
-   USE qs_loc_methods,                  ONLY: jacobi_rotation_pipek
    USE qs_loc_utils,                    ONLY: compute_berry_operator
-   USE qs_localization_methods,         ONLY: initialize_weights
+   USE qs_localization_methods,         ONLY: initialize_weights,&
+                                              rotate_orbitals,&
+                                              scdm_qrfact
    USE qs_mo_methods,                   ONLY: make_basis_lowdin
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
@@ -157,7 +160,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: bname
       INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
                                                             nao, natom, nimages, nkind, no, norb, &
-                                                            nref, ns, nsgf, nspin, nvec, nx, sweeps
+                                                            nref, ns, nsgf, nspin, nvec, nx
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(2)                              :: nocc
       LOGICAL                                            :: cubes_iao, cubes_ibo, molden_iao, &
@@ -546,6 +549,8 @@ CONTAINS
          DO ispin = 1, nspin
             nvec = nocc(ispin)
             IF (nvec > 0) THEN
+               ! QR localization
+               CALL scdm_qrfact(cloc(ispin))
                ALLOCATE (zij_atom(natom, 1))
                NULLIFY (fm_struct)
                CALL cp_fm_struct_create(fm_struct, nrow_global=nvec, ncol_global=nvec, &
@@ -559,7 +564,7 @@ CONTAINS
                END DO
                CALL cp_fm_struct_release(fm_struct)
                !
-               CALL jacobi_rotation_pipek(zij_atom, cloc(ispin), sweeps)
+               CALL pm_localization(zij_atom, cloc(ispin), 4, 1.E-12_dp, unit_nr)
                !
                CALL cp_fm_release(zij_atom)
                CALL get_mo_set(my_mos(ispin), nao=nao)
@@ -1600,6 +1605,99 @@ CONTAINS
 
    END SUBROUTINE oce_overlap_matrix
 
+! **************************************************************************************************
+!> \brief 2 by 2 rotation optimization for the Pipek-Mezey operator
+!> \param zij_fm_set ...
+!> \param vectors ...
+!> \param order ...
+!> \param accuracy ...
+!> \param unit_nr ...
+!> \par History
+!>       05-2005 created
+!>       10-2023 adapted from jacobi_rotation_pipek [JGH]
+!> \author MI
+! **************************************************************************************************
+   SUBROUTINE pm_localization(zij_fm_set, vectors, order, accuracy, unit_nr)
+
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      INTEGER, INTENT(IN)                                :: order
+      REAL(KIND=dp), INTENT(IN)                          :: accuracy
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      INTEGER, PARAMETER                                 :: max_sweeps = 250
+
+      INTEGER                                            :: iatom, istate, jstate, natom, nstate, &
+                                                            sweeps
+      REAL(KIND=dp)                                      :: aij, bij, ct, ftarget, mii, mij, mjj, &
+                                                            st, theta, tolerance
+      TYPE(cp_fm_type)                                   :: rmat
+
+      CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix_struct)
+      CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
+
+      CALL cp_fm_get_info(rmat, nrow_global=nstate)
+      tolerance = 1.0e10_dp
+      sweeps = 0
+      natom = SIZE(zij_fm_set, 1)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(A,T35,A,T50,A,T73,A)') " Jacobi Localization  ", "Sweep", "Functional", "Gradient"
+      END IF
+      ! do jacobi sweeps until converged
+      DO sweeps = 1, max_sweeps
+         tolerance = 0.0_dp
+         DO istate = 1, nstate
+            DO jstate = istate + 1, nstate
+               aij = 0.0_dp
+               bij = 0.0_dp
+               DO iatom = 1, natom
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, mii)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, jstate, mij)
+                  CALL cp_fm_get_element(zij_fm_set(iatom, 1), jstate, jstate, mjj)
+                  IF (order == 2) THEN
+                     aij = aij + 4._dp*mij**2 - (mii - mjj)**2
+                     bij = bij + 4._dp*mij*(mii - mjj)
+                  ELSEIF (order == 4) THEN
+                     aij = aij - mii**4 - mjj**4 + 6._dp*(mii**2 + mjj**2)*mij**2 + &
+                           mii**3*mjj + mii*mjj**3
+                     bij = bij + 4._dp*mij*(mii**3 - mjj**3)
+                  ELSE
+                     CPABORT("PM order")
+                  END IF
+               END DO
+               IF ((aij**2 + bij**2) < 1.E-10_dp) CYCLE
+               tolerance = tolerance + bij**2
+               theta = 0.25_dp*ATAN2(bij, -aij)
+               ct = COS(theta)
+               st = SIN(theta)
+
+               CALL cp_fm_rot_cols(rmat, istate, jstate, ct, st)
+
+               DO iatom = 1, natom
+                  CALL cp_fm_rot_cols(zij_fm_set(iatom, 1), istate, jstate, ct, st)
+                  CALL cp_fm_rot_rows(zij_fm_set(iatom, 1), istate, jstate, ct, st)
+               END DO
+            END DO
+         END DO
+         ftarget = 0.0_dp
+         DO istate = 1, nstate
+            DO iatom = 1, natom
+               CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, mii)
+               ftarget = ftarget + mii**order
+            END DO
+         END DO
+         ftarget = ftarget**(1._dp/order)
+         tolerance = SQRT(tolerance)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T36,I4,T44,F16.8,T65,G16.8)') sweeps, ftarget, tolerance
+         END IF
+         IF (tolerance < accuracy) EXIT
+      END DO
+
+      CALL rotate_orbitals(rmat, vectors)
+      CALL cp_fm_release(rmat)
+
+   END SUBROUTINE pm_localization
 ! **************************************************************************************************
 
 END MODULE iao_analysis
