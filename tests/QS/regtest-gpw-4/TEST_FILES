@@ -23,6 +23,7 @@ H2O-debug-4.inp                                        1      4e-14             
 H2O-debug-5.inp                                       86      4e-10                -0.535129866059
 H2O-debug-6.inp                                       86      4e-10                -0.535125994114
 H2O-debug-7.inp                                        1      4e-12             -34.01122049558151
+H2O-debug-8.inp                                       86      4e-10                -0.482971230807
 # new colvar
 C2H4-meta.inp                                          1      7e-14             -14.34735860769572
 # improved atomic_kind
