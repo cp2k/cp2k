@@ -1036,6 +1036,7 @@ list(
   motion/helium_interactions.F
   motion/helium_io.F
   motion/helium_methods.F
+  motion/helium_nnp.F
   motion/helium_sampling.F
   motion/helium_types.F
   motion/helium_worm.F
