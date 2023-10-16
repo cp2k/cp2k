@@ -73,7 +73,6 @@ CONTAINS
       INTEGER                                            :: i, ig, is, j
       INTEGER, DIMENSION(3)                              :: periodicity
       LOGICAL                                            :: found
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: tmplist
       TYPE(cell_type), POINTER                           :: he_cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: sr_cutoff_section
