@@ -24,6 +24,7 @@ MODULE gw_methods
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -44,10 +45,10 @@ MODULE gw_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_contract,&
                                               dbt_copy,&
@@ -74,8 +75,7 @@ MODULE gw_methods
                                               z_zero
    USE message_passing,                 ONLY: mp_file_delete,&
                                               mp_para_env_type
-   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
-                                              inversion_of_M_and_mult_with_chol_dec_of_V
+   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
@@ -135,18 +135,18 @@ CONTAINS
       ! G^occ_µλ(i|τ|,k=0) = sum_n^occ C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
       ! G^vir_µλ(i|τ|,k=0) = sum_n^vir C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
       ! χ_PQ(iτ,k=0) = sum_λν [sum_µ (µν|P) G^occ_µλ(i|τ|)] [sum_σ (σλ|Q) G^vir_σν(i|τ|)]
-      CALL compute_mat_chi_Gamma_tau(bs_env, qs_env, bs_env%mat_chi_Gamma_tau)
+      CALL get_mat_chi_Gamma_tau(bs_env, qs_env, bs_env%mat_chi_Gamma_tau)
 
       ! χ_PQ(iτ,k=0) -> χ_PQ(iω,k) -> ε_PQ(iω,k) -> W_PQ(iω,k) -> W^MIC_PQ(iτ)
-      CALL compute_W_MIC(bs_env, qs_env, bs_env%mat_chi_Gamma_tau, fm_W_MIC_time)
+      CALL get_W_MIC(bs_env, qs_env, bs_env%mat_chi_Gamma_tau, fm_W_MIC_time)
 
       ! D_µν = sum_n^occ C_µn(k=0) C_νn(k=0), V^trunc_PQ = sum_cell_R <phi_P,0|V^trunc|phi_Q,R>
       ! Σ^x_λσ(k=0) = sum_νQ [sum_P (νσ|P) V^trunc_PQ] [sum_µ (λµ|Q) D_µν)]
-      CALL compute_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma)
+      CALL get_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma)
 
       ! Σ^c_λσ(iτ,k=0) = sum_νQ [sum_P (νσ|P) W^MIC_PQ(iτ)] [sum_µ (λµ|Q) G^occ_µν(i|τ|)], τ < 0
       ! Σ^c_λσ(iτ,k=0) = sum_νQ [sum_P (νσ|P) W^MIC_PQ(iτ)] [sum_µ (λµ|Q) G^vir_µν(i|τ|)], τ > 0
-      CALL compute_Sigma_c(bs_env, qs_env, fm_W_MIC_time, fm_Sigma_c_Gamma_time)
+      CALL get_Sigma_c(bs_env, qs_env, fm_W_MIC_time, fm_Sigma_c_Gamma_time)
 
       ! Σ^c_λσ(iτ,k=0) -> Σ^c_nn(ϵ,k); ϵ_nk^GW = ϵ_nk^DFT + Σ^c_nn(ϵ,k) + Σ^x_nn(k) - v^xc_nn(k)
       CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
@@ -163,12 +163,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param mat_chi_Gamma_tau ...
 ! **************************************************************************************************
-   SUBROUTINE compute_mat_chi_Gamma_tau(bs_env, qs_env, mat_chi_Gamma_tau)
+   SUBROUTINE get_mat_chi_Gamma_tau(bs_env, qs_env, mat_chi_Gamma_tau)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_chi_Gamma_tau'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_chi_Gamma_tau'
 
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, j_intval_idx
       INTEGER, DIMENSION(2)                              :: i_atoms, IL_atoms, j_atoms
@@ -296,7 +296,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_mat_chi_Gamma_tau
+   END SUBROUTINE get_mat_chi_Gamma_tau
 
 ! **************************************************************************************************
 !> \brief ...
@@ -810,63 +810,49 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
-!> \param fm_M_inv_V_sqrt_kp ...
-!> \param fm_V_sqrt_kp ...
+!> \param qs_env ...
+!> \param mat_chi_Gamma_tau ...
+!> \param fm_W_MIC_time ...
 ! **************************************************************************************************
-   SUBROUTINE read_MinvVsqrt_Vsqrt(bs_env, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
+   SUBROUTINE get_W_MIC(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_MinvVsqrt_Vsqrt'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_W_MIC'
 
-      INTEGER                                            :: handle, ikp, nkp, re_im
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      bs_env%t1 = m_walltime()
-
-      nkp = bs_env%nkp_chi_eps_W_total
-      ALLOCATE (fm_M_inv_V_sqrt_kp(nkp, 2))
-      ALLOCATE (fm_V_sqrt_kp(nkp, 2))
-
-      DO ikp = 1, nkp
-
-         DO re_im = 1, 2
-            CALL cp_fm_create(fm_M_inv_V_sqrt_kp(ikp, re_im), bs_env%fm_RI_RI%matrix_struct)
-            CALL cp_fm_create(fm_V_sqrt_kp(ikp, re_im), bs_env%fm_RI_RI%matrix_struct)
-         END DO
-
-         CALL fm_read(fm_V_sqrt_kp(ikp, 1), bs_env, bs_env%Vs_name, ikp)
-         CALL fm_read(fm_V_sqrt_kp(ikp, 2), bs_env, bs_env%Vs_name, ikp + nkp)
-         CALL fm_read(fm_M_inv_V_sqrt_kp(ikp, 1), bs_env, bs_env%MV_name, ikp)
-         CALL fm_read(fm_M_inv_V_sqrt_kp(ikp, 2), bs_env, bs_env%MV_name, ikp + nkp)
-
-      END DO
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,A34,F7.1,A)') 'Read V^0.5(k) and M^-1(k) from file,', &
-            'Execution time', m_walltime() - bs_env%t1, ' s'
-         WRITE (bs_env%unit_nr, '(A)') ' '
+      IF (bs_env%all_W_exist) THEN
+         CALL read_W_MIC_time(bs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
+      ELSE
+         CALL compute_W_MIC(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE read_MinvVsqrt_Vsqrt
+   END SUBROUTINE get_W_MIC
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param fm_V_kp ...
+!> \param ikp_batch ...
 ! **************************************************************************************************
-   SUBROUTINE compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp)
+   SUBROUTINE compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp, ikp_batch)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      INTEGER                                            :: ikp_batch
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_k_by_lattice_sum'
 
-      INTEGER                                            :: handle, ikp, re_im
+      INTEGER                                            :: handle, ikp, ikp_end, ikp_start, &
+                                                            nkp_chi_eps_W_batch, re_im
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_V_kp
@@ -875,14 +861,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      bs_env%t1 = m_walltime()
+      nkp_chi_eps_W_batch = bs_env%nkp_chi_eps_W_batch
+
+      ikp_start = (ikp_batch - 1)*bs_env%nkp_chi_eps_W_batch + 1
+      ikp_end = MIN(ikp_batch*bs_env%nkp_chi_eps_W_batch, bs_env%kpoints_chi_eps_W%nkp)
 
       NULLIFY (mat_V_kp)
-      CALL dbcsr_allocate_matrix_set(mat_V_kp, bs_env%kpoints_chi_eps_W%nkp, 2)
+      ALLOCATE (mat_V_kp(ikp_start:ikp_end, 2))
 
-      DO ikp = 1, bs_env%kpoints_chi_eps_W%nkp
+      DO ikp = ikp_start, ikp_end
          DO re_im = 1, 2
-
+            NULLIFY (mat_V_kp(ikp, re_im)%matrix)
             ALLOCATE (mat_V_kp(ikp, re_im)%matrix)
             CALL dbcsr_create(mat_V_kp(ikp, re_im)%matrix, template=bs_env%mat_RI_RI%matrix)
             CALL dbcsr_reserve_all_blocks(mat_V_kp(ikp, re_im)%matrix)
@@ -897,8 +886,23 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
 
-      ! 1. 2c Coulomb integrals for the first "original" k-point grid
-      bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
+      IF (ikp_end .LE. bs_env%nkp_chi_eps_W_orig) THEN
+
+         ! 1. 2c Coulomb integrals for the first "original" k-point grid
+         bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
+
+      ELSE IF (ikp_start > bs_env%nkp_chi_eps_W_orig .AND. &
+               ikp_end .LE. bs_env%nkp_chi_eps_W_orig_plus_extra) THEN
+
+         ! 2. 2c Coulomb integrals for the second "extrapolation" k-point grid
+         bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_extra
+
+      ELSE
+
+         CPABORT("Error with k-point parallelization.")
+
+      END IF
+
       CALL build_2c_coulomb_matrix_kp(mat_V_kp, &
                                       bs_env%kpoints_chi_eps_W, &
                                       basis_type="RI_AUX", &
@@ -908,39 +912,20 @@ CONTAINS
                                       atomic_kind_set=atomic_kind_set, &
                                       size_lattice_sum=bs_env%size_lattice_sum_V, &
                                       operator_type=operator_coulomb, &
-                                      ikp_start=1, &
-                                      ikp_end=bs_env%nkp_chi_eps_W_orig)
-
-      ! 2. 2c Coulomb integrals for the second "extrapolation" k-point grid
-      bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_extra
-      CALL build_2c_coulomb_matrix_kp(mat_V_kp, &
-                                      bs_env%kpoints_chi_eps_W, &
-                                      basis_type="RI_AUX", &
-                                      cell=cell, &
-                                      particle_set=particle_set, &
-                                      qs_kind_set=qs_kind_set, &
-                                      atomic_kind_set=atomic_kind_set, &
-                                      size_lattice_sum=bs_env%size_lattice_sum_V, &
-                                      operator_type=operator_coulomb, &
-                                      ikp_start=bs_env%nkp_chi_eps_W_orig + 1, &
-                                      ikp_end=bs_env%kpoints_chi_eps_W%nkp)
+                                      ikp_start=ikp_start, &
+                                      ikp_end=ikp_end)
 
       bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
 
-      ALLOCATE (fm_V_kp(bs_env%nkp_chi_eps_W_total, 2))
-      DO ikp = 1, bs_env%nkp_chi_eps_W_total
+      ALLOCATE (fm_V_kp(ikp_start:ikp_end, 2))
+      DO ikp = ikp_start, ikp_end
          DO re_im = 1, 2
             CALL cp_fm_create(fm_V_kp(ikp, re_im), bs_env%fm_RI_RI%matrix_struct)
             CALL copy_dbcsr_to_fm(mat_V_kp(ikp, re_im)%matrix, fm_V_kp(ikp, re_im))
+            CALL dbcsr_deallocate_matrix(mat_V_kp(ikp, re_im)%matrix)
          END DO
       END DO
-
-      CALL dbcsr_deallocate_matrix_set(mat_V_kp)
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,A39,F7.1,A)') 'Computed V(k) from lattice sum,', &
-            'Execution time', m_walltime() - bs_env%t1, ' s'
-      END IF
+      DEALLOCATE (mat_V_kp)
 
       CALL timestop(handle)
 
@@ -951,95 +936,83 @@ CONTAINS
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param fm_V_kp ...
-!> \param fm_V_sqrt_kp ...
-!> \param fm_M_inv_V_sqrt_kp ...
+!> \param cfm_V_sqrt_ikp ...
+!> \param cfm_M_inv_V_sqrt_ikp ...
+!> \param ikp ...
 ! **************************************************************************************************
-   SUBROUTINE compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, fm_V_sqrt_kp, fm_M_inv_V_sqrt_kp)
+   SUBROUTINE compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, cfm_V_sqrt_ikp, &
+                                      cfm_M_inv_V_sqrt_ikp, ikp)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp, fm_V_sqrt_kp, fm_M_inv_V_sqrt_kp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      TYPE(cp_cfm_type)                                  :: cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp
+      INTEGER                                            :: ikp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_MinvVsqrt_Vsqrt'
 
-      INTEGER                                            :: handle, ikp, nkp, re_im
+      INTEGER                                            :: handle, info, n_RI
+      TYPE(cp_cfm_type)                                  :: cfm_M_inv_ikp, cfm_work
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M_ikp
 
       CALL timeset(routineN, handle)
 
-      bs_env%t1 = m_walltime()
+      n_RI = bs_env%n_RI
 
-      ! get here M(k) and write it to fm_M_inv_V_sqrt_kp
-      CALL RI_2c_integral_mat(qs_env, fm_M_inv_V_sqrt_kp, fm_V_kp(1, 1), &
+      ! get here M(k) and write it to fm_M
+      CALL RI_2c_integral_mat(qs_env, fm_M_ikp, fm_V_kp(ikp, 1), &
                               bs_env%n_RI, bs_env%ri_metric, do_kpoints=.TRUE., &
                               kpoints=bs_env%kpoints_chi_eps_W, &
-                              regularization_RI=bs_env%regularization_RI)
+                              regularization_RI=bs_env%regularization_RI, ikp_ext=ikp)
 
-      ! calculate here inv(M(k)), sqrt(V(k)) and write result to fm_M_inv_V_sqrt_kp
-      ! JW for later: do this in subgroups; this is also good because we need fm_M_inv_V_sqrt_kp
-      !               in the subgroup for calculation eps(iw,k), W(iw,k)
-      CALL inversion_of_M_and_mult_with_chol_dec_of_V(fm_M_inv_V_sqrt_kp, fm_V_kp, bs_env%n_RI, &
-                                                      bs_env%kpoints_chi_eps_W, &
-                                                      bs_env%eps_eigval_mat_RI)
-
-      ! The routine inversion_of_M_and_mult_with_chol_dec_of_V overwrites fm_V_kp
-      ! with its square root. Make this clear by the following renaming:
-      nkp = bs_env%nkp_chi_eps_W_total
-      ALLOCATE (fm_V_sqrt_kp(nkp, 2))
-
-      DO ikp = 1, nkp
-
-         DO re_im = 1, 2
-            CALL cp_fm_create(fm_V_sqrt_kp(ikp, re_im), fm_V_kp(ikp, re_im)%matrix_struct)
-            CALL cp_fm_to_fm(fm_V_kp(ikp, re_im), fm_V_sqrt_kp(ikp, re_im))
-         END DO
-
-         CALL fm_write(fm_V_sqrt_kp(ikp, 1), ikp, bs_env%Vs_name, qs_env)
-         CALL fm_write(fm_V_sqrt_kp(ikp, 2), ikp + nkp, bs_env%Vs_name, qs_env)
-         CALL fm_write(fm_M_inv_V_sqrt_kp(ikp, 1), ikp, bs_env%MV_name, qs_env)
-         CALL fm_write(fm_M_inv_V_sqrt_kp(ikp, 2), ikp + nkp, bs_env%MV_name, qs_env)
-
-      END DO
-
-      CALL cp_fm_release(fm_V_kp)
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,A40,F7.1,A)') 'Computed V^0.5(k) and M^-1(k),', &
-            'Execution time', m_walltime() - bs_env%t1, ' s'
-         WRITE (bs_env%unit_nr, '(A)') ' '
+      IF (ikp == 1) THEN
+         CALL cp_cfm_create(cfm_V_sqrt_ikp, fm_V_kp(ikp, 1)%matrix_struct)
+         CALL cp_cfm_create(cfm_M_inv_V_sqrt_ikp, fm_V_kp(ikp, 1)%matrix_struct)
       END IF
+      CALL cp_cfm_create(cfm_M_inv_ikp, fm_V_kp(ikp, 1)%matrix_struct)
+
+      CALL cp_fm_to_cfm(fm_M_ikp(1, 1), fm_M_ikp(1, 2), cfm_M_inv_ikp)
+      CALL cp_fm_to_cfm(fm_V_kp(ikp, 1), fm_V_kp(ikp, 2), cfm_V_sqrt_ikp)
+
+      CALL cp_fm_release(fm_M_ikp)
+
+      CALL cp_cfm_create(cfm_work, fm_V_kp(ikp, 1)%matrix_struct)
+
+      ! M(k) -> M^-1(k)
+      CALL cp_cfm_to_cfm(cfm_M_inv_ikp, cfm_work)
+      CALL cp_cfm_cholesky_decompose(matrix=cfm_M_inv_ikp, n=n_RI, info_out=info)
+      IF (info == 0) THEN
+         ! successful Cholesky decomposition
+         CALL cp_cfm_cholesky_invert(cfm_M_inv_ikp)
+         ! symmetrize the result
+         CALL cp_cfm_upper_to_full(cfm_M_inv_ikp)
+      ELSE
+         ! Cholesky decomposition not successful: use expensive diagonalization
+         CALL cp_cfm_power(cfm_work, threshold=bs_env%eps_eigval_mat_RI, exponent=-1.0_dp)
+         CALL cp_cfm_to_cfm(cfm_work, cfm_M_inv_ikp)
+      END IF
+
+      ! V(k) -> L(k) with L^H(k)*L(k) = V(k) [L(k) can be just considered to be V^0.5(k)]
+      CALL cp_cfm_to_cfm(cfm_V_sqrt_ikp, cfm_work)
+      CALL cp_cfm_cholesky_decompose(matrix=cfm_V_sqrt_ikp, n=n_RI, info_out=info)
+      IF (info == 0) THEN
+         ! successful Cholesky decomposition
+         CALL clean_lower_part(cfm_V_sqrt_ikp)
+      ELSE
+         ! Cholesky decomposition not successful: use expensive diagonalization
+         CALL cp_cfm_power(cfm_work, threshold=0.0_dp, exponent=0.5_dp)
+         CALL cp_cfm_to_cfm(cfm_work, cfm_V_sqrt_ikp)
+      END IF
+      CALL cp_cfm_release(cfm_work)
+
+      ! get M^-1(k)*V^0.5(k)
+      CALL parallel_gemm("N", "C", n_RI, n_RI, n_RI, z_one, cfm_M_inv_ikp, cfm_V_sqrt_ikp, &
+                         z_zero, cfm_M_inv_V_sqrt_ikp)
+
+      CALL cp_cfm_release(cfm_M_inv_ikp)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_MinvVsqrt_Vsqrt
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param qs_env ...
-!> \param mat_chi_Gamma_tau ...
-!> \param fm_W_MIC_time ...
-! **************************************************************************************************
-   SUBROUTINE compute_W_MIC(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_W_MIC'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (bs_env%read_all_W_time) THEN
-         CALL read_W_MIC_time(bs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
-      END IF
-      IF (bs_env%calc_all_W_time) THEN
-         CALL compute_W_MIC_deep(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_W_MIC
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1088,163 +1061,92 @@ CONTAINS
 !> \param mat_chi_Gamma_tau ...
 !> \param fm_W_MIC_time ...
 ! **************************************************************************************************
-   SUBROUTINE compute_W_MIC_deep(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
+   SUBROUTINE compute_W_MIC(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_MIC_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_MIC_deep'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_W_MIC'
 
-      INTEGER                                            :: handle, i_t, j_w
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M_inv_V_sqrt_kp, fm_V_kp, fm_V_sqrt_kp
+      INTEGER                                            :: handle, i_t, ikp, ikp_batch, &
+                                                            ikp_in_batch, j_w
+      TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
 
       CALL timeset(routineN, handle)
 
-      IF (bs_env%read_MinvVsqrt_Vsqrt) THEN
-         CALL read_MinvVsqrt_Vsqrt(bs_env, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
-      END IF
-      IF (bs_env%calc_MinvVsqrt_Vsqrt) THEN
-         ! Compute V_PQ(k) = sum_R e^(ikR) <phi_P, cell 0 | 1/r | phi_Q, cell R>
-         CALL compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp)
-         CALL compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, fm_V_sqrt_kp, fm_M_inv_V_sqrt_kp)
-      END IF
-
       CALL create_fm_W_MIC_time(bs_env, fm_W_MIC_time)
 
-      DO j_w = 1, bs_env%num_time_freq_points
+      DO ikp_batch = 1, bs_env%num_chi_eps_W_batches
 
-         IF (bs_env%read_W_freq(j_w)) THEN
-            CALL read_fm_W_MIC_freq_j(bs_env%fm_W_MIC_freq, bs_env, j_w)
+         bs_env%t1 = m_walltime()
+
+         ! Compute V_PQ(k) = sum_R e^(ikR) <phi_P, cell 0 | 1/r | phi_Q, cell R>
+         CALL compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp, ikp_batch)
+
+         DO ikp_in_batch = 1, bs_env%nkp_chi_eps_W_batch
+
+            ikp = (ikp_batch - 1)*bs_env%nkp_chi_eps_W_batch + ikp_in_batch
+
+            IF (ikp > bs_env%nkp_chi_eps_W_orig_plus_extra) CYCLE
+
+            CALL compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, &
+                                         cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp, ikp)
+
+            CALL bs_env%para_env%sync()
+
+            DO j_w = 1, bs_env%num_time_freq_points
+
+               ! check if we need this (ikp, j_w) combination for approximate k-point extrapolation
+               IF (bs_env%approx_kp_extrapol .AND. j_w > 1 .AND. &
+                   ikp > bs_env%nkp_chi_eps_W_orig) CYCLE
+
+               CALL compute_fm_W_MIC_freq_j(bs_env, qs_env, bs_env%fm_W_MIC_freq, j_w, ikp, &
+                                            mat_chi_Gamma_tau, cfm_M_inv_V_sqrt_ikp, &
+                                            cfm_V_sqrt_ikp)
+
+               ! Fourier trafo from W_PQ^MIC(iω_j) to W_PQ^MIC(iτ)
+               CALL Fourier_transform_w_to_t(bs_env, fm_W_MIC_time, bs_env%fm_W_MIC_freq, j_w)
+
+            END DO ! j_w
+
+            CALL cp_fm_release(fm_V_kp(ikp, 1))
+            CALL cp_fm_release(fm_V_kp(ikp, 2))
+
+         END DO ! ikp
+
+         DEALLOCATE (fm_V_kp)
+
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F7.1,A)') &
+               'Computed W(iτ,k) for k-point batch', &
+               ikp_batch, ' /', bs_env%num_chi_eps_W_batches, &
+               ',    Execution time', m_walltime() - bs_env%t1, ' s'
          END IF
-         IF (bs_env%calc_W_freq(j_w)) THEN
-            CALL compute_fm_W_MIC_freq_j(bs_env, qs_env, bs_env%fm_W_MIC_freq, j_w, &
-                                         mat_chi_Gamma_tau, fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
-         END IF
 
-         ! Fourier trafo from W_PQ^MIC(iω_j) to W_PQ^MIC(iτ)
-         CALL Fourier_transform_w_to_t(bs_env, fm_W_MIC_time, bs_env%fm_W_MIC_freq, j_w)
+      END DO ! ikp_batch
 
-      END DO ! j_w
+      IF (bs_env%approx_kp_extrapol) THEN
+         CALL apply_extrapol_factor(bs_env, fm_W_MIC_time)
+      END IF
 
       ! M^-1(k=0)*W^MIC(iτ)*M^-1(k=0)
       CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_W_MIC_time)
-
-      CALL write_fm_W_MIC_time_and_delete_unnecessary_files(fm_W_MIC_time, bs_env, qs_env)
 
       DO i_t = 1, bs_env%num_time_freq_points
          CALL fm_write(fm_W_MIC_time(i_t), i_t, bs_env%W_time_name, qs_env)
       END DO
 
-      CALL cp_fm_release(fm_M_inv_V_sqrt_kp)
-      CALL cp_fm_release(fm_V_sqrt_kp)
+      CALL cp_cfm_release(cfm_M_inv_V_sqrt_ikp)
+      CALL cp_cfm_release(cfm_V_sqrt_ikp)
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_W_MIC_deep
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_W_MIC_time ...
-!> \param bs_env ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE write_fm_W_MIC_time_and_delete_unnecessary_files(fm_W_MIC_time, bs_env, qs_env)
-
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_W_MIC_time_and_delete_unnecessary_files'
-
-      CHARACTER(LEN=default_path_length)                 :: f_MV, f_Vs, f_W_w, prefix
-      INTEGER                                            :: handle, i_t, i_w, ikp_re_im
-
-      CALL timeset(routineN, handle)
-
-      DO i_t = 1, bs_env%num_time_freq_points
-         CALL fm_write(fm_W_MIC_time(i_t), i_t, bs_env%W_time_name, qs_env)
-      END DO
-
-      prefix = bs_env%prefix
-
-      DO ikp_re_im = 1, 2*bs_env%nkp_chi_eps_W_total
-
-         IF (ikp_re_im < 10) THEN
-            WRITE (f_MV, '(3A,I1,A)') TRIM(prefix), bs_env%MV_name, "_00", ikp_re_im, ".matrix"
-            WRITE (f_Vs, '(3A,I1,A)') TRIM(prefix), bs_env%Vs_name, "_00", ikp_re_im, ".matrix"
-         ELSE IF (ikp_re_im < 100) THEN
-            WRITE (f_MV, '(3A,I2,A)') TRIM(prefix), bs_env%MV_name, "_0", ikp_re_im, ".matrix"
-            WRITE (f_Vs, '(3A,I2,A)') TRIM(prefix), bs_env%Vs_name, "_0", ikp_re_im, ".matrix"
-         ELSE IF (ikp_re_im < 1000) THEN
-            WRITE (f_MV, '(3A,I3,A)') TRIM(prefix), bs_env%MV_name, "_", ikp_re_im, ".matrix"
-            WRITE (f_Vs, '(3A,I3,A)') TRIM(prefix), bs_env%Vs_name, "_", ikp_re_im, ".matrix"
-         ELSE
-            CPABORT('Please implement more than 999 kpoints.')
-         END IF
-
-         ! We do not need the (many) k-point restart files any more once all W(iτ) are available
-         CALL safe_delete(f_MV, bs_env)
-         CALL safe_delete(f_Vs, bs_env)
-
-      END DO
-
-      ! we also do not need the W(iω) files any more
-      IF (bs_env%para_env%mepos == 0) THEN
-         DO i_w = 1, bs_env%num_time_freq_points
-
-            IF (i_w < 10) THEN
-               WRITE (f_W_w, '(3A,I1,A)') TRIM(prefix), bs_env%W_freq_name, "_00", i_w, ".matrix"
-            ELSE IF (i_w < 100) THEN
-               WRITE (f_W_w, '(3A,I2,A)') TRIM(prefix), bs_env%W_freq_name, "_0", i_w, ".matrix"
-            END IF
-
-            CALL safe_delete(f_W_w, bs_env)
-
-         END DO
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE write_fm_W_MIC_time_and_delete_unnecessary_files
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_W_MIC_freq ...
-!> \param bs_env ...
-!> \param j_w ...
-! **************************************************************************************************
-   SUBROUTINE read_fm_W_MIC_freq_j(fm_W_MIC_freq, bs_env, j_w)
-      TYPE(cp_fm_type)                                   :: fm_W_MIC_freq
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: j_w
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_fm_W_MIC_freq_j'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      bs_env%t1 = m_walltime()
-
-      CALL fm_read(fm_W_MIC_freq, bs_env, bs_env%W_freq_name, j_w)
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,I7,A,I3,A,F7.1,A)') &
-            'Read W^MIC(iω) from file for freq point', j_w, ' /', bs_env%num_time_freq_points, &
-            ',    Execution time', m_walltime() - bs_env%t1, ' s'
-      END IF
-
-      IF (j_w == bs_env%num_time_freq_points .AND. bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(A)') ' '
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE read_fm_W_MIC_freq_j
+   END SUBROUTINE compute_W_MIC
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1252,77 +1154,162 @@ CONTAINS
 !> \param qs_env ...
 !> \param fm_W_MIC_freq_j ...
 !> \param j_w ...
+!> \param ikp ...
 !> \param mat_chi_Gamma_tau ...
-!> \param fm_M_inv_V_sqrt_kp ...
-!> \param fm_V_sqrt_kp ...
+!> \param cfm_M_inv_V_sqrt_ikp ...
+!> \param cfm_V_sqrt_ikp ...
 ! **************************************************************************************************
-   SUBROUTINE compute_fm_W_MIC_freq_j(bs_env, qs_env, fm_W_MIC_freq_j, j_w, mat_chi_Gamma_tau, &
-                                      fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp)
+   SUBROUTINE compute_fm_W_MIC_freq_j(bs_env, qs_env, fm_W_MIC_freq_j, j_w, ikp, mat_chi_Gamma_tau, &
+                                      cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
-      INTEGER                                            :: j_w
+      INTEGER                                            :: j_w, ikp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M_inv_V_sqrt_kp, fm_V_sqrt_kp
+      TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j'
 
-      INTEGER                                            :: handle, ikp, ikp_end, ikp_start
+      INTEGER                                            :: handle
       TYPE(cp_cfm_type)                                  :: cfm_chi_ikp_freq_j, cfm_W_ikp_freq_j
 
       CALL timeset(routineN, handle)
 
-      bs_env%t1 = m_walltime()
-
       ! 1. Fourier transformation of χ_PQ(iτ,k=0) to χ_PQ(iω_j,k=0)
       CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
 
-      ! 2. Replicate χ_PQ(iω_j,k=0) into kp_diag group (later, best with dbcsr_global_to_local
-      !    so the better type for chi_Gamma_freq will be actually dbcsr)
-
-      ! JW needs to be adjusted for subgroups (every subgroup will have a single k-point
-      !                                        or all kpoints)
-      ! currently bs_env%ikp_local_start = 1, ikp_local_end = bs_env%kpoints_chi_eps_W%nkp
-      ikp_start = bs_env%ikp_local_start
-      ikp_end = bs_env%ikp_local_end
-
       CALL cp_fm_set_all(fm_W_MIC_freq_j, 0.0_dp)
 
-      DO ikp = ikp_start, ikp_end
+      ! 2. Get χ_PQ(iω_j,k_i) from χ_PQ(iω_j,k=0) using the minimum image convention
+      CALL cfm_ikp_from_fm_Gamma(cfm_chi_ikp_freq_j, bs_env%fm_chi_Gamma_freq, &
+                                 ikp, qs_env, bs_env%kpoints_chi_eps_W, "RI_AUX")
 
-         ! 3. Get χ_PQ(iω_j,k) from χ_PQ(iω_j,k=0) using the minimum image convention
-         CALL cfm_ikp_from_fm_Gamma(cfm_chi_ikp_freq_j, bs_env%fm_chi_Gamma_freq, &
-                                    ikp, qs_env, bs_env%kpoints_chi_eps_W, "RI_AUX")
+      ! 3. Remove all negative eigenvalues from χ_PQ(iω_j,k_i)
+      CALL cp_cfm_power(cfm_chi_ikp_freq_j, threshold=0.0_dp, exponent=1.0_dp)
 
-         ! 4. Remove all negative eigenvalues from χ_PQ(iω_j,k)
-         CALL cp_cfm_power(cfm_chi_ikp_freq_j, threshold=0.0_dp, exponent=1.0_dp)
+      ! 4. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+      !    W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
+      CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_ikp_freq_j, cfm_V_sqrt_ikp, &
+                                    cfm_M_inv_V_sqrt_ikp, cfm_W_ikp_freq_j)
 
-         ! 5. ε(iω_j,k) = Id - V^0.5(k)*M^-1(k)*χ(iω_j,k)*M^-1(k)*V^0.5(k)
-         !    W(iω_j,k) = V^0.5(k)*(ε^-1(iω_j,k)-Id)*V^0.5(k)
-         CALL compute_cfm_W_ikp_freq_j(bs_env, ikp, cfm_chi_ikp_freq_j, fm_V_sqrt_kp, &
-                                       fm_M_inv_V_sqrt_kp, cfm_W_ikp_freq_j)
-
-         ! 6. K-point integration (with extrapolation): W_PQ(iω_j,k) to W_PQ^MIC(iω_j)
+      ! 5. k-point integration W_PQ(iω_j,k_i) to W_PQ^MIC(iω_j)
+      !    if statement only relevant for approximate k-point extrapolation for w_j, j>=2
+      IF (.NOT. bs_env%approx_kp_extrapol) THEN
          CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
                                                        cfm_W_ikp_freq_j, ikp)
-
-      END DO ! ikp
-
-      ! JW 2do: Communicate fm_W_MIC_freq_j from subgroup to global
-
-      ! 7. Write restart file for W_PQ^MIC(iω_j)
-      CALL fm_write(fm_W_MIC_freq_j, j_w, bs_env%W_freq_name, qs_env)
-
-      ! 8. Print info
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F7.1,A)') &
-            'Computed W^MIC(iω) for freq point ', j_w, ' /', bs_env%num_time_freq_points, &
-            ',    Execution time', m_walltime() - bs_env%t1, ' s'
       END IF
+
+      ! 6. for approximate kpoint extrapolation: get W_PQ^MIC(iω_1) with and without k-point
+      !    extrapolation to compute the extrapolation factor f_PQ for every PQ-matrix element,
+      !    f_PQ = (W_PQ^MIC(iω_1) with extrapolation) / (W_PQ^MIC(iω_1) without extrapolation)
+      IF (bs_env%approx_kp_extrapol) THEN
+
+         ! for ω_1, we compute the k-point extrapolated result using all k-points
+         IF (j_w == 1) THEN
+
+            ! k-point extrapolated
+            CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, &
+                                                          bs_env%fm_W_MIC_freq_1_extra, &
+                                                          cfm_W_ikp_freq_j, ikp)
+            ! non-kpoint extrapolated
+            IF (ikp .LE. bs_env%nkp_chi_eps_W_orig) THEN
+               CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, &
+                                                             bs_env%fm_W_MIC_freq_1_no_extra, &
+                                                             cfm_W_ikp_freq_j, ikp, &
+                                                             wkp_ext=bs_env%wkp_no_extra)
+            END IF
+
+         END IF
+
+         ! for all ω_j, we need to compute W^MIC without k-point extrpolation
+         IF (ikp .LE. bs_env%nkp_chi_eps_W_orig) THEN
+            CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
+                                                          cfm_W_ikp_freq_j, ikp, &
+                                                          wkp_ext=bs_env%wkp_no_extra)
+         END IF
+
+      END IF
+
+      CALL cp_cfm_release(cfm_W_ikp_freq_j)
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_fm_W_MIC_freq_j
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_mat ...
+! **************************************************************************************************
+   SUBROUTINE clean_lower_part(cfm_mat)
+      TYPE(cp_cfm_type)                                  :: cfm_mat
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clean_lower_part'
+
+      INTEGER                                            :: handle, i_global, i_row, j_col, &
+                                                            j_global, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix=cfm_mat, &
+                           nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      DO i_row = 1, nrow_local
+         DO j_col = 1, ncol_local
+            i_global = row_indices(i_row)
+            j_global = col_indices(j_col)
+            IF (j_global < i_global) cfm_mat%local_data(i_row, j_col) = z_zero
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE clean_lower_part
+
+! **************************************************************************************************
+!> \brief ...
+!> \param bs_env ...
+!> \param fm_W_MIC_time ...
+! **************************************************************************************************
+   SUBROUTINE apply_extrapol_factor(bs_env, fm_W_MIC_time)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_extrapol_factor'
+
+      INTEGER                                            :: handle, i, i_t, j, ncol_local, nrow_local
+      REAL(KIND=dp)                                      :: extrapol_factor, W_extra_1, W_no_extra_1
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=fm_W_MIC_time(1), nrow_local=nrow_local, ncol_local=ncol_local)
+
+      DO i_t = 1, bs_env%num_time_freq_points
+         DO i = 1, nrow_local
+            DO j = 1, ncol_local
+
+               W_extra_1 = bs_env%fm_W_MIC_freq_1_extra%local_data(i, j)
+               W_no_extra_1 = bs_env%fm_W_MIC_freq_1_no_extra%local_data(i, j)
+
+               IF (ABS(W_no_extra_1) > 1.0E-13) THEN
+                  extrapol_factor = W_extra_1/W_no_extra_1
+               ELSE
+                  extrapol_factor = 1.0_dp
+               END IF
+
+               ! reset extrapolation factor if it is very large
+               IF (ABS(extrapol_factor) > 10.0_dp) extrapol_factor = 1.0_dp
+
+               fm_W_MIC_time(i_t)%local_data(i, j) = fm_W_MIC_time(i_t)%local_data(i, j) &
+                                                     *extrapol_factor
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_extrapol_factor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1463,33 +1450,26 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
-!> \param ikp ...
 !> \param cfm_chi_ikp_freq_j ...
-!> \param fm_V_sqrt_kp ...
-!> \param fm_M_inv_V_sqrt_kp ...
+!> \param cfm_V_sqrt_ikp ...
+!> \param cfm_M_inv_V_sqrt_ikp ...
 !> \param cfm_W_ikp_freq_j ...
 ! **************************************************************************************************
-   SUBROUTINE compute_cfm_W_ikp_freq_j(bs_env, ikp, cfm_chi_ikp_freq_j, fm_V_sqrt_kp, &
-                                       fm_M_inv_V_sqrt_kp, cfm_W_ikp_freq_j)
+   SUBROUTINE compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_ikp_freq_j, cfm_V_sqrt_ikp, &
+                                       cfm_M_inv_V_sqrt_ikp, cfm_W_ikp_freq_j)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ikp
-      TYPE(cp_cfm_type)                                  :: cfm_chi_ikp_freq_j
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_sqrt_kp, fm_M_inv_V_sqrt_kp
-      TYPE(cp_cfm_type)                                  :: cfm_W_ikp_freq_j
+      TYPE(cp_cfm_type)                                  :: cfm_chi_ikp_freq_j, cfm_V_sqrt_ikp, &
+                                                            cfm_M_inv_V_sqrt_ikp, cfm_W_ikp_freq_j
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cfm_W_ikp_freq_j'
 
       INTEGER                                            :: handle, info, n_RI
-      TYPE(cp_cfm_type)                                  :: cfm_eps_ikp_freq_j, &
-                                                            cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp, &
-                                                            cfm_work
+      TYPE(cp_cfm_type)                                  :: cfm_eps_ikp_freq_j, cfm_work
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_create(cfm_work, cfm_chi_ikp_freq_j%matrix_struct)
-      CALL cp_cfm_create(cfm_M_inv_V_sqrt_ikp, cfm_chi_ikp_freq_j%matrix_struct)
-      CALL cp_fm_to_cfm(fm_M_inv_V_sqrt_kp(ikp, 1), fm_M_inv_V_sqrt_kp(ikp, 2), cfm_M_inv_V_sqrt_ikp)
       n_RI = bs_env%n_RI
 
       ! 1. ε(iω_j,k) = Id - V^0.5(k)*M^-1(k)*χ(iω_j,k)*M^-1(k)*V^0.5(k)
@@ -1503,7 +1483,6 @@ CONTAINS
       CALL cp_cfm_create(cfm_eps_ikp_freq_j, cfm_work%matrix_struct)
       CALL parallel_gemm('C', 'N', n_RI, n_RI, n_RI, z_one, &
                          cfm_M_inv_V_sqrt_ikp, cfm_work, z_zero, cfm_eps_ikp_freq_j)
-      CALL cp_cfm_release(cfm_M_inv_V_sqrt_ikp)
 
       ! 1. c) ε(iω_j,k) = eps_work - Id
       CALL cfm_add_on_diag(cfm_eps_ikp_freq_j, z_one)
@@ -1522,19 +1501,16 @@ CONTAINS
       CALL cfm_add_on_diag(cfm_eps_ikp_freq_j, -z_one)
 
       ! 2. d) work = (ε^-1(iω_j,k)-Id)*V^0.5(k)
-      CALL cp_cfm_create(cfm_V_sqrt_ikp, cfm_eps_ikp_freq_j%matrix_struct)
-      CALL cp_fm_to_cfm(fm_V_sqrt_kp(ikp, 1), fm_V_sqrt_kp(ikp, 2), cfm_V_sqrt_ikp)
       CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, z_one, cfm_eps_ikp_freq_j, cfm_V_sqrt_ikp, &
                          z_zero, cfm_work)
 
-      ! 2. e) W(iw,k) = V^1/2(k)*work
+      ! 2. e) W(iw,k) = V^0.5(k)*work
       CALL cp_cfm_create(cfm_W_ikp_freq_j, cfm_work%matrix_struct)
-      CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, z_one, cfm_V_sqrt_ikp, cfm_work, &
+      CALL parallel_gemm('C', 'N', n_RI, n_RI, n_RI, z_one, cfm_V_sqrt_ikp, cfm_work, &
                          z_zero, cfm_W_ikp_freq_j)
 
       CALL cp_cfm_release(cfm_work)
       CALL cp_cfm_release(cfm_eps_ikp_freq_j)
-      CALL cp_cfm_release(cfm_V_sqrt_ikp)
 
       CALL timestop(handle)
 
@@ -1586,14 +1562,16 @@ CONTAINS
 !> \param fm_W_MIC_freq_j ...
 !> \param cfm_W_ikp_freq_j ...
 !> \param ikp ...
+!> \param wkp_ext ...
 ! **************************************************************************************************
    SUBROUTINE compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
-                                                       cfm_W_ikp_freq_j, ikp)
+                                                       cfm_W_ikp_freq_j, ikp, wkp_ext)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
       TYPE(cp_cfm_type)                                  :: cfm_W_ikp_freq_j
       INTEGER                                            :: ikp
+      REAL(KIND=dp), OPTIONAL                            :: wkp_ext
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j_ikp_contribution'
 
@@ -1603,7 +1581,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_RI_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      REAL(KIND=dp)                                      :: contribution, weight_im, weight_re
+      REAL(KIND=dp)                                      :: contribution, weight_im, weight_re, &
+                                                            wkp_of_ikp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -1630,6 +1609,12 @@ CONTAINS
       index_to_cell => bs_env%kpoints_chi_eps_W%index_to_cell
       num_cells = SIZE(index_to_cell, 2)
 
+      IF (PRESENT(wkp_ext)) THEN
+         wkp_of_ikp = wkp_ext
+      ELSE
+         wkp_of_ikp = wkp(ikp)
+      END IF
+
       iatom_old = 0
       jatom_old = 0
 
@@ -1642,7 +1627,7 @@ CONTAINS
             IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
                CALL compute_weight_re_im(weight_re, weight_im, &
-                                         num_cells, iatom, jatom, xkp(1:3, ikp), wkp(ikp), &
+                                         num_cells, iatom, jatom, xkp(1:3, ikp), wkp_of_ikp, &
                                          cell, index_to_cell, hmat, particle_set)
 
                iatom_old = iatom
@@ -1658,8 +1643,6 @@ CONTAINS
 
          END DO
       END DO
-
-      CALL cp_cfm_release(cfm_W_ikp_freq_j)
 
       CALL timestop(handle)
 
@@ -1750,8 +1733,6 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_W_MIC_time(1)%matrix_struct)
 
       ! compute Gamma-only RI-metric matrix M(k=0)
-      ! JW COMMENT: in the old GW implementation, there was no regularization_RI
-      !             for M^-1(k=0)... Maybe this is an improvement here?
       CALL RI_2c_integral_mat(qs_env, fm_Minv_Gamma, fm_W_MIC_time(1), n_RI, &
                               bs_env%ri_metric, do_kpoints=.FALSE., &
                               regularization_RI=bs_env%regularization_RI)
@@ -1782,12 +1763,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param fm_Sigma_x_Gamma ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma)
+   SUBROUTINE get_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_Sigma_x_Gamma
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Sigma_x'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_Sigma_x'
 
       INTEGER                                            :: handle
 
@@ -1797,12 +1778,12 @@ CONTAINS
          CALL cp_fm_create(fm_Sigma_x_Gamma, bs_env%fm_s_Gamma%matrix_struct)
          CALL fm_read(fm_Sigma_x_Gamma, bs_env, bs_env%Sigma_x_name, 0)
       ELSE
-         CALL compute_Sigma_x_deep(bs_env, qs_env, fm_Sigma_x_Gamma)
+         CALL compute_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma)
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_Sigma_x
+   END SUBROUTINE get_Sigma_x
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1810,12 +1791,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param fm_Sigma_x_Gamma ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Sigma_x_deep(bs_env, qs_env, fm_Sigma_x_Gamma)
+   SUBROUTINE compute_Sigma_x(bs_env, qs_env, fm_Sigma_x_Gamma)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_Sigma_x_Gamma
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_x_deep'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Sigma_x'
 
       INTEGER                                            :: handle, i_intval_idx, j_intval_idx
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
@@ -1893,7 +1874,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_Sigma_x_deep
+   END SUBROUTINE compute_Sigma_x
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1902,13 +1883,13 @@ CONTAINS
 !> \param fm_W_MIC_time ...
 !> \param fm_Sigma_c_Gamma_time ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Sigma_c(bs_env, qs_env, fm_W_MIC_time, fm_Sigma_c_Gamma_time)
+   SUBROUTINE get_Sigma_c(bs_env, qs_env, fm_W_MIC_time, fm_Sigma_c_Gamma_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Sigma_c_Gamma_time
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Sigma_c'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_Sigma_c'
 
       INTEGER                                            :: handle, i_intval_idx, i_t, j_intval_idx
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
@@ -2010,7 +1991,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_Sigma_c
+   END SUBROUTINE get_Sigma_c
 
 ! **************************************************************************************************
 !> \brief ...

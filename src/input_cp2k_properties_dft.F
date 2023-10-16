@@ -2041,10 +2041,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM_V", &
                           description="Determines number of cells used for summing the "// &
                           "cells R in the Coulomb matrix, "// &
-                          "V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 5 "// &
+                          "V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 4 "// &
                           "gives excellent convergence, parameter does not need to be touched.", &
                           usage="SIZE_LATTICE_SUM_V 4", &
-                          default_i_val=5)
+                          default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2073,7 +2073,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_TENSOR", &
                           description="Specify the number of MPI processes for a group "// &
                           "performing tensor operations. If '-1', automatic choice which "// &
-                          "should be good enough for most cases. ", &
+                          "should be good enough for most cases.", &
                           usage="GROUP_SIZE_TENSOR 16", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
@@ -2093,6 +2093,15 @@ CONTAINS
          "values, e.g. KPOINTS_CHI_EPS_W -1 -1 -1.", &
          usage="KPOINTS_CHI_EPS_W  N_x  N_y  N_z", &
          n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPROX_KP_EXTRAPOL", &
+                          description="If true, use only a 2x2 kpoint mesh for frequency "// &
+                          "points ω_j, j >= 2, and get the k-point extrapolation of "// &
+                          "W_PQ(iω_j,q) approximately from W_PQ(iω_1,q).", &
+                          usage="APPROX_KP_EXTRAPOL", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

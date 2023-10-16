@@ -86,7 +86,7 @@ CONTAINS
 
       CALL check_periodicity(cell, kpoints, total_periodicity)
 
-      CALL allocate_tmp(matrix_v_L_tmp, matrix_v_kp)
+      CALL allocate_tmp(matrix_v_L_tmp, matrix_v_kp, ikp_start)
 
       CALL lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
                        qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
@@ -136,9 +136,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: coskl, sinkl
       REAL(KIND=dp), DIMENSION(3)                        :: vec_L, vec_s
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_of_v_L, blocks_of_v_L_store
+      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_v_L, blocks_v_L_store
       TYPE(two_d_util_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: blocks_of_v_kp
+         DIMENSION(:, :, :)                              :: blocks_v_kp
 
       CALL timeset(routineN, handle)
 
@@ -187,9 +187,9 @@ CONTAINS
          z_max = 0
       END IF
 
-      CALL allocate_blocks_of_v_kp(blocks_of_v_kp, matrix_v_kp)
-      CALL allocate_blocks_of_v_L(blocks_of_v_L, matrix_v_L_tmp)
-      CALL allocate_blocks_of_v_L(blocks_of_v_L_store, matrix_v_L_tmp)
+      CALL allocate_blocks_v_kp(blocks_v_kp, matrix_v_kp, ikp_start, ikp_end)
+      CALL allocate_blocks_v_L(blocks_v_L, matrix_v_L_tmp)
+      CALL allocate_blocks_v_L(blocks_v_L_store, matrix_v_L_tmp)
 
       DO i_x_inner = 0, 2*nkp_grid(1) - 1
          DO j_y_inner = 0, 2*nkp_grid(2) - 1
@@ -212,13 +212,13 @@ CONTAINS
                         vec_L = MATMUL(hmat, vec_s)
 
                         ! Compute (P 0 | Q vec_L) and store it in matrix_v_L_tmp
-                        CALL compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
+                        CALL compute_v_transl(matrix_v_L_tmp, blocks_v_L, vec_L, particle_set, &
                                               qs_kind_set, atomic_kind_set, basis_type, cell, &
                                               operator_type)
 
-                        DO i_block = 1, SIZE(blocks_of_v_L)
-                           blocks_of_v_L_store(i_block)%block(:, :) = blocks_of_v_L_store(i_block)%block(:, :) &
-                                                                      + blocks_of_v_L(i_block)%block(:, :)
+                        DO i_block = 1, SIZE(blocks_v_L)
+                           blocks_v_L_store(i_block)%block(:, :) = blocks_v_L_store(i_block)%block(:, :) &
+                                                                   + blocks_v_L(i_block)%block(:, :)
                         END DO
 
                      END DO
@@ -232,20 +232,20 @@ CONTAINS
                   coskl = COS(twopi*DOT_PRODUCT(vec_s(1:3), kpoints%xkp(1:3, ik)))
                   sinkl = SIN(twopi*DOT_PRODUCT(vec_s(1:3), kpoints%xkp(1:3, ik)))
 
-                  DO i_block = 1, SIZE(blocks_of_v_L)
+                  DO i_block = 1, SIZE(blocks_v_L)
 
-                     blocks_of_v_kp(ik, 1, i_block)%block(:, :) = blocks_of_v_kp(ik, 1, i_block)%block(:, :) &
-                                                                  + coskl*blocks_of_v_L_store(i_block)%block(:, :)
-                     blocks_of_v_kp(ik, 2, i_block)%block(:, :) = blocks_of_v_kp(ik, 2, i_block)%block(:, :) &
-                                                                  + sinkl*blocks_of_v_L_store(i_block)%block(:, :)
+                     blocks_v_kp(ik, 1, i_block)%block(:, :) = blocks_v_kp(ik, 1, i_block)%block(:, :) &
+                                                               + coskl*blocks_v_L_store(i_block)%block(:, :)
+                     blocks_v_kp(ik, 2, i_block)%block(:, :) = blocks_v_kp(ik, 2, i_block)%block(:, :) &
+                                                               + sinkl*blocks_v_L_store(i_block)%block(:, :)
 
                   END DO
 
                END DO
 
-               DO i_block = 1, SIZE(blocks_of_v_L)
+               DO i_block = 1, SIZE(blocks_v_L)
 
-                  blocks_of_v_L_store(i_block)%block(:, :) = 0.0_dp
+                  blocks_v_L_store(i_block)%block(:, :) = 0.0_dp
 
                END DO
 
@@ -253,11 +253,11 @@ CONTAINS
          END DO
       END DO
 
-      CALL set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_of_v_kp, ikp_start, ikp_end)
+      CALL set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_v_kp, ikp_start, ikp_end)
 
-      CALL deallocate_blocks_of_v_kp(blocks_of_v_kp)
-      CALL deallocate_blocks_of_v_L(blocks_of_v_L)
-      CALL deallocate_blocks_of_v_L(blocks_of_v_L_store)
+      CALL deallocate_blocks_v_kp(blocks_v_kp)
+      CALL deallocate_blocks_v_L(blocks_v_L)
+      CALL deallocate_blocks_v_L(blocks_v_L_store)
 
       CALL timestop(handle)
 
@@ -266,15 +266,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix_v_kp ...
-!> \param blocks_of_v_kp ...
+!> \param blocks_v_kp ...
 !> \param ikp_start ...
 !> \param ikp_end ...
 ! **************************************************************************************************
-   SUBROUTINE set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_of_v_kp, ikp_start, ikp_end)
+   SUBROUTINE set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_v_kp, ikp_start, ikp_end)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(two_d_util_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: blocks_of_v_kp
+         DIMENSION(:, :, :)                              :: blocks_v_kp
       INTEGER                                            :: ikp_start, ikp_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_blocks_to_matrix_v_kp'
@@ -297,7 +297,7 @@ CONTAINS
 
                CALL dbcsr_iterator_next_block(iter, row, col, data_block)
 
-               data_block(:, :) = blocks_of_v_kp(ik, i_real_im, i_block)%block(:, :)
+               data_block(:, :) = blocks_v_kp(ik, i_real_im, i_block)%block(:, :)
 
                i_block = i_block + 1
 
@@ -316,7 +316,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix_v_L_tmp ...
-!> \param blocks_of_v_L ...
+!> \param blocks_v_L ...
 !> \param vec_L ...
 !> \param particle_set ...
 !> \param qs_kind_set ...
@@ -325,11 +325,11 @@ CONTAINS
 !> \param cell ...
 !> \param operator_type ...
 ! **************************************************************************************************
-   SUBROUTINE compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
+   SUBROUTINE compute_v_transl(matrix_v_L_tmp, blocks_v_L, vec_L, particle_set, &
                                qs_kind_set, atomic_kind_set, basis_type, cell, operator_type)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
-      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_of_v_L
+      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_v_L
       REAL(KIND=dp), DIMENSION(3)                        :: vec_L
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -378,9 +378,9 @@ CONTAINS
          CALL contraction_matrix_shg(basis_set_a, contr_a)
          CALL contraction_matrix_shg(basis_set_b, contr_b)
 
-         blocks_of_v_L(i_block)%block = 0.0_dp
+         blocks_v_L(i_block)%block = 0.0_dp
 
-         CALL int_operators_r12_ab_shg(operator_type, blocks_of_v_L(i_block)%block, rab=rab_L, &
+         CALL int_operators_r12_ab_shg(operator_type, blocks_v_L(i_block)%block, rab=rab_L, &
                                        fba=basis_set_a, fbb=basis_set_b, scona_shg=contr_a, sconb_shg=contr_b, &
                                        calculate_forces=.FALSE.)
 
@@ -400,27 +400,27 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param blocks_of_v_kp ...
+!> \param blocks_v_kp ...
 ! **************************************************************************************************
-   SUBROUTINE deallocate_blocks_of_v_kp(blocks_of_v_kp)
+   SUBROUTINE deallocate_blocks_v_kp(blocks_v_kp)
       TYPE(two_d_util_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: blocks_of_v_kp
+         DIMENSION(:, :, :)                              :: blocks_v_kp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_blocks_of_v_kp'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_blocks_v_kp'
 
       INTEGER                                            :: handle, i_block, i_real_img, ik
 
       CALL timeset(routineN, handle)
 
-      DO ik = 1, SIZE(blocks_of_v_kp, 1)
-         DO i_real_img = 1, SIZE(blocks_of_v_kp, 2)
-            DO i_block = 1, SIZE(blocks_of_v_kp, 3)
-               DEALLOCATE (blocks_of_v_kp(ik, i_real_img, i_block)%block)
+      DO ik = LBOUND(blocks_v_kp, 1), UBOUND(blocks_v_kp, 1)
+         DO i_real_img = 1, SIZE(blocks_v_kp, 2)
+            DO i_block = 1, SIZE(blocks_v_kp, 3)
+               DEALLOCATE (blocks_v_kp(ik, i_real_img, i_block)%block)
             END DO
          END DO
       END DO
 
-      DEALLOCATE (blocks_of_v_kp)
+      DEALLOCATE (blocks_v_kp)
 
       CALL timestop(handle)
 
@@ -428,22 +428,22 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param blocks_of_v_L ...
+!> \param blocks_v_L ...
 ! **************************************************************************************************
-   SUBROUTINE deallocate_blocks_of_v_L(blocks_of_v_L)
-      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_of_v_L
+   SUBROUTINE deallocate_blocks_v_L(blocks_v_L)
+      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_v_L
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_blocks_of_v_L'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_blocks_v_L'
 
       INTEGER                                            :: handle, i_block
 
       CALL timeset(routineN, handle)
 
-      DO i_block = 1, SIZE(blocks_of_v_L, 1)
-         DEALLOCATE (blocks_of_v_L(i_block)%block)
+      DO i_block = 1, SIZE(blocks_v_L, 1)
+         DEALLOCATE (blocks_v_L(i_block)%block)
       END DO
 
-      DEALLOCATE (blocks_of_v_L)
+      DEALLOCATE (blocks_v_L)
 
       CALL timestop(handle)
 
@@ -451,14 +451,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param blocks_of_v_L ...
+!> \param blocks_v_L ...
 !> \param matrix_v_L_tmp ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_blocks_of_v_L(blocks_of_v_L, matrix_v_L_tmp)
-      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_of_v_L
+   SUBROUTINE allocate_blocks_v_L(blocks_v_L, matrix_v_L_tmp)
+      TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_v_L
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_blocks_of_v_L'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_blocks_v_L'
 
       INTEGER                                            :: col, handle, i_block, nblocks, row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
@@ -480,7 +480,7 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      ALLOCATE (blocks_of_v_L(nblocks))
+      ALLOCATE (blocks_v_L(nblocks))
 
       i_block = 1
 
@@ -490,8 +490,8 @@ CONTAINS
 
          CALL dbcsr_iterator_next_block(iter, row, col, data_block)
 
-         ALLOCATE (blocks_of_v_L(i_block)%block(SIZE(data_block, 1), SIZE(data_block, 2)))
-         blocks_of_v_L(i_block)%block = 0.0_dp
+         ALLOCATE (blocks_v_L(i_block)%block(SIZE(data_block, 1), SIZE(data_block, 2)))
+         blocks_v_L(i_block)%block = 0.0_dp
 
          i_block = i_block + 1
 
@@ -505,15 +505,18 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param blocks_of_v_kp ...
+!> \param blocks_v_kp ...
 !> \param matrix_v_kp ...
+!> \param ikp_start ...
+!> \param ikp_end ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_blocks_of_v_kp(blocks_of_v_kp, matrix_v_kp)
+   SUBROUTINE allocate_blocks_v_kp(blocks_v_kp, matrix_v_kp, ikp_start, ikp_end)
       TYPE(two_d_util_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: blocks_of_v_kp
+         DIMENSION(:, :, :)                              :: blocks_v_kp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
+      INTEGER                                            :: ikp_start, ikp_end
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_blocks_of_v_kp'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_blocks_v_kp'
 
       INTEGER                                            :: col, handle, i_block, i_real_img, ik, &
                                                             nblocks, row
@@ -524,7 +527,7 @@ CONTAINS
 
       nblocks = 0
 
-      CALL dbcsr_iterator_start(iter, matrix_v_kp(1, 1)%matrix)
+      CALL dbcsr_iterator_start(iter, matrix_v_kp(ikp_start, 1)%matrix)
 
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -536,9 +539,9 @@ CONTAINS
 
       CALL dbcsr_iterator_stop(iter)
 
-      ALLOCATE (blocks_of_v_kp(SIZE(matrix_v_kp, 1), SIZE(matrix_v_kp, 2), nblocks))
+      ALLOCATE (blocks_v_kp(ikp_start:ikp_end, SIZE(matrix_v_kp, 2), nblocks))
 
-      DO ik = 1, SIZE(matrix_v_kp, 1)
+      DO ik = ikp_start, ikp_end
 
          DO i_real_img = 1, SIZE(matrix_v_kp, 2)
 
@@ -550,8 +553,9 @@ CONTAINS
 
                CALL dbcsr_iterator_next_block(iter, row, col, data_block)
 
-               ALLOCATE (blocks_of_v_kp(ik, i_real_img, i_block)%block(SIZE(data_block, 1), SIZE(data_block, 2)))
-               blocks_of_v_kp(ik, i_real_img, i_block)%block = 0.0_dp
+               ALLOCATE (blocks_v_kp(ik, i_real_img, i_block)%block(SIZE(data_block, 1), &
+                                                                    SIZE(data_block, 2)))
+               blocks_v_kp(ik, i_real_img, i_block)%block = 0.0_dp
 
                i_block = i_block + 1
 
@@ -608,11 +612,13 @@ CONTAINS
 !> \brief ...
 !> \param matrix_v_L_tmp ...
 !> \param matrix_v_kp ...
+!> \param ikp_start ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_tmp(matrix_v_L_tmp, matrix_v_kp)
+   SUBROUTINE allocate_tmp(matrix_v_L_tmp, matrix_v_kp, ikp_start)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
+      INTEGER                                            :: ikp_start
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'allocate_tmp'
 
@@ -623,7 +629,7 @@ CONTAINS
       NULLIFY (matrix_v_L_tmp)
       CALL dbcsr_init_p(matrix_v_L_tmp)
       CALL dbcsr_create(matrix=matrix_v_L_tmp, &
-                        template=matrix_v_kp(1, 1)%matrix, &
+                        template=matrix_v_kp(ikp_start, 1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_reserve_all_blocks(matrix_v_L_tmp)
       CALL dbcsr_set(matrix_v_L_tmp, 0.0_dp)
