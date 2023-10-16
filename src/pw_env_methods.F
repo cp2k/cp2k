@@ -969,7 +969,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: poisson_section
 
-      NULLIFY (poisson_section)
+      ! NULLIFY (poisson_section)
       CPASSERT(.NOT. ASSOCIATED(mt_super_ref_pw_grid))
       CPASSERT(.NOT. ASSOCIATED(xc_super_ref_pw_grid))
       CPASSERT(.NOT. ASSOCIATED(super_ref_pw_grid))
