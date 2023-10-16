@@ -775,7 +775,8 @@ CONTAINS
                      NULLIFY (nnp_section)
                      nnp_section => section_vals_get_subs_vals(helium_section, "NNP")
                      CALL section_vals_get(nnp_section, explicit=explicit)
-                     IF (.NOT. explicit) CPWARN("NNP section not explicitly stated. Using default file names.")
+                     msg_str = "NNP section not explicitly stated. Using default file names."
+                     IF (.NOT. explicit) CPWARN(msg_str)
                   END IF
                   ALLOCATE (helium_env(k)%helium%nnp)
                   NULLIFY (helium_env(k)%helium%nnp%rad)
