@@ -311,7 +311,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_ele
       ELSE
-         CALL cp_abort(__LOCATION__, TRIM(printtag)//"| number of elements missing in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| number of elements missing in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "scale_symmetry_functions_sigma", .TRUE., found, &
@@ -356,7 +357,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%cut_type
       ELSE
-         CALL cp_abort(__LOCATION__, TRIM(printtag)//"| no cutoff type specified in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| no cutoff type specified in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "global_hidden_layers_short", .TRUE., found, line, &
@@ -364,7 +366,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_hlayer
       ELSE
-         CALL cp_abort(__LOCATION__, TRIM(printtag)//"| number of hidden layers missing in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| number of hidden layers missing in NNP_INPUT_FILE")
       END IF
       nnp_env%n_layer = nnp_env%n_hlayer + 2
 
@@ -398,7 +401,8 @@ CONTAINS
                EXIT
             END IF
          ELSE
-            CALL cp_abort(__LOCATION__, TRIM(printtag)//"| elements not specified in NNP_INPUT_FILE")
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| elements not specified in NNP_INPUT_FILE")
          END IF
       END DO
 
@@ -420,7 +424,8 @@ CONTAINS
                END DO
                IF (i == nele) EXIT
             ELSE
-               CALL cp_abort(__LOCATION__, TRIM(printtag)//"| atom energies are not specified")
+               CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                             "| atom energies are not specified")
             END IF
          END DO
       END IF
@@ -430,7 +435,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_hnodes(:)
       ELSE
-         CALL cp_abort(__LOCATION__, TRIM(printtag)//"NNP| global_nodes_short not specified in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "NNP| global_nodes_short not specified in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "global_activation_short", .TRUE., found, line, &
@@ -438,7 +444,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, cactfnct(:)
       ELSE
-         CALL cp_abort(__LOCATION__, TRIM(printtag)//"| global_activation_short not specified in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| global_activation_short not specified in NNP_INPUT_FILE")
       END IF
 
       DO i = 1, nnp_env%n_hlayer + 1
@@ -462,7 +469,8 @@ CONTAINS
          CASE ("h")
             nnp_env%actfnct(i) = nnp_actfnct_quad
          CASE DEFAULT
-            CALL cp_abort(__LOCATION__, TRIM(printtag)//"| Activation function unkown")
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| Activation function unkown")
          END SELECT
       END DO
 
@@ -486,13 +494,15 @@ CONTAINS
                   ELSE IF (symfnct_type .EQ. 3) THEN
                      nnp_env%n_ang(i) = nnp_env%n_ang(i) + 1
                   ELSE
-                     CALL cp_abort(__LOCATION__, TRIM(printtag)//"| Symmetry function type not supported")
+                     CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                   "| Symmetry function type not supported")
                   END IF
                END IF
             END DO
             first = .FALSE.
          ELSE
-            IF (first) CALL cp_abort(__LOCATION__, TRIM(printtag)//"| no symfunction_short specified in NNP_INPUT_FILE")
+            IF (first) CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                     "| no symfunction_short specified in NNP_INPUT_FILE")
             ! no additional symfnct found
             EXIT
          END IF
@@ -589,13 +599,15 @@ CONTAINS
                         nnp_env%max_cut = nnp_env%ang(i)%funccut(nnp_env%n_ang(i))
                      END IF
                   ELSE
-                     CALL cp_abort(__LOCATION__, TRIM(printtag)//"| Symmetry function type not supported")
+                     CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                   "| Symmetry function type not supported")
                   END IF
                END IF
             END DO
             first = .FALSE.
          ELSE
-            IF (first) CALL cp_abort(__LOCATION__, TRIM(printtag)//"| no symfunction_short specified in NNP_INPUT_FILE")
+            IF (first) CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                     "| no symfunction_short specified in NNP_INPUT_FILE")
             ! no additional symfnct found
             EXIT
          END IF
