@@ -58,9 +58,8 @@ MODULE qs_active_space_methods
       eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
       manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection, &
       eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt
-   USE input_section_types, ONLY: section_vals_get, &
-                                  section_vals_get_subs_vals, &
-                                  section_vals_type, &
+   USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
+                                  section_vals_set_subs_vals, section_vals_type, &
                                   section_vals_val_get, &
                                   section_vals_val_set
    USE ISO_C_BINDING, ONLY: c_null_char
@@ -217,16 +216,15 @@ CONTAINS
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins, &
          eri_poisson_solver
       INTEGER, DIMENSION(5)                              :: nshell
-      INTEGER, DIMENSION(:), POINTER                     :: invals
-      LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
-                                                            explicit, isolated, stop_after_print, &
+      INTEGER, DIMENSION(:), POINTER                     :: invals, eri_perd
+      LOGICAL                                            :: do_kpoints, ex_operator, &
+                                                            explicit, stop_after_print, &
                                                             store_wfn, eri_enlarge_cell
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage, mt_alpha, mt_rel_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual, eri_cell
       TYPE(active_space_type), POINTER                   :: active_space_env
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: fm_dummy, mo_virtual
@@ -307,15 +305,6 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown Model")
          END SELECT
-      END IF
-
-      ! isolated (molecular) system?
-      CALL section_vals_val_get(as_input, "ISOLATED_SYSTEM", l_val=isolated)
-      active_space_env%molecule = isolated
-      IF (iw > 0) THEN
-         IF (active_space_env%molecule) THEN
-            WRITE (iw, '(T3,A)') "System is treated without periodicity"
-         END IF
       END IF
 
       CALL section_vals_val_get(as_input, "ACTIVE_ELECTRONS", i_val=nelec_active)
@@ -814,52 +803,39 @@ CONTAINS
          active_space_env%pmat_inactive(ispin)%matrix => denmat
       END DO
 
-      ! generate integrals
-      ! make sure that defaults are set correctly (from basic calculation)
-      ! make sure that periodicity is consistent
+      ! read in ERI parameters
       CALL section_vals_val_get(as_input, "ERI%METHOD", i_val=eri_method)
       active_space_env%eri%method = eri_method
       CALL section_vals_val_get(as_input, "ERI%OPERATOR", i_val=eri_operator, explicit=ex_operator)
       active_space_env%eri%operator = eri_operator
       CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_param)
       active_space_env%eri%operator_parameter = eri_op_param
-      CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut)
-      active_space_env%eri%cutoff_radius = eri_rcut
-      CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=invals, explicit=ex_perd)
       CALL section_vals_val_get(as_input, "ERI%EPS_INTEGRAL", r_val=eri_eps_int)
       active_space_env%eri%eps_integral = eri_eps_int
-      CALL section_vals_val_get(as_input, "ERI%ENLARGE_CELL", l_val=eri_enlarge_cell)
-      active_space_env%eri%enlarge_cell = eri_enlarge_cell
       CALL section_vals_val_get(as_input, "ERI%POISSON_SOLVER", i_val=eri_poisson_solver)
       active_space_env%eri%poisson_solver = eri_poisson_solver
+      CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=eri_perd)
+      IF (SIZE(eri_perd) == 1) THEN
+         active_space_env%eri%periodicity(1:3) = eri_perd(1)
+      ELSE
+         active_space_env%eri%periodicity(1:3) = eri_perd(1:3)
+      END IF
       CALL section_vals_val_get(as_input, "ERI%ERI_CELL", r_vals=eri_cell)
       active_space_env%eri%eri_cell(1:3) = eri_cell(1:3)
+
+      ! mt specific parameters
       CALL section_vals_val_get(as_input, "ERI%MT%ALPHA", r_val=mt_alpha)
       active_space_env%eri%mt_alpha = mt_alpha
       CALL section_vals_val_get(as_input, "ERI%MT%REL_CUTOFF", r_val=mt_rel_cutoff)
       active_space_env%eri%mt_rel_cutoff = mt_rel_cutoff
-      IF (active_space_env%molecule) THEN
-         ! check that we are in a non-periodic setting
-         CALL get_qs_env(qs_env, cell=cell)
-         IF (SUM(cell%perd) /= 0) THEN
-            CPABORT("Active space option ISOLATED_SYSTEM requires non-periodic setting")
-         END IF
-         IF (ex_perd) THEN
-            IF (SUM(invals) /= 0) THEN
-               CPABORT("Active space option ISOLATED_SYSTEM requires non-periodic setting")
-            END IF
-         END IF
-         active_space_env%eri%periodicity(1:3) = 0
-      ELSE IF (ex_perd) THEN
-         IF (SIZE(invals) == 1) THEN
-            active_space_env%eri%periodicity(1:3) = invals(1)
-         ELSE
-            active_space_env%eri%periodicity(1:3) = invals(1:3)
-         END IF
-      ELSE
-         CALL get_qs_env(qs_env, cell=cell)
-         active_space_env%eri%periodicity(1:3) = cell%perd(1:3)
-      END IF
+
+      ! to deprecate
+      CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut)
+      active_space_env%eri%cutoff_radius = eri_rcut
+      CALL section_vals_val_get(as_input, "ERI%ENLARGE_CELL", l_val=eri_enlarge_cell)
+      active_space_env%eri%enlarge_cell = eri_enlarge_cell
+      !!!
+
       IF (iw > 0) THEN
          WRITE (iw, '(/,T3,A)') "Calculation of Electron Repulsion Integrals"
          SELECT CASE (eri_method)
@@ -893,9 +869,11 @@ CONTAINS
          END SELECT
          WRITE (iw, '(T3,A,T68,E12.4)') "Accuracy of ERI", eri_eps_int
          WRITE (iw, '(T3,A,T71,3I3)') "Periodicity", active_space_env%eri%periodicity(1:3)
+         ! to deprecate
          IF (PRODUCT(active_space_env%eri%periodicity(1:3)) == 0) THEN
             IF (eri_rcut > 0.0_dp) WRITE (iw, '(T3,A,T66,F14.6)') "User-specified cutoff", eri_rcut
          END IF
+         !!!
          IF (nspins < 2) THEN
             WRITE (iw, '(T3,A,T68,I12)') "Total Number of ERI", (nmo_active**4)/8
          ELSE
@@ -946,8 +924,9 @@ CONTAINS
          CALL section_vals_val_get(as_input, "ERI_GPW%GROUP_SIZE", i_val=group_size)
          active_space_env%eri%eri_gpw%group_size = group_size
          ! Always redo Poisson solver for now
-         active_space_env%eri%eri_gpw%redo_poisson = .TRUE.
+         !active_space_env%eri%eri_gpw%redo_poisson = .TRUE.
          ! active_space_env%eri%eri_gpw%redo_poisson = (ex_operator .OR. ex_perd)
+
          IF (iw > 0) THEN
             WRITE (iw, '(/,T2,A,T71,F10.1)') "ERI_GPW| Energy cutoff [Ry]", eri_gpw_cutoff
             WRITE (iw, '(T2,A,T71,F10.1)') "ERI_GPW| Relative energy cutoff [Ry]", eri_rel_cutoff
@@ -1263,7 +1242,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      TYPE(section_vals_type), POINTER                   :: input
+      TYPE(section_vals_type), POINTER                   :: input, qs_poisson_section
 
       CALL timeset(routineN, handle)
 
@@ -1344,22 +1323,21 @@ CONTAINS
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
       IF (SUM(eri_env%eri_cell) > 0.0_dp) THEN
-         ! modify cell size only if periodicity is between scf and eri is different
-         IF (SUM(cell%perd) /= SUM(eri_env%periodicity)) THEN
-            ! enter here only for obc-in-pbc
-            IF (SUM(eri_env%periodicity) == 0) THEN
-               DO iwa1 = 1, 3
-                  new_hmat(iwa1, iwa1) = eri_env%eri_cell(iwa1)
-               END DO
-            END IF
-         END IF
-         ! save old cell info
-         old_hmat = cell%hmat(:, :)
-         old_perd = cell%perd(:)
-         ! set new cell
-         CALL init_cell(cell, new_hmat, eri_env%periodicity)
+         DO iwa1 = 1, 3
+            new_hmat(iwa1, iwa1) = eri_env%eri_cell(iwa1)
+         END DO
+      ELSE ! trivially copy the existing cell
+         new_hmat = cell%hmat(:, :)
       END IF
 
+      ! save old cell info
+      old_hmat = cell%hmat(:, :)
+      old_perd = cell%perd(:)
+
+      ! set temporary cell for gpw eri calculation
+      CALL init_cell(cell, new_hmat, eri_env%periodicity)
+
+      ! to deprecate
       ! enlarge_cell is exclusive with eri_cell
       IF (eri_env%enlarge_cell .AND. SUM(new_hmat) > 0.0_dp) THEN
          ! modify cell size only if periodicity is between scf and eri is different
@@ -1381,10 +1359,11 @@ CONTAINS
          ! set new cell
          CALL init_cell(cell, new_hmat)
       END IF
+      !!!
 
-      ! print info on the new cell dimension for the GPW integrals, if modified
-      IF (iw > 0 .AND. SUM(new_hmat) > 0.0_dp) THEN
-         WRITE (UNIT=iw, FMT="(T2,A,T57,3F8.2)") "ERI_GPW| New abc cell parameters", &
+      ! print info on the cell dimension for the GPW integrals
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(T2,A,T57,3F8.2)") "ERI_GPW| Cell parameters (abc) used for ERI", &
             (cell%hmat(iwa1,iwa1)*angstrom, iwa1=1,3)
       END IF
 
@@ -1396,14 +1375,15 @@ CONTAINS
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
       ! store qs poisson solver info
-      CALL section_vals_val_get(input, "DFT%POISSON%POISSON_SOLVER", i_val=qs_poisson_solver)
-      CALL section_vals_val_get(input, "DFT%POISSON%PERIODIC", i_val=qs_poisson_perd)
-      CALL section_vals_val_get(input, "DFT%POISSON%MT%ALPHA", r_val=qs_poisson_mt_alpha)
-      CALL section_vals_val_get(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=qs_poisson_mt_rel_cutoff)
-      CALL section_vals_val_get(input, "DFT%POISSON%WAVELET%SCF_TYPE", i_val=qs_poisson_wavelet_scf_type)
-      IF ((qs_poisson_solver == pw_poisson_implicit) .OR. (qs_poisson_solver == pw_poisson_multipole)) THEN
-         CPABORT("Unsupported use of implicit/multiopole Poisson solver in QS")
-      END IF
+      qs_poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
+      ! CALL section_vals_val_get(input, "DFT%POISSON%POISSON_SOLVER", i_val=qs_poisson_solver)
+      ! CALL section_vals_val_get(input, "DFT%POISSON%PERIODIC", i_val=qs_poisson_perd)
+      ! CALL section_vals_val_get(input, "DFT%POISSON%MT%ALPHA", r_val=qs_poisson_mt_alpha)
+      ! CALL section_vals_val_get(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=qs_poisson_mt_rel_cutoff)
+      ! CALL section_vals_val_get(input, "DFT%POISSON%WAVELET%SCF_TYPE", i_val=qs_poisson_wavelet_scf_type)
+      ! IF ((qs_poisson_solver == pw_poisson_implicit) .OR. (qs_poisson_solver == pw_poisson_multipole)) THEN
+      !    CPABORT("Unsupported use of implicit/multiopole Poisson solver in QS")
+      ! END IF
 
       ! hack: modify the input on the fly to generate correct pw grids and poisson solver
       IF (eri_env%poisson_solver == eri_poisson_analytic) THEN
@@ -1418,7 +1398,7 @@ CONTAINS
          CALL section_vals_val_set(input, "DFT%POISSON%MT%ALPHA", r_val=eri_env%mt_alpha)
          CALL section_vals_val_set(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=eri_env%mt_rel_cutoff)
       ELSE
-         CPABORT("Invalid non-periodic Poisson solver")
+         CPABORT("Invalid Poisson solver")
       END IF
 
       ! Generate the appropriate  pw_env
@@ -1543,9 +1523,6 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
-      IF (iw > 0) THEN
-         CALL m_flush(iw)
-      END IF
       ! pre-calculate wavefunctions on reals space grid
       nspins = SIZE(mos)
       IF (eri_env%eri_gpw%store_wfn) THEN
@@ -1639,12 +1616,14 @@ CONTAINS
                CALL pw_multiply(rho_r, wfn1, wfn2)
                CALL pw_transfer(rho_r, rho_g)
                CALL pw_poisson_solve(poisson_env, rho_g, pair_int, pot_g)
+
                ! use the mp2 eri gpw trick
                IF (eri_env%operator == eri_operator_erf) THEN
                   CALL pw_gauss_damp(pot_g, eri_env%operator_parameter)
                ELSE IF (eri_env%operator == eri_operator_erfc) THEN
                   CALL pw_compl_gauss_damp(pot_g, eri_env%operator_parameter)
-               ELSE IF (eri_env%operator == eri_operator_yukawa) THEN
+               ELSE IF ((eri_env%operator == eri_operator_yukawa) .OR. &
+                        (eri_env%operator == eri_operator_gaussian)) THEN
                   CPABORT("Not implemented")
                END IF
 
@@ -1824,15 +1803,15 @@ CONTAINS
       dft_control%qs_control => qs_control_old
       DEALLOCATE (qs_control%e_cutoff)
       DEALLOCATE (qs_control)
-      IF (eri_env%enlarge_cell) THEN
-         CALL init_cell(cell, old_hmat, old_perd)
-      END IF
+      ! restore initial cell
+      CALL init_cell(cell, old_hmat, old_perd)
       ! restore the initial poisson solver
-      CALL section_vals_val_set(input, "DFT%POISSON%POISSON_SOLVER", i_val=qs_poisson_solver)
-      CALL section_vals_val_set(input, "DFT%POISSON%PERIODIC", i_val=qs_poisson_perd)
-      CALL section_vals_val_set(input, "DFT%POISSON%MT%ALPHA", r_val=qs_poisson_mt_alpha)
-      CALL section_vals_val_set(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=qs_poisson_mt_rel_cutoff)
-      CALL section_vals_val_set(input, "DFT%POISSON%WAVELET%SCF_TYPE", i_val=qs_poisson_wavelet_scf_type)
+      CALL section_vals_set_subs_vals(input, "DFT%POISSON", qs_poisson_section)
+      ! CALL section_vals_val_set(input, "DFT%POISSON%POISSON_SOLVER", i_val=qs_poisson_solver)
+      ! CALL section_vals_val_set(input, "DFT%POISSON%PERIODIC", i_val=qs_poisson_perd)
+      ! CALL section_vals_val_set(input, "DFT%POISSON%MT%ALPHA", r_val=qs_poisson_mt_alpha)
+      ! CALL section_vals_val_set(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=qs_poisson_mt_rel_cutoff)
+      ! CALL section_vals_val_set(input, "DFT%POISSON%WAVELET%SCF_TYPE", i_val=qs_poisson_wavelet_scf_type)
 
       ! print out progress
       IF (iw > 0) THEN
