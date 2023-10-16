@@ -35,6 +35,7 @@ MODULE helium_interactions
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE nnp_acsf,                        ONLY: nnp_calc_acsf
+   USE nnp_environment_types,           ONLY: nnp_type
    USE nnp_model,                       ONLY: nnp_gradients,&
                                               nnp_predict
    USE physcon,                         ONLY: angstrom,&
@@ -686,6 +687,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(nnp_type), POINTER                            :: nnp
       TYPE(section_vals_type), POINTER                   :: print_section
 
       NULLIFY (logger)
@@ -748,14 +750,15 @@ CONTAINS
 
          !reset input nodes and grads of ele(ind):
          helium%nnp%arc(ind)%layer(1)%node(:) = 0.0_dp
+         nnp => helium%nnp ! work around wrong INTENT of nnp_calc_acsf
          IF (PRESENT(force)) THEN
             helium%nnp%arc(ind)%layer(1)%node_grad(:) = 0.0_dp
             ALLOCATE (dsymdxyz(3, helium%nnp%arc(ind)%n_nodes(1), helium%nnp%num_atoms))
             ALLOCATE (denergydsym(helium%nnp%arc(ind)%n_nodes(1)))
             dsymdxyz(:, :, :) = 0.0_dp
-            CALL nnp_calc_acsf(helium%nnp, i, dsymdxyz)
+            CALL nnp_calc_acsf(nnp, i, dsymdxyz)
          ELSE
-            CALL nnp_calc_acsf(helium%nnp, i)
+            CALL nnp_calc_acsf(nnp, i)
          END IF
 
          ! input nodes filled, perform prediction:
