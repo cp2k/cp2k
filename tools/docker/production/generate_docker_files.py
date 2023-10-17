@@ -275,7 +275,7 @@ ENV CUDA_CACHE_DISABLE 1
         required_packages += " libmpich-dev mpich openssh-client"
         with_gcc_line = "--with-gcc=system"
     elif mpi_implementation == "openmpi":
-        additional_exports += """\
+        additional_exports += """
 export OMPI_ALLOW_RUN_AS_ROOT=1\\n\\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\\n\\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\\n\\\
