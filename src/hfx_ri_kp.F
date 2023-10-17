@@ -435,7 +435,9 @@ CONTAINS
                                                             idx_to_at_AO
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iapc_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: sparsity_pattern
-      REAL(dp)                                           :: etmp, fac, occ, pref, t1, t2, t3, t4
+      LOGICAL                                            :: use_delta_p
+      REAL(dp)                                           :: etmp, fac, occ, pfac, pref, t1, t2, t3, &
+                                                            t4
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(dbcsr_type)                                   :: ks_desymm, rho_desymm, tmp
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_2c_pot
@@ -483,8 +485,13 @@ CONTAINS
       !Note that the 3-center integrals are pre-contracted with the RI metric, and that the same tensor can be used
       !(mu^0, sigma^a| P^0) (P^0|R^0)  <===> (S^b|Q^b)^-1 (Q^b| nu^b lambda^a+c) by relabelling the images
 
-      !Build the density tensor based on the difference of this SCF P and that of the prev. SCF
-      CALL get_pmat_images(ri_data%rho_ao_t, rho_ao, -1.0_dp, ri_data, qs_env)
+      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
+      CALL section_vals_val_get(hfx_section, "KP_USE_DELTA_P", l_val=use_delta_p)
+
+      !By default, build the density tensor based on the difference of this SCF P and that of the prev. SCF
+      pfac = -1.0_dp
+      IF (.NOT. use_delta_p) pfac = 0.0_dp
+      CALL get_pmat_images(ri_data%rho_ao_t, rho_ao, pfac, ri_data, qs_env)
 
       ALLOCATE (ks_t(nspins, nimg))
       DO i_img = 1, nimg
@@ -520,7 +527,7 @@ CONTAINS
          ngroups = 1
          CALL section_vals_val_set(hfx_section, "KP_NGROUPS", i_val=ngroups)
       END IF
-      IF ((MOD(ngroups, natom) .NE. 0) .AND. (MOD(natom, ngroups) .NE. 0)) THEN
+      IF ((MOD(ngroups, natom) .NE. 0) .AND. (MOD(natom, ngroups) .NE. 0) .AND. geometry_did_change) THEN
          IF (ngroups > 1) &
             CPWARN("Better load balancing is reached if NGROUPS is a multiple/divisor of the number of atoms")
       END IF
@@ -735,6 +742,8 @@ CONTAINS
 
             CALL dbcsr_dot(ks_desymm, rho_desymm, etmp)
             ehfx = ehfx + 0.5_dp*etmp
+
+            IF (.NOT. use_delta_p) CALL dbt_clear(ri_data%ks_t(i_spin, i_img))
          END DO
       END DO
       CALL dbcsr_release(rho_desymm)
@@ -964,8 +973,7 @@ CONTAINS
                   bounds_iat(:, 1) = [SUM(ri_data%bsizes_AO(1:iatom - 1)) + 1, SUM(ri_data%bsizes_AO(1:iatom))]
                   bounds_jat(:, 1) = [SUM(ri_data%bsizes_AO(1:jatom - 1)) + 1, SUM(ri_data%bsizes_AO(1:jatom))]
                   CALL dbt_clear(t_2c_R_split)
-                  CALL dbt_batched_contract_init(t_2c_work(5))
-                  CALL dbt_batched_contract_init(t_2c_R_split)
+
                   DO i_spin = 1, nspins
                      CALL dbt_batched_contract_init(rho_ao_t_sub(i_spin, b_img))
                   END DO
@@ -1013,12 +1021,14 @@ CONTAINS
 
                         !Contract with V_PQ so that we can take the trace with (Q^b|nu^b lmabda^a+c)^(x)
                         CALL dbt_copy(t_3c_work_2(2), t_3c_work_3(1), order=[2, 1, 3], move_data=.TRUE.)
+                        CALL dbt_batched_contract_init(t_2c_work(5))
                         CALL dbt_contract(1.0_dp, t_2c_work(5), t_3c_work_3(1), &
                                           0.0_dp, t_3c_work_3(2), map_1=[1], map_2=[2, 3], &
                                           contract_1=[1], notcontract_1=[2], &
                                           contract_2=[1], notcontract_2=[2, 3], &
                                           filter_eps=ri_data%filter_eps, flop=nflop)
                         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                        CALL dbt_batched_contract_finalize(t_2c_work(5))
 
                         !Contract with the 3c derivatives to get the force/virial
                         CALL dbt_copy(t_3c_work_3(2), t_3c_work_3(4), move_data=.TRUE.)
@@ -1047,17 +1057,17 @@ CONTAINS
                                            img_bounds=[batch_ranges_nze(i_batch), batch_ranges_nze(i_batch + 1)])
                         CALL dbt_copy(t_3c_work_3(4), t_3c_work_3(3), move_data=.TRUE.)
 
+                        CALL dbt_batched_contract_init(t_2c_R_split)
                         CALL dbt_contract(1.0_dp, t_3c_work_3(1), t_3c_work_3(3), &
                                           1.0_dp, t_2c_R_split, map_1=[1], map_2=[2], &
                                           contract_1=[2, 3], notcontract_1=[1], &
                                           contract_2=[2, 3], notcontract_2=[1], &
                                           filter_eps=ri_data%filter_eps, flop=nflop)
                         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                        CALL dbt_batched_contract_finalize(t_2c_R_split)
                         CALL dbt_copy(t_3c_work_3(4), t_3c_work_3(1))
                      END DO
                   END DO
-                  CALL dbt_batched_contract_finalize(t_2c_work(5))
-                  CALL dbt_batched_contract_finalize(t_2c_R_split)
                   DO i_spin = 1, nspins
                      CALL dbt_batched_contract_finalize(rho_ao_t_sub(i_spin, b_img))
                   END DO
