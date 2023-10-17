@@ -548,6 +548,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="KP_USE_DELTA_P", &
+                          description="This kweyword controls whether the KS matrix at each SCF cycle "// &
+                          "is built by adding the contribution of the denisty difference (wrt to previous step) "// &
+                          "to the KS matrix of the previous step. As the SCF converges, the density fluctuations "// &
+                          "get smaller and sparsity increases, leading to faster SCF steps. Not always "// &
+                          "numerically stable => turn off if SCF struggles to converge.", &
+                          variants=s2a("USE_DELTA_P", "KP_USE_P_DIFF", "USE_P_DIFF"), &
+                          usage="KP_USE_DELTA_P {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="KP_STACK_SIZE", &
                           description="When doing contraction over periodic cells of the type: "// &
                           "T_mu^a,nu^b,P^c = (mu^a nu^b | Q^d) * (Q^d | P^c), with "// &
