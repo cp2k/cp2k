@@ -5,10 +5,27 @@ source /opt/cp2k-toolchain/install/setup
 
 ln -s /opt/cp2k/tools/build_utils/fypp /bin/fypp
 
+DBCSR_ver="2.5.0"
+
+if [ -f dbcsr-${DBCSR_ver}.tar.gz ]; then
+  echo "dbcsr-${DBCSR_ver}.tar.gz is found"
+else
+  wget -q "https://github.com/cp2k/dbcsr/archive/refs/tags/v${DBCSR_ver}.tar.gz" -O "dbcsr-${DBCSR_ver}.tar.gz"
+fi
+
+[ -d dbcsr-${DBCSR_ver} ] && rm -rf dbcsr-${DBCSR_ver}
+tar xzf dbcsr-${DBCSR_ver}.tar.gz
+cd dbcsr-${DBCSR_ver}
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/opt/cp2k -DUSE_MPI=ON -DUSE_OPENMP=ON -DUSE_SMM=blas ..
+make && make install
+cd ../..
 mkdir build
 cd build
 
 if ! cmake \
+  -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
   -Werror=dev \
   -DCP2K_USE_VORI=ON \
   -DCP2K_USE_COSMA=NO \
@@ -17,7 +34,6 @@ if ! cmake \
   -DCP2K_USE_LIBINT2=ON \
   -DCP2K_USE_LIBXC=ON \
   -DCP2K_USE_LIBTORCH=OFF \
-  -DCP2K_BUILD_DBCSR=ON \
   -DCP2K_ENABLE_REGTESTS=ON \
   .. |& tee ./cmake.log; then
   echo -e "\nSummary: CMake failed."
