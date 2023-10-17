@@ -6,6 +6,7 @@
 # Stage 1: build step
 FROM ubuntu:22.04 AS build
 
+
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran openssh-client python3 \
@@ -19,7 +20,9 @@ WORKDIR /opt/cp2k/tools/toolchain
 RUN /bin/bash -c -o pipefail \
     "./install_cp2k_toolchain.sh -j 8 \
      --install-all \
+     --enable-cuda=no \
      --target-cpu=native \
+     --with-cusolvermp=no \
      --with-gcc=system \
      --with-openmpi=install"
 
@@ -78,11 +81,11 @@ RUN /bin/bash -c -o pipefail \
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
-export OMP_STACKSIZE=16M\n\
-export PATH=/opt/cp2k/exe/local:\${PATH}\n\
-export OMPI_ALLOW_RUN_AS_ROOT=1\n\
+\export OMPI_ALLOW_RUN_AS_ROOT=1\n\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\n\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\n\
+export OMP_STACKSIZE=16M\n\
+export PATH=/opt/cp2k/exe/local:\${PATH}\n\
 source /opt/cp2k/tools/toolchain/install/setup\n\
 \"\$@\"" \
 >/usr/local/bin/entrypoint.sh && chmod 755 /usr/local/bin/entrypoint.sh
