@@ -2235,19 +2235,19 @@ CONTAINS
       ! Helium-solute interaction NNP
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="NNP", &
-                          description="This section contains all information to run an helium-solute"// &
+                          description="This section contains all information to run an helium-solute "// &
                           "interaction Neural Network Potential (NNP) calculation.", &
                           n_keywords=2, n_subsections=3, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="NNP_INPUT_FILE_NAME", &
-                          description="File containing the input information for the setup"// &
+                          description="File containing the input information for the setup "// &
                           "of the NNP (n2p2/RuNNer format). ", &
                           repeats=.FALSE., default_lc_val="input.nn")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SCALE_FILE_NAME", &
-                          description="File containing the scaling information for the symmetry"// &
+                          description="File containing the scaling information for the symmetry "// &
                           "functions of the NNP. ", &
                           repeats=.FALSE., default_lc_val="scaling.data")
       CALL section_add_keyword(subsection, keyword)
@@ -2281,14 +2281,14 @@ CONTAINS
 
       NULLIFY (subsubsection)
       CALL section_create(subsubsection, __LOCATION__, name="MODEL", &
-                          description="Section for a single NNP model. If this section is repeated,"// &
-                          "a committee model (C-NNP)is used where the NNP members share the same"// &
+                          description="Section for a single NNP model. If this section is repeated, "// &
+                          "a committee model (C-NNP)is used where the NNP members share the same "// &
                           "symmetry functions. ", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHTS", &
-                          description="File containing the weights for the artificial neural"// &
-                          " networks of the NNP. The specified name is extended by .XXX.data ", &
+                          description="File containing the weights for the artificial neural "// &
+                          "networks of the NNP. The specified name is extended by .XXX.data ", &
                           repeats=.FALSE., default_lc_val="weights")
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)

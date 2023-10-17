@@ -176,6 +176,7 @@ CONTAINS
       ! release new_comm for processors without helium_env
       IF (mepos == 0) THEN
          CALL new_comm%free()
+         DEALLOCATE (new_comm)
          NULLIFY (new_comm)
       END IF
 
@@ -779,8 +780,6 @@ CONTAINS
                      IF (.NOT. explicit) CPWARN(msg_str)
                   END IF
                   ALLOCATE (helium_env(k)%helium%nnp)
-                  NULLIFY (helium_env(k)%helium%nnp%rad)
-                  NULLIFY (helium_env(k)%helium%nnp%ang)
                   CALL cp_logger_create(tmplogger, para_env=helium_env(k)%comm, template_logger=logger)
                   CALL cp_add_default_logger(tmplogger)
                   CALL helium_init_nnp(helium_env(k)%helium, helium_env(k)%helium%nnp, nnp_section)
@@ -862,6 +861,7 @@ CONTAINS
          DO k = 1, SIZE(helium_env)
             IF (k .EQ. 1) THEN
                CALL helium_env(k)%comm%free()
+               DEALLOCATE (helium_env(k)%comm)
                DEALLOCATE (helium_env(k)%env_all)
             END IF
             NULLIFY (helium_env(k)%env_all)

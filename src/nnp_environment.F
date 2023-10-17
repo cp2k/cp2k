@@ -642,7 +642,7 @@ CONTAINS
       ! read scaling information from file
       IF (nnp_env%scale_acsf .OR. nnp_env%center_acsf .OR. nnp_env%scale_sigma_acsf) THEN
          IF (logger%para_env%is_source()) THEN
-            WRITE (*, *) TRIM(printtag)//"| Reading scaling information from file: ", TRIM(file_name)
+            WRITE (unit_nr, *) TRIM(printtag)//"| Reading scaling information from file: ", TRIM(file_name)
          END IF
          CALL section_vals_val_get(nnp_env%nnp_input, "SCALE_FILE_NAME", &
                                    c_val=file_name)

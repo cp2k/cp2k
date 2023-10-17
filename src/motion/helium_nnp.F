@@ -57,7 +57,7 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Read and initialize all the information for neural network potentials
-!> \param helium_env ...
+!> \param helium ...
 !> \param nnp ...
 !> \param input ...
 !> \date   2023-02-21
@@ -68,8 +68,8 @@ CONTAINS
       TYPE(nnp_type), POINTER                            :: nnp
       TYPE(section_vals_type), POINTER                   :: input
 
-      CHARACTER(len=default_string_length)               :: elem
       CHARACTER(len=default_path_length)                 :: msg_str
+      CHARACTER(len=default_string_length)               :: elem
       INTEGER                                            :: i, ig, is, j
       INTEGER, DIMENSION(3)                              :: periodicity
       LOGICAL                                            :: found
@@ -128,23 +128,23 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE(helium%nnp_sr_cut(nnp%n_ele))
-      helium%nnp_sr_cut=0.0_dp
+      ALLOCATE (helium%nnp_sr_cut(nnp%n_ele))
+      helium%nnp_sr_cut = 0.0_dp
 
       sr_cutoff_section => section_vals_get_subs_vals(nnp%nnp_input, "SR_CUTOFF")
-      CALL section_vals_get(sr_cutoff_section,n_repetition=is)
+      CALL section_vals_get(sr_cutoff_section, n_repetition=is)
       DO i = 1, is
          CALL section_vals_val_get(sr_cutoff_section, "ELEMENT", c_val=elem, i_rep_section=i)
          found = .FALSE.
          DO ig = 1, nnp%n_ele
-            IF (TRIM(nnp%ele(ig))==TRIM(elem)) THEN
+            IF (TRIM(nnp%ele(ig)) == TRIM(elem)) THEN
                found = .TRUE.
                CALL section_vals_val_get(sr_cutoff_section, "RADIUS", r_val=helium%nnp_sr_cut(ig), &
                                          i_rep_section=i)
             END IF
-         END DO 
+         END DO
          IF (.NOT. found) THEN
-            msg_str = "SR_CUTOFF for element " // TRIM(elem) // " defined but not found in NNP"
+            msg_str = "SR_CUTOFF for element "//TRIM(elem)//" defined but not found in NNP"
             CPWARN(msg_str)
          END IF
       END DO
