@@ -23,7 +23,7 @@
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       COORD_INIT_TEMP        -1
       GET_FORCES             LAST
-      NATOMS                 5
+      NATOMS                20
       NBEADS                16
       NUM_ENV                1
       INOROT                80
