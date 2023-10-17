@@ -232,7 +232,8 @@ MODULE mp2_types
                                                             eps_exc_en = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp
       LOGICAL                                            :: do_ic_model = .FALSE., &
-                                                            print_ic_values = .FALSE.
+                                                            print_ic_values = .FALSE., &
+                                                            bse_exact_diag = .FALSE.
       REAL(KIND=dp)                                      :: eps_dist = 0.0_dp
       TYPE(one_dim_real_array), DIMENSION(2)             :: ic_corr_list = one_dim_real_array(NULL())
       INTEGER                                            :: print_exx = 0

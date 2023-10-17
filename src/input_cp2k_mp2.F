@@ -1312,6 +1312,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EXACT_DIAG", &
+                           description="If true, the A-matrix in BSE is fully diagonalized and the eigenvalues printed out."// &
+                           "Increases computational cost significantly, only for debug purposes.", &
+                           usage="EXACT_DIAG", &
+                           default_l_val=.FALSE., &
+                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE
 
 ! **************************************************************************************************

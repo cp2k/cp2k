@@ -1149,7 +1149,7 @@ CONTAINS
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
-         first_cycle_periodic_correction, my_open_shell, print_ic_values
+         first_cycle_periodic_correction, my_open_shell, print_ic_values, bse_exact_diag
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, &
@@ -1365,6 +1365,7 @@ CONTAINS
             eps_res                 = mp2_env%ri_g0w0%eps_res
             eps_exc_en              = mp2_env%ri_g0w0%eps_exc_en
             z_space_energy_cutoff   = mp2_env%ri_g0w0%z_space_energy_cutoff
+            bse_exact_diag          = mp2_env%ri_g0w0%bse_exact_diag
 
             CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
@@ -1786,7 +1787,6 @@ CONTAINS
 
          num_Z_vectors_init = num_exc_en + num_add_start_z_space
 
-         !MG: Prepare matrices for truncation at certain energy difference
          CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), fm_mat_Q_static_bse, &
                                                      fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
@@ -1801,7 +1801,7 @@ CONTAINS
                                      num_davidson_iter, eps_res, Eigenval(:, 1, 1), para_env, &
                                      num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t, &
                                      bse_spin_config, unit_nr, bse_davidson_abort_cond, eps_exc_en, &
-                                     z_space_energy_cutoff)
+                                     z_space_energy_cutoff, bse_exact_diag)
          !Deallocate three center integrals
          DEALLOCATE(B_bar_ijQ_bse_local,B_abQ_bse_local,B_bar_iaQ_bse_local,B_iaQ_bse_local)
 

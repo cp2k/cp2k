@@ -861,7 +861,7 @@ CONTAINS
 
          !MG: Omega=0 is at last index, not at jquad==1
          IF (do_bse .AND. jquad == num_integ_points) THEN
-            print *,"MG: in GW-BSE for fm_mat_Q_static_bse, omega=",omega
+            !print *,"MG: in GW-BSE for fm_mat_Q_static_bse, omega=",omega
             CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
          END IF
 
