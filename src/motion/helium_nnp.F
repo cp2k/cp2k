@@ -18,7 +18,8 @@ MODULE helium_nnp
                                               Schran2020b,&
                                               cite_reference
    USE cell_methods,                    ONLY: cell_create
-   USE cell_types,                      ONLY: cell_type,&
+   USE cell_types,                      ONLY: cell_release,&
+                                              cell_type,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -97,6 +98,7 @@ CONTAINS
       CALL cell_create(he_cell, hmat=helium%cell_m, &
                        periodic=periodicity, tag="HELIUM NNP")
       CALL nnp_env_set(nnp, cell=he_cell)
+      CALL cell_release(he_cell)
 
       ! Set up arrays for calculation:
       ALLOCATE (nnp%ele_ind(nnp%num_atoms))
