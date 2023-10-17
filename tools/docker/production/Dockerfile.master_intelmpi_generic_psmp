@@ -6,6 +6,7 @@
 # Stage 1: build step
 FROM intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04 AS build
 
+
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq; true && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran python3 \
@@ -19,7 +20,9 @@ WORKDIR /opt/cp2k/tools/toolchain
 RUN /bin/bash -c -o pipefail \
     "./install_cp2k_toolchain.sh -j 8 \
      --install-all \
+     --enable-cuda=no \
      --target-cpu=generic \
+     --with-cusolvermp=no \
      --with-intel=system --with-intelmpi=system --with-libtorch=no --with-mkl=system \
      --with-intelmpi=system"
 
@@ -78,9 +81,9 @@ RUN /bin/bash -c -o pipefail \
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
+\
 export OMP_STACKSIZE=16M\n\
 export PATH=/opt/cp2k/exe/local:\${PATH}\n\
-\
 source /opt/cp2k/tools/toolchain/install/setup\n\
 \"\$@\"" \
 >/usr/local/bin/entrypoint.sh && chmod 755 /usr/local/bin/entrypoint.sh

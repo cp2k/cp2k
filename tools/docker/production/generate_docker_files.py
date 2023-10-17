@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Author: Matthias Krack (October 9, 2023)
+# Author: Matthias Krack (October 16, 2023)
 
 from pathlib import Path
 from typing import Any
@@ -12,7 +12,8 @@ import os
 
 cp2k_release_list = ["master", "2023.2"]  # append new releases to list
 mpi_implementation_list = ["intelmpi", "mpich", "openmpi"]
-target_cpu_list = ["generic", "haswell", "skylake-avx512", "native", "znver2", "znver3"]
+target_cpu_list = ["generic", "haswell", "native", "skylake-avx512", "znver2", "znver3"]
+target_gpu_list = ["A100", "P100", "V100"]  # append new GPUs to list
 
 # ------------------------------------------------------------------------------
 
@@ -21,6 +22,7 @@ def main() -> None:
     mpi_choices = ["all"] + mpi_implementation_list
     release_choices = ["all"] + cp2k_release_list
     target_cpu_choices = ["all"] + target_cpu_list
+    target_gpu_choices = ["all"] + target_gpu_list
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -80,6 +82,17 @@ def main() -> None:
         type=str,
     )
     parser.add_argument(
+        "--target-gpu",
+        choices=target_gpu_choices,
+        default=target_gpu_choices[0],
+        dest="target_gpu",
+        help=(
+            "Specify the target GPU for which the docker files are generated "
+            f"(default is {target_gpu_choices[0]})"
+        ),
+        type=str,
+    )
+    parser.add_argument(
         "--test",
         "--test-build",
         action="store_true",
@@ -88,7 +101,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    arch = "local"
     version = "psmp"
     ncores = args.ncores
     no_tests = args.no_tests
@@ -113,14 +125,12 @@ def main() -> None:
                 continue
 
             if mpi_implementation == "intelmpi":
-                distro = "intel/oneapi-hpckit"
-                distro_version = "2023.2.1-devel-ubuntu22.04"
+                base_system = "intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04"
                 if release != "master":
                     if float(release) <= 2023.2:
                         continue
             else:
-                distro = "ubuntu"
-                distro_version = "22.04"
+                base_system = "ubuntu:22.04"
 
             for target_cpu in target_cpu_list:
                 if args.target_cpu != "all" and args.target_cpu != target_cpu:
@@ -129,20 +139,60 @@ def main() -> None:
                 with OutputFile(f"Dockerfile.{name}", args.check) as f:
                     f.write(
                         write_definition_file(
+                            base_system=base_system,
                             name=name,
                             release=release,
-                            distro=distro,
-                            distro_version=distro_version,
-                            arch=arch,
                             version=version,
                             mpi_implementation=mpi_implementation,
                             ncores=ncores,
                             no_tests=no_tests,
                             omp_stacksize=omp_stacksize,
                             target_cpu=target_cpu,
+                            target_gpu="",
                             test_build=test_build,
                         )
                     )
+
+    # Generate docker files for CUDA
+    base_system = "nvidia/cuda:12.2.0-devel-ubuntu22.04"
+    for release in cp2k_release_list:
+        if args.release != "all" and args.release != release:
+            continue
+        for mpi_implementation in mpi_implementation_list:
+            if (
+                args.mpi_implementation != "all"
+                and args.mpi_implementation != mpi_implementation
+            ) or mpi_implementation == "intelmpi":
+                continue
+            for target_cpu in target_cpu_list:
+                if args.target_cpu != "all" and args.target_cpu != target_cpu:
+                    continue
+                # Restrict docker file generation for CUDA
+                if target_cpu not in ["generic", "native", args.target_cpu]:
+                    continue
+                for target_gpu in target_gpu_list:
+                    if args.target_gpu != "all" and args.target_gpu != target_gpu:
+                        continue
+                    name = (
+                        f"{release}_{mpi_implementation}_{target_cpu}"
+                        f"_cuda_{target_gpu}_{version}"
+                    )
+                    with OutputFile(f"Dockerfile.{name}", args.check) as f:
+                        f.write(
+                            write_definition_file(
+                                base_system=base_system,
+                                name=name,
+                                release=release,
+                                version=version,
+                                mpi_implementation=mpi_implementation,
+                                ncores=ncores,
+                                no_tests=no_tests,
+                                omp_stacksize=omp_stacksize,
+                                target_cpu=target_cpu,
+                                target_gpu=target_gpu,
+                                test_build=test_build,
+                            )
+                        )
 
 
 # ------------------------------------------------------------------------------
@@ -159,20 +209,20 @@ def check_ncores(value: str) -> int:
 
 
 def write_definition_file(
+    base_system: str,
     name: str,
     release: str,
-    distro: str,
-    distro_version: str,
-    arch: str,
     version: str,
     mpi_implementation: str,
     ncores: int,
     no_tests: bool,
     omp_stacksize: str,
     target_cpu: str,
+    target_gpu: str,
     test_build: bool,
 ) -> str:
     do_regtest = "/opt/cp2k/tests/do_regtest.py"
+
     if release == "master":
         branch = ""
         tagname = name.replace("master", r"master$(date +%Y%m%d)")
@@ -188,10 +238,33 @@ def write_definition_file(
     else:
         make_target = ""
 
-    additional_exports = "\\"
-
     # Required packages for the final container
     required_packages = "g++ gcc gfortran"
+    if target_gpu:
+        cuda_path = "/usr/local/cuda"
+        additional_exports = f"""\
+export CUDA_CACHE_DISABLE=1\\n\\
+export CUDA_PATH={cuda_path}\\n\\
+export LD_LIBRARY_PATH=\${{LD_LIBRARY_PATH}}:\${{CUDA_PATH}}/lib64\\n\\\
+"""
+        arch = "local_cuda"
+        cuda_packages = " libtool libtool-bin"
+        cuda_environment = f"""\
+# Setup CUDA environment
+ENV CUDA_PATH {cuda_path}
+ENV LD_LIBRARY_PATH {cuda_path}/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+"""
+        with_gpu_line = f"--enable-cuda=yes --gpu-ver={target_gpu} --with-libtorch=no"
+    else:
+        additional_exports = "\\"
+        arch = "local"
+        cuda_packages = ""
+        cuda_environment = ""
+        with_gpu_line = "--enable-cuda=no"
 
     # Default options for the regression tests
     testopts = f"--maxtasks {ncores}" " --workbasedir /mnt"
@@ -202,7 +275,7 @@ def write_definition_file(
         required_packages += " libmpich-dev mpich openssh-client"
         with_gcc_line = "--with-gcc=system"
     elif mpi_implementation == "openmpi":
-        additional_exports = """\
+        additional_exports += """\
 export OMPI_ALLOW_RUN_AS_ROOT=1\\n\\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\\n\\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\\n\\\
@@ -257,11 +330,12 @@ RUN printf "{do_regtest} {testopts} \$* {arch} {version}" \
 # Usage: docker build -f ./Dockerfile.{name} -t cp2k/cp2k:{tagname} .
 
 # Stage 1: build step
-FROM {distro}:{distro_version} AS build
+FROM {base_system} AS build
 
+{cuda_environment}
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
-    {required_packages} \
+    {required_packages}{cuda_packages} \
     bzip2 ca-certificates git make patch pkg-config unzip wget zlib1g-dev
 
 # Download CP2K
@@ -272,7 +346,9 @@ WORKDIR /opt/cp2k/tools/toolchain
 RUN /bin/bash -c -o pipefail \
     "./install_cp2k_toolchain.sh -j {ncores} \
      --install-all \
+     {with_gpu_line} \
      --target-cpu={target_cpu} \
+     --with-cusolvermp=no \
      {with_gcc_line} \
      {with_mpi_line}"
 
@@ -297,7 +373,7 @@ RUN /bin/bash -c -o pipefail \
      unlink ./exe/{arch}/cp2k_shell.{version}"
 
 # Stage 2: install step
-FROM {distro}:{distro_version} AS install
+FROM {base_system} AS install
 
 # Install required packages
 RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
@@ -323,9 +399,9 @@ RUN /bin/bash -c -o pipefail \
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
+{additional_exports}
 export OMP_STACKSIZE={omp_stacksize}\n\
 export PATH=/opt/cp2k/exe/{arch}:\${{PATH}}\n\
-{additional_exports}
 source /opt/cp2k/tools/toolchain/install/setup\n\
 \"\$@\"" \
 >/usr/local/bin/entrypoint.sh && chmod 755 /usr/local/bin/entrypoint.sh
