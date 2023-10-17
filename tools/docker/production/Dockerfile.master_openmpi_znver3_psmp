@@ -81,7 +81,8 @@ RUN /bin/bash -c -o pipefail \
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
-\export OMPI_ALLOW_RUN_AS_ROOT=1\n\
+\
+export OMPI_ALLOW_RUN_AS_ROOT=1\n\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\n\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\n\
 export OMP_STACKSIZE=16M\n\
