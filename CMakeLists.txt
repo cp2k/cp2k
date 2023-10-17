@@ -121,8 +121,8 @@ cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
                        "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
                        "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
-cmake_dependent_option(CP2K_ENABLE_F08_MPI "Enable MPI Fortran 2008 interface"
-                       OFF "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" OFF
+                       "CP2K_USE_MPI" OFF)
 
 cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP
