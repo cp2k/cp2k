@@ -58,8 +58,7 @@ MODULE nnp_environment_types
    ! Public subroutines ***
    PUBLIC :: nnp_env_release, &
              nnp_env_set, &
-             nnp_env_get, &
-             nnp_env_create
+             nnp_env_get
 
    INTEGER, PARAMETER, PUBLIC :: &
       nnp_cut_cos = 1, &
@@ -82,8 +81,8 @@ MODULE nnp_environment_types
 !> \date   2020-10-10
 ! **************************************************************************************************
    TYPE nnp_type
-      TYPE(nnp_acsf_rad_type), DIMENSION(:), POINTER      :: rad ! DIM(n_ele)
-      TYPE(nnp_acsf_ang_type), DIMENSION(:), POINTER      :: ang ! DIM(n_ele)
+      TYPE(nnp_acsf_rad_type), DIMENSION(:), POINTER      :: rad => NULL() ! DIM(n_ele)
+      TYPE(nnp_acsf_ang_type), DIMENSION(:), POINTER      :: ang => NULL() ! DIM(n_ele)
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_rad ! # radial symfnct for this element
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_ang ! # angular symfnct for this element
       INTEGER                                             :: n_ele ! # elements
@@ -102,7 +101,7 @@ MODULE nnp_environment_types
       REAL(KIND=dp)                                       :: scmin !scale
       REAL(KIND=dp)                                       :: max_cut !largest cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: atom_energies !DIM(n_ele)
-      TYPE(nnp_arc_type), POINTER, DIMENSION(:)           :: arc ! DIM(n_ele)
+      TYPE(nnp_arc_type), POINTER, DIMENSION(:)           :: arc => NULL() ! DIM(n_ele)
       INTEGER                                             :: n_committee
       INTEGER                                             :: n_hlayer
       INTEGER                                             :: n_layer
@@ -122,11 +121,12 @@ MODULE nnp_environment_types
          ALLOCATABLE, DIMENSION(:)                        :: atoms
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: nnp_forces
       REAL(KIND=dp)                                       :: nnp_potential_energy
-      TYPE(cp_subsys_type), POINTER                       :: subsys
-      TYPE(section_vals_type), POINTER                    :: nnp_input, &
-                                                             force_env_input
-      TYPE(cell_type), POINTER                            :: cell_ref
-      LOGICAL                                             :: use_ref_cell
+      TYPE(cp_subsys_type), POINTER                       :: subsys => NULL()
+      TYPE(section_vals_type), POINTER                    :: nnp_input => NULL()
+      TYPE(section_vals_type), POINTER                    :: force_env_input => NULL()
+      TYPE(cell_type), POINTER                            :: cell => NULL()
+      TYPE(cell_type), POINTER                            :: cell_ref => NULL()
+      LOGICAL                                             :: use_ref_cell = .FALSE.
       ! bias
       LOGICAL                                             :: bias
       LOGICAL                                             :: bias_align
@@ -266,28 +266,6 @@ MODULE nnp_environment_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Create data structure that holds all the information for neural
-!>        network potentials
-!> \param nnp_env ...
-!> \date   2020-10-10
-!> \author Christoph Schran (christoph.schran@rub.de)
-! **************************************************************************************************
-   SUBROUTINE nnp_env_create(nnp_env)
-      TYPE(nnp_type), INTENT(OUT)                        :: nnp_env
-
-      NULLIFY (nnp_env%rad)
-      NULLIFY (nnp_env%ang)
-      NULLIFY (nnp_env%arc)
-      NULLIFY (nnp_env%subsys)
-      NULLIFY (nnp_env%nnp_input)
-      NULLIFY (nnp_env%force_env_input)
-      NULLIFY (nnp_env%cell_ref)
-
-      nnp_env%use_ref_cell = .FALSE.
-
-   END SUBROUTINE nnp_env_create
-
-! **************************************************************************************************
 !> \brief Release data structure that holds all the information for neural
 !>        network potentials
 !> \param nnp_env ...
@@ -398,6 +376,9 @@ CONTAINS
       IF (ASSOCIATED(nnp_env%subsys)) THEN
          CALL cp_subsys_release(nnp_env%subsys)
       END IF
+      IF (ASSOCIATED(nnp_env%cell)) THEN
+         CALL cell_release(nnp_env%cell)
+      END IF
       IF (ASSOCIATED(nnp_env%cell_ref)) THEN
          CALL cell_release(nnp_env%cell_ref)
       END IF
@@ -466,6 +447,10 @@ CONTAINS
       END IF
       IF (PRESENT(nnp_forces)) nnp_forces = nnp_env%nnp_forces
 
+      ! note cell will be overwritten if subsys is associated
+      ! helium_env uses nnp without subsys
+      IF (PRESENT(cell)) cell => nnp_env%cell
+
       IF (PRESENT(subsys)) subsys => nnp_env%subsys
       IF (ASSOCIATED(nnp_env%subsys)) THEN
          CALL cp_subsys_get(nnp_env%subsys, &
@@ -503,6 +488,7 @@ CONTAINS
 !> \param local_molecules All molecules on this particular node
 !> \param nnp_input ...
 !> \param force_env_input Pointer to the force_env input section
+!> \param cell ...
 !> \param cell_ref The reference simulation cell
 !> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
@@ -515,7 +501,7 @@ CONTAINS
    SUBROUTINE nnp_env_set(nnp_env, nnp_forces, subsys, &
                           atomic_kind_set, particle_set, local_particles, &
                           molecule_kind_set, molecule_set, local_molecules, &
-                          nnp_input, force_env_input, cell_ref, &
+                          nnp_input, force_env_input, cell, cell_ref, &
                           use_ref_cell, nnp_potential_energy)
 
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp_env
@@ -532,7 +518,7 @@ CONTAINS
          POINTER                                         :: molecule_set
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(section_vals_type), OPTIONAL, POINTER         :: nnp_input, force_env_input
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ref_cell
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: nnp_potential_energy
 
@@ -553,6 +539,16 @@ CONTAINS
          END IF
          END IF
          nnp_env%subsys => subsys
+      END IF
+      IF (PRESENT(cell)) THEN
+         IF (ASSOCIATED(cell)) THEN
+            CALL cell_retain(cell)
+            CALL cell_release(nnp_env%cell)
+            nnp_env%cell => cell
+         END IF
+         IF (ASSOCIATED(nnp_env%subsys)) THEN
+            CALL cp_subsys_set(nnp_env%subsys, cell=cell)
+         END IF
       END IF
       IF (PRESENT(atomic_kind_set)) THEN
          CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)

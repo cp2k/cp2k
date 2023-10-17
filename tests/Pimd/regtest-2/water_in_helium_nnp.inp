@@ -1,0 +1,104 @@
+&GLOBAL
+  PROJECT_NAME               pwater-in-helium
+  RUN_TYPE                   PINT
+  PRINT_LEVEL                low
+&END GLOBAL
+
+&MOTION
+  &PINT
+    P                        16
+    PROC_PER_REPLICA         1
+    NUM_STEPS                5
+    DT                       0.5
+    NRESPA                   1
+    PROPAGATOR               RPMD
+    HARM_INT                 EXACT
+    TEMP                     7.5
+    T_TOL                    0.0
+    TRANSFORMATION           NORMAL
+    &PILE
+    &END PILE
+    &HELIUM
+      SOLUTE_INTERACTION     NNP
+      POTENTIAL_FILE_NAME    lj-test-pot.dat
+      COORD_INIT_TEMP        -1
+      GET_FORCES             LAST
+      NATOMS                20
+      NBEADS                16
+      NUM_ENV                1
+      INOROT                80
+      IROT                1000
+      PERIODIC               F
+      CELL_SHAPE             OCTAHEDRON
+      SAMPLING_METHOD        WORM
+      DROPLET_RADIUS        20
+      &WORM
+         CENTROID_DRMAX       0.2
+         STAGING_L            5
+         ALLOW_OPEN           T
+         OPEN_CLOSE_SCALE     100.0
+         SHOW_STATISTICS      T
+         CENTROID_WEIGHT      5
+         STAGING_WEIGHT       10
+         OPEN_CLOSE_WEIGHT    20
+         HEAD_TAIL_WEIGHT     10
+         CRAWL_WEIGHT         10
+         CRAWL_REPETITION     2
+         SWAP_WEIGHT          100
+       &END WORM
+       &NNP
+         NNP_INPUT_FILE_NAME   ./input.nn
+         SCALE_FILE_NAME       ./scaling.data
+         &MODEL
+           WEIGHTS             ./weights
+         &END MODEL
+         &SR_CUTOFF
+            ELEMENT H
+            RADIUS 1.25
+         &END SR_CUTOFF
+         &SR_CUTOFF
+            ELEMENT O
+            RADIUS 2.05
+         &END SR_CUTOFF
+!         &PRINT
+!           &EXTRAPOLATION
+!           &END EXTRAPOLATION
+!         &END PRINT
+       &END NNP
+    &END HELIUM
+  &END PINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD  FIST
+  &MM
+    &POISSON
+      &EWALD
+        GMAX 25
+      &END EWALD
+    &END POISSON
+    &FORCEFIELD
+      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
+      PARMTYPE               CHM
+      &CHARGE
+        ATOM    OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM    HT
+        CHARGE  0.4238
+      &END CHARGE
+    &END FORCEFIELD
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  8.0 8.0 8.0
+      PERIODIC  NONE
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_FORMAT      PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

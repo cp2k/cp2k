@@ -72,6 +72,7 @@ MODULE nnp_environment
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nnp_environment'
 
    PUBLIC :: nnp_init
+   PUBLIC :: nnp_init_model
 
 CONTAINS
 
@@ -229,7 +230,7 @@ CONTAINS
       CALL distribution_1d_release(local_particles)
       CALL distribution_1d_release(local_molecules)
 
-      CALL nnp_init_model(nnp_env=nnp_env)
+      CALL nnp_init_model(nnp_env=nnp_env, printtag="NNP")
 
       CALL timestop(handle)
 
@@ -238,11 +239,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize the Neural Network Potential
 !> \param nnp_env ...
+!> \param printtag ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_init_model(nnp_env)
+   SUBROUTINE nnp_init_model(nnp_env, printtag)
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: printtag
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init_model'
       INTEGER, PARAMETER                                 :: def_str_len = 256, &
@@ -274,7 +277,7 @@ CONTAINS
       IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, *) ""
-         WRITE (unit_nr, *) "NNP| Neural Network Potential Force Environment"
+         WRITE (unit_nr, *) TRIM(printtag)//"| Neural Network Potential Force Environment"
       END IF
 
       model_section => section_vals_get_subs_vals(nnp_env%nnp_input, "MODEL")
@@ -300,7 +303,7 @@ CONTAINS
 
       IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
-         WRITE (unit_nr, *) "NNP| Reading NNP input from file: ", TRIM(file_name)
+         WRITE (unit_nr, *) TRIM(printtag)//"| Reading NNP input from file: ", TRIM(file_name)
       END IF
 
       CALL parser_search_string(parser, "number_of_elements", .TRUE., found, line, &
@@ -308,7 +311,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_ele
       ELSE
-         CPABORT("NNP| number of elements missing in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| number of elements missing in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "scale_symmetry_functions_sigma", .TRUE., found, &
@@ -353,7 +357,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%cut_type
       ELSE
-         CPABORT("NNP| no cutoff type specified in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| no cutoff type specified in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "global_hidden_layers_short", .TRUE., found, line, &
@@ -361,7 +366,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_hlayer
       ELSE
-         CPABORT("NNP| number of hidden layers missing in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| number of hidden layers missing in NNP_INPUT_FILE")
       END IF
       nnp_env%n_layer = nnp_env%n_hlayer + 2
 
@@ -395,7 +401,8 @@ CONTAINS
                EXIT
             END IF
          ELSE
-            CPABORT("NNP| elements not specified in NNP_INPUT_FILE")
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| elements not specified in NNP_INPUT_FILE")
          END IF
       END DO
 
@@ -417,7 +424,8 @@ CONTAINS
                END DO
                IF (i == nele) EXIT
             ELSE
-               CPABORT("NNP| atom energies are not specified")
+               CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                             "| atom energies are not specified")
             END IF
          END DO
       END IF
@@ -427,7 +435,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_hnodes(:)
       ELSE
-         CPABORT("NNP| global_nodes_short not specified in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "NNP| global_nodes_short not specified in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "global_activation_short", .TRUE., found, line, &
@@ -435,7 +444,8 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, cactfnct(:)
       ELSE
-         CPABORT("NNP| global_activation_short not specified in NNP_INPUT_FILE")
+         CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                       "| global_activation_short not specified in NNP_INPUT_FILE")
       END IF
 
       DO i = 1, nnp_env%n_hlayer + 1
@@ -459,7 +469,8 @@ CONTAINS
          CASE ("h")
             nnp_env%actfnct(i) = nnp_actfnct_quad
          CASE DEFAULT
-            CPABORT("NNP| Activation function unkown")
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| Activation function unkown")
          END SELECT
       END DO
 
@@ -483,13 +494,15 @@ CONTAINS
                   ELSE IF (symfnct_type .EQ. 3) THEN
                      nnp_env%n_ang(i) = nnp_env%n_ang(i) + 1
                   ELSE
-                     CPABORT("NNP| Symmetry function type not supported")
+                     CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                   "| Symmetry function type not supported")
                   END IF
                END IF
             END DO
             first = .FALSE.
          ELSE
-            IF (first) CPABORT("NNP| no symfunction_short specified in NNP_INPUT_FILE")
+            IF (first) CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                     "| no symfunction_short specified in NNP_INPUT_FILE")
             ! no additional symfnct found
             EXIT
          END IF
@@ -586,13 +599,15 @@ CONTAINS
                         nnp_env%max_cut = nnp_env%ang(i)%funccut(nnp_env%n_ang(i))
                      END IF
                   ELSE
-                     CPABORT("NNP| Symmetry function type not supported")
+                     CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                   "| Symmetry function type not supported")
                   END IF
                END IF
             END DO
             first = .FALSE.
          ELSE
-            IF (first) CPABORT("NNP| no symfunction_short specified in NNP_INPUT_FILE")
+            IF (first) CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                                     "| no symfunction_short specified in NNP_INPUT_FILE")
             ! no additional symfnct found
             EXIT
          END IF
@@ -621,13 +636,13 @@ CONTAINS
 
       ! sort symmetry functions and output information
       CALL nnp_sort_acsf(nnp_env)
-      CALL nnp_write_acsf(nnp_env, logger%para_env)
-      CALL nnp_write_arc(nnp_env, logger%para_env)
+      CALL nnp_write_acsf(nnp_env, logger%para_env, printtag)
+      CALL nnp_write_arc(nnp_env, logger%para_env, printtag)
 
       ! read scaling information from file
       IF (nnp_env%scale_acsf .OR. nnp_env%center_acsf .OR. nnp_env%scale_sigma_acsf) THEN
          IF (logger%para_env%is_source()) THEN
-            WRITE (unit_nr, *) "NNP| Reading scaling information from file: ", TRIM(file_name)
+            WRITE (unit_nr, *) TRIM(printtag)//"| Reading scaling information from file: ", TRIM(file_name)
          END IF
          CALL section_vals_val_get(nnp_env%nnp_input, "SCALE_FILE_NAME", &
                                    c_val=file_name)
@@ -696,12 +711,12 @@ CONTAINS
       DO i_com = 1, nnp_env%n_committee
          CALL section_vals_val_get(model_section, "WEIGHTS", c_val=base_name, i_rep_section=i_com)
          IF (logger%para_env%is_source()) THEN
-            WRITE (unit_nr, *) "NNP| Initializing weights for model: ", i_com
+            WRITE (unit_nr, *) TRIM(printtag)//"| Initializing weights for model: ", i_com
          END IF
          DO i = 1, nnp_env%n_ele
             WRITE (file_name, '(A,I0.3,A)') TRIM(base_name)//".", nnp_env%nuc_ele(i), ".data"
             IF (logger%para_env%is_source()) THEN
-               WRITE (unit_nr, *) "NNP| Reading weights from file: ", TRIM(file_name)
+               WRITE (unit_nr, *) TRIM(printtag)//"| Reading weights from file: ", TRIM(file_name)
             END IF
             CALL parser_create(parser, file_name, para_env=logger%para_env)
             n_weight = 0
@@ -744,8 +759,11 @@ CONTAINS
       nnp_env%expol = 0
 
       ! Bias the standard deviation of committee disagreement
-      bias_section => section_vals_get_subs_vals(nnp_env%nnp_input, "BIAS")
-      CALL section_vals_get(bias_section, explicit=explicit)
+      NULLIFY (bias_section)
+      explicit = .FALSE.
+      !HELIUM NNP does atm not allow for bias (not even defined)
+      bias_section => section_vals_get_subs_vals(nnp_env%nnp_input, "BIAS", can_return_null=.TRUE.)
+      IF (ASSOCIATED(bias_section)) CALL section_vals_get(bias_section, explicit=explicit)
       nnp_env%bias = .FALSE.
       IF (explicit) THEN
          IF (nnp_env%n_committee > 1) THEN
@@ -768,7 +786,7 @@ CONTAINS
                END IF
                nnp_env%bias_e_avrg(:) = work
                IF (logger%para_env%is_source()) THEN
-                  WRITE (unit_nr, *) "NNP| Biasing is aligned by shifting the energy prediction of the C-NNP members"
+                  WRITE (unit_nr, *) TRIM(printtag)//"| Biasing is aligned by shifting the energy prediction of the C-NNP members"
                END IF
             END IF
          ELSE
@@ -777,7 +795,7 @@ CONTAINS
       END IF
 
       IF (logger%para_env%is_source()) THEN
-         WRITE (unit_nr, *) "NNP| NNP force environment initialized"
+         WRITE (unit_nr, *) TRIM(printtag)//"| NNP force environment initialized"
       END IF
 
       CALL timestop(handle)

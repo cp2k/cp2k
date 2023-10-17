@@ -16,4 +16,5 @@ he32_only_worm.inp                                    40      1e-11        3.284
 he32_only_worm_restart.inp                            40      1e-11        3.1056893819001927E-004
 water-in-helium-worm.inp                               9      1e-11       -4.2435303435780906E-004
 water-in-helium-striding.inp                           9      1e-11        9.2149634888323367E-002
+water_in_helium_nnp.inp                                9      1e-11              0.188542848154504
 #EOF
