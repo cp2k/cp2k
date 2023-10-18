@@ -1541,11 +1541,6 @@ CONTAINS
                            CALL atom_orbital_nodes(node, atom%orbitals%wfn(:, k, l), 2._dp*rcov, l, atom%basis)
                            afun = afun + atom%weight*atom%orbitals%wrefnod(k, l, 1)* &
                                   ABS(REAL(node, dp) - atom%orbitals%refnod(k, l, 1))
-!deb
-!                          IF (ABS(REAL(node, dp) - atom%orbitals%refnod(k, l, 1)) > 1.e-5_dp) THEN
-!                             WRITE (6, *) "NODES   ", k, l, node, atom%orbitals%refnod(k, l, 1)
-!                          END IF
-!deb
                         END IF
                         IF (l == 0) THEN
                            IF (atom%orbitals%wpsir0(k, 1) > 0._dp) THEN

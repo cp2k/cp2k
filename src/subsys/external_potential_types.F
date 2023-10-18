@@ -996,7 +996,7 @@ CONTAINS
       IF (potential%nppnl > 0) THEN
 
          ! Initialise the projector coefficients of the non-local part of the GTH pseudopotential
-         ! andthe transformation matrices "pgf" -> "prj_ppnl"
+         ! and the transformation matrices "pgf" -> "prj_ppnl"
          CALL init_cprj_ppnl(potential)
 
          ! Initialise the h(i,j) projector coefficients of the non-local part of the

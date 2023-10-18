@@ -1504,7 +1504,7 @@ CONTAINS
       LOGICAL :: check, explicit, explicit_basis, explicit_J, explicit_kgpot, explicit_potential, &
          explicit_U, explicit_u_m_j, nobasis, section_enabled, subsection_enabled, update_input
       REAL(KIND=dp)                                      :: alpha, ccore, r, rc, zeff_correction
-      REAL(KIND=dp), DIMENSION(3)                        :: error
+      REAL(KIND=dp), DIMENSION(6)                        :: error
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nl
@@ -1512,7 +1512,8 @@ CONTAINS
       TYPE(atom_sgp_potential_type)                      :: sgppot
       TYPE(atom_upfpot_type)                             :: upfpot
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(gto_basis_set_type), POINTER                  :: sup_basis_set, tmp_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, sup_basis_set, &
+                                                            tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
          dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
          pao_pot_section, potential_section, spin_section
@@ -2337,14 +2338,15 @@ CONTAINS
                                      nloc=ecppot%nloc, nrloc=ecppot%nrloc, aloc=ecppot%aloc, bloc=ecppot%bloc, &
                                      has_nlcc=.FALSE.)
                   ! convert PP
-                  CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, error=error)
+                  CALL get_qs_kind(qs_kind, basis_set=orb_basis_set)
+                  CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, orb_basis=orb_basis_set, error=error)
                   IF (iounit > 0) THEN
                      WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
                      IF (sgppot%has_local) THEN
-                        WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
+                        WRITE (iounit, "(T8,'Accuracy for local part:',T41,F10.3,'%',T61,F20.12)") error(4), error(1)
                      END IF
                      IF (sgppot%has_nonlocal) THEN
-                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T41,F10.3,'%',T61,F20.12)") error(5), error(2)
                      END IF
                      IF (sgppot%has_nlcc) THEN
                         WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
@@ -2362,7 +2364,9 @@ CONTAINS
                      ALLOCATE (a_nl(nnl), h_nl(nnl, 0:l), c_nl(nnl, nnl, 0:l))
                      a_nl(:) = sgppot%a_nonlocal(:)
                      h_nl(:, :) = sgppot%h_nonlocal(:, :)
-                     c_nl(:, :, :) = sgppot%c_nonlocal(:, :, :)
+                     DO l = 0, sgppot%lmax
+                        c_nl(:, :, l) = sgppot%c_nonlocal(:, :, l)*SQRT(2._dp*l + 1.0_dp)
+                     END DO
                      CALL set_potential(qs_kind%sgp_potential, nppnl=nppnl, a_nonlocal=a_nl, h_nonlocal=h_nl, c_nonlocal=c_nl)
                   ELSE
                      CALL set_potential(qs_kind%sgp_potential, n_nonlocal=0, lmax=-1, is_nonlocal=sgppot%is_nonlocal)

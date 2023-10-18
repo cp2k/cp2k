@@ -8,12 +8,14 @@
 ! **************************************************************************************************
 MODULE atom_sgp
    USE ai_onecenter,                    ONLY: sg_overlap
+   USE atom_set_basis,                  ONLY: set_kind_basis_atomic
    USE atom_types,                      ONLY: &
         atom_basis_gridrep, atom_basis_type, atom_ecppot_type, atom_p_type, atom_type, &
         create_opmat, init_atom_basis_default_pp, opmat_type, release_atom_basis, release_opmat
    USE atom_upf,                        ONLY: atom_upfpot_type
    USE atom_utils,                      ONLY: integrate_grid,&
                                               numpot_matrix
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE input_constants,                 ONLY: ecp_pseudo,&
                                               gaussian,&
                                               gth_pseudo,&
@@ -70,16 +72,19 @@ CONTAINS
 !> \param sgp_pot ...
 !> \param ecp_pot ...
 !> \param upf_pot ...
+!> \param orb_basis ...
 !> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE sgp_construction(sgp_pot, ecp_pot, upf_pot, error)
+   SUBROUTINE sgp_construction(sgp_pot, ecp_pot, upf_pot, orb_basis, error)
 
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_ecppot_type), OPTIONAL                   :: ecp_pot
       TYPE(atom_upfpot_type), OPTIONAL                   :: upf_pot
-      REAL(KIND=dp), DIMENSION(3)                        :: error
+      TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: orb_basis
+      REAL(KIND=dp), DIMENSION(6)                        :: error
 
       INTEGER                                            :: i, n
+      INTEGER, DIMENSION(3)                              :: mloc
       LOGICAL                                            :: is_ecp, is_upf
       REAL(KIND=dp)                                      :: errcc, rcut
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgauss, cutpots, cutpotu
@@ -87,7 +92,11 @@ CONTAINS
       TYPE(opmat_type), POINTER                          :: core, hnl, score, shnl
 
       ! define basis
-      CALL init_atom_basis_default_pp(basis)
+      IF (PRESENT(orb_basis)) THEN
+         CALL set_kind_basis_atomic(basis, orb_basis, has_pp=.TRUE., cp2k_norm=.TRUE.)
+      ELSE
+         CALL init_atom_basis_default_pp(basis)
+      END IF
 
       is_ecp = .FALSE.
       IF (PRESENT(ecp_pot)) is_ecp = .TRUE.
@@ -140,10 +149,14 @@ CONTAINS
       IF (sgp_pot%has_local) THEN
          n = MIN(3, UBOUND(core%op, 3))
          error(1) = MAXVAL(ABS(core%op(:, :, 0:n) - score%op(:, :, 0:n)))
+         mloc = MAXLOC(ABS(core%op(:, :, 0:n) - score%op(:, :, 0:n)))
+         error(4) = error(1)/MAX(ABS(score%op(mloc(1), mloc(2), mloc(3))), 1.E-6_dp)
       END IF
       IF (sgp_pot%has_nonlocal) THEN
          n = MIN(3, UBOUND(hnl%op, 3))
          error(2) = MAXVAL(ABS(hnl%op(:, :, 0:n) - shnl%op(:, :, 0:n)))
+         mloc = MAXLOC(ABS(hnl%op(:, :, 0:n) - shnl%op(:, :, 0:n)))
+         error(5) = error(1)/MAX(ABS(hnl%op(mloc(1), mloc(2), mloc(3))), 1.E-6_dp)
       END IF
       IF (sgp_pot%has_nlcc) THEN
          IF (is_upf) THEN
@@ -284,12 +297,14 @@ CONTAINS
             END IF
          END IF
          IF (sgp_pot%has_nonlocal) THEN
-            errcc = MAXVAL(ABS(hnl%op - shnl%op))
             IF (iw > 0) THEN
                WRITE (iw, '(" Nonlocal part of pseudopotential")')
                WRITE (iw, '(" Max. l-quantum number",T77,i4)') sgp_pot%lmax
                WRITE (iw, '(" Number of projector basis functions ",T77,i4)') sgp_pot%n_nonlocal
-               WRITE (iw, '(" Max. abs. error of matrix elements ",T69,f12.8)') errcc
+               DO i = 0, sgp_pot%lmax
+                  errcc = MAXVAL(ABS(hnl%op(:, :, i) - shnl%op(:, :, i)))
+                  WRITE (iw, '(" Max. abs. error of matrix elements: l=",i2,T69,f12.8)') i, errcc
+               END DO
             END IF
          END IF
          IF (sgp_pot%has_nlcc) THEN
@@ -345,7 +360,7 @@ CONTAINS
       TYPE(atom_basis_type)                              :: basis
 
       INTEGER                                            :: i, ia, ir, j, k, l, n, na, nl, nr
-      REAL(KIND=dp)                                      :: alpha, eee, ei
+      REAL(KIND=dp)                                      :: alpha, amx, cmx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: al, cl, cpot, pgauss
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmat, qmat, score, sinv, smat, tmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rad
@@ -370,8 +385,12 @@ CONTAINS
       ALLOCATE (smat(nl, nl), sinv(nl, nl))
       ALLOCATE (tmat(nl, nl), cmat(nl, nl))
       al = 0.0_dp
+      amx = MAXVAL(ecp_pot%bpot)
+      cmx = amx/0.15_dp
+      cmx = cmx**(1._dp/REAL(nl - 1, dp))
+      cmx = 1._dp/cmx
       DO ir = 1, nl
-         al(ir) = 80.0_dp*0.60_dp**(ir - 1)
+         al(ir) = amx*cmx**(ir - 1)
       END DO
       !
       sgp_pot%a_nonlocal(1:nl) = al(1:nl)
@@ -397,25 +416,22 @@ CONTAINS
          ! overlap basis with projectors
          DO i = 1, nl
             pgauss(:) = EXP(-al(i)*rad(:)**2)*rad(:)**l
-            eee = rootpi/(2._dp**(l + 2)*dfac(2*l + 1))/(2._dp*al(i))**(l + 1.5_dp)
-            pgauss(:) = pgauss(:)/SQRT(eee)
             DO ia = 1, na
-               qmat(ia, i) = SUM(basis%bf(:, ia, l)*pgauss(:)*basis%grid%wr(:))
+               qmat(ia, i) = integrate_grid(basis%bf(:, ia, l), pgauss(:), basis%grid)
             END DO
          END DO
+         qmat = SQRT(fourpi)*qmat
          ! tmat = qmat * score * qmat
          tmat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), MATMUL(score(1:na, 1:na), qmat(1:na, 1:nl)))
          smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
          CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
          cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
          cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl) + TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
+         !
+         ! Residium
+         !
          CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
          !
-         ! get back unnormalized Gaussians
-         DO i = 1, nl
-            ei = rootpi/(2._dp**(l + 2)*dfac(2*l + 1))/(2._dp*al(i))**(l + 1.5_dp)
-            cmat(i, 1:nl) = cmat(i, 1:nl)/SQRT(ei)
-         END DO
          sgp_pot%h_nonlocal(1:nl, l) = cl(1:nl)
          sgp_pot%c_nonlocal(1:nl, 1:nl, l) = cmat(1:nl, 1:nl)
          sgp_pot%is_nonlocal(l) = .TRUE.
@@ -918,7 +934,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cutpots
 
       INTEGER                                            :: i, ia, j, l, m, n, na
-      REAL(KIND=dp)                                      :: a, c, zval
+      REAL(KIND=dp)                                      :: a, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, pgauss
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: qmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rad
@@ -953,18 +969,13 @@ CONTAINS
             na = basis%nbas(l)
             ALLOCATE (qmat(na, n))
             DO i = 1, n
-               pgauss(:) = 0.0_dp
-               DO j = 1, n
-                  a = sgp_pot%a_nonlocal(j)
-                  c = sgp_pot%c_nonlocal(j, i, l)
-                  pgauss(:) = pgauss(:) + c*EXP(-a*rad(:)**2)*rad(:)**l
-               END DO
-               pgauss(:) = pgauss(:)*cutpots(:)
+               a = sgp_pot%a_nonlocal(i)
+               pgauss(:) = cutpots(:)*EXP(-a*rad(:)**2)*rad(:)**l
                DO ia = 1, na
-                  qmat(ia, i) = SUM(basis%bf(:, ia, l)*pgauss(:)*basis%grid%wr(:))
+                  qmat(ia, i) = integrate_grid(basis%bf(:, ia, l), pgauss(:), basis%grid)
                END DO
             END DO
-            qmat = SQRT(fourpi)*qmat
+            qmat = SQRT(fourpi)*MATMUL(qmat, sgp_pot%c_nonlocal(:, :, l))
             DO i = 1, na
                DO j = i, na
                   DO ia = 1, n
