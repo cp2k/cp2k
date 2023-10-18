@@ -13,7 +13,7 @@ import os
 cp2k_release_list = ["master", "2023.2"]  # append new releases to list
 mpi_implementation_list = ["intelmpi", "mpich", "openmpi"]
 target_cpu_list = ["generic", "haswell", "native", "skylake-avx512", "znver2", "znver3"]
-target_gpu_list = ["A100", "P100", "V100"]  # append new GPUs to list
+target_gpu_list = ["P100", "V100", "A100"]  # append new GPUs to list
 
 # ------------------------------------------------------------------------------
 
@@ -23,6 +23,7 @@ def main() -> None:
     release_choices = ["all"] + cp2k_release_list
     target_cpu_choices = ["all"] + target_cpu_list
     target_gpu_choices = ["all"] + target_gpu_list
+    version_choices = ["psmp", "ssmp", "pdbg", "sdbg"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -99,9 +100,20 @@ def main() -> None:
         dest="test_build",
         help="Run a full regression test during the build step",
     )
+    parser.add_argument(
+        "--version",
+        choices=version_choices,
+        default=version_choices[0],
+        dest="version",
+        help=(
+            "Specify the version type of the CP2K binary "
+            f"(default is {version_choices[0]})"
+        ),
+        type=str,
+    )
     args = parser.parse_args()
 
-    version = "psmp"
+    version = args.version
     ncores = args.ncores
     no_tests = args.no_tests
     omp_stacksize = "16M"
@@ -135,6 +147,11 @@ def main() -> None:
             for target_cpu in target_cpu_list:
                 if args.target_cpu != "all" and args.target_cpu != target_cpu:
                     continue
+                if "znver" in target_cpu and mpi_implementation == "intelmpi":
+                    continue
+                if release != "master":
+                    if float(release) <= 2023.2 and "znver" in target_cpu:
+                        continue
                 name = f"{release}_{mpi_implementation}_{target_cpu}_{version}"
                 with OutputFile(f"Dockerfile.{name}", args.check) as f:
                     f.write(
@@ -170,9 +187,12 @@ def main() -> None:
                 # Restrict docker file generation for CUDA
                 if target_cpu not in ["generic", "native", args.target_cpu]:
                     continue
-                for target_gpu in target_gpu_list:
+                for igpu, target_gpu in enumerate(target_gpu_list):
                     if args.target_gpu != "all" and args.target_gpu != target_gpu:
                         continue
+                    if release != "master":
+                        if float(release) <= 2023.2 and igpu > 1:
+                            continue
                     name = (
                         f"{release}_{mpi_implementation}_{target_cpu}"
                         f"_cuda_{target_gpu}_{version}"
