@@ -2022,7 +2022,7 @@ CONTAINS
                           "levels, 20 points for 0.03 eV precision, "// &
                           "and 30 points for 0.01 eV precision, see Table I in "// &
                           "[https://doi.org/10.1021/acs.jctc.0c01282]. GW computation time "// &
-                          "increases roughly linearly with NUM_TIME_FREQ_POINTS.", &
+                          "increases linearly with NUM_TIME_FREQ_POINTS.", &
                           usage="NUM_TIME_FREQ_POINTS 30", &
                           default_i_val=30)
       CALL section_add_keyword(section, keyword)
@@ -2060,7 +2060,7 @@ CONTAINS
                           "(for example, from a supercomputer website, typically between "// &
                           "100 GB and 2 TB), get the number of "// &
                           "MPI processes per node, n_MPI_proc_per_node"// &
-                          " (for example from your run-script; if you : "// &
+                          " (for example from your run-script; if you "// &
                           "use slurm, the number behind '--ntasks-per-node' is the number "// &
                           "of MPI processes per node). Then calculate "// &
                           "MEMORY_PER_PROC = mem_per_node / n_MPI_proc_per_node "// &
