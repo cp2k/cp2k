@@ -354,33 +354,33 @@ CONTAINS
          write(en_exact_filename,'(A18, I4, A5, I4, A5, I4, A4)') &
                   "energy_exact_init=", num_Z_vectors_init, "_new=",num_new_t, "_max=", num_max_z_space, ".dat"
          
-         IF (unit_nr > 0) THEN
-            IF (i_iter == 1) THEN 
-               OPEN(10, file=res_filename, status="new")
-               OPEN(11, file=en_filename, status="new")
-            ELSE
-               OPEN(10, file=res_filename, status="old", access="sequential", position="append")
-               OPEN(11, file=en_filename, status="old", access="sequential", position="append")
-            END IF
+         ! IF (unit_nr > 0) THEN
+         !    IF (i_iter == 1) THEN 
+         !       OPEN(10, file=res_filename, status="new")
+         !       OPEN(11, file=en_filename, status="new")
+         !    ELSE
+         !       OPEN(10, file=res_filename, status="old", access="sequential", position="append")
+         !       OPEN(11, file=en_filename, status="old", access="sequential", position="append")
+         !    END IF
 
-            WRITE(10,'(I4, I3, E11.4)') i_iter, num_res_unconverged, max_res_norm
-            WRITE(11,char_a) i_iter, num_en_unconverged, En_diffs
-            CLOSE(10)
-            CLOSE(11)
-         END IF
+         !    WRITE(10,'(I4, I3, E11.4)') i_iter, num_res_unconverged, max_res_norm
+         !    WRITE(11,char_a) i_iter, num_en_unconverged, En_diffs
+         !    CLOSE(10)
+         !    CLOSE(11)
+         ! END IF
 
 
-         IF (bse_exact_diag) THEN 
-            IF (unit_nr > 0) THEN
-               IF (i_iter == 1) THEN 
-                  OPEN(10, file=en_exact_filename, status="new")
-               ELSE
-                  OPEN(10, file=en_exact_filename, status="old", access="sequential", position="append")
-               END IF
-               WRITE(10,char_a) i_iter, num_exact_en_unconverged ,En_diffs_exact
-               CLOSE(10)
-            END IF
-         END IF
+         ! IF (bse_exact_diag) THEN 
+         !    IF (unit_nr > 0) THEN
+         !       IF (i_iter == 1) THEN 
+         !          OPEN(10, file=en_exact_filename, status="new")
+         !       ELSE
+         !          OPEN(10, file=en_exact_filename, status="old", access="sequential", position="append")
+         !       END IF
+         !       WRITE(10,char_a) i_iter, num_exact_en_unconverged ,En_diffs_exact
+         !       CLOSE(10)
+         !    END IF
+         ! END IF
 
 
          !Check dimensions and orthonormalize vector system, depending on dimensionality
@@ -450,14 +450,14 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *) "MG: Resetting dimension in i_iter=",i_iter
          END IF
-         IF (unit_nr > 0) THEN
-            OPEN(10, file=res_filename, status="old", access="sequential", position="append")
-               WRITE(10,*) "Resetting", i_iter
-            CLOSE(10)
-            OPEN(10, file=en_filename, status="old", access="sequential", position="append")
-               WRITE(10,*) "Resetting", i_iter
-            CLOSE(10)
-         END IF
+         ! IF (unit_nr > 0) THEN
+         !    OPEN(10, file=res_filename, status="old", access="sequential", position="append")
+         !       WRITE(10,*) "Resetting", i_iter
+         !    CLOSE(10)
+         !    OPEN(10, file=en_filename, status="old", access="sequential", position="append")
+         !       WRITE(10,*) "Resetting", i_iter
+         !    CLOSE(10)
+         ! END IF
          DEALLOCATE(W_vectors)
          ALLOCATE(W_vectors(homo,virtual,2*num_new_t))
          W_vectors(:,:,:num_new_t) = Subspace_ritzvec(:,:,:)
@@ -1056,7 +1056,7 @@ CONTAINS
       INTEGER                                            :: a_virt, handle, i_occ, i_Z_vector, LLL, i_iter !MG: i_iter only for Debugging
       REAL(KIND=dp)                                      :: eigen_diff
       !MG to del
-      integer                                            :: i,j,a,b,LWORK,diag_info
+      integer                                            :: i,j,a,b,LWORK,diag_info,n,m
       REAL(KIND=dp), allocatable,dimension(:,:,:,:)      :: W_ijab
       REAL(KIND=dp), allocatable,dimension(:,:,:,:)      :: v_iajb,A_full
       REAL(KIND=dp), allocatable,dimension(:,:)          :: A_full_reshaped
@@ -1077,6 +1077,10 @@ CONTAINS
          ALLOCATE(A_full(homo,virtual,homo,virtual))
          ALLOCATE(A_full_reshaped(homo*virtual,homo*virtual))
          ALLOCATE(Full_exc_spectrum(homo*virtual))
+         W_ijab = 0.0_dp
+         A_full = 0.0_dp
+         A_full_reshaped = 0.0_dp
+         Full_exc_spectrum = 0.0_dp
       END IF
 
 
@@ -1167,25 +1171,28 @@ CONTAINS
 
       !Debugging purposes: full diagonalization of A
       IF (i_iter == 1 .AND. bse_exact_diag) THEN
-         DO i=1,homo
-            DO j=1,homo
-               DO a=1,virtual
-                  DO b=1,virtual
-                     IF (a == b .AND. i == j) THEN
-                        eigen_diff = Eigenval(a + homo) - Eigenval(i)
-                     ELSE 
-                        eigen_diff = 0
-                     END IF
-                     A_full(i,a,j,b) = eigen_diff + 2*v_iajb(i,a,j,b) - W_ijab(i,j,a,b)
-                     IF (a== 1 .AND. b==1 .AND. i==1 .AND. j==1 .AND. unit_nr >0) THEN
-                        print *,"MG: A1111, Ediff, v, W",  A_full(i,a,j,b), eigen_diff, v_iajb(i,a,j,b), W_ijab(i,j,a,b)
-                     END IF
-                  END DO 
-               END DO 
+         n = 0
+         DO i = 1, homo
+            DO a = 1, virtual
+            n = n + 1
+            m = 0
+            DO j = 1, homo
+               DO b = 1, virtual
+                  m = m + 1
+                  IF (a == b .AND. i == j) THEN
+                     eigen_diff = Eigenval(a + homo) - Eigenval(i)
+                  ELSE 
+                     eigen_diff = 0
+                  END IF
+                  A_full_reshaped(n, m) = eigen_diff + 2*v_iajb(i,a,j,b) - W_ijab(i,j,a,b)
+                  A_full(i,a,j,b) = eigen_diff + 2*v_iajb(i,a,j,b) - W_ijab(i,j,a,b)
+                  IF (a== b .AND. i==j .AND. unit_nr >0) THEN
+                     print *,"MG: i,a, A on diag, Ediff, v, W", i,a, A_full(i,a,j,b), eigen_diff, v_iajb(i,a,j,b), W_ijab(i,j,a,b)
+                  END IF
+               END DO
             END DO
-         END DO 
-
-         A_full_reshaped = RESHAPE(A_full, (/ homo*virtual, homo*virtual/))
+            END DO
+         END DO
 
          IF (unit_nr > 0) THEN
             print *,"MG: Full A:"
