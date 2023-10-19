@@ -254,12 +254,13 @@ def render_keyword(keyword: lxml.etree._Element, section_xref: str) -> List[str]
         output += ["**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
             item_description = get_text(item.find("DESCRIPTION"))
-            output += [f"* `{get_name(item)}` {escape_markdown(item_description)}"]
+            output += [f"* `{get_name(item)}`"]
+            output += [indent(escape_markdown(item_description))]
         output += [""]
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
-    output += [f"{escape_markdown(description)} {github_link(location)}", ""]
+    output += [escape_markdown(description), github_link(location), ""]
     output += ["```", ""]  # Close py:data directive.
 
     if deprecation_notice:
@@ -295,9 +296,21 @@ def sanitize_name(name: str) -> str:
 
 # ======================================================================================
 def escape_markdown(text: str) -> str:
+    # Code blocks without a language get mistaken for the end of the py:data directive.
+    text = text.replace("\n\n```\n", "\n\n```none\n")
+
+    # Underscores are very common in our docs. Luckily asterisks also work for emphasis.
     text = text.replace("__", "\_\_")
+
+    # Headings mess up the page structure. Please use paragraphs and bold text instead.
     text = text.replace("#", "\#")
+
     return text
+
+
+# ======================================================================================
+def indent(text: str) -> str:
+    return "\n".join(f"  {line}" for line in text.split("\n"))
 
 
 # ======================================================================================
