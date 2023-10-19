@@ -9438,14 +9438,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="STORE_WFN", &
-                          variants=(/"STORE_WAVEFUNCTION"/), &
-                          description="Strore wavefunction in real space representation for integration.", &
-                          usage="STORE_WFN  T", type_of_var=logical_t, &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
                           variants=(/"IOLEVEL"/), &
                           description="How much output is written by the individual groups.", &

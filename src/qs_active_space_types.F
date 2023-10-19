@@ -45,7 +45,6 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                 :: rel_cutoff = 0.0_dp
       REAL(KIND=dp)                 :: eps_grid = 0.0_dp
       INTEGER                       :: print_level = 0
-      LOGICAL                       :: store_wfn = .FALSE.
    END TYPE eri_gpw_type
 
    TYPE eri_type
