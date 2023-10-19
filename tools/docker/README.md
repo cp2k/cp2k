@@ -3,6 +3,8 @@
 This directory hosts docker files for testing and running cp2k.
 The only prerequisite is to [install Docker](https://docs.docker.com/get-docker/).
 
+Check also the [CP2K docker containers for production](https://github.com/cp2k/cp2k/tree/master/tools/docker/production/) and the corresponding [README](https://github.com/cp2k/cp2k/tree/master/tools/docker/production/README.md).
+
 ## Production Images
 
 1. Build the container image:
