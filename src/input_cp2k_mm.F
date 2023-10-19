@@ -48,7 +48,8 @@ MODULE input_cp2k_mm
                                               real_t
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE string_utilities,                ONLY: s2a
+   USE string_utilities,                ONLY: newline,&
+                                              s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1427,8 +1428,7 @@ CONTAINS
                           description="This section specifies the input parameters for QUIP potential type. "// &
                           "Mainly intended for things like GAP corrections to DFT "// &
                           "to achieve correlated-wavefunction-like accuracy. "// &
-                          "Requires linking with quip library from <a href=""http://www.libatoms.org"" "// &
-                          "target=""_blank"">http://www.libatoms.org</a> .", &
+                          "Requires linking with quip library from <http://www.libatoms.org>.", &
                           citations=(/QUIP_ref/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -1481,8 +1481,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="NEQUIP", &
                           description="This section specifies the input parameters for NEQUIP potential type "// &
                           "based on equivariant neural networks with message passing. "// &
-                          "Requires linking with libtorch library from <a href=""https://pytorch.org/cppdocs/installing.html"" "// &
-                          "target=""_blank"">https://pytorch.org/cppdocs/installing.html</a> .", &
+                          "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
                           citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1544,8 +1543,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="ALLEGRO", &
                           description="This section specifies the input parameters for ALLEGRO potential type "// &
                           "based on equivariant neural network potentials. "// &
-                          "Requires linking with libtorch library from <a href=""https://pytorch.org/cppdocs/installing.html"" "// &
-                          "target=""_blank"">https://pytorch.org/cppdocs/installing.html</a> .", &
+                          "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
                           citations=(/Musaelian2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2053,12 +2051,13 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BUCK4RANGES", &
                           description="This section specifies the input parameters for the Buckingham 4-ranges"// &
-                          " potential type."// &
-                          " Functional form:<ul>"// &
-                          " <li>V(r) = A*EXP(-B*r) for r &lt; r<sub>1</sub></li>"// &
-                          " <li>V(r) = Sum_n POLY1(n)*r<sup>n</sup> for r<sub>1</sub> &le; r &lt; r<sub>2</sub></li>"// &
-                          " <li>V(r) = Sum_n POLY2(n)*r<sup>n</sup> for r<sub>2</sub> &le; r &lt; r<sub>3</sub></li>"// &
-                          " <li>V(r) = -C/r<sup>6</sup> for r &ge; r<sub>3</sub></li></ul>", &
+                          " potential type."//newline// &
+                          "| Range | Functional Form |"//newline// &
+                          "| ----- | --------------- |"//newline// &
+                          "| $ r < r_1 $ | $ V(r) = A\exp(-Br) $ |"//newline// &
+                          "| $ r_1 \leq r < r_2 $ | $ V(r) = \sum_n \operatorname{POLY1}(n)r_n $ |"//newline// &
+                          "| $ r_2 \leq r < r_3 $ | $ V(r) = \sum_n \operatorname{POLY2}(n)r_n $ |"//newline// &
+                          "| $ r \geq r_3 $ | $ V(r) = -C/r_6 $ |", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)

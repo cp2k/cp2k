@@ -61,9 +61,8 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="VORONOI", &
                                        description="Controls the Voronoi integration of the total electron density"// &
                                        " for the computation of electromagnetic moments, see [Thomas2015],"// &
-                                       " [Brehm2020], and [Brehm2021] (via LibVori,"// &
-                                       " see <a href=""https://brehm-research.de/voronoi"" target=""_blank"">"// &
-                                       " https://brehm-research.de/voronoi</a> ).", &
+                                       " [Brehm2020], and [Brehm2021]"// &
+                                       " (via LibVori see <https://brehm-research.de/voronoi>).", &
                                        print_level=debug_print_level + 1, filename="", &
                                        citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Brehm2021/))
 
