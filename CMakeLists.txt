@@ -47,13 +47,16 @@ project(
 
 set(cp2k_APIVERSION ${cp2k_VERSION_MAJOR}.${cp2k_VERSION_MINOR})
 
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
+
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
   set(CMAKE_CUDA_STANDARD 11)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
 # set language and standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_C_STANDARD 11)
 
 find_package(PkgConfig)
 
@@ -110,7 +113,6 @@ option(CP2K_USE_SPLA
 option(CP2K_USE_METIS "enable metis library support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
-option(CP2K_BUILD_DBCSR "Duild dbcsr at the same time than cp2k." OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
@@ -119,23 +121,8 @@ cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
                        "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
                        "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
-cmake_dependent_option(CP2K_ENABLE_F08_MPI "Enable MPI Fortran 2008 interface"
-                       OFF "CP2K_USE_MPI" OFF)
-
-cmake_dependent_option(
-  DBCSR_USE_ACCEL
-  "Enable dbcsr gpu support. It will be turned on only if cp2k gpu support is on"
-  ON
-  "CP2K_BUILD_DBCSR"
-  OFF)
-cmake_dependent_option(DBCSR_USE_OPENMP "Enable dbcsr openmp support" OFF
-                       "CP2K_BUILD_DBCSR" OFF)
-cmake_dependent_option(
-  DBCSR_USE_G2G
-  "Enable dbcsr gpu-gpu communication support. It will be turned on only if cp2k gpu support is on"
-  ON
-  "CP2K_BUILD_DBCSR"
-  OFF)
+cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" OFF
+                       "CP2K_USE_MPI" OFF)
 
 cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP
@@ -561,44 +548,7 @@ endif()
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
 find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 
-# CP2K options are prefixed with CP2K_ (namespacing) while dbcsr does not.
-if(NOT CP2K_BUILD_DBCSR)
-  find_package(DBCSR 2.4 REQUIRED)
-else()
-  # replace this with the block command when we update to cmake 3.25
-
-  set(USE_ACCEL "")
-  set(BLAS_LIBRARIES "")
-  set(LAPACK_LIBRARIES "")
-  set(USE_MPI ${CP2K_USE_MPI})
-  set(WITH_EXAMPLES OFF)
-  set(BUILD_TESTING OFF)
-  set(WITH_C_API OFF)
-  set(USE_SMM "")
-  set(USE_OPENMP ON)
-  check_git_submodule(dbcsr "${CMAKE_SOURCE_DIR}/exts/dbcsr")
-  if(DBCSR_USE_ACCEL AND CP2K_USE_ACCEL MATCHES "CUDA|HIP")
-    if(CP2K_USE_ACCEL MATCHES "CUDA")
-      set(USE_ACCEL "cuda")
-    endif()
-    if(CP2K_USE_ACCEL MATCHES "HIP")
-      set(USE_ACCEL "hip")
-    endif()
-    set(WITH_GPU "${CP2K_WITH_GPU}")
-    set(ACC_ARCH_NUMBER "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
-  endif()
-  set(BLAS_LIBRARIES "${CP2K_BLAS_LINK_LIBRARIES}")
-  set(LAPACK_LIBRARIES "${CP2K_LAPACK_LINK_LIBRARIES}")
-  set(USE_MPI ${CP2K_USE_MPI})
-  set(WITH_C_API OFF)
-  if(CP2K_USE_LIBXSMM)
-    set(USE_SMM "libxsmm")
-  endif()
-  set(WITH_G2G ${DBCSR_WITH_G2G})
-  if(DBCSR_USE_OPENMP)
-    set(USE_OPENMP ON)
-  endif()
-endif()
+find_package(DBCSR 2.6 REQUIRED)
 
 # ==================================
 if(CP2K_USE_ELPA)
@@ -693,7 +643,7 @@ if(CP2K_USE_SUPERLU)
   find_package(SuperLU REQUIRED)
 endif()
 
-if(CP2K_USE_PARMETIS)
+if(CP2K_USE_METIS)
   find_package(Metis)
 endif()
 
@@ -755,7 +705,7 @@ add_subdirectory(src)
 include(GNUInstallDirs)
 
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
-configure_file(cmake/cp2k.pc.in cp2k.pc @ONLY)
+configure_file(cmake/libcp2k.pc.in libcp2k.pc @ONLY)
 
 message(
   ""
@@ -998,12 +948,16 @@ write_basic_package_version_file(
 
 configure_file("${PROJECT_SOURCE_DIR}/cmake/cp2kConfig.cmake.in"
                "${PROJECT_BINARY_DIR}/cp2kConfig.cmake" @ONLY)
+
 install(FILES "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
               "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
 
+install(FILES "${PROJECT_BINARY_DIR}/libcp2k.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
 install(
-  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake"
+  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake/modules"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
   FILES_MATCHING
   PATTERN "*.cmake")

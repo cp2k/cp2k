@@ -132,7 +132,7 @@ else
   FC_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
   LD_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
   CFLAGS="${G_CFLAGS} -std=c11 -Wall \$(DFLAGS)"
-  CXXFLAGS="${G_CFLAGS} -std=c11 -Wall \$(DFLAGS)"
+  CXXFLAGS="${G_CFLAGS} -std=c++14 -Wall \$(DFLAGS)"
   FCFLAGS="${FCFLAGS} -diag-disable=8291 -diag-disable=8293 -fpp -fpscomp logicals -free"
 fi
 

@@ -20,33 +20,34 @@ include(FindPackageHandleStandardArgs)
 find_package(PkgConfig)
 find_package(Blas REQUIRED)
 
-if(CP2K_BLAS_FOUND)
-  # LAPACK in the Intel MKL 10+ library?
-  if(CP2K_BLAS_VENDOR MATCHES "MKL|OpenBLAS|Armpl|SCI|FlexiBLAS|NVHPC")
-    # we just need to create the interface that's all
-    set(CP2K_LAPACK_FOUND TRUE)
-    get_target_property(CP2K_LAPACK_INCLUDE_DIRS cp2k::BLAS::blas
-                        INTERFACE_INCLUDE_DIRECTORIES)
-    get_target_property(CP2K_LAPACK_LINK_LIBRARIES cp2k::BLAS::blas
-                        INTERFACE_LINK_LIBRARIES)
-  else()
-    # we might get lucky to find a pkgconfig package for lapack (fedora provides
-    # one for instance)
-    if(PKG_CONFIG_FOUND)
-      pkg_check_modules(CP2K_LAPACK lapack)
-    endif()
+if(NOT CP2K_CONFIG_PACKAGE)
 
-    if(NOT CP2K_LAPACK_FOUND)
-      find_library(
-        CP2K_LAPACK_LINK_LIBRARIES
-        NAMES "lapack" "lapack64"
-        PATH_SUFFIXES "openblas" "openblas64" "openblas-pthread"
-                      "openblas-openmp" "lib" "lib64"
-        NO_DEFAULT_PATH)
+  if(CP2K_BLAS_FOUND)
+    # LAPACK in the Intel MKL 10+ library?
+    if(CP2K_BLAS_VENDOR MATCHES "MKL|OpenBLAS|Armpl|SCI|FlexiBLAS|NVHPC")
+      # we just need to create the interface that's all
+      get_target_property(CP2K_LAPACK_INCLUDE_DIRS cp2k::BLAS::blas
+                          INTERFACE_INCLUDE_DIRECTORIES)
+      get_target_property(CP2K_LAPACK_LINK_LIBRARIES cp2k::BLAS::blas
+                          INTERFACE_LINK_LIBRARIES)
+    else()
+      # we might get lucky to find a pkgconfig package for lapack (fedora
+      # provides one for instance)
+      if(PKG_CONFIG_FOUND)
+        pkg_check_modules(CP2K_LAPACK lapack)
+      endif()
+
+      if(NOT CP2K_LAPACK_FOUND)
+        find_library(
+          CP2K_LAPACK_LINK_LIBRARIES
+          NAMES "lapack" "lapack64"
+          PATH_SUFFIXES "openblas" "openblas64" "openblas-pthread"
+                        "openblas-openmp" "lib" "lib64"
+          NO_DEFAULT_PATH)
+      endif()
     endif()
   endif()
 endif()
-
 # check if found
 find_package_handle_standard_args(Lapack
                                   REQUIRED_VARS CP2K_LAPACK_LINK_LIBRARIES)
@@ -55,6 +56,7 @@ if(NOT TARGET cp2k::LAPACK::lapack)
   add_library(cp2k::LAPACK::lapack INTERFACE IMPORTED)
   add_library(cp2k::LAPACK::LAPACK ALIAS cp2k::LAPACK::lapack)
 endif()
+
 set_property(TARGET cp2k::LAPACK::lapack PROPERTY INTERFACE_LINK_LIBRARIES
                                                   ${CP2K_LAPACK_LINK_LIBRARIES})
 if(CP2K_LAPACK_INCLUDE_DIRS)
@@ -64,5 +66,4 @@ if(CP2K_LAPACK_INCLUDE_DIRS)
 endif()
 
 # prevent clutter in cache
-mark_as_advanced(CP2K_LAPACK_FOUND CP2K_LAPACK_LIBRARIES
-                 CP2K_LAPACK_INCLUDE_DIRS)
+mark_as_advanced(CP2K_LAPACK_LIBRARIES CP2K_LAPACK_INCLUDE_DIRS)
