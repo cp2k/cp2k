@@ -129,8 +129,6 @@ MODULE cp2k_runs
    USE rt_propagation,                  ONLY: rt_prop_setup
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
                                               cp_sirius_init
-   USE string_utilities,                ONLY: html_entity_table,&
-                                              write_html_tables
    USE swarm,                           ONLY: run_swarm
    USE tamc_run,                        ONLY: qs_tamc
    USE tmc_setup,                       ONLY: do_analyze_files,&
@@ -886,7 +884,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_xml_file()
 
-      INTEGER                                            :: i, ie, is, unit_number
+      INTEGER                                            :: i, unit_number
       TYPE(section_type), POINTER                        :: root_section
 
       NULLIFY (root_section)
@@ -897,26 +895,7 @@ CONTAINS
                      file_action="WRITE", &
                      file_status="REPLACE")
 
-      WRITE (UNIT=unit_number, FMT="(A)") &
-         "<?xml version=""1.0"" encoding=""ISO-8859-1""?>", &
-         "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>"
-
-      !MK Write a HTML translation table
-      !MK In principle this is only required for non-standard HTML entities
-      is = 0
-      ie = 0
-      WRITE (UNIT=unit_number, FMT="(A)") &
-         "<!DOCTYPE documentElement["
-      DO i = 1, SIZE(html_entity_table), 2
-         is = INDEX(html_entity_table(i), "&") + 1
-         CPASSERT(is > 0)
-         ie = INDEX(html_entity_table(i), ";") - 1
-         CPASSERT(ie >= is)
-         WRITE (UNIT=unit_number, FMT="(A)") &
-            "<!ENTITY "//html_entity_table(i) (is:ie)//" """//TRIM(html_entity_table(i + 1))//""">"
-      END DO
-      WRITE (UNIT=unit_number, FMT="(A)") &
-         "]>"
+      WRITE (UNIT=unit_number, FMT="(A)") '<?xml version="1.0" encoding="utf-8"?>'
 
       !MK CP2K input structure
       WRITE (UNIT=unit_number, FMT="(A)") &
@@ -928,8 +907,7 @@ CONTAINS
       DO i = 1, root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section, 1, unit_number)
       END DO
-      ! Append HTML entity and tag tables
-      CALL write_html_tables(unit_number)
+
       WRITE (UNIT=unit_number, FMT="(A)") "</CP2K_INPUT>"
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section)
