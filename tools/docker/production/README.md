@@ -1,18 +1,109 @@
 # CP2K docker containers for production
 
-CP2K docker containers are suited for many host systems.
+CP2K docker containers are suited for many host systems. A convenient way to use them is to run such a container with [aApptainer](https://apptainer.org/) which is described in the following sections. Further down, you will find the information how to run and build the containers with [docker](https://docs.docker.com/).
 
-### Prerequisites
+## Apptainer (Singularity)
 
-Install the latest [docker](https://docs.docker.com/get-docker/) version on the host system. Most Linux distributions provide rpm packages for docker.
+It is possible to download and run CP2K docker containers with [Apptainer](https://apptainer.org/) as `.sif` files. Such Apptainer files are especially suited to be run on HPC systems or systems where docker is not installed.
 
-If you do not want to install docker or if you cannot install it, because your computer center does not allow for it, alternatively, you can download the docker containers with **apptainer** (formerly singularity) using
+### Prerequisites for the use of Apptainer
+
+Install the latest [Apptainer](https://apptainer.org/) version as described [here](https://apptainer.org/docs/admin/latest/installation.html#installation-on-linux). Most Linux distributions provide rpm packages for Apptainer.
+
+### Download a CP2K docker container with Apptainer
+
+The CP2K production docker containers available can be found [here](https://hub.docker.com/repository/docker/mkrack/cp2k/tags?page=1&ordering=last_updated). The name of a docker container indicates CP2K version, MPI implementation (MPICH or OpenMPI), CPU target ('generic', `haswell`, or `skylake-avx512`), CUDA support, and cp2k binary version (`psmp` for MPI parallelized with OpenMP support). If you don't know your CPU model, then try the CPU target `generic` (NEHALEM) first:
 
 ```
 apptainer pull docker://mkrack/cp2k:2023.2_mpich_generic_psmp
 ```
 
-After the download make sure that `.sif` file is executable. Use the command `chmod a+x <tag name>.sif` to make the `.sif` file executable. Check the apptainer [README](https://github.com/mkrack/cp2k/tree/master/tools/apptainer/README.md) of CP2K for more details about apptainer, its installation and how to [run](https://github.com/mkrack/cp2k/tree/master/tools/apptainer#run-cp2k-with-apptainer) the `.sif` container files.
+### Run CP2K with Apptainer
+
+Check if the pre-built container runs on your system with
+
+```
+apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -h -v
+```
+
+or simply
+
+```
+cp2k_2023.2_mpich_generic_psmp.sif cp2k -h -v
+```
+
+should work as well, if the `.sif` file is executable. This test should not give any error messages. A warning like `setlocale: LC_ALL: cannot change locale` will disappear when `LC_ALL=C` is set in advance:
+
+```
+LC_ALL=C cp2k_2023.2_mpich_generic_psmp.sif cp2k -h -v
+```
+
+If the `.sif` is not executable, then you can use the command `chmod a+x` to make it executable:
+
+```
+chmod a+x cp2k_2023.2_mpich_generic_psmp.sif
+```
+
+A more extensive testing, a kind of self-test, can be performed with the `run_tests` command
+
+```
+apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif run_tests
+```
+
+which launches a full CP2K regression test run. The test run will use 8 tasks (CPU cores) by default. If you have more or less CPU cores available, you can select anymultiple 4, e.g,
+
+```
+apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif run_tests --maxtasks 32
+```
+
+which will launch 8 instead of 2 workers.
+
+### Running MPI within the container
+
+The MPI of the container can be employed to run CP2K within a compute node, e.g. using 4 MPI ranks and 2 OpenMP threads
+
+```
+apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif mpiexec -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+```
+
+with MPICH and similarly with OpenMPI
+
+```
+apptainer run -B $PWD cp2k_2023.2_openmpi_generic_psmp.sif mpiexec -n 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+```
+
+### Running MPI outside the container
+
+For multi-node runs on HPC cluster systems, it is required to use the MPI of the host system
+
+```
+export OMP_NUM_THREADS=2
+mpiexec -n 4 apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2O-32.inp
+```
+
+to achieve best performance, but incompabilities, e.g. because of proprietary drivers or installations, might disable runing the pre-built container with the host MPI. If the host system has installed SLURM as a scheduler, `srun` can (should) be used instead of `mpiexec` (or `mpirun`)
+
+```
+srun -n 4 apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2O-32.inp
+```
+
+With SLURM, `srun` is usually the proper way to launch a production run in batch mode using a CP2K `sif` file.
+
+### CP2K tools
+
+The containers provide also various CP2K tools like `dumpdcd`, `graph`, and `xyz2dcd`. Run
+
+```
+cp2k_2023.2_mpich_generic_psmp.sif dumpdcd -h
+```
+
+for more information and see below.
+
+## Docker
+
+### Prerequisites for the use of docker
+
+Install the latest [docker](https://docs.docker.com/get-docker/) version on the host system. Most Linux distributions provide rpm packages for docker.
 
 ### Download of pre-built CP2K containers with docker
 
@@ -29,11 +120,10 @@ docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrac
 or
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -v
+docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -h -v
 ```
 
-This test should not give any error messages. A more extensive testing can be performed, if you downloaded a docker container which includes the
-CP2K regression tests. These docker containers are slightly larger, but allow for running a full CP2K regression test with `run_tests`
+This test should not give any error messages. A more extensive testing can be performed with `run_tests`
 
 ```
 docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp run_tests
@@ -44,14 +134,16 @@ docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrac
 The MPI of the container can be employed to run CP2K within a compute node. The containers built with MPICH can be run with
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp mpirun -n 4 -genv OMP_NUM_THREADS=1 cp2k -i H2O-32.inp
+docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp mpirun -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
 
 whereas the containers built with OpenMPI can be run, e.g. using
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_openmpi_generic_psmp mpirun -bind-to none -np 4 -x OMP_NUM_THREADS=1 cp2k -i H2O-32.inp
+docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_openmpi_generic_psmp mpirun -bind-to none -np 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
+
+### Further binaries
 
 All containers provide as further binaries:
 
@@ -66,7 +158,7 @@ All containers provide as further binaries:
 For multi-node runs on HPC cluster systems, it is required to use the MPI of the host system
 
 ```
-export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=2
 mpiexec -n 4 docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -i H2O-32.inp
 ```
 
