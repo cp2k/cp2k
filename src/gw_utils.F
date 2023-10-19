@@ -1065,8 +1065,8 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env)
 
       num_pe = para_env%num_pe
-      ! heuristics: 256 is a square and gives reasonable performance according to tests
-      IF (bs_env%group_size_tensor == -1) bs_env%group_size_tensor = 256
+      ! use all processors for the group by default
+      IF (bs_env%group_size_tensor == -1) bs_env%group_size_tensor = num_pe
       IF (bs_env%group_size_tensor > num_pe) bs_env%group_size_tensor = num_pe
 
       ! group_size_tensor must divide num_pe without rest; otherwise everything will be complicated
