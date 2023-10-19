@@ -548,7 +548,7 @@ endif()
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
 find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 
-find_package(DBCSR 2.5 REQUIRED)
+find_package(DBCSR 2.6 REQUIRED)
 
 # ==================================
 if(CP2K_USE_ELPA)
