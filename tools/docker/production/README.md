@@ -153,24 +153,6 @@ All containers provide as further binaries:
 - `xyz2dcd` (convert `.xyz` files to `.dcd` files and optionally include cell information from CP2K's `.cell` file)
 - `graph` (FES post-processing tool for Metadynamics runs)
 
-### Running MPI outside the container
-
-For multi-node runs on HPC cluster systems, it is required to use the MPI of the host system
-
-```
-export OMP_NUM_THREADS=2
-mpiexec -n 4 docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -i H2O-32.inp
-```
-
-to achieve best performance, but incompabilities, e.g. because of proprietary drivers or installations, might disable runing the pre-built container with the host MPI.
-If the host system has installed SLURM as a scheduler, `srun` can (should) be used instead of `mpirun` (or `mpiexec`)
-
-```
-srun docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -i H2O-32.inp
-```
-
-With SLURM, `srun` is usually the proper way to launch a production run in batch mode.
-
 ### Building your own CP2K docker container
 
 You can build your own CP2K docker container, e.g. using the Docker file `Dockerfile.2023.2_mpich_generic_psmp` for the CP2K version 2023.2, by running
