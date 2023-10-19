@@ -49,7 +49,8 @@ MODULE input_cp2k_mp2
    USE input_val_types,                 ONLY: integer_t,&
                                               real_t
    USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
+   USE string_utilities,                ONLY: newline,&
+                                              s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1804,14 +1805,17 @@ CONTAINS
                        do_potential_mix_cl, &
                        do_potential_id/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
-                       "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li> "// &
-                       "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
-                       "(2*n^2 - 7*n + 9 - 4*s)*(x - Rc)^3/(Rc^4*(n^2 - 2*n + 1)*(n - 1)) + "// &
-                       "(6-3*s - 4*n + n^2)*(x - Rc)^4/(Rc^5*(n^4 - 4*n^3 + 6*n^2 - 4*n + 1)) "// &
-                       "for Rc &lt; x &le; n*Rc (4th order polynomial)</li> "// &
-                       "<li>0 for x &gt; n*Rc</li></ul>", &
-                       "Longrange Coulomb potential: erf(w*r)/r)", &
-                       "Shortrange Coulomb potential: erfc(w*r)/r", &
+                       "| Range | TShPSC |"//newline// &
+                       "| ------- | ------ |"//newline// &
+                       "| $ x \leq R_c $ | $ 1/x - s/R_c $ |"//newline// &
+                       "| $ R_c < x \leq nR_c $ | "// &
+                       "$ (1 - s)/R_c - (x - R_c)/R_c^2 + (x - R_c)^2/R_c^3 - "// &
+                       "(2n^2 - 7n + 9 - 4s)(x - R_c)^3/(R_c^4(n^2 - 2n + 1)(n - 1)) + "// &
+                       "(6-3s - 4n + n^2)(x - R_c)^4/(R_c^5(n^4 - 4n^3 + 6n^2 - 4n + 1)) $ "// &
+                       "(4th order polynomial) | "//newline// &
+                       "| $ x > nR_c $ | $ 0 $ | ", &
+                       "Longrange Coulomb potential: $ \operatorname{erf}(wr)/r $", &
+                       "Shortrange Coulomb potential: $ \operatorname{erfc}(wr)/r $", &
                        "Truncated Coulomb potential", &
                        "Mixed Coulomb/Longrange Coulomb potential", &
                        "Delta potential"), &

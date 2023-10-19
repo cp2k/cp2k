@@ -508,11 +508,12 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
          repeats=.TRUE., type_of_var=lchar_t, &
-         description="<u>xTB atom parameters in standard format</u>"//newline// &
-         "<pre>"//newline// &
+         description="xTB atom parameters in standard format:"//newline//newline// &
+         "```"//newline// &
          "Element symbol  eta  gamma alpha Zeff label kpoly kappa Hen zeta"//newline// &
          "nshell repeat the following block of lines)"//newline// &
-         "label kpoly kappa Hen zeta ")
+         "label kpoly kappa Hen zeta"//newline// &
+         "```")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

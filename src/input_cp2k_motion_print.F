@@ -281,8 +281,8 @@ CONTAINS
             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                           "Write the coordinates (no element labels) and the cell information to a binary file", &
                           "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
-                          "the cell vector <b>a</b> is aligned with the <i>x</i> axis and the cell vector <b>b</b> lies in "// &
-                          "the <i>xy</i> plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
+                          "the cell vector **a** is aligned with the *x* axis and the cell vector **b** lies in "// &
+                          "the *xy* plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
                           "Write the atomic information in PDB format to a formatted file", &
                           "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &
                           "Alias name for XMOL"))

@@ -1102,9 +1102,7 @@ CONTAINS
                           description="Defines the list of atoms for which the velocities are modified. "// &
                           "Each record consists of the atomic index, the velocity vector, and "// &
                           "a weight to define which fraction of the total energy is assigned "// &
-                          "to the current atom: "// &
-                          "<p><tt><big>Atomic_index v<sub>x</sub> v<sub>y</sub> v<sub>z</sub> "// &
-                          "Weight</big></tt></p>", &
+                          "to the current atom: `Atomic_index  v_x  v_y  v_z  Weight`", &
                           usage="{{Integer} {Real} {Real} {Real} {Real}}", &
                           repeats=.TRUE., &
                           type_of_var=lchar_t)

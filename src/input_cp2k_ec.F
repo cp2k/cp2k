@@ -550,10 +550,9 @@ CONTAINS
       ! Output of BQB volumetric files
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_BQB", &
                                        description="Controls the output of the electron density to the losslessly"// &
-                                       " compressed BQB file format, see [Brehm2018] (via LibBQB"// &
-                                       " see <a href=""https://brehm-research.de/bqb"" target=""_blank"">"// &
-                                       " https://brehm-research.de/bqb</a> ). Currently does not work"// &
-                                       "  with changing cell vector (NpT ensemble).", &
+                                       " compressed BQB file format, see [Brehm2018]"// &
+                                       " (via LibBQB see <https://brehm-research.de/bqb>)."// &
+                                       " Currently does not work with changing cell vector (NpT ensemble).", &
                                        print_level=debug_print_level + 1, filename="", &
                                        citations=(/Brehm2018/))
 

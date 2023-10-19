@@ -13,47 +13,47 @@
 ! **************************************************************************************************
 MODULE input_cp2k_subsys
 
-   USE bibliography,                    ONLY: Goedecker1996,&
-                                              Guidon2010,&
-                                              Hartwigsen1998,&
-                                              Krack2005,&
-                                              VandeVondele2005a,&
-                                              VandeVondele2007
-   USE cell_types,                      ONLY: &
-        cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
-        cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
-        cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
-        cell_sym_tetragonal_bc, cell_sym_triclinic, use_perd_none, use_perd_x, use_perd_xy, &
-        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
-   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              medium_print_level
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE input_constants,                 ONLY: &
-        do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cif, do_cell_cp2k, do_cell_xsc, &
-        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
-        do_conn_psf, do_conn_psf_u, do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, &
-        do_coord_g96, do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
-        do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian
-   USE input_cp2k_colvar,               ONLY: create_colvar_section
-   USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              lchar_t,&
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE physcon,                         ONLY: bohr
-   USE string_utilities,                ONLY: newline,&
-                                              s2a
+   USE bibliography, ONLY: Goedecker1996, &
+                           Guidon2010, &
+                           Hartwigsen1998, &
+                           Krack2005, &
+                           VandeVondele2005a, &
+                           VandeVondele2007
+   USE cell_types, ONLY: &
+      cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
+      cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
+      cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
+      cell_sym_tetragonal_bc, cell_sym_triclinic, use_perd_none, use_perd_x, use_perd_xy, &
+      use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+   USE cp_output_handling, ONLY: cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 medium_print_level
+   USE cp_units, ONLY: cp_unit_to_cp2k
+   USE input_constants, ONLY: &
+      do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cif, do_cell_cp2k, do_cell_xsc, &
+      do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
+      do_conn_psf, do_conn_psf_u, do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, &
+      do_coord_g96, do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
+      do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian
+   USE input_cp2k_colvar, ONLY: create_colvar_section
+   USE input_cp2k_mm, ONLY: create_neighbor_lists_section
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              lchar_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE physcon, ONLY: bohr
+   USE string_utilities, ONLY: newline, &
+                               s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -622,7 +622,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The dipole components for each atom in the format: "// &
-                          "<p><tt><big>D<sub>x</sub> D<sub>y</sub> D<sub>z</sub></big></tt></p>", &
+                          "$D_x \ D_y \ D_z$", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(subsection, keyword)
@@ -635,8 +635,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The quadrupole components for each atom in the format: "// &
-                          "<p><big><tt>Q<sub>xx</sub> Q<sub>xy</sub> Q<sub>xz</sub> Q<sub>yy</sub> "// &
-                          "Q<sub>yz</sub> Q<sub>zz</sub></big></tt></p>", &
+                          "$Q_{xx} \ Q_{xy} \ Q_{xz} \ Q_{yy} \ Q_{yz} \ Q_{zz}$", &
                           repeats=.TRUE., usage="{Real} {Real} {Real} {Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=6)
       CALL section_add_keyword(subsection, keyword)
@@ -732,7 +731,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The atomic velocities in the format: "// &
-                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p> "// &
+                          "$ v_x \ v_y \ v_z$ "// &
                           "The same order as for the atomic coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -760,7 +759,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The shell particle velocities in the format: "// &
-                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p> "// &
+                          "$v_x \ v_y \ v_z$ "// &
                           "The same order as for the shell particle coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -788,7 +787,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="The core particle velocities in the format: "// &
-                          "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p> "// &
+                          "$v_x \ v_y \ v_z$ "// &
                           "The same order as for the core particle coordinates is assumed.", &
                           repeats=.TRUE., usage="{Real} {Real} {Real}", &
                           type_of_var=real_t, n_var=3)
@@ -867,8 +866,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
          repeats=.TRUE., type_of_var=lchar_t, &
-         description="<u>CP2K Basis Set Standard Format</u>"//newline// &
-         "<pre>"//newline// &
+         description="CP2K Basis Set Standard Format:"//newline//newline// &
+         "```"//newline// &
          "Element symbol  Name of the basis set  Alias names"//newline// &
          "nset (repeat the following block of lines nset times)"//newline// &
          "n lmin lmax nexp nshell(lmin) nshell(lmin+1) ... nshell(lmax-1) nshell(lmax)"//newline// &
@@ -888,8 +887,7 @@ CONTAINS
          "nshell(l): Number of shells for angular momentum quantum number l"//newline// &
          "a        : Exponent"//newline// &
          "c        : Contraction coefficient"//newline// &
-         "</pre>"//newline// &
-         "Source: ftp://ftp.aip.org/epaps/journ_chem_phys/E-JCPSA6-127-308733/BASIS_MOLOPT_JCP.txt")
+         "```")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -931,10 +929,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The atomic coordinates in the format: "// &
-                          "<p><tt>ATOMIC_KIND  X Y Z  MOLNAME</tt></p> "// &
-                          "The <tt>MOLNAME</tt> is optional. If not provided the molecule name "// &
-                          "is internally created. All other fields after <tt>MOLNAME</tt> are simply ignored.", &
+                          description="The atomic coordinates in the format:"//newline//newline// &
+                          "`ATOMIC_KIND  X Y Z  MOLNAME`"//newline//newline// &
+                          "The `MOLNAME` is optional. If not provided the molecule name "// &
+                          "is internally created. All other fields after `MOLNAME` are simply ignored.", &
                           repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {String}}", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -973,9 +971,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The shell particle coordinates in the format: "// &
-                          "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p> "// &
-                          "The <tt>ATOMIC_INDEX</tt> refers to the atom the shell particle belongs to.", &
+                          description="The shell particle coordinates in the format:"//newline//newline// &
+                          "`ATOMIC_KIND  X Y Z  ATOMIC_INDEX`"//newline//newline// &
+                          "The `ATOMIC_INDEX` refers to the atom the shell particle belongs to.", &
                           repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
@@ -1015,9 +1013,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-                          description="The core particle coordinates in the format: "// &
-                          "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p> "// &
-                          "The <tt>ATOMIC_INDEX</tt> refers to the atom the core particle belongs to.", &
+                          description="The core particle coordinates in the format:"//newline//newline// &
+                          "`ATOMIC_KIND  X Y Z  ATOMIC_INDEX`"//newline//newline// &
+                          "The `ATOMIC_INDEX` refers to the atom the core particle belongs to.", &
                           repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
