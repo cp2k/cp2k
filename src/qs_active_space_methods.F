@@ -1191,7 +1191,7 @@ CONTAINS
 
       INTEGER :: handle, i1, i2, i3, i4, i_multigrid, icount2, intcount, irange(2), isp, isp1, &
          isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb2, iwbs, iwbt, iwfn, n_multigrid, nmm, nmo, &
-         nmo1, nmo2, nspins, nx
+         nmo1, nmo2, nspins, nx, stored_integrals
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eri_index
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
@@ -1369,7 +1369,7 @@ CONTAINS
       CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group%get_handle())
 
       ! calculate the integrals
-      intcount = 0
+      stored_integrals = 0
       DO isp1 = 1, nspins
          CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
          nmm = (nmo1*(nmo1 + 1))/2
@@ -1389,11 +1389,12 @@ CONTAINS
                ! calculate charge distribution and potential
                CALL pw_zero(rho_r)
                CALL pw_multiply(rho_r, wfn1, wfn2)
-               IF (print2 .AND. iw > 0) THEN
-                  ! TODO: this call hangs in parallel
+               IF (print2) THEN
                   erint = pw_integrate_function(rho_r)/dvol
-                  WRITE (iw, "(T4,'ERI_GPW| Integral rho_ab ',T32,2I4,' [',I1,']',T58,G20.14)") &
-                     iwa1, iwa2, isp1, erint
+                  IF (iw > 0) THEN
+                     WRITE (iw, "(T4,'ERI_GPW| Integral rho_ab ',T32,2I4,' [',I1,']',T58,G20.14)") &
+                        iwa1, iwa2, isp1, erint
+                  END IF
                END IF
                CALL pw_transfer(rho_r, rho_g)
                CALL pw_poisson_solve(poisson_env, rho_g, pair_int, pot_g)
@@ -1422,19 +1423,37 @@ CONTAINS
                         DO i4 = iwbt, SIZE(orbitals, 1)
                            iwb2 = orbitals(i4, isp2)
                            wfn4 => wfn_a(iwb2, isp2)
-                           erint = pw_integral_ab(wfn_r, wfn4)
+                           ! We reduce the amount of communication by collecting the local sums first and sum globally later
+                           erint = pw_integral_ab(wfn_r, wfn4, local_only=.TRUE.)
+                           icount2 = icount2 + 1
+                           eri(icount2) = erint
+                           eri_index(icount2) = csr_idx_to_combined(iwb1, iwb2, nmo2)
+                        END DO
+                     END DO
+                     ! Now, we sum the integrals globally
+                     CALL wfn_r%pw_grid%para%group%sum(eri)
+                     ! and we reorder the integrals to prevent storing too small integrals
+                     intcount = 0
+                     icount2 = 0
+                     iwbs = 1
+                     IF (isp1 == isp2) iwbs = i1
+                     isp = (isp1 - 1)*isp2 + (isp2 - isp1 + 1)
+                     DO i3 = iwbs, SIZE(orbitals, 1)
+                        iwb1 = orbitals(i3, isp2)
+                        iwbt = i3
+                        IF (isp1 == isp2 .AND. i1 == i3) iwbt = i2
+                        DO i4 = iwbt, SIZE(orbitals, 1)
+                           iwb2 = orbitals(i4, isp2)
+                           intcount = intcount + 1
+                           erint = eri(intcount)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
-                              intcount = intcount + 1
-                              IF (print2 .AND. iw > 0) THEN
-                                 WRITE (iw, "(T4,'ERI_GPW|',T20,2I4,' [',I1,']',2I4,' [',I1,']',T58,G20.14)") &
-                                    iwa1, iwa2, isp1, iwb1, iwb2, isp2, erint
-                              END IF
                               icount2 = icount2 + 1
                               eri(icount2) = erint
-                              eri_index(icount2) = csr_idx_to_combined(iwb1, iwb2, nmo2)
+                              eri_index(icount2) = eri_index(intcount)
                            END IF
                         END DO
                      END DO
+                     stored_integrals = stored_integrals + icount2
                      !
                      CALL update_csr_matrix(eri_env%eri(isp)%csr_mat, icount2, eri, eri_index, iwa12)
                      !
@@ -1448,7 +1467,7 @@ CONTAINS
       END DO
 
       IF (print1 .AND. iw > 0) THEN
-         WRITE (iw, "(T4,'ERI_GPW|',' Number of Integrals stored ',T68,I10)") intcount
+         WRITE (iw, "(T4,'ERI_GPW|',' Number of Integrals stored ',T68,I10)") stored_integrals
       END IF
 
       DO ispin = 1, nspins
