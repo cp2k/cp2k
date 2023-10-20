@@ -418,18 +418,17 @@ CONTAINS
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
                cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1), nmo, homo(1), mat_munu, &
-               sab_orb_sub, mo_coeff_o(1)%matrix, mo_coeff_v(1)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
-               mp2_env%mp2_memory, calc_ex, blacs_env_sub, &
-               homo(2), mo_coeff_o(2)%matrix, mo_coeff_v(2)%matrix, Eigenval(:, 2), Emp2_AB)
+               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval, nmo, homo, mat_munu, &
+               sab_orb_sub, mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               mp2_env%mp2_memory, calc_ex, blacs_env_sub, Emp2_AB)
 
             ! beta-beta component
             IF (unit_nr > 0) WRITE (unit_nr, *)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Beta (ia|'
             CALL mp2_gpw_compute( &
                Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(2), Eigenval(:, 2), nmo, homo(2), mat_munu, &
-               sab_orb_sub, mo_coeff_o(2)%matrix, mo_coeff_v(2)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               atomic_kind_set, qs_kind_set, mo_coeff(2), Eigenval(:, 2:2), nmo, homo(2:2), mat_munu, &
+               sab_orb_sub, mo_coeff_o(2:2), mo_coeff_v(2:2), mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
 
             ! make order on the MP2 energy contributions
@@ -450,8 +449,8 @@ CONTAINS
             ! closed shell case
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1), nmo, homo(1), mat_munu, &
-               sab_orb_sub, mo_coeff_o(1)%matrix, mo_coeff_v(1)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1:1), nmo, homo(1:1), mat_munu, &
+               sab_orb_sub, mo_coeff_o(1:1), mo_coeff_v(1:1), mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
          END IF
       END IF
