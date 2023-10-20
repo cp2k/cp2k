@@ -89,13 +89,13 @@ one can check eventually if the container works correctly and the GPU usage can 
 The MPI of the container can be employed to run CP2K within a compute node, e.g. using 4 MPI ranks with 2 OpenMP threads each
 
 ```
-apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif mpiexec -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif mpiexec -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
 
 with MPICH and similarly with OpenMPI
 
 ```
-apptainer run -B $PWD:/mnt cp2k_2023.2_openmpi_generic_psmp.sif mpiexec -n 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+apptainer run -B $PWD cp2k_2023.2_openmpi_generic_psmp.sif mpiexec -n 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
 
 ### Running MPI outside the container
@@ -110,7 +110,7 @@ mpiexec -n 4 apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2
 to achieve best performance, but incompabilities, e.g. because of proprietary drivers or installations, might disable runing the pre-built container with the host MPI. If the host system has installed SLURM as a scheduler, `srun` can (should) be used instead of `mpiexec` (or `mpirun`)
 
 ```
-srun -n 4 apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2O-32.inp
+srun -n 4 apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2O-32.inp
 ```
 
 With SLURM, `srun` is usually the proper way to launch a production run in batch mode using a CP2K `sif` file.
