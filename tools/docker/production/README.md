@@ -23,7 +23,7 @@ apptainer pull docker://mkrack/cp2k:2023.2_mpich_generic_psmp
 Check if the pre-built container runs on your system with
 
 ```
-apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -h -v
+apptainer run cp2k_2023.2_mpich_generic_psmp.sif cp2k -h -v
 ```
 
 or simply
@@ -56,20 +56,46 @@ which launches a full [CP2K regression test](https://www.cp2k.org/dev:regtesting
 apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif run_tests --maxtasks 32
 ```
 
-which will launch 8 instead of 2 workers.
+### Running CUDA enabled containers with Apptainer
+
+CUDA enabled containers can be employed on host systems which provide also NVIDIA GPU resources. Pull a CUDA enabled CP2K docker container matching the GPU type of your system, e.g. for Pascal GPUs (P100)
+
+```
+apptainer pull docker://mkrack/cp2k:2023.2_mpich_generic_cuda_P100_psmp
+```
+
+Run the container with the `--nv` flag using the `nvidia-smi` command from the container
+
+```
+apptainer run --nv ./cp2k_2023.2_mpich_generic_cuda_P100_psmp.sif nvidia-smi
+```
+
+and compare its output with the ouput of the `nvidia-smi` command from the host system. These outputs should agree when the container is able to recognize the GPU resources of the host system, correctly. Check also the CUDA version of the host system shown (top right) in the output of `nvidia-smi` command. That CUDA version should match or be newer than the CUDA version installed in the container. Run the command
+
+```
+apptainer run --nv ./cp2k_2023.2_mpich_generic_cuda_P100_psmp.sif nvcc --version
+```
+
+to retrieve the CUDA version of the actual container.  With the `run_tests` command
+
+```
+apptainer run --nv -B $PWD:/mnt ./cp2k_2023.2_mpich_generic_cuda_P100_psmp.sif run_tests
+```
+
+one can check eventually if the container works correctly and the GPU usage can be monitored on the host system with the `nvidia-smi` command while running.
 
 ### Running MPI within the container
 
 The MPI of the container can be employed to run CP2K within a compute node, e.g. using 4 MPI ranks with 2 OpenMP threads each
 
 ```
-apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif mpiexec -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif mpiexec -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
 
 with MPICH and similarly with OpenMPI
 
 ```
-apptainer run -B $PWD cp2k_2023.2_openmpi_generic_psmp.sif mpiexec -n 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+apptainer run -B $PWD:/mnt cp2k_2023.2_openmpi_generic_psmp.sif mpiexec -n 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
 
 ### Running MPI outside the container
@@ -84,7 +110,7 @@ mpiexec -n 4 apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2
 to achieve best performance, but incompabilities, e.g. because of proprietary drivers or installations, might disable runing the pre-built container with the host MPI. If the host system has installed SLURM as a scheduler, `srun` can (should) be used instead of `mpiexec` (or `mpirun`)
 
 ```
-srun -n 4 apptainer run -B $PWD cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2O-32.inp
+srun -n 4 apptainer run -B $PWD:/mnt cp2k_2023.2_mpich_generic_psmp.sif cp2k -i H2O-32.inp
 ```
 
 With SLURM, `srun` is usually the proper way to launch a production run in batch mode using a CP2K `sif` file.
@@ -114,34 +140,50 @@ Pre-built CP2K docker containers can also be downloaded from [Dockerhub](https:/
 Check if the pre-built container runs on your system using docker, e.g. with
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp
+docker run -it --rm mkrack/cp2k:2023.2_mpich_generic_psmp
 ```
 
 or
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -h -v
+docker run -it --rm mkrack/cp2k:2023.2_mpich_generic_psmp cp2k -h -v
 ```
 
 This test should not give any error messages. A more extensive testing can be performed with `run_tests`
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp run_tests
+docker run -it --rm --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp run_tests
 ```
+
+The flag `-it` keeps the interactive terminal attached which allows for an interrupt of the run with `Ctrl-C`. The `--rm` flag removes automatically the created container when it exits.
 
 ### Running MPI within the container
 
 The MPI of the container can be employed to run CP2K within a compute node. The containers built with MPICH can be run with
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp mpirun -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+docker run -it --rm --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_psmp mpirun -n 4 -genv OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
 
 whereas the containers built with OpenMPI can be run, e.g. using
 
 ```
-docker run -it --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_openmpi_generic_psmp mpirun -bind-to none -np 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
+docker run -it --rm --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_openmpi_generic_psmp mpirun -bind-to none -np 4 -x OMP_NUM_THREADS=2 cp2k -i H2O-32.inp
 ```
+
+### Running CUDA enabled docker containers
+
+After pulling a CUDA enabled CP2K docker container, e.g. for Pascal GPUs (P100), similarly to the [section above](#running-cuda-enabled-containers-with-apptainer), the following docker commands will check
+
+```
+docker run -it --rm --gpus all mkrack/cp2k:2023.2_mpich_generic_cuda_P100_psmp nvidia-smi
+
+docker run -it --rm --gpus all mrack/cp2k:2023.2_mpich_generic_cuda_P100_psmp nvcc --version
+
+docker run -it --rm --gpus all --shm-size=1g -v $PWD:/mnt -u $(id -u $USER):$(id -g $USER) mkrack/cp2k:2023.2_mpich_generic_cuda_P100_psmp run_tests
+```
+
+if the container is working correctly.
 
 ### Further binaries
 
