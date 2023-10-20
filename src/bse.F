@@ -1387,15 +1387,17 @@ CONTAINS
 !> \param color_sub ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, fm_mat_Q_static_bse, &
-                                                     fm_mat_Q_static_bse_gemm, &
+   SUBROUTINE mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, &
+                                                     fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                                                     fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                      B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
-                                                     gd_array, color_sub, para_env)
+                                                     gd_array, color_sub, para_env, bse_exact_diag)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                                             fm_mat_S, fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
+      TYPE(cp_fm_type), INTENT(OUT)                       :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
                                                             B_bar_iaQ_bse_local, B_iaQ_bse_local
@@ -1403,14 +1405,14 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      LOGICAL, INTENT(IN)                                :: bse_exact_diag
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mult_B_with_W_and_fill_local_3c_arrays'
 
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type)                                   :: fm_mat_S_bar_ia_bse, &
-                                                            fm_mat_S_bar_ij_bse, fm_mat_work
+      TYPE(cp_fm_type)                                   :: fm_mat_work
 
       CALL timeset(routineN, handle)
 
@@ -1487,8 +1489,12 @@ CONTAINS
       CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, &
                                          dimen_RI, para_env)
 
-      CALL cp_fm_release(fm_mat_S_bar_ia_bse)
-      CALL cp_fm_release(fm_mat_S_bar_ij_bse)
+      !MG: Deallocate fm_mat_S witout bar also here? Such that all cp_fm_releases on 
+      !     fm_mat_S like stuff is done in one chunk?
+      IF (.NOT. bse_exact_diag) THEN
+         CALL cp_fm_release(fm_mat_S_bar_ia_bse)
+         CALL cp_fm_release(fm_mat_S_bar_ij_bse)
+      END IF
 
       CALL cp_fm_release(fm_mat_work)
 
