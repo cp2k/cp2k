@@ -59,17 +59,27 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
+# Install DBCSR.
+WORKDIR /opt/dbcsr
+COPY ./tools/docker/scripts/install_dbcsr.sh .
+RUN ./install_dbcsr.sh
 
-# Install CP2K using CMake.
+# Install CP2K sources.
 WORKDIR /opt/cp2k
 COPY ./src ./src
-COPY ./exts ./exts
+COPY ./data ./data
+COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
-COPY ./tools/docker/scripts/test_cmake.sh .
-RUN ./test_cmake.sh 2>&1 | tee report.log
+# Build CP2K with CMake and run regression tests.
+ARG TESTOPTS=""
+COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
+RUN /bin/bash -o pipefail -c " \
+    TESTOPTS='${TESTOPTS}' \
+    ./test_regtest_cmake.sh |& tee report.log && \
+    rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'

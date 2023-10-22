@@ -50,7 +50,7 @@ def main() -> None:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
     with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
-        f.write(toolchain_full() + install_cp2k_cmake())
+        f.write(toolchain_full() + regtest_cmake())
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -147,6 +147,36 @@ COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
     ./test_regtest.sh '{arch}' '{version}' |& tee report.log && \
+    rm -rf regtesting"
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def regtest_cmake(testopts: str = "") -> str:
+    return (
+        rf"""
+# Install DBCSR.
+WORKDIR /opt/dbcsr
+COPY ./tools/docker/scripts/install_dbcsr.sh .
+RUN ./install_dbcsr.sh
+
+# Install CP2K sources.
+WORKDIR /opt/cp2k
+COPY ./src ./src
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Build CP2K with CMake and run regression tests.
+ARG TESTOPTS="{testopts}"
+COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
+RUN /bin/bash -o pipefail -c " \
+    TESTOPTS='${{TESTOPTS}}' \
+    ./test_regtest_cmake.sh |& tee report.log && \
     rm -rf regtesting"
 """
         + print_cached_report()
@@ -411,26 +441,6 @@ COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
 """
-
-
-# ======================================================================================
-def install_cp2k_cmake() -> str:
-    return (
-        rf"""
-
-# Install CP2K using CMake.
-WORKDIR /opt/cp2k
-COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
-
-COPY ./tools/docker/scripts/test_cmake.sh .
-RUN ./test_cmake.sh 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
 
 
 # ======================================================================================
