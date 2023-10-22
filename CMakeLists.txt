@@ -300,14 +300,14 @@ else()
   set(__cp2k_ext "ssmp")
 endif()
 
-set(__cp2k_cmake_name "cmake_build_cpu")
+set(__cp2k_cmake_name "local")
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
-  set(__cp2k_cmake_name "cmake_build_cuda")
+  set(__cp2k_cmake_name "local_cuda")
 endif()
 
 if(CP2K_USE_ACCEL MATCHES "HIP")
-  set(__cp2k_cmake_name "cmake_build_hip")
+  set(__cp2k_cmake_name "local_hip")
 endif()
 
 # we can run the src consistency checks without actually searching for any
@@ -931,12 +931,9 @@ if(NOT CP2K_USE_LIBTORCH)
 endif()
 
 if(CP2K_ENABLE_REGTESTS OR cp2k_TESTS)
-  message(
-    "\n\n"
-    "To run the regtests you need to run the following commands\n"
-    "\n\n cd ..\n"
-    "tests/do_regtest.py -cp2kdir . -nobuild -version ${__cp2k_cmake_exts} -arch ${__cp2k_cmake_name}\n\n"
-  )
+  message("\n\n" "To run the regtests you need to run the following commands\n"
+          "\n\n cd ..\n"
+          "./tests/do_regtest.py ${__cp2k_cmake_name} ${__cp2k_cmake_exts}\n\n")
 endif()
 
 # files needed for cmake
