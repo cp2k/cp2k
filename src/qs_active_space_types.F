@@ -19,6 +19,7 @@ MODULE qs_active_space_types
    USE dbcsr_api,                       ONLY: dbcsr_csr_destroy,&
                                               dbcsr_csr_p_type,&
                                               dbcsr_p_type
+   USE input_constants,                 ONLY: eri_method_gpw_ht
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -44,6 +45,7 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                 :: cutoff = 0.0_dp
       REAL(KIND=dp)                 :: rel_cutoff = 0.0_dp
       REAL(KIND=dp)                 :: eps_grid = 0.0_dp
+      REAL(KIND=dp)                 :: eps_filter = 0.0_dp
       INTEGER                       :: print_level = 0
    END TYPE eri_gpw_type
 
@@ -233,7 +235,7 @@ CONTAINS
 
       ij = (i - 1)*n - ((i - 1)*(i - 2))/2 + (j - i + 1)
 
-      CPASSERT(ij <= (n*(n + 1))/2)
+      CPASSERT(ij <= (n*(n + 1))/2 .AND. 0 <= ij)
 
    END FUNCTION csr_idx_to_combined
 
@@ -322,8 +324,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)     :: active_orbitals
       INTEGER, OPTIONAL                        :: spin1, spin2
       INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, m1, m2, m3, m4, &
-                                                  irange(2), irptr, nspin, nindex, nmo
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind
+                                                  irange(2), irptr, nspin, nindex, nmo, proc, nonzero_elements_local
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind, offsets, nonzero_elements_global
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
       REAL(KIND=dp)                            :: erint
       TYPE(mp_comm_type) :: mp_group
@@ -338,10 +340,15 @@ CONTAINS
       ASSOCIATE (eri => this%eri(nspin)%csr_mat, norb => this%norb)
          nindex = (norb*(norb + 1))/2
          CALL mp_group%set_handle(eri%mp_group%get_handle())
+         nmo = SIZE(active_orbitals, 1)
+         ! Irrelevant in case of half-transformed integrals
          irange = get_irange_csr(nindex, mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 
-         nmo = SIZE(active_orbitals, 1)
+         IF (this%method == eri_method_gpw_ht) THEN
+            ALLOCATE (offsets(0:mp_group%num_pe - 1), &
+                      nonzero_elements_global(0:mp_group%num_pe - 1))
+         END IF
 
          DO m1 = 1, nmo
             i1 = active_orbitals(m1, spin1)
@@ -349,22 +356,48 @@ CONTAINS
                i2 = active_orbitals(m2, spin1)
                i12 = csr_idx_to_combined(i1, i2, norb)
 
-               IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-                  i12l = i12 - irange(1) + 1
-                  irptr = eri%rowptr_local(i12l)
-                  nindex = eri%nzerow_local(i12l)
-                  colind(1:nindex) = eri%colind_local(irptr:irptr + nindex - 1)
-                  erival(1:nindex) = eri%nzval_local%r_dp(irptr:irptr + nindex - 1)
-               ELSE
-                  erival = 0.0_dp
-                  colind = 0
-                  nindex = 0
-               END IF
+               IF (this%method == eri_method_gpw_ht) THEN
+                  ! In case of half-transformed integrals, every process might carry integrals of a row
+                  ! The number of integrals varies between processes and rows (related to the randomized
+                  ! distribution of matrix blocks)
 
-               CALL mp_group%sum(nindex)
-               CALL mp_group%sum(colind(1:nindex))
-               CALL mp_group%sum(erival(1:nindex))
-               CALL mp_group%sync()
+                  ! 1) Collect the amount of local data from each process
+                  nonzero_elements_local = eri%nzerow_local(i12)
+                  CALL mp_group%allgather(nonzero_elements_local, nonzero_elements_global)
+
+                  ! 2) Prepare arrays for communication (calculate the offsets and the total number of elements)
+                  offsets(0) = 0
+                  DO proc = 1, mp_group%num_pe - 1
+                     offsets(proc) = offsets(proc - 1) + nonzero_elements_global(proc - 1)
+                  END DO
+                  nindex = offsets(mp_group%num_pe - 1) + nonzero_elements_global(mp_group%num_pe - 1)
+                  irptr = eri%rowptr_local(i12)
+
+                  ! Exchange actual data
+                  CALL mp_group%allgatherv(eri%colind_local(irptr:irptr + nonzero_elements_local - 1), &
+                                           colind(1:nindex), nonzero_elements_global, offsets)
+                  CALL mp_group%allgatherv(eri%nzval_local%r_dp(irptr:irptr + nonzero_elements_local - 1), &
+                                           erival(1:nindex), nonzero_elements_global, offsets)
+               ELSE
+                  ! Here, the rows are distributed among the processes such that each process
+                  ! carries all integral of a set of rows
+                  IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
+                     i12l = i12 - irange(1) + 1
+                     irptr = eri%rowptr_local(i12l)
+                     nindex = eri%nzerow_local(i12l)
+                     colind(1:nindex) = eri%colind_local(irptr:irptr + nindex - 1)
+                     erival(1:nindex) = eri%nzval_local%r_dp(irptr:irptr + nindex - 1)
+                  ELSE
+                     erival = 0.0_dp
+                     colind = 0
+                     nindex = 0
+                  END IF
+
+                  ! Thus, a simple summation is sufficient
+                  CALL mp_group%sum(nindex)
+                  CALL mp_group%sum(colind(1:nindex))
+                  CALL mp_group%sum(erival(1:nindex))
+               END IF
 
                DO i34l = 1, nindex
                   i34 = colind(i34l)

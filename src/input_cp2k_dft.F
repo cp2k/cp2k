@@ -9394,7 +9394,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_INTEGRAL", &
          description="Accuracy of ERIs that will be stored.", &
-         usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
+         usage="EPS_INTEGRAL 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -9420,6 +9420,14 @@ CONTAINS
                           description="Determines a threshold for the GPW based integration", &
                           usage="EPS_GRID 1.0E-9 ", type_of_var=real_t, &
                           default_r_val=1.0E-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          description="Determines a threshold for the sparse matrix multiplications if METHOD "// &
+                          "GPW_HALF_TRANSFORM is used", &
+                          usage="EPS_FILTER 1.0E-9 ", type_of_var=real_t, &
+                          default_r_val=1.0E-9_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
