@@ -932,8 +932,7 @@ endif()
 
 if(CP2K_ENABLE_REGTESTS OR cp2k_TESTS)
   message("\n\n" "To run the regtests you need to run the following commands\n"
-          "\n\n cd ..\n"
-          " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
+          "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
           " ./tests/do_regtest.py ${__cp2k_cmake_name} ${__cp2k_ext}\n\n")
 endif()
 
