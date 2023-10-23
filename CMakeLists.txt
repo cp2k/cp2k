@@ -580,6 +580,7 @@ endif()
 
 # FFTW3
 
+# we set this variable to ON when we want fftw3 support (with or without MKL).
 set(CP2K_USE_FFTW3_ OFF)
 if(CP2K_USE_FFTW3)
   if(NOT TARGET cp2k::BLAS::MKL::MKL OR CP2K_USE_FFTW3_WITH_MKL)
