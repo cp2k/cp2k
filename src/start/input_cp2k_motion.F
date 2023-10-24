@@ -1758,7 +1758,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="GAMMA", &
                           description="mass scale factor for non-centroid degrees of freedom, &
-&                                       naming convention according to Witt, 2008, doi.org/10.1063/1.3125009", &
+&                                       naming convention according to Witt, 2008, <https://doi.org/10.1063/1.3125009>.", &
                           repeats=.FALSE., default_r_val=8.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1879,7 +1879,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MATRICES_FILE_NAME", &
                           description="Filename containig the raw matrices from "// &
-                          "https://gle4md.org/index.html?page=matrix", &
+                          "<https://gle4md.org/index.html?page=matrix>.", &
                           repeats=.FALSE., default_lc_val="PIGLET.MAT")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

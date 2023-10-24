@@ -60,7 +60,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TRANSPORT", &
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
-                          "see also http://www.nano-tcad.ethz.ch/ ", &
+                          "see also <https://nano-tcad.ee.ethz.ch>.", &
                           citations=(/Bruck2014/), &
                           n_keywords=29, n_subsections=4, repeats=.FALSE.)
 

@@ -2057,7 +2057,7 @@ CONTAINS
                           "| $ r < r_1 $ | $ V(r) = A\exp(-Br) $ |"//newline// &
                           "| $ r_1 \leq r < r_2 $ | $ V(r) = \sum_n \operatorname{POLY1}(n)r_n $ |"//newline// &
                           "| $ r_2 \leq r < r_3 $ | $ V(r) = \sum_n \operatorname{POLY2}(n)r_n $ |"//newline// &
-                          "| $ r \geq r_3 $ | $ V(r) = -C/r_6 $ |", &
+                          "| $ r \geq r_3 $ | $ V(r) = -C/r_6 $ |"//newline, &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)

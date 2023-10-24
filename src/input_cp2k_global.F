@@ -663,7 +663,7 @@ CONTAINS
                           enum_c_vals=s2a("SCALAPACK", "PDGEMM", "COSMA"), &
                           enum_desc=s2a("Standard ScaLAPACK pdgemm", &
                                         "Alias for ScaLAPACK", &
-                                        "COSMA is employed. See https://github.com/eth-cscs/COSMA."))
+                                        "COSMA is employed. See <https://github.com/eth-cscs/COSMA>."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
