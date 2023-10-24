@@ -1806,14 +1806,14 @@ CONTAINS
                        do_potential_id/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "| Range | TShPSC |"//newline// &
-                       "| ------- | ------ |"//newline// &
+                       "| ----- | ------ |"//newline// &
                        "| $ x \leq R_c $ | $ 1/x - s/R_c $ |"//newline// &
                        "| $ R_c < x \leq nR_c $ | "// &
                        "$ (1 - s)/R_c - (x - R_c)/R_c^2 + (x - R_c)^2/R_c^3 - "// &
                        "(2n^2 - 7n + 9 - 4s)(x - R_c)^3/(R_c^4(n^2 - 2n + 1)(n - 1)) + "// &
                        "(6-3s - 4n + n^2)(x - R_c)^4/(R_c^5(n^4 - 4n^3 + 6n^2 - 4n + 1)) $ "// &
                        "(4th order polynomial) | "//newline// &
-                       "| $ x > nR_c $ | $ 0 $ | ", &
+                       "| $ x > nR_c $ | $ 0 $ | "//newline, &
                        "Longrange Coulomb potential: $ \operatorname{erf}(wr)/r $", &
                        "Shortrange Coulomb potential: $ \operatorname{erfc}(wr)/r $", &
                        "Truncated Coulomb potential", &

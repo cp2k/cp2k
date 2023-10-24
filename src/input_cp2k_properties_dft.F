@@ -2001,8 +2001,8 @@ CONTAINS
                           "electronic level energies of molecules and the band structure of "// &
                           "materials (currently only 2D materials tested). For the GW "// &
                           "algorithm for molecules, see "// &
-                          "[https://doi.org/10.1021/acs.jctc.0c01282]. "// &
-                          "For 2D materials, see [http://arxiv.org/abs/2306.16066].", &
+                          "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
+                          "For 2D materials, see <http://arxiv.org/abs/2306.16066>.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2021,8 +2021,8 @@ CONTAINS
                           "for 0.1 eV precision of band structures and molecular energy "// &
                           "levels, 20 points for 0.03 eV precision, "// &
                           "and 30 points for 0.01 eV precision, see Table I in "// &
-                          "[https://doi.org/10.1021/acs.jctc.0c01282]. GW computation time "// &
-                          "increases linearly with NUM_TIME_FREQ_POINTS.", &
+                          "<https://doi.org/10.1021/acs.jctc.0c01282>. GW computation time "// &
+                          "increases linearly with `NUM_TIME_FREQ_POINTS`.", &
                           usage="NUM_TIME_FREQ_POINTS 30", &
                           default_i_val=30)
       CALL section_add_keyword(section, keyword)
@@ -2138,7 +2138,7 @@ CONTAINS
                           description="Switch on or off spin-orbit coupling. Use SOC "// &
                           "parameters from non-local pseudopotentials as given in "// &
                           "Hartwigsen, Goedecker, Hutter, Eq.(18), (19) "// &
-                          "(doi.org/10.1103/PhysRevB.58.3641), "// &
+                          "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
                           "V^SOC_µν^(α) = ħ/2 < ϕ_µ | sum_ℓ ΔV_ℓ^SO(r,r') L^(α) | ϕ_ν >, "// &
                           "α = x, y, z.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)

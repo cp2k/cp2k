@@ -482,7 +482,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="population", &
                           description="Section to define the population of specie as a collective variable. "// &
-                          "See also https://doi.org/10.1021/jp3019588", &
+                          "See also <https://doi.org/10.1021/jp3019588>.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
