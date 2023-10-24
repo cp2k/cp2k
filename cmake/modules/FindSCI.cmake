@@ -98,7 +98,6 @@ if(CP2K_LIBSCI_FOUND)
   endif()
 
   set(CP2K_BLAS_VENDOR "SCI")
-
 endif()
 
 # prevent clutter in cache
