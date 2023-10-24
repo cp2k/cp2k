@@ -63,10 +63,7 @@ def build_bibliography(references_html_fn: str, output_dir: Path) -> None:
         else:
             output += [f"{authors} **{title}** _{ref}_", ""]
 
-    # Write output
-    filename = output_dir / "bibliography.md"
-    filename.write_text("\n".join(output))
-    print(f"Wrote {filename}")
+    write_file(output_dir / "bibliography.md", "\n".join(output))
 
 
 # ======================================================================================
@@ -97,10 +94,8 @@ def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
     output += [":glob:", ""]
     output += ["CP2K_INPUT/*", ""]
 
-    # Write output
-    filename = output_dir / "CP2K_INPUT.md"  # Overwrite generic file.
-    filename.write_text("\n".join(output))
-    print(f"Wrote markdown files for {num_files_written} input sections.")
+    write_file(output_dir / "CP2K_INPUT.md", "\n".join(output))  # Replace generic file.
+    print(f"Generated markdown files for {num_files_written} input sections.")
 
 
 # ======================================================================================
@@ -174,8 +169,7 @@ def process_section(
     # Write output
     section_dir = output_dir / "/".join(section_path[:-1])
     section_dir.mkdir(exist_ok=True)
-    filename = section_dir / f"{section_name}.md"
-    filename.write_text("\n".join(output))
+    write_file(section_dir / f"{section_name}.md", "\n".join(output))
     num_files_written = 1
 
     # Process subsections
@@ -323,7 +317,14 @@ def github_link(location: str) -> str:
 
 
 # ======================================================================================
+def write_file(filename: Path, content: str) -> None:
+    old_content = filename.read_text() if filename.exists() else None
+    if old_content != content:
+        filename.write_text(content)
+        print(f"Wrote {filename}")
 
+
+# ======================================================================================
 main()
 
 # EOF
