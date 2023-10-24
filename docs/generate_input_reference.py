@@ -127,7 +127,7 @@ def process_section(
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
-    output += [f"{escape_markdown(description)} {github_link(location)}", ""]
+    output += [escape_markdown(description), github_link(location), ""]
 
     # Collect and sort subsections.
     subsections = sorted(section.findall("SECTION"), key=get_name)
