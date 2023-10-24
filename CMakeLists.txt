@@ -583,7 +583,7 @@ endif()
 # we set this variable to ON when we want fftw3 support (with or without MKL).
 set(CP2K_USE_FFTW3_ OFF)
 if(CP2K_USE_FFTW3)
-  if(NOT TARGET cp2k::BLAS::MKL::MKL OR CP2K_USE_FFTW3_WITH_MKL)
+  if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
     find_package(Fftw REQUIRED)
     if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
       message(
