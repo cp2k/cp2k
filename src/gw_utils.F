@@ -207,10 +207,7 @@ CONTAINS
 
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
-      CALL section_vals_val_get(gw_sec, "SIZE_LATTICE_SUM_V", i_val=bs_env%size_lattice_sum_V)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", i_val=bs_env%input_memory_per_proc_GB)
-      CALL section_vals_val_get(gw_sec, "GROUP_SIZE_TENSOR", i_val=bs_env%group_size_tensor)
-      CALL section_vals_val_get(gw_sec, "KPOINTS_CHI_EPS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
 
       CALL timestop(handle)
@@ -324,12 +321,8 @@ CONTAINS
 
          CPASSERT(periodic(i_dim) == 0 .OR. periodic(i_dim) == 1)
 
-         IF (bs_env%nkp_grid_chi_eps_W_input(i_dim) < 0) THEN
-            IF (periodic(i_dim) == 1) nkp_grid(i_dim) = 4
-            IF (periodic(i_dim) == 0) nkp_grid(i_dim) = 1
-         ELSE
-            nkp_grid(i_dim) = bs_env%nkp_grid_chi_eps_W_input(i_dim)
-         END IF
+         IF (periodic(i_dim) == 1) nkp_grid(i_dim) = 4
+         IF (periodic(i_dim) == 0) nkp_grid(i_dim) = 1
 
          IF (periodic(i_dim) == 1) THEN
             ! only even k-meshes in periodic direction implemented
@@ -397,7 +390,7 @@ CONTAINS
          WRITE (UNIT=u, FMT="(T2,1A,T71,3I4)") "K-point mesh 1 for χ, ε, W", nkp_grid(1:3)
          WRITE (UNIT=u, FMT="(T2,2A,T71,3I4)") "K-point mesh 2 for χ, ε, W ", &
             "(for k-point extrapolation of W)", nkp_grid_extra(1:3)
-         WRITE (UNIT=u, FMT="(T2,A,T80,L)") "Approximate the k-point extrapolation", &
+         WRITE (UNIT=u, FMT="(T2,A,T79,L)") "Approximate the k-point extrapolation", &
             bs_env%approx_kp_extrapol
       END IF
 
@@ -1065,9 +1058,9 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env)
 
       num_pe = para_env%num_pe
-      ! use all processors for the group by default
-      IF (bs_env%group_size_tensor == -1) bs_env%group_size_tensor = num_pe
-      IF (bs_env%group_size_tensor > num_pe) bs_env%group_size_tensor = num_pe
+      ! use all processors for the group (in principle, number could be changed, but performance
+      ! seems to be best for a single group with all MPI processes per group)
+      bs_env%group_size_tensor = num_pe
 
       ! group_size_tensor must divide num_pe without rest; otherwise everything will be complicated
       IF (MODULO(num_pe, bs_env%group_size_tensor) .NE. 0) THEN
@@ -1266,6 +1259,11 @@ CONTAINS
       ! use the same threshold for computing 3-center integrals (µν|P) as for filtering
       ! tensor operations
       bs_env%eps_3c_int = bs_env%eps_filter
+
+      ! Determines number of cells used for summing the cells R in the Coulomb matrix,
+      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 4 gives
+      ! excellent convergence
+      bs_env%size_lattice_sum_V = 4
 
       ! for generating numerically stable minimax Fourier integration weights
       bs_env%num_points_per_magnitude = 200

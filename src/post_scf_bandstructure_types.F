@@ -90,8 +90,7 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), DIMENSION(2)                     :: e_fermi = -1.0_dp
 
       ! kpoint mesh for chi, eps, W
-      INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_chi_eps_W_input => NULL(), &
-                                                         nkp_grid_DOS_input => NULL()
+      INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_DOS_input => NULL()
       INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig = -1, &
                                                          nkp_grid_chi_eps_W_extra = -1
       INTEGER                                         :: nkp_chi_eps_W_orig = -1, &

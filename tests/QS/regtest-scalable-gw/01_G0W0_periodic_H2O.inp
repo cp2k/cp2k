@@ -10,6 +10,7 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME  ./REGTEST_BASIS_H_O_I
     SORT_BASIS EXP
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
@@ -36,7 +37,6 @@
     &BANDSTRUCTURE
       &GW
         NUM_TIME_FREQ_POINTS 6
-        SIZE_LATTICE_SUM_V 3
       &END
       &DOS
         KPOINTS 1 2 2
@@ -50,13 +50,13 @@
       PERIODIC YZ
     &END CELL
     &KIND H
-      BASIS_SET ORB        DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET ORB    DZVP-GTH
+      BASIS_SET RI_AUX RI-dummy-regtest
       POTENTIAL        GTH-PBE-q1
     &END KIND
     &KIND O
-      BASIS_SET ORB        DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET ORB    DZVP-GTH
+      BASIS_SET RI_AUX RI-dummy-regtest
       POTENTIAL        GTH-PBE-q6
     &END KIND
     &TOPOLOGY
