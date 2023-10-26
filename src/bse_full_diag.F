@@ -72,7 +72,7 @@ MODULE bse_full_diag
                                                                nrow_local_W, ncol_local_W, &
                                                                i_occ_row, a_virt_row, &
                                                                j_occ_col, b_virt_col
-        TYPE(cp_blacs_env_type), POINTER                    :: blacs_env, blacs_env_RPA
+        TYPE(cp_blacs_env_type), POINTER                    :: blacs_env
         TYPE(cp_fm_struct_type), POINTER                    :: fm_struct_A,fm_struct_W,fm_struct_V
         TYPE(cp_fm_type)                                    :: fm_mat_A, fm_mat_W, fm_mat_V
         INTEGER, DIMENSION(:), POINTER                      :: col_indices_A, row_indices_A, &
@@ -124,8 +124,11 @@ MODULE bse_full_diag
                             col_indices=col_indices_W)
 
         
-        !print *,"MG: on proc",para_env%mepos,"indices row",row_indices_A
-        !print *,"MG: on proc",para_env%mepos,"indices col",col_indices_A
+        print *,"MG:A on proc",para_env%mepos,"indices row",row_indices_A
+        print *,"MG:A on proc",para_env%mepos,"indices col",col_indices_A
+
+        print *,"MG:W on proc",para_env%mepos,"indices row",row_indices_W
+        print *,"MG:W on proc",para_env%mepos,"indices col",col_indices_W
         
 
         !Create A matrix from GW Energies, v_iajb and W_ijab (different blacs_env!)
@@ -133,42 +136,47 @@ MODULE bse_full_diag
         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_V)
-                         
+        
+        !print *,"MG: ",para_env%mepos,"is finished after pgemm V"
         CALL cp_fm_write_formatted(fm_mat_V,unit_nr,"MG: print full V in fulldiag")
 
+        !print *,"MG: ",para_env%mepos,"is finished before pgemm W"
+        CALL cp_fm_write_formatted(fm_mat_S_bar_ij_bse,unit_nr,"MG: print full S_ij_bar in fulldiag")
+        CALL cp_fm_write_formatted(fm_mat_S_ab_bse,unit_nr,"MG: print full fm_mat_S_ab_bse in fulldiag")
         !W_ijab
         CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
                          
+        !print *,"MG: ",para_env%mepos,"is finished after pgemm W"
         CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: print full W in fulldiag")
 
         !A_iajb
-        DO ii=1,nrow_local_A
-            DO jj=1,ncol_local_A
-                !Take indices for (un-)occ. orbitals from combined index ia=row_indices_A(ii)
-                i_occ_row = (row_indices_A(ii)-1)/virtual+1
-                a_virt_row = MOD(row_indices_A(ii)-1,virtual)+1
-                j_occ_col = (col_indices_A(jj)-1)/virtual+1
-                b_virt_col = MOD(col_indices_A(jj)-1,virtual)+1
-                !Get contributions from fm_mat_V and fm_mat_W
-                fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + alpha*fm_mat_V%local_data(ii,jj)
-                !Take care of different indices in A and W
-                fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) &
-                                    - fm_mat_W%local_data(i_occ_row*j_occ_col,a_virt_row*b_virt_col)
+        ! DO ii=1,nrow_local_A
+        !     DO jj=1,ncol_local_A
+        !         !Take indices for (un-)occ. orbitals from combined index ia=row_indices_A(ii)
+        !         i_occ_row = (row_indices_A(ii)-1)/virtual+1
+        !         a_virt_row = MOD(row_indices_A(ii)-1,virtual)+1
+        !         j_occ_col = (col_indices_A(jj)-1)/virtual+1
+        !         b_virt_col = MOD(col_indices_A(jj)-1,virtual)+1
+        !         !Get contributions from fm_mat_V and fm_mat_W
+        !         fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + alpha*fm_mat_V%local_data(ii,jj)
+        !         !Take care of different indices in A and W
+        !         fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) &
+        !                             - fm_mat_W%local_data(i_occ_row*j_occ_col,a_virt_row*b_virt_col)
                 
 
-                !fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + fm_mat_W
+        !         !fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + fm_mat_W
 
-                !Add energy differences on diagonal
-                IF (row_indices_A(ii) == col_indices_A(jj)) THEN 
-                    !print *, "MG: ia, i_occ_row, a_virt_row", row_indices_A(ii), i_occ_row, a_virt_row
-                    eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
-                    fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + eigen_diff
-                END IF
+        !         !Add energy differences on diagonal
+        !         IF (row_indices_A(ii) == col_indices_A(jj)) THEN 
+        !             !print *, "MG: ia, i_occ_row, a_virt_row", row_indices_A(ii), i_occ_row, a_virt_row
+        !             eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
+        !             fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + eigen_diff
+        !         END IF
 
-            END DO
-        END DO
+        !     END DO
+        ! END DO
 
 
         CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: print full A in fulldiag")
