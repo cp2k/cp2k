@@ -1947,7 +1947,7 @@ CONTAINS
                           "for the primitive cell (i.e. the smallest possible unit cell of "// &
                           "the input structure which is detected automatically). Moreover, "// &
                           "spin-orbit coupling (SOC) on eigenvalues and band structures is "// &
-                          "computed automatically using Hartwigsen-Goedecker-Hutter "// &
+                          "available using Hartwigsen-Goedecker-Hutter "// &
                           "pseudopotentials.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -2030,7 +2030,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Determines a threshold for the DBCSR based sparse "// &
-                          "multiplications. Normally, this EPS_FILTER determines accuracy "// &
+                          "multiplications. Normally, `EPS_FILTER` determines accuracy "// &
                           "and timing of low-scaling GW calculations. (Lower filter means "// &
                           "higher numerical precision, but higher computational cost.)", &
                           usage="EPS_FILTER 1.0E-6", &
@@ -2038,24 +2038,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM_V", &
-                          description="Determines number of cells used for summing the "// &
-                          "cells R in the Coulomb matrix, "// &
-                          "V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 4 "// &
-                          "gives excellent convergence, parameter does not need to be touched.", &
-                          usage="SIZE_LATTICE_SUM_V 4", &
-                          default_i_val=4)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
                           description="Specify the available memory per MPI process. Set "// &
-                          "this number as accurately as possible for good performance. If "// &
-                          "'MEMORY_PER_PROC' is set lower as the actually available "// &
+                          "`MEMORY_PER_PROC` as accurately as possible for good performance. If "// &
+                          "`MEMORY_PER_PROC` is set lower as the actually available "// &
                           "memory per MPI process, the performance will be "// &
-                          "bad; if 'MEMORY_PER_PROC' is set higher as the actually "// &
+                          "bad; if `MEMORY_PER_PROC` is set higher as the actually "// &
                           "available memory per MPI process, the program might run out of "// &
-                          "memory. You can calculate 'MEMORY_PER_PROC' as follows: "// &
+                          "memory. You can calculate `MEMORY_PER_PROC` as follows: "// &
                           "Get the memory per node on your machine, mem_per_node "// &
                           "(for example, from a supercomputer website, typically between "// &
                           "100 GB and 2 TB), get the number of "// &
@@ -2063,43 +2053,18 @@ CONTAINS
                           " (for example from your run-script; if you "// &
                           "use slurm, the number behind '--ntasks-per-node' is the number "// &
                           "of MPI processes per node). Then calculate "// &
-                          "MEMORY_PER_PROC = mem_per_node / n_MPI_proc_per_node "// &
+                          "`MEMORY_PER_PROC` = mem_per_node / n_MPI_proc_per_node "// &
                           "(typically between 2 GB and 50 GB). Unit of keyword: Gigabyte (GB).", &
                           usage="MEMORY_PER_PROC 16", &
                           default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_TENSOR", &
-                          description="Specify the number of MPI processes for a group "// &
-                          "performing tensor operations. If '-1', automatic choice which "// &
-                          "should be good enough for most cases.", &
-                          usage="GROUP_SIZE_TENSOR 16", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="KPOINTS_CHI_EPS_W", &
-         description="Monkhorst-Pack k-point mesh of size N_x, N_y, N_z "// &
-         "for the polarizability χ, the dielectric function ε and the screened "// &
-         "Coulomb interaction W.Automatic choice of the k-point mesh for negative "// &
-         "values, e.g. KPOINTS_CHI_EPS_W -1 -1 -1, which should be good enough in "// &
-         "almost all cases. Only even k-point meshes "// &
-         "implemented. For non-periodic directions α, choose N_α = 1. "// &
-         "The N_x, N_y, N_z mesh and a N_x+2, N_y+2, N_z+2 mesh is used for "// &
-         "extrapolating the k-point integration of the screened Coulomb "// &
-         "interaction. Automatic choice of the k-point mesh for negative "// &
-         "values, e.g. KPOINTS_CHI_EPS_W -1 -1 -1.", &
-         usage="KPOINTS_CHI_EPS_W  N_x  N_y  N_z", &
-         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="APPROX_KP_EXTRAPOL", &
-                          description="If true, use only a 2x2 kpoint mesh for frequency "// &
-                          "points ω_j, j >= 2, and get the k-point extrapolation of "// &
-                          "W_PQ(iω_j,q) approximately from W_PQ(iω_1,q).", &
+                          description="If true, use only a 4x4 kpoint mesh for frequency "// &
+                          "points $\omega_j, j >= 2$ (instead of a 4x4 and 6x6 k-point mesh). "// &
+                          "The k-point extrapolation of $W_{PQ}(i\omega_j,\mathbf{q})$ "// &
+                          "is done approximately from $W_{PQ}(i\omega_1,\mathbf{q})$.", &
                           usage="APPROX_KP_EXTRAPOL", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -2137,10 +2102,12 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="SOC", &
                           description="Switch on or off spin-orbit coupling. Use SOC "// &
                           "parameters from non-local pseudopotentials as given in "// &
-                          "Hartwigsen, Goedecker, Hutter, Eq.(18), (19) "// &
+                          "Hartwigsen, Goedecker, Hutter, Eq.(18), (19), "// &
                           "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
-                          "V^SOC_µν^(α) = ħ/2 < ϕ_µ | sum_ℓ ΔV_ℓ^SO(r,r') L^(α) | ϕ_ν >, "// &
-                          "α = x, y, z.", &
+                          "$V_{\mu\nu}^{\mathrm{SOC}, (\alpha)} = "// &
+                          "(\hbar/2) \langle \phi_\mu | \sum_l \Delta "// &
+                          "V_l^\mathrm{SO}(\mathbf{r},\mathbf{r}') L^{(\alpha)} | \phi_\nu \rangle, "// &
+                          "\alpha = x, y, z$.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2154,9 +2121,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Apply SOC only for states with eigenvalues in the "// &
-                          "interval [ε_VBM-E_window/2, ε_CBM+E_window/2]. Might be necessary "// &
-                          "to use for large systems to prevent problems that arise due to "// &
-                          "the non-selfconsistent nature of the SOC.", &
+                          "interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2, "// &
+                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$. Might be necessary "// &
+                          "to use for large systems to prevent numerical instabilities.", &
                           usage="ENERGY_WINDOW 5.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="eV"), &
                           unit_str="eV")
@@ -2193,7 +2160,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Print DOS and PDOS in the energy window "// &
-                          "[ε_VBM-E_window/2, ε_CBM+E_window/2], where VBM is the valence "// &
+                          "$[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2,  "// &
+                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$,"// &
+                          " where VBM is the valence "// &
                           "band maximum (or highest occupied molecular orbital, HOMO, for "// &
                           "molecules) and CBM the conduction band minimum (or lowest "// &
                           "unoccupied molecular orbital, LUMO, for molecules).", &
@@ -2213,7 +2182,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
                           description="Broadening α in Gaussians used in the DOS; "// &
-                          "DOS(E) = sum_n 1/(α sqrt(2π)) exp(((E-ε_n)/α)^2).", &
+                          "$\mathrm{DOS}(E) = "// &
+                          "\sum_n \exp(((E-\varepsilon_n)/\alpha)^2)/("// &
+                          " \sqrt{2\pi} \alpha)$.", &
                           usage="BROADENING 0.01", &
                           default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"), &
                           unit_str="eV")
