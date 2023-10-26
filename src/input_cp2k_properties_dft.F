@@ -2105,8 +2105,8 @@ CONTAINS
                           "Hartwigsen, Goedecker, Hutter, Eq.(18), (19), "// &
                           "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
                           "$V_{\mu\nu}^{\mathrm{SOC}, (\alpha)} = "// &
-                          "\hbar/2 \langle \phi_\mu | \sum_l \Delta "// &
-                          "V_l^\mathrm{SO}(\mathbr{r},\mathbf{r}') L^{(\alpha)} | \phi_\nu \rangle, "// &
+                          "(\hbar/2) \langle \phi_\mu | \sum_l \Delta "// &
+                          "V_l^\mathrm{SO}(\mathbf{r},\mathbf{r}') L^{(\alpha)} | \phi_\nu \rangle, "// &
                           "\alpha = x, y, z$.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -2160,7 +2160,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Print DOS and PDOS in the energy window "// &
-                          "[ε_VBM-E_window/2, ε_CBM+E_window/2], where VBM is the valence "// &
+                          "$[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2,  "// &
+                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$,"// &
+                          " where VBM is the valence "// &
                           "band maximum (or highest occupied molecular orbital, HOMO, for "// &
                           "molecules) and CBM the conduction band minimum (or lowest "// &
                           "unoccupied molecular orbital, LUMO, for molecules).", &
@@ -2180,7 +2182,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
                           description="Broadening α in Gaussians used in the DOS; "// &
-                          "DOS(E) = sum_n 1/(α sqrt(2π)) exp(((E-ε_n)/α)^2).", &
+                          "$\mathrm{DOS}(E) = \sum_n \exp(((E-\varepsilon_n)/\alpha)^2)/"// &
+                          "( \sqrt{2π} \alpha)$.", &
                           usage="BROADENING 0.01", &
                           default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"), &
                           unit_str="eV")
