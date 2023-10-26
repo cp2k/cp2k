@@ -2104,7 +2104,7 @@ CONTAINS
                           "parameters from non-local pseudopotentials as given in "// &
                           "Hartwigsen, Goedecker, Hutter, Eq.(18), (19), "// &
                           "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
-                          "$V^\mathrm{SOC}_{\mu\nu}^{(\alpha)} = "// &
+                          "$V_{\mu\nu}^{\mathrm{SOC}, (\alpha)} = "// &
                           "\hbar/2 \langle \phi_\mu | \sum_l \Delta "// &
                           "V_l^\mathrm{SO}(\mathbr{r},\mathbf{r}') L^{(\alpha)} | \phi_\nu \rangle, "// &
                           "\alpha = x, y, z$.", &
