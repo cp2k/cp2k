@@ -2121,7 +2121,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Apply SOC only for states with eigenvalues in the "// &
-                          "interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2,  "// &
+                          "interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2, "// &
                           "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$. Might be necessary "// &
                           "to use for large systems to prevent numerical instabilities.", &
                           usage="ENERGY_WINDOW 5.0", &
@@ -2182,8 +2182,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
                           description="Broadening α in Gaussians used in the DOS; "// &
-                          "$\mathrm{DOS}(E) = \sum_n \exp(((E-\varepsilon_n)/\alpha)^2)/"// &
-                          "( \sqrt{2π} \alpha)$.", &
+                          "$\mathrm{DOS}(E) = "// &
+                          "\sum_n \exp(((E-\varepsilon_n)/\alpha)^2)/("// &
+                          " \sqrt{2\pi} \alpha)$.", &
                           usage="BROADENING 0.01", &
                           default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"), &
                           unit_str="eV")
