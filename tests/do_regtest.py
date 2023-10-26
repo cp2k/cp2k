@@ -298,7 +298,7 @@ class Config:
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
-            cmd = self.mpiexec + ["-n", str(self.mpiranks)] + cmd
+            cmd = [self.mpiexec[0], "-n", str(self.mpiranks)] + self.mpiexec[1:] + cmd
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
         return asyncio.create_subprocess_exec(
