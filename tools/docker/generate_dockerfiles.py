@@ -125,13 +125,28 @@ def main() -> None:
             f.write(test_without_build(name))
 
     with OutputFile(f"Dockerfile.gcc_spack", args.check) as f:
-        f.write(spack_toolchain(distro="ubuntu:22.04", spec="cp2k@master%gcc build_system=cmake +enable_regtests +cosma +mpi +openmp ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared"))
+        f.write(
+            spack_toolchain(
+                distro="ubuntu:22.04",
+                spec="cp2k@master%gcc build_system=cmake +enable_regtests +cosma +mpi +openmp ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared",
+            )
+        )
 
     with OutputFile(f"Dockerfile.gcc_spack_cuda", args.check) as f:
-        f.write(spack_toolchain(distro="nvidia/cuda:12.2.0-devel-ubuntu22.04", spec="cp2k@master%gcc build_system=cmake +libxc+libint+sirius+elpa+plumed+pexsi+spglib+cosma+mpi+openmp+cuda cuda_arch=60  smm=libxsmm ^openblas+fortran ^cosma+scalapack+shared+cuda ^dbcsr+cuda~shared cuda_arch=60 ^sirius+cuda"))
+        f.write(
+            spack_toolchain(
+                distro="nvidia/cuda:12.2.0-devel-ubuntu22.04",
+                spec="cp2k@master%gcc build_system=cmake +libxc+libint+sirius+elpa+plumed+pexsi+spglib+cosma+mpi+openmp+cuda cuda_arch=60  smm=libxsmm ^openblas+fortran ^cosma+scalapack+shared+cuda ^dbcsr+cuda~shared cuda_arch=60 ^sirius+cuda",
+            )
+        )
 
     with OutputFile(f"Dockerfile.gcc_spack_rocm", args.check) as f:
-        f.write(spack_toolchain(distro="rocm/dev-ubuntu-22.04:5.6.1-complete", spec="cp2k@master%gcc build_system=cmake +sirius +elpa +libxc +libint smm=libxsmm +spglib +cosma +rocm amdgpu_target=gfx90a +pexsi +plumed +libvori +openmp ^openblas+fortran ^dbcsr+mpi+rocm~shared+openmp amdgpu_target=gfx906 ^cosma+shared~tests~apps+rocm"))
+        f.write(
+            spack_toolchain(
+                distro="rocm/dev-ubuntu-22.04:5.6.1-complete",
+                spec="cp2k@master%gcc build_system=cmake +sirius +elpa +libxc +libint smm=libxsmm +spglib +cosma +rocm amdgpu_target=gfx90a +pexsi +plumed +libvori +openmp ^openblas+fortran ^dbcsr+mpi+rocm~shared+openmp amdgpu_target=gfx906 ^cosma+shared~tests~apps+rocm",
+            )
+        )
 
 
 # ======================================================================================
@@ -788,6 +803,7 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 """.lstrip()
 
+
 def spack_toolchain(distro: str, spec: str) -> str:
     return rf"""
 FROM {distro} as builder
@@ -853,6 +869,7 @@ RUN /bin/bash -o pipefail -c " \
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 ENTRYPOINT []
 """
+
 
 # ======================================================================================
 class OutputFile:
