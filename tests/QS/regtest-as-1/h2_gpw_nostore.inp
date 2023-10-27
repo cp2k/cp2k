@@ -37,11 +37,12 @@
       ACTIVE_ORBITALS 2
       ISOLATED_SYSTEM TRUE
       &ERI
-        METHOD GPW_HALF_TRANSFORM
+        METHOD FULL_GPW
         PERIODICITY 0 0 0
       &END ERI
       &ERI_GPW
         CUTOFF 500
+        STORE_WFN .FALSE.
       &END ERI_GPW
       &FCIDUMP
         FILENAME __STD_OUT__
@@ -66,5 +67,5 @@
 &GLOBAL
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
-  PROJECT h2_gpw_ht
+  PROJECT h2_gpw_nostore
 &END GLOBAL

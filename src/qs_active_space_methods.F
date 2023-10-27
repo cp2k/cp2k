@@ -210,7 +210,8 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
-                                                            explicit, isolated, stop_after_print
+                                                            explicit, isolated, stop_after_print, &
+                                                            store_wfn
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -918,6 +919,8 @@ CONTAINS
          active_space_env%eri%eri_gpw%rel_cutoff = eri_rel_cutoff
          CALL section_vals_val_get(as_input, "ERI_GPW%PRINT_LEVEL", i_val=eri_print)
          active_space_env%eri%eri_gpw%print_level = eri_print
+         CALL section_vals_val_get(as_input, "ERI_GPW%STORE_WFN", l_val=store_wfn)
+         active_space_env%eri%eri_gpw%store_wfn = store_wfn
          ! Always redo Poisson solver for now
          active_space_env%eri%eri_gpw%redo_poisson = .TRUE.
          ! active_space_env%eri%eri_gpw%redo_poisson = (ex_operator .OR. ex_perd)
@@ -1207,7 +1210,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff1, mo_coeff2
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type)                                 :: mat_munu
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_as
@@ -1380,33 +1383,50 @@ dft_control%qs_control => qs_control
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
-      ! pre-calculate wavefunctions on reals space grid
-      rsize = 0.0_dp
-      nmo = 0
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), nmo=nx)
-         nmo = MAX(nmo, nx)
-         rsize = REAL(SIZE(wfn_r%cr3d), KIND=dp)*nx
-      END DO
-      IF (print1 .AND. iw > 0) THEN
-         rsize = rsize*8._dp/1000000._dp
-         WRITE (iw, "(T4,'ERI_GPW|',' Store active orbitals on real space grid ',T63,F12.3,' MB')") rsize
-      END IF
-      ALLOCATE (wfn_a(nmo, nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
-         DO i1 = 1, SIZE(orbitals, 1)
-            iwfn = orbitals(i1, ispin)
-            CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin), &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-            CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
-            IF (print2 .AND. iw > 0) THEN
-               WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
-            END IF
+      IF (eri_env%eri_gpw%store_wfn) THEN
+         ! pre-calculate wavefunctions on reals space grid
+         rsize = 0.0_dp
+         nmo = 0
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos(ispin), nmo=nx)
+            nmo = MAX(nmo, nx)
+            rsize = REAL(SIZE(wfn_r%cr3d), KIND=dp)*nx
          END DO
-      END DO
+         IF (print1 .AND. iw > 0) THEN
+            rsize = rsize*8._dp/1000000._dp
+            WRITE (iw, "(T4,'ERI_GPW|',' Store active orbitals on real space grid ',T63,F12.3,' MB')") rsize
+         END IF
+         ALLOCATE (wfn_a(nmo, nspins))
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
+            DO i1 = 1, SIZE(orbitals, 1)
+               iwfn = orbitals(i1, ispin)
+               CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin), &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
+               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
+               IF (print2 .AND. iw > 0) THEN
+                  WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
+               END IF
+            END DO
+         END DO
+      ELSE
+         ! Even if we do not store all WFNs, we still need containers for the functions to store
+         ALLOCATE (wfn1, wfn2, wfn3, wfn4)
+         CALL pw_pool_create_pw(auxbas_pw_pool, wfn1, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, wfn2, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, wfn3, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, wfn4, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+      END IF
 
       ! get some of the grids ready
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, use_data=REALDATA3D, in_space=REALSPACE)
@@ -1421,7 +1441,7 @@ dft_control%qs_control => qs_control
       ! calculate the integrals
       stored_integrals = 0
       DO isp1 = 1, nspins
-         CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
+         CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1, mo_coeff=mo_coeff1)
          nmm = (nmo1*(nmo1 + 1))/2
          IF (eri_env%method == eri_method_gpw_ht) THEN
             irange = [1, nmm]
@@ -1430,7 +1450,12 @@ dft_control%qs_control => qs_control
          END IF
          DO i1 = 1, SIZE(orbitals, 1)
             iwa1 = orbitals(i1, isp1)
-            wfn1 => wfn_a(iwa1, isp1)
+            IF (eri_env%eri_gpw%store_wfn) THEN
+               wfn1 => wfn_a(iwa1, isp1)
+            ELSE
+               CALL calculate_wavefunction(mo_coeff1, iwa1, wfn1, rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
+            END IF
             DO i2 = i1, SIZE(orbitals, 1)
                iwa2 = orbitals(i2, isp1)
                iwa12 = csr_idx_to_combined(iwa1, iwa2, nmo1)
@@ -1439,7 +1464,12 @@ dft_control%qs_control => qs_control
                ELSE
                   iwa12 = 0
                END IF
-               wfn2 => wfn_a(iwa2, isp1)
+               IF (eri_env%eri_gpw%store_wfn) THEN
+                  wfn2 => wfn_a(iwa2, isp1)
+               ELSE
+                  CALL calculate_wavefunction(mo_coeff1, iwa2, wfn2, rho_g, atomic_kind_set, &
+                                              qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
+               END IF
                ! calculate charge distribution and potential
                CALL pw_zero(rho_r)
                CALL pw_multiply(rho_r, wfn1, wfn2)
@@ -1487,7 +1517,7 @@ dft_control%qs_control => qs_control
                            IF (iwb1 <= iwb2) THEN
                               iwb12 = csr_idx_to_combined(iwb1, iwb2, nmo2)
                               erint = data_block(r, s)
-                              IF (ABS(erint) > eri_env%eps_integral .AND. iwa12 <= iwb12) THEN
+                              IF (ABS(erint) > eri_env%eps_integral .AND. (iwa12 <= iwb12 .OR. isp1 /= isp2)) THEN
                                  icount2 = icount2 + 1
                                  eri(icount2) = erint
                                  eri_index(icount2) = iwb12
@@ -1506,7 +1536,7 @@ dft_control%qs_control => qs_control
                   END DO
                ELSEIF (eri_env%method == eri_method_full_gpw) THEN
                   DO isp2 = isp1, nspins
-                     CALL get_mo_set(mo_set=mos(isp2), nmo=nmo2)
+                     CALL get_mo_set(mo_set=mos(isp2), nmo=nmo2, mo_coeff=mo_coeff2)
                      nx = (nmo2*(nmo2 + 1))/2
                      ALLOCATE (eri(nx), eri_index(nx))
                      icount2 = 0
@@ -1515,14 +1545,24 @@ dft_control%qs_control => qs_control
                      isp = (isp1 - 1)*isp2 + (isp2 - isp1 + 1)
                      DO i3 = iwbs, SIZE(orbitals, 1)
                         iwb1 = orbitals(i3, isp2)
-                        wfn3 => wfn_a(iwb1, isp2)
+                        IF (eri_env%eri_gpw%store_wfn) THEN
+                           wfn3 => wfn_a(iwb1, isp2)
+                        ELSE
+                           CALL calculate_wavefunction(mo_coeff2, iwb1, wfn3, rho_g, atomic_kind_set, &
+                                                       qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
+                        END IF
                         CALL pw_zero(wfn_r)
                         CALL pw_multiply(wfn_r, rho_r, wfn3)
                         iwbt = i3
                         IF (isp1 == isp2 .AND. i1 == i3) iwbt = i2
                         DO i4 = iwbt, SIZE(orbitals, 1)
                            iwb2 = orbitals(i4, isp2)
-                           wfn4 => wfn_a(iwb2, isp2)
+                           IF (eri_env%eri_gpw%store_wfn) THEN
+                              wfn4 => wfn_a(iwb2, isp2)
+                           ELSE
+                              CALL calculate_wavefunction(mo_coeff2, iwb2, wfn4, rho_g, atomic_kind_set, &
+                                                          qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
+                           END IF
                            ! We reduce the amount of communication by collecting the local sums first and sum globally later
                            erint = pw_integral_ab(wfn_r, wfn4, local_only=.TRUE.)
                            icount2 = icount2 + 1
@@ -1570,14 +1610,21 @@ dft_control%qs_control => qs_control
          WRITE (iw, "(T4,'ERI_GPW|',' Number of Integrals stored ',T68,I10)") stored_integrals
       END IF
 
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), nmo=nmo)
-         DO i1 = 1, SIZE(orbitals, 1)
-            iwfn = orbitals(i1, ispin)
-            CALL pw_release(wfn_a(iwfn, ispin))
+      IF (eri_env%eri_gpw%store_wfn) THEN
+         DO ispin = 1, nspins
+            DO i1 = 1, SIZE(orbitals, 1)
+               iwfn = orbitals(i1, ispin)
+               CALL pw_release(wfn_a(iwfn, ispin))
+            END DO
          END DO
-      END DO
-      DEALLOCATE (wfn_a)
+         DEALLOCATE (wfn_a)
+      ELSE
+         CALL pw_release(wfn1)
+         CALL pw_release(wfn2)
+         CALL pw_release(wfn3)
+         CALL pw_release(wfn4)
+         DEALLOCATE (wfn1, wfn2, wfn3, wfn4)
+      END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wfn_r)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)

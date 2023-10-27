@@ -42,6 +42,7 @@ MODULE qs_active_space_types
 ! **************************************************************************************************
    TYPE eri_gpw_type
       LOGICAL                       :: redo_poisson = .FALSE.
+      LOGICAL                       :: store_wfn = .FALSE.
       REAL(KIND=dp)                 :: cutoff = 0.0_dp
       REAL(KIND=dp)                 :: rel_cutoff = 0.0_dp
       REAL(KIND=dp)                 :: eps_grid = 0.0_dp
