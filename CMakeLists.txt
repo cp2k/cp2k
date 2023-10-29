@@ -313,6 +313,10 @@ if(CP2K_USE_ACCEL MATCHES "HIP")
   set(__cp2k_cmake_name "local_hip")
 endif()
 
+if(CP2K_CMAKE_SUFFIX)
+  string(APPEND __cp2k_cmake_name "${CP2K_CMAKE_SUFFIX}")
+endif()
+
 # we can run the src consistency checks without actually searching for any
 # dependencies.
 
