@@ -44,6 +44,7 @@ set +e # disable error trapping for remainder of script
   echo ""
   sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual -W -n --keep-going --jobs 16
   /opt/cp2k/docs/fix_github_links.py /workspace/artifacts/manual
+  rm -rf /workspace/artifacts/manual/.doctrees
 )
 EXIT_CODE=$?
 if ((EXIT_CODE)); then
