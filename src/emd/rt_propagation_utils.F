@@ -26,6 +26,7 @@ MODULE rt_propagation_utils
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -91,6 +92,7 @@ MODULE rt_propagation_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE rt_propagation_types,            ONLY: get_rtp,&
@@ -261,8 +263,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=default_path_length)                 :: file_name, project_name
-      INTEGER                                            :: i, id_nr, im, ispin, ncol, nspin, re, &
-                                                            unit_nr
+      INTEGER                                            :: i, id_nr, im, ispin, ncol, nspin, &
+                                                            output_unit, re, unit_nr
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type)                                   :: mos_occ
@@ -292,6 +294,8 @@ CONTAINS
                       rho=rho_struct, &
                       para_env=para_env)
       logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
       IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
@@ -307,6 +311,10 @@ CONTAINS
          CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                        id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
          CALL set_uniform_occupation_mo_array(mo_array, nspin)
+
+         IF (dft_control%rtp_control%apply_wfn_mix_init_restart) &
+            CALL wfn_mix(mo_array, particle_set, dft_section, qs_kind_set, para_env, output_unit, &
+                         for_rtp=.TRUE.)
 
          DO ispin = 1, nspin
             CALL calculate_density_matrix(mo_array(ispin), p_rmpv(ispin)%matrix)

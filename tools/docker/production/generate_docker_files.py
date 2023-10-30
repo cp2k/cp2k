@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Author: Matthias Krack (August 15, 2023)
+# Author: Matthias Krack (October 16, 2023)
 
 from pathlib import Path
 from typing import Any
@@ -11,9 +11,9 @@ import os
 # ------------------------------------------------------------------------------
 
 cp2k_release_list = ["master", "2023.2"]  # append new releases to list
-mpi_implementation_list = ["mpich", "openmpi"]
-mpich_device_list = ["ch3", "ch4", "ch4:ucx"]
-target_cpu_list = ["generic", "haswell", "skylake-avx512", "native", "znver2", "znver3"]
+mpi_implementation_list = ["intelmpi", "mpich", "openmpi"]
+target_cpu_list = ["generic", "haswell", "native", "skylake-avx512", "znver2", "znver3"]
+target_gpu_list = ["P100", "V100", "A100"]  # append new GPUs to list
 
 # ------------------------------------------------------------------------------
 
@@ -22,6 +22,8 @@ def main() -> None:
     mpi_choices = ["all"] + mpi_implementation_list
     release_choices = ["all"] + cp2k_release_list
     target_cpu_choices = ["all"] + target_cpu_list
+    target_gpu_choices = ["all"] + target_gpu_list
+    version_choices = ["psmp", "ssmp", "pdbg", "sdbg"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -29,12 +31,6 @@ def main() -> None:
         action="store_true",
         dest="check",
         help="Check consistency with generator script",
-    )
-    parser.add_argument(
-        "--install-tests",
-        action="store_true",
-        dest="install_tests",
-        help="Install tests and enable regression testing for the final container",
     )
     parser.add_argument(
         "--mpi",
@@ -48,23 +44,21 @@ def main() -> None:
         type=str,
     )
     parser.add_argument(
-        "--mpich-device",
-        choices=mpich_device_list,
-        default=mpich_device_list[-1],
-        dest="mpich_device",
-        help=f"Select the MPICH device (default is {mpich_device_list[-1]})",
-        type=str,
-    )
-    parser.add_argument(
         "-j",
         "--ncores",
         default=8,
         dest="ncores",
         help=(
-            "Select the number CPU cores used for building the container "
-            "(default is 8)"
+            "Select the number of CPU cores used for building the container "
+            "and running the regression tests (default is 8)"
         ),
         type=check_ncores,
+    )
+    parser.add_argument(
+        "--no-tests",
+        action="store_true",
+        dest="no_tests",
+        help="The container will not include the files for regression testing",
     )
     parser.add_argument(
         "--release",
@@ -83,8 +77,19 @@ def main() -> None:
         default=target_cpu_choices[0],
         dest="target_cpu",
         help=(
-            "Specify the CP2K release for which docker files are generated "
+            "Specify the target CPU for which the docker files are generated "
             f"(default is {target_cpu_choices[0]})"
+        ),
+        type=str,
+    )
+    parser.add_argument(
+        "--target-gpu",
+        choices=target_gpu_choices,
+        default=target_gpu_choices[0],
+        dest="target_gpu",
+        help=(
+            "Specify the target GPU for which the docker files are generated "
+            f"(default is {target_gpu_choices[0]})"
         ),
         type=str,
     )
@@ -95,16 +100,23 @@ def main() -> None:
         dest="test_build",
         help="Run a full regression test during the build step",
     )
+    parser.add_argument(
+        "--version",
+        choices=version_choices,
+        default=version_choices[0],
+        dest="version",
+        help=(
+            "Specify the version type of the CP2K binary "
+            f"(default is {version_choices[0]})"
+        ),
+        type=str,
+    )
     args = parser.parse_args()
 
-    distro = "ubuntu"
-    distro_version = "22.04"
-    arch = "local"
-    version = "psmp"
-    mpich_device = args.mpich_device
+    version = args.version
     ncores = args.ncores
+    no_tests = args.no_tests
     omp_stacksize = "16M"
-    install_tests = args.install_tests
     test_build = args.test_build
 
     if ncores > os.cpu_count():
@@ -124,28 +136,83 @@ def main() -> None:
             ):
                 continue
 
+            if mpi_implementation == "intelmpi":
+                base_system = "intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04"
+                if release != "master":
+                    if float(release) <= 2023.2:
+                        continue
+            else:
+                base_system = "ubuntu:22.04"
+
             for target_cpu in target_cpu_list:
                 if args.target_cpu != "all" and args.target_cpu != target_cpu:
                     continue
+                if "znver" in target_cpu and mpi_implementation == "intelmpi":
+                    continue
+                if release != "master":
+                    if float(release) <= 2023.2 and "znver" in target_cpu:
+                        continue
                 name = f"{release}_{mpi_implementation}_{target_cpu}_{version}"
                 with OutputFile(f"Dockerfile.{name}", args.check) as f:
                     f.write(
                         write_definition_file(
+                            base_system=base_system,
                             name=name,
                             release=release,
-                            distro=distro,
-                            distro_version=distro_version,
-                            arch=arch,
                             version=version,
                             mpi_implementation=mpi_implementation,
-                            mpich_device=mpich_device,
                             ncores=ncores,
+                            no_tests=no_tests,
                             omp_stacksize=omp_stacksize,
-                            install_tests=install_tests,
                             target_cpu=target_cpu,
+                            target_gpu="",
                             test_build=test_build,
                         )
                     )
+
+    # Generate docker files for CUDA
+    base_system = "nvidia/cuda:12.2.0-devel-ubuntu22.04"
+    for release in cp2k_release_list:
+        if args.release != "all" and args.release != release:
+            continue
+        for mpi_implementation in mpi_implementation_list:
+            if (
+                args.mpi_implementation != "all"
+                and args.mpi_implementation != mpi_implementation
+            ) or mpi_implementation == "intelmpi":
+                continue
+            for target_cpu in target_cpu_list:
+                if args.target_cpu != "all" and args.target_cpu != target_cpu:
+                    continue
+                # Restrict docker file generation for CUDA
+                if target_cpu not in ["generic", "native", args.target_cpu]:
+                    continue
+                for igpu, target_gpu in enumerate(target_gpu_list):
+                    if args.target_gpu != "all" and args.target_gpu != target_gpu:
+                        continue
+                    if release != "master":
+                        if float(release) <= 2023.2 and igpu > 1:
+                            continue
+                    name = (
+                        f"{release}_{mpi_implementation}_{target_cpu}"
+                        f"_cuda_{target_gpu}_{version}"
+                    )
+                    with OutputFile(f"Dockerfile.{name}", args.check) as f:
+                        f.write(
+                            write_definition_file(
+                                base_system=base_system,
+                                name=name,
+                                release=release,
+                                version=version,
+                                mpi_implementation=mpi_implementation,
+                                ncores=ncores,
+                                no_tests=no_tests,
+                                omp_stacksize=omp_stacksize,
+                                target_cpu=target_cpu,
+                                target_gpu=target_gpu,
+                                test_build=test_build,
+                            )
+                        )
 
 
 # ------------------------------------------------------------------------------
@@ -162,57 +229,107 @@ def check_ncores(value: str) -> int:
 
 
 def write_definition_file(
+    base_system: str,
     name: str,
     release: str,
-    distro: str,
-    distro_version: str,
-    arch: str,
     version: str,
     mpi_implementation: str,
-    mpich_device: str,
     ncores: int,
+    no_tests: bool,
     omp_stacksize: str,
-    install_tests: bool,
     target_cpu: str,
+    target_gpu: str,
     test_build: bool,
 ) -> str:
+    do_regtest = "/opt/cp2k/tests/do_regtest.py"
+
     if release == "master":
         branch = ""
         tagname = name.replace("master", r"master$(date +%Y%m%d)")
     else:
         branch = f" -b support/v{release}"
         tagname = name
+        # The location of the regression test script has changed only after v2023.2
+        if float(release) <= 2023.2:
+            do_regtest = "/opt/cp2k/tools/regtesting/do_regtest.py"
 
     if test_build:
         make_target = " test"
     else:
         make_target = ""
 
-    additional_exports = "\\"
-    with_mpi_line = ""
-
-    # Required packages for final container
+    # Required packages for the final container
     required_packages = "g++ gcc gfortran"
+    if target_gpu:
+        cuda_path = "/usr/local/cuda"
+        additional_exports = f"""\
+export CUDA_CACHE_DISABLE=1\\n\\
+export CUDA_PATH={cuda_path}\\n\\
+export LD_LIBRARY_PATH=\${{LD_LIBRARY_PATH}}:\${{CUDA_PATH}}/lib64\\n\\\
+"""
+        arch = "local_cuda"
+        cuda_packages = " libtool libtool-bin"
+        cuda_environment = f"""\
+# Setup CUDA environment
+ENV CUDA_PATH {cuda_path}
+ENV LD_LIBRARY_PATH {cuda_path}/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+"""
+        with_gpu_line = f"--enable-cuda=yes --gpu-ver={target_gpu} --with-libtorch=no"
+    else:
+        additional_exports = "\\"
+        arch = "local"
+        cuda_packages = ""
+        cuda_environment = ""
+        with_gpu_line = "--enable-cuda=no"
 
     # Default options for the regression tests
     testopts = f"--maxtasks {ncores}" " --workbasedir /mnt"
 
-    if mpi_implementation == "openmpi":
-        additional_exports = """\
+    permissive = ""
+    with_mpi_line = f"--with-{mpi_implementation}=system"
+    if mpi_implementation == "mpich":
+        required_packages += " libmpich-dev mpich openssh-client"
+        with_gcc_line = "--with-gcc=system"
+    elif mpi_implementation == "openmpi":
+        additional_exports += """
 export OMPI_ALLOW_RUN_AS_ROOT=1\\n\\
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1\\n\\
 export OMPI_MCA_btl_vader_single_copy_mechanism=none\\n\\\
 """
+        # SuperLU installation fails currently with system OpenMPI
+        # required_packages += " libopenmpi-dev openmpi-bin openssh-client"
         with_mpi_line = f"--with-{mpi_implementation}=install"
         required_packages += " openssh-client"
-        testopts += '--mpiexec "mpiexec --bind-to none" ' + testopts
-    elif mpi_implementation == "mpich":
-        with_mpi_line = (
-            f"--with-{mpi_implementation}=install "
-            f"--with-{mpi_implementation}-device={mpich_device}"
+        testopts = '--mpiexec \\"mpiexec --bind-to none\\" ' + testopts
+        with_gcc_line = "--with-gcc=system"
+    elif mpi_implementation == "intelmpi":
+        permissive = "; true"
+        with_gcc_line = (
+            "--with-intel=system --with-intelmpi=system "
+            "--with-libtorch=no --with-mkl=system"
         )
 
-    if install_tests:
+    if no_tests:
+        install_binaries = rf"""
+# Install CP2K binaries
+COPY --from=build /opt/cp2k/exe/{arch}/cp2k.{version} \
+                  /opt/cp2k/exe/{arch}/dumpdcd.{version} \
+                  /opt/cp2k/exe/{arch}/graph.{version} \
+                  /opt/cp2k/exe/{arch}/xyz2dcd.{version} \
+                  /opt/cp2k/exe/{arch}/
+"""
+        run_tests = ""
+        run_tests = r"""
+# Create shortcut for regression test
+RUN printf "echo Sorry, this container was built without test files" \
+>/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
+"""
+        tagname += "_no_tests"
+    else:
         install_binaries = rf"""
 # Install CP2K binaries
 COPY --from=build /opt/cp2k/exe/{arch}/ /opt/cp2k/exe/{arch}/
@@ -224,31 +341,22 @@ COPY --from=build /opt/cp2k/src/grid/sample_tasks/ /opt/cp2k/src/grid/sample_tas
 """
         run_tests = rf"""
 # Create shortcut for regression test
-RUN printf "/opt/cp2k/tools/regtesting/do_regtest.py {testopts} \$* {arch} {version}" \
+RUN printf "{do_regtest} {testopts} \$* {arch} {version}" \
 >/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
 """
         required_packages += " python3"
-    else:
-        install_binaries = rf"""
-# Install CP2K binaries
-COPY --from=build /opt/cp2k/exe/{arch}/cp2k.{version} \
-                  /opt/cp2k/exe/{arch}/dumpdcd.{version} \
-                  /opt/cp2k/exe/{arch}/graph.{version} \
-                  /opt/cp2k/exe/{arch}/xyz2dcd.{version} \
-                  /opt/cp2k/exe/{arch}/
-"""
-        run_tests = ""
 
     return rf"""
 # Usage: docker build -f ./Dockerfile.{name} -t cp2k/cp2k:{tagname} .
 
 # Stage 1: build step
-FROM {distro}:{distro_version} AS build
+FROM {base_system} AS build
 
+{cuda_environment}
 # Install packages required for the CP2K toolchain build
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    bzip2 ca-certificates g++ gcc gfortran git make openssh-client patch \
-    pkg-config python3 unzip wget zlib1g-dev
+RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
+    {required_packages}{cuda_packages} \
+    bzip2 ca-certificates git make patch pkg-config unzip wget zlib1g-dev
 
 # Download CP2K
 RUN git clone --recursive{branch} https://github.com/cp2k/cp2k.git /opt/cp2k
@@ -256,10 +364,12 @@ RUN git clone --recursive{branch} https://github.com/cp2k/cp2k.git /opt/cp2k
 # Build CP2K toolchain for target CPU {target_cpu}
 WORKDIR /opt/cp2k/tools/toolchain
 RUN /bin/bash -c -o pipefail \
-    "./install_cp2k_toolchain.sh \
+    "./install_cp2k_toolchain.sh -j {ncores} \
      --install-all \
+     {with_gpu_line} \
      --target-cpu={target_cpu} \
-     --with-gcc=system \
+     --with-cusolvermp=no \
+     {with_gcc_line} \
      {with_mpi_line}"
 
 # Build CP2K for target CPU {target_cpu}
@@ -283,10 +393,10 @@ RUN /bin/bash -c -o pipefail \
      unlink ./exe/{arch}/cp2k_shell.{version}"
 
 # Stage 2: install step
-FROM ubuntu:22.04 AS install
+FROM {base_system} AS install
 
 # Install required packages
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN apt-get update -qq{permissive} && apt-get install -qq --no-install-recommends \
     {required_packages} && rm -rf /var/lib/apt/lists/*
 {install_binaries}
 # Install CP2K database files
@@ -309,9 +419,9 @@ RUN /bin/bash -c -o pipefail \
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
+{additional_exports}
 export OMP_STACKSIZE={omp_stacksize}\n\
 export PATH=/opt/cp2k/exe/{arch}:\${{PATH}}\n\
-{additional_exports}
 source /opt/cp2k/tools/toolchain/install/setup\n\
 \"\$@\"" \
 >/usr/local/bin/entrypoint.sh && chmod 755 /usr/local/bin/entrypoint.sh
@@ -324,7 +434,7 @@ CMD ["cp2k", "--help"]
 # Label docker image
 LABEL author="CP2K Developers" \
       cp2k_version="{release}" \
-      dockerfile_generator_version="0.1"
+      dockerfile_generator_version="0.2"
 
 # EOF
 """

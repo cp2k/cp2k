@@ -239,9 +239,7 @@ CONTAINS
                                       keyword_name="EIP-Model", &
                                       i_val=eip_env%eip_model)
          CASE DEFAULT
-            CALL cp_abort(__LOCATION__, &
-                          "EIP models for other elements"// &
-                          "than Si isn't implemented yet.")
+            CPABORT("EIP models for other elements than Si isn't implemented yet.")
          END SELECT
       END DO
 

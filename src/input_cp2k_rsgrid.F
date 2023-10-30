@@ -64,9 +64,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISTRIBUTION_LAYOUT", &
-                          description="Specifies the number of slices in the x, y and z directions."// &
-                          "-1 specifies that any number of slices is OK."// &
-                          "If a given distribution can not be satisfied, a replicated grid will result."// &
+                          description="Specifies the number of slices in the x, y and z directions. "// &
+                          "-1 specifies that any number of slices is OK. "// &
+                          "If a given distribution can not be satisfied, a replicated grid will result. "// &
                           "Also see LOCK_DISTRIBUTION.", &
                           usage="DISTRIBUTION_LAYOUT", &
                           repeats=.FALSE., n_var=3, &
@@ -83,9 +83,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCK_DISTRIBUTION", &
-                          description="Expert use only, only basic QS deals correctly with a non-default value."// &
-                          "If the distribution is locked, a grid will have the same distribution as"// &
-                          "the next finer multigrid (provided it is distributed)."// &
+                          description="Expert use only, only basic QS deals correctly with a non-default value. "// &
+                          "If the distribution is locked, a grid will have the same distribution as "// &
+                          "the next finer multigrid (provided it is distributed). "// &
                           "If unlocked, all grids can be distributed freely.", &
                           usage="LOCK_DISTRIBUTION TRUE", &
                           default_l_val=.TRUE.)

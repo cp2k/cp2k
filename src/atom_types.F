@@ -2846,7 +2846,7 @@ CONTAINS
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(len=5*default_string_length)             :: line_att
-      CHARACTER(LEN=LEN(element_symbol))                 :: symbol
+      CHARACTER(LEN=LEN(element_symbol)+1)               :: symbol
       CHARACTER(LEN=LEN(pseudo_name))                    :: apname
       INTEGER                                            :: i, ic, l, ncore, nel
       LOGICAL                                            :: found, is_ok, read_from_input

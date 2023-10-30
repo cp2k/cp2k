@@ -36,7 +36,6 @@
     &BANDSTRUCTURE
       &GW
         NUM_TIME_FREQ_POINTS 6
-        SIZE_LATTICE_SUM_V 3
       &END
     &END
   &END PROPERTIES

@@ -956,14 +956,11 @@ CONTAINS
 
          CALL hfx_ri_update_ks_kp(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
                                   rho_ao_orb, s_mstruct_changed, nspins, &
-                                  x_data(irep, 1)%general_parameter%fraction, &
-                                  calculate_forces)
+                                  x_data(irep, 1)%general_parameter%fraction)
 
          IF (calculate_forces) THEN
             !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
-            !Note: scale twice (gsi**2) because the non-scaled density matrix from previous energy call is reused
             IF (dft_control%do_admm) THEN
-               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
             END IF
 
@@ -972,7 +969,6 @@ CONTAINS
                                          rho_ao_orb, use_virial=use_virial)
 
             IF (dft_control%do_admm) THEN
-               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE.)
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE.)
             END IF
          END IF

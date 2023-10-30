@@ -21,7 +21,8 @@ MODULE helium_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE nnp_environment_types,           ONLY: nnp_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE splines_types,                   ONLY: spline_data_type
 #include "../base/base_uses.f90"
@@ -274,6 +275,9 @@ MODULE helium_types
 
       LOGICAL :: interaction_pot_scan = .FALSE.!< whether to perform solute-helium interaction scan
 
+      TYPE(nnp_type), POINTER :: nnp => NULL() !< neural network potential
+      REAL(KIND=dp), DIMENSION(:), POINTER :: nnp_sr_cut => NULL() !< hard core cutoff in addition to the nnp
+
       ! temporary arrays for optimization
       !
       INTEGER, DIMENSION(:), POINTER         :: itmp_atoms_1d => NULL()!< DIM(atoms) - same as permutation
@@ -295,7 +299,7 @@ MODULE helium_types
 ! ***************************************************************************
    TYPE helium_solvent_p_type
       TYPE(helium_solvent_type), POINTER   :: helium => NULL()
-      TYPE(mp_comm_type)                   :: comm = mp_comm_type()
+      TYPE(mp_para_env_type), POINTER      :: comm => NULL()
       INTEGER, DIMENSION(:), POINTER       :: env_all => NULL()
    END TYPE helium_solvent_p_type
 

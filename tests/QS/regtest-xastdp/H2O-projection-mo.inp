@@ -140,6 +140,24 @@
              &END EACH
            &END PRINT
          &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE. ! Should do nothing for RTP
+           REF_MO_FILE_NAME H2O-projection-mo-RESTART.wfn
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
        &END PRINT
     &END REAL_TIME_PROPAGATION
     &POISSON

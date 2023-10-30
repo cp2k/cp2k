@@ -36,7 +36,7 @@ MODULE input_cp2k_motion
       helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
       helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
       helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
-      helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
+      helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, helium_solute_intpot_nnp, &
       helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
       ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, &
       perm_plain, propagator_pimd, propagator_rpmd, propagator_cmd, transformation_normal, transformation_stage
@@ -61,7 +61,8 @@ MODULE input_cp2k_motion
                                   section_type
    USE input_val_types, ONLY: integer_t, &
                               logical_t, &
-                              real_t
+                              real_t, &
+                              char_t
    USE kinds, ONLY: dp
    USE string_utilities, ONLY: s2a
 #include "../base/base_uses.f90"
@@ -629,8 +630,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="IUPTRANS", &
-                          description="Every iuptrans steps update maximum translation/rotation/"// &
-                          "configurational changes.", &
+                          description="Every iuptrans steps update maximum "// &
+                          "translation/rotation/configurational changes.", &
                           usage="IUPTRANS {integer}", &
                           default_i_val=10000)
       CALL section_add_keyword(section, keyword)
@@ -965,9 +966,9 @@ CONTAINS
       CALL create_geoopt_section( &
          section, __LOCATION__, label="SHELL_OPT", &
          description="This section sets the environment for the optimization of the shell-core distances"// &
-         " that might turn to be necessary along a MD run using a shell-model potential. "// &
-         " The optimization procedure is activated when at least one of the shell-core "// &
-         "pairs becomes too elongated,  i.e. when the assumption of point dipole is not longer valid.", &
+         " that might turn to be necessary along a MD run using a shell-model potential."// &
+         " The optimization procedure is activated when at least one of the shell-core"// &
+         " pairs becomes too elongated, i.e. when the assumption of point dipole is not longer valid.", &
          just_optimizers=.TRUE., &
          use_model_hessian=.FALSE.)
 
@@ -1002,8 +1003,8 @@ CONTAINS
 
       CALL create_geoopt_section(section, __LOCATION__, label="CELL_OPT", &
                                  description="This section sets the environment for the optimization of the simulation cell."// &
-                                 " Two possible schemes are available: (1) Zero temperature optimization; "// &
-                                 " (2) Finite temperature optimization. ", &
+                                 " Two possible schemes are available: (1) Zero temperature optimization;"// &
+                                 " (2) Finite temperature optimization.", &
                                  just_optimizers=.TRUE., &
                                  use_model_hessian=.FALSE.)
 
@@ -1014,9 +1015,9 @@ CONTAINS
          usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)", &
          enum_c_vals=s2a("GEO_OPT", "MD", "DIRECT_CELL_OPT"), &
          enum_desc=s2a( &
-         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps. "// &
+         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps."// &
          " The stress tensor is computed at the optimized geometry.", &
-         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor "// &
+         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor"// &
          " used for the cell optimization.", &
          "Performs a geometry and cell optimization at the same time."// &
          " The stress tensor is computed at every step"), &
@@ -1142,14 +1143,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="INTERPOLATE_GRADIENT", &
                           description="This keyword controls the interpolation of the gradient whenever possible"// &
-                          " during the optimization of the Dimer. The use of this keywords saves 1 evaluation "// &
+                          " during the optimization of the Dimer. The use of this keywords saves 1 evaluation"// &
                           " of energy/forces.", usage="INTERPOLATE_GRADIENT {logical}", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ANGLE_TOLERANCE", &
-                          description="This keyword sets the value of the tolerance angle for the line search "// &
+                          description="This keyword sets the value of the tolerance angle for the line search"// &
                           " performed to optimize the orientation of the dimer.", &
                           usage="ANGLE_TOL {real}", unit_str='rad', &
                           default_r_val=cp_unit_to_cp2k(5.0_dp, "deg"))
@@ -1320,8 +1321,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART_LIMIT", &
                           description="Cosine of the angle between two consecutive searching directions."// &
-                          " If the angle during a CG optimization is less than the one corresponding to "// &
-                          " to the RESTART_LIMIT the CG is reset and one step of steepest descent is "// &
+                          " If the angle during a CG optimization is less than the one corresponding to"// &
+                          " to the RESTART_LIMIT the CG is reset and one step of steepest descent is"// &
                           " performed.", &
                           usage="RESTART_LIMIT {real}", &
                           default_r_val=0.9_dp)
@@ -1452,7 +1453,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_F_PER_ITER", &
                           description="Maximum number of force evaluations per iteration"// &
-                          "(used for the line search)", &
+                          " (used for the line search)", &
                           usage="MAX_F_PER_ITER {integer}", &
                           default_i_val=20)
       CALL section_add_keyword(section, keyword)
@@ -1460,8 +1461,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WANTED_PROJ_GRADIENT", &
                           description="Convergence criterion (overrides the general ones):"// &
-                          "Requested norm threshold of the gradient multiplied "// &
-                          "by the approximate Hessian.", &
+                          " Requested norm threshold of the gradient multiplied"// &
+                          " by the approximate Hessian.", &
                           usage="WANTED_PROJ_GRADIENT {real}", unit_str="internal_cp2k", &
                           default_r_val=1.0E-16_dp)
       CALL section_add_keyword(section, keyword)
@@ -1469,8 +1470,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WANTED_REL_F_ERROR", &
                           description="Convergence criterion (overrides the general ones):"// &
-                          "Requested relative error on the objective function"// &
-                          "of the optimizer (the energy)", &
+                          " Requested relative error on the objective function"// &
+                          " of the optimizer (the energy)", &
                           usage="WANTED_REL_F_ERROR {real}", unit_str="internal_cp2k", &
                           default_r_val=1.0E-16_dp)
       CALL section_add_keyword(section, keyword)
@@ -1553,7 +1554,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="Sets the temperature parameter that is used in the baising potential."// &
-                          "It is recommended to use the actual simulation temperature", &
+                          " It is recommended to use the actual simulation temperature", &
                           usage="TEMPERATURE 300", default_r_val=300.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1757,7 +1758,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="GAMMA", &
                           description="mass scale factor for non-centroid degrees of freedom, &
-&                                       naming convention according to Witt, 2008, doi.org/10.1063/1.3125009", &
+&                                       naming convention according to Witt, 2008, <https://doi.org/10.1063/1.3125009>.", &
                           repeats=.FALSE., default_r_val=8.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1878,7 +1879,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MATRICES_FILE_NAME", &
                           description="Filename containig the raw matrices from "// &
-                          "https://gle4md.org/index.html?page=matrix", &
+                          "<https://gle4md.org/index.html?page=matrix>.", &
                           repeats=.FALSE., default_lc_val="PIGLET.MAT")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2108,7 +2109,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="HELIUM", &
                           description="The section that controls optional helium solvent"// &
                           " environment (highly experimental, not for general use yet)", &
-                          n_keywords=31, n_subsections=9, repeats=.FALSE.)
+                          n_keywords=31, n_subsections=11, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -2156,15 +2157,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_INTERACTION", &
                           description="Interaction potential between helium and the solute", &
-                          usage="SOLUTE_INTERACTION (NONE | MWATER)", &
+                          usage="SOLUTE_INTERACTION (NONE | MWATER | NNP)", &
                           default_i_val=helium_solute_intpot_none, &
-                          enum_c_vals=s2a("NONE", "MWATER"), &
+                          enum_c_vals=s2a("NONE", "MWATER", "NNP"), &
                           enum_i_vals=(/ &
                           helium_solute_intpot_none, &
-                          helium_solute_intpot_mwater/), &
+                          helium_solute_intpot_mwater, &
+                          helium_solute_intpot_nnp/), &
                           enum_desc=s2a( &
                           "No interaction with solute", &
-                          "Test interaction with wrong Water"))
+                          "Test interaction with wrong Water", &
+                          "Interaction with NNP"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2215,7 +2218,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="COORD_INIT_TEMP", &
                           description="Temperature for thermal gaussian initialization of the helium."// &
-                          "Negative values correspond to a hot start.", &
+                          " Negative values correspond to a hot start.", &
                           default_r_val=cp_unit_to_cp2k(300._dp, "K"), &
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
@@ -2223,12 +2226,107 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_RADIUS", &
                           description="Radius of the solute molecule for prevention of"// &
-                          "coordinate collision during initialization", &
+                          " coordinate collision during initialization", &
                           default_r_val=cp_unit_to_cp2k(0.0_dp, "angstrom"), &
                           repeats=.FALSE., type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! Helium-solute interaction NNP
+      NULLIFY (subsection)
+      CALL section_create(subsection, __LOCATION__, name="NNP", &
+                          description="This section contains all information to run an helium-solute "// &
+                          "interaction Neural Network Potential (NNP) calculation.", &
+                          n_keywords=2, n_subsections=3, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NNP_INPUT_FILE_NAME", &
+                          description="File containing the input information for the setup "// &
+                          "of the NNP (n2p2/RuNNer format). ", &
+                          repeats=.FALSE., default_lc_val="input.nn")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_FILE_NAME", &
+                          description="File containing the scaling information for the symmetry "// &
+                          "functions of the NNP. ", &
+                          repeats=.FALSE., default_lc_val="scaling.data")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsubsection)
+      CALL section_create(subsubsection, __LOCATION__, name="SR_CUTOFF", &
+                          description="Section for failsafe short range cutoffs for the NNPs, "// &
+                          "if the distance between solvent and specified solute element becomes "// &
+                          "smaller than the given cutoff, an artifical repulsive potential is "// &
+                          "introduced. Note this is only meant to prevent such configurations, "// &
+                          "not to physically sample them.", &
+                          n_keywords=2, n_subsections=0, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ELEMENT", &
+                          description="Solute element for which the short range cutoff is in effect", &
+                          repeats=.FALSE., default_c_val="none")
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RADIUS", &
+                          description="Short range cutoff in Angstrom, below this cutoff, the energy "// &
+                          "is replaced by a sizable positive value plus a 1/r**2 term to guide particles "// &
+                          "away from each other.", &
+                          default_r_val=cp_unit_to_cp2k(0.0_dp, "angstrom"), &
+                          repeats=.FALSE., type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+      NULLIFY (subsubsection)
+      CALL section_create(subsubsection, __LOCATION__, name="MODEL", &
+                          description="Section for a single NNP model. If this section is repeated, "// &
+                          "a committee model (C-NNP)is used where the NNP members share the same "// &
+                          "symmetry functions. ", &
+                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="WEIGHTS", &
+                          description="File containing the weights for the artificial neural "// &
+                          "networks of the NNP. The specified name is extended by .XXX.data ", &
+                          repeats=.FALSE., default_lc_val="weights")
+      CALL section_add_keyword(subsubsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+      ! Create the PRINT subsection
+      NULLIFY (subsubsection)
+      CALL section_create(subsubsection, __LOCATION__, name="PRINT", &
+                          description="Section of possible print options in NNP code.", &
+                          n_keywords=0, n_subsections=3, repeats=.FALSE.)
+      NULLIFY (print_key, keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGIES", &
+                                       description="Controls the printing of the NNP energies.", &
+                                       print_level=medium_print_level, common_iter_levels=1)
+      CALL section_add_subsection(subsubsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FORCES_SIGMA", &
+                                       description="Controls the printing of the STD per atom of the NNP forces.", &
+                                       print_level=medium_print_level, common_iter_levels=1)
+      CALL section_add_subsection(subsubsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "EXTRAPOLATION", &
+                                       description="If activated, output structures with extrapolation "// &
+                                       "warning in xyz-format", &
+                                       print_level=medium_print_level, common_iter_levels=1)
+      CALL section_add_subsection(subsubsection, print_key)
+      CALL section_release(print_key)
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection) ! release NNP subsection
+
+      ! Ceperley's sampling algorithm
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="CEPERLEY", &
                           description="Enables sampling with Ceperley's algorithm", &
@@ -2452,8 +2550,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SOLUTE_HE", &
-                          description="Whether or not to calculate solute-He RDFs"// &
-                          "(if solute is present)", &
+                          description="Whether or not to calculate solute-He RDFs (if solute is present)", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

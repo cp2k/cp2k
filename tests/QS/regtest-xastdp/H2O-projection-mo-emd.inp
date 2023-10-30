@@ -1,0 +1,240 @@
+#CPQA DEPENDS wfn_mix_0.inp
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS
+    &REAL_TIME_PROPAGATION
+       MAX_ITER 10
+       MAT_EXP TAYLOR
+       EPS_ITER 1.0E-9
+       INITIAL_WFN SCF_WFN
+       &PRINT
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           REF_MO_INDEX -1
+           REF_MO_SPIN 1
+           SUM_ON_ALL_REF .FALSE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           REF_MO_INDEX -1
+           REF_MO_SPIN 2
+           SUM_ON_ALL_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .FALSE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           REF_MO_INDEX -1
+           REF_MO_SPIN 1
+           SUM_ON_ALL_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 2
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           REF_MO_FILE_NAME H2O-projection-mo-RESTART.wfn
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE XAS_TDP
+           REF_MO_FILE_NAME H2O-B3LYP-full-xasat1_1s_singlet_idx1-1.wfn
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         ! PROPAGATE_REF .TRUE.
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           REF_MO_INDEX -1
+           REF_MO_SPIN 1
+           SUM_ON_ALL_REF .FALSE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           REF_MO_INDEX -1
+           REF_MO_SPIN 2
+           SUM_ON_ALL_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .FALSE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           REF_MO_INDEX -1
+           REF_MO_SPIN 1
+           SUM_ON_ALL_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 2
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           REF_MO_FILE_NAME H2O-projection-mo-RESTART.wfn
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE XAS_TDP
+           REF_MO_FILE_NAME H2O-B3LYP-full-xasat1_1s_singlet_idx1-1.wfn
+           PROPAGATE_REF .TRUE.
+           TD_MO_INDEX -1
+           TD_MO_SPIN 1
+           SUM_ON_ALL_TD .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+         &PROJECTION_MO
+           REFERENCE_TYPE SCF
+           PROPAGATE_REF .TRUE.
+           &PRINT
+             &EACH
+               MD 1
+             &END EACH
+           &END PRINT
+         &END PROJECTION_MO
+       &END PRINT
+    &END REAL_TIME_PROPAGATION
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &SCF
+      ADDED_MOS 1
+    &END SCF
+    &QS
+      METHOD GAPW
+    &END QS
+    &XC
+      &XC_FUNCTIONAL
+         &HYB_GGA_XC_B3LYP5
+         &END HYB_GGA_XC_B3LYP5
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.2
+      &END HF
+    &END XC
+  &END DFT
+  &SUBSYS
+    &KIND O
+      BASIS_SET Ahlrichs-def2-SVP
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET Ahlrichs-def2-SVP
+      POTENTIAL ALL
+    &END KIND
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O          0.00000        0.00000        0.11779
+      H          0.00000        0.75545       -0.47116
+      H          0.00000       -0.75545       -0.47116
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O-projection-mo
+  RUN_TYPE EHRENFEST_DYN
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP [fs] 0.0005
+    TEMPERATURE 300.0
+  &END MD
+&END MOTION

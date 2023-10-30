@@ -109,8 +109,7 @@ MODULE f77_interface
                                               mp_perf_env_type,&
                                               rm_mp_perf_env
    USE nnp_environment,                 ONLY: nnp_init
-   USE nnp_environment_types,           ONLY: nnp_env_create,&
-                                              nnp_type
+   USE nnp_environment_types,           ONLY: nnp_type
    USE offload_api,                     ONLY: offload_get_chosen_device,&
                                               offload_get_device_count,&
                                               offload_set_chosen_device
@@ -851,7 +850,6 @@ CONTAINS
 
          CASE (do_nnp)
             ALLOCATE (nnp_env)
-            CALL nnp_env_create(nnp_env)
             CALL nnp_init(nnp_env, root_section, my_para_env, force_env_section=force_env_section, &
                           subsys_section=subsys_section, use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, nnp_env=nnp_env, para_env=my_para_env, &

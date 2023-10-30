@@ -1,0 +1,8 @@
+# .git-blame-ignore-revs
+# prettify TEST_FILES files
+bb17fff6cb5d3268353275b6fea7c5f276b83cc2
+# Reformatting with new prettify
+1af1bff06048f25cd9eedba29de08bb626487881
+# Prettify using fpretty 0.3.7
+d96e1b0d16ad35be34d4309f3ee892dd9bae216a
+

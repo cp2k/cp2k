@@ -5,112 +5,120 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 
-
 cmake_minimum_required(VERSION 3.22)
+include(CMakeFindDependencyMacro)
 
-# store CXX compiler id. Used in MKL package.
-set(SIRIUS_CXX_COMPILER_ID @CMAKE_CXX_COMPILER_ID@)
-if(NOT ${CMAKE_CXX_COMPILER_ID})
-  set(CMAKE_CXX_COMPILER_ID ${SIRIUS_CXX_COMPILER_ID})
-endif()
+if(NOT TARGET cp2k::cp2k)
+  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules"
+                        ${CMAKE_MODULE_PATH})
 
-set(CP2K_BLAS_VENDOR @CP2K_BLAS_VENDOR@)
-set(CP2K_SCALAPACK_VENDOR @CP2K_SCALAPACK_VENDOR@)
+  # store CXX compiler id. Used in MKL package.
+  set(CP2K_CXX_COMPILER_ID @CMAKE_CXX_COMPILER_ID@)
+  if(NOT ${CMAKE_CXX_COMPILER_ID})
+    set(CMAKE_CXX_COMPILER_ID ${CP2K_CXX_COMPILER_ID})
+  endif()
 
-if (@CP2K_BLAS_VENDOR@ MATCHES "CUSTOM")
-   set(CP2K_BLAS_LINK_LIBRARIES @CP2K_BLAS_LINK_LIBRARIES@)
-   set(CP2K_LAPACK_LINK_LIBRARIES @CP2K_LAPACK_LINK_LIBRARIES@)
-endif()
+  set(CP2K_BLAS_VENDOR @CP2K_BLAS_VENDOR@)
+  set(CP2K_SCALAPACK_VENDOR @CP2K_SCALAPACK_VENDOR@)
+  set(CP2K_BLAS_LINK_LIBRARIES @CP2K_BLAS_LINK_LIBRARIES@)
+  set(CP2K_LAPACK_LINK_LIBRARIES @CP2K_LAPACK_LINK_LIBRARIES@)
+  set(CP2K_SCALAPACK_LINK_LIBRARIES @CP2K_SCALAPACK_LINK_LIBRARIES@)
+  set(CP2K_USE_FFTW3_WITH_MKL @CP2K_USE_FFTW3_WITH_MKL@)
+  set(CP2K_CONFIG_PACKAGE ON)
+  find_dependency(Lapack REQUIRED)
 
-if (@CP2K_SCALAPACK_VENDOR@ MATCHES "CUSTOM")
-   set(CP2K_SCALAPACK_LINK_LIBRARIES @CP2K_SCALAPACK_LINK_LIBRARIES@)
-endif()
+  # define lapack and blas TARGETS
 
-find_package(Lapack REQUIRED)
-find_package(DBCSR 2.4 REQUIRED)
+  if(@CP2K_USE_MPI@)
+    find_dependency(SCALAPACK REQUIRED)
+  endif()
+  unset(CP2K_CONFIG_PACKAGE)
 
-if(@CP2K_USE_LIBXSMM@
-  find_package(LibXSMM REQUIRED)
-endif()
+  set(cp2k_VERSION @cp2k_VERSION@)
 
-if (@@CP2K_USE_HIP@)
-  # Find hip
-  find_package(hipfft REQUIRED IMPORTED CONFIG)
-  find_package(hipblas REQUIRED IMPORTED CONFIG)
-endif()
+  find_dependency(DBCSR 2.5 REQUIRED)
 
-if (@@CP2K_USE_CUDA@)
-  find_package(CUDAToolkit REQUIRED)
-endif()
-if(@CP2K_USE_ELPA@)
-  find_package(Elpa REQUIRED)
-endif()
+  if(@CP2K_USE_LIBXSMM@)
+    find_dependency(LibXSMM REQUIRED)
+  endif()
 
-if(@CP2K_USE_LIBXC@)
-  find_package(LibXC 6 REQUIRED EXACT)
-endif()
+  if(@CP2K_USE_HIP@)
+    # Find hip
+    find_dependency(hipfft REQUIRED IMPORTED CONFIG)
+    find_dependency(hipblas REQUIRED IMPORTED CONFIG)
+  endif()
 
-if(@CP2K_USE_COSMA@)
-  find_package(cosma REQUIRED)
-endif()
+  if(@CP2K_USE_CUDA@)
+    find_dependency(CUDAToolkit REQUIRED)
+  endif()
+  if(@CP2K_USE_ELPA@)
+    find_dependency(Elpa REQUIRED)
+  endif()
 
-if (@@CP2K_USE_MPI@)
-  find_package(MPI REQUIRED)
-  find_package(SCALAPACK REQUIRED)
-endif()
+  if(@CP2K_USE_LIBXC@)
+    find_dependency(LibXC 6 REQUIRED EXACT)
+  endif()
 
-if(@CP2K_USE_FFTW3@)
-  find_package(Fftw REQUIRED)
-endif()
+  if(@CP2K_USE_COSMA@)
+    find_dependency(cosma REQUIRED)
+  endif()
+
+  if(@CP2K_USE_MPI@)
+    find_dependency(MPI REQUIRED)
+  endif()
+
+  if(@CP2K_USE_FFTW3_@)
+    find_dependency(Fftw REQUIRED)
+  endif()
   # QUIP
-if(@CP2K_USE_QUIP@)
-  find_package(Quip REQUIRED)
+  if(@CP2K_USE_QUIP@)
+    find_dependency(Quip REQUIRED)
+  endif()
+
+  # libint
+
+  if(@CP2K_USE_LIBINT2@)
+    find_dependency(Libint2 REQUIRED)
+  endif()
+
+  # spglib
+
+  if(@CP2K_USE_SPGLIB@)
+    find_dependency(LibSPG REQUIRED)
+  endif()
+
+  if(@CP2K_USE_SPLA@)
+    find_dependency(SPLA REQUIRED)
+  endif()
+
+  if(@CP2K_USE_SIRIUS@)
+    find_dependency(sirius REQUIRED)
+  endif()
+
+  if(@CP2K_USE_SUPERLU@)
+    find_dependency(SuperLU REQUIRED)
+  endif()
+
+  if(@CP2K_USE_METIS@)
+    find_dependency(Metis)
+  endif()
+
+  if(@CP2K_USE_PEXSI@)
+    # PEXSI 1.2 uses cmake as build system
+    find_dependency(PEXSI REQUIRED)
+  endif()
+
+  if(@CP2K_USE_PLUMED@)
+    find_dependency(Plumed REQUIRED)
+  endif()
+
+  if(@CP2K_USE_LIBTORCH@)
+    find_dependency(Torch REQUIRED)
+  endif()
+
+  include("${CMAKE_CURRENT_LIST_DIR}/cp2kTargets.cmake")
+
+  # Clean-up module path.
+  list(REMOVE_ITEM CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
+
 endif()
-
-# libint
-
-if(@CP2K_USE_LIBINT2@)
-  find_package(Libint2 REQUIRED)
-endif()
-
-# spglib
-
-if(@CP2K_USE_SPGLIB@)
-  find_package(LibSPG REQUIRED)
-endif()
-
-if(@CP2K_USE_SPLA@)
-  find_package(SPLA REQUIRED)
-endif()
-
-if(@CP2K_USE_SIRIUS@)
-  find_package(sirius REQUIRED)
-endif()
-
-if(@CP2K_USE_SUPERLU@)
-  find_package(SuperLU REQUIRED)
-endif()
-
-if(@CP2K_USE_PARMETIS@)
-  find_package(Metis)
-endif()
-
-if(@CP2K_USE_PTSCOTCH@)
-  find_package(Ptscotch REQUIRED)
-endif()
-
-if(@CP2K_USE_PEXSI@)
-  # PEXSI 1.2 uses cmake as build system
-  find_package(PEXSI REQUIRED)
-endif()
-
-if(@CP2K_USE_PLUMED@)
-  find_package(Plumed REQUIRED)
-endif()
-
-if(@CP2K_USE_LIBTORCH@)
-  find_package(Torch REQUIRED)
-endif()
-
-# Include SIRIUS target
-include("${CMAKE_CURRENT_LIST_DIR}/cp2kTargets.cmake")

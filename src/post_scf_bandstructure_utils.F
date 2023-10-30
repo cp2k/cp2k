@@ -18,6 +18,7 @@ MODULE post_scf_bandstructure_utils
                                               get_cell,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -143,6 +144,8 @@ CONTAINS
       CALL allocate_and_fill_fm_ks_fm_s(qs_env, bs_env)
 
       CALL diagonalize_ks_matrix(bs_env)
+
+      CALL check_positive_definite_overlap_mat(bs_env, qs_env)
 
       IF (bs_env%do_bs) THEN
          CALL setup_kpoints_bandstructure(bs_env, bs_env%kpoints_bandstructure)
@@ -427,6 +430,60 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE diagonalize_ks_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param bs_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE check_positive_definite_overlap_mat(bs_env, qs_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_positive_definite_overlap_mat'
+
+      INTEGER                                            :: handle, ikp, info, u
+      TYPE(cp_cfm_type)                                  :: cfm_s_ikp
+
+      CALL timeset(routineN, handle)
+
+      DO ikp = 1, bs_env%kpoints_DOS%nkp
+
+         ! get S_µν(k_i) from S_µν(k=0)
+         CALL cfm_ikp_from_fm_Gamma(cfm_s_ikp, bs_env%fm_s_Gamma, &
+                                    ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+
+         ! check whether S_µν(k_i) is positive definite
+         CALL cp_cfm_cholesky_decompose(matrix=cfm_s_ikp, n=bs_env%n_ao, info_out=info)
+
+         ! check if Cholesky decomposition failed (Cholesky decomposition only works for
+         ! positive definite matrices
+         IF (info .NE. 0) THEN
+            u = bs_env%unit_nr
+
+            IF (u > 0) THEN
+               WRITE (UNIT=u, FMT="(T2,A)") ""
+               WRITE (UNIT=u, FMT="(T2,A)") "ERROR: The Cholesky decomposition "// &
+                  "of the k-point overlap matrix failed. This is"
+               WRITE (UNIT=u, FMT="(T2,A)") "because the algorithm is "// &
+                  "only correct in the limit of large cells. The cell of "
+               WRITE (UNIT=u, FMT="(T2,A)") "the calculation is too small. "// &
+                  "Use MULTIPLE_UNIT_CELL to create a larger cell "
+               WRITE (UNIT=u, FMT="(T2,A)") "and to prevent this error."
+            END IF
+
+            CALL bs_env%para_env%sync()
+            CPABORT("Please see information on the error above.")
+
+         END IF ! Cholesky decomposition failed
+
+      END DO ! ikp
+
+      CALL cp_cfm_release(cfm_s_ikp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE check_positive_definite_overlap_mat
 
 ! **************************************************************************************************
 !> \brief ...

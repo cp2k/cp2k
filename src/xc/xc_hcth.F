@@ -78,7 +78,7 @@ CONTAINS
          END IF
       CASE (407)
          IF (PRESENT(reference)) THEN
-            reference = "A. D. Boese and N. C. Handy, J. Chem. Phys. 114, 5497 (2001);"// &
+            reference = "A. D. Boese and N. C. Handy, J. Chem. Phys. 114, 5497 (2001); "// &
                         "HCTH/407 xc functional {LDA version}"
          END IF
          IF (PRESENT(shortform)) THEN
@@ -86,7 +86,7 @@ CONTAINS
          END IF
       CASE (408)
          IF (PRESENT(reference)) THEN
-            reference = "P. Verma and D. G. Truhlar, J. Phys. Chem. Lett. 8, 380 (2016);"// &
+            reference = "P. Verma and D. G. Truhlar, J. Phys. Chem. Lett. 8, 380 (2016); "// &
                         "HLE16 xc functional {LDA version}"
          END IF
          IF (PRESENT(shortform)) THEN

@@ -3,6 +3,7 @@
   RUN_TYPE MD
   PRINT_LEVEL MEDIUM
 &END GLOBAL
+
 &MOTION
   &MD
     ENSEMBLE NVE
@@ -11,6 +12,7 @@
     TEMPERATURE 300.0
   &END MD
 &END MOTION
+
 &FORCE_EVAL
   METHOD QS
   &DFT
@@ -26,7 +28,10 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 15
+      MAX_SCF 25
+      &MIXING
+        ALPHA 0.2
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -38,27 +43,27 @@
       ABC 15 4 4
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
-    O   1.000000    0.000000   -0.065587
-    H   1.000000   -0.757136    0.520545
-    H   1.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+      O   1.000000    0.000000   -0.065587
+      H   1.000000   -0.757136    0.520545
+      H   1.000000    0.757136    0.520545
     &END COORD
     &VELOCITY
-       0.0 0.0 0.0
-       0.0 0.0 0.0
-       0.0 0.0 0.0
-       0.2 0.0 0.0
-       0.2 0.0 0.0
-       0.2 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.2 0.0 0.0
+      0.2 0.0 0.0
+      0.2 0.0 0.0
     &END
     &KIND H
-      BASIS_SET dZVp-GTH
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
-      BASIS_SET dZVp-GTH
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS

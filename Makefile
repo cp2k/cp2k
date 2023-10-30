@@ -253,11 +253,11 @@ $(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
 	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
 
 test:
-	@$(TOOLSRC)/regtesting/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS)
+	@$(CP2KHOME)/tests/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
-	@$(TOOLSRC)/regtesting/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
+	@$(CP2KHOME)/tests/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
 	@grep -e "Summary:" -e "Status:" $(TSTDIR)/regtest.log
 
 endif

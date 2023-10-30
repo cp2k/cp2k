@@ -12,10 +12,13 @@
 ! **************************************************************************************************
 MODULE helium_interactions
 
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
    USE helium_common,                   ONLY: helium_eval_chain,&
                                               helium_eval_expansion,&
                                               helium_pbc,&
                                               helium_spline
+   USE helium_nnp,                      ONLY: helium_nnp_print
    USE helium_types,                    ONLY: e_id_interact,&
                                               e_id_kinetic,&
                                               e_id_potential,&
@@ -26,8 +29,15 @@ MODULE helium_interactions
                                               helium_solvent_type
    USE input_constants,                 ONLY: helium_sampling_worm,&
                                               helium_solute_intpot_mwater,&
+                                              helium_solute_intpot_nnp,&
                                               helium_solute_intpot_none
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
+   USE nnp_acsf,                        ONLY: nnp_calc_acsf
+   USE nnp_environment_types,           ONLY: nnp_type
+   USE nnp_model,                       ONLY: nnp_gradients,&
+                                              nnp_predict
    USE physcon,                         ONLY: angstrom,&
                                               kelvin
    USE pint_types,                      ONLY: pint_env_type
@@ -334,6 +344,7 @@ CONTAINS
 !> \param force              calculated force (if requested)
 !> \par History
 !>         2019-09 Added multiple-time striding in imag. time [cschran]
+!>         2023-07-23 Modified to work with NNP solute-solvent interactions [lduran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_bead_solute_e_f(pint_env, helium, helium_part_index, &
@@ -379,6 +390,26 @@ CONTAINS
                )
          ELSE
             CALL helium_intpot_model_water( &
+               pint_env%x(qi, :), &
+               helium, &
+               helium_r, &
+               energy &
+               )
+         END IF
+
+      CASE (helium_solute_intpot_nnp)
+         IF (PRESENT(force)) THEN
+            force(:, :) = 0.0_dp
+            my_force => force(qi, :)
+            CALL helium_intpot_nnp( &
+               pint_env%x(qi, :), &
+               helium, &
+               helium_r, &
+               energy, &
+               my_force &
+               )
+         ELSE
+            CALL helium_intpot_nnp( &
                pint_env%x(qi, :), &
                helium, &
                helium_r, &
@@ -628,6 +659,171 @@ CONTAINS
       energy = energy + s1
 
    END SUBROUTINE helium_intpot_model_water
+
+! ***************************************************************************
+!> \brief  Calculate helium-solute interaction energy and forces between one
+!>         helium bead and the corresponding solute time slice using NNP.
+!> \param  solute_x  solute positions ARR(3*NATOMS)
+!>         to global atom indices
+!> \param  helium    only needed for helium_pbc call at the moment
+!> \param  helium_x  helium bead position ARR(3)
+!> \param  energy    calculated interaction energy
+!> \param  force     (optional) calculated force
+!> \date   2023-02-22
+!> \author Laura Duran
+! **************************************************************************************************
+   SUBROUTINE helium_intpot_nnp(solute_x, helium, helium_x, energy, force)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: solute_x
+      TYPE(helium_solvent_type), INTENT(IN)              :: helium
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: helium_x
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL, POINTER                               :: force
+
+      INTEGER                                            :: i, i_com, ig, ind, ind_he, j, k, m
+      LOGICAL                                            :: extrapolate
+      REAL(KIND=dp)                                      :: rsqr, rvect(3), threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(section_vals_type), POINTER                   :: print_section
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+
+      IF (PRESENT(force)) THEN
+         helium%nnp%myforce(:, :, :) = 0.0_dp
+      END IF
+
+      extrapolate = .FALSE.
+      threshold = 0.0001d0
+
+      !fill coord array
+      ig = 1
+      DO i = 1, helium%nnp%n_ele
+         IF (helium%nnp%ele(i) == 'He') THEN
+            ind_he = ig
+            DO m = 1, 3
+               helium%nnp%coord(m, ig) = helium_x(m)
+            END DO
+            ig = ig + 1
+         END IF
+         DO j = 1, helium%solute_atoms
+            IF (helium%nnp%ele(i) == helium%solute_element(j)) THEN
+               DO m = 1, 3
+                  helium%nnp%coord(m, ig) = solute_x(3*(j - 1) + m)
+               END DO
+               ig = ig + 1
+            END IF
+         END DO
+      END DO
+
+      ! check for hard core condition
+      IF (ASSOCIATED(helium%nnp_sr_cut)) THEN
+         DO i = 1, helium%nnp%num_atoms
+            IF (i == ind_he) CYCLE
+            rvect(:) = helium%nnp%coord(:, i) - helium%nnp%coord(:, ind_he)
+            CALL helium_pbc(helium, rvect)
+            rsqr = rvect(1)*rvect(1) + rvect(2)*rvect(2) + rvect(3)*rvect(3)
+            IF (rsqr < helium%nnp_sr_cut(helium%nnp%ele_ind(i))) THEN
+               energy = 0.3_dp + 1.0_dp/rsqr
+               IF (PRESENT(force)) THEN
+                  force = 0.0_dp
+               END IF
+               RETURN
+            END IF
+         END DO
+      END IF
+
+      ! reset flag if there's an extrapolation to report:
+      helium%nnp%output_expol = .FALSE.
+
+      ! calc atomic contribution to energy and force
+!NOTE corresponds to nnp_force line with parallelization:
+!DO i = istart, istart + mecalc - 1
+      DO i = 1, helium%nnp%num_atoms
+
+         !determine index of atom type
+         ind = helium%nnp%ele_ind(i)
+
+         !reset input nodes and grads of ele(ind):
+         helium%nnp%arc(ind)%layer(1)%node(:) = 0.0_dp
+         nnp => helium%nnp ! work around wrong INTENT of nnp_calc_acsf
+         IF (PRESENT(force)) THEN
+            helium%nnp%arc(ind)%layer(1)%node_grad(:) = 0.0_dp
+            ALLOCATE (dsymdxyz(3, helium%nnp%arc(ind)%n_nodes(1), helium%nnp%num_atoms))
+            ALLOCATE (denergydsym(helium%nnp%arc(ind)%n_nodes(1)))
+            dsymdxyz(:, :, :) = 0.0_dp
+            CALL nnp_calc_acsf(nnp, i, dsymdxyz)
+         ELSE
+            CALL nnp_calc_acsf(nnp, i)
+         END IF
+
+         ! input nodes filled, perform prediction:
+         DO i_com = 1, helium%nnp%n_committee !loop over committee members
+            ! Predict energy
+            CALL nnp_predict(helium%nnp%arc(ind), helium%nnp, i_com)
+            helium%nnp%atomic_energy(i, i_com) = helium%nnp%arc(ind)%layer(helium%nnp%n_layer)%node(1) ! + helium%nnp%atom_energies(ind)
+
+            !Gradients
+            IF (PRESENT(force)) THEN
+
+               denergydsym(:) = 0.0_dp
+
+               CALL nnp_gradients(helium%nnp%arc(ind), helium%nnp, i_com, denergydsym)
+               DO j = 1, helium%nnp%arc(ind)%n_nodes(1)
+                  DO k = 1, helium%nnp%num_atoms
+                     DO m = 1, 3
+                        helium%nnp%myforce(m, k, i_com) = helium%nnp%myforce(m, k, i_com) &
+                                                          - denergydsym(j)*dsymdxyz(m, j, k)
+                     END DO
+                  END DO
+               END DO
+
+            END IF
+         END DO ! end loop over committee members
+
+         !deallocate memory
+         IF (PRESENT(force)) THEN
+            DEALLOCATE (denergydsym)
+            DEALLOCATE (dsymdxyz)
+         END IF
+
+      END DO ! end loop over num_atoms
+
+      ! calculate energy:
+      helium%nnp%committee_energy(:) = SUM(helium%nnp%atomic_energy, 1)
+      energy = SUM(helium%nnp%committee_energy)/REAL(helium%nnp%n_committee, dp)
+      helium%nnp%nnp_potential_energy = energy
+
+      IF (PRESENT(force)) THEN
+         ! bring myforce to force array
+         DO j = 1, helium%nnp%num_atoms
+            DO k = 1, 3
+               helium%nnp%committee_forces(k, j, :) = helium%nnp%myforce(k, j, :)
+            END DO
+         END DO
+         helium%nnp%nnp_forces(:, :) = SUM(helium%nnp%committee_forces, DIM=3)/REAL(helium%nnp%n_committee, dp)
+         ! project out helium force entry
+         ig = 1
+         DO j = 1, helium%nnp%num_atoms
+            IF (j == ind_he) CYCLE
+            DO k = 1, 3
+               force(3*(helium%nnp%sort(ig) - 1) + k) = helium%nnp%nnp_forces(k, j)
+            END DO
+            ig = ig + 1
+         END DO
+      END IF
+
+      ! print properties if requested
+      print_section => section_vals_get_subs_vals(helium%nnp%nnp_input, "PRINT")
+      CALL helium_nnp_print(helium%nnp, print_section, ind_he)
+
+      RETURN
+
+   END SUBROUTINE helium_intpot_nnp
 
 ! ***************************************************************************
 !> \brief Helium-helium pair interaction potential.

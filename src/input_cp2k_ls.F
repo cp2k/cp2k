@@ -259,7 +259,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="MATRIX_CLUSTER_TYPE", &
          description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "// &
-         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."// &
+         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used. "// &
          "Furthermore, since screening is on matrix blocks, "// &
          "slightly more accurate results can be expected with molecular.", &
          usage="MATRIX_CLUSTER_TYPE MOLECULAR", &

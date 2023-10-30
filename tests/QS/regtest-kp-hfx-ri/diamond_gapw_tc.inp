@@ -30,6 +30,7 @@
                    NGROUPS 2
                    MEMORY_CUT 2
                    EPS_FILTER 1.0E-10
+                   USE_DELTA_P FALSE
                 &END
                 &INTERACTION_POTENTIAL
                     !this is too small for a real calculation. The only requirement is that it is

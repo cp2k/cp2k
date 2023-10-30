@@ -2196,7 +2196,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_pdgeqpf(matrix, tau, nrow, ncol, first_row, first_col)
 
-      TYPE(cp_fm_type), INTENT(IN)                    :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, ncol, first_row, first_col
 
@@ -2210,7 +2210,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9) :: descc
 #else
-      INTEGER :: ii
+      INTEGER :: lda
 #endif
 
       CALL timeset(routineN, handle)
@@ -2220,7 +2220,6 @@ CONTAINS
       ALLOCATE (work(2*nrow))
       ALLOCATE (ipiv(ncol))
       info = 0
-      tau = 0
 
 #if defined(__SCALAPACK)
       descc(:) = matrix%matrix_struct%descriptor(:)
@@ -2234,13 +2233,18 @@ CONTAINS
 
       ! Call SCALAPACK routine to get QR decomposition of CTs
       CALL pdgeqpf(nrow, ncol, a, first_row, first_col, descc, ipiv, tau, work, lwork, info)
-      CPASSERT(INFO == 0)
 #else
-      ! NIY
-      ii = 1
-      tau(first_row) = 0
-      tau(first_col) = 0
+      CPASSERT(first_row == 1 .AND. first_col == 1)
+      lda = SIZE(a, 1)
+      CALL dgeqp3(nrow, ncol, a, lda, ipiv, tau, work, lwork, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      tau = 0.0_dp
+      ipiv = 0
+      CALL dgeqp3(nrow, ncol, a, lda, ipiv, tau, work, lwork, info)
 #endif
+      CPASSERT(info == 0)
 
       DEALLOCATE (work)
       DEALLOCATE (ipiv)
@@ -2264,7 +2268,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_pdorgqr(matrix, tau, nrow, first_row, first_col)
 
-      TYPE(cp_fm_type), INTENT(IN)                    :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, first_row, first_col
 
@@ -2277,7 +2281,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9) :: descc
 #else
-      INTEGER :: ii
+      INTEGER :: lda
 #endif
 
       CALL timeset(routineN, handle)
@@ -2298,13 +2302,16 @@ CONTAINS
 
       ! Call SCALAPACK routine to get Q
       CALL pdorgqr(nrow, nrow, nrow, a, first_row, first_col, descc, tau, work, lwork, info)
-      CPASSERT(INFO == 0)
 #else
-      ! NIY
-      ii = 1
-      tau(first_row) = 0
-      tau(first_col) = 0
+      CPASSERT(first_row == 1 .AND. first_col == 1)
+      CALL dorgqr(nrow, nrow, nrow, a, lda, tau, work, lwork, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      lda = SIZE(a, 1)
+      CALL dorgqr(nrow, nrow, nrow, a, lda, tau, work, lwork, info)
 #endif
+      CPASSERT(INFO == 0)
 
       DEALLOCATE (work)
       CALL timestop(handle)

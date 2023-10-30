@@ -49,6 +49,7 @@ MODULE cp_control_types
       INTEGER                                    :: td_mo_spin = 1
       LOGICAL                                    :: sum_on_all_td = .FALSE.
       CHARACTER(LEN=default_path_length)         :: ref_mo_file_name = ""
+      LOGICAL                                    :: propagate_ref = .FALSE.
       TYPE(cp_fm_type), DIMENSION(:), &
          ALLOCATABLE                       :: mo_ref
    END TYPE proj_mo_type
@@ -72,6 +73,7 @@ MODULE cp_control_types
       LOGICAL                              :: hfx_redistribute = .FALSE.
       INTEGER                              :: aspc_order = 0
       INTEGER                              :: sc_check_start = 0
+      LOGICAL                              :: apply_wfn_mix_init_restart = .FALSE.
       LOGICAL                              :: apply_delta_pulse = .FALSE.
       LOGICAL                              :: apply_delta_pulse_mag = .FALSE.
       LOGICAL                              :: periodic = .FALSE.

@@ -171,7 +171,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE", &
                           description="Gives the preferred size of a working group, "// &
-                          "groups will always be equal or larger than this size."// &
+                          "groups will always be equal or larger than this size. "// &
                           "Usually this should take the number of cores per socket into account for good performance.", &
                           usage="group_size 2", default_i_val=6)
       CALL section_add_keyword(sub_section, keyword)

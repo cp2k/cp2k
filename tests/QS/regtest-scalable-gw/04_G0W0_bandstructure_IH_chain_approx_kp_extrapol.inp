@@ -1,0 +1,83 @@
+&GLOBAL
+  PROJECT IH
+  PRINT_LEVEL SILENT
+  RUN_TYPE ENERGY
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  BASIS_MOLOPT
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME  ./REGTEST_BASIS_H_O_I
+    SORT_BASIS EXP
+    POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-15
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-5
+      MAX_SCF 100
+      ADDED_MOS -1
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &BANDSTRUCTURE
+      &GW
+        NUM_TIME_FREQ_POINTS   10
+        EPS_FILTER             1.0E-6
+        APPROX_KP_EXTRAPOL
+      &END
+      &SOC
+        ENERGY_WINDOW 3.0
+      &END
+      &DOS
+        KPOINTS 2 2 1
+      &END
+      &BANDSTRUCTURE_PATH
+        SPECIAL_POINT Gamma 0.0   0.0   0.0
+        SPECIAL_POINT X     0.5   0.0   0.0
+        SPECIAL_POINT Y     0.0   0.5   0.0
+        SPECIAL_POINT Gamma 0.0   0.0   0.0
+        NPOINTS 10
+      &END
+    &END
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  3.000   10.000  3.000
+      MULTIPLE_UNIT_CELL  3 1 1
+      PERIODIC XY
+    &END CELL
+    &KIND H
+      BASIS_SET ORB    DZVP-GTH
+      BASIS_SET RI_AUX RI-dummy-regtest
+      POTENTIAL        GTH-PBE-q1
+    &END KIND
+    &KIND I
+      BASIS_SET ORB    SZV-MOLOPT-SR-GTH
+      BASIS_SET RI_AUX RI-dummy-regtest
+      POTENTIAL        GTH-PBE-q7
+    &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL  3 1 1
+    &END TOPOLOGY
+    &COORD
+      H  0.2 0.0 0.0
+      I  1.2 0.0 0.0
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

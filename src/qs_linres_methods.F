@@ -431,8 +431,8 @@ CONTAINS
          ! Max number of iteration reached
          IF (iter == linres_control%max_iter) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(T3,A)") &
-                  "The linear solver didn't converge! Maximum number of iterations reached."
+               CALL cp_warn(__LOCATION__, &
+                            "The linear solver didn't converge! Maximum number of iterations reached.")
                CALL m_flush(iounit)
             END IF
             linres_control%converged = .FALSE.

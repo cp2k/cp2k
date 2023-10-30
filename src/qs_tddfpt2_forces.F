@@ -55,7 +55,8 @@ MODULE qs_tddfpt2_forces
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: ao_charges
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -651,6 +652,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec2'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, iounit, ispin, mspin, n_rep_hf, &
                                                             nao, nao_aux, natom, norb, nspins
       LOGICAL                                            :: deriv2_analytic, distribute_fock_matrix, &
@@ -689,7 +691,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc, rhoz_aux, trho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_section
-      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
+      TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
@@ -910,7 +912,8 @@ CONTAINS
             ! add ADMM xc_section_aux terms: f_x[rhoz_ADMM]
             CALL get_qs_env(qs_env, admm_env=admm_env)
             CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=msaux, &
-                              task_list_aux_fit=task_list_aux_fit)
+                              task_list_aux_fit=task_list)
+            basis_type = "AUX_FIT"
             !
             NULLIFY (mpe, mhz)
             ALLOCATE (mpe(nspins, 1))
@@ -926,6 +929,8 @@ CONTAINS
             ! GAPW/GAPW_XC initializations
             NULLIFY (local_rho_set_admm)
             IF (admm_env%do_gapw) THEN
+               basis_type = "AUX_FIT_SOFT"
+               task_list => admm_env%admm_gapw_env%task_list
                CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
                CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
                CALL local_rho_set_create(local_rho_set_admm)
@@ -954,8 +959,8 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpe(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
-                                       basis_type="AUX_FIT", &
-                                       task_list_external=task_list_aux_fit)
+                                       basis_type=basis_type, &
+                                       task_list_external=task_list)
             END DO
             !
             NULLIFY (v_xc)
@@ -976,9 +981,9 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
-                                       hmat=mhz(ispin, 1), basis_type="AUX_FIT", &
+                                       hmat=mhz(ispin, 1), basis_type=basis_type, &
                                        calculate_forces=.FALSE., &
-                                       task_list_external=task_list_aux_fit)
+                                       task_list_external=task_list)
             END DO
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
@@ -988,11 +993,11 @@ CONTAINS
             DEALLOCATE (v_xc, rhoz_r_aux, rhoz_g_aux)
             !
             IF (admm_env%do_gapw) THEN
-               CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+               rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
                rho1_atom_set => local_rho_set_admm%rho_atom_set
                CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, &
                                                 para_env, kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
-               CALL update_ks_atom(qs_env, mhz(:, 1), matrix_pe_admm, forces=.FALSE., tddft=.TRUE., &
+               CALL update_ks_atom(qs_env, mhz(:, 1), matrix_pe_admm, forces=.FALSE., tddft=.FALSE., &
                                    rho_atom_external=rho1_atom_set, &
                                    kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                    oce_external=admm_env%admm_gapw_env%oce, &

@@ -29,6 +29,7 @@ MODULE gw_utils
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_set_all,&
                                               cp_fm_to_fm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -206,12 +207,8 @@ CONTAINS
 
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
-!      CALL section_vals_val_get(gw_sec, "EPS_3C_INT", r_val=bs_env%eps_3c_int)
-      CALL section_vals_val_get(gw_sec, "SIZE_LATTICE_SUM_V", i_val=bs_env%size_lattice_sum_V)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", i_val=bs_env%input_memory_per_proc_GB)
-      CALL section_vals_val_get(gw_sec, "GROUP_SIZE_TENSOR", i_val=bs_env%group_size_tensor)
-!      CALL section_vals_val_get(gw_sec, "GROUP_SIZE_DIAG", i_val=bs_env%group_size_diag)
-      CALL section_vals_val_get(gw_sec, "KPOINTS_CHI_EPS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
+      CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
 
       CALL timestop(handle)
 
@@ -324,12 +321,8 @@ CONTAINS
 
          CPASSERT(periodic(i_dim) == 0 .OR. periodic(i_dim) == 1)
 
-         IF (bs_env%nkp_grid_chi_eps_W_input(i_dim) < 0) THEN
-            IF (periodic(i_dim) == 1) nkp_grid(i_dim) = 4
-            IF (periodic(i_dim) == 0) nkp_grid(i_dim) = 1
-         ELSE
-            nkp_grid(i_dim) = bs_env%nkp_grid_chi_eps_W_input(i_dim)
-         END IF
+         IF (periodic(i_dim) == 1) nkp_grid(i_dim) = 4
+         IF (periodic(i_dim) == 0) nkp_grid(i_dim) = 1
 
          IF (periodic(i_dim) == 1) THEN
             ! only even k-meshes in periodic direction implemented
@@ -358,7 +351,7 @@ CONTAINS
       bs_env%nkp_grid_chi_eps_W_extra(1:3) = nkp_grid_extra(1:3)
       bs_env%nkp_chi_eps_W_orig = nkp_orig
       bs_env%nkp_chi_eps_W_extra = nkp_extra
-      bs_env%nkp_chi_eps_W_total = nkp
+      bs_env%nkp_chi_eps_W_orig_plus_extra = nkp
 
       ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
 
@@ -376,11 +369,19 @@ CONTAINS
       CALL compute_xkp(kpoints%xkp, 1, nkp_orig, nkp_grid)
       CALL compute_xkp(kpoints%xkp, nkp_orig + 1, nkp, nkp_grid_extra)
 
+      IF (bs_env%approx_kp_extrapol) THEN
+         bs_env%wkp_no_extra = 1.0_dp/REAL(nkp_orig, KIND=dp)
+      END IF
+
       CALL kpoint_init_cell_index_simple(kpoints, qs_env)
 
-      ! JW 2do: Parallelization over k-points (diagonalization of χ(iω,k) and further steps)
-      bs_env%ikp_local_start = 1
-      bs_env%ikp_local_end = kpoints%nkp
+      ! heuristic parameter: how many k-points for χ, ε, and W are used simultaneously
+      ! (less simultaneous k-points: less memory, but more computational effort because of
+      !  recomputation of V(k))
+      bs_env%nkp_chi_eps_W_batch = 4
+
+      bs_env%num_chi_eps_W_batches = (bs_env%nkp_chi_eps_W_orig_plus_extra - 1)/ &
+                                     bs_env%nkp_chi_eps_W_batch + 1
 
       u = bs_env%unit_nr
 
@@ -389,6 +390,8 @@ CONTAINS
          WRITE (UNIT=u, FMT="(T2,1A,T71,3I4)") "K-point mesh 1 for χ, ε, W", nkp_grid(1:3)
          WRITE (UNIT=u, FMT="(T2,2A,T71,3I4)") "K-point mesh 2 for χ, ε, W ", &
             "(for k-point extrapolation of W)", nkp_grid_extra(1:3)
+         WRITE (UNIT=u, FMT="(T2,A,T79,L)") "Approximate the k-point extrapolation", &
+            bs_env%approx_kp_extrapol
       END IF
 
       CALL timestop(handle)
@@ -474,8 +477,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_and_fill_matrices_and_arrays'
 
       INTEGER                                            :: handle, i_t, num_time_freq_points
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_kp_diag, &
-                                                            blacs_env_tensor
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_tensor
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_RI_global
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -500,6 +502,12 @@ CONTAINS
       CALL cp_fm_create(bs_env%fm_RI_RI, fm_struct_RI_global)
       CALL cp_fm_create(bs_env%fm_chi_Gamma_freq, fm_struct_RI_global)
       CALL cp_fm_create(bs_env%fm_W_MIC_freq, fm_struct_RI_global)
+      IF (bs_env%approx_kp_extrapol) THEN
+         CALL cp_fm_create(bs_env%fm_W_MIC_freq_1_extra, fm_struct_RI_global)
+         CALL cp_fm_create(bs_env%fm_W_MIC_freq_1_no_extra, fm_struct_RI_global)
+         CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_1_extra, 0.0_dp)
+         CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_1_no_extra, 0.0_dp)
+      END IF
       CALL cp_fm_struct_release(fm_struct_RI_global)
 
       ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, bs_env%nkp_DOS))
@@ -516,17 +524,6 @@ CONTAINS
       NULLIFY (blacs_env_tensor)
       CALL cp_blacs_env_create(blacs_env=blacs_env_tensor, para_env=bs_env%para_env_tensor)
 
-      NULLIFY (blacs_env_kp_diag)
-      CALL cp_blacs_env_create(blacs_env=blacs_env_kp_diag, para_env=bs_env%para_env_kp_diag)
-
-! JW TODO later cfm matrices in kp diag subgroups
-!      NULLIFY (fm_struct_RI_kp_diag)
-!      CALL cp_fm_struct_create(fm_struct_RI_kp_diag, context=blacs_env_kp_diag, &
-!                               nrow_global=bs_env%n_RI, ncol_global=bs_env%n_RI, &
-!                               para_env=bs_env%para_env_tensor)
-!
-!      CALL cp_fm_struct_release(fm_struct_RI_kp_diag)
-
       ! allocate dbcsr matrices in the tensor subgroup; actually, one only needs a small
       ! subset of blocks in the tensor subgroup, however, all atomic blocks are allocated.
       ! One might think of creating a dbcsr matrix with only the blocks that are needed
@@ -541,7 +538,6 @@ CONTAINS
                            blacs_env, do_ri_aux_basis=.TRUE.)
 
       CALL cp_blacs_env_release(blacs_env_tensor)
-      CALL cp_blacs_env_release(blacs_env_kp_diag)
 
       NULLIFY (bs_env%mat_chi_Gamma_tau)
       CALL dbcsr_allocate_matrix_set(bs_env%mat_chi_Gamma_tau, bs_env%num_time_freq_points)
@@ -965,13 +961,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_for_restart_files'
 
-      CHARACTER(LEN=default_path_length)                 :: f_chi, f_Goc, f_Gvi, f_MV, f_S_n, f_S_p, &
-                                                            f_S_x, f_Vs, f_W_t, f_W_w, prefix, &
-                                                            project_name
-      INTEGER                                            :: handle, i_t_or_w, ikp_re_im, &
-                                                            num_time_freq_points
-      LOGICAL :: chi_exists, G_occ_exists, G_vir_exists, MV_exists, Sigma_neg_time_exists, &
-         Sigma_pos_time_exists, Vs_exists, W_time_exists
+      CHARACTER(LEN=default_path_length)                 :: f_chi, f_Goc, f_Gvi, f_S_n, f_S_p, &
+                                                            f_S_x, f_W_t, prefix, project_name
+      INTEGER                                            :: handle, i_t_or_w, num_time_freq_points
+      LOGICAL                                            :: chi_exists, G_occ_exists, G_vir_exists, &
+                                                            Sigma_neg_time_exists, &
+                                                            Sigma_pos_time_exists, W_time_exists
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input, print_key
 
@@ -981,8 +976,6 @@ CONTAINS
 
       ALLOCATE (bs_env%read_chi_and_G_occ_vir(num_time_freq_points))
       ALLOCATE (bs_env%calc_chi_and_G_occ_vir(num_time_freq_points))
-      ALLOCATE (bs_env%read_W_freq(num_time_freq_points))
-      ALLOCATE (bs_env%calc_W_freq(num_time_freq_points))
       ALLOCATE (bs_env%Sigma_c_exists(num_time_freq_points))
 
       CALL get_qs_env(qs_env, input=input)
@@ -994,14 +987,14 @@ CONTAINS
       WRITE (prefix, '(2A)') TRIM(project_name), "-RESTART_"
       bs_env%prefix = prefix
 
-      bs_env%read_all_W_time = .TRUE.
+      bs_env%all_W_exist = .TRUE.
+
       DO i_t_or_w = 1, num_time_freq_points
 
          IF (i_t_or_w < 10) THEN
             WRITE (f_chi, '(3A,I1,A)') TRIM(prefix), bs_env%chi_name, "_00", i_t_or_w, ".matrix"
             WRITE (f_Goc, '(3A,I1,A)') TRIM(prefix), bs_env%Gocc_name, "_00", i_t_or_w, ".matrix"
             WRITE (f_Gvi, '(3A,I1,A)') TRIM(prefix), bs_env%Gvir_name, "_00", i_t_or_w, ".matrix"
-            WRITE (f_W_w, '(3A,I1,A)') TRIM(prefix), bs_env%W_freq_name, "_00", i_t_or_w, ".matrix"
             WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), bs_env%W_time_name, "_00", i_t_or_w, ".matrix"
             WRITE (f_S_p, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_p_name, "_00", i_t_or_w, ".matrix"
             WRITE (f_S_n, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_n_name, "_00", i_t_or_w, ".matrix"
@@ -1009,7 +1002,6 @@ CONTAINS
             WRITE (f_chi, '(3A,I2,A)') TRIM(prefix), bs_env%chi_name, "_0", i_t_or_w, ".matrix"
             WRITE (f_Goc, '(3A,I2,A)') TRIM(prefix), bs_env%Gocc_name, "_0", i_t_or_w, ".matrix"
             WRITE (f_Gvi, '(3A,I2,A)') TRIM(prefix), bs_env%Gvir_name, "_0", i_t_or_w, ".matrix"
-            WRITE (f_W_w, '(3A,I2,A)') TRIM(prefix), bs_env%W_freq_name, "_0", i_t_or_w, ".matrix"
             WRITE (f_W_t, '(3A,I2,A)') TRIM(prefix), bs_env%W_time_name, "_0", i_t_or_w, ".matrix"
             WRITE (f_S_p, '(3A,I2,A)') TRIM(prefix), bs_env%Sigma_p_name, "_0", i_t_or_w, ".matrix"
             WRITE (f_S_n, '(3A,I2,A)') TRIM(prefix), bs_env%Sigma_n_name, "_0", i_t_or_w, ".matrix"
@@ -1020,7 +1012,6 @@ CONTAINS
          INQUIRE (file=TRIM(f_chi), exist=chi_exists)
          INQUIRE (file=TRIM(f_Goc), exist=G_occ_exists)
          INQUIRE (file=TRIM(f_Gvi), exist=G_vir_exists)
-         INQUIRE (file=TRIM(f_W_w), exist=bs_env%read_W_freq(i_t_or_w))
          INQUIRE (file=TRIM(f_W_t), exist=W_time_exists)
          INQUIRE (file=TRIM(f_S_p), exist=Sigma_pos_time_exists)
          INQUIRE (file=TRIM(f_S_n), exist=Sigma_neg_time_exists)
@@ -1028,59 +1019,19 @@ CONTAINS
          bs_env%read_chi_and_G_occ_vir(i_t_or_w) = chi_exists .AND. G_occ_exists .AND. G_vir_exists
          bs_env%calc_chi_and_G_occ_vir(i_t_or_w) = .NOT. bs_env%read_chi_and_G_occ_vir(i_t_or_w)
 
-         bs_env%calc_W_freq(i_t_or_w) = .NOT. bs_env%read_W_freq(i_t_or_w)
-
-         bs_env%read_all_W_time = W_time_exists .AND. bs_env%read_all_W_time
+         bs_env%all_W_exist = bs_env%all_W_exist .AND. W_time_exists
 
          bs_env%Sigma_c_exists(i_t_or_w) = Sigma_pos_time_exists .AND. Sigma_neg_time_exists
 
          IF (bs_env%Sigma_c_exists(i_t_or_w)) THEN
             bs_env%read_chi_and_G_occ_vir(i_t_or_w) = .FALSE.
             bs_env%calc_chi_and_G_occ_vir(i_t_or_w) = .FALSE.
-            bs_env%read_W_freq(i_t_or_w) = .FALSE.
-            bs_env%calc_W_freq(i_t_or_w) = .FALSE.
          END IF
 
       END DO
-
-      bs_env%calc_all_W_time = .NOT. bs_env%read_all_W_time
-
-      bs_env%read_MinvVsqrt_Vsqrt = .TRUE.
-
-      DO ikp_re_im = 1, 2*bs_env%nkp_chi_eps_W_total
-
-         IF (ikp_re_im < 10) THEN
-            WRITE (f_MV, '(3A,I1,A)') TRIM(prefix), bs_env%MV_name, "_00", ikp_re_im, ".matrix"
-            WRITE (f_Vs, '(3A,I1,A)') TRIM(prefix), bs_env%Vs_name, "_00", ikp_re_im, ".matrix"
-         ELSE IF (ikp_re_im < 100) THEN
-            WRITE (f_MV, '(3A,I2,A)') TRIM(prefix), bs_env%MV_name, "_0", ikp_re_im, ".matrix"
-            WRITE (f_Vs, '(3A,I2,A)') TRIM(prefix), bs_env%Vs_name, "_0", ikp_re_im, ".matrix"
-         ELSE IF (ikp_re_im < 1000) THEN
-            WRITE (f_MV, '(3A,I3,A)') TRIM(prefix), bs_env%MV_name, "_", ikp_re_im, ".matrix"
-            WRITE (f_Vs, '(3A,I3,A)') TRIM(prefix), bs_env%Vs_name, "_", ikp_re_im, ".matrix"
-         ELSE
-            CPABORT('Please implement more than 999 kpoints.')
-         END IF
-
-         INQUIRE (file=TRIM(f_MV), exist=MV_exists)
-         INQUIRE (file=TRIM(f_Vs), exist=Vs_exists)
-
-         ! matrices MV and VS need to be present for all k-points; otherwise no restart
-         bs_env%read_MinvVsqrt_Vsqrt = MV_exists .AND. Vs_exists .AND. bs_env%read_MinvVsqrt_Vsqrt
-
-      END DO
-
-      bs_env%calc_MinvVsqrt_Vsqrt = .NOT. bs_env%read_MinvVsqrt_Vsqrt
-
-      IF (bs_env%read_all_W_time) bs_env%read_MinvVsqrt_Vsqrt = .FALSE.
 
       WRITE (f_S_x, '(3A)') TRIM(prefix), bs_env%Sigma_x_name, "_000.matrix"
       INQUIRE (file=TRIM(f_S_x), exist=bs_env%Sigma_x_exists)
-
-      IF (ALL(bs_env%Sigma_c_exists)) THEN
-         bs_env%read_all_W_time = .FALSE.
-         bs_env%calc_all_W_time = .FALSE.
-      END IF
 
       CALL timestop(handle)
 
@@ -1107,9 +1058,9 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env)
 
       num_pe = para_env%num_pe
-      ! heuristics: 256 is a square and gives reasonable performance according to tests
-      IF (bs_env%group_size_tensor == -1) bs_env%group_size_tensor = 256
-      IF (bs_env%group_size_tensor > num_pe) bs_env%group_size_tensor = num_pe
+      ! use all processors for the group (in principle, number could be changed, but performance
+      ! seems to be best for a single group with all MPI processes per group)
+      bs_env%group_size_tensor = num_pe
 
       ! group_size_tensor must divide num_pe without rest; otherwise everything will be complicated
       IF (MODULO(num_pe, bs_env%group_size_tensor) .NE. 0) THEN
@@ -1137,34 +1088,15 @@ CONTAINS
                             dummy_1, dummy_2, color_sub, bs_env)
       END DO
 
-      IF (bs_env%group_size_diag == -1) THEN
-         IF (num_pe < bs_env%nkp_chi_eps_W_total) THEN
-            bs_env%group_size_diag = num_pe
-            bs_env%num_diag_groups = 1
-         ELSE
-            bs_env%group_size_diag = num_pe/bs_env%nkp_chi_eps_W_total
-            bs_env%num_diag_groups = num_pe/bs_env%group_size_diag
-         END IF
-      END IF
-      bs_env%group_size_diag = num_pe
-
-      color_sub = para_env%mepos/bs_env%group_size_diag
-      bs_env%diag_group_color = color_sub
-
-      ALLOCATE (bs_env%para_env_kp_diag)
-      CALL bs_env%para_env_kp_diag%from_split(para_env, color_sub)
-
       CALL m_memory(mem)
       CALL bs_env%para_env%max(mem)
 
-      bs_env%input_memory_per_proc = INT(bs_env%input_memory_per_proc_GB*1.0E9_dp)
+      bs_env%input_memory_per_proc = INT(bs_env%input_memory_per_proc_GB*1.0E9_dp, KIND=int_8)
 
       u = bs_env%unit_nr
       IF (u > 0) THEN
          WRITE (u, '(T2,A)') ''
          WRITE (u, '(T2,A,I47)') 'Group size for tensor operations', bs_env%group_size_tensor
-         WRITE (u, '(T2,2A,I9)') 'Group size for diagonalizing χ(k) and ', &
-            'calculating ε(k), W(k) and W^MIC', bs_env%group_size_diag
          WRITE (u, '(T2,A)') ''
          WRITE (u, '(T2,A,I37,A)') 'Input: Available memory per MPI process', &
             bs_env%input_memory_per_proc_GB, ' GB'
@@ -1328,6 +1260,11 @@ CONTAINS
       ! tensor operations
       bs_env%eps_3c_int = bs_env%eps_filter
 
+      ! Determines number of cells used for summing the cells R in the Coulomb matrix,
+      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 4 gives
+      ! excellent convergence
+      bs_env%size_lattice_sum_V = 4
+
       ! for generating numerically stable minimax Fourier integration weights
       bs_env%num_points_per_magnitude = 200
 
@@ -1369,9 +1306,6 @@ CONTAINS
       ELSE
          bs_env%regularization_RI = 1.0E-2_dp
       END IF
-
-      ! use all processors to invert ε_PQ(iω,k)
-      bs_env%group_size_diag = -1
 
       ! truncated Coulomb operator for exchange self-energy
       ! (see details in Guidon, VandeVondele, Hutter, JCTC 5, 3010 (2009) and references therein)

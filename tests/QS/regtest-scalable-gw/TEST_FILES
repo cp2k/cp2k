@@ -1,6 +1,7 @@
-01_G0W0_periodic_H2O.inp                  106     1e-03   12.709
-02_G0W0_IH_SOC_local_gap.inp              106     1e-03   16.566 
-02_G0W0_IH_SOC_local_gap.inp              107     1e-03   11.344
-03_G0W0_bandstructure_IH_chain.inp        106     1e-03   19.966
-03_G0W0_bandstructure_IH_chain.inp        107     1e-03   13.410
+01_G0W0_periodic_H2O.inp                                    106     1e-03        9.861
+02_G0W0_IH_SOC_local_gap.inp                                106     1e-03       17.826
+02_G0W0_IH_SOC_local_gap.inp                                107     1e-03       11.344
+03_G0W0_bandstructure_IH_chain.inp                          106     1e-03       18.242
+03_G0W0_bandstructure_IH_chain.inp                          107     1e-03       13.410
+04_G0W0_bandstructure_IH_chain_approx_kp_extrapol.inp       106     1e-03       18.221
 #EOF

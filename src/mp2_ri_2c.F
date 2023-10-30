@@ -547,9 +547,10 @@ CONTAINS
 !> \param kpoints ...
 !> \param put_mat_KS_env ...
 !> \param regularization_RI ...
+!> \param ikp_ext ...
 ! **************************************************************************************************
-   SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L, dimen_RI, &
-                                 ri_metric, do_kpoints, kpoints, put_mat_KS_env, regularization_RI)
+   SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L, dimen_RI, ri_metric, &
+                                 do_kpoints, kpoints, put_mat_KS_env, regularization_RI, ikp_ext)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_kpoints
@@ -560,11 +561,13 @@ CONTAINS
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       LOGICAL, OPTIONAL                                  :: put_mat_KS_env
       REAL(KIND=dp), OPTIONAL                            :: regularization_RI
+      INTEGER, OPTIONAL                                  :: ikp_ext
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat'
 
-      INTEGER                                            :: handle, i_real_imag, i_size, ikp, img, &
-                                                            n_real_imag, natom, nimg, nkind, nkp
+      INTEGER                                            :: handle, i_real_imag, i_size, ikp, &
+                                                            ikp_for_xkp, img, n_real_imag, natom, &
+                                                            nimg, nkind, nkp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -676,6 +679,8 @@ CONTAINS
          n_real_imag = 1
       END IF
 
+      IF (PRESENT(ikp_ext)) nkp = 1
+
       ALLOCATE (fm_matrix_Minv_L_kpoints(nkp, n_real_imag))
       DO i_size = 1, nkp
          DO i_real_imag = 1, n_real_imag
@@ -709,8 +714,14 @@ CONTAINS
             CALL dbcsr_set(rmatrix, 0.0_dp)
             CALL dbcsr_set(cmatrix, 0.0_dp)
 
+            IF (PRESENT(ikp_ext)) THEN
+               ikp_for_xkp = ikp_ext
+            ELSE
+               ikp_for_xkp = ikp
+            END IF
+
             CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_RI_aux_transl, ispin=1, &
-                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_RI)
+                                xkp=xkp(1:3, ikp_for_xkp), cell_to_index=cell_to_index, sab_nl=sab_RI)
 
             CALL dbcsr_set(tmpmat, 0.0_dp)
             CALL dbcsr_desymmetrize(rmatrix, tmpmat)

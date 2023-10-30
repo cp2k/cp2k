@@ -62,7 +62,6 @@ MODULE post_scf_bandstructure_types
       ! various eigenvalues computed in GW code, some depend on k-points and
       ! have therefore two dimensions (spin dependence yet to do)
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: eigenval_scf_Gamma
-      ! JW TODO: fully distribute these at given point to save memory
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf, &
                                                          eigenval_G0W0
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenval_scGW0
@@ -85,46 +84,47 @@ MODULE post_scf_bandstructure_types
                                                          i_ao_end_from_atom, &
                                                          i_RI_start_from_atom, &
                                                          i_RI_end_from_atom
-      INTEGER, DIMENSION(2)                           :: n_occ = [-1, -1], &
-                                                         n_vir = [-1, -1]
+      INTEGER, DIMENSION(2)                           :: n_occ = -1, &
+                                                         n_vir = -1
       REAL(KIND=dp)                                   :: spin_degeneracy = -1.0_dp
-      REAL(KIND=dp), DIMENSION(2)                     :: e_fermi = [-1.0_dp, -1.0_dp]
+      REAL(KIND=dp), DIMENSION(2)                     :: e_fermi = -1.0_dp
 
       ! kpoint mesh for chi, eps, W
-      INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_chi_eps_W_input => NULL(), &
-                                                         nkp_grid_DOS_input => NULL()
-      INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig = [-1, -1, -1], &
-                                                         nkp_grid_chi_eps_W_extra = [-1, -1, -1]
+      INTEGER, DIMENSION(:), POINTER                  :: nkp_grid_DOS_input => NULL()
+      INTEGER, DIMENSION(3)                           :: nkp_grid_chi_eps_W_orig = -1, &
+                                                         nkp_grid_chi_eps_W_extra = -1
       INTEGER                                         :: nkp_chi_eps_W_orig = -1, &
                                                          nkp_chi_eps_W_extra = -1, &
-                                                         nkp_chi_eps_W_total = -1, &
-                                                         ikp_local_start = -1, &
-                                                         ikp_local_end = -1, &
+                                                         nkp_chi_eps_W_orig_plus_extra = -1, &
+                                                         nkp_chi_eps_W_batch = -1, &
+                                                         num_chi_eps_W_batches = -1, &
                                                          size_lattice_sum_V = -1
       TYPE(kpoint_type), POINTER                      :: kpoints_chi_eps_W => NULL(), &
                                                          kpoints_DOS => NULL(), &
                                                          kpoints_bandstructure => NULL()
+      LOGICAL                                         :: approx_kp_extrapol = .FALSE.
+      REAL(KIND=dp)                                   :: wkp_no_extra = -1.0_dp
       INTEGER                                         :: input_kp_bs_npoints = -1, &
                                                          input_kp_bs_n_sp_pts = -1, &
                                                          nkp_bs = -1, &
                                                          nkp_DOS = -1
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE      :: xkp_special
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: xkp_special
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), ALLOCATABLE                    :: kp_special_name
 
       ! parameters for GW band structure calculation of small unit cell (with multiple unit cell)
-      INTEGER, DIMENSION(3)                           :: periodic = [-1, -1, -1], &
-                                                         multiple_unit_cell = [-1, -1, -1]
+      INTEGER, DIMENSION(3)                           :: periodic = -1, &
+                                                         multiple_unit_cell = -1
       LOGICAL                                         :: calculate_bandstructure_of_primitive_cell &
                                                          = .FALSE.
       INTEGER                                         :: n_atom_in_primitive_cell = -1, &
                                                          n_primitive_cells = -1
       INTEGER, DIMENSION(:), ALLOCATABLE              :: atoms_i_primitive_cell, &
                                                          ref_atom_primitive_cell
-      INTEGER, DIMENSION(:, :), ALLOCATABLE            :: cell_of_i_atom
-      REAL(KIND=dp), DIMENSION(3, 3)                   :: hmat_primitive_cell, &
-                                                          hinv_primitive_cell
-      REAL(KIND=dp), DIMENSION(3, 3)                   :: hmat
+      INTEGER, DIMENSION(:, :), ALLOCATABLE           :: cell_of_i_atom
+      REAL(KIND=dp), DIMENSION(3, 3)                  :: hmat_primitive_cell = -1.0_dp, &
+                                                         hinv_primitive_cell = -1.0_dp, &
+                                                         hmat = -1.0_dp
 
       ! imaginary time and frequency grids
       INTEGER                                         :: num_time_freq_points = -1, &
@@ -162,6 +162,8 @@ MODULE post_scf_bandstructure_types
       TYPE(cp_fm_type)                                :: fm_RI_RI, &
                                                          fm_chi_Gamma_freq, &
                                                          fm_W_MIC_freq, &
+                                                         fm_W_MIC_freq_1_extra, &
+                                                         fm_W_MIC_freq_1_no_extra, &
                                                          fm_h_G0W0_Gamma
 
       ! global dbcsr matrices used in GW
@@ -186,21 +188,19 @@ MODULE post_scf_bandstructure_types
       INTEGER                                         :: group_size_tensor = -1, &
                                                          tensor_group_color = -1, &
                                                          num_tensor_groups = -1, &
-                                                         group_size_diag = -1, &
                                                          diag_group_color = -1, &
                                                          num_diag_groups = -1, &
                                                          min_block_size = -1, &
                                                          input_memory_per_proc_GB = -1
       INTEGER(KIND=int_8)                             :: input_memory_per_proc = -1
       TYPE(mp_para_env_type), POINTER                 :: para_env => NULL(), &
-                                                         para_env_tensor => NULL(), &
-                                                         para_env_kp_diag => NULL()
+                                                         para_env_tensor => NULL()
       REAL(KIND=dp)                                   :: occupation_3c_int = -1.0_dp, &
                                                          max_dist_AO_atoms = -1.0_dp, &
                                                          safety_factor_memory = -1.0_dp
       ! parallelization: atom range i and atom range j for tensor group
-      INTEGER, DIMENSION(2)                           :: atoms_i = [-1, -1], &
-                                                         atoms_j = [-1, -1]
+      INTEGER, DIMENSION(2)                           :: atoms_i = -1, &
+                                                         atoms_j = -1
       INTEGER                                         :: n_atom_i = -1, &
                                                          n_intervals_i = -1, &
                                                          n_atom_j = -1, &
@@ -217,25 +217,17 @@ MODULE post_scf_bandstructure_types
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE              :: read_chi_and_G_occ_vir, &
                                                          calc_chi_and_G_occ_vir, &
-                                                         read_W_freq, &
-                                                         calc_W_freq, &
                                                          Sigma_c_exists
-      LOGICAL                                         :: read_MinvVsqrt_Vsqrt = .FALSE., &
-                                                         calc_MinvVsqrt_Vsqrt = .FALSE., &
-                                                         read_all_W_time = .FALSE., &
-                                                         calc_all_W_time = .FALSE., &
+      LOGICAL                                         :: all_W_exist = .FALSE., &
                                                          Sigma_x_exists = .FALSE.
       CHARACTER(LEN=3)                                :: chi_name = "chi"
       CHARACTER(LEN=5)                                :: Gocc_name = "G_occ", &
                                                          Gvir_name = "G_vir"
-      CHARACTER(LEN=9)                                :: MV_name = "MinvVsqrt"
-      CHARACTER(LEN=5)                                :: Vs_name = "Vsqrt"
-      CHARACTER(LEN=6)                                :: W_freq_name = "W_freq", &
-                                                         W_time_name = "W_time"
+      CHARACTER(LEN=6)                                :: W_time_name = "W_time"
       CHARACTER(LEN=7)                                :: Sigma_x_name = "Sigma_x"
       CHARACTER(LEN=13)                               :: Sigma_p_name = "Sigma_pos_tau", &
                                                          Sigma_n_name = "Sigma_neg_tau"
-      CHARACTER(LEN=default_path_length)              :: prefix
+      CHARACTER(LEN=default_path_length)              :: prefix = ""
 
       REAL(KIND=dp)                                   :: t1 = -1.0_dp, &
                                                          t2 = -1.0_dp
@@ -321,8 +313,6 @@ CONTAINS
       IF (ALLOCATED(bs_env%atoms_j_t_group)) DEALLOCATE (bs_env%atoms_j_t_group)
       IF (ALLOCATED(bs_env%read_chi_and_G_occ_vir)) DEALLOCATE (bs_env%read_chi_and_G_occ_vir)
       IF (ALLOCATED(bs_env%calc_chi_and_G_occ_vir)) DEALLOCATE (bs_env%calc_chi_and_G_occ_vir)
-      IF (ALLOCATED(bs_env%read_W_freq)) DEALLOCATE (bs_env%read_W_freq)
-      IF (ALLOCATED(bs_env%calc_W_freq)) DEALLOCATE (bs_env%calc_W_freq)
       IF (ALLOCATED(bs_env%Sigma_c_exists)) DEALLOCATE (bs_env%Sigma_c_exists)
 
       CALL cp_fm_release(bs_env%fm_s_Gamma)
@@ -341,6 +331,8 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_RI_RI)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
+      CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
+      CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_fm_release(bs_env%fm_h_G0W0_Gamma)
 
       CALL release_dbcsr_p_type(bs_env%mat_ao_ao)
@@ -355,7 +347,6 @@ CONTAINS
 
       CALL mp_para_env_release(bs_env%para_env)
       IF (ASSOCIATED(bs_env%para_env_tensor)) CALL mp_para_env_release(bs_env%para_env_tensor)
-      IF (ASSOCIATED(bs_env%para_env_kp_diag)) CALL mp_para_env_release(bs_env%para_env_kp_diag)
 
       CALL safe_dbt_destroy(bs_env%t_G)
       CALL safe_dbt_destroy(bs_env%t_chi)

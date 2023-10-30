@@ -564,7 +564,7 @@ CONTAINS
          CALL get_mo_set(mos(my_spin), mo_coeff=mo_coeff, nmo=nmo)
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,/,T2,A,I5,A,I6,A)") " Calculation of ", nvirtual2, &
-               " additional virtual states of the subspace complementary to the "// &
+               " additional virtual states of the subspace complementary to the"// &
                " lowest ", nmo, " states"
          END IF
 

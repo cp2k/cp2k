@@ -28,49 +28,6 @@ MODULE string_utilities
    CHARACTER(LEN=1), PARAMETER :: question = '?'
    CHARACTER(LEN=1), PARAMETER :: newline = ACHAR(10)
 
-   INTEGER, PARAMETER :: maxlen_entity_name = 10
-   CHARACTER(LEN=maxlen_entity_name), DIMENSION(252), PARAMETER :: html_entity_table = &
-                 (/"&quot;    ", "&#34;     ", "&amp;     ", "&#38;#38; ", "&apos;    ", "&#39;     ", "&lt;      ", "&#38;#60; ", &
-                   "&gt;      ", "&#62;     ", "&nbsp;    ", "&#160;    ", "&copy;    ", "&#169;    ", "&deg;     ", "&#176;    ", &
-                   "&plusmn;  ", "&#177;    ", "&sup2;    ", "&#178;    ", "&sup3;    ", "&#179;    ", "&middot;  ", "&#183;    ", &
-                   "&sup1;    ", "&#185;    ", "&Auml;    ", "&#196;    ", "&Aring;   ", "&#197;    ", "&Ccedil;  ", "&#199;    ", &
-                   "&Egrave;  ", "&#200;    ", "&Eacute;  ", "&#201;    ", "&Ecirc;   ", "&#202;    ", "&Ograve;  ", "&#210;    ", &
-                   "&Oacute;  ", "&#211;    ", "&Ocirc;   ", "&#212;    ", "&Ouml;    ", "&#214;    ", "&times;   ", "&#215;    ", &
-                   "&Uuml;    ", "&#220;    ", "&agrave;  ", "&#224;    ", "&aacute;  ", "&#225;    ", "&acirc;   ", "&#226;    ", &
-                   "&auml;    ", "&#228;    ", "&aring;   ", "&#229;    ", "&ccedil;  ", "&#231;    ", "&egrave;  ", "&#232;    ", &
-                   "&eacute;  ", "&#233;    ", "&ecirc;   ", "&#234;    ", "&ograve;  ", "&#242;    ", "&oacute;  ", "&#243;    ", &
-                   "&ocirc;   ", "&#244;    ", "&ouml;    ", "&#246;    ", "&ugrave;  ", "&#249;    ", "&uacute;  ", "&#250;    ", &
-                   "&ucirc;   ", "&#251;    ", "&uuml;    ", "&#252;    ", "&Gamma;   ", "&#915;    ", "&Delta;   ", "&#916;    ", &
-                   "&Theta;   ", "&#920;    ", "&Lambda;  ", "&#923;    ", "&Xi;      ", "&#926;    ", "&Pi;      ", "&#928;    ", &
-                   "&Sigma;   ", "&#931;    ", "&Phi;     ", "&#934;    ", "&Psi;     ", "&#936;    ", "&Omega;   ", "&#937;    ", &
-                   "&alpha;   ", "&#945;    ", "&beta;    ", "&#946;    ", "&gamma;   ", "&#947;    ", "&delta;   ", "&#948;    ", &
-                   "&epsilon; ", "&#949;    ", "&zeta;    ", "&#950;    ", "&eta;     ", "&#951;    ", "&theta;   ", "&#952;    ", &
-                   "&iota;    ", "&#953;    ", "&kappa;   ", "&#954;    ", "&lambda;  ", "&#955;    ", "&mu;      ", "&#956;    ", &
-                   "&nu;      ", "&#957;    ", "&xi;      ", "&#958;    ", "&omicron; ", "&#959;    ", "&pi;      ", "&#960;    ", &
-                   "&rho;     ", "&#961;    ", "&sigmaf;  ", "&#962;    ", "&sigma;   ", "&#963;    ", "&tau;     ", "&#964;    ", &
-                   "&upsilon; ", "&#965;    ", "&phi;     ", "&#966;    ", "&chi;     ", "&#967;    ", "&psi;     ", "&#968;    ", &
-                   "&omega;   ", "&#969;    ", "&thetasym;", "&#977;    ", "&ndash;   ", "&#8211;   ", "&mdash;   ", "&#8212;   ", &
-                   "&dagger;  ", "&#8224;   ", "&Dagger;  ", "&#8225;   ", "&bull;    ", "&#8230;   ", "&hellip;  ", "&#8230;   ", &
-                   "&permil;  ", "&#8240;   ", "&larr;    ", "&#8592;   ", "&uarr;    ", "&#8593;   ", "&rarr;    ", "&#8594;   ", &
-                   "&darr;    ", "&#8595;   ", "&harr;    ", "&#8596;   ", "&lArr;    ", "&#8656;   ", "&uArr;    ", "&#8657;   ", &
-                   "&rArr;    ", "&#8658;   ", "&dArr;    ", "&#8659;   ", "&hArr;    ", "&#8660;   ", "&forall;  ", "&#8704;   ", &
-                   "&part;    ", "&#8706;   ", "&nabla;   ", "&#8711;   ", "&isin;    ", "&#8712;   ", "&notin;   ", "&#8713;   ", &
-                   "&ni;      ", "&#8715;   ", "&prop;    ", "&#8733;   ", "&infin;   ", "&#8734;   ", "&ang;     ", "&#8736;   ", &
-                   "&and;     ", "&#8743;   ", "&or;      ", "&#8744;   ", "&cap;     ", "&#8745;   ", "&cup;     ", "&#8746;   ", &
-                   "&sim;     ", "&#8764;   ", "&cong;    ", "&#8773;   ", "&asymp;   ", "&#8776;   ", "&ne;      ", "&#8800;   ", &
-                   "&equiv;   ", "&#8801;   ", "&le;      ", "&#8804;   ", "&ge;      ", "&#8805;   ", "&sub;     ", "&#8834;   ", &
-                   "&sup;     ", "&#8835;   ", "&nsub;    ", "&#8836;   ", "&sube;    ", "&#8838;   ", "&supe;    ", "&#8839;   ", &
-                   "&oplus;   ", "&#8853;   ", "&otimes;  ", "&#8855;   ", "&perp;    ", "&#8869;   ", "&sdot;    ", "&#8901;   ", &
-                                                                     "&lang;    ", "&#9001;   ", "&rang;    ", "&#9002;   "/)
-
-   INTEGER, PARAMETER :: maxlen_tag_name = 10
-   CHARACTER(LEN=maxlen_tag_name), DIMENSION(38), PARAMETER :: html_tag_table = &
-                 (/"a         ", "b         ", "big       ", "blockquote", "br/       ", "code      ", "dd        ", "del       ", &
-                   "div       ", "dl        ", "dt        ", "em        ", "h1        ", "h2        ", "h3        ", "h4        ", &
-                   "h5        ", "h6        ", "hr        ", "i         ", "ins       ", "li        ", "ol        ", "p         ", &
-                   "span      ", "sub       ", "sup       ", "table     ", "tbody     ", "td        ", "tfoot     ", "th        ", &
-                                                "thead     ", "tr        ", "tt        ", "u         ", "ul        ", "pre       "/)
-
    PUBLIC :: ascii_to_string, &
              compress, &
              integer_to_string, &
@@ -83,12 +40,10 @@ MODULE string_utilities
              substitute_special_xml_tokens, &
              typo_match, &
              uppercase, &
-             write_html_tables, &
              xstring, &
              strlcpy_c2f
 
-   PUBLIC :: html_entity_table, &
-             newline
+   PUBLIC :: newline
 
    INTERFACE s2a
       MODULE PROCEDURE s2a_1, s2a_2, s2a_3, s2a_4, s2a_5, s2a_6, s2a_7, s2a_8, s2a_9, &
@@ -3334,139 +3289,45 @@ CONTAINS
    END SUBROUTINE remove_word
 
 ! **************************************************************************************************
-!> \brief  Substitute special XML tokens like "<" or ">" in inp_string.
-!>         Optionally convert also all lowercase characters to uppercase, if
-!>         ltu is true.
+!> \brief Substitutes the five predefined XML entities: &amp;, &lt;, &gt;, &apos;, and &quot;.
 !> \param inp_string ...
-!> \param ltu ...
 !> \return ...
-!> \date    10.03.2005
-!> \par History
-!>      - Enable the use of HTML entity names (06.03.13,MK)
-!> \author  Matthias Krack (MK)
-!> \version 1.1
+!> !> \author Ole Schuett
 ! **************************************************************************************************
-   FUNCTION substitute_special_xml_tokens(inp_string, ltu) RESULT(out_string)
+   FUNCTION substitute_special_xml_tokens(inp_string) RESULT(out_string)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: inp_string
-      LOGICAL, INTENT(IN), OPTIONAL                      :: ltu
       CHARACTER(LEN=2*LEN(inp_string))                   :: out_string
 
-      CHARACTER(LEN=LEN(inp_string))                     :: string
-      CHARACTER(LEN=maxlen_entity_name)                  :: entity_name
-      CHARACTER(LEN=maxlen_tag_name)                     :: tag_name
-      INTEGER                                            :: i, ientry, ilen, j, k
+      INTEGER                                            :: i, j
 
-      string = inp_string
       out_string = ""
 
-      IF (PRESENT(ltu)) THEN
-         IF (ltu) CALL uppercase(string)
-      END IF
-
-      i = 0
       j = 1
-      string_loop: DO
-         i = i + 1
-         IF (i > LEN_TRIM(string)) EXIT string_loop
-         IF (string(i:i) == "<") THEN
-            ! Detect valid HTML tags and keep them
-            ientry = 0
-            ilen = INDEX(string(i:), ">")
-            IF ((ilen > 2) .AND. (ilen <= maxlen_tag_name + 3)) THEN
-               IF (string(i + 1:i + 1) == "/") THEN
-                  tag_name(1:) = string(i + 2:i + ilen - 2)
-               ELSE
-                  tag_name(1:) = string(i + 1:i + ilen - 2)
-               END IF
-               CALL lowercase(tag_name)
-               tag_loop: DO k = 1, SIZE(html_tag_table)
-                  IF (tag_name == html_tag_table(k)) THEN
-                     ientry = k
-                     EXIT tag_loop
-                  END IF
-               END DO tag_loop
-               IF (ientry > 0) THEN ! HTML tag found in table
-                  IF (string(i + 1:i + 1) == "/") THEN
-                     out_string(j:j + ilen + 7) = "&#60;/"//TRIM(tag_name)//"&#62;"
-                  ELSE
-                     out_string(j:j + ilen + 7) = "&#60;"//TRIM(tag_name)//"&#62;"
-                  END IF
-                  i = i + ilen - 1
-                  j = j + ilen + 8
-               END IF
-            END IF
-            ! HTML tag not found in table
-            IF (ientry == 0) THEN
-               out_string(j:j + 4) = "&#60;"
-               j = j + 5
-            END IF
-         ELSE IF (string(i:i) == ">") THEN
-            out_string(j:j + 4) = "&#62;"
+      DO i = 1, LEN_TRIM(inp_string)
+         SELECT CASE (inp_string(i:i))
+         CASE ("<")
+            out_string(j:j + 3) = "&lt;"
+            j = j + 4
+         CASE (">")
+            out_string(j:j + 3) = "&gt;"
+            j = j + 4
+         CASE ("&")
+            out_string(j:j + 4) = "&amp;"
             j = j + 5
-         ELSE IF (string(i:i) == "&") THEN
-            ! Substitute HTML entity names by the corresponding entity number
-            ientry = 0
-            ilen = INDEX(string(i:), ";")
-            IF ((ilen > 2) .AND. (ilen <= maxlen_entity_name)) THEN
-               entity_name(1:) = string(i:i + ilen - 1)
-               entity_loop: DO k = 1, SIZE(html_entity_table), 2
-                  IF (entity_name == html_entity_table(k)) THEN
-                     ientry = k + 1
-                     EXIT entity_loop
-                  END IF
-               END DO entity_loop
-               i = i + ilen - 1
-               IF (ientry > 0) THEN ! HTML entity found in table
-                  ilen = LEN_TRIM(html_entity_table(ientry))
-                  out_string(j:j + ilen - 1) = TRIM(ADJUSTL(html_entity_table(ientry)))
-                  j = j + ilen
-               END IF
-            END IF
-            IF (ientry == 0) THEN
-               out_string(j:j + 4) = "&#38;"
-               j = j + 5
-            END IF
-         ELSE
-            out_string(j:j) = string(i:i)
+         CASE ("'")
+            out_string(j:j + 5) = "&apos;"
+            j = j + 6
+         CASE ('"')
+            out_string(j:j + 5) = "&quot;"
+            j = j + 6
+         CASE DEFAULT
+            out_string(j:j) = inp_string(i:i)
             j = j + 1
-         END IF
-      END DO string_loop
+         END SELECT
+      END DO
 
    END FUNCTION substitute_special_xml_tokens
-
-! **************************************************************************************************
-!> \brief   Write the HTML entity and HTML tag table to unit output_unit
-!> \param output_unit ...
-!> \date    14.08.2013
-!> \author  Matthias Krack (MK)
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE write_html_tables(output_unit)
-
-      INTEGER, INTENT(IN)                                :: output_unit
-
-      INTEGER                                            :: i
-
-      WRITE (UNIT=output_unit, FMT="(T2,A)") "<CP2K_HTML>"
-
-      DO i = 1, SIZE(html_tag_table)
-         WRITE (UNIT=output_unit, FMT="(T3,A)") &
-            "<TAG>", &
-            " <NAME>&#60;"//TRIM(html_tag_table(i))//"&#62;</NAME>", &
-            "</TAG>"
-      END DO
-      DO i = 1, SIZE(html_entity_table), 2
-         WRITE (UNIT=output_unit, FMT="(T3,A)") &
-            "<ENTITY>", &
-            " <NAME>&#38;"//TRIM(html_entity_table(i) (2:))//"</NAME>", &
-            " <CODE>&#38;"//TRIM(html_entity_table(i + 1) (2:))//"</CODE>", &
-            "</ENTITY>"
-      END DO
-
-      WRITE (UNIT=output_unit, FMT="(T2,A)") "</CP2K_HTML>"
-
-   END SUBROUTINE write_html_tables
 
 ! **************************************************************************************************
 !> \brief   Convert all upper case characters in a string to lower case.
@@ -3510,7 +3371,6 @@ CONTAINS
 
    END SUBROUTINE uppercase
 
-   ! **************************************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param string ...
@@ -3532,7 +3392,6 @@ CONTAINS
 
    END SUBROUTINE xstring
 
-   ! **************************************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param str1 ...

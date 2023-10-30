@@ -84,7 +84,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PW_HFX", &
-                          description="Compute the Hartree-Fock energy also in the plane wave basis."// &
+                          description="Compute the Hartree-Fock energy also in the plane wave basis. "// &
                           "The value is ignored, and intended for debugging only.", &
                           usage="PW_HFX FALSE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -274,7 +274,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Determines cutoff radius for the truncated 1/r potential. "// &
+                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r potential. "// &
                           "Only valid when doing truncated calculation", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, & ! default_r_val=10.0_dp,&
                           unit_str="angstrom")
@@ -330,7 +330,7 @@ CONTAINS
          description="Screens the near field part of the electronic repulsion "// &
          "integrals using the Schwarz inequality for the given "// &
          "threshold. This will be approximately the accuracy of the forces, "// &
-         " and should normally be similar to EPS_SCF", &
+         "and should normally be similar to EPS_SCF", &
          usage="EPS_SCHWARZ_FORCES 1.0E-5", &
          default_r_val=1.0E-6_dp)
       CALL section_add_keyword(section, keyword)
@@ -529,7 +529,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="The cutoff radius (in Angstrom) for the truncated Coulomb operator. "// &
+                          description="The cutoff radius (in Angstroms) for the truncated Coulomb operator. "// &
                           "Default is CUTOFF_RADIUS from INTERACTION_POTENTIAL. ", &
                           default_r_val=0.0_dp, &
                           repeats=.FALSE., &
@@ -545,6 +545,19 @@ CONTAINS
                           usage="KP_NGROUPS {int}", &
                           repeats=.FALSE., &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KP_USE_DELTA_P", &
+                          description="This kweyword controls whether the KS matrix at each SCF cycle "// &
+                          "is built by adding the contribution of the denisty difference (wrt to previous step) "// &
+                          "to the KS matrix of the previous step. As the SCF converges, the density fluctuations "// &
+                          "get smaller and sparsity increases, leading to faster SCF steps. Not always "// &
+                          "numerically stable => turn off if SCF struggles to converge.", &
+                          variants=s2a("USE_DELTA_P", "KP_USE_P_DIFF", "USE_P_DIFF"), &
+                          usage="KP_USE_DELTA_P {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief function that build the projection of MO in RTP section of the input
+!> \brief function that builds the projection of MO in RTP section of the input
 !> \author Guillaume Le Breton 04.2023
 ! **************************************************************************************************
 MODULE input_cp2k_projection_rtp
@@ -47,14 +47,31 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PROJECTION_MO", &
-                          description="Projects the time dependent MO "// &
-                          "coefficients on reference ones. You can define "// &
+                          description="Projects the Time Dependent (TD) MO "// &
+                          "coefficients to reference ones. You can define "// &
                           "several sections like this to project the TD-MOs "// &
-                          "on different reference MOs.", &
+                          "on different reference MOs. Note that each section "// &
+                          "projects from one spin of the TD MOs (TD_MO_INDEX) to "// &
+                          "one spin of the reference MOs (REF_MO_INDEX).", &
                           n_keywords=7, n_subsections=1, &
                           repeats=.TRUE.)
 
       NULLIFY (keyword, subsection)
+      CALL keyword_create(keyword, __LOCATION__, name="PROPAGATE_REF", &
+                          description="In the case of Ehrenfest dynamics, the atomic basis set is evolving with time. "// &
+                          "The reference MO can either be understood as a spatial-dependent wave-function which is "// &
+                          "time-independent or to be 'attached' with respect to the nuclei position, and "// &
+                          "thus evolve in space as the nuclei move. For the first case, set this variable to TRUE. "// &
+                          "Note that in this case, you shall have enough atomic orbital across the whole space to "// &
+                          "describe this MO as the nuclei will move and may leave the space where the MO is defined. "// &
+                          "For the second case, set to FALSE (default). Note that in this case, if the nuclei undergo "// &
+                          "dramatic changes (dissociation for instance) then this definition may make no longer sense.", &
+                          usage="PROPAGATE_REF .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_TYPE", &
                           description="Type of the reference MO file provided in REF_MO_FILE_NAME.", &
                           enum_c_vals=s2a("SCF", "XAS_TDP"), &
@@ -67,10 +84,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_FILE_NAME", &
-                          description="Name of the wavefunction file to read the reference MO form. "// &
-                          "For instance a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
-                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME."// &
-                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference.", &
+                          description="Name of the wavefunction file to read the reference MO from. "// &
+                          "For instance, a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
+                          "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME. "// &
+                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference. "// &
+                          "Currently, this file SHALL have the same number of spin as the propagated one "// &
+                          "(eventhough you use only the first spin from this reference).", &
                           usage="REF_MO_FILE_NAME <FILENAME>", &
                           default_lc_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
@@ -78,7 +97,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_INDEX", &
                           description="Indexes of the reference MO read from the .wfn reference file (see REF_MO_FILE_NAME). "// &
-                          "Use this keywork if REFERENCE_TYPE=SCF."// &
+                          "Use this keyword if REFERENCE_TYPE=SCF. "// &
                           "Set to -1 to project on all the MO available. "// &
                           "One file will be generated per index defined.", &
                           usage="MO_REF_INDEX 1 2", &
@@ -91,7 +110,7 @@ CONTAINS
                           description="Spin of the reference MOs to consider. "// &
                           "1 for ALPHA and 2 for BETA spin respectively. "// &
                           "If the reference MO is spin independent this key is not used.", &
-                          usage="MO_TD_SPIN 1", &
+                          usage="REF_MO_SPIN 1", &
                           default_i_val=1, &
                           n_var=1, type_of_var=integer_t, repeats=.FALSE.)
 
@@ -99,7 +118,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SUM_ON_ALL_REF", &
-            description="Set to .TRUE. in order to sum all the projection done over the required MO_REF_INDEX for each TD MOs. "// &
+                          description="Set to .TRUE. in order to sum all the projections done "// &
+                          "over the required MO_REF_INDEX for each TD MOs. "// &
                           "Only one file will be generated containing the results for every MO_TD_INDEX.", &
                           usage="SUM_ON_ALL_REF .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
@@ -119,7 +139,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TD_MO_SPIN", &
                           description="Spin of the TD MOs to consider. 1 for ALPHA spin, 2 for BETA spin. "// &
                           "If the TD calculation is spin independent this key is not used.", &
-                          usage="MO_TD_SPIN 1 2", &
+                          usage="MO_TD_SPIN 1", &
                           default_i_val=1, &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -127,7 +147,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SUM_ON_ALL_TD", &
                description="Set to .TRUE. in order to sum the projection done over all on TD MOs on the required MO_REF_INDEX. "// &
-                          "One file per MO_REF_INDEX will be generated."// &
+                          "One file per MO_REF_INDEX will be generated. "// &
                           "Combining SUM_ON_ALL_TD and SUM_ON_ALL_REF lead to one file one projection: "// &
                           "the population of all the defined TD_MO_INDEX over the reference MO_REF_INDEX per time step required.", &
                           usage="SUM_ON_ALL_TD .TRUE.", &

@@ -190,10 +190,8 @@ CONTAINS
 
          IF (ABS(qs_env%total_zeff_corr) > 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
-                          "CORE_CORRECTION /= 0.0 plus"// &
-                          "SURFACE_DIPOLE_CORRECTION  TRUE"// &
-                          "requires SCF%DIAGONALIZATION: "// &
-                          "ALGORITHM STANDARD")
+                          "CORE_CORRECTION /= 0.0 plus SURFACE_DIPOLE_CORRECTION TRUE "// &
+                          "requires SCF%DIAGONALIZATION: ALGORITHM STANDARD")
          END IF
          CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
                              matrix_ks, matrix_s, scf_section, diis_step)

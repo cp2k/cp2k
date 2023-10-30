@@ -51,7 +51,7 @@
            ORIG_SPIN_INDEX ALPHA
            ORIG_SCALE 1.000000000000000000000
 
-           ORIG_IS_VIRTUAL .TRUE.
+           ORIG_TYPE VIRTUAL
        &END
       &END
     &END

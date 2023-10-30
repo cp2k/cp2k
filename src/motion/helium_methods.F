@@ -19,8 +19,12 @@ MODULE helium_methods
                                               get_cell
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
+   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                              cp_get_default_logger,&
+                                              cp_logger_create,&
+                                              cp_logger_release,&
+                                              cp_logger_type,&
+                                              cp_rm_default_logger
    USE cp_output_handling,              ONLY: cp_printkey_is_on
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
@@ -33,6 +37,7 @@ MODULE helium_methods
    USE helium_interactions,             ONLY: helium_vij
    USE helium_io,                       ONLY: helium_write_line,&
                                               helium_write_setup
+   USE helium_nnp,                      ONLY: helium_init_nnp
    USE helium_sampling,                 ONLY: helium_sample
    USE helium_types,                    ONLY: helium_solvent_p_type,&
                                               helium_solvent_type,&
@@ -46,6 +51,7 @@ MODULE helium_methods
                                               helium_cell_shape_octahedron,&
                                               helium_sampling_ceperley,&
                                               helium_sampling_worm,&
+                                              helium_solute_intpot_nnp,&
                                               helium_solute_intpot_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -58,7 +64,8 @@ MODULE helium_methods
                                               max_line_length
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE nnp_environment_types,           ONLY: nnp_env_release
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
                                               rng_stream_p_type,&
@@ -99,6 +106,7 @@ CONTAINS
 !> \param solute ...
 !> \par    History
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
+!>         2023-07-23 Modified to work with NNP solute-solvent interactions [lduran]
 !> \author hforbert
 ! **************************************************************************************************
    SUBROUTINE helium_create(helium_env, input, solute)
@@ -118,9 +126,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: cgeof, dx, he_mass, mHe, rtmp, T, tau, &
                                                             tcheck, x1, x_spline
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pot_transfer
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mp_comm_type)                                 :: new_comm
-      TYPE(section_vals_type), POINTER                   :: helium_section, input_worm
+      TYPE(cp_logger_type), POINTER                      :: logger, tmplogger
+      TYPE(mp_para_env_type), POINTER                    :: new_comm
+      TYPE(section_vals_type), POINTER                   :: helium_section, input_worm, nnp_section
 
       CALL timeset(routineN, handle)
 
@@ -163,17 +171,20 @@ CONTAINS
       ELSE
          color_sub = 1
       END IF
+      ALLOCATE (new_comm)
       CALL new_comm%from_split(logger%para_env, color_sub)
       ! release new_comm for processors without helium_env
       IF (mepos == 0) THEN
          CALL new_comm%free()
+         DEALLOCATE (new_comm)
+         NULLIFY (new_comm)
       END IF
 
       NULLIFY (helium_env)
       IF (mepos .GT. 0) THEN
          ALLOCATE (helium_env(mepos))
          DO k = 1, mepos
-            helium_env(k)%comm = new_comm
+            helium_env(k)%comm => new_comm
             NULLIFY (helium_env(k)%env_all)
             helium_env(k)%env_all => env_all
             ALLOCATE (helium_env(k)%helium)
@@ -338,24 +349,24 @@ CONTAINS
             SELECT CASE (helium_env(k)%helium%cell_shape)
 
             CASE (helium_cell_shape_octahedron)
-               helium_env(k)%helium%cell_m(1, 1) = helium_env(k)%helium%cell_size
-               helium_env(k)%helium%cell_m(2, 1) = 0.0_dp
-               helium_env(k)%helium%cell_m(3, 1) = 0.0_dp
-               helium_env(k)%helium%cell_m(1, 2) = 0.0_dp
-               helium_env(k)%helium%cell_m(2, 2) = helium_env(k)%helium%cell_size
-               helium_env(k)%helium%cell_m(3, 2) = 0.0_dp
-               helium_env(k)%helium%cell_m(1, 3) = helium_env(k)%helium%cell_size/2.0_dp
-               helium_env(k)%helium%cell_m(2, 3) = helium_env(k)%helium%cell_size/2.0_dp
-               helium_env(k)%helium%cell_m(3, 3) = helium_env(k)%helium%cell_size/2.0_dp
-               helium_env(k)%helium%cell_m_inv(1, 1) = 1.0_dp/helium_env(k)%helium%cell_size
-               helium_env(k)%helium%cell_m_inv(2, 1) = 0.0_dp
-               helium_env(k)%helium%cell_m_inv(3, 1) = 0.0_dp
-               helium_env(k)%helium%cell_m_inv(1, 2) = 0.0_dp
-               helium_env(k)%helium%cell_m_inv(2, 2) = 1.0_dp/helium_env(k)%helium%cell_size
-               helium_env(k)%helium%cell_m_inv(3, 2) = 0.0_dp
-               helium_env(k)%helium%cell_m_inv(1, 3) = -1.0_dp/helium_env(k)%helium%cell_size
-               helium_env(k)%helium%cell_m_inv(2, 3) = -1.0_dp/helium_env(k)%helium%cell_size
-               helium_env(k)%helium%cell_m_inv(3, 3) = 2.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(1, 1) = -0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(2, 1) = 0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(3, 1) = 0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(1, 2) = 0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(2, 2) = -0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(3, 2) = 0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(1, 3) = 0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(2, 3) = 0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m(3, 3) = -0.5_dp*helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(1, 1) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(2, 1) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(3, 1) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(1, 2) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(2, 2) = 0.0_dp
+               helium_env(k)%helium%cell_m_inv(3, 2) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(1, 3) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(2, 3) = 1.0_dp/helium_env(k)%helium%cell_size
+               helium_env(k)%helium%cell_m_inv(3, 3) = 0.0_dp
             CASE (helium_cell_shape_cube)
 
                helium_env(k)%helium%cell_m(1, 1) = helium_env(k)%helium%cell_size
@@ -760,6 +771,21 @@ CONTAINS
                ! set the interaction potential type
                CALL section_vals_val_get(helium_section, "SOLUTE_INTERACTION", &
                                          i_val=helium_env(k)%helium%solute_interaction)
+               IF (helium_env(k)%helium%solute_interaction .EQ. helium_solute_intpot_nnp) THEN
+                  IF (k == 1) THEN
+                     NULLIFY (nnp_section)
+                     nnp_section => section_vals_get_subs_vals(helium_section, "NNP")
+                     CALL section_vals_get(nnp_section, explicit=explicit)
+                     msg_str = "NNP section not explicitly stated. Using default file names."
+                     IF (.NOT. explicit) CPWARN(msg_str)
+                  END IF
+                  ALLOCATE (helium_env(k)%helium%nnp)
+                  CALL cp_logger_create(tmplogger, para_env=helium_env(k)%comm, template_logger=logger)
+                  CALL cp_add_default_logger(tmplogger)
+                  CALL helium_init_nnp(helium_env(k)%helium, helium_env(k)%helium%nnp, nnp_section)
+                  CALL cp_rm_default_logger()
+                  CALL cp_logger_release(tmplogger)
+               END IF
                IF (helium_env(k)%helium%solute_interaction .EQ. helium_solute_intpot_none) THEN
                   WRITE (msg_str, '(A,I0,A)') &
                      "Solute found but no helium-solute interaction selected "// &
@@ -835,6 +861,7 @@ CONTAINS
          DO k = 1, SIZE(helium_env)
             IF (k .EQ. 1) THEN
                CALL helium_env(k)%comm%free()
+               DEALLOCATE (helium_env(k)%comm)
                DEALLOCATE (helium_env(k)%env_all)
             END IF
             NULLIFY (helium_env(k)%env_all)
@@ -988,6 +1015,17 @@ CONTAINS
             IF (ASSOCIATED(helium_env(k)%helium%ename)) THEN
                DEALLOCATE (helium_env(k)%helium%ename)
                NULLIFY (helium_env(k)%helium%ename)
+            END IF
+
+            ! NNP interaction
+            IF (ASSOCIATED(helium_env(k)%helium%nnp)) THEN
+               CALL nnp_env_release(helium_env(k)%helium%nnp)
+               DEALLOCATE (helium_env(k)%helium%nnp)
+               NULLIFY (helium_env(k)%helium%nnp)
+            END IF
+            IF (ASSOCIATED(helium_env(k)%helium%nnp_sr_cut)) THEN
+               DEALLOCATE (helium_env(k)%helium%nnp_sr_cut)
+               NULLIFY (helium_env(k)%helium%nnp_sr_cut)
             END IF
 
             DEALLOCATE (helium_env(k)%helium)

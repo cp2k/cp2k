@@ -17,16 +17,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
-         MINIMIZER DIIS
-         STEPSIZE 0.01
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-5
-      &END
-      MAX_SCF  10
+      MAX_SCF  20
       EPS_SCF 1.0E-5
     &END SCF
     &XC

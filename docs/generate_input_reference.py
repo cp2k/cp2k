@@ -63,10 +63,7 @@ def build_bibliography(references_html_fn: str, output_dir: Path) -> None:
         else:
             output += [f"{authors} **{title}** _{ref}_", ""]
 
-    # Write output
-    filename = output_dir / "bibliography.md"
-    filename.write_text("\n".join(output))
-    print(f"Wrote {filename}")
+    write_file(output_dir / "bibliography.md", "\n".join(output))
 
 
 # ======================================================================================
@@ -97,10 +94,8 @@ def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
     output += [":glob:", ""]
     output += ["CP2K_INPUT/*", ""]
 
-    # Write output
-    filename = output_dir / "CP2K_INPUT.md"  # Overwrite generic file.
-    filename.write_text("\n".join(output))
-    print(f"Wrote markdown files for {num_files_written} input sections.")
+    write_file(output_dir / "CP2K_INPUT.md", "\n".join(output))  # Replace generic file.
+    print(f"Generated markdown files for {num_files_written} input sections.")
 
 
 # ======================================================================================
@@ -132,7 +127,7 @@ def process_section(
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
-    output += [f"{escape_markdown(description)} {github_link(location)}", ""]
+    output += [escape_markdown(description), github_link(location), ""]
 
     # Collect and sort subsections.
     subsections = sorted(section.findall("SECTION"), key=get_name)
@@ -174,8 +169,7 @@ def process_section(
     # Write output
     section_dir = output_dir / "/".join(section_path[:-1])
     section_dir.mkdir(exist_ok=True)
-    filename = section_dir / f"{section_name}.md"
-    filename.write_text("\n".join(output))
+    write_file(section_dir / f"{section_name}.md", "\n".join(output))
     num_files_written = 1
 
     # Process subsections
@@ -254,12 +248,13 @@ def render_keyword(keyword: lxml.etree._Element, section_xref: str) -> List[str]
         output += ["**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
             item_description = get_text(item.find("DESCRIPTION"))
-            output += [f"* `{get_name(item)}` {escape_markdown(item_description)}"]
+            output += [f"* `{get_name(item)}`"]
+            output += [indent(escape_markdown(item_description))]
         output += [""]
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
-    output += [f"{escape_markdown(description)} {github_link(location)}", ""]
+    output += [escape_markdown(description), github_link(location), ""]
     output += ["```", ""]  # Close py:data directive.
 
     if deprecation_notice:
@@ -295,9 +290,21 @@ def sanitize_name(name: str) -> str:
 
 # ======================================================================================
 def escape_markdown(text: str) -> str:
+    # Code blocks without a language get mistaken for the end of the py:data directive.
+    text = text.replace("\n\n```\n", "\n\n```none\n")
+
+    # Underscores are very common in our docs. Luckily asterisks also work for emphasis.
     text = text.replace("__", "\_\_")
+
+    # Headings mess up the page structure. Please use paragraphs and bold text instead.
     text = text.replace("#", "\#")
+
     return text
+
+
+# ======================================================================================
+def indent(text: str) -> str:
+    return "\n".join(f"  {line}" for line in text.split("\n"))
 
 
 # ======================================================================================
@@ -310,7 +317,14 @@ def github_link(location: str) -> str:
 
 
 # ======================================================================================
+def write_file(filename: Path, content: str) -> None:
+    old_content = filename.read_text() if filename.exists() else None
+    if old_content != content:
+        filename.write_text(content)
+        print(f"Wrote {filename}")
 
+
+# ======================================================================================
 main()
 
 # EOF

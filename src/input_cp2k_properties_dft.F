@@ -110,7 +110,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL cp_print_key_section_create(subsection, __LOCATION__, name="FIT_CHARGE", &
-                                       description="This section is used to print the density derived atomic point charges."// &
+                                       description="This section is used to print the density derived atomic point charges. "// &
                                        "The fit of the charges is controlled through the DENSITY_FITTING section", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="TYPE_OF_DENSITY", &
@@ -157,7 +157,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
                           description="The linear response is used to calculate one of the "// &
-                          " following properties: nmr, epr, raman, ... ", &
+                          "following properties: nmr, epr, raman, ... ", &
                           n_keywords=5, n_subsections=2, repeats=.FALSE., &
                           citations=(/Putrino2000/))
 
@@ -227,7 +227,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
                           variants=(/"RESTART_FILE_NAME"/), &
-                          description="Root of the file names where to read the response functions from"// &
+                          description="Root of the file names where to read the response functions from "// &
                           "which to restart the calculation of the linear response", &
                           usage="WFN_RESTART_FILE_NAME <FILENAME>", &
                           type_of_var=lchar_t)
@@ -278,9 +278,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of restart file of the response wavefunction."// &
-                                       "For each set of response functions, i.e. for each perturbation,"// &
-                                       "one different restart file is dumped. These restart files should be"// &
+                                       description="Controls the dumping of restart file of the response wavefunction. "// &
+                                       "For each set of response functions, i.e. for each perturbation, "// &
+                                       "one different restart file is dumped. These restart files should be "// &
                                        "employed only to restart the same type of LINRES calculation, "// &
                                        "i.e. with the same perturbation.", &
                                        print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("ITER"), &
@@ -700,8 +700,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
-                          description="Indexes of the states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the states to be printed as cube files "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes) (not working yet).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -764,7 +764,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NICS", &
-                          description="Calculate the chemical shift in a set of points  "// &
+                          description="Calculate the chemical shift in a set of points"// &
                           " given from an external file", usage="NICS", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -819,8 +819,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
-                          description="Indexes of the states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the states to be printed as cube files "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -1076,8 +1076,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
-                          description="Indexes of the states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the states to be printed as cube files "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -1426,7 +1426,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NLUMO", &
                           description="Number of unoccupied orbitals to consider. "// &
-                          " Default is to use all unoccupied orbitals (-1).", &
+                          "Default is to use all unoccupied orbitals (-1).", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
@@ -1434,7 +1434,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NPROC_STATE", &
                           description="Number of MPI processes to be used per excited state. "// &
-                          " Default is to use all processors (0).", &
+                          "Default is to use all processors (0).", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
@@ -1525,7 +1525,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ADMM_KERNEL_XC_CORRECTION", &
-                          description="Use/Ignore ADMM correction xc functional for TD kernel."// &
+                          description="Use/Ignore ADMM correction xc functional for TD kernel. "// &
                           "XC correction functional is defined in ground state XC section.", &
                           n_var=1, type_of_var=logical_t, &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
@@ -1533,7 +1533,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ADMM_KERNEL_CORRECTION_SYMMETRIC", &
-                          description="ADMM correction functional in kernel is applied symmetrically."// &
+                          description="ADMM correction functional in kernel is applied symmetrically. "// &
                           "Original implementation is using a non-symmetric formula.", &
                           n_var=1, type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1824,7 +1824,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="FORCES", &
-                                       description="Controls the calculation and printing of excited state forces."// &
+                                       description="Controls the calculation and printing of excited state forces. "// &
                                        "Prints difference in forces between excited state and ground state!", &
                                        print_level=debug_print_level, filename="TDFORCE")
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
@@ -1947,7 +1947,7 @@ CONTAINS
                           "for the primitive cell (i.e. the smallest possible unit cell of "// &
                           "the input structure which is detected automatically). Moreover, "// &
                           "spin-orbit coupling (SOC) on eigenvalues and band structures is "// &
-                          "computed automatically using Hartwigsen-Goedecker-Hutter "// &
+                          "available using Hartwigsen-Goedecker-Hutter "// &
                           "pseudopotentials.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -2001,8 +2001,8 @@ CONTAINS
                           "electronic level energies of molecules and the band structure of "// &
                           "materials (currently only 2D materials tested). For the GW "// &
                           "algorithm for molecules, see "// &
-                          "[https://doi.org/10.1021/acs.jctc.0c01282]. "// &
-                          "For 2D materials, see [http://arxiv.org/abs/2306.16066].", &
+                          "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
+                          "For 2D materials, see <http://arxiv.org/abs/2306.16066>.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2018,11 +2018,11 @@ CONTAINS
                           description="Number of discrete points for the imaginary-time "// &
                           "grid and the imaginary-frequency grid. The more points, the more "// &
                           "precise is the calculation. Typically, 10 points are good "// &
-                          "for 0.1 eV precision of band structures and molecular energy"// &
-                          "levels, 20 points for 0.03 eV precision,"// &
+                          "for 0.1 eV precision of band structures and molecular energy "// &
+                          "levels, 20 points for 0.03 eV precision, "// &
                           "and 30 points for 0.01 eV precision, see Table I in "// &
-                          "[https://doi.org/10.1021/acs.jctc.0c01282]. GW computation time "// &
-                          "increases roughly linearly with NUM_TIME_FREQ_POINTS.", &
+                          "<https://doi.org/10.1021/acs.jctc.0c01282>. GW computation time "// &
+                          "increases linearly with `NUM_TIME_FREQ_POINTS`.", &
                           usage="NUM_TIME_FREQ_POINTS 30", &
                           default_i_val=30)
       CALL section_add_keyword(section, keyword)
@@ -2030,7 +2030,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Determines a threshold for the DBCSR based sparse "// &
-                          "multiplications. Normally, this EPS_FILTER determines accuracy "// &
+                          "multiplications. Normally, `EPS_FILTER` determines accuracy "// &
                           "and timing of low-scaling GW calculations. (Lower filter means "// &
                           "higher numerical precision, but higher computational cost.)", &
                           usage="EPS_FILTER 1.0E-6", &
@@ -2038,61 +2038,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM_V", &
-                          description="Determines number of cells used for summing the "// &
-                          "cells R in the Coulomb matrix, "// &
-                          "V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 5 "// &
-                          "gives excellent convergence, parameter does not need to be touched.", &
-                          usage="SIZE_LATTICE_SUM_V 4", &
-                          default_i_val=5)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
                           description="Specify the available memory per MPI process. Set "// &
-                          "this number as accurately as possible for good performance. If "// &
-                          "'MEMORY_PER_PROC' is set lower as the actually available "// &
+                          "`MEMORY_PER_PROC` as accurately as possible for good performance. If "// &
+                          "`MEMORY_PER_PROC` is set lower as the actually available "// &
                           "memory per MPI process, the performance will be "// &
-                          "bad; if 'MEMORY_PER_PROC' is set higher as the actually "// &
+                          "bad; if `MEMORY_PER_PROC` is set higher as the actually "// &
                           "available memory per MPI process, the program might run out of "// &
-                          "memory. You can calculate 'MEMORY_PER_PROC' as follows: "// &
+                          "memory. You can calculate `MEMORY_PER_PROC` as follows: "// &
                           "Get the memory per node on your machine, mem_per_node "// &
                           "(for example, from a supercomputer website, typically between "// &
                           "100 GB and 2 TB), get the number of "// &
                           "MPI processes per node, n_MPI_proc_per_node"// &
-                          " (for example from your run-script; if you : "// &
+                          " (for example from your run-script; if you "// &
                           "use slurm, the number behind '--ntasks-per-node' is the number "// &
                           "of MPI processes per node). Then calculate "// &
-                          "MEMORY_PER_PROC = mem_per_node / n_MPI_proc_per_node "// &
+                          "`MEMORY_PER_PROC` = mem_per_node / n_MPI_proc_per_node "// &
                           "(typically between 2 GB and 50 GB). Unit of keyword: Gigabyte (GB).", &
                           usage="MEMORY_PER_PROC 16", &
                           default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_TENSOR", &
-                          description="Specify the number of MPI processes for a group "// &
-                          "performing tensor operations. If '-1', automatic choice which "// &
-                          "should be good enough for most cases. ", &
-                          usage="GROUP_SIZE_TENSOR 16", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="KPOINTS_CHI_EPS_W", &
-         description="Monkhorst-Pack k-point mesh of size N_x, N_y, N_z "// &
-         "for the polarizability χ, the dielectric function ε and the screened "// &
-         "Coulomb interaction W.Automatic choice of the k-point mesh for negative "// &
-         "values, e.g. KPOINTS_CHI_EPS_W -1 -1 -1, which should be good enough in "// &
-         "almost all cases. Only even k-point meshes "// &
-         "implemented. For non-periodic directions α, choose N_α = 1. "// &
-         "The N_x, N_y, N_z mesh and a N_x+2, N_y+2, N_z+2 mesh is used for "// &
-         "extrapolating the k-point integration of the screened Coulomb "// &
-         "interaction. Automatic choice of the k-point mesh for negative "// &
-         "values, e.g. KPOINTS_CHI_EPS_W -1 -1 -1.", &
-         usage="KPOINTS_CHI_EPS_W  N_x  N_y  N_z", &
-         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+      CALL keyword_create(keyword, __LOCATION__, name="APPROX_KP_EXTRAPOL", &
+                          description="If true, use only a 4x4 kpoint mesh for frequency "// &
+                          "points $\omega_j, j >= 2$ (instead of a 4x4 and 6x6 k-point mesh). "// &
+                          "The k-point extrapolation of $W_{PQ}(i\omega_j,\mathbf{q})$ "// &
+                          "is done approximately from $W_{PQ}(i\omega_1,\mathbf{q})$.", &
+                          usage="APPROX_KP_EXTRAPOL", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2128,10 +2102,12 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="SOC", &
                           description="Switch on or off spin-orbit coupling. Use SOC "// &
                           "parameters from non-local pseudopotentials as given in "// &
-                          "Hartwigsen, Goedecker, Hutter, Eq.(18), (19) "// &
-                          "(doi.org/10.1103/PhysRevB.58.3641), "// &
-                          "V^SOC_µν^(α) = ħ/2 < ϕ_µ | sum_ℓ ΔV_ℓ^SO(r,r') L^(α) | ϕ_ν >, "// &
-                          "α = x, y, z.", &
+                          "Hartwigsen, Goedecker, Hutter, Eq.(18), (19), "// &
+                          "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
+                          "$V_{\mu\nu}^{\mathrm{SOC}, (\alpha)} = "// &
+                          "(\hbar/2) \langle \phi_\mu | \sum_l \Delta "// &
+                          "V_l^\mathrm{SO}(\mathbf{r},\mathbf{r}') L^{(\alpha)} | \phi_\nu \rangle, "// &
+                          "\alpha = x, y, z$.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2145,9 +2121,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Apply SOC only for states with eigenvalues in the "// &
-                          "interval [ε_VBM-E_window/2, ε_CBM+E_window/2]. Might be necessary "// &
-                          "to use for large systems to prevent problems that arise due to "// &
-                          "the non-selfconsistent nature of the SOC.", &
+                          "interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2, "// &
+                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$. Might be necessary "// &
+                          "to use for large systems to prevent numerical instabilities.", &
                           usage="ENERGY_WINDOW 5.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="eV"), &
                           unit_str="eV")
@@ -2184,7 +2160,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Print DOS and PDOS in the energy window "// &
-                          "[ε_VBM-E_window/2, ε_CBM+E_window/2], where VBM is the valence "// &
+                          "$[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2,  "// &
+                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$,"// &
+                          " where VBM is the valence "// &
                           "band maximum (or highest occupied molecular orbital, HOMO, for "// &
                           "molecules) and CBM the conduction band minimum (or lowest "// &
                           "unoccupied molecular orbital, LUMO, for molecules).", &
@@ -2204,7 +2182,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
                           description="Broadening α in Gaussians used in the DOS; "// &
-                          "DOS(E) = sum_n 1/(α sqrt(2π)) exp(((E-ε_n)/α)^2).", &
+                          "$\mathrm{DOS}(E) = "// &
+                          "\sum_n \exp(((E-\varepsilon_n)/\alpha)^2)/("// &
+                          " \sqrt{2\pi} \alpha)$.", &
                           usage="BROADENING 0.01", &
                           default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"), &
                           unit_str="eV")
@@ -2335,7 +2315,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TIP_SCAN", &
-                          description="Parameters needed to set up a Tip Scan."// &
+                          description="Parameters needed to set up a Tip Scan. "// &
                           "Needs external definition of tip induced field.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 

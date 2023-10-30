@@ -1159,7 +1159,7 @@ CONTAINS
             rad = 0
             DO s = 1, nnp%n_rad(i)
                IF (nnp%rad(i)%ele(s) == nnp%rad(i)%symfgrp(j)%ele(1)) THEN
-                  IF (ABS(nnp%rad(i)%funccut(s) - nnp%rad(i)%symfgrp(j)%cutoff) < 1.0e-7_dp) THEN
+                  IF (ABS(nnp%rad(i)%funccut(s) - nnp%rad(i)%symfgrp(j)%cutoff) <= 1.0e-5_dp) THEN
                      rad = rad + 1
                      nnp%rad(i)%symfgrp(j)%symf(rad) = s
                   END IF
@@ -1174,7 +1174,7 @@ CONTAINS
                     nnp%ang(i)%ele2(s) == nnp%ang(i)%symfgrp(j)%ele(2)) .OR. &
                    (nnp%ang(i)%ele1(s) == nnp%ang(i)%symfgrp(j)%ele(2) .AND. &
                     nnp%ang(i)%ele2(s) == nnp%ang(i)%symfgrp(j)%ele(1))) THEN
-                  IF (ABS(nnp%ang(i)%funccut(s) - nnp%ang(i)%symfgrp(j)%cutoff) < 1.0e-7_dp) THEN
+                  IF (ABS(nnp%ang(i)%funccut(s) - nnp%ang(i)%symfgrp(j)%cutoff) <= 1.0e-5_dp) THEN
                      ang = ang + 1
                      nnp%ang(i)%symfgrp(j)%symf(ang) = s
                   END IF
@@ -1189,12 +1189,14 @@ CONTAINS
 !> \brief Write symmetry function information
 !> \param nnp ...
 !> \param para_env ...
+!> \param printtag ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_write_acsf(nnp, para_env)
+   SUBROUTINE nnp_write_acsf(nnp, para_env, printtag)
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: printtag
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: i, j, unit_nr
@@ -1203,7 +1205,7 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      my_label = "NNP| "
+      my_label = TRIM(printtag)//"| "
       IF (para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          WRITE (unit_nr, '(1X,A,1X,10(I2,1X))') TRIM(my_label)//" Activation functions:", nnp%actfnct(:)
@@ -1224,6 +1226,8 @@ CONTAINS
             END DO
          END DO
       END IF
+
+      RETURN
 
    END SUBROUTINE nnp_write_acsf
 

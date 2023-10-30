@@ -12,152 +12,153 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_dft
-   USE basis_set_types,                 ONLY: basis_sort_default,&
-                                              basis_sort_zet
-   USE bibliography,                    ONLY: &
-        Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
-        Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
-        Ehrhardt1985, Eriksen2020, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
-        Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
-        Knizia2013, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
-        Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
-        Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
-        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-        Yin2017
-   USE cp_output_handling,              ONLY: add_last_numeric,&
-                                              cp_print_key_section_create,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              low_print_level,&
-                                              medium_print_level,&
-                                              silent_print_level
-   USE cp_spline_utils,                 ONLY: pw_interp,&
-                                              spline3_nopbc_interp,&
-                                              spline3_pbc_interp
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE input_constants,                 ONLY: &
-        atomic_guess, becke_cutoff_element, becke_cutoff_global, bqb_opt_exhaustive, &
-        bqb_opt_normal, bqb_opt_off, bqb_opt_patient, bqb_opt_quick, broyden_type_1, &
-        broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
-        broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, casci_canonical, &
-        cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
-        cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
-        cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
-        diag_filter_matrix, diag_ot, diag_standard, dmft_model, do_admm_aux_exch_func_bee, &
-        do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
-        do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
-        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
-        do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, &
-        do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
-        do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
-        do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-        do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-        do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
-        do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
-        do_gapw_gct, do_gapw_log, do_iaoloc_energy, do_iaoloc_enone, do_iaoloc_l1, do_iaoloc_occ, &
-        do_iaoloc_pm2, do_iaoloc_pm4, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, &
-        do_lri_opt_coeff, do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, &
-        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
-        do_method_rm1, do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, &
-        do_potential_short, do_potential_truncated, do_ppl_analytic, do_ppl_grid, &
-        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
-        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
-        do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
-        ehrenfest, embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, &
-        embed_none, embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, &
-        eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
-        eri_operator_gaussian, eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
-        gapw_1c_small, gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, &
-        hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
-        jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, &
-        kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, &
-        ls_2pnt, ls_3pnt, ls_gold, ls_none, manual_selection, mao_basis_ext, mao_basis_orb, &
-        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, no_solver, &
-        numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
-        orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
-        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
-        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
-        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
-        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
-        qiskit_solver, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
-        random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
-        rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
-        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
-        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
-        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
-        slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
-        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
-        tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
-        use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
-        weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
-        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
-        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, &
-        xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, &
-        xas_dip_vel, xas_dscf, xas_none, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, &
-        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
-   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
-   USE input_cp2k_distribution,         ONLY: create_distribution_section
-   USE input_cp2k_ec,                   ONLY: create_ec_section
-   USE input_cp2k_exstate,              ONLY: create_exstate_section
-   USE input_cp2k_external,             ONLY: create_ext_den_section,&
-                                              create_ext_pot_section,&
-                                              create_ext_vxc_section
-   USE input_cp2k_field,                ONLY: create_efield_section,&
-                                              create_per_efield_section
-   USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section,&
-                                              create_kpoints_section
-   USE input_cp2k_loc,                  ONLY: create_localize_section,&
-                                              print_wanniers
-   USE input_cp2k_ls,                   ONLY: create_ls_scf_section
-   USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
-                                              create_neighbor_lists_section
-   USE input_cp2k_poisson,              ONLY: create_poisson_section
-   USE input_cp2k_projection_rtp,       ONLY: create_projection_rtp_section
-   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
-   USE input_cp2k_tb,                   ONLY: create_dftb_control_section,&
-                                              create_xtb_control_section
-   USE input_cp2k_transport,            ONLY: create_transport_section
-   USE input_cp2k_voronoi,              ONLY: create_print_voronoi_section
-   USE input_cp2k_xc,                   ONLY: create_xc_fun_section,&
-                                              create_xc_section
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              lchar_t,&
-                                              logical_t,&
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
-                                              do_pw_grid_blocked_free,&
-                                              do_pw_grid_blocked_true
-   USE pw_spline_utils,                 ONLY: no_precond,&
-                                              precond_spl3_1,&
-                                              precond_spl3_2,&
-                                              precond_spl3_3,&
-                                              precond_spl3_aint,&
-                                              precond_spl3_aint2
-   USE qs_density_mixing_types,         ONLY: create_mixing_section
-   USE qs_fb_input,                     ONLY: create_filtermatrix_section
-   USE qs_mom_types,                    ONLY: create_mom_section
-   USE string_utilities,                ONLY: newline,&
-                                              s2a
+   USE basis_set_types, ONLY: basis_sort_default, &
+                              basis_sort_zet
+   USE bibliography, ONLY: &
+      Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
+      Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
+      Ehrhardt1985, Eriksen2020, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
+      Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
+      Knizia2013, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
+      Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
+      Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
+      VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+      Yin2017
+   USE cp_output_handling, ONLY: add_last_numeric, &
+                                 cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 low_print_level, &
+                                 medium_print_level, &
+                                 silent_print_level
+   USE cp_spline_utils, ONLY: pw_interp, &
+                              spline3_nopbc_interp, &
+                              spline3_pbc_interp
+   USE cp_units, ONLY: cp_unit_to_cp2k
+   USE input_constants, ONLY: &
+      atomic_guess, becke_cutoff_element, becke_cutoff_global, bqb_opt_exhaustive, &
+      bqb_opt_normal, bqb_opt_off, bqb_opt_patient, bqb_opt_quick, broyden_type_1, &
+      broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
+      broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, casci_canonical, &
+      cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
+      cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
+      cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
+      diag_filter_matrix, diag_ot, diag_standard, dmft_model, do_admm_aux_exch_func_bee, &
+      do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
+      do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
+      do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
+      do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, &
+      do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
+      do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
+      do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
+      do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+      do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
+      do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
+      do_gapw_gct, do_gapw_log, do_iaoloc_energy, do_iaoloc_enone, do_iaoloc_l1, do_iaoloc_occ, &
+      do_iaoloc_pm2, do_iaoloc_pm4, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, &
+      do_lri_opt_coeff, do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, &
+      do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+      do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+      do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
+      do_method_rm1, do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, &
+      do_potential_short, do_potential_truncated, do_ppl_analytic, do_ppl_grid, &
+      do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+      do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
+      do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+      ehrenfest, embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, &
+      embed_none, embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, &
+      eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
+      eri_operator_gaussian, eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
+      gapw_1c_small, gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, &
+      hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
+      jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, &
+      kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, &
+      ls_2pnt, ls_3pnt, ls_gold, ls_none, manual_selection, mao_basis_ext, mao_basis_orb, &
+      mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, no_solver, &
+      numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+      orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+      ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+      ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+      ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+      ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+      ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+      outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
+      outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+      outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+      outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+      outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+      qiskit_solver, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
+      random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
+      rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+      rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
+      sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+      sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
+      sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+      slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
+      tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
+      tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
+      use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
+      weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
+      wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+      wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+      wfi_use_prev_wf_method_nr, wfn_mix_orig_external, wfn_mix_orig_occ, wfn_mix_orig_virtual, &
+      xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
+      xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
+      xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
+      xas_tp_xfh, xas_tp_xhh, xes_tp_val
+   USE input_cp2k_almo, ONLY: create_almo_scf_section
+   USE input_cp2k_distribution, ONLY: create_distribution_section
+   USE input_cp2k_ec, ONLY: create_ec_section
+   USE input_cp2k_exstate, ONLY: create_exstate_section
+   USE input_cp2k_external, ONLY: create_ext_den_section, &
+                                  create_ext_pot_section, &
+                                  create_ext_vxc_section
+   USE input_cp2k_field, ONLY: create_efield_section, &
+                               create_per_efield_section
+   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section, &
+                                 create_kpoints_section
+   USE input_cp2k_loc, ONLY: create_localize_section, &
+                             print_wanniers
+   USE input_cp2k_ls, ONLY: create_ls_scf_section
+   USE input_cp2k_mm, ONLY: create_dipoles_section, &
+                            create_neighbor_lists_section
+   USE input_cp2k_poisson, ONLY: create_poisson_section
+   USE input_cp2k_projection_rtp, ONLY: create_projection_rtp_section
+   USE input_cp2k_rsgrid, ONLY: create_rsgrid_section
+   USE input_cp2k_tb, ONLY: create_dftb_control_section, &
+                            create_xtb_control_section
+   USE input_cp2k_transport, ONLY: create_transport_section
+   USE input_cp2k_voronoi, ONLY: create_print_voronoi_section
+   USE input_cp2k_xc, ONLY: create_xc_fun_section, &
+                            create_xc_section
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              lchar_t, &
+                              logical_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE pw_grids, ONLY: do_pw_grid_blocked_false, &
+                       do_pw_grid_blocked_free, &
+                       do_pw_grid_blocked_true
+   USE pw_spline_utils, ONLY: no_precond, &
+                              precond_spl3_1, &
+                              precond_spl3_2, &
+                              precond_spl3_3, &
+                              precond_spl3_aint, &
+                              precond_spl3_aint2
+   USE qs_density_mixing_types, ONLY: create_mixing_section
+   USE qs_fb_input, ONLY: create_filtermatrix_section
+   USE qs_mom_types, ONLY: create_mom_section
+   USE string_utilities, ONLY: newline, &
+                               s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -319,9 +320,9 @@ CONTAINS
                           variants=s2a("SURFACE_DIPOLE", &
                                        "SURF_DIP"), &
                           description="For slab calculations with asymmetric geometries, activate the correction of "// &
-                          " the electrostatic potential with "// &
+                          "the electrostatic potential with "// &
                           "by compensating for the surface dipole. Implemented only for slabs with normal "// &
-                          " parallel to one Cartesian axis. The normal direction is given by the keyword SURF_DIP_DIR ", &
+                          "parallel to one Cartesian axis. The normal direction is given by the keyword SURF_DIP_DIR", &
                           usage="SURF_DIP", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE., &
@@ -343,10 +344,10 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="SURF_DIP_POS", &
-                          description="This keyword assigns an user defined position in Angstroms"// &
-                          " in the direction normal to the surface (given by SURF_DIP_DIR). "// &
+                          description="This keyword assigns an user defined position in Angstroms "// &
+                          "in the direction normal to the surface (given by SURF_DIP_DIR). "// &
                           "The default value is -1.0_dp which appplies the correction at a position "// &
-                          " that has minimum electron density on the grid.", &
+                          "that has minimum electron density on the grid.", &
                           usage="SURF_DIP_POS -1.0_dp", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -772,7 +773,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="sap_ppnl", &
                           description="Activates the printing of the orbital "// &
-                          "GTH-PPNL neighbor lists (non-local part of the"// &
+                          "GTH-PPNL neighbor lists (non-local part of the "// &
                           "Goedecker-Teter-Hutter pseudo potentials)", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -872,7 +873,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
-                                       description="Activates the printing of the subcells used for the"// &
+                                       description="Activates the printing of the subcells used for the "// &
                                        "generation of neighbor lists.", unit_str="angstrom", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -914,7 +915,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, name="MATRIX_VXC", &
-         description="If the printkey is activated compute and print the matrix of the exchange and correlation potential."// &
+         description="If the printkey is activated compute and print the matrix of the exchange and correlation potential. "// &
          "Only the GGA part for GPW is printed", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -1037,7 +1038,7 @@ CONTAINS
                           name="MO_INDEX_RANGE", &
                           variants=s2a("MO_RANGE", "RANGE"), &
                           description="Print only the requested subset of MOs. The indices of the first and "// &
-                          " the last MO have to be specified to define the range.", &
+                          "the last MO have to be specified to define the range.", &
                           repeats=.FALSE., &
                           n_var=2, &
                           type_of_var=integer_t, &
@@ -1175,7 +1176,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="XRD_INTERFACE", &
-                          description="It activates the print out of exponents and coefficients for the "// &
+                          description="It activates the print out of exponents and coefficients for the"// &
                           " Gaussian expansion of the core densities, based on atom calculations for each kind."// &
                           " The resulting core dansities are needed to compute the form factors."// &
                           " If GAPW the local densities are also given in terms of a Gaussian expansion,"// &
@@ -1217,8 +1218,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "v_hartree_cube", &
-                                       description="Controls the printing of a cube file with eletrostatic "// &
-                                       " potential generated by the total density (electrons+ions). It is "// &
+                                       description="Controls the printing of a cube file with eletrostatic"// &
+                                       " potential generated by the total density (electrons+ions). It is"// &
                                        " valid only for QS with GPW formalism."// &
                                        " Note that by convention the potential has opposite sign than the expected physical one.", &
                                        print_level=high_print_level, filename="")
@@ -1239,7 +1240,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "external_potential_cube", &
-                                       description="Controls the printing of a cube file with external "// &
+                                       description="Controls the printing of a cube file with external"// &
                                        " potential from the DFT%EXTERNAL_POTENTIAL section only.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -1261,10 +1262,9 @@ CONTAINS
       ! Output of BQB volumetric files
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_BQB", &
                                        description="Controls the output of the electron density to the losslessly"// &
-                                       " compressed BQB file format, see [Brehm2018] (via LibBQB"// &
-                                       " see <a href=""https://brehm-research.de/bqb"" target=""_blank"">"// &
-                                       " https://brehm-research.de/bqb</a> ). Currently does not work"// &
-                                       "  with changing cell vector (NpT ensemble).", &
+                                       " compressed BQB file format, see [Brehm2018]"// &
+                                       " (via LibBQB see <https://brehm-research.de/bqb>)."// &
+                                       " Currently does not work with changing cell vector (NpT ensemble).", &
                                        print_level=debug_print_level + 1, filename="", &
                                        citations=(/Brehm2018/))
 
@@ -1337,8 +1337,8 @@ CONTAINS
 
       ! ZMP adding the print section for  the v_xc cube
       CALL cp_print_key_section_create(print_key, __LOCATION__, "v_xc_cube", &
-                                       description="Controls the printing of a cube file with xc "// &
-                                       " potential generated by the ZMP method (for the moment). It is "// &
+                                       description="Controls the printing of a cube file with xc"// &
+                                       " potential generated by the ZMP method (for the moment). It is"// &
                                        " valid only for QS with GPW formalism .", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -1358,9 +1358,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "efield_cube", &
-                                       description="Controls the printing of cube files with electric "// &
-                                       " field generated by the total density (electrons+ions). It is "// &
-                                       " valid only for QS with GPW formalism .", &
+                                       description="Controls the printing of cube files with electric"// &
+                                       " field generated by the total density (electrons+ions). It is"// &
+                                       " valid only for QS with GPW formalism.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
@@ -1379,9 +1379,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_CUBE", &
-                                       description="Controls printing of cube files with "// &
-                                       "the electron localization function (ELF). Note that "// &
-                                       "the value of ELF is defined between 0 and 1:  Pauli kinetic energy density normalized "// &
+                                       description="Controls printing of cube files with"// &
+                                       " the electron localization function (ELF). Note that"// &
+                                       " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
                                        " by the kinetic energy density of a uniform el. gas of same density.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -1411,8 +1411,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
-                                       description="Controls the printing of cube files with the local "// &
-                                       " energy. It is valid only for QS with GPW/GAPW formalism ."// &
+                                       description="Controls the printing of cube files with the local"// &
+                                       " energy. It is valid only for QS with GPW/GAPW formalism."// &
                                        " Meta and hybrid functionals are not possible.", &
                                        print_level=debug_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -1432,8 +1432,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_STRESS_CUBE", &
-                                       description="Controls the printing of cube files with the local "// &
-                                       " stress. It is valid only for QS with GPW/GAPW formalism ."// &
+                                       description="Controls the printing of cube files with the local"// &
+                                       " stress. It is valid only for QS with GPW/GAPW formalism."// &
                                        " Meta and hybrid functionals are not possible.", &
                                        print_level=debug_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
@@ -1489,7 +1489,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, &
                           name="VEL_REPRS", &
-                          description="Calculate expectation values of the el. multipole moments in their velocity"// &
+                          description="Calculate expectation values of the el. multipole moments in their velocity "// &
                           "representation during RTP. Implemented up to el. quadrupole moment.", &
                           usage="VEL_REPS yes", &
                           repeats=.FALSE., &
@@ -1500,7 +1500,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, &
                           name="COM_NL", &
-                          description="Include non local commutator for velocity representations."// &
+                          description="Include non local commutator for velocity representations. "// &
                           "Necessary for origin independent results.", &
                           usage="COM_NL yes", &
                           repeats=.FALSE., &
@@ -1767,8 +1767,8 @@ CONTAINS
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
-                          description="Indexes of the atoms minimal basis to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the atoms minimal basis to be printed as cube files "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -1809,6 +1809,24 @@ CONTAINS
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
                                        citations=(/Eriksen2020/))
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_ORB_CANONICAL", &
+                          description="Use reference orbitals in canonical form.", &
+                          usage="REFERENCE_ORB_CANONICAL {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SKIP_LOCALIZATION", &
+                          description="Don't localize the MOs.", &
+                          usage="SKIP_LOCALIZATION {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DETAILED_ENERGY", &
+                          description="Calculate detailed atomic decomposition energies.", &
+                          usage="DETAILED_ENERGY {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -1950,7 +1968,7 @@ CONTAINS
       NULLIFY (subsection)
       CALL cp_print_key_section_create(subsection, __LOCATION__, "CHARGE_CENTER", &
                                        description="Calculation and printing of centers and spreads "// &
-                                       " of localized orbitals.", &
+                                       "of localized orbitals.", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="POSITION_OPERATOR_BERRY", &
@@ -2021,11 +2039,11 @@ CONTAINS
       !DOS from density matrix
       CALL cp_print_key_section_create(print_key, __LOCATION__, "ENERGY_WINDOWS", &
                                        description="Controls the printing of the DOS from the density matrix. "// &
-                                       "This allows the calculation of the DOS even in density matrix based"// &
+                                       "This allows the calculation of the DOS even in density matrix based "// &
                                        "REAL_TIME_PROPAGATION and LS_SCF. "// &
                                        "However, it requires a cubically scaling diagonalization of the Hamiltonian. "// &
                                        "Hartree-Fock NYI, values will be wrong. "// &
-                                       "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian."// &
+                                       "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian. "// &
                                        "Assumes absence of spin polarization (so far).", &
                                        print_level=high_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/100/), &
@@ -2370,7 +2388,7 @@ CONTAINS
       CALL cp_print_key_section_create( &
          sub_print_key, __LOCATION__, name="TOTAL_CHARGE_DENSITY", &
          description="Controls the printing of the cube files with the "// &
-         "total charge density &rho;<sup>tot</sup> used by the SCCS model.", &
+         "total charge density $\rho^\text{tot}$ used by the SCCS model.", &
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
@@ -2399,8 +2417,8 @@ CONTAINS
       CALL cp_print_key_section_create( &
          sub_print_key, __LOCATION__, name="POLARISATION_CHARGE_DENSITY", &
          description="Controls the printing of the cube files with the "// &
-         "polarisation charge density &rho;<sup>pol</sup> used by the SCCS model with the "// &
-         "total charge density &rho;<sup>tot</sup> = &rho;<sup>sol</sup> + &rho;<sup>pol</sup>", &
+         "polarisation charge density $\rho^\text{pol}$ used by the SCCS model with the "// &
+         "total charge density $\rho^\text{tot} = \rho^\text{sol} + \rho^\text{pol}", &
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
@@ -2429,8 +2447,8 @@ CONTAINS
       CALL cp_print_key_section_create( &
          sub_print_key, __LOCATION__, name="POLARISATION_POTENTIAL", &
          description="Controls the printing of the cube files with the "// &
-         "polarisation potential &phi;<sup>pol</sup> used by the SCCS model with the "// &
-         "total potential &phi;<sup>tot</sup> = &phi;<sup>sol</sup> + &phi;<sup>pol</sup>", &
+         "polarisation potential $\phi^\text{pol}$ used by the SCCS model with the "// &
+         "total potential $\phi^\text{tot} = \phi^\text{sol} + \phi^\text{pol}$", &
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
@@ -2579,7 +2597,7 @@ CONTAINS
                                        print_level=debug_print_level, common_iter_levels=1, filename="")
 
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Append the DOS obtained at different iterations to the output file."// &
+                          description="Append the DOS obtained at different iterations to the output file. "// &
                           "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -2624,7 +2642,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Append the pdos obtained at different iterations to the pdos  output file."// &
+                          description="Append the pdos obtained at different iterations to the pdos  output file. "// &
                           "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -2678,19 +2696,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="XRANGE", &
                           description="range of positions in Cartesian direction x: all grid points within "// &
-                          " this range from at least one atom of the list are considered", &
+                          "this range from at least one atom of the list are considered", &
                           usage="XRANGE -10.0 10.0", unit_str="angstrom", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="YRANGE", &
                           description="range of positions in Cartesian direction y: all grid points within "// &
-                          " this range from at least one atom of the list are considered", &
+                          "this range from at least one atom of the list are considered", &
                           usage="YRANGE -10.0 10.0", unit_str="angstrom", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ZRANGE", &
                           description="range of positions in Cartesian direction z: all grid points within "// &
-                          " this range from at least one atom of the list are considered", &
+                          "this range from at least one atom of the list are considered", &
                           usage="ZRANGE -10.0 10.0", unit_str="angstrom", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2790,12 +2808,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BIAS", &
-                          description="Bias energy for scanning tunneling microscopy (STM) image generation."// &
-                          "Orbital densities are summed according to the bias energy."// &
-                          "For negative values, states in the range ]EF+bias,EF] are summed,"// &
-                          "While positive values sum states in the range [EF,EF+bias[."// &
-                          "If positive biases are used, sufficiently many unoccupied stated"// &
-                          " (see ADDED_MOS and NLUMO ) should be computed.", &
+                          description="Bias energy for scanning tunneling microscopy (STM) image generation. "// &
+                          "Orbital densities are summed according to the bias energy. "// &
+                          "For negative values, states in the range ]EF+bias,EF] are summed, "// &
+                          "While positive values sum states in the range [EF,EF+bias[. "// &
+                          "If positive biases are used, sufficiently many unoccupied stated "// &
+                          "(see ADDED_MOS and NLUMO ) should be computed.", &
                           n_var=-1, type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV')
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2846,15 +2864,22 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="WFN_MIX", &
-                          description="A section that allows manipulation of the MO coeffs,"// &
-                          " e.g. for changing a ground state into an excited state."// &
-                          "Starting from a copy of the original MOs, changes can be made"// &
-                          "by adding linear combinations of HOMO/LUMO of the original MOs to the result MOs", &
+                          description="A section that allows manipulation of the MO coeffs, "// &
+                          "e.g. for changing a ground state into an excited state. "// &
+                          "Starting from a copy of the original MOs, changes can be made "// &
+                          "by adding linear combinations of HOMO/LUMO of the original MOs to the result MOs. "// &
+                          "This method is called after an SCF optimization or before an RTP run if "// &
+                          "INITIAL_WFN=RESTART_WFN. Note that if called after an SCF optimization, a restart file "// &
+                          "with the mixed MOs is saved. This is not the case for an RTP with "// &
+                          "INITIAL_WFN=RESTART_WFN.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE_MOS", &
-                          description="If the keyword is active molecular orbitals in memory will be replaced by the mixed wfn."// &
-                          " In combination with RTP or EMD no restart will be required to use the mixed wfn.", &
+                        description="If set to True, the active molecular orbitals in memory will be replaced by the mixed wfn "// &
+                        "at the end of the wfn mixing procedure. For instance, you can then use this new set of MOs to perform "// &
+                          "RTP or EMD directly. Not that in the case of an RTP run with INITIAL_WFN=RESTART_WFN, this keyword "// &
+                          "is not used: the mixed wfn is used to start the time-dependent run. "// &
+                          "Default value is False.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2865,7 +2890,8 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="RESULT_MO_INDEX", &
-                          description="Index of the MO (y) to be modified. Counting down in energy with HOMO=1", &
+                          description="Index of the MO (y) to be modified. Counting down in energy: "// &
+                          "set to 1 for the HOMO, to 3 for the HOMO-3.", &
                           usage="RESULT_MO_INDEX 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2873,7 +2899,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RESULT_MARKED_STATE", &
                           description="Specifies the MO according to "// &
                           "the marks set in MOLECULAR_STATES. The value corresponds to the repetition "// &
-                          " of MARK_STATES in MOLECULAR_STATES", &
+                          "of MARK_STATES in MOLECULAR_STATES", &
                           usage="ORIG_MARKED_STATE 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2895,7 +2921,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_MO_INDEX", &
                           description="Index of the original MO (x). "// &
-                          "Counting down in energy with HOMO=1 or up from LUMO=1, depending on ORIG_IS_VIRTUAL.", &
+                          "If ORIG_TYPE is OCCUPIED, it counts down in energy: set to 1 to point to "// &
+                          "the HOMO and to 3 for the HOMO-3. "// &
+                          "If ORIG_TYPE is VIRTUAL, it counts up in energy: set to 1 to point to "// &
+                          "the LUMO and to 3 for the LUMO+3. "// &
+                          "If ORIG_TYPE is EXTERNAL, it counts down in energy for the external "// &
+                          "set of MOs: set to 1 to point to the HOMO and to 3 for the HOMO-3. "// &
+                          "Do not set to zero or negative values.", &
                           usage="ORIG_MO_INDEX 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2903,7 +2935,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_MARKED_STATE", &
                           description="Specifies the MO according to "// &
                           "the marks set in MOLECULAR_STATES. The value corresponds to the repetition "// &
-                          " of MARK_STATES in MOLECULAR_STATES", &
+                          "of MARK_STATES in MOLECULAR_STATES", &
                           usage="ORIG_MARKED_STATE 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2923,9 +2955,31 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ORIG_IS_VIRTUAL", &
-                          description="The original MO (x) is a LUMO.", &
-                          usage="ORIG_IS_VIRTUAL", type_of_var=logical_t)
+      CALL keyword_create(keyword, __LOCATION__, name="ORIG_TYPE", &
+                          description="Type of the orgine MO. Note that using VIRTUAL along with an RTP run with "// &
+                          "INITIAL_WFN=RESTART_WFN will probably crash since no virtual state "// &
+                          "will be available.", &
+                          enum_c_vals=s2a("OCCUPIED", "VIRTUAL", 'EXTERNAL'), &
+                          usage="ORIG_TYPE OCCUPIED", &
+                          default_i_val=wfn_mix_orig_occ, &
+                          enum_desc=s2a("The original MO is in the MOs matrix itself.", &
+                                        "The original MO is not in the MOs matrix but in the 'unoccupied' one. "// &
+                                        "The SCF cycle shall provide it.", &
+                                        "The orginal MO is from an external .wfn file. Use the keyword "// &
+                                        "ORIG_EXT_FILE_NAME to define its name."), &
+                          enum_i_vals=(/wfn_mix_orig_occ, wfn_mix_orig_virtual, wfn_mix_orig_external/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ORIG_EXT_FILE_NAME", &
+                          description="Name of the wavefunction file to read the original MO from. "// &
+                          "For instance, a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
+                          "If no file is specified, the run will crash. "// &
+                          "Currently, a RTP restart file (.rtpwfn) cannot be used as reference. "// &
+                          "Currently, this file SHALL have the basis set, number of MO and the same number of spin as the one "// &
+                          "from the SCF cycle.", &
+                          usage="ORIG_EXT_FILE_NAME <FILENAME>", &
+                          default_lc_val="EMPTY")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -3014,14 +3068,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_RHO_RSPACE", &
                           description="Sets precision of the density mapping in rspace.Overrides EPS_DEFAULT value."// &
-                          ".Overrides EPS_RHO value", &
+                          " Overrides EPS_RHO value", &
                           usage="EPS_RHO_RSPACE real", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_RHO_GSPACE", &
                           description="Sets precision of the density mapping in gspace.Overrides EPS_DEFAULT value."// &
-                          ".Overrides EPS_RHO value", &
+                          " Overrides EPS_RHO value", &
                           usage="EPS_RHO_GSPACE real", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -3070,10 +3124,10 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="FORCE_PAW", &
          description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "// &
-         " the local densities are computed even if hard and soft should be equal. "// &
+         "the local densities are computed even if hard and soft should be equal. "// &
          "If this keyword is not set to true, those atoms with soft basis sets are treated by a GPW scheme, i.e. "// &
          "the corresponding density contribution goes on the global grid and is expanded in PW. "// &
-         " This option nullifies the effect of the GPW_TYPE in the atomic KIND", &
+         "This option nullifies the effect of the GPW_TYPE in the atomic KIND", &
          usage="FORCE_PAW", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -3087,7 +3141,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GAPW_1C_BASIS", &
-                          description="Specifies how to construct the GAPW one center basis set."// &
+                          description="Specifies how to construct the GAPW one center basis set. "// &
                           "Default is to use the primitives from the orbital basis.", &
                           usage="GAPW_1C_BASIS MEDIUM", &
                           enum_c_vals=s2a("ORB", "EXT_SMALL", "EXT_MEDIUM", "EXT_LARGE", "EXT_VERY_LARGE"), &
@@ -3775,7 +3829,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="EXCHANGE", &
                           description="Setup parameters for the evaluation of the EXCHANGE and "// &
-                          " core Hamiltonian terms in SE calculations.", n_keywords=0, n_subsections=1, &
+                          "core Hamiltonian terms in SE calculations.", n_keywords=0, n_subsections=1, &
                           repeats=.FALSE.)
       NULLIFY (keyword)
 
@@ -3863,7 +3917,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "SUBCELL", &
-                                       description="Activates the printing of the subcells used for the"// &
+                                       description="Activates the printing of the subcells used for the "// &
                                        "generation of neighbor lists for periodic SE.", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -3998,7 +4052,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="DENSITY_FITTING", &
                           description="Setup parameters for density fitting (Bloechl charges or density derived "// &
-                          " atomic point charges (DDAPC) charges)", &
+                          "atomic point charges (DDAPC) charges)", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE., &
                           citations=(/Blochl1995/))
 
@@ -4339,7 +4393,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ATOMIC_CHARGES", &
                           description="Calculate atomic CDFT charges with selected weight function"// &
                           " (Z = Z_core - Z_CDFT). With fragment based constraints, charges are"// &
-                          " relative to the fragment reference state i.e. Z = Z_CDFT - "// &
+                          " relative to the fragment reference state i.e. Z = Z_CDFT -"// &
                           " Z_frag_reference. Note: if the number of atoms is greater than the"// &
                           " default pw_pool max cache, calculation of atomic CDFT charges"// &
                           " will prompt harmless warnings during deallocation of atomic grids.", &
@@ -4522,7 +4576,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PURGE_HISTORY", &
                           description="Purge wavefunction and constraint history to improve SCF convergence during MD."// &
                           " Counts how often the convergence of the first CDFT SCF iteration takes 2 or more outer SCF"// &
-                          " iterations and purges the history if the counter exceeds PURGE_FREQ, and PURGE_OFFSET "// &
+                          " iterations and purges the history if the counter exceeds PURGE_FREQ, and PURGE_OFFSET"// &
                           " MD steps have passed since the last purge."// &
                           " The counter is zeroed after each purge.", &
                           usage="PURGE_HISTORY yes", repeats=.FALSE., n_var=1, &
@@ -4825,7 +4879,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="OE_CORR", &
                           variants=s2a("ORBITAL_EIGENVALUES_CORRECTION"), &
-                          description="Which type of orbital eigenvalue correction to use\n"// &
+                          description="Which type of orbital eigenvalue correction to use "// &
                           "(to yield better HOMO-LUMO energies)", &
                           usage="OE_CORR SAOP", &
                           enum_c_vals=s2a("NONE", "LB", "LB_ALPHA", "LB94", "GLLB", "GLB", "SAOP", "SIC"), &
@@ -5140,8 +5194,8 @@ CONTAINS
                           description="Printing of information during the SCF.", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of the MO restart file during SCF."// &
-                                       "By default keeps a short history of three restarts."// &
+                                       description="Controls the dumping of the MO restart file during SCF. "// &
+                                       "By default keeps a short history of three restarts. "// &
                                        "See also RESTART_HISTORY", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("QS_SCF"), each_iter_values=(/20/), &
@@ -5399,7 +5453,7 @@ CONTAINS
                           enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
                                         "Enforce a constraint on the S2, requires the corresponding section", &
                                         "Optimize positions of basis functions, if atom types FLOATING_BASIS_CENTER "// &
-                                        " are defined", &
+                                        "are defined", &
                                         "Enforce a constraint on a generic CDFT weight population. "// &
                                         "Requires the corresponding section QS&CDFT"// &
                                         " which determines the type of weight used.", &
@@ -5599,9 +5653,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of the restart file during BSSE runs."// &
+                                       description="Controls the dumping of the restart file during BSSE runs. "// &
                                        "By default the restart is updated after each configuration calculation is "// &
-                                       " completed.", &
+                                       "completed.", &
                                        print_level=silent_print_level, common_iter_levels=0, &
                                        add_last=add_last_numeric, filename="")
       CALL section_add_subsection(section, print_key)
@@ -5778,7 +5832,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISTANT_PAIR_METHOD", &
-                          description="Method used to separate pair density for distant pairs."// &
+                          description="Method used to separate pair density for distant pairs. "// &
                           "Options: EW (equal weights); AW (atomic weights); SW (set weights); "// &
                           "LW (shell function weights)", &
                           usage="DISTANT_PAIR_METHOD {method}", &
@@ -6140,7 +6194,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="READ_DMFET_POT", &
-                          description="Read the matrix embedding potential  "// &
+                          description="Read the matrix embedding potential "// &
                           "(restart) from the cube file.", &
                           usage="READ_DMFET_POT .FALSE.", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -6169,7 +6223,7 @@ CONTAINS
       NULLIFY (print_key, keyword)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "EMBED_DENS_DIFF", &
                                        description="Controls the printing of cube files with "// &
-                                       " embedding densisty differences", &
+                                       "embedding densisty differences", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
@@ -6410,7 +6464,7 @@ CONTAINS
                           variants=(/"RELATIVE_CUTOFF"/), &
                           description="Determines the grid at which a Gaussian is mapped,"// &
                           " giving the cutoff used for a gaussian with alpha=1."// &
-                          " A value 50+-10Ry might be required for highly accurate results, "// &
+                          " A value 50+-10Ry might be required for highly accurate results,"// &
                           " Or for simulations with a variable cell."// &
                           " Versions prior to 2.3 used a default of 30Ry.", &
                           usage="RELATIVE_CUTOFF real", default_r_val=20.0_dp, &
@@ -6671,11 +6725,11 @@ CONTAINS
                           "Default settings already provide an efficient, yet robust method. "// &
                           "Most systems benefit from using the FULL_ALL preconditioner "// &
                           "combined with a small value (0.001) of ENERGY_GAP. "// &
-                          "Well-behaved systems might benefit from using a DIIS minimizer. "// &
-                          "<u>Advantages:</u> "// &
+                          "Well-behaved systems might benefit from using a DIIS minimizer. "//newline//newline// &
+                          "**Advantages:** "// &
                           "It's fast, because no expensive diagonalisation is performed. "// &
-                          "If preconditioned correctly, method guaranteed to find minimum. "// &
-                          "<u>Disadvantages:</u> "// &
+                          "If preconditioned correctly, method guaranteed to find minimum. "//newline//newline// &
+                          "**Disadvantages:** "// &
                           "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
                           "No smearing, or advanced SCF mixing possible: POOR convergence for metallic systems.", &
                           n_keywords=27, n_subsections=0, repeats=.FALSE., &
@@ -6870,7 +6924,7 @@ CONTAINS
                           variants=(/"LINE_SEARCH"/), &
                           description="1D line search algorithm to be used with the OT minimizer,"// &
                           " in increasing order of robustness and cost. MINIMIZER CG combined with"// &
-                          " LINESEARCH GOLD should always find an electronic minimum. "// &
+                          " LINESEARCH GOLD should always find an electronic minimum."// &
                           " Whereas the 2PNT minimizer is almost always OK, 3PNT might be needed for systems"// &
                           " in which successive OT CG steps do not decrease the total energy.", &
                           usage="LINESEARCH GOLD", &
@@ -6992,8 +7046,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ROTATION", &
                           description="Introduce additional variables so that rotations of the occupied"// &
-                          " subspace are allowed as well, only needed for cases where the energy is not invariant under "// &
-                          " a rotation of the occupied subspace such as non-singlet restricted calculations "// &
+                          " subspace are allowed as well, only needed for cases where the energy is not invariant under"// &
+                          " a rotation of the occupied subspace such as non-singlet restricted calculations"// &
                           " or fractional occupations.", &
                           usage="ROTATION", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
@@ -7083,7 +7137,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="EPS_JACOBI", &
                           description="Below this threshold value for the SCF convergence the pseudo-diagonalization "// &
                           "method using Jacobi rotations is activated. This method is much faster than a "// &
-                          "real diagonalization and it is even speeding up while achieving full convergence."// &
+                          "real diagonalization and it is even speeding up while achieving full convergence. "// &
                           "However, it needs a pre-converged wavefunction obtained by at least one real "// &
                           "diagonalization which is further optimized while keeping the original eigenvalue "// &
                           "spectrum. The MO eigenvalues are NOT updated. The method might be useful to speed "// &
@@ -7266,7 +7320,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_STD_DIAG", &
                           description="Level of convergence to be reached before starting the Lanczos procedure."// &
-                          " Above this threshold a standard diagonalization method is used. "// &
+                          " Above this threshold a standard diagonalization method is used."// &
                           " If negative Lanczos is started at the first iteration", &
                           usage="EPS_STD_DIAG 0.001", &
                           default_r_val=-1.0_dp)
@@ -7334,7 +7388,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_SKIP_SUB_DIAG", &
          description="Level of convergence to be reached before starting the internal loop of subspace rotations."// &
-         " Above this threshold only the outer diagonalization method is used. "// &
+         " Above this threshold only the outer diagonalization method is used."// &
          " If negative the subspace rotation is started at the first iteration", &
          usage="EPS_SKIP_SUB_DIAG 0.001", &
          default_r_val=-1.0_dp)
@@ -7403,7 +7457,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="XAS_TOT_EL", &
-                          description="Total number of electrons for spin channel alpha, in XAS calculation by TP_FLEX."// &
+                          description="Total number of electrons for spin channel alpha, in XAS calculation by TP_FLEX. "// &
                           "If it is a negative value, the number of electrons is set to GS number of electrons "// &
                           "minus the amount subtracted from the core state", &
                           usage="XAS_TOT_EL 10", &
@@ -7479,7 +7533,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           variants=(/"AT_LIST"/), &
                           description="Indexes of the atoms to be excited. "// &
-                          "This keyword can be repeated several times"// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="ATOMS_LIST {integer}  {integer} ..  {integer} ", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -7496,7 +7550,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ORBITAL_LIST", &
                           variants=(/"ORBITAL_LIST"/), &
                           description="Indices of the localized orbitals to be excited. "// &
-                          "This keyword can be repeated several times"// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="ORBITAL_LIST {integer}  {integer} ..  {integer} ", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -7591,9 +7645,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of MO restart file during the SCF."// &
-                                       "of a Core-Level-Spectroscopy calculation. For each new excited atom,"// &
-                                       "one different restart file is dumped. These restart files should be"// &
+                                       description="Controls the dumping of MO restart file during the SCF. "// &
+                                       "of a Core-Level-Spectroscopy calculation. For each new excited atom, "// &
+                                       "one different restart file is dumped. These restart files should be "// &
                                        "employed only to restart the same type of CLS calculation, "// &
                                        "i.e. with the same core potential.", &
                                        print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
@@ -7603,7 +7657,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "FULL_RESTART", &
                                        description="Controls the dumping of a standard MO restart file "// &
-                                       "where coefficients and occupation numbers are those of the TP scheme,"// &
+                                       "where coefficients and occupation numbers are those of the TP scheme, "// &
                                        "i.e. with emptied core state.", &
                                        print_level=high_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
                                        add_last=add_last_numeric, each_iter_values=(/3/), filename="")
@@ -7630,8 +7684,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
-                          description="Indexes of the states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the states to be printed as cube files "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -7789,7 +7843,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="GW2X", &
                           description="Specifications for the GW2X calculation of core "// &
                           "ionization potentials. Note that donor states need to be actively "// &
-                          "localized using the LOCALIZE keyword in DONOR_STATES. N_SEARCH"// &
+                          "localized using the LOCALIZE keyword in DONOR_STATES. N_SEARCH "// &
                           "should be kept to the minimum, such that only core states are localized.", &
                           citations=(/Shigeta2001/), &
                           n_keywords=8, &
@@ -8143,7 +8197,7 @@ CONTAINS
                           variants=s2a("EPS_SCREEN"), &
                           description="A threshold to determine which primitive 3-center integrals "// &
                           "are kept for contraction, as the latter operation can be "// &
-                          "expensive (especially for large basis sets )."// &
+                          "expensive (especially for large basis sets ). "// &
                           "If |(ab|c)| < EPS_SCREENNING, it is discarded.", &
                           default_r_val=1.0E-8_dp, &
                           repeats=.FALSE.)
@@ -8282,8 +8336,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
-                          description="Indexes of the excited states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
+                          description="Indexes of the excited states to be printed as cube files "// &
+                          "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
                           usage="CUBES_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
@@ -8531,8 +8585,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="APPLY_WFN_MIX_INIT_RESTART", &
+                          description="If set to True and in the case of INITIAL_WFN=RESTART_WFN, call the "// &
+                          "DFT%PRINT%WFN_MIX section to mix the read initial wfn. The starting wave-function of the "// &
+                          "RTP will be the mixed one. Setting this to True without a defined WFN_MIX section will "// &
+                          "not do anything as defining a WFN_MIX section without this keyword for RTP run with "// &
+                          "INITIAL_WFN=RESTART_WFN. Note that if INITIAL_WFN=SCF_WFN, this keyword is not needed to "// &
+                          "apply the mixing defined in the WFN_MIX section. Default is False.", &
+                          usage="APPLY_WFN_MIX_INIT_RESTART", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE", &
-                          description="Applies a delta kick to the initial wfn (only RTP for now - the EMD "// &
+                          description="Applies a delta kick to the initial wfn (only RTP for now - the EMD"// &
                           " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
                           usage="APPLY_DELTA_PULSE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -8540,7 +8606,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE_MAG", &
-                          description="Applies a magnetic delta kick to the initial wfn (only RTP for now - the EMD "// &
+                          description="Applies a magnetic delta kick to the initial wfn (only RTP for now - the EMD"// &
                           " case is not yet implemented). Only work for INITIAL_WFN=SCF_WFN", &
                           usage="APPLY_DELTA_PULSE_MAG", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -8599,7 +8665,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LEN_REP", &
-                          description="Use length representation delta pulse (in conjunction with PERIODIC T). "// &
+                          description="Use length representation delta pulse (in conjunction with PERIODIC T)."// &
                           " This corresponds to a 1st order perturbation in the length gauge."// &
                           " Note that this is NOT compatible with a periodic calculation!"// &
                           " Uses the reference point defined in DFT%PRINT%MOMENTS ", &
@@ -8611,7 +8677,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Apply a delta-kick that is compatible with periodic boundary conditions"// &
                           " for any value of DELTA_PULSE_SCALE. Uses perturbation theory for the preparation of"// &
-                          " the initial wfn with the velocity operator as perturbation. "// &
+                          " the initial wfn with the velocity operator as perturbation."// &
                           " If LEN_REP is .FALSE. this corresponds to a first order velocity gauge."// &
                           " Note that the pulse is only applied when INITIAL_WFN is set to SCF_WFN,"// &
                           " and not for restarts (RT_RESTART).", &
@@ -8683,7 +8749,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of the MO restart file during rtp. "// &
-                                       "By default keeps a short history of three restarts."// &
+                                       "By default keeps a short history of three restarts. "// &
                                        "See also RESTART_HISTORY. In density propagation this controls the printing of P.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/20/), &
@@ -8794,8 +8860,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="ALPHA", &
                           description="Solvent specific tunable parameter for the calculation of "// &
-                          "the repulsion term <i>G<sup>rep</sup> = &alpha; S</i> "// &
-                          "where <i>S</i> is the (quantum) surface of the cavity", &
+                          "the repulsion term $G^\text{rep} = \alpha S$ "// &
+                          "where $S$ is the (quantum) surface of the cavity", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -8807,8 +8873,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="BETA", &
                           description="Solvent specific tunable parameter for the calculation of "// &
-                          "the dispersion term <i>G<sup>dis</sup> = &beta; V</i> "// &
-                          "where <i>V</i> is the (quantum) volume of the cavity", &
+                          "the dispersion term $G^\text{dis} = \beta V$ "// &
+                          "where $V$ is the (quantum) volume of the cavity", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -8888,8 +8954,8 @@ CONTAINS
                           name="GAMMA", &
                           variants=s2a("SURFACE_TENSION"), &
                           description="Surface tension of the solvent used for the calculation of "// &
-                          "the cavitation term <i>G<sup>cav</sup> = &gamma; S</i> "// &
-                          "where <i>S</i> is the (quantum) surface of the cavity", &
+                          "the cavitation term $G^\text{cav} = \gamma S$ "// &
+                          "where $S$ is the (quantum) surface of the cavity", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -8993,7 +9059,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="RHO_ZERO", &
                           variants=(/"RHO0"/), &
-                          description="Parameter &rho;<sub>0</sub> defines the critical density in the middle "// &
+                          description="Parameter $\rho_0$ defines the critical density in the middle "// &
                           "of the interface solute-solvent", &
                           repeats=.FALSE., &
                           n_var=1, &
@@ -9247,7 +9313,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file"// &
-                          "(larger values result in smaller cube files)."// &
+                          " (larger values result in smaller cube files)."// &
                           " You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components", &
                           usage="STRIDE {2 2 2}", n_var=-1, default_i_vals=(/2, 2, 2/), &
                           type_of_var=integer_t)
@@ -9443,9 +9509,9 @@ CONTAINS
       ! dirichlet type constraints
       CALL cp_print_key_section_create( &
          print_key, __LOCATION__, "DIRICHLET_BC_CUBE", &
-         description="Controls the printing of cube files with unit step functions (constraints) "// &
-         "representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson "// &
-         "solver section. The regions remain unchanged throughout the calculations. If the Dirichlet "// &
+         description="Controls the printing of cube files with unit step functions (constraints)"// &
+         " representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson"// &
+         " solver section. The regions remain unchanged throughout the calculations. If the Dirichlet"// &
          " regions are relatively large and/or the number of partitions is quite high, in order to save memory,"// &
          " generate the cube files in early steps and perform the rest of the calculations with this keyword"// &
          " switched off.", &
@@ -9568,10 +9634,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="JACOBIAN_FREQ", &
-                          description="Defines parameters that control how often the explicit Jacobian is built, "// &
-                          "which is needed by some optimizers. Expects two values. The first value "// &
-                          "determines how many consecutive CDFT SCF iterations should skip a rebuild,"// &
-                          " whereas the latter how many MD steps. The values can be zero (meaning never "// &
+                          description="Defines parameters that control how often the explicit Jacobian is built,"// &
+                          " which is needed by some optimizers. Expects two values. The first value"// &
+                          " determines how many consecutive CDFT SCF iterations should skip a rebuild,"// &
+                          " whereas the latter how many MD steps. The values can be zero (meaning never"// &
                           " rebuild) or positive. Both values cannot be zero.", &
                           usage="JACOBIAN_FREQ 1 1", n_var=2, &
                           default_i_vals=(/1, 1/), type_of_var=integer_t)

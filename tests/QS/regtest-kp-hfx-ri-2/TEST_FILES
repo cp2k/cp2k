@@ -1,6 +1,6 @@
 diamond_gapw_tc.inp                                      11   1.0E-10             -75.016281067533328
-diamond_gpw_stress.inp                                   31   1.0E-8               -4.12844740283E-01
-hBN_gapw_ovlp.inp                                        11   1.0E-10             -86.260185626957053
+diamond_gpw_stress.inp                                   31   1.0E-8               -4.12844314823E-01
+hBN_gapw_ovlp.inp                                        11   1.0E-10             -86.260185593662356
 hBN_gpw_pbe0.inp                                         11   1.0E-10              -8.628406066722894
 LiH_gapw_stress.inp                                      31   1.0E-8               -2.20168679931E+00
 He_debug.inp                                              0 

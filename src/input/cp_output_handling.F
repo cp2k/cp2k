@@ -219,7 +219,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL section_create(subsection, __LOCATION__, name="EACH", &
-                          description="This section specifies how often this property is printed."// &
+                          description="This section specifies how often this property is printed. "// &
                           "Each keyword inside this section is mapping to a specific iteration level and "// &
                           "the value of each of these keywords is matched with the iteration level during "// &
                           "the calculation. How to handle the last iteration is treated "// &
@@ -637,7 +637,7 @@ CONTAINS
          IF (PRESENT(n_rlevel_new)) n_rlevel_new = iteration_info%n_rlevel
       ELSE
          CALL cp_abort(__LOCATION__, &
-                       "Trying to create an iteration level ("//TRIM(level_name)//") not defined."// &
+                       "Trying to create an iteration level ("//TRIM(level_name)//") not defined. "// &
                        "Please update the module: cp_iter_types.")
       END IF
 

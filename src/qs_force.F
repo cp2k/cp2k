@@ -301,6 +301,7 @@ CONTAINS
                CALL efield_potential_lengh_gauge(qs_env)
             IF (dft_control%rtp_control%velocity_gauge) &
                CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
+
          END IF
          CALL calculate_ecore_self(qs_env)
          CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.TRUE.)

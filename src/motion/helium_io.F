@@ -41,7 +41,7 @@ MODULE helium_io
    USE input_constants,                 ONLY: &
         fmt_id_pdb, fmt_id_xyz, helium_cell_shape_cube, helium_cell_shape_octahedron, &
         helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, &
-        helium_solute_intpot_none, perm_cycle, perm_plain
+        helium_solute_intpot_nnp, helium_solute_intpot_none, perm_cycle, perm_plain
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -179,6 +179,8 @@ CONTAINS
 !> \brief  Write helium parameters to the output unit
 !> \param helium ...
 !> \date   2009-06-03
+!> \par    History
+!>         2023-07-23 Modified to work with NNP solute-solvent interactions [lduran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_write_setup(helium)
@@ -364,6 +366,8 @@ CONTAINS
                WRITE (stmp1, *) "NONE"
             CASE (helium_solute_intpot_mwater)
                WRITE (stmp1, *) "MWATER"
+            CASE (helium_solute_intpot_nnp)
+               WRITE (stmp1, *) "NNP"
             CASE DEFAULT
                WRITE (stmp1, *) "***UNKNOWN***"
             END SELECT

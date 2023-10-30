@@ -6,10 +6,11 @@
 # Stage 1: build step
 FROM ubuntu:22.04 AS build
 
+
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    bzip2 ca-certificates g++ gcc gfortran git make openssh-client patch \
-    pkg-config python3 unzip wget zlib1g-dev
+    g++ gcc gfortran libmpich-dev mpich openssh-client python3 \
+    bzip2 ca-certificates git make patch pkg-config unzip wget zlib1g-dev
 
 # Download CP2K
 RUN git clone --recursive https://github.com/cp2k/cp2k.git /opt/cp2k
@@ -17,11 +18,13 @@ RUN git clone --recursive https://github.com/cp2k/cp2k.git /opt/cp2k
 # Build CP2K toolchain for target CPU native
 WORKDIR /opt/cp2k/tools/toolchain
 RUN /bin/bash -c -o pipefail \
-    "./install_cp2k_toolchain.sh \
+    "./install_cp2k_toolchain.sh -j 8 \
      --install-all \
+     --enable-cuda=no \
      --target-cpu=native \
+     --with-cusolvermp=no \
      --with-gcc=system \
-     --with-mpich=install --with-mpich-device=ch4:ucx"
+     --with-mpich=system"
 
 # Build CP2K for target CPU native
 WORKDIR /opt/cp2k
@@ -48,14 +51,15 @@ FROM ubuntu:22.04 AS install
 
 # Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ gcc gfortran && rm -rf /var/lib/apt/lists/*
+    g++ gcc gfortran libmpich-dev mpich openssh-client python3 && rm -rf /var/lib/apt/lists/*
 
 # Install CP2K binaries
-COPY --from=build /opt/cp2k/exe/local/cp2k.psmp \
-                  /opt/cp2k/exe/local/dumpdcd.psmp \
-                  /opt/cp2k/exe/local/graph.psmp \
-                  /opt/cp2k/exe/local/xyz2dcd.psmp \
-                  /opt/cp2k/exe/local/
+COPY --from=build /opt/cp2k/exe/local/ /opt/cp2k/exe/local/
+
+# Install CP2K regression tests
+COPY --from=build /opt/cp2k/tests/ /opt/cp2k/tests/
+COPY --from=build /opt/cp2k/tools/regtesting/ /opt/cp2k/tools/regtesting/
+COPY --from=build /opt/cp2k/src/grid/sample_tasks/ /opt/cp2k/src/grid/sample_tasks/
 
 # Install CP2K database files
 COPY --from=build /opt/cp2k/data/ /opt/cp2k/data/
@@ -77,12 +81,16 @@ RUN /bin/bash -c -o pipefail \
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
+\
 export OMP_STACKSIZE=16M\n\
 export PATH=/opt/cp2k/exe/local:\${PATH}\n\
-\
 source /opt/cp2k/tools/toolchain/install/setup\n\
 \"\$@\"" \
 >/usr/local/bin/entrypoint.sh && chmod 755 /usr/local/bin/entrypoint.sh
+
+# Create shortcut for regression test
+RUN printf "/opt/cp2k/tests/do_regtest.py --maxtasks 8 --workbasedir /mnt \$* local psmp" \
+>/usr/local/bin/run_tests && chmod 755 /usr/local/bin/run_tests
 
 # Define entrypoint
 WORKDIR /mnt
@@ -92,6 +100,6 @@ CMD ["cp2k", "--help"]
 # Label docker image
 LABEL author="CP2K Developers" \
       cp2k_version="master" \
-      dockerfile_generator_version="0.1"
+      dockerfile_generator_version="0.2"
 
 # EOF

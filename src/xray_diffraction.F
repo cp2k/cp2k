@@ -392,8 +392,8 @@ CONTAINS
             "# dr [Angstrom]                    :", dr(1:3)*angstrom
          WRITE (UNIT=unit_number, FMT="(A)") &
             "#", &
-            "# shell  points         q [1/A]      <|F(q)|^2>     Min(|F(q)|) "// &
-            "    Max(|F(q)|)      <|F(q)|>^2      <|F(q)|^4>"
+            "# shell  points         q [1/A]      <|F(q)|^2>     Min(|F(q)|)"// &
+            "     Max(|F(q)|)      <|F(q)|>^2      <|F(q)|^4>"
 
          DO ishell = 1, nshell
             WRITE (UNIT=unit_number, FMT="(T2,I6,2X,I6,5(1X,F15.6),1X,ES15.6)") &

@@ -147,7 +147,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NT_HILLS", &
                           description="Specify the maximum MD step interval between spawning "// &
                           "two hills. When negative, no new hills are spawned and only "// &
-                          "the hills read from SPAWNED_HILLS_* are in effect. The latter"// &
+                          "the hills read from SPAWNED_HILLS_* are in effect. The latter "// &
                           "is useful when one wants to add a custom constant bias potential.", &
                           usage="NT_HILLS {integer}", default_i_val=30)
       CALL section_add_keyword(section, keyword)
@@ -184,11 +184,11 @@ CONTAINS
 
       !Hills tail damping
       CALL keyword_create(keyword, __LOCATION__, name="HILL_TAIL_CUTOFF", &
-                          description="By setting this variable larger than 0 the tail of the Gaussian hill "// &
+                          description="By setting this variable larger than 0 the tail of the Gaussian hill"// &
                           " is damped to zero faster. The Gaussian function is multiplied by a cutoff function"// &
                           " that becomes active at |x-X0|>HILL_TAIL_CUTOFF*SCALE, where X0 is the location of "// &
                           "the Gaussian and SCALE is the width of the Gaussian. For more than one METAVAR"// &
-                          " X0 and SCALE are METAVAR-dependent. "// &
+                          " X0 and SCALE are METAVAR-dependent."// &
                           " (1-(|x-X0|/HILL_TAIL_CUTOFF*SCALE)^P_EXP)/(1-(|x-X0|/HILL_TAIL_CUTOFF*SCALE)^Q_EXP)", &
                           usage="HILL_TAIL_CUTOFF <REAL>", &
                           default_r_val=-1.0_dp)
@@ -333,10 +333,10 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "COLVAR", &
                                        description="Controls the printing of COLVAR summary information during"// &
                                        " metadynamics. When an extended Lagrangian use used, the files"// &
-                                       " contain (in order): colvar value of the extended Lagrangian, "// &
-                                       " instantaneous colvar value, force due to the harmonic term of the extended "// &
+                                       " contain (in order): colvar value of the extended Lagrangian,"// &
+                                       " instantaneous colvar value, force due to the harmonic term of the extended"// &
                                        " Lagrangian and the force due to the previously spawned hills,"// &
-                                       " the force due to the walls, the velocities in the extended "// &
+                                       " the force due to the walls, the velocities in the extended"// &
                                        " Lagrangian, the potential of the harmonic term of the"// &
                                        " Lagrangian, the potential energy of the hills, the potential"// &
                                        " energy of the walls and the temperature of the extended"// &
@@ -349,8 +349,8 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "HILLS", &
                                        description="Controls the printing of HILLS summary information during"// &
-                                       " metadynamics. The file contains: instantaneous colvar value, width of "// &
-                                       " the spawned gaussian and height of the gaussian. According the value of "// &
+                                       " metadynamics. The file contains: instantaneous colvar value, width of"// &
+                                       " the spawned gaussian and height of the gaussian. According the value of"// &
                                        " the EACH keyword this file may not be synchronized with the COLVAR file.", &
                                        print_level=high_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
                                        each_iter_values=(/1, 1/), add_last=add_last_numeric, filename="HILLS")
@@ -513,7 +513,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_POS", &
-                          description="The position of the spawned hills during metadynamics."// &
+                          description="The position of the spawned hills during metadynamics. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -526,7 +526,7 @@ CONTAINS
       CALL section_release(section)
 
       CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_SCALE", &
-                          description="The scales of the spawned hills during metadynamics."// &
+                          description="The scales of the spawned hills during metadynamics. "// &
                           "Used for RESTART. When a scale is zero in one or more "// &
                           "directions, the Gaussian hill is assumed to be infinitely wide "// &
                           "in those directions. The latter can be used to combine spawned "// &
@@ -543,7 +543,7 @@ CONTAINS
       CALL section_release(section)
 
       CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_HEIGHT", &
-                          description="The height of the spawned hills during metadynamics."// &
+                          description="The height of the spawned hills during metadynamics. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -556,7 +556,7 @@ CONTAINS
       CALL section_release(section)
 
       CALL section_create(section, __LOCATION__, name="SPAWNED_HILLS_INVDT", &
-                          description="The inverse of the DELTA_T parameter used for Well-Tempered metadynamics."// &
+                          description="The inverse of the DELTA_T parameter used for Well-Tempered metadynamics. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -571,7 +571,7 @@ CONTAINS
       ! Extended Lagrangian
       !
       CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_SS0", &
-                          description="Colvar position within an extended Lagrangian formalism."// &
+                          description="Colvar position within an extended Lagrangian formalism. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -584,7 +584,7 @@ CONTAINS
       CALL section_release(section)
 
       CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_VVP", &
-                          description="Colvar velocities within an extended Lagrangian formalism."// &
+                          description="Colvar velocities within an extended Lagrangian formalism. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -597,7 +597,7 @@ CONTAINS
       CALL section_release(section)
 
       CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_SS", &
-                          description="Colvar Theta within an extended Lagrangian formalism."// &
+                          description="Colvar Theta within an extended Lagrangian formalism. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
@@ -610,7 +610,7 @@ CONTAINS
       CALL section_release(section)
 
       CALL section_create(section, __LOCATION__, name="EXT_LAGRANGE_FS", &
-                          description="Colvar force within an extended Lagrangian formalism."// &
+                          description="Colvar force within an extended Lagrangian formalism. "// &
                           "Used for RESTART.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)

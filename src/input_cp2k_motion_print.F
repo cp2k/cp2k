@@ -181,8 +181,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MIXED_ENERGIES", &
-                                       description="Controls the output of the energies of the two"// &
-                                       "regular FORCE_EVALS in the MIXED method"// &
+                                       description="Controls the output of the energies of the two "// &
+                                       "regular FORCE_EVALS in the MIXED method "// &
                                        "printed is step,time,Etot,E_F1,E_F2,CONS_QNT", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
@@ -234,7 +234,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART_HISTORY", &
-                                       description="Dumps unique restart files during the run keeping all of them."// &
+                                       description="Dumps unique restart files during the run keeping all of them. "// &
                                        "Most useful if recovery is needed at a later point.", &
                                        print_level=low_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD", "GEO_OPT", "ROT_OPT"), each_iter_values=(/500, 500, 500/), &
@@ -281,8 +281,8 @@ CONTAINS
             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                           "Write the coordinates (no element labels) and the cell information to a binary file", &
                           "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
-                          "the cell vector <b>a</b> is aligned with the <i>x</i> axis and the cell vector <b>b</b> lies in "// &
-                          "the <i>xy</i> plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
+                          "the cell vector **a** is aligned with the *x* axis and the cell vector **b** lies in "// &
+                          "the *xy* plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
                           "Write the atomic information in PDB format to a formatted file", &
                           "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &
                           "Alias name for XMOL"))

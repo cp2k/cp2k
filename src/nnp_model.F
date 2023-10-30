@@ -41,10 +41,12 @@ CONTAINS
 !> \brief Write neural network architecture information
 !> \param nnp ...
 !> \param para_env ...
+!> \param printtag ...
 ! **************************************************************************************************
-   SUBROUTINE nnp_write_arc(nnp, para_env)
+   SUBROUTINE nnp_write_arc(nnp, para_env, printtag)
       TYPE(nnp_type), INTENT(IN)                         :: nnp
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: printtag
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: i, j, unit_nr
@@ -53,7 +55,7 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      my_label = "NNP| "
+      my_label = TRIM(printtag)//"| "
       IF (para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
          DO i = 1, nnp%n_ele
@@ -65,6 +67,8 @@ CONTAINS
             END DO
          END DO
       END IF
+
+      RETURN
 
    END SUBROUTINE nnp_write_arc
 

@@ -28,6 +28,10 @@ include(CustomTargets)
 
 cmake_policy(SET CMP0048 NEW)
 
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
+
 set(VERSION_MAJOR 23)
 # anything above 12 is to indicate that it is devel-branch. The git hash commit
 # is the only important information to give. It is retrieved few lines below.
@@ -43,13 +47,16 @@ project(
 
 set(cp2k_APIVERSION ${cp2k_VERSION_MAJOR}.${cp2k_VERSION_MINOR})
 
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
+
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
   set(CMAKE_CUDA_STANDARD 11)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
 # set language and standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_C_STANDARD 11)
 
 find_package(PkgConfig)
 
@@ -106,32 +113,19 @@ option(CP2K_USE_SPLA
 option(CP2K_USE_METIS "enable metis library support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
-option(CP2K_BUILD_DBCSR "Duild dbcsr at the same time than cp2k." OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
-
+option(
+  CP2K_USE_FFTW3_WITH_MKL
+  "MKL has its own compatible implementation of the fftw. This option when ON will use the original implementation of the fftw library"
+  OFF)
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable elpa openmp support" ON "CP2K_USE_ELPA" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
                        "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
                        "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
-cmake_dependent_option(CP2K_ENABLE_F08_MPI "Enable MPI Fortran 2008 interface"
-                       OFF "CP2K_USE_MPI" OFF)
-
-cmake_dependent_option(
-  DBCSR_USE_ACCEL
-  "Enable dbcsr gpu support. It will be turned on only if cp2k gpu support is on"
-  ON
-  "CP2K_BUILD_DBCSR"
-  OFF)
-cmake_dependent_option(DBCSR_USE_OPENMP "Enable dbcsr openmp support" OFF
-                       "CP2K_BUILD_DBCSR" OFF)
-cmake_dependent_option(
-  DBCSR_USE_G2G
-  "Enable dbcsr gpu-gpu communication support. It will be turned on only if cp2k gpu support is on"
-  ON
-  "CP2K_BUILD_DBCSR"
-  OFF)
+cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" OFF
+                       "CP2K_USE_MPI" OFF)
 
 cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP
@@ -309,14 +303,14 @@ else()
   set(__cp2k_ext "ssmp")
 endif()
 
-set(__cp2k_cmake_name "cmake_build_cpu")
+set(__cp2k_cmake_name "local")
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
-  set(__cp2k_cmake_name "cmake_build_cuda")
+  set(__cp2k_cmake_name "local_cuda")
 endif()
 
 if(CP2K_USE_ACCEL MATCHES "HIP")
-  set(__cp2k_cmake_name "cmake_build_hip")
+  set(__cp2k_cmake_name "local_hip")
 endif()
 
 # we can run the src consistency checks without actually searching for any
@@ -434,8 +428,9 @@ else()
      OR CP2K_USE_QUIP)
     message(
       WARNING
-        "SIRIUS, COSMA, SPLA, ELPA, METIS, PLUMED, PEXSI and QUIP require MPI support. Either change -DCP2K_USE_MPI to ON or turn the following dependencies off"
-    )
+        "SIRIUS, COSMA, SPLA, ELPA, METIS, PLUMED, PEXSI and QUIP require MPI support.\n"
+        "Either set -DCP2K_USE_MPI to ON or turn the following dependencies off\n\n"
+        "List of dependencies with mpi support\n")
     foreach(
       __libs
       sirius
@@ -460,7 +455,7 @@ find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 # SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXSMM)
   find_package(LibXSMM REQUIRED)
-  message(STATUS "-- Using libxsmm for Small Matrix Multiplication")
+  message(STATUS "Using libxsmm for Small Matrix Multiplication")
 endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
@@ -513,9 +508,9 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
 
   set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
 
-  message(STATUS "GPU target architecture: " ${CP2K_WITH_GPU})
-  message(STATUS "GPU architecture number: " ${CMAKE_CUDA_ARCHITECTURES})
-  message(STATUS "GPU profiling enabled: " ${CP2K_WITH_CUDA_PROFILING})
+  message(STATUS "GPU target architecture: ${CP2K_WITH_GPU}\n"
+                 "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}\n"
+                 "GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n")
 
   if(WITH_CUDA_PROFILING)
     find_library(
@@ -553,49 +548,10 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set(CP2K_USE_HIP ON)
 endif()
 
-# CP2K options are prefixed with CP2K_ (namespacing) while dbcsr does not.
-
-set(USE_ACCEL "")
-set(BLAS_LIBRARIES "")
-set(LAPACK_LIBRARIES "")
-set(USE_MPI ${CP2K_USE_MPI})
-set(WITH_EXAMPLES OFF)
-set(BUILD_TESTING OFF)
-set(WITH_C_API OFF)
-set(USE_SMM "")
-set(USE_OPENMP ON)
-
-if(NOT CP2K_BUILD_DBCSR)
-  find_package(DBCSR 2.4 REQUIRED)
-else()
-  check_git_submodule(dbcsr "${CMAKE_SOURCE_DIR}/exts/dbcsr")
-  if(DBCSR_USE_ACCEL AND CP2K_USE_ACCEL MATCHES "CUDA|HIP")
-    if(CP2K_USE_ACCEL MATCHES "CUDA")
-      set(USE_ACCEL "cuda")
-    endif()
-    if(CP2K_USE_ACCEL MATCHES "HIP")
-      set(USE_ACCEL "hip")
-    endif()
-    set(WITH_GPU "${CP2K_WITH_GPU}")
-    set(ACC_ARCH_NUMBER "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
-  endif()
-  set(BLAS_LIBRARIES "${CP2K_BLAS_LINK_LIBRARIES}")
-  set(LAPACK_LIBRARIES "${CP2K_LAPACK_LINK_LIBRARIES}")
-  set(USE_MPI ${CP2K_USE_MPI})
-  set(WITH_C_API OFF)
-  if(CP2K_USE_LIBXSMM)
-    set(USE_SMM "libxsmm")
-  endif()
-  set(WITH_G2G ${DBCSR_WITH_G2G})
-  if(DBCSR_USE_OPENMP)
-    set(USE_OPENMP ON)
-  endif()
-endif()
-
-# =================================================================================================
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
-
 find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
+
+find_package(DBCSR 2.6 REQUIRED)
 
 # ==================================
 if(CP2K_USE_ELPA)
@@ -624,27 +580,35 @@ endif()
 
 # FFTW3
 
+# we set this variable to ON when we want fftw3 support (with or without MKL).
+set(CP2K_USE_FFTW3_ OFF)
 if(CP2K_USE_FFTW3)
-  find_package(Fftw REQUIRED)
-  if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
-    message(
-      FATAL_ERROR
-        "Fftw3 threads and openmp supports can not be used at the same time")
-  endif()
+  if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
+    find_package(Fftw REQUIRED)
+    if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
+      message(
+        FATAL_ERROR
+          "Fftw3 threads and openmp supports can not be used at the same time")
+    endif()
 
-  if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
-                                              CP2K::FFTW3::fftw3_threads))
-    message(
-      FATAL_ERROR
-        "fftw3 was compiled without multithreading support (--enable-threads option in fftw build system)."
-    )
-  endif()
+    if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
+                                                cp2k::FFTW3::fftw3_threads))
+      message(
+        FATAL_ERROR
+          "fftw3 was compiled without multithreading support (--enable-threads option in the fftw build system)."
+      )
+    endif()
 
-  if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET CP2K::FFTW3::fftw3_omp))
-    message(
-      FATAL_ERROR
-        "fftw3 was compiled without openmp support  (--enable-openmp option in fftw build system)."
-    )
+    if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET cp2k::FFTW3::fftw3_omp
+                                              ))
+      message(
+        FATAL_ERROR
+          "fftw3 was compiled without openmp support  (--enable-openmp option in the fftw build system)."
+      )
+    endif()
+    set(CP2K_USE_FFTW3_ ON)
+  else()
+    message("-- Using the MKL implementation of FFTW3.")
   endif()
 endif()
 
@@ -690,7 +654,7 @@ if(CP2K_USE_SUPERLU)
   find_package(SuperLU REQUIRED)
 endif()
 
-if(CP2K_USE_PARMETIS)
+if(CP2K_USE_METIS)
   find_package(Metis)
 endif()
 
@@ -752,282 +716,235 @@ add_subdirectory(src)
 include(GNUInstallDirs)
 
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
-configure_file(cmake/cp2k.pc.in cp2k.pc @ONLY)
+configure_file(cmake/libcp2k.pc.in libcp2k.pc @ONLY)
 
 message(
-  STATUS "--------------------------------------------------------------------")
-message(
-  STATUS "-                                                                  -")
-message(
-  STATUS "-               Summary of enabled dependencies                    -")
-message(
-  STATUS "-                                                                  -")
-message(
-  STATUS "--------------------------------------------------------------------")
+  ""
+  "--------------------------------------------------------------------\n"
+  "-                                                                  -\n"
+  "-               Summary of enabled dependencies                    -\n"
+  "-                                                                  -\n"
+  "--------------------------------------------------------------------\n\n")
 
-message(STATUS "    ")
-message(STATUS "- BLAS AND LAPACK")
-message(STATUS "    ")
-
-message(STATUS "   - vendor :              " ${CP2K_BLAS_VENDOR})
-message(STATUS "   - include directories : " ${CP2K_BLAS_INCLUDE_DIRS}
-               ${LAPACK_INCLUDE_DIR})
-message(STATUS "   - libraries :           " ${CP2K_BLAS_LINK_LIBRARIES} " "
-               ${CP2K_LAPACK_LINK_LIBRARIES})
+message(
+  "  - BLAS AND LAPACK\n\n"
+  "   - vendor :              ${CP2K_BLAS_VENDOR}\n"
+  "   - include directories : ${CP2K_BLAS_INCLUDE_DIR} ${LAPACK_INCLUDE_DIR}\n"
+  "   - libraries :           ${CP2K_BLAS_LINK_LIBRARIES} ${CP2K_LAPACK_LINK_LIBRARIES}\n\n"
+)
 
 if(CP2K_USE_MPI)
-  message(STATUS " ")
-  message(STATUS "- MPI")
-  message(STATUS "   - include directories : " ${MPI_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${MPI_LIBRARIES})
+  message("  - MPI\n" "   - include directories :  ${MPI_INCLUDE_DIRS}\n"
+          "   - libraries :           ${MPI_LIBRARIES}\n\n")
 
   if(CP2K_USE_MPI_F08)
-    message(STATUS "   - MPI_08 :              ON")
+    message("   - MPI_08 :              ON\n")
   endif()
 
   if(MPI_Fortran_HAVE_F08_MODULE AND NOT CP2K_USE_MPI_F08)
     message(
-      STATUS
-        "  - MPI_08 is supposed by MPI but turned off by default. To use it add -DCP2K_USE_MPI_F08=ON to cmake"
-    )
+      "  - MPI_08 is supposed by MPI but turned off by default.\n"
+      "    To use it add -DCP2K_USE_MPI_F08=ON to the cmake command line\n\n")
   endif()
 
-  message(STATUS " ")
-  message(STATUS "- SCALAPACK:")
-  message(STATUS "     - libraries : " ${CP2K_SCALAPACK_LINK_LIBRARIES})
-endif()
-
-message(STATUS " - Hardware Acceleration:")
-message(STATUS "                         ")
-if(CP2K_USE_ACCEL MATCHES "CUDA")
-  message(STATUS " ")
-  message(STATUS "- CUDA:")
-  message(STATUS "     - GPU target architecture : " ${CP2K_WITH_GPU})
-  message(STATUS "     - GPU architecture number : " ${CP2K_ACC_ARCH_NUMBER})
-  message(STATUS "     - GPU profiling enabled :   "
-                 ${CP2K_WITH_CUDA_PROFILING})
-endif()
-
-if(CP2K_USE_ACCEL MATCHES "HIP")
-  message(STATUS " ")
-  message(STATUS "- HIP:")
-  message(STATUS "    - GPU target architecture : " ${CP2K_WITH_GPU})
-  message(STATUS "    - GPU architecture number : " ${CP2K_ACC_ARCH_NUMBER})
+  message("  - SCALAPACK:\n"
+          "    - libraries : ${CP2K_SCALAPACK_LINK_LIBRARIES}\n\n")
 endif()
 
 if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
-  message(STATUS " ")
+
+  message("  - Hardware Acceleration:\n")
+  if(CP2K_USE_ACCEL MATCHES "CUDA")
+    message(
+      "   - CUDA:\n" "     - GPU target architecture : ${CP2K_WITH_GPU}\n"
+      "     - GPU architecture number : ${CP2K_ACC_ARCH_NUMBER}"
+      "     - GPU profiling enabled :   ${CP2K_WITH_CUDA_PROFILING}\n\n")
+  endif()
+
+  if(CP2K_USE_ACCEL MATCHES "HIP")
+    message("   - HIP:\n" "    - GPU target architecture : ${CP2K_WITH_GPU}\n"
+            "    - GPU architecture number : ${CP2K_ACC_ARCH_NUMBER}\n\n")
+  endif()
+
   message(
-    STATUS
-      " Note : Enabling hardware acceleration enable acceleration of the grid, pw, and dbm modules by default"
-  )
-  message(STATUS "    - GRID module : " ${CP2K_USE_GRID_GPU})
-  message(STATUS "    - PW   module : " ${CP2K_USE_PW_GPU})
-  message(STATUS "    - DBM  module : " ${CP2K_USE_DBM_GPU})
+    "Note : Enabling hardware acceleration enable acceleration of the grid, pw, and dbm modules by default\n"
+    "    - GRID module : ${CP2K_USE_GRID_GPU}\n"
+    "    - PW   module : ${CP2K_USE_PW_GPU}\n"
+    "    - DBM  module : ${CP2K_USE_DBM_GPU}\n\n")
 endif()
 
 if(CP2K_USE_LIBXC)
-  message(STATUS " ")
   message(
-    STATUS
-      "- LIBXC (note to package managers : libxc can be build with cmake as well)"
-  )
-  message(STATUS "   - include directories : " ${CP2K_LIBXC_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_LIBXC_LINK_LIBRARIES})
+    "  - LIBXC (note to package managers : libxc can be build with cmake as well)"
+    "   - include directories : ${CP2K_LIBXC_INCLUDE_DIRS}\n"
+    "   - libraries : ${CP2K_LIBXC_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)
-  message(STATUS " ")
-  message(STATUS "- LIBTORCH")
-  message(STATUS "   - libraries :           " ${CP2K_LIBTORCH_LIBRARIES})
+  message("  - LIBTORCH\n" "    - libraries : ${CP2K_LIBTORCH_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_FFTW3)
-  message(STATUS " ")
-  message(STATUS "- FFTW3")
-  message(STATUS "   - include directories : " ${CP2K_FFTW3_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_FFTW3_LINK_LIBRARIES})
+  message("  - FFTW3\n"
+          "    - include directories : ${CP2K_FFTW3_INCLUDE_DIRS}\n"
+          "    - libraries : ${CP2K_FFTW3_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_LIBXSMM)
-  message(STATUS " ")
-  message(STATUS "- libxsmm")
-  message(STATUS "   - include directories : " ${CP2K_LIBXSMM_INCLUDE_DIRS})
   message(
-    STATUS
-      "   - libraries :           ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}"
+    "  - libxsmm\n"
+    "    - include directories : ${CP2K_LIBXSMM_INCLUDE_DIRS}\n"
+    "    - libraries :           ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}\n\n"
   )
 endif()
 
 if(CP2K_USE_SPLA)
-  message(STATUS " ")
-  message(STATUS "- SPLA :")
-  message(STATUS "   - include directories : " ${SPLA_INCLUDE_DIRS})
-  message(STATUS "   - lbraries : " "${SPLA_LIBRARIES}")
+  message(" - SPLA\n" "   - include directories : ${SPLA_INCLUDE_DIRS}\n"
+          "   - lbraries : ${SPLA_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
-  message(STATUS " ")
-  message(STATUS "- SIRIUS :")
-  message(STATUS "   - include directories : " ${SIRIUS_INCLUDE_DIRS})
-  message(STATUS "   - libraries           : " ${SIRIUS_LIBRARIES})
+  message(
+    " - SIRIUS :\n"
+    "   - include directories :  ${SIRIUS_INCLUDE_DIRS}\n"
+    "   - libraries           :  ${SIRIUS_LIBRARIES}\n"
+    "   - dependencies :\n"
+    "       - spla\n"
+    "       - SpFFT\n"
+    "       - SPGLIB\n"
+    "       - LibXC\n"
+    "       - fftw3\n"
+    "       - hdf5\n"
+    "       - GSL\n\n")
 
-  message(STATUS "   - dependencies : ")
-  message(STATUS "       - spla")
-  message(STATUS "       - SpFFT")
-  message(STATUS "       - SPGLIB")
-  message(STATUS "       - LibXC")
-  message(STATUS "       - fftw3")
-  message(STATUS "       - hdf5")
-  message(STATUS "       - GSL")
   if(CP2K_USE_VDWXC)
-    message(STATUS "     - VDWXC")
+    message("     - VDWXC\n")
   endif()
 endif()
 
 if(CP2K_USE_COSMA)
-  message(STATUS " ")
-  message(STATUS "- COSMA")
-  message(STATUS "   - include directories : " ${COSMA_INCLUDE_DIRS})
-  message(STATUS "  - libraries           : " ${COSMA_LIBRARIES})
+  message(" - COSMA\n" "   - include directories : ${COSMA_INCLUDE_DIRS}\n"
+          "   - libraries           : ${COSMA_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_QUIP)
-  message(STATUS " ")
-  message(STATUS "- QUIP")
-  message(STATUS "   - include directories : " ${CP2K_LIBQUIP_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_LIBQUIP_LINK_LIBRARIES})
+  message(" - QUIP\n"
+          "   - include directories : ${CP2K_LIBQUIP_INCLUDE_DIRS}\n"
+          "   - libraries :           ${CP2K_LIBQUIP_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_PEXSI)
-  message(STATUS " ")
-  message(STATUS "- PEXSI")
+  message(" - PEXSI\n\n")
 endif()
 
 if(CP2K_USE_LIBINT2)
-  message(STATUS " ")
-  message(STATUS "- libint2")
-  message(STATUS "   - include directories : " ${CP2K_LIBINT2_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_LIBINT2_LINK_LIBRARIES})
+  message(" - libint2\n"
+          "   - include directories : ${CP2K_LIBINT2_INCLUDE_DIRS}\n"
+          "   - libraries :           ${CP2K_LIBINT2_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_VORI)
-  message(STATUS " ")
-  message(STATUS "- libvori")
-  message(STATUS "   - include directories : " ${CP2K_LIBVORI_INCLUDE_DIRS})
-  message(STATUS "   - libraries :           " ${CP2K_LIBVORI_LINK_LIBRARIES})
+  message(" - libvori\n"
+          "   - include directories : ${CP2K_LIBVORI_INCLUDE_DIRS}\n"
+          "   - libraries :           ${CP2K_LIBVORI_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SPGLIB)
-  message(STATUS " ")
-  message(STATUS "- spglib")
-  message(STATUS "   - include directories : " ${CP2K_LIBSPG_INCLUDE_DIRS})
-  message(STATUS "   - libraries           : " ${CP2K_LIBSPG_LINK_LIBRARIES})
+  message(" - spglib\n"
+          "   - include directories : ${CP2K_LIBSPG_INCLUDE_DIRS}\n"
+          "   - libraries           : ${CP2K_LIBSPG_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_ELPA)
-  message(STATUS "- ELPA")
-  message(STATUS "   - include directories : " ${CP2K_ELPA_INCLUDE_DIRS})
-  message(STATUS "   - libraries           : " ${CP2K_ELPA_LINK_LIBRARIES})
+  message(" - ELPA\n" "   - include directories : ${CP2K_ELPA_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES})\n\n")
 endif()
 
 if(CP2K_USE_SUPERLU)
-  message(STATUS " ")
-  message(STATUS "- superlu")
-  message(STATUS "   - include directories : " ${CP2K_SUPERLU_INCLUDE_DIRS})
-  message(STATUS "   - libraries           : " ${CP2K_SUPERLU_LINK_LIBRARIES})
+  message(" - superlu\n"
+          "   - include directories : ${CP2K_SUPERLU_INCLUDE_DIRS}\n"
+          "   - libraries           : ${CP2K_SUPERLU_LINK_LIBRARIES}\n\n")
 endif()
 
-message(STATUS "    ")
 message(
-  STATUS "--------------------------------------------------------------------")
-message(
-  STATUS "-                                                                  -")
-message(
-  STATUS "-        List of dependencies not included in this build           -")
-message(
-  STATUS "-                                                                  -")
-message(
-  STATUS "--------------------------------------------------------------------")
-
-message(STATUS " List of dependencies not included in this build :")
+  "--------------------------------------------------------------------\n"
+  "-                                                                  -\n"
+  "-        List of dependencies not included in this build           -\n"
+  "-                                                                  -\n"
+  "--------------------------------------------------------------------\n")
 
 if(NOT CP2K_USE_MPI)
-  message(STATUS "   - MPI")
+  message("   - MPI")
 endif()
 
 if(NOT CP2K_USE_SIRIUS)
-  message(STATUS "   - SIRIUS")
+  message("   - SIRIUS")
 endif()
 
 if(NOT CP2K_USE_SPGLIB)
-  message(STATUS "   - SPGLIB")
+  message("   - SPGLIB")
 endif()
 
 if(NOT CP2K_USE_COSMA)
-  message(STATUS "   - COSMA")
+  message("   - COSMA")
 endif()
 
 if(NOT CP2K_USE_SPLA)
-  message(STATUS "   - SPLA")
+  message("   - SPLA")
 endif()
 
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
-  message(STATUS "   - GPU acceleration is disabled")
+  message("   - GPU acceleration is disabled")
 endif()
 
 if(NOT CP2K_USE_ELPA)
-  message(STATUS "   - ELPA")
+  message("   - ELPA")
 endif()
 
 if(NOT CP2K_USE_PLUMMED)
-  message(STATUS "   - PLUMED")
+  message("   - PLUMED")
 endif()
 
 if(NOT CP2K_USE_QUIP)
-  message(STATUS "   - QUIP")
+  message("   - QUIP")
 endif()
 
 if(NOT CP2K_USE_LIBXSMM)
-  message(STATUS "   - LIBXSMM")
+  message("   - LIBXSMM")
 endif()
 
 if(NOT CP2K_USE_LIBINT2)
-  message(STATUS "   - LIBINT2")
+  message("   - LIBINT2")
 endif()
 
 if(NOT CP2K_USE_LIBXC)
-  message(STATUS "   - LIBXC")
+  message("   - LIBXC")
 endif()
 
 if(NOT CP2K_USE_VORI)
-  message(STATUS "   - LIBVORI")
+  message("   - LIBVORI")
 endif()
 
 if(NOT CP2K_USE_FFTW3)
-  message(STATUS "   - FFTW3")
+  message("   - FFTW3")
 endif()
 
 if(NOT CP2K_USE_PEXSI)
-  message(STATUS "   - PEXSI")
+  message("   - PEXSI")
 endif()
 
 if(NOT CP2K_USE_SUPERLU)
-  message(STATUS "   - SUPERLU")
+  message("   - SUPERLU")
 endif()
 
 if(NOT CP2K_USE_LIBTORCH)
-  message(STATUS "   - libtorch")
+  message("   - libtorch")
 endif()
 
-if(CP2K_ENABLE_REGTESTS)
-  message(
-    STATUS
-      "\n\n"
-      "To run the regtests you need to run the following commands\n"
-      "\n\n cd ..\n"
-      "tools/regtesting/do_regtest.py -cp2kdir . -nobuild -version ${__cp2k_cmake_exts} -arch ${__cp2k_cmake_name}\n\n"
-  )
+if(CP2K_ENABLE_REGTESTS OR cp2k_TESTS)
+  message("\n\n" "To run the regtests you need to run the following commands\n"
+          "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
+          " ./tests/do_regtest.py ${__cp2k_cmake_name} ${__cp2k_ext}\n\n")
 endif()
 
 # files needed for cmake
@@ -1039,12 +956,16 @@ write_basic_package_version_file(
 
 configure_file("${PROJECT_SOURCE_DIR}/cmake/cp2kConfig.cmake.in"
                "${PROJECT_BINARY_DIR}/cp2kConfig.cmake" @ONLY)
+
 install(FILES "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
               "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
 
+install(FILES "${PROJECT_BINARY_DIR}/libcp2k.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
 install(
-  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake"
+  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake/modules"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
   FILES_MATCHING
   PATTERN "*.cmake")

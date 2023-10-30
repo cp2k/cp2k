@@ -272,6 +272,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -749,9 +750,11 @@ CONTAINS
       IF (do_kpoints) THEN
          ! nothing at the moment, not implemented
       ELSE
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
-                      lumo_ptr, scf_env, matrix_s, output_unit, marked_states)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s, para_env=para_env)
+         CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, para_env, &
+                      output_unit, unoccupied_orbs=lumo_ptr, scf_env=scf_env, &
+                      matrix_s=matrix_s, marked_states=marked_states)
+
          IF (p_loc_lumo) CALL cp_fm_release(lumo_localized)
       END IF
       IF (ASSOCIATED(marked_states)) THEN
