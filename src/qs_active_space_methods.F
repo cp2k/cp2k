@@ -1261,7 +1261,7 @@ CONTAINS
       ALLOCATE (qs_control)
       qs_control_old => dft_control%qs_control
       qs_control = qs_control_old
-dft_control%qs_control => qs_control
+      dft_control%qs_control => qs_control
       progression_factor = qs_control%progression_factor
       n_multigrid = SIZE(qs_control%e_cutoff)
       nspins = SIZE(mos)
@@ -1413,19 +1413,22 @@ dft_control%qs_control => qs_control
          END DO
       ELSE
          ! Even if we do not store all WFNs, we still need containers for the functions to store
-         ALLOCATE (wfn1, wfn2, wfn3, wfn4)
+         ALLOCATE (wfn1, wfn2)
          CALL pw_pool_create_pw(auxbas_pw_pool, wfn1, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, wfn2, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wfn3, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wfn4, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         IF (eri_env%method /= eri_method_gpw_ht) THEN
+            ALLOCATE (wfn3, wfn4)
+            CALL pw_pool_create_pw(auxbas_pw_pool, wfn3, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, wfn4, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+         END IF
       END IF
 
       ! get some of the grids ready
@@ -1621,9 +1624,12 @@ dft_control%qs_control => qs_control
       ELSE
          CALL pw_release(wfn1)
          CALL pw_release(wfn2)
-         CALL pw_release(wfn3)
-         CALL pw_release(wfn4)
-         DEALLOCATE (wfn1, wfn2, wfn3, wfn4)
+         DEALLOCATE (wfn1, wfn2)
+         IF (eri_env%method /= eri_method_gpw_ht) THEN
+            CALL pw_release(wfn3)
+            CALL pw_release(wfn4)
+            DEALLOCATE (wfn3, wfn4)
+         END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wfn_r)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
