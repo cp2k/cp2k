@@ -29,14 +29,34 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
 
     maintainers("dev-zero", "mtaillefumier")
 
-    version("2023.2", sha256="adbcc903c1a78cba98f49fe6905a62b49f12e3dfd7cedea00616d1a5f50550db")
-    version("2023.1", sha256="dff343b4a80c3a79363b805429bdb3320d3e1db48e0ff7d20a3dfd1c946a51ce")
-    version("2022.2", sha256="1a473dea512fe264bb45419f83de432d441f90404f829d89cbc3a03f723b8354")
-    version("2022.1", sha256="2c34f1a7972973c62d471cd35856f444f11ab22f2ff930f6ead20f3454fd228b")
-    version("9.1", sha256="fedb4c684a98ad857cd49b69a3ae51a73f85a9c36e9cb63e3b02320c74454ce6")
-    version("8.2", sha256="2e24768720efed1a5a4a58e83e2aca502cd8b95544c21695eb0de71ed652f20a")
-    version("8.1", sha256="7f37aead120730234a60b2989d0547ae5e5498d93b1e9b5eb548c041ee8e7772")
-    version("7.1", sha256="ccd711a09a426145440e666310dd01cc5772ab103493c4ae6a3470898cd0addb")
+    version(
+        "2023.2",
+        sha256="adbcc903c1a78cba98f49fe6905a62b49f12e3dfd7cedea00616d1a5f50550db",
+    )
+    version(
+        "2023.1",
+        sha256="dff343b4a80c3a79363b805429bdb3320d3e1db48e0ff7d20a3dfd1c946a51ce",
+    )
+    version(
+        "2022.2",
+        sha256="1a473dea512fe264bb45419f83de432d441f90404f829d89cbc3a03f723b8354",
+    )
+    version(
+        "2022.1",
+        sha256="2c34f1a7972973c62d471cd35856f444f11ab22f2ff930f6ead20f3454fd228b",
+    )
+    version(
+        "9.1", sha256="fedb4c684a98ad857cd49b69a3ae51a73f85a9c36e9cb63e3b02320c74454ce6"
+    )
+    version(
+        "8.2", sha256="2e24768720efed1a5a4a58e83e2aca502cd8b95544c21695eb0de71ed652f20a"
+    )
+    version(
+        "8.1", sha256="7f37aead120730234a60b2989d0547ae5e5498d93b1e9b5eb548c041ee8e7772"
+    )
+    version(
+        "7.1", sha256="ccd711a09a426145440e666310dd01cc5772ab103493c4ae6a3470898cd0addb"
+    )
     version(
         "6.1",
         sha256="af803558e0a6b9e9d9ce8a3ab955ba32bacd179922455424e061c82c9fefa34b",
@@ -69,9 +89,13 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
     )
     variant("plumed", default=False, description="Enable PLUMED support")
     variant(
-        "libint", default=True, description="Use libint, required for HFX (and possibly others)"
+        "libint",
+        default=True,
+        description="Use libint, required for HFX (and possibly others)",
     )
-    variant("libxc", default=True, description="Support additional functionals via libxc")
+    variant(
+        "libxc", default=True, description="Support additional functionals via libxc"
+    )
     variant(
         "pexsi",
         default=False,
@@ -290,7 +314,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
         msg="Please use AOCC 4.0+ that better support modern Fortran features CP2K requires",
     )
 
-    conflicts("~openmp", when="@8:", msg="Building without OpenMP is not supported in CP2K 8+")
+    conflicts(
+        "~openmp", when="@8:", msg="Building without OpenMP is not supported in CP2K 8+"
+    )
 
     # We only support specific cuda_archs for which we have parameter files
     # for optimal kernels. Note that we don't override the cuda_archs property
@@ -298,7 +324,13 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
     # versions. Instead just mark all unsupported cuda archs as conflicting.
 
     supported_cuda_arch_list = ("35", "37", "60", "70", "80")
-    supported_rocm_arch_list = ("gfx906", "gfx908", "gfx90a", "gfx90a:xnack-", "gfx90a:xnack+")
+    supported_rocm_arch_list = (
+        "gfx906",
+        "gfx908",
+        "gfx90a",
+        "gfx90a:xnack-",
+        "gfx90a:xnack+",
+    )
     gpu_map = {
         "35": "K40",
         "37": "K80",
@@ -379,7 +411,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
 
     @property
     def makefile(self):
-        makefile_basename = ".".join([self.makefile_architecture, self.makefile_version])
+        makefile_basename = ".".join(
+            [self.makefile_architecture, self.makefile_version]
+        )
         return join_path("arch", makefile_basename)
 
     @property
@@ -486,7 +520,12 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
             dflags.extend(["-D__PLUMED2"])
             cppflags.extend(["-D__PLUMED2"])
             libs.extend(
-                [join_path(self.spec["plumed"].prefix.lib, "libplumed.{0}".format(dso_suffix))]
+                [
+                    join_path(
+                        self.spec["plumed"].prefix.lib,
+                        "libplumed.{0}".format(dso_suffix),
+                    )
+                ]
             )
 
         cc = spack_cc if "~mpi" in spec else spec["mpi"].mpicc
@@ -495,8 +534,12 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
 
         # Intel
         if "%intel" in spec:
-            cppflags.extend(["-D__INTEL", "-D__HAS_ISO_C_BINDING", "-D__USE_CP2K_TRACE"])
-            fcflags.extend(["-diag-disable 8290,8291,10010,10212,11060", "-free", "-fpp"])
+            cppflags.extend(
+                ["-D__INTEL", "-D__HAS_ISO_C_BINDING", "-D__USE_CP2K_TRACE"]
+            )
+            fcflags.extend(
+                ["-diag-disable 8290,8291,10010,10212,11060", "-free", "-fpp"]
+            )
 
         # FFTW, LAPACK, BLAS
         lapack = spec["lapack"].libs
@@ -507,7 +550,11 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
         if self.spec.satisfies("platform=darwin"):
             cppflags.extend(["-D__NO_STATM_ACCESS"])
 
-        if spec["blas"].name in ("intel-mkl", "intel-parallel-studio", "intel-oneapi-mkl"):
+        if spec["blas"].name in (
+            "intel-mkl",
+            "intel-parallel-studio",
+            "intel-oneapi-mkl",
+        ):
             cppflags += ["-D__MKL"]
         elif spec["blas"].name == "accelerate":
             cppflags += ["-D__ACCELERATE"]
@@ -523,7 +570,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
             cppflags.extend(["-D__parallel", "-D__SCALAPACK"])
 
             if spec["mpi"].name == "intel-oneapi-mpi":
-                mpi = [join_path(spec["intel-oneapi-mpi"].libs.directories[0], "libmpi.so")]
+                mpi = [
+                    join_path(spec["intel-oneapi-mpi"].libs.directories[0], "libmpi.so")
+                ]
             else:
                 mpi = spec["mpi:cxx"].libs
 
@@ -533,7 +582,8 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
                 mpi_impl = "openmpi" if spec["mpi"] == "openmpi" else "intelmpi"
                 scalapack = [
                     join_path(
-                        spec["intel-oneapi-mkl"].libs.directories[0], "libmkl_scalapack_lp64.so"
+                        spec["intel-oneapi-mkl"].libs.directories[0],
+                        "libmkl_scalapack_lp64.so",
                     ),
                     join_path(
                         spec["intel-oneapi-mkl"].libs.directories[0],
@@ -553,7 +603,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
 
             if "wannier90" in spec:
                 cppflags.append("-D__WANNIER90")
-                wannier = join_path(spec["wannier90"].libs.directories[0], "libwannier.a")
+                wannier = join_path(
+                    spec["wannier90"].libs.directories[0], "libwannier.a"
+                )
                 libs.append(wannier)
 
         if "+libint" in spec:
@@ -598,12 +650,16 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
             libs.extend(
                 [
                     join_path(spec["pexsi"].libs.directories[0], "libpexsi.a"),
-                    join_path(spec["superlu-dist"].libs.directories[0], "libsuperlu_dist.a"),
                     join_path(
-                        spec["parmetis"].libs.directories[0], "libparmetis.{0}".format(dso_suffix)
+                        spec["superlu-dist"].libs.directories[0], "libsuperlu_dist.a"
                     ),
                     join_path(
-                        spec["metis"].libs.directories[0], "libmetis.{0}".format(dso_suffix)
+                        spec["parmetis"].libs.directories[0],
+                        "libparmetis.{0}".format(dso_suffix),
+                    ),
+                    join_path(
+                        spec["metis"].libs.directories[0],
+                        "libmetis.{0}".format(dso_suffix),
                     ),
                 ]
             )
@@ -619,7 +675,8 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
             if "%aocc" in spec:
                 libs.append(
                     join_path(
-                        elpa.prefix.lib, ("libelpa{elpa_suffix}.a".format(elpa_suffix=elpa_suffix))
+                        elpa.prefix.lib,
+                        ("libelpa{elpa_suffix}.a".format(elpa_suffix=elpa_suffix)),
                     )
                 )
             else:
@@ -720,7 +777,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
             gpuver = gpu_map[spec.variants["amdgpu_target"].value[0]]
 
         if "smm=libsmm" in spec:
-            lib_dir = join_path("lib", self.makefile_architecture, self.makefile_version)
+            lib_dir = join_path(
+                "lib", self.makefile_architecture, self.makefile_version
+            )
             mkdirp(lib_dir)
             try:
                 copy(env["LIBSMM_PATH"], join_path(lib_dir, "libsmm.a"))
@@ -772,7 +831,10 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
 
             mkf.write("\n# COMPILER, LINKER, TOOLS\n\n")
             mkf.write(
-                "FC  = {0}\n" "CC  = {1}\n" "CXX = {2}\n" "LD  = {3}\n".format(fc, cc, cxx, fc)
+                "FC  = {0}\n"
+                "CC  = {1}\n"
+                "CXX = {2}\n"
+                "LD  = {3}\n".format(fc, cc, cxx, fc)
             )
 
             if "%intel" in spec:
@@ -874,8 +936,14 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
         """
         if self.spec.satisfies("@9.1:"):
             pkgconfig_file = join_path(self.prefix.lib.pkgconfig, "libcp2k.pc")
-            filter_file(r"(^includedir=).*", r"\1{0}".format(self.prefix.include), pkgconfig_file)
-            filter_file(r"(^libdir=).*", r"\1{0}".format(self.prefix.lib), pkgconfig_file)
+            filter_file(
+                r"(^includedir=).*",
+                r"\1{0}".format(self.prefix.include),
+                pkgconfig_file,
+            )
+            filter_file(
+                r"(^libdir=).*", r"\1{0}".format(self.prefix.lib), pkgconfig_file
+            )
 
             with open(pkgconfig_file, "r+") as handle:
                 content = handle.read().rstrip()
@@ -884,7 +952,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
                 content += " " + self.spec["lapack"].libs.ld_flags
                 content += " " + self.spec["fftw-api"].libs.ld_flags
 
-                if (self.spec["fftw-api"].name == "fftw") and ("+openmp" in self.spec["fftw"]):
+                if (self.spec["fftw-api"].name == "fftw") and (
+                    "+openmp" in self.spec["fftw"]
+                ):
                     content += " -lfftw3_omp"
 
                 content += "\n"
@@ -897,7 +967,9 @@ class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
 
         # CP2K < 7 still uses $PWD to detect the current working dir
         # and Makefile is in a subdir, account for both facts here:
-        with spack.util.environment.set_env(CP2K_DATA_DIR=data_dir, PWD=self.build_directory):
+        with spack.util.environment.set_env(
+            CP2K_DATA_DIR=data_dir, PWD=self.build_directory
+        ):
             with working_dir(self.build_directory):
                 make("test", *self.build_targets)
 
@@ -923,7 +995,9 @@ class CMakeBuilder(spack.build_systems.cmake.CMakeBuilder):
         }
 
         if "+cuda" in spec:
-            if (len(spec.variants["cuda_arch"].value) > 1) or spec.satisfies("cuda_arch=none"):
+            if (len(spec.variants["cuda_arch"].value) > 1) or spec.satisfies(
+                "cuda_arch=none"
+            ):
                 raise InstallError("CP2K supports only one cuda_arch at a time.")
             else:
                 gpu_ver = gpu_map[spec.variants["cuda_arch"].value[0]]
@@ -989,7 +1063,8 @@ class CMakeBuilder(spack.build_systems.cmake.CMakeBuilder):
                     self.define("CP2K_BLAS_VENDOR", "CUSTOM"),
                     self.define("CP2K_SCALAPACK_VENDOR", "GENERIC"),
                     self.define(
-                        "CP2K_SCALAPACK_LINK_LIBRARIES", spec["scalapack"].libs.joined(";")
+                        "CP2K_SCALAPACK_LINK_LIBRARIES",
+                        spec["scalapack"].libs.joined(";"),
                     ),
                 ]
             else:
@@ -1002,11 +1077,14 @@ class CMakeBuilder(spack.build_systems.cmake.CMakeBuilder):
                     self.define("CP2K_BLAS_FOUND", True),
                     self.define("CP2K_BLAS_LINK_LIBRARIES", blas.libs.joined(";")),
                     self.define("CP2K_SCALAPACK_FOUND", True),
-                    self.define("CP2K_SCALAPACK_INCLUDE_DIRS", spec["scalapack"].prefix.include),
+                    self.define(
+                        "CP2K_SCALAPACK_INCLUDE_DIRS", spec["scalapack"].prefix.include
+                    ),
                     self.define("CP2K_BLAS_VENDOR", "CUSTOM"),
                     self.define("CP2K_SCALAPACK_VENDOR", "GENERIC"),
                     self.define(
-                        "CP2K_SCALAPACK_LINK_LIBRARIES", spec["scalapack"].libs.joined(";")
+                        "CP2K_SCALAPACK_LINK_LIBRARIES",
+                        spec["scalapack"].libs.joined(";"),
                     ),
                 ]
             )

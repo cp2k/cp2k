@@ -128,7 +128,7 @@ def main() -> None:
         f.write(
             spack_toolchain(
                 distro="ubuntu:22.04",
-                spec="cp2k@master%gcc build_system=cmake +enable_regtests +cosma +mpi +openmp ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared",
+                spec="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi+openmp+sirius+elpa+libxc+libint+plumed+pexsi+spglib+libvori ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared",
             )
         )
 
@@ -809,35 +809,36 @@ def spack_toolchain(distro: str, spec: str) -> str:
 FROM {distro} as builder
 ENV DEBIAN_FRONTEND noninteractive
 
+# only the the two next lines are ubuntu specific
+RUN apt-get update -qq
+RUN apt-get install -qq --no-install-recommends autoconf autogen automake autotools-dev bzip2 ca-certificates g++ gcc gfortran git less libtool libtool-bin make nano patch pkg-config python3 unzip wget xxd zlib1g-dev cmake gnupg m4 xz-utils libssl-dev libssh-dev openmpi-common libopenmpi-dev 
+
+
+RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_386 && chmod a+x /usr/local/bin/yq
 ENV FORCE_UNSAFE_CONFIGURE 1
 
 ENV PATH="/spack/bin:${{PATH}}"
-
 ENV MPICH_VERSION=4.0.3
-ENV CMAKE_VERSION=3.25.2
-RUN apt-get update -qq
-RUN apt-get install -qq --no-install-recommends autoconf autogen automake autotools-dev bzip2 ca-certificates g++ gcc gfortran git less libtool libtool-bin make nano patch pkg-config python3 unzip wget xxd zlib1g-dev cmake gnupg m4 xz-utils libssl-dev libssh-dev openmpi-common libopenmpi-dev 
-RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_386 && chmod a+x /usr/local/bin/yq
+
 # get latest version of spack
 RUN git clone https://github.com/spack/spack.git
 
 # set the location of packages built by spack
 RUN spack config add config:install_tree:root:/opt/spack
 
-# find all external packages
+# find all external packages but exclude python
 RUN spack external find --all --exclude python
+
 # find compilers
 RUN spack compiler find
+
 # tweaking the arguments
 RUN yq -i '.compilers[0].compiler.flags.fflags = "-fallow-argument-mismatch"' /root/.spack/linux/compilers.yaml
 #RUN spack config add packages:all:target:x86_64
 # set amdgpu_target for all packages
 # RUN spack config add packages:all:variants:amdgpu_target=gfx90a
 
-#install openmpi
-#RUN spack install openmpi
-
-#install few dependencies.
+# install few dependencies to help with docker caching
 RUN spack install cmake@3.27.3
 RUN spack install openblas+fortran
 RUN spack install libxsmm
