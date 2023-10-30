@@ -3,60 +3,68 @@
 # Usage: docker build -f ./Dockerfile.gcc_spack ../../
 #
 
-FROM docker.io/ubuntu22.04 as builder
-
-ARG CUDA_ARCH=80
-
+FROM ubuntu:22.04 as builder
 ENV DEBIAN_FRONTEND noninteractive
 
+# only the the two next lines are ubuntu specific
+RUN apt-get update -qq
+RUN apt-get install -qq --no-install-recommends autoconf autogen automake autotools-dev bzip2 ca-certificates g++ gcc gfortran git less libtool libtool-bin make nano patch pkg-config python3 unzip wget xxd zlib1g-dev cmake gnupg m4 xz-utils libssl-dev libssh-dev openmpi-common libopenmpi-dev 
+
+
+RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_386 && chmod a+x /usr/local/bin/yq
 ENV FORCE_UNSAFE_CONFIGURE 1
 
 ENV PATH="/spack/bin:${PATH}"
-
 ENV MPICH_VERSION=4.0.3
-ENV CMAKE_VERSION=3.25.2
-RUN apt-get update -qq
-RUN apt-get install -qq --no-install-recommends autoconf autogen automake autotools-dev bzip2 ca-certificates g++ gcc gfortran git less libtool libtool-bin make nano patch pkg-config python3 unzip wget xxd zlib1g-dev cmake gnupg m4 xz-utils libssl-dev libssh-dev
-RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_386 && chmod a+x /usr/local/bin/yq
+
 # get latest version of spack
 RUN git clone https://github.com/spack/spack.git
 
 # set the location of packages built by spack
 RUN spack config add config:install_tree:root:/opt/spack
 
-# find all external packages
+# find all external packages but exclude python
 RUN spack external find --all --exclude python
+
 # find compilers
 RUN spack compiler find
+
 # tweaking the arguments
 RUN yq -i '.compilers[0].compiler.flags.fflags = "-fallow-argument-mismatch"' /root/.spack/linux/compilers.yaml
+#RUN spack config add packages:all:target:x86_64
+# set amdgpu_target for all packages
+# RUN spack config add packages:all:variants:amdgpu_target=gfx90a
 
-# copy bunch of things from the ci
-COPY ci/spack /root/spack-recipe
-RUN spack repo add /root/spack-recipe/ --scope user
-
-#install openmpi
-RUN spack install openmpi
-
-#install few dependencies.
-RUN spack install intel-oneapi-mkl+cluster
+# install few dependencies to help with docker caching
+RUN spack install cmake@3.27.3
 RUN spack install openblas+fortran
 RUN spack install libxsmm
 RUN spack install libxc
 RUN spack install gsl
 RUN spack install py-fypp
 RUN spack install spglib
-RUN spack install fftw
-RUN spack install fftw+openmp
 RUN spack install libvori
 
-# full spec
-ENV SPEC_OPENBLAS="cp2k@master%gcc +libxc +libint +sirius +elpa +plumed +pexsi smm=libxsmm +spglib +cosma +mpi +openmp ^openblas+fortran ^cosma+scalapack+shared"
+ENV SPEC_OPENBLAS="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi+openmp+sirius+elpa+libxc+libint+plumed+pexsi+spglib ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared"
 
-# NB : the next 4 lines can be removed normally but it is still better to create
-  additional stages in case of a build failure of cp2k.
+# instal all dependencies
+RUN mkdir /cp2k-src
+COPY . /cp2k-src
 
-# install all dependencies
+RUN spack repo add /cp2k-src/tools/spack 
+RUN spack env create --with-view /opt/cp2k cp2k-env
 RUN spack install --only=dependencies --fail-fast $SPEC_OPENBLAS ^openmpi
-RUN spack install --fail-fast $SPEC_OPENBLAS ^openmpi
-RUN spack clean -dfs
+
+# copy source files of the pull request into container
+RUN spack --color always -e cp2k-env dev-build -q --source-path /cp2k-src $SPEC_OPENBLAS ^openmpi
+
+# Build CP2K with CMake and run regression tests.
+ARG TESTOPTS=""
+RUN /bin/bash -o pipefail -c " \
+    TESTOPTS='${TESTOPTS}' \
+    /cp2k-src/tools/docker/scripts/test_regtest_spack.sh |& tee report.log && \
+    rm -rf regtesting"
+
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+ENTRYPOINT []
