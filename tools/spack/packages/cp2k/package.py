@@ -14,13 +14,13 @@ from spack.build_environment import dso_suffix
 from spack.package import *
 
 
-class Cp2k(MakefilePackage, CudaPackage, CMakePackage, ROCmPackage):
+class Cp2k(CudaPackage, CMakePackage, ROCmPackage):
     """CP2K is a quantum chemistry and solid state physics software package
     that can perform atomistic simulations of solid state, liquid, molecular,
     periodic, material, crystal, and biological systems
     """
 
-    build_system("cmake")
+    build_system("cmake", default="cmake")
 
     homepage = "https://www.cp2k.org"
     url = "https://github.com/cp2k/cp2k/releases/download/v3.0.0/cp2k-3.0.tar.bz2"

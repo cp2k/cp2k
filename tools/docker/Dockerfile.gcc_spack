@@ -45,7 +45,7 @@ RUN spack install py-fypp
 RUN spack install spglib
 RUN spack install libvori
 
-ENV SPEC_OPENBLAS="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi+openmp+sirius+elpa+libxc+libint+plumed+pexsi+spglib+libvori ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared"
+ENV SPEC_OPENBLAS="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi+openmp+sirius+elpa+libxc+libint+plumed+pexsi+spglib ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared"
 
 # instal all dependencies
 RUN mkdir /cp2k-src

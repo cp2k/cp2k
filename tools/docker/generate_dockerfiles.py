@@ -128,7 +128,7 @@ def main() -> None:
         f.write(
             spack_toolchain(
                 distro="ubuntu:22.04",
-                spec="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi+openmp+sirius+elpa+libxc+libint+plumed+pexsi+spglib+libvori ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared",
+                spec="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi+openmp+sirius+elpa+libxc+libint+plumed+pexsi+spglib ^openblas+fortran ^cosma+scalapack+shared ^dbcsr+mpi+shared",
             )
         )
 
@@ -144,7 +144,7 @@ def main() -> None:
         f.write(
             spack_toolchain(
                 distro="rocm/dev-ubuntu-22.04:5.6.1-complete",
-                spec="cp2k@master%gcc build_system=cmake +sirius +elpa +libxc +libint smm=libxsmm +spglib +cosma +rocm amdgpu_target=gfx90a +pexsi +plumed +libvori +openmp ^openblas+fortran ^dbcsr+mpi+rocm~shared+openmp amdgpu_target=gfx906 ^cosma+shared~tests~apps+rocm",
+                spec="cp2k@master%gcc build_system=cmake +sirius +elpa +libxc +libint smm=libxsmm +spglib +cosma +rocm amdgpu_target=gfx90a +pexsi +plumed +openmp ^openblas+fortran ^dbcsr+mpi+rocm~shared+openmp amdgpu_target=gfx906 ^cosma+shared~tests~apps+rocm",
             )
         )
 

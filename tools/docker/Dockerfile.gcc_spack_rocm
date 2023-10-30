@@ -45,7 +45,7 @@ RUN spack install py-fypp
 RUN spack install spglib
 RUN spack install libvori
 
-ENV SPEC_OPENBLAS="cp2k@master%gcc build_system=cmake +sirius +elpa +libxc +libint smm=libxsmm +spglib +cosma +rocm amdgpu_target=gfx90a +pexsi +plumed +libvori +openmp ^openblas+fortran ^dbcsr+mpi+rocm~shared+openmp amdgpu_target=gfx906 ^cosma+shared~tests~apps+rocm"
+ENV SPEC_OPENBLAS="cp2k@master%gcc build_system=cmake +sirius +elpa +libxc +libint smm=libxsmm +spglib +cosma +rocm amdgpu_target=gfx90a +pexsi +plumed +openmp ^openblas+fortran ^dbcsr+mpi+rocm~shared+openmp amdgpu_target=gfx906 ^cosma+shared~tests~apps+rocm"
 
 # instal all dependencies
 RUN mkdir /cp2k-src
