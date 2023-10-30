@@ -58,6 +58,7 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                 :: operator_parameter = 0.0_dp
       INTEGER, DIMENSION(3)         :: periodicity = 0
       REAL(KIND=dp), DIMENSION(3)   :: eri_cell = 0
+      REAL(KIND=dp), DIMENSION(3)   :: eri_cell_angles = 0
       REAL(KIND=dp)                 :: cutoff_radius = 0.0_dp
       REAL(KIND=dp)                 :: eps_integral = 0.0_dp
       TYPE(eri_gpw_type)            :: eri_gpw = eri_gpw_type()

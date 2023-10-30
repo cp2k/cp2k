@@ -67,7 +67,8 @@ MODULE cell_methods
              read_cell, &
              read_cell_cif, &
              set_cell_param, &
-             write_cell
+             write_cell, &
+             write_cell_low
 
 CONTAINS
 
