@@ -176,7 +176,7 @@ CONTAINS
 !> \brief Computes the force and the energy due to a efield on the cores
 !>        Note: In the velocity gauge, the energy term is not added because
 !>        it would lead to an unbalanced energy (center of negative charge not
-!>        computed in velocity gauge).
+!>        involved in the electric energy in this gauge).
 !> \param qs_env ...
 !> \param calculate_forces ...
 !> \author Florian Schiffmann (02.09)
@@ -205,7 +205,7 @@ CONTAINS
       NULLIFY (dft_control)
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      IF (dft_control%apply_efield_field) THEN
+      IF (dft_control%apply_efield_field .OR. dft_control%apply_vector_potential) THEN
          my_force = .FALSE.
          IF (PRESENT(calculate_forces)) my_force = calculate_forces
 
@@ -225,10 +225,11 @@ CONTAINS
 
             natom = SIZE(list)
             DO iatom = 1, natom
-
-               atom_a = list(iatom)
-               r(:) = pbc(particle_set(atom_a)%r(:), cell)
-               efield_ener = efield_ener - zeff*DOT_PRODUCT(r, field)
+               IF (dft_control%apply_efield_field) THEN
+                  atom_a = list(iatom)
+                  r(:) = pbc(particle_set(atom_a)%r(:), cell)
+                  efield_ener = efield_ener - zeff*DOT_PRODUCT(r, field)
+               END IF
                IF (my_force) THEN
                   CALL get_qs_env(qs_env=qs_env, force=force)
                   force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) - field*zeff
@@ -236,7 +237,7 @@ CONTAINS
             END DO
 
          END DO
-         energy%efield_core = efield_ener
+         IF (dft_control%apply_efield_field) energy%efield_core = efield_ener
       END IF
       CALL timestop(handle)
    END SUBROUTINE calculate_ecore_efield

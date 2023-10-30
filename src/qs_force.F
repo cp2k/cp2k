@@ -73,6 +73,8 @@ MODULE qs_force
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
                                               rt_admm_force
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix,&
+                                              velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE virial_types,                    ONLY: symmetrize_virial,&
@@ -220,6 +222,8 @@ CONTAINS
 
          CALL calc_c_mat_force(qs_env)
          IF (dft_control%do_admm) CALL rt_admm_force(qs_env)
+         IF (dft_control%rtp_control%velocity_gauge .AND. dft_control%rtp_control%nl_gauge_transform) &
+            CALL velocity_gauge_nl_force(qs_env, particle_set)
       END IF
       ! from an eventual Mulliken restraint
       IF (dft_control%qs_control%mulliken_restraint) THEN
@@ -295,6 +299,9 @@ CONTAINS
          IF (qs_env%run_rtp) THEN
             IF (dft_control%apply_efield_field) &
                CALL efield_potential_lengh_gauge(qs_env)
+            IF (dft_control%rtp_control%velocity_gauge) &
+               CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
+
          END IF
          CALL calculate_ecore_self(qs_env)
          CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.TRUE.)
