@@ -61,110 +61,12 @@ MODULE rt_propagation_forces
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief standard treatment for fm MO based calculations
-!>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE calc_c_mat_force_fm(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_fm'
-
-      INTEGER                                            :: handle, i, im, ispin, nao, nmo, re
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      REAL(KIND=dp)                                      :: alpha
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
-      TYPE(dbcsr_distribution_type)                      :: dist, SinvB_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, SinvB, SinvH
-      TYPE(dbcsr_type)                                   :: db_mo_tmp1, db_mo_tmp2, db_mos_im, &
-                                                            db_mos_re
-      TYPE(dbcsr_type), POINTER                          :: rho_im_sparse, tmp_dbcsr
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(rt_prop_type), POINTER                        :: rtp
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (rtp, particle_set, atomic_kind_set, mos)
-      NULLIFY (tmp_dbcsr, rho_im_sparse)
-      CALL get_qs_env(qs_env=qs_env, rtp=rtp, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, mos=mos, force=force)
-
-      CALL get_rtp(rtp=rtp, C_mat=C_mat, S_der=S_der, &
-                   SinvH=SinvH, SinvB=SinvB, mos_new=mos_new)
-
-      ALLOCATE (tmp_dbcsr)
-      ALLOCATE (rho_im_sparse)
-      CALL dbcsr_create(tmp_dbcsr, template=SinvH(1)%matrix)
-      CALL dbcsr_create(rho_im_sparse, template=SinvH(1)%matrix)
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
-
-      DO ispin = 1, SIZE(SinvH)
-         re = 2*ispin - 1
-         im = 2*ispin
-         alpha = mos(ispin)%maxocc
-
-         CALL get_mo_set(mos(ispin), nao=nao, nmo=nmo)
-
-         NULLIFY (col_blk_size)
-         CALL dbcsr_get_info(SinvB(ispin)%matrix, distribution=SinvB_dist, row_blk_size=row_blk_size)
-         CALL dbcsr_create_dist_r_unrot(dist, SinvB_dist, nmo, col_blk_size)
-
-         CALL dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
-                           row_blk_size, col_blk_size, nze=0)
-         CALL dbcsr_create(db_mos_im, template=db_mos_re)
-         CALL dbcsr_create(db_mo_tmp1, template=db_mos_re)
-         CALL dbcsr_create(db_mo_tmp2, template=db_mos_re)
-
-         CALL copy_fm_to_dbcsr(mos_new(im), db_mos_im)
-         CALL copy_fm_to_dbcsr(mos_new(re), db_mos_re)
-
-         CALL dbcsr_multiply("N", "N", alpha, SinvB(ispin)%matrix, db_mos_im, 0.0_dp, db_mo_tmp1)
-         CALL dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_re, 1.0_dp, db_mo_tmp1)
-         CALL dbcsr_multiply("N", "N", -alpha, SinvB(ispin)%matrix, db_mos_re, 0.0_dp, db_mo_tmp2)
-         CALL dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_im, 1.0_dp, db_mo_tmp2)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, db_mo_tmp1, db_mos_re, 0.0_dp, tmp_dbcsr)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, db_mo_tmp2, db_mos_im, 1.0_dp, tmp_dbcsr)
-
-         CALL dbcsr_multiply("N", "T", alpha, db_mos_re, db_mos_im, 0.0_dp, rho_im_sparse)
-         CALL dbcsr_multiply("N", "T", -alpha, db_mos_im, db_mos_re, 1.0_dp, rho_im_sparse)
-
-         CALL compute_forces(force, tmp_dbcsr, S_der, rho_im_sparse, C_mat, kind_of, atom_of_kind)
-
-         CALL dbcsr_release(db_mos_re)
-         CALL dbcsr_release(db_mos_im)
-         CALL dbcsr_release(db_mo_tmp1)
-         CALL dbcsr_release(db_mo_tmp2)
-
-         DEALLOCATE (col_blk_size)
-         CALL dbcsr_distribution_release(dist)
-
-      END DO
-
-      DO i = 1, SIZE(force)
-         force(i)%ehrenfest(:, :) = -force(i)%ehrenfest(:, :)
-      END DO
-
-      CALL dbcsr_release(tmp_dbcsr)
-      CALL dbcsr_release(rho_im_sparse)
-      DEALLOCATE (tmp_dbcsr)
-      DEALLOCATE (rho_im_sparse)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calc_c_mat_force_fm
-
-! **************************************************************************************************
 !> \brief calculates the three additional force contributions needed in EMD
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !> \param qs_env ...
 !> \par History
 !>      02.2014 switched to dbcsr matrices [Samuel Andermatt]
-!>      10.2023 merge MO-based and all-atom into one routine
+!>      10.2023 merge MO-based and all-atom into one routine [Guillaume Le Breton]
 !> \author Florian Schiffmann (02.09)
 ! **************************************************************************************************
 
@@ -215,7 +117,6 @@ CONTAINS
       END IF
 
       ! If SinvH has an imaginary part (the minus sign is already in SinvH_imag)
-      ! NOT SURE ABOUT THIS: SHOULD BE IF rtp%H_imag instead???
       IF (rtp%propagate_complex_ks) CALL get_rtp(rtp=rtp, SinvH_imag=SinvH_imag)
 
       DO ispin = 1, SIZE(SinvH)
