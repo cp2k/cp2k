@@ -49,11 +49,13 @@ ENV SPEC_OPENBLAS="cp2k@master%gcc build_system=cmake +enable_regtests+cosma+mpi
 
 # instal all dependencies
 RUN mkdir /cp2k-src
+COPY . /cp2k-src
+
+RUN spack repo add /cp2k-src/tools/spack 
 RUN spack env create --with-view /opt/cp2k cp2k-env
 RUN spack install --only=dependencies --fail-fast $SPEC_OPENBLAS ^openmpi
 
 # copy source files of the pull request into container
-COPY . /cp2k-src
 RUN spack --color always -e cp2k-env dev-build -q --source-path /cp2k-src $SPEC_OPENBLAS ^openmpi
 
 # Build CP2K with CMake and run regression tests.
