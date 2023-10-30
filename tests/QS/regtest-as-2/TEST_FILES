@@ -10,4 +10,10 @@ h2_gpw_ht.inp                                          1      1e-12             
 h2_gpw_ht.inp                                         92      1e-8                4.08599253
 h2_gpw_ht_nostore.inp                                  1      1e-12              -1.12622646044780
 h2_gpw_ht_nostore.inp                                 92      1e-8                4.08599253
+h2_gpw_nostore_group.inp                               1      1e-12              -1.12622646044780
+h2_gpw_nostore_group.inp                              92      1e-8                4.08481739
+h2_gpw_ht_group.inp                                    1      1e-12              -1.12622646044780
+h2_gpw_ht_group.inp                                   92      1e-8                4.08599253
+h2_gpw_ht_nostore_group.inp                            1      1e-12              -1.12622646044780
+h2_gpw_ht_nostore_group.inp                           92      1e-8                4.08599253
 #EOF

@@ -28,7 +28,6 @@ MODULE qs_active_space_methods
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set, &
                                   cp_dbcsr_m_by_n_from_template
-   USE cp_external_control, ONLY: external_control
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
@@ -60,7 +59,7 @@ MODULE qs_active_space_methods
                                   section_vals_get_subs_vals, &
                                   section_vals_type, &
                                   section_vals_val_get
-   USE iso_c_binding, ONLY: c_null_char
+   USE ISO_C_BINDING, ONLY: c_null_char
    USE kinds, ONLY: default_path_length, &
                     default_string_length, &
                     dp, &
@@ -69,7 +68,8 @@ MODULE qs_active_space_methods
    USE mathconstants, ONLY: fourpi
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_comm_type, &
-                              mp_para_env_type
+                              mp_para_env_type, &
+                              mp_para_env_release
    USE mp2_gpw, ONLY: create_mat_munu, grep_rows_in_subgroups, build_dbcsr_from_rows
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE particle_list_types, ONLY: particle_list_type
@@ -154,6 +154,7 @@ MODULE qs_active_space_methods
    USE task_list_types, ONLY: allocate_task_list, &
                               deallocate_task_list, &
                               task_list_type
+   USE util, ONLY: get_limit
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -203,9 +204,9 @@ CONTAINS
 
       CHARACTER(len=10)                                  :: cshell, lnam(5)
       CHARACTER(len=default_path_length)                 :: qcschema_filename
-      INTEGER :: as_solver, eri_method, eri_operator, eri_print, handle, i, iatom, ishell, isp, &
-         ispin, iw, j, jm, m, max_orb_ind, mselect, n1, n2, nao, natom, nel, nelec_active, &
-         nelec_inactive, nelec_total, nmo, nmo_active, nmo_available, nmo_inactive, &
+      INTEGER :: as_solver, eri_method, eri_operator, eri_print, group_size, handle, i, iatom, &
+         ishell, isp, ispin, iw, j, jm, m, max_orb_ind, mselect, n1, n2, nao, natom, nel, &
+         nelec_active, nelec_inactive, nelec_total, nmo, nmo_active, nmo_available, nmo_inactive, &
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
@@ -921,6 +922,8 @@ CONTAINS
          active_space_env%eri%eri_gpw%print_level = eri_print
          CALL section_vals_val_get(as_input, "ERI_GPW%STORE_WFN", l_val=store_wfn)
          active_space_env%eri%eri_gpw%store_wfn = store_wfn
+         CALL section_vals_val_get(as_input, "ERI_GPW%GROUP_SIZE", i_val=group_size)
+         active_space_env%eri%eri_gpw%group_size = group_size
          ! Always redo Poisson solver for now
          active_space_env%eri%eri_gpw%redo_poisson = .TRUE.
          ! active_space_env%eri%eri_gpw%redo_poisson = (ex_operator .OR. ex_perd)
@@ -1196,10 +1199,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_eri_gpw'
 
-      INTEGER :: blk, col, col_offset, col_size, handle, i1, i2, i3, i4, i_multigrid, icount2, &
-         intcount, irange(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, iwbs, &
-         iwbt, iwfn, n_multigrid, nmm, nmo, nmo1, nmo2, nspins, nx, r, row, row_offset, row_size, &
-         s, stored_integrals
+      INTEGER :: blk, col, col_offset, col_size, color, handle, i1, i2, i3, i4, i_multigrid, &
+         icount2, intcount, irange(2), irange_sub(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, &
+         iwb1, iwb12, iwb2, iwbs, iwbt, iwfn, n_multigrid, nmm, nmo, nmo1, nmo2, nspins, &
+         number_of_subgroups, nx, r, row, row_offset, row_size, s, stored_integrals
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eri_index
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
@@ -1209,7 +1212,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_sub
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff1, mo_coeff2
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type)                                 :: mat_munu
@@ -1256,8 +1259,34 @@ CONTAINS
          ! do nothing
       END SELECT
 
+      ! Check the inpuz group
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+      IF (eri_env%eri_gpw%group_size <= 1) eri_env%eri_gpw%group_size = para_env%num_pe
+      IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) &
+         CPABORT("Group size must be a divisor of the total number of processes!")
+      ! Create a new para_env or reuse the old one
+      IF (eri_env%eri_gpw%group_size == para_env%num_pe) THEN
+         para_env_sub => para_env
+         CALL para_env_sub%retain()
+         IF (eri_env%method == eri_method_gpw_ht) THEN
+            blacs_env_sub => blacs_env
+            CALL blacs_env_sub%retain()
+         END IF
+         number_of_subgroups = 1
+         color = 0
+      ELSE
+         number_of_subgroups = para_env%num_pe/eri_env%eri_gpw%group_size
+         color = para_env%mepos/eri_env%eri_gpw%group_size
+         ALLOCATE (para_env_sub)
+         CALL para_env_sub%from_split(para_env, color)
+         IF (eri_env%method == eri_method_gpw_ht) THEN
+            NULLIFY (blacs_env_sub)
+            CALL cp_blacs_env_create(blacs_env_sub, para_env_sub, BLACS_GRID_SQUARE, .TRUE.)
+         END IF
+      END IF
+
       ! This should be done differently! Copied from MP2 code
-      CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
       ALLOCATE (qs_control)
       qs_control_old => dft_control%qs_control
       qs_control = qs_control_old
@@ -1278,7 +1307,7 @@ CONTAINS
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          ! For now, we will distribute neighbor lists etc. within the global communicator
-         CALL get_qs_env(qs_env, ks_env=ks_env, para_env=para_env_sub, blacs_env=blacs_env_sub)
+         CALL get_qs_env(qs_env, ks_env=ks_env)
          CALL create_mat_munu(mat_munu, qs_env, eri_env%eri_gpw%eps_grid, blacs_env_sub, sab_orb_sub=sab_orb_sub, &
                               do_alloc_blocks_from_nbl=.TRUE., dbcsr_sym_type=dbcsr_type_symmetric)
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
@@ -1287,7 +1316,7 @@ CONTAINS
       ! Generate the appropriate  pw_env
       NULLIFY (pw_env_sub)
       CALL pw_env_create(pw_env_sub)
-      CALL pw_env_rebuild(pw_env_sub, qs_env)
+      CALL pw_env_rebuild(pw_env_sub, qs_env, external_para_env=para_env_sub)
       CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       IF (eri_env%eri_gpw%redo_poisson) THEN
@@ -1449,8 +1478,9 @@ CONTAINS
          IF (eri_env%method == eri_method_gpw_ht) THEN
             irange = [1, nmm]
          ELSE
-            irange = get_irange_csr(nmm, mp_group)
+            irange = get_irange_csr(nmm, para_env)
          END IF
+         irange_sub = get_limit(nmm, number_of_subgroups, color)
          DO i1 = 1, SIZE(orbitals, 1)
             iwa1 = orbitals(i1, isp1)
             IF (eri_env%eri_gpw%store_wfn) THEN
@@ -1462,6 +1492,8 @@ CONTAINS
             DO i2 = i1, SIZE(orbitals, 1)
                iwa2 = orbitals(i2, isp1)
                iwa12 = csr_idx_to_combined(iwa1, iwa2, nmo1)
+               ! Skip calculation directly if the pair is not part of our subgroup
+               IF (iwa12 < irange_sub(1) .OR. iwa12 > irange_sub(2)) CYCLE
                IF (iwa12 >= irange(1) .AND. iwa12 <= irange(2)) THEN
                   iwa12 = iwa12 - irange(1) + 1
                ELSE
@@ -1635,6 +1667,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
+      CALL mp_para_env_release(para_env_sub)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          DO ispin = 1, nspins
@@ -1648,8 +1681,10 @@ CONTAINS
          CALL dbcsr_release(mat_munu%matrix)
          DEALLOCATE (mat_munu%matrix)
          CALL release_neighbor_list_sets(sab_orb_sub)
+         CALL cp_blacs_env_release(blacs_env_sub)
       END IF
       CALL pw_env_release(pw_env_sub)
+      ! Return to the old qs_control
       dft_control%qs_control => qs_control_old
       DEALLOCATE (qs_control%e_cutoff)
       DEALLOCATE (qs_control)

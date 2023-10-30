@@ -48,6 +48,7 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                 :: eps_grid = 0.0_dp
       REAL(KIND=dp)                 :: eps_filter = 0.0_dp
       INTEGER                       :: print_level = 0
+      INTEGER                       :: group_size = 0
    END TYPE eri_gpw_type
 
    TYPE eri_type
@@ -279,7 +280,8 @@ CONTAINS
    FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
       USE message_passing, ONLY: mp_comm_type
       INTEGER, INTENT(IN)                                :: nindex
-      TYPE(mp_comm_type), INTENT(IN)                     :: mp_group
+
+      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
       INTEGER, DIMENSION(2)                              :: irange
 
       REAL(KIND=dp)                                      :: rat

@@ -9454,6 +9454,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE", &
+                          description="Sets the size of a subgroup for ERI calculation, "// &
+                          "each of which with a full set of work grids, arrays or orbitals "// &
+                          "depending on the method of grids (work grids, arrays, orbitals). "// &
+                          "Small numbers reduce communication but increase the memory demands. "// &
+                          "A negative number indicates all processes (default).", &
+                          usage="GROUP_SIZE 2", type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
                           variants=(/"IOLEVEL"/), &
                           description="How much output is written by the individual groups.", &
