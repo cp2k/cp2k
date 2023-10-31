@@ -9,6 +9,14 @@
 % TODO: `{toctree} % :caption: Get started % % get-started/installation % get-started/tutorials % `
 
 ```{toctree}
+:caption: Getting Started
+:titlesonly:
+:maxdepth: 1
+
+getting-started/spack.md
+```
+
+```{toctree}
 :caption: Methods
 :titlesonly:
 :maxdepth: 1
