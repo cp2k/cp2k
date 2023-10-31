@@ -12,7 +12,7 @@ A barebone version of CP2K can be installed with [Spack] as follows:
 spack install cp2k
 ```
 
-This command will build CP2K, as well as all its dependencies. If it is the first time you run this command, building all the dependencies might take a while.
+This command will build CP2K, as well as all the necessary dependencies. If it is the first time you run this command, building all the dependencies might take a while.
 
 In order to use CP2K installed with [Spack], you can simply type
 
