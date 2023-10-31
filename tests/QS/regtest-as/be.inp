@@ -41,7 +41,6 @@
          OPERATOR <1/R>
       &END
       &ERI_GPW
-         STORE_WFN T
          PRINT_LEVEL LOW
       &END
       &FCIDUMP

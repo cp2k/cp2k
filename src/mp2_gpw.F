@@ -26,7 +26,6 @@ MODULE mp2_gpw
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
                                               cp_dbcsr_m_by_n_from_row_template
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
@@ -102,7 +101,7 @@ MODULE mp2_gpw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_gpw'
 
-   PUBLIC :: mp2_gpw_main, create_mat_munu
+   PUBLIC :: mp2_gpw_main, create_mat_munu, grep_rows_in_subgroups, build_dbcsr_from_rows
 
 CONTAINS
 
@@ -328,7 +327,7 @@ CONTAINS
       CALL get_eps_old(dft_control, eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old)
 
       CALL create_mat_munu(mat_munu, qs_env, mp2_env%mp2_gpw%eps_grid, &
-                           blacs_env_sub_mat_munu, do_im_time=do_im_time, sab_orb_sub=sab_orb_sub, &
+                           blacs_env_sub_mat_munu, do_alloc_blocks_from_nbl=.NOT. do_im_time, sab_orb_sub=sab_orb_sub, &
                            do_kpoints=mp2_env%ri_rpa_im_time%do_im_time_kpoints, &
                            dbcsr_sym_type=dbcsr_type_symmetric)
 
@@ -359,10 +358,10 @@ CONTAINS
          ! output the two part of the C matrix (virtual, occupied)
          DO ispin = 1, nspins
 
-            CALL replicate_mat_to_subgroup(mp2_env, para_env, para_env_sub, mo_coeff(ispin), dimen, homo(ispin), mat_munu, &
+            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), dimen, homo(ispin), mat_munu%matrix, &
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
-                                           my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin))
+                                           my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), mp2_env%mp2_gpw%eps_filter)
          END DO
 
       END IF
@@ -418,18 +417,17 @@ CONTAINS
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
                cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1), nmo, homo(1), mat_munu, &
-               sab_orb_sub, mo_coeff_o(1)%matrix, mo_coeff_v(1)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
-               mp2_env%mp2_memory, calc_ex, blacs_env_sub, &
-               homo(2), mo_coeff_o(2)%matrix, mo_coeff_v(2)%matrix, Eigenval(:, 2), Emp2_AB)
+               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval, nmo, homo, mat_munu, &
+               sab_orb_sub, mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               mp2_env%mp2_memory, calc_ex, blacs_env_sub, Emp2_AB)
 
             ! beta-beta component
             IF (unit_nr > 0) WRITE (unit_nr, *)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Beta (ia|'
             CALL mp2_gpw_compute( &
                Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(2), Eigenval(:, 2), nmo, homo(2), mat_munu, &
-               sab_orb_sub, mo_coeff_o(2)%matrix, mo_coeff_v(2)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               atomic_kind_set, qs_kind_set, mo_coeff(2), Eigenval(:, 2:2), nmo, homo(2:2), mat_munu, &
+               sab_orb_sub, mo_coeff_o(2:2), mo_coeff_v(2:2), mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
 
             ! make order on the MP2 energy contributions
@@ -450,8 +448,8 @@ CONTAINS
             ! closed shell case
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1), nmo, homo(1), mat_munu, &
-               sab_orb_sub, mo_coeff_o(1)%matrix, mo_coeff_v(1)%matrix, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1:1), nmo, homo(1:1), mat_munu, &
+               sab_orb_sub, mo_coeff_o(1:1), mo_coeff_v(1:1), mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
          END IF
       END IF
@@ -645,7 +643,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param mo_coeff ...
@@ -659,54 +656,103 @@ CONTAINS
 !> \param my_do_gw ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
+!> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_mat_to_subgroup(mp2_env, para_env, para_env_sub, mo_coeff, dimen, homo, mat_munu, &
+   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, dimen, homo, mat_munu, &
                                         mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, my_do_gw, &
-                                        gw_corr_lev_occ, gw_corr_lev_virt)
-      TYPE(mp2_type)                                     :: mp2_env
+                                        gw_corr_lev_occ, gw_corr_lev_virt, eps_filter)
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen, homo
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                                             mo_coeff_gw
       LOGICAL, INTENT(IN)                                :: my_do_gw
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup'
 
-      INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
-         my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive_static, &
-         proc_send_static, proc_shift, virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
-                                                            row_indices, row_indices_rec
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, Cgw, Cocc, Cvirt, rec_C
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: local_C, local_C_internal
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_coeff
+      INTEGER                                            :: handle
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C
       TYPE(group_dist_d1_type)                           :: gd_array
 
       CALL timeset(routineN, handle)
 
-      CALL create_group_dist(gd_array, para_env_sub%num_pe, dimen)
+      CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
 
-      CALL get_group_dist(gd_array, para_env_sub%mepos, my_mu_start, my_mu_end, my_mu_size)
+      ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
+      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_o, C(:, 1:homo), &
+                                 mat_munu, gd_array, eps_filter)
 
-      ! local storage for the C matrix
-      ALLOCATE (C(my_mu_size, dimen))
-      C = 0.0_dp
+      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:dimen), &
+                                 mat_munu, gd_array, eps_filter)
+
+      IF (my_do_gw) THEN
+
+         CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_gw, C(:, homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt), &
+                                    mat_munu, gd_array, eps_filter)
+
+         ! all levels
+         CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_all, C, &
+                                    mat_munu, gd_array, eps_filter)
+
+      END IF
+
+      DEALLOCATE (C)
+      CALL release_group_dist(gd_array)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE replicate_mat_to_subgroup
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param mo_coeff ...
+!> \param gd_array ...
+!> \param C ...
+! **************************************************************************************************
+   SUBROUTINE grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
+      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: C
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_rows_in_subgroups'
+
+      INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
+         my_mu_start, ncol_global, ncol_local, ncol_rec, nrow_global, nrow_local, nrow_rec, &
+         proc_receive_static, proc_send_static, proc_shift
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
+                                                            row_indices, row_indices_rec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_C, rec_C
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_C_internal
+
+      CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=mo_coeff, &
-                          matrix_struct=fm_struct_coeff, &
+                          ncol_global=ncol_global, &
+                          nrow_global=nrow_global, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices, &
                           local_data=local_C_internal)
 
+      CALL create_group_dist(gd_array, para_env_sub%num_pe, nrow_global)
+      CALL get_group_dist(gd_array, para_env_sub%mepos, my_mu_start, my_mu_end, my_mu_size)
+
+      ! local storage for the C matrix
+      ALLOCATE (C(my_mu_size, ncol_global))
+      C = 0.0_dp
+
       ALLOCATE (local_C(nrow_local, ncol_local))
-      local_C = local_C_internal(1:nrow_local, 1:ncol_local)
+      local_C(:, :) = local_C_internal(1:nrow_local, 1:ncol_local)
       NULLIFY (local_C_internal)
 
       max_row_col_local = MAX(nrow_local, ncol_local)
@@ -770,97 +816,58 @@ CONTAINS
          local_col_row_info(:, :) = rec_col_row_info
          DEALLOCATE (local_C)
          ALLOCATE (local_C(nrow_rec, ncol_rec))
-         local_C = rec_C
+         local_C(:, :) = rec_C
 
          DEALLOCATE (col_indices_rec)
          DEALLOCATE (row_indices_rec)
          DEALLOCATE (rec_C)
       END DO
 
+      DEALLOCATE (local_C)
       DEALLOCATE (local_col_row_info)
       DEALLOCATE (rec_col_row_info)
 
-      ! split the C matrix into occupied and virtual
-      ALLOCATE (Cocc(my_mu_size, homo))
-      Cocc(1:my_mu_size, 1:homo) = C(1:my_mu_size, 1:homo)
-
-      virtual = dimen - homo
-      ALLOCATE (Cvirt(my_mu_size, virtual))
-      Cvirt(1:my_mu_size, 1:virtual) = C(1:my_mu_size, homo + 1:dimen)
-
-      ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
-      CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_o, Cocc, &
-                                  homo, my_mu_start, my_mu_end, &
-                                  mat_munu, gd_array)
-
-      CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_v, Cvirt, &
-                                  virtual, my_mu_start, my_mu_end, &
-                                  mat_munu, gd_array)
-
-      IF (my_do_gw) THEN
-
-         ! also cut levels homo-gw_corr_lev_occ+1, ..., lumo+gw_corr_lev_virt-1 of C
-         ALLOCATE (Cgw(my_mu_size, gw_corr_lev_occ + gw_corr_lev_virt))
-         Cgw(1:my_mu_size, 1:(gw_corr_lev_occ + gw_corr_lev_virt)) = &
-            C(1:my_mu_size, homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt)
-         CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_gw, Cgw, &
-                                     gw_corr_lev_occ + gw_corr_lev_virt, my_mu_start, my_mu_end, &
-                                     mat_munu, gd_array)
-
-         ! all levels
-         CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_all, C, &
-                                     dimen, my_mu_start, my_mu_end, &
-                                     mat_munu, gd_array)
-
-      ELSE
-         DEALLOCATE (C)
-      END IF
-
-      CALL release_group_dist(gd_array)
-      DEALLOCATE (local_C)
-
       CALL timestop(handle)
 
-   END SUBROUTINE replicate_mat_to_subgroup
+   END SUBROUTINE grep_rows_in_subgroups
 
 ! **************************************************************************************************
 !> \brief Encapsulate the building of dbcsr_matrices mo_coeff_(v,o,all)
-!> \param mp2_env ...
 !> \param para_env_sub ...
 !> \param mo_coeff_to_build ...
 !> \param Cread ...
-!> \param number_of_level ...
-!> \param my_mu_start ...
-!> \param my_mu_end ...
 !> \param mat_munu ...
 !> \param gd_array ...
+!> \param eps_filter ...
 !> \author Jan Wilhelm, Code by Mauro Del Ben
 ! **************************************************************************************************
-   SUBROUTINE build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_to_build, Cread, &
-                                     number_of_level, my_mu_start, my_mu_end, &
-                                     mat_munu, gd_array)
-      TYPE(mp2_type)                                     :: mp2_env
+   SUBROUTINE build_dbcsr_from_rows(para_env_sub, mo_coeff_to_build, Cread, &
+                                    mat_munu, gd_array, eps_filter)
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_to_build
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: Cread
-      INTEGER, INTENT(IN)                                :: number_of_level, my_mu_start, my_mu_end
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Cread
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dbcsr_from_rows'
 
-      INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, j, j_global, proc_receive, &
-         proc_send, proc_shift, rec_mu_end, rec_mu_size, rec_mu_start, row, row_offset, row_size
+      INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, j, j_global, my_mu_end, &
+         my_mu_start, ncol_global, proc_receive, proc_send, proc_shift, rec_mu_end, rec_mu_size, &
+         rec_mu_start, row, row_offset, row_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rec_C
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
+      ncol_global = SIZE(Cread, 2)
+
+      CALL get_group_dist(gd_array, para_env_sub%mepos, my_mu_start, my_mu_end)
+
       NULLIFY (mo_coeff_to_build)
       CALL dbcsr_init_p(mo_coeff_to_build)
-      CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_to_build, template=mat_munu%matrix, n=number_of_level, &
+      CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_to_build, template=mat_munu, n=ncol_global, &
                                              sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
       CALL dbcsr_reserve_all_blocks(mo_coeff_to_build)
 
@@ -890,7 +897,7 @@ CONTAINS
 
          CALL get_group_dist(gd_array, proc_receive, rec_mu_start, rec_mu_end, rec_mu_size)
 
-         ALLOCATE (rec_C(rec_mu_size, number_of_level))
+         ALLOCATE (rec_C(rec_mu_size, ncol_global))
          rec_C = 0.0_dp
 
          ! then send and receive the real data
@@ -917,13 +924,11 @@ CONTAINS
          DEALLOCATE (rec_C)
 
       END DO
-      CALL dbcsr_filter(mo_coeff_to_build, mp2_env%mp2_gpw%eps_filter)
-
-      DEALLOCATE (Cread)
+      CALL dbcsr_filter(mo_coeff_to_build, eps_filter)
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_mo_coeff_v_o_all
+   END SUBROUTINE build_dbcsr_from_rows
 
 ! **************************************************************************************************
 !> \brief Encapsulate the building of dbcsr_matrix mat_munu
@@ -934,7 +939,7 @@ CONTAINS
 !> \param do_ri_aux_basis ...
 !> \param do_mixed_basis ...
 !> \param group_size_prim ...
-!> \param do_im_time ...
+!> \param do_alloc_blocks_from_nbl ...
 !> \param do_kpoints ...
 !> \param sab_orb_sub ...
 !> \param dbcsr_sym_type ...
@@ -942,7 +947,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_mat_munu(mat_munu, qs_env, eps_grid, blacs_env_sub, &
                               do_ri_aux_basis, do_mixed_basis, group_size_prim, &
-                              do_im_time, do_kpoints, sab_orb_sub, dbcsr_sym_type)
+                              do_alloc_blocks_from_nbl, do_kpoints, sab_orb_sub, dbcsr_sym_type)
 
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -950,7 +955,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_ri_aux_basis, do_mixed_basis
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_prim
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time, do_kpoints
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_alloc_blocks_from_nbl, do_kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_sub
       CHARACTER, OPTIONAL                                :: dbcsr_sym_type
@@ -960,8 +965,9 @@ CONTAINS
       CHARACTER                                          :: my_dbcsr_sym_type
       INTEGER                                            :: handle, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      LOGICAL                                            :: my_do_im_time, my_do_kpoints, &
-                                                            my_do_mixed_basis, my_do_ri_aux_basis
+      LOGICAL                                            :: my_do_alloc_blocks_from_nbl, &
+                                                            my_do_kpoints, my_do_mixed_basis, &
+                                                            my_do_ri_aux_basis
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: orb_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
@@ -996,9 +1002,9 @@ CONTAINS
          my_do_mixed_basis = do_mixed_basis
       END IF
 
-      my_do_im_time = .TRUE.
-      IF (PRESENT(do_im_time)) THEN
-         my_do_im_time = do_im_time
+      my_do_alloc_blocks_from_nbl = .FALSE.
+      IF (PRESENT(do_alloc_blocks_from_nbl)) THEN
+         my_do_alloc_blocks_from_nbl = do_alloc_blocks_from_nbl
       END IF
 
       my_do_kpoints = .FALSE.
@@ -1165,7 +1171,7 @@ CONTAINS
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                            nze=0)
 
-         IF (.NOT. my_do_im_time) THEN
+         IF (my_do_alloc_blocks_from_nbl) THEN
 
             IF (PRESENT(sab_orb_sub)) THEN
                CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, sab_orb_sub)
@@ -1229,7 +1235,7 @@ CONTAINS
                                blacs_repeatable)
 
       CALL create_mat_munu(mat_P_global, qs_env, mp2_env%mp2_gpw%eps_grid, &
-                           blacs_env_global, do_ri_aux_basis=.TRUE., do_im_time=.FALSE., &
+                           blacs_env_global, do_ri_aux_basis=.TRUE., &
                            do_kpoints=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
 
       CALL dbcsr_reserve_all_blocks(mat_P_global%matrix)

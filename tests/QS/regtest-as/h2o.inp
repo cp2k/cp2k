@@ -25,7 +25,6 @@
          OPERATOR <1/R>
       &END
       &ERI_GPW
-         STORE_WFN T
          PRINT_LEVEL MEDIUM
       &END
       &PRINT_ORBITAL_CUBES

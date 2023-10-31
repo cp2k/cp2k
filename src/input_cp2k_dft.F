@@ -9394,7 +9394,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_INTEGRAL", &
          description="Accuracy of ERIs that will be stored.", &
-         usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
+         usage="EPS_INTEGRAL 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -9423,6 +9423,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
+                          description="Determines a threshold for the sparse matrix multiplications if METHOD "// &
+                          "GPW_HALF_TRANSFORM is used", &
+                          usage="EPS_FILTER 1.0E-9 ", type_of_var=real_t, &
+                          default_r_val=1.0E-9_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF", &
                           description="The cutoff of the finest grid level in the GPW integration.", &
                           usage="CUTOFF 300", type_of_var=real_t, &
@@ -9440,9 +9448,20 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STORE_WFN", &
                           variants=(/"STORE_WAVEFUNCTION"/), &
-                          description="Strore wavefunction in real space representation for integration.", &
+                          description="Store wavefunction in real space representation for integration.", &
                           usage="STORE_WFN  T", type_of_var=logical_t, &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE", &
+                          description="Sets the size of a subgroup for ERI calculation, "// &
+                          "each of which with a full set of work grids, arrays or orbitals "// &
+                          "depending on the method of grids (work grids, arrays, orbitals). "// &
+                          "Small numbers reduce communication but increase the memory demands. "// &
+                          "A negative number indicates all processes (default).", &
+                          usage="GROUP_SIZE 2", type_of_var=integer_t, &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
