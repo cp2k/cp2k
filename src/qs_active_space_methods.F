@@ -1212,9 +1212,9 @@ CONTAINS
                                                             skip_load_balance_distributed
       REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
                                                             progression_factor, rc, t1, t2, &
-                                                            rsize, max_cell_dim, qs_poisson_mt_alpha, &
-                                                            qs_poisson_mt_rel_cutoff
+                                                            rsize, max_cell_dim
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       REAL(KIND=dp), DIMENSION(3)                        :: eri_cell_angles = 90.0_dp
       REAL(KIND=dp), DIMENSION(3,3)                      :: old_hmat, new_hmat = 0.0_dp
       INTEGER, DIMENSION(3)                              :: old_perd = 0
