@@ -78,6 +78,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Create the PROPERTIES section
 !> \param section the section to create
+!> \param create_subsections  indicates whether or not subsections should be created
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE create_properties_section(section)
@@ -93,7 +94,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
 
-      CALL create_linres_section(subsection)
+      CALL create_linres_section(subsection, create_subsections=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -146,13 +147,14 @@ CONTAINS
 !> \param section the section to create
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE create_linres_section(section)
+   SUBROUTINE create_linres_section(section, create_subsections)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(in)                                :: create_subsections
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
-      NULLIFY (keyword, subsection, print_key)
+      NULLIFY (keyword, print_key)
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
@@ -234,62 +236,67 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL create_localize_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+      IF (create_subsections) THEN
+         NULLIFY (subsection)
 
-      CALL create_current_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_localize_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_current_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_nmr_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_spin_spin_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_epr_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_polarizability_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_dcdr_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL create_vcd_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+   
+         CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                             description="printing of information during the linear response calculation", &
+                             repeats=.FALSE.)
+   
+         CALL cp_print_key_section_create( &
+            print_key, __LOCATION__, "program_run_info", &
+            description="Controls the printing of basic iteration information during the LINRES calculation", &
+            print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+         CALL section_add_subsection(subsection, print_key)
+         CALL section_release(print_key)
+   
+         CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
+                                          description="Controls the dumping of restart file of the response wavefunction. "// &
+                                          "For each set of response functions, i.e. for each perturbation, "// &
+                                          "one different restart file is dumped. These restart files should be "// &
+                                          "employed only to restart the same type of LINRES calculation, "// &
+                                          "i.e. with the same perturbation.", &
+                                          print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("ITER"), &
+                                          add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+         CALL section_add_subsection(subsection, print_key)
+         CALL section_release(print_key)
+   
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_nmr_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_spin_spin_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_epr_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_polarizability_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_dcdr_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_vcd_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL section_create(subsection, __LOCATION__, name="PRINT", &
-                          description="printing of information during the linear response calculation", &
-                          repeats=.FALSE.)
-
-      CALL cp_print_key_section_create( &
-         print_key, __LOCATION__, "program_run_info", &
-         description="Controls the printing of basic iteration information during the LINRES calculation", &
-         print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(subsection, print_key)
-      CALL section_release(print_key)
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of restart file of the response wavefunction. "// &
-                                       "For each set of response functions, i.e. for each perturbation, "// &
-                                       "one different restart file is dumped. These restart files should be "// &
-                                       "employed only to restart the same type of LINRES calculation, "// &
-                                       "i.e. with the same perturbation.", &
-                                       print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("ITER"), &
-                                       add_last=add_last_numeric, each_iter_values=(/3/), filename="")
-      CALL section_add_subsection(subsection, print_key)
-      CALL section_release(print_key)
-
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+   END IF
 
    END SUBROUTINE create_linres_section
 
@@ -1653,6 +1660,11 @@ CONTAINS
 
       ! LRI subsection
       CALL create_lrigpw_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! LINRES section
+      CALL create_linres_section(subsection, create_subsections=.FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
