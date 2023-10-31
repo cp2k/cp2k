@@ -29,7 +29,6 @@ unzip -q -d ./tools/minimax_tools/1_xData 1_xData.zip
 run_test ./tools/prettify/prettify_test.py
 run_test ./tools/minimax_tools/minimax_to_fortran_source.py --check
 run_test ./tools/docker/generate_dockerfiles.py --check
-run_test ./tools/docker/production/generate_docker_files.py --check
 
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
