@@ -18,14 +18,8 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             f.write(toolchain_full() + regtest(version))
 
-        with OutputFile(f"Dockerfile.prod_{version}", args.check) as f:
-            f.write(toolchain_full() + production(version))
-
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
             f.write(toolchain_full(target_cpu="generic") + regtest(version))
-
-        with OutputFile(f"Dockerfile.prod_generic_{version}", args.check) as f:
-            f.write(toolchain_full(target_cpu="generic") + production(version))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         # Also testing --with-gcc=install here, see github.com/cp2k/cp2k/issues/2062 .
@@ -37,11 +31,6 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
         f.write(toolchain_intel() + regtest("psmp", intel=True))
-
-    with OutputFile(f"Dockerfile.prod_intel_psmp", args.check) as f:
-        f.write(
-            toolchain_intel() + production("psmp", "Linux-intel-x86_64", intel=True)
-        )
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
         f.write(toolchain_nvhpc())
@@ -87,9 +76,6 @@ def main() -> None:
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
             f.write(toolchain_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_cuda"))
-
-        with OutputFile(f"Dockerfile.prod_cuda_{gpu_ver}", args.check) as f:
-            f.write(toolchain_cuda(gpu_ver=gpu_ver) + production("psmp", "local_cuda"))
 
         with OutputFile(f"Dockerfile.test_hip_cuda_{gpu_ver}", args.check) as f:
             f.write(toolchain_hip_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
@@ -373,34 +359,10 @@ ENTRYPOINT []
 
 
 # ======================================================================================
-def production(version: str, arch: str = "local", intel: bool = False) -> str:
-    return (
-        install_cp2k(version=version, arch=arch, revision=True, prod=True, intel=intel)
-        + rf"""
-# Run regression tests.
-ARG TESTOPTS
-RUN /bin/bash -c " \
-    source /opt/cp2k-toolchain/install/setup && \
-    ./tests/do_regtest.py '{arch}' '{version}' --skipdir=UNIT/libcp2k_unittest "${{TESTOPTS}}" |& tee regtests.log && \
-    rm -rf regtesting"
-
-# Setup entry point for production.
-COPY ./tools/docker/scripts/prod_entrypoint.sh ./
-WORKDIR /mnt
-ENTRYPOINT ["/opt/cp2k/prod_entrypoint.sh", "{arch}", "{version}"]
-CMD ["cp2k", "--help"]
-
-#EOF
-"""
-    )
-
-
-# ======================================================================================
 def install_cp2k(
     version: str,
     arch: str,
     revision: bool = False,
-    prod: bool = False,
     intel: bool = False,
 ) -> str:
     input_lines = []
@@ -425,23 +387,6 @@ def install_cp2k(
     else:
         input_lines.append(f"COPY ./arch/{arch}.{version} /opt/cp2k/arch/")
         run_lines.append(f"ln -s /opt/cp2k-toolchain /opt/cp2k/tools/toolchain")
-
-    if prod:
-        run_lines.append("echo 'Compiling cp2k...'")
-        run_lines.append("source /opt/cp2k-toolchain/install/setup")
-        run_lines.append(f"make -j ARCH={arch} VERSION={version}")
-        run_lines.append(f"ln -sf ./cp2k.{version} ./exe/{arch}/cp2k")
-        run_lines.append(f"ln -sf ./cp2k_shell.{version} ./exe/{arch}/cp2k_shell")
-        run_lines.append(f"ln -sf ./graph.{version} ./exe/{arch}/graph")
-        run_lines.append(f"ln -sf ./dumpdcd.{version} ./exe/{arch}/dumpdcd")
-        run_lines.append(f"ln -sf ./xyz2dcd.{version} ./exe/{arch}/xyz2dcd")
-        # Remove libcp2k_unittest to reduce image size.
-        run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
-
-        # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
-        if version.startswith("p") and not intel:
-            binary = f"./exe/{arch}/cp2k.{version}"
-            run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep -q libmpi )")
 
     input_block = "\n".join(input_lines)
     run_block = " && \\\n    ".join(run_lines)
