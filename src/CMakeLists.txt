@@ -1573,6 +1573,10 @@ target_link_libraries(
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 
+if(CP2K_DATA_DIR STREQUAL "default")
+  set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}/data")
+endif()
+
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 target_compile_definitions(
   cp2k
@@ -1583,7 +1587,7 @@ target_compile_definitions(
     __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
     __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
-    __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
+    __DATA_DIR=\"${CP2K_DATA_DIR}\"
     __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
     $<$<CONFIG:COVERAGE>:__NO_ABORT>
     $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
@@ -1777,8 +1781,7 @@ install(
   INCLUDES
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/data"
-        DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}")
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/data/" DESTINATION "${CP2K_DATA_DIR}")
 
 # ##############################################################################
 # cp2kConfig.cmake, etc...

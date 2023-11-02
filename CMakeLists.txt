@@ -169,6 +169,10 @@ set(CP2K_BUILD_OPTIONS
 set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS
                                                ${CP2K_BUILD_OPTIONS_LIST})
 
+set(CP2K_DATA_DIR
+    "default"
+    CACHE STRING "Set the location for cp2k data")
+
 string(TOUPPER ${CP2K_BUILD_OPTIONS} cp2k_build_options_up)
 
 if(NOT ${cp2k_build_options_up} IN_LIST CP2K_BUILD_OPTIONS_LIST)
@@ -759,10 +763,10 @@ if(CP2K_BUILD_DBCSR)
   add_library(DBCSR::dbcsr ALIAS dbcsr)
 endif()
 
+include(GNUInstallDirs)
+
 # subdirectories
 add_subdirectory(src)
-
-include(GNUInstallDirs)
 
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
 configure_file(cmake/libcp2k.pc.in libcp2k.pc @ONLY)
