@@ -14,12 +14,17 @@ apt-get install -qq --no-install-recommends \
   less \
   nano \
   python3 \
+  python3-venv \
   python3-pip \
   python3-wheel \
   python3-setuptools \
   shellcheck \
   wget
 rm -rf /var/lib/apt/lists/*
+
+# Create and activate a virtual environment for Python packages.
+python3 -m venv /opt/venv
+export PATH="/opt/venv/bin:$PATH"
 
 # Install Python packages. Upgrade via:
 #   pip3 install black flask gunicorn mdformat-gfm cmake-format
