@@ -28,7 +28,7 @@ def main() -> None:
 # ======================================================================================
 def build_bibliography(references_html_fn: str, output_dir: Path) -> None:
     content = Path(references_html_fn).read_text()
-    entries = re.findall("<TR>.*?</TR>", content, re.DOTALL)
+    entries = re.findall(r"<TR>.*?</TR>", content, re.DOTALL)
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
@@ -36,22 +36,22 @@ def build_bibliography(references_html_fn: str, output_dir: Path) -> None:
 
     for entry in entries:
         pattern = (
-            '<TR><TD>\[(.*?)\]</TD><TD>\n <A NAME="reference_\d+">(.*?)</A><br>'
-            "(.*?)</TD></TR>"
+            r'<TR><TD>\[(.*?)\]</TD><TD>\n <A NAME="reference_\d+">(.*?)</A><br>'
+            r"(.*?)</TD></TR>"
         )
         parts = re.search(pattern, entry, re.DOTALL)
         assert parts
         key = parts.group(1)
         title = parts.group(3).strip()
         if "<br>" in parts.group(2):
-            m = re.match("(.*?)<br>(.*)", parts.group(2), re.DOTALL)
+            m = re.match(r"(.*?)<br>(.*)", parts.group(2), re.DOTALL)
             assert m
             authors, mix = m.groups()
         else:
             authors, mix = "", parts.group(2)
 
         if "https://doi.org" in mix:
-            m = re.match('\s*<A HREF="(.*?)">(.*?)</A>', mix, re.DOTALL)
+            m = re.match(r'\s*<A HREF="(.*?)">(.*?)</A>', mix, re.DOTALL)
             assert m
             doi, ref = m.groups()
         else:
@@ -367,13 +367,13 @@ def sanitize_name(name: str) -> str:
 # ======================================================================================
 def escape_markdown(text: str) -> str:
     # Code blocks without a language get mistaken for the end of the py:data directive.
-    text = text.replace("\n\n```\n", "\n\n```none\n")
+    text = text.replace(r"\n\n```\n", r"\n\n```none\n")
 
     # Underscores are very common in our docs. Luckily asterisks also work for emphasis.
-    text = text.replace("__", "\_\_")
+    text = text.replace(r"__", r"\_\_")
 
     # Headings mess up the page structure. Please use paragraphs and bold text instead.
-    text = text.replace("#", "\#")
+    text = text.replace(r"#", r"\#")
 
     return text
 

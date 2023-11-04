@@ -7,7 +7,7 @@ import os
 import pathlib
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import lru_cache
 import itertools
 from typing import Tuple, List, TypeVar
@@ -77,7 +77,7 @@ FLAG_EXCEPTIONS = (
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
 PORTABLE_FILENAME_RE = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
 OP_RE = re.compile(r"[\\|()!&><=*/+-]")
-NUM_RE = re.compile("[0-9]+[ulUL]*")
+NUM_RE = re.compile(r"[0-9]+[ulUL]*")
 CP2K_FLAGS_RE = re.compile(
     r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags", re.DOTALL
 )
@@ -183,7 +183,7 @@ def check_file(path: pathlib.Path) -> List[str]:
                 warnings += [f"{path}:{i+1} Double space in multi-line string"]
 
     # check banner
-    year = datetime.utcnow().year
+    year = datetime.now(timezone.utc).year
     bsd_licensed = any(str(path).startswith(d) for d in BSD_DIRECTORIES)
     spdx = "BSD-3-Clause    " if bsd_licensed else "GPL-2.0-or-later"
     if fn_ext == ".F" and not content.startswith(BANNER_F.format(year, spdx)):
