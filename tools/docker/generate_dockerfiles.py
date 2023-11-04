@@ -371,8 +371,8 @@ def install_cp2k(
     if revision:
         input_lines.append("ARG GIT_COMMIT_SHA")
         run_lines.append(
-            'if [ -n "${GIT_COMMIT_SHA}" ] ; then'
-            ' echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi'
+            r'if [ -n "${GIT_COMMIT_SHA}" ] ; then'
+            r' echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi'
         )
 
     input_lines.append("COPY ./Makefile .")
