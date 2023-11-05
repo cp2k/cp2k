@@ -116,7 +116,7 @@ case "$with_sirius" in
 
       # GCC 13 stopped including some common headers.
       # https://github.com/electronic-structure/SIRIUS/issues/854
-      sed -i '1 i\#include <cstdint>' src/*.hpp
+      sed -i'' -e '1s/.*/#include <cstdint>\n&/' src/*.hpp
 
       rm -Rf build
       mkdir build
