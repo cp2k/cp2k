@@ -95,10 +95,8 @@ CONTAINS
 
       CHARACTER(LEN=1)                                   :: sep
       CHARACTER(LEN=default_string_length)               :: s_tag, strtmp
-      INTEGER                                            :: handle, ii, iln0, iln1, iln2, iln3, &
-                                                            isym, itype, iw, jj, natom, &
-                                                            natom_orig, newsize
-      INTEGER, DIMENSION(20)                             :: ifield
+      INTEGER :: field_kind, field_label, field_symbol, field_x, field_y, field_z, handle, ii, &
+         iln0, iln1, iln2, iln3, isym, iw, jj, natom, natom_orig, newsize, num_fields
       LOGICAL                                            :: check, found, my_end
       REAL(KIND=dp)                                      :: pfactor
       REAL(KIND=dp), DIMENSION(3)                        :: r, r1, r2, s, s_tmp
@@ -155,35 +153,33 @@ CONTAINS
       END IF
 
       ! Parse atoms info and fractional coordinates
-      ! Check for   _atom_site_label
-      CALL parser_search_string(parser, "_atom_site_label", ignore_case=.FALSE., found=found, &
-                                begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field _atom_site_label was not found in CIF file! ")
-      ifield = 0
-      ii = 1
-      ifield(ii) = 0
+      num_fields = 0
+      field_label = -1; field_symbol = -1; field_x = -1; field_y = -1; field_z = -1
       CALL parser_search_string(parser, "_atom_site_", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
       DO WHILE (INDEX(parser%input_line, "_atom_site_") /= 0)
-         IF (INDEX(parser%input_line, "_atom_site_label") /= 0) THEN
-            CALL parser_get_next_line(parser, 1)
-            CYCLE
-         END IF
-         ii = ii + 1
-         CPASSERT(ii <= 20)
-
-         ifield(ii) = -1
-         ! Check for   _atom_site_type_symbol
-         IF (INDEX(parser%input_line, "_atom_site_type_symbol") /= 0) ifield(ii) = 0
-         ! Check for   _atom_site_fract_x
-         IF (INDEX(parser%input_line, "_atom_site_fract_x") /= 0) ifield(ii) = 1
-         ! Check for   _atom_site_fract_y
-         IF (INDEX(parser%input_line, "_atom_site_fract_y") /= 0) ifield(ii) = 2
-         ! Check for   _atom_site_fract_z
-         IF (INDEX(parser%input_line, "_atom_site_fract_z") /= 0) ifield(ii) = 3
+         num_fields = num_fields + 1
+         IF (INDEX(parser%input_line, "_atom_site_label") /= 0) field_label = num_fields
+         IF (INDEX(parser%input_line, "_atom_site_type_symbol") /= 0) field_symbol = num_fields
+         IF (INDEX(parser%input_line, "_atom_site_fract_x") /= 0) field_x = num_fields
+         IF (INDEX(parser%input_line, "_atom_site_fract_y") /= 0) field_y = num_fields
+         IF (INDEX(parser%input_line, "_atom_site_fract_z") /= 0) field_z = num_fields
          CALL parser_get_next_line(parser, 1)
       END DO
+
+      ! Check for missing fields.
+      IF (field_label < 0) CPABORT("Field _atom_site_label not found in CIF file.")
+      IF (field_x < 0) CPABORT("Field _atom_site_fract_x not found in CIF file.")
+      IF (field_y < 0) CPABORT("Field _atom_site_fract_y not found in CIF file.")
+      IF (field_z < 0) CPABORT("Field _atom_site_fract_z not found in CIF file.")
+
+      ! Read atom kind from the symbol field if it's present, otherwise fall back to the label field.
+      IF (field_symbol > 0) THEN
+         field_kind = field_symbol
+      ELSE
+         field_kind = field_label
+      END IF
+
       ! Parse real info
       natom = 0
       DO WHILE ((INDEX(parser%input_line, "loop_") == 0) .AND. (parser%input_line(1:1) /= "_"))
@@ -202,31 +198,23 @@ CONTAINS
             CALL reallocate(atom_info%beta, 1, newsize)
             CALL reallocate(atom_info%id_element, 1, newsize)
          END IF
-         ii = 1
-         itype = 0
-         DO WHILE (ANY(ifield(ii:) > 0))
-            SELECT CASE (ifield(ii))
-            CASE (-1)
-               ! Skip this field
-               CALL parser_get_object(parser, s_tag)
-            CASE (0)
+         DO ii = 1, num_fields
+            IF (ii == field_kind) THEN
                CALL parser_get_object(parser, strtmp)
                atom_info%id_atmname(natom) = str2id(strtmp)
                atom_info%id_molname(natom) = str2id(s2s("MOL"//TRIM(ADJUSTL(cp_to_string(natom)))))
                atom_info%id_resname(natom) = atom_info%id_molname(natom)
                atom_info%resid(natom) = 1
                atom_info%id_element(natom) = atom_info%id_atmname(natom)
-            CASE (1)
+            ELSE IF (ii == field_x) THEN
                CALL cif_get_real(parser, atom_info%r(1, natom))
-            CASE (2)
+            ELSE IF (ii == field_y) THEN
                CALL cif_get_real(parser, atom_info%r(2, natom))
-            CASE (3)
+            ELSE IF (ii == field_z) THEN
                CALL cif_get_real(parser, atom_info%r(3, natom))
-            CASE DEFAULT
-               ! Never reach this point..
-               CPABORT("")
-            END SELECT
-            ii = ii + 1
+            ELSE
+               CALL parser_get_object(parser, s_tag) ! Skip this field
+            END IF
          END DO
          s = atom_info%r(1:3, natom)
          CALL scaled_to_real(atom_info%r(1:3, natom), s, cell)

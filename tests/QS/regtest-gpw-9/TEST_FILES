@@ -8,4 +8,8 @@ h2o_frozen_GRRM.inp                                    8    8.0E-06             
 C2H4_SCINE.inp                                         1    1.0E-12            -13.137211552407610
 h2o_SCINE.inp                                          8    8.0E-06                       1465.672
 h2o_NEWTONX.inp                                        8    8.0E-06                       1447.380
+#
+cif_symbol_1st_column.inp                              1    1.0E-14            -13.41107059145742
+cif_symbol_2nd_column.inp                              1    1.0E-14            -13.41107059145742
+cif_symbol_missing.inp                                 1    1.0E-14            -13.41107059145742
 #EOF
