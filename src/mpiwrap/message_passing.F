@@ -179,7 +179,6 @@ MODULE message_passing
       GENERIC, PUBLIC :: operator(.EQ.) => mp_comm_op_eq
       GENERIC, PUBLIC :: operator(.NE.) => mp_comm_op_neq
       ! Communication routines
-
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: &
          mp_sendrecv_i, mp_sendrecv_l, mp_sendrecv_r, mp_sendrecv_d, &
          mp_sendrecv_c, mp_sendrecv_z, &
@@ -579,11 +578,22 @@ MODULE message_passing
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: get_ndims => mp_comm_get_ndims
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: is_source => mp_comm_is_source
 
+      ! Creation routines
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
       PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
       PROCEDURE, PUBLIC, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_assign
       GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_assign
+
+      ! Other Getters
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_get_tag_ub
+      GENERIC, PUBLIC :: get_tag_ub => mp_comm_get_tag_ub
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_get_host_rank
+      GENERIC, PUBLIC :: get_host_rank => mp_comm_get_host_rank
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_get_io_rank
+      GENERIC, PUBLIC :: get_io_rank => mp_comm_get_io_rank
+      PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_comm_get_wtime_is_global
+      GENERIC, PUBLIC :: get_wtime_is_global => mp_comm_get_wtime_is_global
    END TYPE
 
    TYPE mp_request_type
@@ -988,6 +998,82 @@ CONTAINS
 #endif
       END FUNCTION mp_${type}$_type_get_handle
       #:endfor
+
+      FUNCTION mp_comm_get_tag_ub(comm) RESULT(tag_ub)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+         INTEGER :: tag_ub
+
+#if defined(__parallel)
+         INTEGER :: ierr
+         LOGICAL :: flag
+         INTEGER(KIND=MPI_ADDRESS_KIND) :: attrval
+
+         CALL MPI_COMM_GET_ATTR(comm%handle, MPI_TAG_UB, attrval, flag, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_get_attr @ mp_comm_get_tag_ub")
+         IF (.NOT. flag) CPABORT("Upper bound of tags not available!")
+         tag_ub = INT(attrval, KIND=KIND(tag_ub))
+#else
+         MARK_USED(comm)
+         tag_ub = HUGE(1)
+#endif
+      END FUNCTION mp_comm_get_tag_ub
+
+      FUNCTION mp_comm_get_host_rank(comm) RESULT(host_rank)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+         INTEGER :: host_rank
+
+#if defined(__parallel)
+         INTEGER :: ierr
+         LOGICAL :: flag
+         INTEGER(KIND=MPI_ADDRESS_KIND) :: attrval
+
+         CALL MPI_COMM_GET_ATTR(comm%handle, MPI_HOST, attrval, flag, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_get_attr @ mp_comm_get_host_rank")
+         IF (.NOT. flag) CPABORT("Host process rank not available!")
+         host_rank = INT(attrval, KIND=KIND(host_rank))
+#else
+         MARK_USED(comm)
+         host_rank = 0
+#endif
+      END FUNCTION mp_comm_get_host_rank
+
+      FUNCTION mp_comm_get_io_rank(comm) RESULT(io_rank)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+         INTEGER :: io_rank
+
+#if defined(__parallel)
+         INTEGER :: ierr
+         LOGICAL :: flag
+         INTEGER(KIND=MPI_ADDRESS_KIND) :: attrval
+
+         CALL MPI_COMM_GET_ATTR(comm%handle, MPI_IO, attrval, flag, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_get_attr @ mp_comm_get_io_rank")
+         IF (.NOT. flag) CPABORT("IO rank not available!")
+         io_rank = INT(attrval, KIND=KIND(io_rank))
+#else
+         MARK_USED(comm)
+         io_rank = 0
+#endif
+      END FUNCTION mp_comm_get_io_rank
+
+      FUNCTION mp_comm_get_wtime_is_global(comm) RESULT(wtime_is_global)
+         CLASS(mp_comm_type), INTENT(IN) :: comm
+         LOGICAL :: wtime_is_global
+
+#if defined(__parallel)
+         INTEGER :: ierr
+         LOGICAL :: flag
+         INTEGER(KIND=MPI_ADDRESS_KIND) :: attrval
+
+         CALL MPI_COMM_GET_ATTR(comm%handle, MPI_TAG_UB, attrval, flag, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_get_attr @ mp_comm_get_wtime_is_global")
+         IF (.NOT. flag) CPABORT("Synchronization state of WTIME not available!")
+         wtime_is_global = (attrval == 1_MPI_ADDRESS_KIND)
+#else
+         MARK_USED(comm)
+         wtime_is_global = .TRUE.
+#endif
+      END FUNCTION mp_comm_get_wtime_is_global
 
 ! **************************************************************************************************
 !> \brief initializes the system default communicator
