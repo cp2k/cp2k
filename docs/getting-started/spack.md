@@ -36,13 +36,14 @@ spack install cp2k +libint +libxc
 
 #### Versions
 
-Versions in [Spack] can be specified with `@` following the package name (see [version specifier]). The following installs version `2023.2` of CP2K:
+Versions in [Spack] can be specified with `@` following the package name (see \[version specifier\]). The following installs version `2023.2` of CP2K:
 
 ```bash
 spack install cp2k@2023.2
 ```
 
 A more complete installation of CP2K can be installed with the following:
+
 ```bash
 spack install cp2k@2023.2 +libint +libxc +dlaf +sirius +cosma +spglib lmax=6 
 ```
@@ -100,12 +101,11 @@ spack build-env CP2K_SPEC -- bash
 
 From here, you can iterate CP2K developement using the native build system as Spack would use it.
 
-[Spack]: https://spack.readthedocs.io/en/latest/
-[install Spack]: https://spack.readthedocs.io/en/latest/getting_started.html#installation
-[using installed Spack packages]: https://spack.readthedocs.io/en/latest/basic_usage.html#using-installed-packages
-[CP2K Spack package]: https://packages.spack.io/package.html?name=cp2k
+[cp2k spack package]: https://packages.spack.io/package.html?name=cp2k
+[dbcsr]: https://cp2k.github.io/dbcsr/develop/
+[install spack]: https://spack.readthedocs.io/en/latest/getting_started.html#installation
+[intel oneapi spack package]: https://packages.spack.io/package.html?name=intel-oneapi-mkl
+[spack]: https://spack.readthedocs.io/en/latest/
+[spack package variants]: https://spack.readthedocs.io/en/latest/basic_usage.html#variants
 [spec]: https://spack.readthedocs.io/en/latest/basic_usage.html#specs-dependencies
-[Intel oneAPI Spack package]: https://packages.spack.io/package.html?name=intel-oneapi-mkl
-[Spack package variants]: https://spack.readthedocs.io/en/latest/basic_usage.html#variants
-[Spack package version specifier]: https://spack.readthedocs.io/en/latest/basic_usage.html#version-specifier
-[DBCSR]: https://cp2k.github.io/dbcsr/develop/
+[using installed spack packages]: https://spack.readthedocs.io/en/latest/basic_usage.html#using-installed-packages
