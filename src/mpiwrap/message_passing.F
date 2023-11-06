@@ -44,6 +44,7 @@ MODULE message_passing
 #define MPI_STATUS_TYPE TYPE(MPI_Status)
 #define MPI_GROUP_TYPE TYPE(MPI_Group)
 #define MPI_STATUS_EXTRACT(X) %X
+#define MPI_GET_COMP %mpi_val
 #else
 #define MPI_DATA_TYPE INTEGER
 #define MPI_COMM_TYPE INTEGER
@@ -54,11 +55,31 @@ MODULE message_passing
 #define MPI_STATUS_TYPE INTEGER, DIMENSION(MPI_STATUS_SIZE)
 #define MPI_GROUP_TYPE INTEGER
 #define MPI_STATUS_EXTRACT(X) (X)
+#define MPI_GET_COMP
 #endif
 
 #if defined(__parallel)
 #if defined(__MPI_F08)
-   USE mpi_f08
+   USE mpi_f08, ONLY: mpi_allgather, mpi_allgatherv, mpi_alloc_mem, mpi_allreduce, mpi_alltoall, mpi_alltoallv, mpi_bcast, &
+                     mpi_cart_coords, mpi_cart_create, mpi_cart_get, mpi_cart_rank, mpi_cart_sub, mpi_dims_create, mpi_file_close, &
+                      mpi_file_get_size, mpi_file_open, mpi_file_read_at_all, mpi_file_read_at, mpi_file_write_at_all, &
+                  mpi_file_write_at, mpi_free_mem, mpi_gather, mpi_gatherv, mpi_get_address, mpi_group_translate_ranks, mpi_irecv, &
+                      mpi_isend, mpi_recv, mpi_reduce, mpi_reduce_scatter, mpi_rget, mpi_scatter, mpi_send, &
+                     mpi_sendrecv, mpi_sendrecv_replace, mpi_testany, mpi_waitall, mpi_waitany, mpi_win_create, mpi_comm_get_attr, &
+              mpi_ibcast, mpi_any_tag, mpi_any_source, mpi_address_kind, mpi_thread_serialized, mpi_errors_return, mpi_comm_world, &
+                      mpi_comm_self, mpi_comm_null, mpi_info_null, mpi_request_null, mpi_request, mpi_comm, mpi_group, &
+                      mpi_status_ignore, mpi_info, mpi_file, mpi_success, &
+                      mpi_tag_ub, mpi_host, mpi_io, mpi_wtime_is_global, mpi_logical, &
+                      mpi_status, mpi_lor, mpi_2real, mpi_real, mpi_maxloc, mpi_integer8, mpi_bottom, &
+                      mpi_iscatter, mpi_iscatterv, mpi_gatherv, mpi_igatherv, mpi_iallgather, &
+                      mpi_iallgatherv, mpi_status, mpi_comm_type_shared, mpi_integer, mpi_minloc, mpi_2double_precision, &
+                      mpi_file, mpi_minloc, mpi_integer, mpi_sum, mpi_scan, &
+                      mpi_2integer, mpi_in_place, mpi_max, mpi_min, mpi_prod, mpi_iallreduce, mpi_double_precision, &
+                      mpi_error_string, mpi_double_complex, mpi_complex, mpi_type_size, mpi_file_write_all, &
+                      mpi_max_error_string, mpi_datatype, mpi_offset_kind, mpi_win, mpi_mode_rdonly, mpi_mode_rdwr, &
+                      mpi_mode_wronly, mpi_mode_create, mpi_mode_append, mpi_mode_excl, mpi_max_library_version_string, &
+                      mpi_win_null, mpi_file_null, mpi_datatype_null, mpi_character, mpi_mode_nocheck, &
+                      mpi_status_size, mpi_proc_null, mpi_unequal, mpi_similar, mpi_ident, mpi_congruent
 #else
    USE mpi
 #endif
@@ -953,12 +974,20 @@ CONTAINS
    #:for type in types
       LOGICAL FUNCTION mp_${type}$_op_eq(${type}$1, ${type}$2)
          CLASS(mp_${type}$_type), INTENT(IN) :: ${type}$1, ${type}$2
+#if defined(__parallel) && defined(__MPI_F08)
+         mp_${type}$_op_eq = (${type}$1%handle%mpi_val .EQ. ${type}$2%handle%mpi_val)
+#else
          mp_${type}$_op_eq = (${type}$1%handle .EQ. ${type}$2%handle)
+#endif
       END FUNCTION mp_${type}$_op_eq
 
       LOGICAL FUNCTION mp_${type}$_op_neq(${type}$1, ${type}$2)
          CLASS(mp_${type}$_type), INTENT(IN) :: ${type}$1, ${type}$2
+#if defined(__parallel) && defined(__MPI_F08)
+         mp_${type}$_op_neq = (${type}$1%handle%mpi_val .NE. ${type}$2%handle%mpi_val)
+#else
          mp_${type}$_op_neq = (${type}$1%handle .NE. ${type}$2%handle)
+#endif
       END FUNCTION mp_${type}$_op_neq
 
       ELEMENTAL #{if type=="comm"}#IMPURE #{endif}#SUBROUTINE mp_${type}$_type_set_handle(this, handle #{if type=="comm"}#, ndims#{endif}#)
@@ -1757,7 +1786,7 @@ CONTAINS
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
          LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
-         IF (comm%handle /= mp_comm_null_handle) THEN
+         IF (comm%handle MPI_GET_COMP .NE. mp_comm_null_handle MPI_GET_COMP) THEN
             comm%source = 0
             CALL comm%get_size(comm%num_pe)
             CALL comm%get_rank(comm%mepos)
@@ -1777,7 +1806,7 @@ CONTAINS
 
             comm%mepos_cart = 0
             comm%periodic = .FALSE.
-            IF (comm%handle /= mp_comm_null_handle) THEN
+            IF (comm%handle MPI_GET_COMP .NE. mp_comm_null_handle MPI_GET_COMP) THEN
                CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
                                        comm%periodic)
             END IF
@@ -3783,10 +3812,6 @@ CONTAINS
          INTEGER                                            :: ierr
 
          ierr = 0
-#endif
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-#if defined(__parallel)
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
          CALL mpi_file_close(fh%handle, ierr)
          IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_close")
@@ -3822,9 +3847,6 @@ CONTAINS
          INTEGER                                            :: ierr
 #endif
 
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-
 #if defined(__parallel)
          ierr = 0
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
@@ -3852,9 +3874,6 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                            :: ierr
 #endif
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          ierr = 0
@@ -3887,9 +3906,6 @@ CONTAINS
          INTEGER                                    :: ierr, msg_len
 #endif
 
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-
 #if defined(__parallel)
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
@@ -3916,9 +3932,6 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                    :: ierr
 #endif
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -3949,9 +3962,6 @@ CONTAINS
          INTEGER                                    :: ierr, msg_len
 #endif
 
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-
 #if defined(__parallel)
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
@@ -3978,9 +3988,6 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                    :: ierr
 #endif
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -4012,9 +4019,6 @@ CONTAINS
          INTEGER                                    :: ierr, msg_len
 #endif
 
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-
 #if defined(__parallel)
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
@@ -4041,9 +4045,6 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                    :: ierr
 #endif
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          CALL MPI_FILE_READ_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -4074,9 +4075,6 @@ CONTAINS
          INTEGER                                    :: ierr, msg_len
 #endif
 
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-
 #if defined(__parallel)
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
@@ -4103,9 +4101,6 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                    :: ierr
 #endif
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
@@ -4331,9 +4326,6 @@ CONTAINS
 
          CALL mp_timeset(routineN, handle)
 
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
-
 #if defined(__parallel)
          ierr = 0
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
@@ -4380,9 +4372,6 @@ CONTAINS
 #endif
 
          CALL mp_timeset(routineN, handle)
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          ierr = 0
@@ -4438,9 +4427,6 @@ CONTAINS
 #endif
 
          CALL mp_timeset(routineN, handle)
-
-         IF (fh%handle == mp_file_null_handle) &
-            CPABORT("Invalid file handle")
 
 #if defined(__parallel)
          MARK_USED(type_descriptor)
