@@ -26,7 +26,7 @@ MODULE dm_ls_scf_qs
         dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_hold, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
                                               ls_mstruct_type,&
@@ -120,7 +120,6 @@ CONTAINS
       CALL dbcsr_distribution_hold(ls_dist)
       CALL dbcsr_distribution_get(ls_dist, row_dist=ls_row_dist, col_dist=ls_col_dist)
       ls_data_type = dbcsr_type_real_8
-      IF (ls_mstruct%single_precision) ls_data_type = dbcsr_type_real_4
 
       ! PAO ----------------------------------------------------------------------------------------
       IF (ls_mstruct%do_pao) THEN
@@ -270,7 +269,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_cluster'
 
       INTEGER                                            :: handle
-      TYPE(dbcsr_type)                                   :: matrix_in_nosym, matrix_tmp
+      TYPE(dbcsr_type)                                   :: matrix_in_nosym
 
       CALL timeset(routineN, handle)
 
@@ -284,14 +283,7 @@ CONTAINS
          CALL dbcsr_desymmetrize(matrix_in, matrix_in_nosym)
 
          ! perform the magic complete redistribute copy
-         IF (ls_mstruct%single_precision) THEN
-            CALL dbcsr_create(matrix_tmp, template=matrix_in_nosym, data_type=dbcsr_type_real_4)
-            CALL dbcsr_copy(matrix_tmp, matrix_in_nosym)
-            CALL dbcsr_complete_redistribute(matrix_tmp, matrix_out); 
-            CALL dbcsr_release(matrix_tmp)
-         ELSE
-            CALL dbcsr_complete_redistribute(matrix_in_nosym, matrix_out); 
-         END IF
+         CALL dbcsr_complete_redistribute(matrix_in_nosym, matrix_out); 
          CALL dbcsr_release(matrix_in_nosym)
 
       CASE DEFAULT
@@ -390,7 +382,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_decluster'
 
       INTEGER                                            :: handle
-      TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
 
@@ -400,14 +391,7 @@ CONTAINS
 
       CASE (ls_cluster_molecular)
          ! perform the magic complete redistribute copy
-         IF (ls_mstruct%single_precision) THEN
-            CALL dbcsr_create(matrix_tmp, template=matrix_in, data_type=dbcsr_type_real_8)
-            CALL dbcsr_copy(matrix_tmp, matrix_in)
-            CALL dbcsr_complete_redistribute(matrix_tmp, matrix_out)
-            CALL dbcsr_release(matrix_tmp)
-         ELSE
-            CALL dbcsr_complete_redistribute(matrix_in, matrix_out)
-         END IF
+         CALL dbcsr_complete_redistribute(matrix_in, matrix_out)
 
       CASE DEFAULT
          CPABORT("Unknown LS cluster type")

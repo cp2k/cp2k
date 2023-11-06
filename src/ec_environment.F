@@ -409,7 +409,6 @@ CONTAINS
       ls_env%mu_spin = mu
       CALL section_vals_val_get(ec_section, "S_PRECONDITIONER", i_val=ls_env%s_preconditioner_type)
       CALL section_vals_val_get(ec_section, "MATRIX_CLUSTER_TYPE", i_val=ls_env%ls_mstruct%cluster_type)
-      CALL section_vals_val_get(ec_section, "SINGLE_PRECISION_MATRICES", l_val=ls_env%ls_mstruct%single_precision)
       CALL section_vals_val_get(ec_section, "S_INVERSION", i_val=ls_env%s_inversion_type)
       CALL section_vals_val_get(ec_section, "CHECK_S_INV", l_val=ls_env%check_s_inv)
       CALL section_vals_val_get(ec_section, "REPORT_ALL_SPARSITIES", l_val=ls_env%report_all_sparsities)
@@ -599,8 +598,6 @@ CONTAINS
                WRITE (unit_nr, '(T2,A,T61,L20)') "Computing inv(S):", ls_env%needs_s_inv
                WRITE (unit_nr, '(T2,A,T61,L20)') "Computing sqrt(S):", ls_env%use_s_sqrt
                WRITE (unit_nr, '(T2,A,T61,L20)') "Computing S preconditioner ", ls_env%has_s_preconditioner
-               WRITE (unit_nr, '(T2,A,T61,L20)') "Use single precision matrices", &
-                  ls_env%ls_mstruct%single_precision
 
                IF (ls_env%use_s_sqrt) THEN
                   SELECT CASE (ls_env%s_sqrt_method)

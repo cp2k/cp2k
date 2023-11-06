@@ -206,7 +206,6 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "MAX_SCF", i_val=ls_scf_env%max_scf)
       CALL section_vals_val_get(ls_scf_section, "S_PRECONDITIONER", i_val=ls_scf_env%s_preconditioner_type)
       CALL section_vals_val_get(ls_scf_section, "MATRIX_CLUSTER_TYPE", i_val=ls_scf_env%ls_mstruct%cluster_type)
-      CALL section_vals_val_get(ls_scf_section, "SINGLE_PRECISION_MATRICES", l_val=ls_scf_env%ls_mstruct%single_precision)
       CALL section_vals_val_get(ls_scf_section, "S_INVERSION", i_val=ls_scf_env%s_inversion_type)
       CALL section_vals_val_get(ls_scf_section, "CHECK_S_INV", l_val=ls_scf_env%check_s_inv)
       CALL section_vals_val_get(ls_scf_section, "REPORT_ALL_SPARSITIES", l_val=ls_scf_env%report_all_sparsities)
@@ -384,7 +383,6 @@ CONTAINS
 
          WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_scf_env%s_sqrt_order
          WRITE (unit_nr, '(T2,A,T61,I20)') "Extrapolation order:", ls_scf_env%extrapolation_order
-         WRITE (unit_nr, '(T2,A,T61,L20)') "Use single precision matrices", ls_scf_env%ls_mstruct%single_precision
 
          SELECT CASE (ls_scf_env%s_preconditioner_type)
          CASE (ls_s_preconditioner_none)

@@ -41,7 +41,6 @@ MODULE dm_ls_scf_types
 
    TYPE ls_mstruct_type
       INTEGER :: cluster_type = -1
-      LOGICAL :: single_precision = .FALSE.
       LOGICAL :: do_pao = .FALSE.
       INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
       TYPE(dbcsr_type)                :: matrix_A
