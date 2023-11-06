@@ -22,17 +22,17 @@ spack load cp2k
 
 This command will add the appropriate directories to `PATH` and `MANPATH`. See [using installed Spack packages] for more information.
 
-### Costumizing Installation
+### Customizing Installation
 
 #### Variants
 
-[Spack] allows to fully costumize an installation. The [CP2K Spack package] has several options for costumization (called "variants", see [Spack package variants]). For example, to install CP2K with `libint` and `libxc`, one can type
+[Spack] allows to fully customize an installation. The [CP2K Spack package] has several options for customization (called "variants", see [Spack package variants]). For example, to install CP2K with `libint` and `libxc`, one can type
 
 ```bash
 spack install cp2k +libint +libxc
 ```
 
-`+VARIANT` will enable a boolean variant, while `~VARIANT` will didable a boolean variant. Non boolean variants can be specified with the `VARIANT=VALUE` syntax (see [Spack package variants] for more details). The previous installation command takes care of building CP2K with `libint` and `libxc` support. More importantly, it takes care of building the appropriate versions of `libint` and `libxc` to work with CP2K (Fortran support, ...).
+`+VARIANT` will enable a boolean variant, while `~VARIANT` will disable a boolean variant. Non boolean variants can be specified with the `VARIANT=VALUE` syntax (see [Spack package variants] for more details). The previous installation command takes care of building CP2K with `libint` and `libxc` support. More importantly, it takes care of building the appropriate versions of `libint` and `libxc` to work with CP2K (Fortran support, ...).
 
 #### Versions
 
@@ -52,7 +52,7 @@ The `cp2k@2023.2 +libint +libxc +dlaf +sirius +cosma +spglib lmax=6` string is c
 
 #### CUDA and ROCm Support
 
-The `cuda` and `rocm` variants are available for CP2K. Therefore, CUDA support can be enabled with `+cuda` and ROCm support can be enabled with `+rocm`. `cuda_arch` and `amdgpu_target` allow to specify the GPU architecture:
+The `cuda` and `rocm` variants are available for CP2K. Therefore, CUDA support can be enabled with `+cuda` and ROCm support can be enabled with `+rocm`. `cuda_arch` and `amdgpu_target` allow specifying the GPU architecture:
 
 ```bash
 spack install cp2k +cuda cuda_arch=80
@@ -75,7 +75,7 @@ For example, if you want to install CP2K with CUDA support but [DBCSR] without C
 spack install cp2k +cuda cuda_arch=80 ^dbcsr ~cuda
 ```
 
-Another example, is the choice of vendor libraries. In odert to use Intel oneAPI MKL, it can be specified as a dependency:
+Another example, is the choice of vendor libraries. In order to use Intel oneAPI MKL, it can be specified as a dependency:
 
 ```bash
 spack install cp2k ^intel-oneapi-mkl +cluster
@@ -99,7 +99,7 @@ Once all dependencies are installed, you can get a shell with all the dependenci
 spack build-env CP2K_SPEC -- bash
 ```
 
-From here, you can iterate CP2K developement using the native build system as Spack would use it.
+From here, you can iterate CP2K development using the native build system as Spack would use it.
 
 [cp2k spack package]: https://packages.spack.io/package.html?name=cp2k
 [dbcsr]: https://cp2k.github.io/dbcsr/develop/
