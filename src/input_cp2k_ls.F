@@ -271,12 +271,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SINGLE_PRECISION_MATRICES", &
-                          description="Matrices used within the LS code can be either double or single precision.", &
-                          usage="SINGLE_PRECISION_MATRICES", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create( &
          keyword, __LOCATION__, name="RESTART_WRITE", &
          description="Write the density matrix at the end of the SCF (currently requires EXTRAPOLATION_ORDER>0). "// &
