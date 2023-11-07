@@ -20,6 +20,12 @@ MODULE excited_states
                                               cp_logger_type
    USE ex_property_calculation,         ONLY: ex_properties
    USE exstates_types,                  ONLY: excited_energy_type
+   USE input_constants,                 ONLY: ot_precond_full_all,&
+                                              ot_precond_full_kinetic,&
+                                              ot_precond_full_single,&
+                                              ot_precond_full_single_inverse,&
+                                              ot_precond_none,& 
+                                              ot_precond_s_inverse
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -31,7 +37,6 @@ MODULE excited_states
                                               qs_force_type,&
                                               sum_qs_force,&
                                               zero_qs_force
-   USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
    USE response_solver,                 ONLY: response_equation,&
@@ -72,7 +77,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
-      TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, lr_force
       TYPE(qs_p_env_type)                                :: p_env
@@ -89,53 +93,17 @@ CONTAINS
             unit_nr = -1
          END IF
 
-         CALL get_qs_env(qs_env, exstate_env=ex_env, energy=energy)
+	 CALL get_qs_env(qs_env, exstate_env=ex_env, energy=energy)
 
          energy%excited_state = ex_env%evalue
          energy%total = energy%total + ex_env%evalue
-
          IF (calculate_forces) THEN
-            NULLIFY(linres_control)
-            ALLOCATE(linres_control)
+            tdlr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%LINRES")
             IF (unit_nr > 0) THEN
-               ! print info
                WRITE (unit_nr, '(T2,A,A,A,A,A)') "!", REPEAT("-", 27), &
                   " Excited State Forces ", REPEAT("-", 28), "!"
-               WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                  "LINRES| Optimization algorithm", " Conjugate Gradients"
-      
-               SELECT CASE (linres_control%preconditioner_type)
-               CASE (ot_precond_none)
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                     "LINRES| Preconditioner", "                NONE"
-               CASE (ot_precond_full_single)
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                     "LINRES| Preconditioner", "         FULL_SINGLE"
-               CASE (ot_precond_full_kinetic)
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                     "LINRES| Preconditioner", "        FULL_KINETIC"
-               CASE (ot_precond_s_inverse)
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                     "LINRES| Preconditioner", "      FULL_S_INVERSE"
-               CASE (ot_precond_full_single_inverse)
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                     "LINRES| Preconditioner", " FULL_SINGLE_INVERSE"
-               CASE (ot_precond_full_all)
-                  WRITE (UNIT=unit_nr, FMT="(T2,A,T60,A)") &
-                     "LINRES| Preconditioner", "            FULL_ALL"
-               CASE DEFAULT
-                  CPABORT("Preconditioner NYI")
-               END SELECT
-      
-               WRITE (UNIT=unit_nr, FMT="(T2,A,T72,ES8.1)") &
-                  "LINRES| EPS", linres_control%eps
-               WRITE (UNIT=unit_nr, FMT="(T2,A,T72,I8)") &
-                  "LINRES| MAX_ITER", linres_control%max_iter
-	  END IF
-
-            tdlr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%LINRES")
-
-            ! prepare force array
+            END IF
+	    ! prepare force array
             CALL get_qs_env(qs_env, force=ks_force, atomic_kind_set=atomic_kind_set)
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
             NULLIFY (lr_force)
