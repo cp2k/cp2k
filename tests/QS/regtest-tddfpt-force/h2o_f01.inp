@@ -7,6 +7,10 @@
          &XC_FUNCTIONAL NONE
          &END XC_FUNCTIONAL
        &END XC
+       &LINRES
+         PRECONDITIONER FULL_ALL
+         MAX_ITER 20
+       &END LINRES
        NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7

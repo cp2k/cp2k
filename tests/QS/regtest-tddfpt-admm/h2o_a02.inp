@@ -8,6 +8,10 @@
        NSTATES      2
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-5
+       &LINRES
+         PRECONDITIONER FULL_ALL
+         MAX_ITER 20
+       &END LINRES
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
