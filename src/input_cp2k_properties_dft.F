@@ -147,14 +147,23 @@ CONTAINS
 !> \param section the section to create
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE create_linres_section(section, create_subsections)
+   SUBROUTINE create_linres_section(section, create_subsections, precond_tdlr)
       TYPE(section_type), POINTER                        :: section
       LOGICAL, INTENT(in)                                :: create_subsections
+      LOGICAL, INTENT(IN), OPTIONAL                      :: precond_tdlr
 
+
+      INTEGER                                            :: default_precond
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       NULLIFY (keyword, print_key)
+
+      IF (PRESENT(precond_tdlr)) THEN
+         default_precond=ot_precond_full_all
+      ELSE
+         default_precond=ot_precond_none
+      END IF
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
@@ -193,7 +202,7 @@ CONTAINS
          "They differ in effectiveness, cost of construction, cost of application. "// &
          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
          usage="PRECONDITIONER FULL_ALL", &
-         default_i_val=ot_precond_none, &
+         default_i_val=default_precond, &
          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
                          "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
@@ -1664,7 +1673,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! LINRES section
-      CALL create_linres_section(subsection, create_subsections=.FALSE.)
+      CALL create_linres_section(subsection, create_subsections=.FALSE., precond_tdlr=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

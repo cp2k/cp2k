@@ -321,7 +321,7 @@ CONTAINS
       INTEGER                                            :: handle, iounit
       LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
-                                                            polar_present, vcd_present
+                                                            polar_present, vcd_present, tddfpt_section ! mod
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -336,6 +336,7 @@ CONTAINS
       issc_present = .FALSE.
       polar_present = .FALSE.
       dcdr_present = .FALSE.
+      tddfpt_section = .FALSE. ! mod
 
       NULLIFY (dft_control, linres_control, logger, prop_section, lr_section)
       logger => cp_get_default_logger()
