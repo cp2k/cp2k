@@ -1811,6 +1811,7 @@ CONTAINS
                                           Eigenval(:,1,1), &
                                           homo(1),virtual(1),dimen_RI, bse_spin_config, unit_nr,  &
                                           para_env, para_env_RPA, blacs_env_BSE)
+                                          
             CALL cp_fm_release(fm_mat_S_bar_ia_bse)
             CALL cp_fm_release(fm_mat_S_bar_ij_bse)
          END IF

@@ -551,7 +551,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
-      INTEGER                                            :: handle, alpha, i
+      INTEGER                                            :: handle, i
+      REAL(KIND=dp)                                      :: alpha
       CHARACTER(LEN=10)                                  :: multiplet
 
 
@@ -561,10 +562,10 @@ CONTAINS
       !Prepare variables for printing
       IF (bse_spin_config == 0) THEN
          multiplet = "Singlet"
-         alpha = 2
+         alpha = 2.0_dp
       ELSE 
          multiplet = "Triplet"
-         alpha = 0
+         alpha = 0.0_dp
       END IF 
       !Print statement
       !print *,"unit_nr=",unit_nr
@@ -581,7 +582,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A)')     ' '
          WRITE (unit_nr, '(T3,A)')     '    A_iajb   =  (E_a-E_i) delta_ij delta_ab   +  alpha * v_iajb   -  W_ijab   '
          WRITE (unit_nr, '(T3,A)')     ' '
-         WRITE (unit_nr, '(T3,A48,A7,A12,I2)') &
+         WRITE (unit_nr, '(T3,A48,A7,A12,F3.1)') &
                                        ' The spin-dependent factor is for the requested ', multiplet," is alpha = ",alpha
          WRITE (unit_nr, '(T3,A)')     ' '
          WRITE (unit_nr, '(T3,A16,T50,A22)') &
@@ -1250,7 +1251,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_v_ia_jb_part'
 
-      INTEGER                                            :: a_virt, handle, i_occ, i_Z_vector, LLL, alpha
+      INTEGER                                            :: a_virt, handle, i_occ, i_Z_vector, LLL
+      REAL(KIND=dp)                                      :: alpha
       !debugging:
       
       integer                                            :: i,j,a,b
@@ -1260,10 +1262,10 @@ CONTAINS
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
       IF (bse_spin_config == 0) THEN
          !Case of singlet
-         alpha = 2
+         alpha = 2.0_dp
       ELSE 
          !Case of triplet
-         alpha = 0
+         alpha = 0.0_dp
       END IF
 
       !MG to del

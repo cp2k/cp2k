@@ -29,7 +29,10 @@ MODULE bse_full_diag
                                                cp_fm_set_all,&
                                                cp_fm_to_fm,&
                                                cp_fm_type, &
-                                               cp_fm_write_formatted !MG
+                                               cp_fm_write_formatted,& !MG
+                                               cp_fm_indxg2l, &
+                                               cp_fm_indxg2p, &
+                                               cp_fm_indxl2g
     USE group_dist_types,                ONLY: get_group_dist,&
                                                group_dist_d1_type
     USE kinds,                           ONLY: dp
@@ -67,27 +70,41 @@ MODULE bse_full_diag
         TYPE(cp_blacs_env_type), POINTER                    :: blacs_env_BSE
 
         CHARACTER(LEN=*), PARAMETER                         :: routineN = 'create_and_diagonalize_A'
-        INTEGER                                             :: handle, alpha, ia, jb, ii, jj, & 
+        INTEGER                                             :: handle, ia, jb, ii, jj, dummy_proc, &
+                                                               ij_loc, ab_loc, send_prow, send_pcol,&
+                                                               proc_send, &
                                                                nrow_local_A, ncol_local_A, &
                                                                nrow_local_W, ncol_local_W, &
                                                                i_occ_row, a_virt_row, &
-                                                               j_occ_col, b_virt_col
+                                                               j_occ_col, b_virt_col, &
+                                                               nrow_block_W, ncol_block_W, &
+                                                               nrow_block_A, ncol_block_A, &
+                                                               kk, ll, nn, mm, iproc, &
+                                                               dim_global_row, dim_global_col, &
+                                                               nrow_local_A_pred, ncol_local_A_pred,&
+                                                               npcol, nprow, &
+                                                               i_row_global, j_col_global, i_entry_rec
+        INTEGER, ALLOCATABLE, DIMENSION(:)                  :: num_entries_rec, num_entries_send, &
+                                                               entry_counter
+        TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+        DIMENSION(:)                                        :: buffer_rec, buffer_send
         TYPE(cp_blacs_env_type), POINTER                    :: blacs_env
-        TYPE(cp_fm_struct_type), POINTER                    :: fm_struct_A,fm_struct_W,fm_struct_V
-        TYPE(cp_fm_type)                                    :: fm_mat_A, fm_mat_W, fm_mat_V
+        TYPE(cp_fm_struct_type), POINTER                    :: fm_struct_A,fm_struct_W
+        TYPE(cp_fm_type)                                    :: fm_mat_A, fm_mat_W
         INTEGER, DIMENSION(:), POINTER                      :: col_indices_A, row_indices_A, &
                                                                col_indices_W, row_indices_W
-        REAL(KIND=dp)                                       :: eigen_diff
+        REAL(KIND=dp)                                       :: eigen_diff, alpha
+        TYPE(mp_request_type), DIMENSION(:, :), POINTER     :: req_array
 
         CALL timeset(routineN, handle)
 
         !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
         IF (bse_spin_config == 0) THEN
             !Case of singlet
-            alpha = 2
+            alpha = 2.0_dp
         ELSE 
             !Case of triplet
-            alpha = 0
+            alpha = 0.0_dp
         END IF
 
 
@@ -96,51 +113,29 @@ MODULE bse_full_diag
         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
         !We have to use the same blacs_env for A as for the matrices fm_mat_S from RPA
-        CALL cp_fm_struct_create(fm_struct_A, context=blacs_env_BSE, nrow_global=homo*virtual, &
+        !Logic: A_iajb = (eps_a-eps_i) delta_ij delta _ab + alpha * v_iajb - W_ijab
+        ! We create v_iajb and W_ijab, then we communicate entries from local W_ijab 
+        ! to the full matrix v_iajb. By adding these and the energy diffenences: v_iajb -> A_iajb
+        ! We use the A matrix already from the start instead of v
+        CALL cp_fm_struct_create(fm_struct_a, context=blacs_env_BSE, nrow_global=homo*virtual, &
                                 ncol_global=homo*virtual, para_env=para_env_RPA)
-        CALL cp_fm_create(fm_mat_A,fm_struct_A,name="fm_mat_A_iajb_BSE")
+        CALL cp_fm_create(fm_mat_A,fm_struct_a,name="fm_mat_A_iajb_BSE")
         CALL cp_fm_set_all(fm_mat_A, 0.0_dp)
-
-        CALL cp_fm_struct_create(fm_struct_v, context=blacs_env_BSE, nrow_global=homo*virtual, &
-                                ncol_global=homo*virtual, para_env=para_env_RPA)
-        CALL cp_fm_create(fm_mat_V,fm_struct_v,name="fm_mat_V_iajb_BSE")
-        CALL cp_fm_set_all(fm_mat_V, 0.0_dp)
 
         CALL cp_fm_struct_create(fm_struct_W, context=blacs_env, nrow_global=homo**2, &
                                 ncol_global=virtual**2, para_env=para_env)
         CALL cp_fm_create(fm_mat_W,fm_struct_W,name="fm_mat_W_ijab_BSE")
         CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
-
-        CALL cp_fm_get_info(matrix=fm_mat_A, &
-                            nrow_local=nrow_local_A, &
-                            ncol_local=ncol_local_A, &
-                            row_indices=row_indices_A, &
-                            col_indices=col_indices_A)
-        
-        CALL cp_fm_get_info(matrix=fm_mat_W, &
-                            nrow_local=nrow_local_W, &
-                            ncol_local=ncol_local_W, &
-                            row_indices=row_indices_W, &
-                            col_indices=col_indices_W)
-
-        
-        print *,"MG:A on proc",para_env%mepos,"indices row",row_indices_A
-        print *,"MG:A on proc",para_env%mepos,"indices col",col_indices_A
-
-        print *,"MG:W on proc",para_env%mepos,"indices row",row_indices_W
-        print *,"MG:W on proc",para_env%mepos,"indices col",col_indices_W
-        
+               
 
         !Create A matrix from GW Energies, v_iajb and W_ijab (different blacs_env!)
-        !v_iajb
-        CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
+        !v_iajb, which is directly initialized as A
+        CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha , &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
-                         matrix_c=fm_mat_V)
+                         matrix_c=fm_mat_A)
         
-        !print *,"MG: ",para_env%mepos,"is finished after pgemm V"
-        CALL cp_fm_write_formatted(fm_mat_V,unit_nr,"MG: print full V in fulldiag")
+        CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: print full A in fulldiag")
 
-        !print *,"MG: ",para_env%mepos,"is finished before pgemm W"
         CALL cp_fm_write_formatted(fm_mat_S_bar_ij_bse,unit_nr,"MG: print full S_ij_bar in fulldiag")
         CALL cp_fm_write_formatted(fm_mat_S_ab_bse,unit_nr,"MG: print full fm_mat_S_ab_bse in fulldiag")
         !W_ijab
@@ -148,49 +143,198 @@ MODULE bse_full_diag
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
                          
-        !print *,"MG: ",para_env%mepos,"is finished after pgemm W"
         CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: print full W in fulldiag")
 
-        !A_iajb
-        ! DO ii=1,nrow_local_A
-        !     DO jj=1,ncol_local_A
-        !         !Take indices for (un-)occ. orbitals from combined index ia=row_indices_A(ii)
-        !         i_occ_row = (row_indices_A(ii)-1)/virtual+1
-        !         a_virt_row = MOD(row_indices_A(ii)-1,virtual)+1
-        !         j_occ_col = (col_indices_A(jj)-1)/virtual+1
-        !         b_virt_col = MOD(col_indices_A(jj)-1,virtual)+1
-        !         !Get contributions from fm_mat_V and fm_mat_W
-        !         fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + alpha*fm_mat_V%local_data(ii,jj)
-        !         !Take care of different indices in A and W
-        !         fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) &
-        !                             - fm_mat_W%local_data(i_occ_row*j_occ_col,a_virt_row*b_virt_col)
+        ! A_iajb
+        ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
+        CALL cp_fm_get_info(matrix=fm_mat_A, &
+                            nrow_local=nrow_local_A, &
+                            ncol_local=ncol_local_A, &
+                            row_indices=row_indices_A, &
+                            col_indices=col_indices_A, &
+                            nrow_block = nrow_block_A, &
+                            ncol_block = ncol_block_A)
+        
+        nprow = fm_mat_A%matrix_struct%context%num_pe(1)
+        npcol = fm_mat_A%matrix_struct%context%num_pe(2)
+
+        ALLOCATE (num_entries_rec(0:para_env_RPA%num_pe - 1))
+        ALLOCATE (num_entries_send(0:para_env_RPA%num_pe - 1))
+
+        num_entries_rec(:) = 0
+        num_entries_send(:) = 0
+
+        dummy_proc = 0
+
+        CALL cp_fm_get_info(matrix=fm_mat_W, &
+                            nrow_local=nrow_local_W, &
+                            ncol_local=ncol_local_W, &
+                            row_indices=row_indices_W, &
+                            col_indices=col_indices_W,&
+                            nrow_block = nrow_block_W, &
+                            ncol_block = ncol_block_W)
+
+        !MG to del: cf. mp2_r_2c.F and rpa_communication.F
+        ! Use scalapack wrapper to find process index in A, where ijab -> iajb is needed
+        ! To that end, we obtain the global index in A from the level indices
+        DO ij_loc=1,nrow_local_W
+            i_occ_row = (row_indices_W(ij_loc)-1)/virtual+1
+            j_occ_col = MOD(row_indices_W(ij_loc)-1,virtual)+1
+
+            DO ab_loc=1,ncol_local_W
+                a_virt_row = (col_indices_W(ab_loc)-1)/virtual+1
+                b_virt_col = MOD(col_indices_W(ab_loc)-1,virtual)+1
+
+                send_prow = cp_fm_indxg2p(i_occ_row*a_virt_row,nrow_block_A,dummy_proc, &
+                                          fm_mat_A%matrix_struct%first_p_pos(1), nprow)
+                send_pcol = cp_fm_indxg2p(j_occ_col*b_virt_col,ncol_block_A,dummy_proc, &
+                                          fm_mat_A%matrix_struct%first_p_pos(2), npcol)
                 
+            proc_send = fm_mat_A%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
-        !         !fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + fm_mat_W
+            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
 
-        !         !Add energy differences on diagonal
-        !         IF (row_indices_A(ii) == col_indices_A(jj)) THEN 
-        !             !print *, "MG: ia, i_occ_row, a_virt_row", row_indices_A(ii), i_occ_row, a_virt_row
-        !             eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
-        !             fm_mat_A%local_data(ii,jj) = fm_mat_A%local_data(ii,jj) + eigen_diff
-        !         END IF
+            END DO
+        END DO
 
-        !     END DO
-        ! END DO
+        CALL para_env_RPA%alltoall(num_entries_send, num_entries_rec, 1)
+        
+        ! Buffers for entries and their indices
+        ALLOCATE (buffer_rec(0:para_env_RPA%num_pe - 1))
+        ALLOCATE (buffer_send(0:para_env_RPA%num_pe - 1))
+  
+        ! allocate data message and corresponding indices
+        DO iproc = 0, para_env_RPA%num_pe - 1
+  
+            ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
+            buffer_rec(iproc)%msg = 0.0_dp
+  
+        END DO
 
+        DO iproc = 0, para_env_RPA%num_pe - 1
 
-        CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: print full A in fulldiag")
+            ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
+            buffer_send(iproc)%msg = 0.0_dp
 
+        END DO
+
+        DO iproc = 0, para_env_RPA%num_pe - 1
+
+            ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
+            buffer_rec(iproc)%indx = 0
+
+        END DO
+
+        DO iproc = 0, para_env_RPA%num_pe - 1
+
+            ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
+            buffer_send(iproc)%indx = 0
+   
+        END DO
+
+        ALLOCATE (entry_counter(0:para_env_RPA%num_pe - 1))
+        entry_counter(:) = 0
+
+        ! Now we can write the actual data and indices to the send-buffer
+        DO ij_loc=1,nrow_local_W
+            i_occ_row = (row_indices_W(ij_loc)-1)/virtual+1
+            j_occ_col = MOD(row_indices_W(ij_loc)-1,virtual)+1
+
+            DO ab_loc=1,ncol_local_W
+                a_virt_row = (col_indices_W(ab_loc)-1)/virtual+1
+                b_virt_col = MOD(col_indices_W(ab_loc)-1,virtual)+1
+
+                send_prow = cp_fm_indxg2p(i_occ_row*a_virt_row,nrow_block_A,dummy_proc, &
+                                          fm_mat_A%matrix_struct%first_p_pos(1), nprow)
+
+                send_pcol = cp_fm_indxg2p(j_occ_col*b_virt_col,ncol_block_A,dummy_proc, &
+                                          fm_mat_A%matrix_struct%first_p_pos(2), npcol)
+                
+                proc_send = fm_mat_A%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+
+                entry_counter(proc_send) = entry_counter(proc_send) + 1
+
+                buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
+                fm_mat_W%local_data(ij_loc,ab_loc)
+
+                buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = i_occ_row*a_virt_row
+                buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = j_occ_col*b_virt_col
+            END DO
+        END DO
+
+        ALLOCATE (req_array(1:para_env_RPA%num_pe, 4))
+        ! communicate the buffer
+        CALL communicate_buffer(para_env_RPA, num_entries_rec, num_entries_send, buffer_rec, &
+                                    buffer_send, req_array)
+                                    
+        ! fill fm_mat_A with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
+        DO iproc = 0, para_env_RPA%num_pe - 1
+            DO i_entry_rec = 1, num_entries_rec(iproc)
+                DO ii = 1, nrow_local_A
+
+                    i_row_global = row_indices_A(ii)
+
+                    DO jj = 1, ncol_local_A
+
+                        j_col_global = col_indices_A(jj)
+
+                        IF (i_row_global == buffer_rec(iproc)%indx(i_entry_rec, 1) .AND. &
+                            j_col_global == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
+                            !Subtract buffer, since A = Delta E + alpha V - W
+                            fm_mat_A%local_data(ii, jj) = fm_mat_A%local_data(ii, jj) - buffer_rec(iproc)%msg(i_entry_rec)
+
+                        END IF
+                    END DO
+                END DO
+            END DO
+        END DO
+
+        !Clean up all the arrays from the communication process W_ijab -> A_iajb
+        DO iproc = 0, para_env_RPA%num_pe - 1
+            DEALLOCATE (buffer_rec(iproc)%msg)
+            DEALLOCATE (buffer_rec(iproc)%indx)
+            DEALLOCATE (buffer_send(iproc)%msg)
+            DEALLOCATE (buffer_send(iproc)%indx)
+        END DO
+        DEALLOCATE (buffer_rec, buffer_send)
+        DEALLOCATE (req_array)
+        DEALLOCATE (entry_counter)
+        DEALLOCATE (num_entries_rec, num_entries_send)
+
+        !full matrix W is not needed anymore, release it to save memory
+        CALL cp_fm_struct_release(fm_struct_W)
+        CALL cp_fm_release(fm_mat_W)
+
+        !Now add the energy differences to A
+        DO ii = 1, nrow_local_A
+
+            i_row_global = row_indices_A(ii)
+
+            DO jj = 1, ncol_local_A
+
+                j_col_global = col_indices_A(jj)
+
+                IF ( i_row_global == j_col_global ) THEN
+                    i_occ_row = (i_row_global-1)/virtual+1
+                    a_virt_row = MOD(i_row_global-1,virtual)+1
+                    eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
+                    print *,"MG-Adiffs",i_occ_row,a_virt_row,eigen_diff,fm_mat_A%local_data(ii,jj)
+                    fm_mat_A%local_data(ii, jj) = fm_mat_A%local_data(ii, jj) + eigen_diff
+
+                END IF
+            END DO
+        END DO
+
+        !We have now the full matrix A_iajb, distributed over all ranks
+        !Now: Diagonalize it
 
 
         CALL cp_fm_struct_release(fm_struct_A)
         CALL cp_fm_release(fm_mat_A)
-        CALL cp_fm_struct_release(fm_struct_V)
-        CALL cp_fm_release(fm_mat_V)
-        CALL cp_fm_struct_release(fm_struct_W)
-        CALL cp_fm_release(fm_mat_W)
+        
         CALL timestop(handle)
 
     END SUBROUTINE
+
 
 END MODULE bse_full_diag
