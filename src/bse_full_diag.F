@@ -19,6 +19,7 @@ MODULE bse_full_diag
     USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
     USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                                cp_fm_cholesky_invert
+    USE cp_fm_diag,                      ONLY: cp_fm_syevd
     USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                                cp_fm_struct_get, &
                                                cp_fm_struct_release,&
@@ -89,11 +90,12 @@ MODULE bse_full_diag
         TYPE(integ_mat_buffer_type), ALLOCATABLE, &
         DIMENSION(:)                                        :: buffer_rec, buffer_send
         TYPE(cp_blacs_env_type), POINTER                    :: blacs_env
-        TYPE(cp_fm_struct_type), POINTER                    :: fm_struct_A,fm_struct_W
-        TYPE(cp_fm_type)                                    :: fm_mat_A, fm_mat_W
+        TYPE(cp_fm_struct_type), POINTER                    :: fm_struct_A,fm_struct_W, fm_struct_eigvec
+        TYPE(cp_fm_type)                                    :: fm_mat_A, fm_mat_W, fm_mat_eigvec
         INTEGER, DIMENSION(:), POINTER                      :: col_indices_A, row_indices_A, &
                                                                col_indices_W, row_indices_W
         REAL(KIND=dp)                                       :: eigen_diff, alpha
+        REAL(KIND=dp),ALLOCATABLE,DIMENSION(:)              :: Exc_ens
         TYPE(mp_request_type), DIMENSION(:, :), POINTER     :: req_array
 
         CALL timeset(routineN, handle)
@@ -327,14 +329,80 @@ MODULE bse_full_diag
 
         !We have now the full matrix A_iajb, distributed over all ranks
         !Now: Diagonalize it
+        CALL cp_fm_struct_create(fmstruct=fm_struct_eigvec,&
+                                 context=blacs_env_BSE,&
+                                 nrow_global=homo*virtual, &
+                                 ncol_global=homo*virtual)
 
+        CALL cp_fm_create(fm_mat_eigvec, fm_struct_eigvec)
 
+        ALLOCATE(Exc_ens(homo*virtual))
+        CALL cp_fm_syevd(fm_mat_A, fm_mat_eigvec, Exc_ens)
+
+        CALL success_message(Exc_ens, bse_spin_config,unit_nr,homo*virtual)
+
+        !Release all local matrices and 
         CALL cp_fm_struct_release(fm_struct_A)
         CALL cp_fm_release(fm_mat_A)
-        
+        CALL cp_fm_struct_release(fm_struct_eigvec)
+        CALL cp_fm_release(fm_mat_eigvec)
+        DEALLOCATE(Exc_ens)
+
+
         CALL timestop(handle)
 
     END SUBROUTINE
 
+
+    SUBROUTINE success_message(Exc_ens, bse_spin_config,unit_nr,num_exc_en)
+
+        REAL(KIND=dp),ALLOCATABLE,dimension(:)             :: Exc_ens
+        INTEGER                                            :: bse_spin_config, unit_nr,num_exc_en
+
+        CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
+
+        INTEGER                                            :: handle, i
+        REAL(KIND=dp)                                      :: alpha
+        CHARACTER(LEN=10)                                  :: multiplet
+
+
+        CALL timeset(routineN,handle)
+
+        !Prepare variables for printing
+        IF (bse_spin_config == 0) THEN
+            multiplet = "Singlet"
+            alpha = 2.0_dp
+        ELSE 
+            multiplet = "Triplet"
+            alpha = 0.0_dp
+        END IF 
+    
+        IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A)')     '******************************************************************************'
+            WRITE (unit_nr, '(T3,A)')     '**                                                                          **'
+            WRITE (unit_nr, '(T3,A)')     '**                        BSE-TDA EXCITONIC ENERGIES                        **'
+            WRITE (unit_nr, '(T3,A)')     '**                                                                          **'
+            WRITE (unit_nr, '(T3,A)')     '******************************************************************************'
+            WRITE (unit_nr, '(T3,A)')     ' '
+            WRITE (unit_nr, '(T3,A)')     ' '
+            WRITE (unit_nr, '(T3,A)')     ' The excitation energies are calculated by fully diagonalizing: '
+            WRITE (unit_nr, '(T3,A)')     ' '
+            WRITE (unit_nr, '(T3,A)')     '    A_iajb   =  (E_a-E_i) delta_ij delta_ab   +  alpha * v_iajb   -  W_ijab   '
+            WRITE (unit_nr, '(T3,A)')     ' '
+            WRITE (unit_nr, '(T3,A48,A7,A12,F3.1)') &
+                                        ' The spin-dependent factor is for the requested ', multiplet," is alpha = ",alpha
+            WRITE (unit_nr, '(T3,A)')     ' '
+            WRITE (unit_nr, '(T3,A16,T50,A22)') &
+                                        ' Excitonic level','Excitation energy (eV)'
+            !prints actual energies values
+            DO i=1,num_exc_en
+                WRITE (unit_nr, '(T3,I16,T50,F22.3)') i, Exc_ens(i)*evolt
+            END DO
+            WRITE (unit_nr, '(T3,A)')     ' '
+        END IF
+
+        CALL timestop(handle)
+    END SUBROUTINE
 
 END MODULE bse_full_diag
