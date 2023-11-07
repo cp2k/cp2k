@@ -18,11 +18,11 @@
     &SCF
       SCF_GUESS ATOMIC
       MAX_SCF   50
-      EPS_SCF 1.0e-8
+      EPS_SCF 1.0e-7
       EPS_DIIS 1.0e-2
       &SMEAR
         METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE   5000.
+        ELECTRONIC_TEMPERATURE   1000.
       &END
       &MIXING
           METHOD BROYDEN_MIXING
@@ -30,7 +30,7 @@
           BETA   1.0
           NBROYDEN 15
       &END
-      ADDED_MOS   20 20
+      ADDED_MOS   10
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE

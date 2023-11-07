@@ -299,6 +299,7 @@ Fist/regtest-excl-R
 Fist/regtest-14
 Fist/regtest-excl-G
 FE/regtest-1
+QS/regtest-ed                                               libint
 QS/regtest-hfx-2                                            libint
 QS/regtest-nmr-3
 QS/regtest-hybrid-1                                         libint
@@ -354,4 +355,3 @@ Fist/regtest-nequip                                         libtorch
 Fist/regtest-allegro                                        libtorch
 Fist/regtest-16
 DFTB/regtest-vdw
-QS/regtest-ed                                               libint
