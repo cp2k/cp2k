@@ -16,7 +16,7 @@
 #        Ensure the links in /usr/local/bin to the lastest gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 06.10.2023
+# Last update: 07.11.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \

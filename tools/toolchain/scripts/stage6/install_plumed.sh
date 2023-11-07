@@ -47,18 +47,18 @@ case "$with_plumed" in
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=96354
       # note: some MPI wrappers carry a -g forward, thus stripping is not enough
 
-      libs=""
+      case "$(uname -s)" in
+        Darwin)
+          libs="-lgomp"
+          ;;
+        *)
+          libs=""
+          ;;
+      esac
       [ -n "${MKL_LIBS}" ] && libs+="$(resolve_string "${MKL_LIBS}" "MPI")"
 
       # Patch to include <limits> explicitly as required by gcc >= 11.
-      case "$(uname -s)" in
-        Darwin)
-          gsed -i '/^#include <algorithm>/a #include <limits>' ./src/lepton/Operation.h
-          ;;
-        *)
-          sed -i '/^#include <algorithm>/a #include <limits>' ./src/lepton/Operation.h
-          ;;
-      esac
+      sed -i '' -e '/^#include <algorithm>/a\'$'\n''#include <limits>' ./src/lepton/Operation.h
 
       ./configure \
         CXX="${MPICXX}" \
