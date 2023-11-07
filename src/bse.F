@@ -60,7 +60,7 @@ CONTAINS
                                      num_davidson_iter, eps_res, Eigenval, para_env, &
                                      num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t,&
                                      bse_spin_config, unit_nr, bse_davidson_abort_cond, eps_exc_en, &
-                                     z_space_energy_cutoff,bse_exact_diag)
+                                     z_space_energy_cutoff,bse_full_diag)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
                                                             B_bar_iaQ_bse_local, B_iaQ_bse_local
@@ -71,7 +71,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_res, eps_exc_en, z_space_energy_cutoff
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL                                            :: bse_exact_diag
+      LOGICAL                                            :: bse_full_diag
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_subspace_iterations'
 
@@ -226,7 +226,7 @@ CONTAINS
          !print *, 'ProcNr',para_env%mepos,"Entering AZ"
          CALL compute_AZ(AZ, Z_vectors, B_iaQ_bse_local, B_bar_ijQ_bse_local, B_abQ_bse_local, &
                          M_ia_tmp, RI_vector, Eigenval, homo, virtual, num_Z_vectors, local_RI_size, &
-                         para_env, bse_spin_config,z_space_energy_cutoff,i_iter,bse_exact_diag, &
+                         para_env, bse_spin_config,z_space_energy_cutoff,i_iter,bse_full_diag, &
                          Full_exc_spectrum, unit_nr)
 
          !MG: functionality of BZ not checked (issue with fm_mat_Q_static_bse_gemm in rpa_util needs to be checked!)
@@ -333,7 +333,7 @@ CONTAINS
          ! END DO
 
          !If exact-diag: compute difference to exact eigenvalues
-         IF (bse_exact_diag) THEN 
+         IF (bse_full_diag) THEN 
             ALLOCATE(En_diffs_exact(num_exc_en))
             num_exact_en_unconverged = 0
             DO j_print=1,num_exc_en
@@ -370,7 +370,7 @@ CONTAINS
          ! END IF
 
 
-         ! IF (bse_exact_diag) THEN 
+         ! IF (bse_full_diag) THEN 
          !    IF (unit_nr > 0) THEN
          !       IF (i_iter == 1) THEN 
          !          OPEN(10, file=en_exact_filename, status="new")
@@ -406,7 +406,7 @@ CONTAINS
          Subspace_add_dir, AZ_reshaped, Z_vectors_reshaped, Subspace_ritzvec, Subspace_full_eigenval, &
          Res_norms, En_diffs)
 
-         IF (bse_exact_diag) THEN 
+         IF (bse_full_diag) THEN 
             DEALLOCATE(En_diffs_exact)
          END IF
 
@@ -1038,7 +1038,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_AZ(AZ, Z_vectors, B_iaQ_bse_local, B_bar_ijQ_bse_local, B_abQ_bse_local, M_ia_tmp, &
                          RI_vector, Eigenval, homo, virtual, num_Z_vectors, local_RI_size, &
-                         para_env, bse_spin_config, z_space_energy_cutoff, i_iter,bse_exact_diag, &
+                         para_env, bse_spin_config, z_space_energy_cutoff, i_iter,bse_full_diag, &
                          Full_exc_spectrum, unit_nr)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: AZ, Z_vectors, B_iaQ_bse_local, &
@@ -1050,7 +1050,7 @@ CONTAINS
                                                             local_RI_size, bse_spin_config, &
                                                             unit_nr
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL                                            :: bse_exact_diag
+      LOGICAL                                            :: bse_full_diag
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_AZ'
 
@@ -1073,7 +1073,7 @@ CONTAINS
       !    print *,"B_iaQ in LLL=",i," is: ",B_iaQ_bse_local(:,:,i)
       ! end do
 
-      IF (i_iter == 1 .AND. bse_exact_diag) THEN 
+      IF (i_iter == 1 .AND. bse_full_diag) THEN 
          ALLOCATE(W_ijab(homo,homo,virtual,virtual))
          ALLOCATE(A_full(homo,virtual,homo,virtual))
          ALLOCATE(A_full_reshaped(homo*virtual,homo*virtual))
@@ -1086,7 +1086,7 @@ CONTAINS
 
 
       CALL compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
-                                num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_exact_diag,i_iter,&
+                                num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_full_diag,i_iter,&
                                 unit_nr,para_env)
 
       !print *, 'ProcNr',para_env%mepos,"Computed V"
@@ -1112,7 +1112,7 @@ CONTAINS
       END DO
 
       !print *, 'ProcNr',para_env%mepos,"Computed W"
-      IF (i_iter == 1 .AND. bse_exact_diag) THEN 
+      IF (i_iter == 1 .AND. bse_full_diag) THEN 
          W_ijab = 0.0_dp
          !MG to del: Print screened 4c integrals for debugging purposes
          DO LLL=1,local_RI_size
@@ -1171,7 +1171,7 @@ CONTAINS
       END IF
 
       !Debugging purposes: full diagonalization of A
-      IF (i_iter == 1 .AND. bse_exact_diag) THEN
+      IF (i_iter == 1 .AND. bse_full_diag) THEN
          n = 0
          DO i = 1, homo
             DO a = 1, virtual
@@ -1238,7 +1238,7 @@ CONTAINS
 !> \param virtual ...
 ! **************************************************************************************************
    SUBROUTINE compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
-                                   num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_exact_diag,i_iter,&
+                                   num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_full_diag,i_iter,&
                                    unit_nr,para_env)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: AZ, Z_vectors, B_iaQ_bse_local
@@ -1246,7 +1246,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: local_RI_size, num_Z_vectors, homo, &
                                                             virtual, bse_spin_config, i_iter, unit_nr
       REAL(KIND=dp), allocatable,dimension(:,:,:,:)      :: v_iajb
-      LOGICAL                                            :: bse_exact_diag
+      LOGICAL                                            :: bse_full_diag
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_v_ia_jb_part'
@@ -1302,7 +1302,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      IF (i_iter == 1 .AND. bse_exact_diag) THEN 
+      IF (i_iter == 1 .AND. bse_full_diag) THEN 
          ALLOCATE(v_iajb(homo,virtual,homo,virtual))
          v_iajb = 0.0_dp
          !MG to del: Print 4c integrals for debugging purposes
@@ -1394,7 +1394,7 @@ CONTAINS
                                                      fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                      B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
-                                                     gd_array, color_sub, para_env, bse_exact_diag)
+                                                     gd_array, color_sub, para_env, bse_full_diag)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                                             fm_mat_S, fm_mat_Q_static_bse, &
@@ -1407,7 +1407,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL, INTENT(IN)                                :: bse_exact_diag
+      LOGICAL, INTENT(IN)                                :: bse_full_diag
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mult_B_with_W_and_fill_local_3c_arrays'
 
@@ -1493,7 +1493,7 @@ CONTAINS
 
       !MG: Deallocate fm_mat_S witout bar also here? Such that all cp_fm_releases on 
       !     fm_mat_S like stuff is done in one chunk?
-      IF (.NOT. bse_exact_diag) THEN
+      IF (.NOT. bse_full_diag) THEN
          CALL cp_fm_release(fm_mat_S_bar_ia_bse)
          CALL cp_fm_release(fm_mat_S_bar_ij_bse)
       END IF
