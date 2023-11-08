@@ -20,12 +20,6 @@ MODULE excited_states
                                               cp_logger_type
    USE ex_property_calculation,         ONLY: ex_properties
    USE exstates_types,                  ONLY: excited_energy_type
-   USE input_constants,                 ONLY: ot_precond_full_all,&
-                                              ot_precond_full_kinetic,&
-                                              ot_precond_full_single,&
-                                              ot_precond_full_single_inverse,&
-                                              ot_precond_none,& 
-                                              ot_precond_s_inverse
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -93,12 +87,11 @@ CONTAINS
             unit_nr = -1
          END IF
 
-	 CALL get_qs_env(qs_env, exstate_env=ex_env, energy=energy)
+         CALL get_qs_env(qs_env, exstate_env=ex_env, energy=energy)
 
          energy%excited_state = ex_env%evalue
          energy%total = energy%total + ex_env%evalue
          IF (calculate_forces) THEN
-            tdlr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%LINRES")
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,A,A,A,A)') "!", REPEAT("-", 27), &
                   " Excited State Forces ", REPEAT("-", 28), "!"
@@ -112,6 +105,7 @@ CONTAINS
             CALL zero_qs_force(lr_force)
             CALL set_qs_env(qs_env, force=lr_force)
             !
+            tdlr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%LINRES")
             CALL response_equation(qs_env, p_env, ex_env%cpmos, unit_nr, tdlr_section)
             !
             CALL get_qs_env(qs_env, dft_control=dft_control)
