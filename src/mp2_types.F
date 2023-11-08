@@ -226,7 +226,7 @@ MODULE mp2_types
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
                                                             num_new_t = 0, &
-                                                            num_davidson_iter = 0, & 
+                                                            num_davidson_iter = 0, &
                                                             davidson_abort_cond = 0
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
                                                             eps_exc_en = 0.0_dp, &

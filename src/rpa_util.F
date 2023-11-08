@@ -653,6 +653,7 @@ CONTAINS
 !> \param do_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
 !> \param dgemm_counter ...
+!> \param num_integ_points ...
 ! **************************************************************************************************
    SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual, &
                          Eigenval, Eigenval_scf, &
@@ -664,12 +665,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
-      INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia, num_integ_points
+      INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
       LOGICAL, INTENT(IN)                                :: do_bse
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+      INTEGER, INTENT(IN)                                :: num_integ_points
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_mat_Q'
 

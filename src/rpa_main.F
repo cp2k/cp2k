@@ -18,10 +18,10 @@ MODULE rpa_main
    USE bibliography,                    ONLY: &
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
-   USE bse,                             ONLY: do_subspace_iterations,&
-                                              mult_B_with_W, &
-                                              fill_local_3c_arrays, &
-                                              deallocate_matrices_bse
+   USE bse,                             ONLY: deallocate_matrices_bse,&
+                                              do_subspace_iterations,&
+                                              fill_local_3c_arrays,&
+                                              mult_B_with_W
    USE bse_full_diag,                   ONLY: create_and_diagonalize_A
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -35,8 +35,8 @@ MODULE rpa_main
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type,&
-                                              cp_fm_write_formatted !MG
+                                              cp_fm_type
+!MG
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
@@ -54,11 +54,11 @@ MODULE rpa_main
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: wfc_mm_style_gemm, &
-                                              bse_fulldiag_tda, &
-                                              bse_fulldiag_abba, &
-                                              bse_iter_tda, &
-                                              bse_iter_abba
+   USE input_constants,                 ONLY: bse_fulldiag_abba,&
+                                              bse_fulldiag_tda,&
+                                              bse_iter_abba,&
+                                              bse_iter_tda,&
+                                              wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
@@ -243,6 +243,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
                                                             my_ia_start, virtual
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: idx_array, placeholder
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
@@ -258,10 +259,7 @@ CONTAINS
          DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
       TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
 
-      !MG to del
-      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: idx_array,placeholder
-      INTEGER                                            :: i_print,j_print
-
+!MG to del
 
       CALL timeset(routineN, handle)
 
@@ -494,7 +492,7 @@ CONTAINS
                                     homo(ispin), virtual(ispin), gd_B_virtual(ispin), &
                                     my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size, &
                                     placeholder) !MG
-            DEALLOCATE(placeholder)
+            DEALLOCATE (placeholder)
 
             DEALLOCATE (BIb_C(ispin)%array)
             CALL release_group_dist(gd_B_virtual(ispin))
@@ -514,8 +512,8 @@ CONTAINS
                CALL calculate_BIb_C_2D(BIb_C_2D_gw(ispin)%array, BIb_C_gw(ispin)%array, para_env_sub, dimen_nm_gw, &
                                        gw_corr_lev_occ(ispin) + gw_corr_lev_virt(ispin), nmo, gd_B_all, &
                                        my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
-                                    placeholder) !MG
-               DEALLOCATE(placeholder)
+                                       placeholder) !MG
+               DEALLOCATE (placeholder)
                DEALLOCATE (BIb_C_gw(ispin)%array)
             END DO
 
@@ -535,8 +533,8 @@ CONTAINS
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo(1), homo(1), gd_B_occ_bse, &
                                  my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size, &
-                                    placeholder) !MG
-         DEALLOCATE(placeholder)
+                                 placeholder) !MG
+         DEALLOCATE (placeholder)
 
          DEALLOCATE (BIb_C_bse_ij)
          CALL release_group_dist(gd_B_occ_bse)
@@ -550,8 +548,8 @@ CONTAINS
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual(1), virtual(1), gd_B_virt_bse, &
                                  my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size, &
-                                    placeholder) !MG
-         DEALLOCATE(placeholder)
+                                 placeholder) !MG
+         DEALLOCATE (placeholder)
 
          DEALLOCATE (BIb_C_bse_ab)
          CALL release_group_dist(gd_B_virt_bse)
@@ -586,10 +584,10 @@ CONTAINS
                             para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
                             dimen_ia_for_block_size=dimen_ia(1), &
                             do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, qs_env=qs_env, &
-                            blacs_env_BSE = blacs_env_BSE)
+                            blacs_env_BSE=blacs_env_BSE)
       !Do not keep the pointer, if not need for BSE
       IF (.NOT. do_bse) THEN
-         NULLIFY(blacs_env_BSE)
+         NULLIFY (blacs_env_BSE)
       END IF
 
       DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
@@ -708,6 +706,7 @@ CONTAINS
 !> \param my_ia_start ...
 !> \param my_ia_end ...
 !> \param my_group_L_size ...
+!> \param idx_array ...
 !> \author Jan Wilhelm, 03/2015
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
@@ -724,6 +723,8 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_virtual
       INTEGER                                            :: my_ia_size, my_ia_start, my_ia_end, &
                                                             my_group_L_size
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: idx_array
 
       INTEGER, PARAMETER                                 :: occ_chunk = 128
 
@@ -732,9 +733,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BIb_C_rec_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BIb_C_rec
 
-      !MG to del
-      INTEGER, ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT):: idx_array
-      INTEGER                                            :: i_print,j_print,LLL
+!MG to del
 
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
@@ -746,7 +745,7 @@ CONTAINS
       ! reorder data
       ALLOCATE (BIb_C_2D(my_group_L_size, my_ia_size))
       !MG to del
-      ALLOCATE (idx_array(homo,my_B_size))
+      ALLOCATE (idx_array(homo, my_B_size))
       idx_array = 0
 
 !$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
@@ -760,7 +759,7 @@ CONTAINS
                BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C(1:my_group_L_size, jjB, iiB)
                !MG to del
                !print *, "idx_array", jjB,iiB,shape(idx_array)
-               idx_array(iiB,jjB) = ia_global
+               idx_array(iiB, jjB) = ia_global
             END IF
          END DO
       END DO
@@ -830,6 +829,7 @@ CONTAINS
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
 !> \param qs_env ...
+!> \param blacs_env_BSE ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_ia, color_rpa_group, &
@@ -860,8 +860,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL           :: fm_mat_Q_gemm, fm_mat_Q
       TYPE(qs_environment_type), INTENT(IN), OPTIONAL, &
          POINTER                                         :: qs_env
-      TYPE(cp_blacs_env_type), OPTIONAL,&
-         POINTER                                         :: blacs_env_BSE
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_BSE
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_integ_mat'
 
@@ -1085,6 +1084,8 @@ CONTAINS
 !> \param color_sub ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param calc_forces ...
+!> \param idx_array ...
+!> \param blacs_env_BSE ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
@@ -1147,29 +1148,29 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, calc_forces
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: idx_array
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
-         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, max_iter_bse, min_bsize, mm_style, &
-         nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         bse_spin_config, bse_method, & !MG
-         Pspin, Qspin, size_P
+      INTEGER :: bse_method, bse_spin_config, count_ev_sc_GW, cut_memory, group_size_P, &
+         gw_corr_lev_tot, handle, handle3, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, &
+         min_bsize, mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, &
+         num_fit_points, Pspin, Qspin, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
-      LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-         do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
-         first_cycle_periodic_correction, my_open_shell, print_ic_values, bse_full_diag, bse_iterat_diag
+      LOGICAL :: bse_full_diag, bse_iterat_diag, do_apply_ic_corr_to_gw, do_gw_im_time, &
+         do_ic_model, do_kpoints_cubic_RPA, do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, &
+         first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
-         eps_filter_im_time, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
+         eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
+         my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_W
@@ -1180,8 +1181,8 @@ CONTAINS
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
-         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-         fm_scaled_dm_virt_tau, fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
+         fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_work, fm_mo_coeff_occ_scaled, &
+         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1205,9 +1206,8 @@ CONTAINS
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
-      !MG to del
-      INTEGER, ALLOCATABLE, DIMENSION(:,:), INTENT(IN):: idx_array
-      INTEGER                       :: i_print,j_print
+!MG
+!MG to del
 
       CALL timeset(routineN, handle)
 
@@ -1530,7 +1530,7 @@ CONTAINS
                !MG debug
                !print *,"MG: unit nr is ",unit_nr
                !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before calc_mat_Q")
-               
+
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
@@ -1774,31 +1774,30 @@ CONTAINS
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
 
-            !MG to del
-            bse_spin_config         = mp2_env%ri_g0w0%bse_spin_config
-            bse_method              = mp2_env%ri_g0w0%bse_method
-            bse_full_diag = .FALSE.
-            bse_iterat_diag = .FALSE.
-            SELECT CASE (bse_method)
-            CASE (bse_fulldiag_tda, bse_fulldiag_abba)
-               bse_full_diag = .TRUE.
-            CASE (bse_iter_tda, bse_iter_abba)
-               bse_iterat_diag = .TRUE.
-            END SELECT
+         !MG to del
+         bse_spin_config = mp2_env%ri_g0w0%bse_spin_config
+         bse_method = mp2_env%ri_g0w0%bse_method
+         bse_full_diag = .FALSE.
+         bse_iterat_diag = .FALSE.
+         SELECT CASE (bse_method)
+         CASE (bse_fulldiag_tda, bse_fulldiag_abba)
+            bse_full_diag = .TRUE.
+         CASE (bse_iter_tda, bse_iter_abba)
+            bse_iterat_diag = .TRUE.
+         END SELECT
 
-            !MG: Is this IF clause necessary?
-            IF (iter_sc_gw0 == 1) THEN
-               DO ispin = 1, nspins
-                  CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                 Eigenval_last(:, 1, ispin), homo(ispin), omega)
-               END DO
-            ELSE
-               DO ispin = 1, nspins
-                  CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                 Eigenval_scf(:, 1, ispin), homo(ispin), omega)
-               END DO
-            END IF
-
+         !MG: Is this IF clause necessary?
+         IF (iter_sc_gw0 == 1) THEN
+            DO ispin = 1, nspins
+               CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
+                                              Eigenval_last(:, 1, ispin), homo(ispin), omega)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
+                                              Eigenval_scf(:, 1, ispin), homo(ispin), omega)
+            END DO
+         END IF
 
          ! CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &
          !                                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
@@ -1807,36 +1806,36 @@ CONTAINS
          !                                             B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &
          !                                             gd_array, color_sub, para_env, bse_full_diag)
          CALL mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &
-                           fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                           fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-                           dimen_RI_red, homo(1), virtual(1), dimen_ia(1))
-         
+                            fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                            fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+                            dimen_RI_red, homo(1), virtual(1), dimen_ia(1))
+
          IF (bse_iterat_diag) THEN
-            CALL fill_local_3c_arrays( fm_mat_S_ab_bse, fm_mat_S(1), &
-                                       fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                                       B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                       B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), &
-                                       gd_array, color_sub, para_env)
+            CALL fill_local_3c_arrays(fm_mat_S_ab_bse, fm_mat_S(1), &
+                                      fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
+                                      B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), &
+                                      gd_array, color_sub, para_env)
          END IF
 
          IF (bse_full_diag) THEN
             CALL create_and_diagonalize_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
-                                          Eigenval(:,1,1), &
-                                          homo(1),virtual(1),dimen_RI, bse_spin_config, unit_nr,  &
+                                          Eigenval(:, 1, 1), &
+                                          homo(1), virtual(1), dimen_RI, bse_spin_config, unit_nr, &
                                           para_env, para_env_RPA, blacs_env_BSE)
          END IF
-         
+
          CALL cp_fm_release(fm_mat_S_bar_ia_bse)
          CALL cp_fm_release(fm_mat_S_bar_ij_bse)
 
          ! JW@MG: CALL deallocate_matrices_bse(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_Q_static_bse fm_mat_Q_static_bse_gemm)
-         CALL deallocate_matrices_bse(fm_mat_Q_static_bse,fm_mat_Q_static_bse_gemm)
+         CALL deallocate_matrices_bse(fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
          IF (bse_iterat_diag) THEN
             CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                         B_iaQ_bse_local, homo(1), virtual(1), bse_spin_config, unit_nr, &
-                                        Eigenval(:,1,1), para_env, mp2_env )
+                                        Eigenval(:, 1, 1), para_env, mp2_env)
             !Deallocate "three center" integrals
-            DEALLOCATE(B_bar_ijQ_bse_local,B_abQ_bse_local,B_bar_iaQ_bse_local,B_iaQ_bse_local)
+            DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)
          END IF
 
       END IF

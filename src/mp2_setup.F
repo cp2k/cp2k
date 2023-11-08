@@ -168,7 +168,6 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SOC_ENERGY_WINDOW", &
                                 r_val=mp2_env%ri_g0w0%soc_energy_window)
 
-
       NULLIFY (bse_section)
       bse_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW%BSE")
       CALL section_vals_val_get(bse_section, "_SECTION_PARAMETERS_", &
@@ -196,7 +195,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
                                 r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_METHOD", &
-                                 i_val=mp2_env%ri_g0w0%bse_method)
+                                i_val=mp2_env%ri_g0w0%bse_method)
       !MG todel
       ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_Z_VECTORS", &
       !                           i_val=mp2_env%ri_g0w0%num_z_vectors)

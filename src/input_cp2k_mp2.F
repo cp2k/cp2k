@@ -25,16 +25,15 @@ MODULE input_cp2k_mp2
                                               silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
-        do_potential_tshpsc, bse_singlet, bse_triplet, bse_fulldiag_tda, bse_fulldiag_abba, &
-        bse_iter_tda, bse_iter_abba, bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond, &
-        eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
-        gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
-        kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
+        bse_fulldiag_abba, bse_fulldiag_tda, bse_iter_abba, bse_iter_both_cond, bse_iter_en_cond, &
+        bse_iter_res_cond, bse_iter_tda, bse_singlet, bse_triplet, do_eri_gpw, do_eri_mme, &
+        do_eri_os, do_potential_coulomb, do_potential_id, do_potential_long, do_potential_mix_cl, &
+        do_potential_short, do_potential_truncated, do_potential_tshpsc, eri_default, gaussian, &
+        gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, gw_skip_for_regtest, &
+        gw_two_pole_model, kp_weights_W_auto, kp_weights_W_tailored, kp_weights_W_uniform, &
+        mp2_method_direct, mp2_method_gpw, mp2_method_none, numerical, ot_precond_full_all, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
         wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
         z_solver_sd
@@ -1245,12 +1244,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, __LOCATION__, name="BSE_METHOD", &
-                          description="Method for BSE calculations. " // &
+                          description="Method for BSE calculations. "// &
                           "Choose between TDA/ABBA and full/iterative diagonalization.", &
                           usage="&BSE_METHOD FULLDIAG_TDA", &
-                          enum_c_vals=s2a("FULLDIAG_TDA", "FULLDIAG_ABBA","ITER_TDA", "ITER_ABBA"), &
+                          enum_c_vals=s2a("FULLDIAG_TDA", "FULLDIAG_ABBA", "ITER_TDA", "ITER_ABBA"), &
                           enum_i_vals=(/bse_fulldiag_tda, bse_fulldiag_abba, bse_iter_tda, bse_iter_abba/), &
                           enum_desc=s2a("Fully diagonalizes the A matrix, i.e. within the Tamm-Dancoff approximation.", &
                                         "Fully diagonalizes the ABBA matrix.", &
@@ -1294,8 +1292,8 @@ CONTAINS
                           enum_c_vals=s2a("EN", "RES", "OR"), &
                           enum_i_vals=(/bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond/), &
                           enum_desc=s2a("Uses energy threshold for successfully exiting solver.", &
-                                       "Uses residual threshold for successfully exiting solver.", &
-                                       "Uses either energy or residual threshold for successfully exiting solver."), &
+                                        "Uses residual threshold for successfully exiting solver.", &
+                                        "Uses either energy or residual threshold for successfully exiting solver."), &
                           default_i_val=bse_iter_en_cond)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1309,7 +1307,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_ADD_START_Z_SPACE", &
                           description="Determines the initial dimension of the subspace as "// &
-                          "dim = (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)",&
+                          "dim = (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)", &
                           usage="NUM_ADD_START_Z_SPACE 1", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
@@ -1317,7 +1315,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FAC_MAX_Z_SPACE", &
                           description="Factor to determine maximum dimension of the Davidson subspace. "// &
-                          "dimension = (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)*FAC_MAX_Z_SPACE",&
+                          "dimension = (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)*FAC_MAX_Z_SPACE", &
                           usage="FAC_MAX_Z_SPACE 5", &
                           default_i_val=5)
       CALL section_add_keyword(section, keyword)
@@ -1325,7 +1323,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_NEW_T", &
                           description="Number of new t vectors added. "// &
-                          "Must be smaller/equals (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)",&
+                          "Must be smaller/equals (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)", &
                           usage="NUM_NEW_T 4", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -1333,7 +1331,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_RES", &
                           description="Threshold for stopping the iteration for computing the transition energies. "// &
-                          "If the residuals inside the Davidson space change by less than EPS_RES (in eV), the iteration"// &
+                          "If the residuals inside the Davidson space change by less than EPS_RES (in eV), the iteration "// &
                           "stops.", &
                           usage="EPS_RES 0.001", unit_str="eV", &
                           type_of_var=real_t, default_r_val=0.001_dp)
@@ -1342,7 +1340,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_EXC_EN", &
                           description="Threshold for stopping the iteration for computing the transition energies. "// &
-                          "If the desired excitation energies change by less than EPS_EXC_EN (in eV), the iteration"// &
+                          "If the desired excitation energies change by less than EPS_EXC_EN (in eV), the iteration "// &
                           "stops.", &
                           usage="EPS_EXC_EN 0.001", unit_str="eV", &
                           type_of_var=real_t, default_r_val=0.001_dp)
@@ -1372,14 +1370,10 @@ CONTAINS
    SUBROUTINE create_bse_fulldiag_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      TYPE(keyword_type), POINTER                        :: keyword
-
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE_FULLDIAG", &
                           description="Parameters influencing the full diagonalization of the BSE.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
-
-      NULLIFY (keyword)
 
    END SUBROUTINE
 
