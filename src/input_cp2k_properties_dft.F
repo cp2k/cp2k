@@ -147,22 +147,29 @@ CONTAINS
 !> \param section the section to create
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE create_linres_section(section, create_subsections, precond_tdlr)
+   SUBROUTINE create_linres_section(section, create_subsections, default_set_tdlr)
       TYPE(section_type), POINTER                        :: section
       LOGICAL, INTENT(in)                                :: create_subsections
-      LOGICAL, INTENT(IN), OPTIONAL                      :: precond_tdlr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: default_set_tdlr
 
 
-      INTEGER                                            :: default_precond
+      INTEGER                                            :: def_precond, def_max_iter
+      REAL(KIND=DP)                                      :: def_eps, def_eps_filter
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       NULLIFY (keyword, print_key)
 
-      IF (PRESENT(precond_tdlr)) THEN
-         default_precond=ot_precond_full_all
+      IF (PRESENT(default_set_tdlr)) THEN
+         def_eps = 1.0e-10_dp
+         def_eps_filter = 1.0e-15_dp
+         def_max_iter = 100
+         def_precond = ot_precond_full_single_inverse
       ELSE
-         default_precond=ot_precond_none
+         def_eps = 1.e-6_dp
+         def_eps_filter = 0.0_dp
+         def_max_iter = 50
+         def_precond = ot_precond_none
       END IF
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -174,19 +181,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS", &
                           description="target accuracy for the convergence of the conjugate gradient.", &
-                          usage="EPS 1.e-6", default_r_val=1.e-6_dp)
+                          usage="EPS 1.e-6", default_r_val=def_eps)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Filter threshold for response density matrix.", &
-                          usage="EPS 1.e-8", default_r_val=0.0_dp)
+                          usage="EPS 1.e-8", default_r_val=def_eps_filter)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of conjugate gradient iteration to be performed for one optimization.", &
-                          usage="MAX_ITER 200", default_i_val=50)
+                          usage="MAX_ITER 200", default_i_val=def_max_iter)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -202,7 +209,7 @@ CONTAINS
          "They differ in effectiveness, cost of construction, cost of application. "// &
          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
          usage="PRECONDITIONER FULL_ALL", &
-         default_i_val=default_precond, &
+         default_i_val=def_precond, &
          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
                          "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
@@ -1673,7 +1680,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! LINRES section
-      CALL create_linres_section(subsection, create_subsections=.FALSE., precond_tdlr=.TRUE.)
+      CALL create_linres_section(subsection, create_subsections=.FALSE., default_set_tdlr=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

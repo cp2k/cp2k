@@ -124,7 +124,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: gs_force, ks_force, td_force
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(section_vals_type), POINTER                   :: force_section
+      TYPE(section_vals_type), POINTER                   :: force_section, tdlr_section
 
       CALL timeset(routineN, handle)
 
@@ -149,6 +149,7 @@ CONTAINS
          END IF
          force_section => section_vals_get_subs_vals(print_section, "FORCES")
          CALL section_vals_val_get(force_section, "THRESHOLD", r_val=threshold)
+         tdlr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%LINRES")
          ALLOCATE (state_list(nstates))
          CALL build_state_list(force_section, state_list)
          ! screen with oscillator strength
@@ -219,7 +220,7 @@ CONTAINS
                ELSE
                   iw = -1
                END IF
-               CALL response_equation(qs_env, p_env, ex_env%cpmos, iw)
+               CALL response_equation(qs_env, p_env, ex_env%cpmos, iw, tdlr_section)
                !
                CALL get_qs_env(qs_env, dft_control=dft_control)
                IF (dft_control%qs_control%semi_empirical) THEN
