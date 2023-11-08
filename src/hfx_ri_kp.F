@@ -104,6 +104,7 @@ MODULE hfx_ri_kp
                                               distribution_3d_type,&
                                               neighbor_list_3c_iterator_type,&
                                               neighbor_list_3c_type
+   USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -895,7 +896,6 @@ CONTAINS
       END DO
 
       !Get the 3-center quantities in the subgroups. The integrals and t_3c_apc already there
-      !TODO: also distribute the t_3c_apc tensors
       ALLOCATE (t_3c_work_2(3), t_3c_work_3(4), t_3c_der_stack(6), t_3c_der_AO_sub(nimg, 3), &
                 t_3c_der_RI_sub(nimg, 3), t_3c_apc_sub(nspins, nimg))
       CALL get_subgroup_3c_derivs(t_3c_work_2, t_3c_work_3, t_3c_der_AO, t_3c_der_AO_sub, &
@@ -2609,6 +2609,7 @@ CONTAINS
       CALL para_env%sum(nocc)
       CALL para_env%sum(block_source)
       block_source = block_source + para_env%num_pe - 1
+      IF (nocc == 0) RETURN
 
       !Loop over the sub tensor, get the block destination
       igroup = para_env%mepos/group_size
@@ -2633,8 +2634,8 @@ CONTAINS
          CALL para_env%bcast(current_dest(:, :, igroup), source=igroup*group_size) !bcast from first proc in sub-group
       END DO
 
-      !Typically, the maximum value for a MPI tag is ~32000, so we go by batches to be sure
-      batch_size = 32000
+      !We go by batches, which cannot be larger than the maximum MPI tag value
+      batch_size = MIN(para_env%get_tag_ub(), 128000, nocc*ngroups)
       n_batch = (nocc*ngroups)/batch_size
       IF (MODULO(nocc*ngroups, batch_size) .NE. 0) n_batch = n_batch + 1
 
@@ -2798,6 +2799,7 @@ CONTAINS
       CALL para_env%sum(nocc)
       CALL para_env%sum(block_source)
       block_source = block_source + para_env%num_pe - 1
+      IF (nocc == 0) RETURN
 
       !Loop over the sub tensor, get the block destination
       igroup = para_env%mepos/group_size
@@ -2824,8 +2826,8 @@ CONTAINS
          CALL para_env%bcast(current_dest(:, :, :, igroup), source=igroup*group_size) !bcast from first proc in subgroup
       END DO
 
-      !Typically, the maximum value for a MPI tag is ~32000, so we go by batches to be sure
-      batch_size = 32000
+      !We go by batches, which cannot be larger than the maximum MPI tag value
+      batch_size = MIN(para_env%get_tag_ub(), 128000, nocc*ngroups)
       n_batch = (nocc*ngroups)/batch_size
       IF (MODULO(nocc*ngroups, batch_size) .NE. 0) n_batch = n_batch + 1
 
@@ -3217,13 +3219,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_subgroup_3c_tensors'
 
-      INTEGER                                            :: batch_size, handle, handle2, i_img, &
-                                                            i_RI, i_spin, ib, natom, nblks_AO, &
-                                                            nblks_RI, nimg, nspins
+      INTEGER                                            :: batch_size, bfac, bo(2), handle, &
+                                                            handle2, i_blk, i_img, i_RI, i_spin, &
+                                                            ib, natom, nblks_AO, nblks_RI, nimg, &
+                                                            nspins
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
-                                                            bsizes_stack, dist1, dist2, dist3, &
-                                                            dist_stack, idx_to_at
+                                                            bsizes_stack, bsizes_tmp, dist1, &
+                                                            dist2, dist3, dist_stack, idx_to_at
       INTEGER, DIMENSION(3)                              :: pdims
       REAL(dp)                                           :: occ
       TYPE(dbt_distribution_type)                        :: t_dist
@@ -3239,10 +3242,18 @@ CONTAINS
       END DO
 
       !Preparing larger block sizes for efficient communication (less, bigger messages)
-      nblks_RI = SIZE(ri_data%bsizes_RI)
+      !we put 2 atoms per RI block
+      bfac = 2
+      natom = SIZE(ri_data%bsizes_RI)
+      nblks_RI = MAX(1, natom/bfac)
+      ALLOCATE (bsizes_tmp(nblks_RI))
+      DO i_blk = 1, nblks_RI
+         bo = get_limit(natom, nblks_RI, i_blk - 1)
+         bsizes_tmp(i_blk) = SUM(ri_data%bsizes_RI(bo(1):bo(2)))
+      END DO
       ALLOCATE (bsizes_RI_ext(ri_data%ncell_RI*nblks_RI))
       DO i_RI = 1, ri_data%ncell_RI
-         bsizes_RI_ext((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = ri_data%bsizes_RI(:)
+         bsizes_RI_ext((i_RI - 1)*nblks_RI + 1:i_RI*nblks_RI) = bsizes_tmp(:)
       END DO
 
       batch_size = ri_data%kp_stack_size
@@ -3256,7 +3267,7 @@ CONTAINS
       natom = SIZE(ri_data%bsizes_RI)
       pdims = 0
       CALL dbt_pgrid_create(para_env_sub, pdims, pgrid, &
-                            tensor_dims=[SIZE(bsizes_RI_ext_split), natom, batch_size*SIZE(ri_data%bsizes_AO_split)])
+                            tensor_dims=[SIZE(bsizes_RI_ext_split), 1, batch_size*SIZE(ri_data%bsizes_AO_split)])
 
       !Create all required 3c tensors in that configuration
       CALL create_3c_tensor(t_3c_int(1), dist1, dist2, dist3, &

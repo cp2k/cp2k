@@ -845,22 +845,20 @@ CONTAINS
 
          CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
                                 block=rsblock, found=found)
-         CPASSERT(found)
          IF (.NOT. found) CYCLE
 
          IF (wfn_real_only) THEN
             CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
                                    block=rblock, found=found)
-            CPASSERT(found)
             IF (.NOT. found) CYCLE
             rblock = rblock + coskl*rsblock
          ELSE
             CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
                                    block=rblock, found=found)
-            CPASSERT(found)
+            IF (.NOT. found) CYCLE
             CALL dbcsr_get_block_p(matrix=cmatrix, row=irow, col=icol, &
                                    block=cblock, found=found)
-            CPASSERT(found)
+            IF (.NOT. found) CYCLE
             rblock = rblock + coskl*rsblock
             cblock = cblock + sinkl*rsblock
          END IF
@@ -1385,17 +1383,17 @@ CONTAINS
 
          CALL dbcsr_get_block_p(matrix=denmat(ispin, icell)%matrix, row=irow, col=icol, &
                                 block=dblock, found=found)
-         CPASSERT(found)
+         IF (.NOT. found) CYCLE
 
          IF (real_only) THEN
             CALL dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
-            CPASSERT(found)
+            IF (.NOT. found) CYCLE
             dblock = dblock + coskl*rblock
          ELSE
             CALL dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
-            CPASSERT(found)
+            IF (.NOT. found) CYCLE
             CALL dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
-            CPASSERT(found)
+            IF (.NOT. found) CYCLE
             dblock = dblock + coskl*rblock
             dblock = dblock + sinkl*cblock
          END IF
@@ -1482,7 +1480,7 @@ CONTAINS
                      trans = .TRUE.
                   END IF
                   CALL dbcsr_get_block_p(matrix=smat, row=jrow, col=jcol, BLOCK=sblock, found=found)
-                  CPASSERT(found)
+                  IF (.NOT. found) CYCLE
                   IF (trans) THEN
                      sblock = fsign*TRANSPOSE(pblock)
                   ELSE
