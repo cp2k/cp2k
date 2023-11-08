@@ -39,7 +39,7 @@ MODULE bse
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse'
 
-   PUBLIC :: mult_B_with_W_and_fill_local_3c_arrays, do_subspace_iterations, deallocate_matrices_BSE
+   PUBLIC :: mult_B_with_W, fill_local_3c_arrays, do_subspace_iterations, deallocate_matrices_BSE
 
 CONTAINS
 
@@ -578,8 +578,10 @@ CONTAINS
       SELECT CASE (bse_spin_config)
       CASE (bse_singlet)
           alpha = 2.0_dp
+          multiplet = "Singlet"
       CASE (bse_triplet)
           alpha = 0.0_dp
+          multiplet = "Triplet"
       END SELECT
       !Print statement
       !print *,"unit_nr=",unit_nr
@@ -597,7 +599,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A)')     '    A_iajb   =  (E_a-E_i) delta_ij delta_ab   +  alpha * v_iajb   -  W_ijab   '
          WRITE (unit_nr, '(T3,A)')     ' '
          WRITE (unit_nr, '(T3,A48,A7,A12,F3.1)') &
-                                       ' The spin-dependent factor is for the requested ', multiplet," is alpha = ",alpha
+                                       ' The spin-dependent factor for the requested ', multiplet," is alpha = ",alpha
          WRITE (unit_nr, '(T3,A)')     ' '
          WRITE (unit_nr, '(T3,A16,T50,A22)') &
                                        ' Excitonic level','Excitation energy (eV)'
@@ -1399,27 +1401,18 @@ CONTAINS
 !> \param color_sub ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, &
-                                                     fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                                                     fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-                                                     B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                     B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
-                                                     gd_array, color_sub, para_env, bse_full_diag)
+   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, &
+                           fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                           fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+                           dimen_RI, homo, virtual, dimen_ia)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                                             fm_mat_S, fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
-      TYPE(cp_fm_type), INTENT(OUT)                       :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
-                                                            B_bar_iaQ_bse_local, B_iaQ_bse_local
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual, dimen_ia
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
-      INTEGER, INTENT(IN)                                :: color_sub
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL, INTENT(IN)                                :: bse_full_diag
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mult_B_with_W_and_fill_local_3c_arrays'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mult_B_with_W'
 
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
@@ -1457,32 +1450,74 @@ CONTAINS
          END DO
       END DO
 
-      !MG to del
-      !print *,"MG: Before cholesky decompose"
-
       ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
       CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q_static_bse_gemm, n=dimen_RI, info_out=info_chol)
-      !print *,"MG: After cholesky decompose, info_chol=", info_chol
+      
       CPASSERT(info_chol == 0)
-      !MG to del
-      !print *,"MG: Between cholesky decompose, info_chol=", info_chol
+      
       ! calculate [1+Q(i0)]^-1
       CALL cp_fm_cholesky_invert(fm_mat_Q_static_bse_gemm)
-      !MG to del
-      !print *,"MG: After cp_fm_cholesky_invert - fm_mat_Q_static_bse_gemm"
-      !print *,fm_mat_Q_static_bse_gemm%local_data
+
       ! symmetrize the result
       CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
 
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_Q_static_bse, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_S_bar_ij_bse)
-
+      ! MG: Remove dimen_ia and use homo*virtual?
       ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
       ! fm_mat_S from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_S_bar_ia_bse)
+
+      CALL cp_fm_release(fm_mat_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+   ! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_S_ij_bse ...
+!> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_S ...
+!> \param fm_mat_Q_static_bse ...
+!> \param fm_mat_Q_static_bse_gemm ...
+!> \param B_bar_ijQ_bse_local ...
+!> \param B_abQ_bse_local ...
+!> \param B_bar_iaQ_bse_local ...
+!> \param B_iaQ_bse_local ...
+!> \param dimen_RI ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_ia ...
+!> \param gd_array ...
+!> \param color_sub ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE fill_local_3c_arrays( fm_mat_S_ab_bse, fm_mat_S, &
+                                    fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                                    B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
+                                    B_iaQ_bse_local, dimen_RI, homo, virtual, &
+                                    gd_array, color_sub, para_env)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ab_bse, fm_mat_S, &
+                                                            fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
+                                                            B_bar_iaQ_bse_local, B_iaQ_bse_local
+      INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      INTEGER, INTENT(IN)                                :: color_sub
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_local_3c_arrays'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
 
       CALL allocate_and_fill_local_array(B_iaQ_bse_local, fm_mat_S, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
 
@@ -1495,14 +1530,6 @@ CONTAINS
       CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, &
                                          dimen_RI, para_env)
 
-      !MG: Deallocate fm_mat_S witout bar also here? Such that all cp_fm_releases on 
-      !     fm_mat_S like stuff is done in one chunk?
-      IF (.NOT. bse_full_diag) THEN
-         CALL cp_fm_release(fm_mat_S_bar_ia_bse)
-         CALL cp_fm_release(fm_mat_S_bar_ij_bse)
-      END IF
-
-      CALL cp_fm_release(fm_mat_work)
 
       CALL timestop(handle)
 
