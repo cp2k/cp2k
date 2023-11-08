@@ -220,8 +220,8 @@ MODULE mp2_types
                                                             do_aux_bas_gw = .FALSE.
       REAL(KIND=dp)                                      :: frac_aux_mos = 0.0_dp
       INTEGER                                            :: num_omega_points = 0
-      LOGICAL                                            :: do_bse = .FALSE.
-      INTEGER                                            :: spin_config = 0, &
+      INTEGER                                            :: bse_spin_config = 0, &
+                                                            bse_method = 0, &
                                                             num_exc_en = 0, &
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
@@ -231,9 +231,9 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
                                                             eps_exc_en = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp
-      LOGICAL                                            :: do_ic_model = .FALSE., &
-                                                            print_ic_values = .FALSE., &
-                                                            bse_full_diag = .FALSE.
+      LOGICAL                                            :: do_bse = .FALSE., &
+                                                            do_ic_model = .FALSE., &
+                                                            print_ic_values = .FALSE.
       REAL(KIND=dp)                                      :: eps_dist = 0.0_dp
       TYPE(one_dim_real_array), DIMENSION(2)             :: ic_corr_list = one_dim_real_array(NULL())
       INTEGER                                            :: print_exx = 0

@@ -1279,11 +1279,18 @@ MODULE input_constants
                                                e_dens_total_density = 2, &
                                                e_dens_soft_density = 3
    ! BSE spin configuration
-   INTEGER, PARAMETER, PUBLIC               :: do_bse_singlet = 0, &
-                                               do_bse_triplet = 1
-   ! BSE abortion condition
-   INTEGER, PARAMETER, PUBLIC               :: do_bse_en = 0, &
-                                               do_bse_res = 1, &
-                                               do_bse_or = 2
+   INTEGER, PARAMETER, PUBLIC               :: bse_singlet = 0, &
+                                               bse_triplet = 1
+
+   ! BSE "flavor": Cross product of TDA/ABBA and full/iterative diagonalization
+   INTEGER, PARAMETER, PUBLIC               :: bse_fulldiag_tda = 0, &
+                                               bse_fulldiag_abba = 1, &
+                                               bse_iter_tda = 2, &
+                                               bse_iter_abba = 3
+
+   ! BSE iterative abortion condition
+   INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &
+                                               bse_iter_res_cond = 1, &
+                                               bse_iter_both_cond = 2
 
 END MODULE input_constants

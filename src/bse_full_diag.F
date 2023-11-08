@@ -36,6 +36,7 @@ MODULE bse_full_diag
                                                cp_fm_indxl2g
     USE group_dist_types,                ONLY: get_group_dist,&
                                                group_dist_d1_type
+    USE input_constants,                 ONLY: bse_singlet, bse_triplet
     USE kinds,                           ONLY: dp
     USE message_passing,                 ONLY: mp_para_env_type,&
                                                mp_request_type
@@ -101,13 +102,12 @@ MODULE bse_full_diag
         CALL timeset(routineN, handle)
 
         !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-        IF (bse_spin_config == 0) THEN
-            !Case of singlet
+        SELECT CASE (bse_spin_config)
+        CASE (bse_singlet)
             alpha = 2.0_dp
-        ELSE 
-            !Case of triplet
+        CASE (bse_triplet)
             alpha = 0.0_dp
-        END IF
+        END SELECT
 
 
         ! create the blacs env for BSE matrices (NOT fm_mat_S related parallel_gemms!)
@@ -136,16 +136,16 @@ MODULE bse_full_diag
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_A)
         
-        CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: print full A in fulldiag")
+        !CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: print full A in fulldiag")
 
-        CALL cp_fm_write_formatted(fm_mat_S_bar_ij_bse,unit_nr,"MG: print full S_ij_bar in fulldiag")
-        CALL cp_fm_write_formatted(fm_mat_S_ab_bse,unit_nr,"MG: print full fm_mat_S_ab_bse in fulldiag")
+        !CALL cp_fm_write_formatted(fm_mat_S_bar_ij_bse,unit_nr,"MG: print full S_ij_bar in fulldiag")
+        !CALL cp_fm_write_formatted(fm_mat_S_ab_bse,unit_nr,"MG: print full fm_mat_S_ab_bse in fulldiag")
         !W_ijab
         CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
                          
-        CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: print full W in fulldiag")
+        !CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: print full W in fulldiag")
 
         ! A_iajb
         ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
@@ -320,7 +320,6 @@ MODULE bse_full_diag
                     i_occ_row = (i_row_global-1)/virtual+1
                     a_virt_row = MOD(i_row_global-1,virtual)+1
                     eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
-                    print *,"MG-Adiffs",i_occ_row,a_virt_row,eigen_diff,fm_mat_A%local_data(ii,jj)
                     fm_mat_A%local_data(ii, jj) = fm_mat_A%local_data(ii, jj) + eigen_diff
 
                 END IF

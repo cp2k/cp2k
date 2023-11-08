@@ -53,7 +53,11 @@ MODULE rpa_main
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: wfc_mm_style_gemm
+   USE input_constants,                 ONLY: wfc_mm_style_gemm, &
+                                              bse_fulldiag_tda, &
+                                              bse_fulldiag_abba, &
+                                              bse_iter_tda, &
+                                              bse_iter_abba
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
@@ -1151,8 +1155,7 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
          ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, max_iter_bse, min_bsize, mm_style, &
          nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         bse_spin_config,num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t, num_davidson_iter,num_Z_vectors_init, &
-         bse_davidson_abort_cond, & !MG
+         bse_spin_config, bse_method, & !MG
          Pspin, Qspin, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
@@ -1161,12 +1164,10 @@ CONTAINS
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
-         first_cycle_periodic_correction, my_open_shell, print_ic_values, bse_full_diag
+         first_cycle_periodic_correction, my_open_shell, print_ic_values, bse_full_diag, bse_iterat_diag
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
-         eps_filter_im_time, &
-         eps_res,eps_exc_en, z_space_energy_cutoff, & !MG
-         ext_scaling, fermi_level_offset, &
+         eps_filter_im_time, ext_scaling, fermi_level_offset, &
          fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
@@ -1365,19 +1366,6 @@ CONTAINS
                                    do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
 
          IF (do_bse) THEN
-
-            !MG to del
-            bse_spin_config         = mp2_env%ri_g0w0%spin_config
-            bse_davidson_abort_cond = mp2_env%ri_g0w0%davidson_abort_cond
-            num_exc_en              = mp2_env%ri_g0w0%num_exc_en
-            num_add_start_z_space   = mp2_env%ri_g0w0%num_add_start_z_space
-            fac_max_z_space         = mp2_env%ri_g0w0%fac_max_z_space
-            num_new_t               = mp2_env%ri_g0w0%num_new_t
-            num_davidson_iter       = mp2_env%ri_g0w0%num_davidson_iter
-            eps_res                 = mp2_env%ri_g0w0%eps_res
-            eps_exc_en              = mp2_env%ri_g0w0%eps_exc_en
-            z_space_energy_cutoff   = mp2_env%ri_g0w0%z_space_energy_cutoff
-            bse_full_diag          = mp2_env%ri_g0w0%bse_full_diag
 
             CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
@@ -1784,6 +1772,19 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
+
+            !MG to del
+            bse_spin_config         = mp2_env%ri_g0w0%bse_spin_config
+            bse_method              = mp2_env%ri_g0w0%bse_method
+            bse_full_diag = .FALSE.
+            bse_iterat_diag = .FALSE.
+            SELECT CASE (bse_method)
+            CASE (bse_fulldiag_tda, bse_fulldiag_abba)
+               bse_full_diag = .TRUE.
+            CASE (bse_iter_tda, bse_iter_abba)
+               bse_iterat_diag = .TRUE.
+            END SELECT
+
             !MG: Is this IF clause necessary?
             IF (iter_sc_gw0 == 1) THEN
                DO ispin = 1, nspins
@@ -1797,7 +1798,6 @@ CONTAINS
                END DO
             END IF
 
-         num_Z_vectors_init = num_exc_en + num_add_start_z_space
 
          CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &
                                                      fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
@@ -1818,13 +1818,11 @@ CONTAINS
 
          ! JW@MG: CALL deallocate_matrices_bse(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_Q_static_bse fm_mat_Q_static_bse_gemm)
          CALL deallocate_matrices_bse(fm_mat_Q_static_bse,fm_mat_Q_static_bse_gemm)
-
-         CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors_init, &
-                                     num_davidson_iter, eps_res, Eigenval(:, 1, 1), para_env, &
-                                     num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t, &
-                                     bse_spin_config, unit_nr, bse_davidson_abort_cond, eps_exc_en, &
-                                     z_space_energy_cutoff, bse_full_diag)
+         IF (bse_iterat_diag) THEN
+            CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
+                                        B_iaQ_bse_local, homo(1), virtual(1), bse_spin_config, unit_nr, &
+                                        Eigenval(:,1,1), para_env, mp2_env )
+         END IF
          !Deallocate "three center" integrals
          DEALLOCATE(B_bar_ijQ_bse_local,B_abQ_bse_local,B_bar_iaQ_bse_local,B_iaQ_bse_local)
 

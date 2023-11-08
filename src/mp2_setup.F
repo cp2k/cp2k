@@ -71,9 +71,9 @@ CONTAINS
                                                             do_ri_sos_mp2, do_rpa
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: cphf_section, eri_mme_section, &
-                                                            gw_section, low_scaling_section, &
-                                                            mp2_section
+      TYPE(section_vals_type), POINTER                   :: bse_section, cphf_section, &
+                                                            eri_mme_section, gw_section, &
+                                                            low_scaling_section, mp2_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -168,30 +168,35 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SOC_ENERGY_WINDOW", &
                                 r_val=mp2_env%ri_g0w0%soc_energy_window)
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
+
+      NULLIFY (bse_section)
+      bse_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW%BSE")
+      CALL section_vals_val_get(bse_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_g0w0%do_bse)
+      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
+      !                           l_val=mp2_env%ri_g0w0%do_bse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%SPIN_CONFIG", &
-                                i_val=mp2_env%ri_g0w0%spin_config)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%DAVIDSON_ABORT_COND", &
+                                i_val=mp2_env%ri_g0w0%bse_spin_config)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%DAVIDSON_ABORT_COND", &
                                 i_val=mp2_env%ri_g0w0%davidson_abort_cond)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_EXC_EN", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_EXC_EN", &
                                 i_val=mp2_env%ri_g0w0%num_exc_en)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_ADD_START_Z_SPACE", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_ADD_START_Z_SPACE", &
                                 i_val=mp2_env%ri_g0w0%num_add_start_z_space)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%FAC_MAX_Z_SPACE", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%FAC_MAX_Z_SPACE", &
                                 i_val=mp2_env%ri_g0w0%fac_max_z_space)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_NEW_T", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_NEW_T", &
                                 i_val=mp2_env%ri_g0w0%num_new_t)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%EPS_RES", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%EPS_RES", &
                                 r_val=mp2_env%ri_g0w0%eps_res)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%EPS_EXC_EN", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%EPS_EXC_EN", &
                                 r_val=mp2_env%ri_g0w0%eps_exc_en)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_DAVIDSON_ITER", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_DAVIDSON_ITER", &
                                 i_val=mp2_env%ri_g0w0%num_davidson_iter)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%Z_SPACE_ENERGY_CUTOFF", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
                                 r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%EXACT_DIAG", &
-                                 l_val=mp2_env%ri_g0w0%bse_full_diag)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_METHOD", &
+                                 i_val=mp2_env%ri_g0w0%bse_method)
       !MG todel
       ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_Z_VECTORS", &
       !                           i_val=mp2_env%ri_g0w0%num_z_vectors)

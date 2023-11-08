@@ -22,10 +22,12 @@ MODULE bse
                                               cp_fm_type
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
+   USE input_constants,                 ONLY: bse_singlet, bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
+   USE mp2_types,                       ONLY: integ_mat_buffer_type, &
+                                              mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE rpa_communication,               ONLY: communicate_buffer
@@ -56,29 +58,25 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo, virtual, num_Z_vectors_init, &
-                                     num_davidson_iter, eps_res, Eigenval, para_env, &
-                                     num_exc_en, num_add_start_z_space, fac_max_z_space, num_new_t,&
-                                     bse_spin_config, unit_nr, bse_davidson_abort_cond, eps_exc_en, &
-                                     z_space_energy_cutoff,bse_full_diag)
+                                     B_iaQ_bse_local, homo, virtual, bse_spin_config, unit_nr, &
+                                     Eigenval, para_env, mp2_env )
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
                                                             B_bar_iaQ_bse_local, B_iaQ_bse_local
-      INTEGER                                            :: homo, virtual, num_Z_vectors_init, num_davidson_iter, &
-                                                            num_exc_en, num_add_start_z_space, fac_max_z_space, &
-                                                            num_new_t, num_Z_vectors, bse_spin_config, unit_nr, &
-                                                            bse_davidson_abort_cond
-      REAL(KIND=dp)                                      :: eps_res, eps_exc_en, z_space_energy_cutoff
+      INTEGER                                            :: homo, virtual, bse_spin_config, unit_nr
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL                                            :: bse_full_diag
+      TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_subspace_iterations'
 
       INTEGER                                            :: handle, i_iter, local_RI_size,i_print,j_print,k_print, &
                                                             num_max_z_space, num_en_unconverged = -1, num_res_unconverged = -1, &
-                                                            davidson_converged, num_exact_en_unconverged = -1
-      REAL(kind=dp)                                      :: max_res_norm, max_en_diff
+                                                            davidson_converged, num_exact_en_unconverged = -1, &
+                                                            num_Z_vectors_init, num_davidson_iter, &
+                                                            num_exc_en, num_add_start_z_space, fac_max_z_space, &
+                                                            num_new_t, num_Z_vectors, bse_davidson_abort_cond
+      REAL(kind=dp)                                      :: max_res_norm, max_en_diff, eps_res, eps_exc_en, z_space_energy_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Subspace_new_eigenval, Subspace_full_eigenval, Subspace_prev_eigenval, &
                                                             Full_exc_spectrum, En_diffs, Res_norms, En_diffs_exact
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: M_ia_tmp, M_ji_tmp, RI_vector, Subspace_new_eigenvec,AZ_reshaped, &
@@ -86,12 +84,29 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: AZ, BZ, Z_vectors, Subspace_ritzvec, Subspace_add_dir,W_vectors
       CHARACTER(LEN=10)                                  :: bse_davidson_abort_cond_string, success_abort_string
       CHARACTER(LEN=100)                                 :: res_filename, en_filename, en_exact_filename, char_a, char_b, char_c
+      LOGICAL                                            :: bse_full_diag_debug !MG: debugging
 
 
 
       CALL timeset(routineN, handle)
       
       !MG to del
+      !Debug flag for exact diagonalization (only using lapack!!!)
+      bse_full_diag_debug = .TRUE.
+
+
+      bse_davidson_abort_cond = mp2_env%ri_g0w0%davidson_abort_cond
+      num_exc_en              = mp2_env%ri_g0w0%num_exc_en
+      num_add_start_z_space   = mp2_env%ri_g0w0%num_add_start_z_space
+      fac_max_z_space         = mp2_env%ri_g0w0%fac_max_z_space
+      num_new_t               = mp2_env%ri_g0w0%num_new_t
+      num_davidson_iter       = mp2_env%ri_g0w0%num_davidson_iter
+      eps_res                 = mp2_env%ri_g0w0%eps_res
+      eps_exc_en              = mp2_env%ri_g0w0%eps_exc_en
+      z_space_energy_cutoff   = mp2_env%ri_g0w0%z_space_energy_cutoff
+      
+      num_Z_vectors_init = num_exc_en + num_add_start_z_space
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) "bse_spin_config",bse_spin_config
          WRITE (unit_nr, *) "num_exc_en",num_exc_en
@@ -226,7 +241,7 @@ CONTAINS
          !print *, 'ProcNr',para_env%mepos,"Entering AZ"
          CALL compute_AZ(AZ, Z_vectors, B_iaQ_bse_local, B_bar_ijQ_bse_local, B_abQ_bse_local, &
                          M_ia_tmp, RI_vector, Eigenval, homo, virtual, num_Z_vectors, local_RI_size, &
-                         para_env, bse_spin_config,z_space_energy_cutoff,i_iter,bse_full_diag, &
+                         para_env, bse_spin_config,z_space_energy_cutoff,i_iter,bse_full_diag_debug, &
                          Full_exc_spectrum, unit_nr)
 
          !MG: functionality of BZ not checked (issue with fm_mat_Q_static_bse_gemm in rpa_util needs to be checked!)
@@ -333,7 +348,7 @@ CONTAINS
          ! END DO
 
          !If exact-diag: compute difference to exact eigenvalues
-         IF (bse_full_diag) THEN 
+         IF (bse_full_diag_debug) THEN 
             ALLOCATE(En_diffs_exact(num_exc_en))
             num_exact_en_unconverged = 0
             DO j_print=1,num_exc_en
@@ -370,7 +385,7 @@ CONTAINS
          ! END IF
 
 
-         ! IF (bse_full_diag) THEN 
+         ! IF (bse_full_diag_debug) THEN 
          !    IF (unit_nr > 0) THEN
          !       IF (i_iter == 1) THEN 
          !          OPEN(10, file=en_exact_filename, status="new")
@@ -406,7 +421,7 @@ CONTAINS
          Subspace_add_dir, AZ_reshaped, Z_vectors_reshaped, Subspace_ritzvec, Subspace_full_eigenval, &
          Res_norms, En_diffs)
 
-         IF (bse_full_diag) THEN 
+         IF (bse_full_diag_debug) THEN 
             DEALLOCATE(En_diffs_exact)
          END IF
 
@@ -560,13 +575,12 @@ CONTAINS
       
       
       !Prepare variables for printing
-      IF (bse_spin_config == 0) THEN
-         multiplet = "Singlet"
-         alpha = 2.0_dp
-      ELSE 
-         multiplet = "Triplet"
-         alpha = 0.0_dp
-      END IF 
+      SELECT CASE (bse_spin_config)
+      CASE (bse_singlet)
+          alpha = 2.0_dp
+      CASE (bse_triplet)
+          alpha = 0.0_dp
+      END SELECT
       !Print statement
       !print *,"unit_nr=",unit_nr
       IF (unit_nr > 0) THEN
@@ -1038,7 +1052,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_AZ(AZ, Z_vectors, B_iaQ_bse_local, B_bar_ijQ_bse_local, B_abQ_bse_local, M_ia_tmp, &
                          RI_vector, Eigenval, homo, virtual, num_Z_vectors, local_RI_size, &
-                         para_env, bse_spin_config, z_space_energy_cutoff, i_iter,bse_full_diag, &
+                         para_env, bse_spin_config, z_space_energy_cutoff, i_iter,bse_full_diag_debug, &
                          Full_exc_spectrum, unit_nr)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: AZ, Z_vectors, B_iaQ_bse_local, &
@@ -1050,7 +1064,7 @@ CONTAINS
                                                             local_RI_size, bse_spin_config, &
                                                             unit_nr
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL                                            :: bse_full_diag
+      LOGICAL                                            :: bse_full_diag_debug
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_AZ'
 
@@ -1073,7 +1087,7 @@ CONTAINS
       !    print *,"B_iaQ in LLL=",i," is: ",B_iaQ_bse_local(:,:,i)
       ! end do
 
-      IF (i_iter == 1 .AND. bse_full_diag) THEN 
+      IF (i_iter == 1 .AND. bse_full_diag_debug) THEN 
          ALLOCATE(W_ijab(homo,homo,virtual,virtual))
          ALLOCATE(A_full(homo,virtual,homo,virtual))
          ALLOCATE(A_full_reshaped(homo*virtual,homo*virtual))
@@ -1086,7 +1100,7 @@ CONTAINS
 
 
       CALL compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
-                                num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_full_diag,i_iter,&
+                                num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_full_diag_debug,i_iter,&
                                 unit_nr,para_env)
 
       !print *, 'ProcNr',para_env%mepos,"Computed V"
@@ -1112,7 +1126,7 @@ CONTAINS
       END DO
 
       !print *, 'ProcNr',para_env%mepos,"Computed W"
-      IF (i_iter == 1 .AND. bse_full_diag) THEN 
+      IF (i_iter == 1 .AND. bse_full_diag_debug) THEN 
          W_ijab = 0.0_dp
          !MG to del: Print screened 4c integrals for debugging purposes
          DO LLL=1,local_RI_size
@@ -1171,7 +1185,7 @@ CONTAINS
       END IF
 
       !Debugging purposes: full diagonalization of A
-      IF (i_iter == 1 .AND. bse_full_diag) THEN
+      IF (i_iter == 1 .AND. bse_full_diag_debug) THEN
          n = 0
          DO i = 1, homo
             DO a = 1, virtual
@@ -1238,7 +1252,7 @@ CONTAINS
 !> \param virtual ...
 ! **************************************************************************************************
    SUBROUTINE compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
-                                   num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_full_diag,i_iter,&
+                                   num_Z_vectors, homo, virtual, bse_spin_config,v_iajb,bse_full_diag_debug,i_iter,&
                                    unit_nr,para_env)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: AZ, Z_vectors, B_iaQ_bse_local
@@ -1246,7 +1260,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: local_RI_size, num_Z_vectors, homo, &
                                                             virtual, bse_spin_config, i_iter, unit_nr
       REAL(KIND=dp), allocatable,dimension(:,:,:,:)      :: v_iajb
-      LOGICAL                                            :: bse_full_diag
+      LOGICAL                                            :: bse_full_diag_debug
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_v_ia_jb_part'
@@ -1260,16 +1274,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      IF (bse_spin_config == 0) THEN
-         !Case of singlet
+      SELECT CASE (bse_spin_config)
+      CASE (bse_singlet)
          alpha = 2.0_dp
-      ELSE 
-         !Case of triplet
+      CASE (bse_triplet)
          alpha = 0.0_dp
-      END IF
-
-      !MG to del
-      !print *,"bse_spin_config=",bse_spin_config,"therefore alpha=",alpha
+      END SELECT
 
       RI_vector = 0.0_dp
 
@@ -1302,7 +1312,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      IF (i_iter == 1 .AND. bse_full_diag) THEN 
+      IF (i_iter == 1 .AND. bse_full_diag_debug) THEN 
          ALLOCATE(v_iajb(homo,virtual,homo,virtual))
          v_iajb = 0.0_dp
          !MG to del: Print 4c integrals for debugging purposes
@@ -1478,15 +1488,9 @@ CONTAINS
 
       CALL allocate_and_fill_local_array(B_bar_iaQ_bse_local, fm_mat_S_bar_ia_bse, gd_array, color_sub, homo, virtual, &
                                          dimen_RI, para_env)
-      !MG to del - Debug feature for computing TDHF: neglect Screening
-      if (.TRUE.) THEN
-         CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_bar_ij_bse, gd_array, color_sub, homo, homo, &
-                                          dimen_RI, para_env)
-      ELSE 
-         CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_ij_bse, gd_array, color_sub, homo, homo, &
-                                          dimen_RI, para_env)
-         print *,"MG: !!! Debugging for TDHF in BSE activated! -> Screening neglected"
-      END IF
+                                         
+      CALL allocate_and_fill_local_array(B_bar_ijQ_bse_local, fm_mat_S_bar_ij_bse, gd_array, color_sub, homo, homo, &
+                                       dimen_RI, para_env)
 
       CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, &
                                          dimen_RI, para_env)

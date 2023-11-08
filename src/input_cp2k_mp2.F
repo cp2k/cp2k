@@ -27,7 +27,8 @@ MODULE input_cp2k_mp2
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
-        do_potential_tshpsc, do_bse_singlet, do_bse_triplet, do_bse_en, do_bse_res, do_bse_or, &
+        do_potential_tshpsc, bse_singlet, bse_triplet, bse_fulldiag_tda, bse_fulldiag_abba, &
+        bse_iter_tda, bse_iter_abba, bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond, &
         eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
         gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
         kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
@@ -853,15 +854,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BSE", &
-                          description="If true, electronic excitation energies are computed from the "// &
-                          "Bethe-Salpeter equation on top of GW eigenvalues.  Parameter of BSE can be adjusted in "// &
-                          "the corresponding section.", &
-                          usage="BSE", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+      ! CALL keyword_create(keyword, __LOCATION__, name="BSE", &
+      !                     description="If true, electronic excitation energies are computed from the "// &
+      !                     "Bethe-Salpeter equation on top of GW eigenvalues.  Parameter of BSE can be adjusted in "// &
+      !                     "the corresponding section.", &
+      !                     usage="BSE", &
+      !                     default_l_val=.FALSE., &
+      !                     lone_keyword_l_val=.TRUE.)
+      ! CALL section_add_keyword(section, keyword)
+      ! CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="IMAGE_CHARGE_MODEL", &
                           variants=(/"IC"/), &
@@ -1216,35 +1217,86 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters influencing the Bethe-Salpeter calculations on "// &
                           "top of GW eigenvalues.", &
-                          n_keywords=12, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activates BSE calculations.", &
+                          usage="&BSE .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SPIN_CONFIG", &
                           description="Desired spin configuration of exciton", &
                           usage="SPIN_CONFIG TRIPLET", &
                           enum_c_vals=s2a("SINGLET", "TRIPLET"), &
-                          enum_i_vals=(/do_bse_singlet, do_bse_triplet/), &
+                          enum_i_vals=(/bse_singlet, bse_triplet/), &
                           enum_desc=s2a("Uses singlet configuration (including exchange interaction) for exciton.", &
                                         "Uses triplet configuration (no exchange interaction) for exciton."), &
-                          default_i_val=do_bse_singlet)
+                          default_i_val=bse_singlet)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_METHOD", &
+                          description="Method for BSE calculations. " // &
+                          "Choose between TDA/ABBA and full/iterative diagonalization.", &
+                          usage="&BSE_METHOD FULLDIAG_TDA", &
+                          enum_c_vals=s2a("FULLDIAG_TDA", "FULLDIAG_ABBA","ITER_TDA", "ITER_ABBA"), &
+                          enum_i_vals=(/bse_fulldiag_tda, bse_fulldiag_abba, bse_iter_tda, bse_iter_abba/), &
+                          enum_desc=s2a("Fully diagonalizes the A matrix, i.e. within the Tamm-Dancoff approximation.", &
+                                        "Fully diagonalizes the ABBA matrix.", &
+                                        "Iteratively diagonalizes the A matrix, i.e. within the Tamm-Dancoff approximation.", &
+                                        "Iteratively diagonalizes the ABBA matrix."), &
+                          default_i_val=bse_fulldiag_tda)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL create_bse_iterat_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (subsection)
+      CALL create_bse_fulldiag_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_bse_iterat_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="BSE_ITERAT", &
+                          description="Parameters influencing the iterative Bethe-Salpeter calculation.", &
+                          n_keywords=9, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DAVIDSON_ABORT_COND", &
                           description="Desired abortion condition for Davidson solver", &
                           usage="DAVIDSON_ABORT_COND OR", &
                           enum_c_vals=s2a("EN", "RES", "OR"), &
-                          enum_i_vals=(/do_bse_en, do_bse_res, do_bse_or/), &
+                          enum_i_vals=(/bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond/), &
                           enum_desc=s2a("Uses energy threshold for successfully exiting solver.", &
                                        "Uses residual threshold for successfully exiting solver.", &
                                        "Uses either energy or residual threshold for successfully exiting solver."), &
-                          default_i_val=do_bse_en)
+                          default_i_val=bse_iter_en_cond)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1311,14 +1363,23 @@ CONTAINS
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+   END SUBROUTINE
 
-      CALL keyword_create(keyword, __LOCATION__, name="EXACT_DIAG", &
-                           description="If true, the A-matrix in BSE is fully diagonalized and the eigenvalues printed out.", &
-                           usage="EXACT_DIAG", &
-                           default_l_val=.FALSE., &
-                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_bse_fulldiag_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="BSE_FULLDIAG", &
+                          description="Parameters influencing the full diagonalization of the BSE.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
 
    END SUBROUTINE
 
