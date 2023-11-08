@@ -7,8 +7,10 @@
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
        &LINRES
-         PRECONDITIONER FULL_ALL
+         PRECONDITIONER FULL_SINGLE_INVERSE
          MAX_ITER 20
+         EPS 1.0E-10
+         EPS_FILTER 1.0E-15
        &END LINRES
        &PRINT
           &FORCES
