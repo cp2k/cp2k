@@ -3,17 +3,18 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-cecl3.inp                                              1      1e-12             -76.26444516652131
-prcl3.inp                                              1      1e-12             -78.70820749542273
-ndcl3.inp                                              1      1e-12             -79.41308546259691
-pmcl3.inp                                              1      1e-12             -79.53254267193822
-smcl3.inp                                              1      1e-12             -80.39710557866603
-eucl3.inp                                              1      1e-12             -81.11343424604722
-gdcl3.inp                                              1      1e-12             -81.26675623128027
-tbcl3.inp                                              1      1e-12             -81.81087049823392
-dycl3.inp                                              1      1e-12             -83.17136751638330
-hocl3.inp                                              1      1e-12             -83.04046424045582
-ercl3.inp                                              1      1e-12             -83.19729687371733
-tmcl3.inp                                              1      1e-12             -83.32174716552731
-ybcl3.inp                                              1      1e-12             -84.95478989301280
-lucl3.inp                                              1      1e-12             -85.69230335117535
+cecl3.inp                                              1      1e-12             -77.54312538365372
+prcl3.inp                                              1      1e-12             -78.91224828674710
+ndcl3.inp                                              1      1e-12             -79.61092934924595
+pmcl3.inp                                              1      1e-12             -79.80305283944482
+smcl3.inp                                              1      1e-12             -80.73520444340637
+eucl3.inp                                              1      1e-12             -81.46010323237014
+gdcl3.inp                                              1      1e-12             -82.08536205402194
+tbcl3.inp                                              1      1e-12             -82.73896727355218
+dycl3.inp                                              1      1e-12             -83.38393687140470
+hocl3.inp                                              1      1e-12             -84.04982298690273
+ercl3.inp                                              1      1e-12             -84.72562058356527
+tmcl3.inp                                              1      1e-12             -85.00748037087227
+ybcl3.inp                                              1      1e-12             -85.87918090026510
+lucl3.inp                                              1      1e-12             -86.48488077721177
+
