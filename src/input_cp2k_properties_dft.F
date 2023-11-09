@@ -145,7 +145,7 @@ CONTAINS
 !>      Available properties : none
 !> \param section the section to create
 !> \param create_subsections indicates whether or not subsections should be created
-!> \param default_set_tdlr ...
+!> \param default_set_tdlr default parameters to be used if called from TDDFPT
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE create_linres_section(section, create_subsections, default_set_tdlr)
