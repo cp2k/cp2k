@@ -78,7 +78,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Create the PROPERTIES section
 !> \param section the section to create
-!> \param create_subsections  indicates whether or not subsections should be created UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param create_subsections  indicates whether or not subsections should be created
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE create_properties_section(section)
