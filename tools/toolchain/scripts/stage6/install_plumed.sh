@@ -67,6 +67,7 @@ case "$with_plumed" in
         LIBS="${libs}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
+        --enable-modules=all \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make VERBOSE=1 -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
