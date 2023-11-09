@@ -78,7 +78,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Create the PROPERTIES section
 !> \param section the section to create
-!> \param create_subsections  indicates whether or not subsections should be created
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE create_properties_section(section)
@@ -145,7 +144,7 @@ CONTAINS
 !>      a linear response calculation
 !>      Available properties : none
 !> \param section the section to create
-!> \param create_subsections ...
+!> \param create_subsections indicates whether or not subsections should be created
 !> \param default_set_tdlr ...
 !> \author MI
 ! **************************************************************************************************
