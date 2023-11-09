@@ -156,18 +156,20 @@ CONTAINS
 
 
       INTEGER                                            :: def_precond, def_max_iter
-      REAL(KIND=DP)                                      :: def_eps, def_eps_filter
+      REAL(KIND=DP)                                      :: def_eps, def_eps_filter, def_egap
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       NULLIFY (keyword, print_key)
 
       IF (PRESENT(default_set_tdlr)) THEN
+         def_egap = 0.02_dp
          def_eps = 1.0e-10_dp
          def_eps_filter = 1.0e-15_dp
          def_max_iter = 100
          def_precond = ot_precond_full_single_inverse
       ELSE
+         def_egap = 0.2_dp
          def_eps = 1.e-6_dp
          def_eps_filter = 0.0_dp
          def_max_iter = 50
@@ -234,7 +236,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_GAP", &
                           description="Energy gap estimate [a.u.] for preconditioning", &
                           usage="ENERGY_GAP 0.1", &
-                          default_r_val=0.2_dp)
+                          default_r_val=def_egap)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

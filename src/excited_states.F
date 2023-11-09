@@ -96,7 +96,7 @@ CONTAINS
                WRITE (unit_nr, '(T2,A,A,A,A,A)') "!", REPEAT("-", 27), &
                   " Excited State Forces ", REPEAT("-", 28), "!"
             END IF
-	    ! prepare force array
+            ! prepare force array
             CALL get_qs_env(qs_env, force=ks_force, atomic_kind_set=atomic_kind_set)
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
             NULLIFY (lr_force)
