@@ -1825,7 +1825,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="FORCES", &
                                        description="Controls the calculation and printing of excited state forces. "// &
-                                       "Prints difference in forces between excited state and ground state!", &
+                                       "This needs a RUN_TYPE that includes force evaluation, e.g. ENERGY_FORCE", &
                                        print_level=debug_print_level, filename="TDFORCE")
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
                           description="Specifies a list of states for the force calculations.", &
