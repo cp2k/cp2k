@@ -277,6 +277,16 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
                pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
 !$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
+                     pw1%in_space == REALSPACE) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cr3d(:, :, :) = REAL(pw1%cc3d(:, :, :), KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == COMPLEXDATA3D .AND. &
+                     pw1%in_space == REALSPACE) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cc3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
             ELSE
                CPABORT("No suitable data field")
             END IF
@@ -328,6 +338,22 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
             pw2%cc3d(:, :, :) = pw1%cc3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
+         ELSE IF (pw1%in_use == REALDATA3D .AND. &
+                  pw2%in_use == COMPLEXDATA3D) THEN
+            ns = SIZE(pw1%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
+            pw2%cc3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
+         ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
+                  pw2%in_use == REALDATA3D) THEN
+            ns = SIZE(pw1%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
+            pw2%cr3d(:, :, :) = REAL(pw1%cc3d(:, :, :), KIND=dp)
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
          ELSE

@@ -12,8 +12,7 @@
 ! **************************************************************************************************
 MODULE dgs
 
-   USE fast,                            ONLY: copy_cr,&
-                                              copy_cri,&
+   USE fast,                            ONLY: copy_cri,&
                                               rankup
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
@@ -28,7 +27,8 @@ MODULE dgs
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_change,&
                                               pw_grid_setup
-   USE pw_methods,                      ONLY: pw_multiply_with,&
+   USE pw_methods,                      ONLY: pw_copy,&
+                                              pw_multiply_with,&
                                               pw_zero
    USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                               pw_create,&
@@ -877,7 +877,7 @@ CONTAINS
       CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
       CALL fft3d(BWFFT, nd, cd%cc3d)
-      CALL copy_cr(cd%cc3d, rhos1%cr3d)
+      CALL pw_copy(cd, rhos1)
 
       DEALLOCATE (zs)
       CALL pw_release(cd)
