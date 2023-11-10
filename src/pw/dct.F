@@ -27,7 +27,7 @@ MODULE dct
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_type
+                                              pw_type, REALDATA3D, REALSPACE
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -734,6 +734,8 @@ CONTAINS
       bounds_local_xpnd = pw_in%pw_grid%bounds_local
       in_space = pw_in%in_space
       in_use = pw_in%in_use
+CPASSERT(in_space==REALSPACE)
+CPASSERT(in_use==REALDATA3D)
 
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ, neumannXY)
