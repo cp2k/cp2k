@@ -6,6 +6,10 @@
        NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
+       &LINRES
+         PRECONDITIONER FULL_ALL
+         MAX_ITER 20
+       &END LINRES
        &PRINT
           &FORCES
              THRESHOLD 0.001

@@ -93,7 +93,7 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
 
-      CALL create_linres_section(subsection)
+      CALL create_linres_section(subsection, create_subsections=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -144,15 +144,35 @@ CONTAINS
 !>      a linear response calculation
 !>      Available properties : none
 !> \param section the section to create
+!> \param create_subsections indicates whether or not subsections should be created
+!> \param default_set_tdlr default parameters to be used if called from TDDFPT
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE create_linres_section(section)
+   SUBROUTINE create_linres_section(section, create_subsections, default_set_tdlr)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(in)                                :: create_subsections
+      LOGICAL, INTENT(IN), OPTIONAL                      :: default_set_tdlr
 
+      INTEGER                                            :: def_max_iter, def_precond
+      REAL(KIND=DP)                                      :: def_egap, def_eps, def_eps_filter
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
-      NULLIFY (keyword, subsection, print_key)
+      NULLIFY (keyword, print_key)
+
+      IF (PRESENT(default_set_tdlr)) THEN
+         def_egap = 0.02_dp
+         def_eps = 1.0e-10_dp
+         def_eps_filter = 1.0e-15_dp
+         def_max_iter = 100
+         def_precond = ot_precond_full_single_inverse
+      ELSE
+         def_egap = 0.2_dp
+         def_eps = 1.e-6_dp
+         def_eps_filter = 0.0_dp
+         def_max_iter = 50
+         def_precond = ot_precond_none
+      END IF
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
@@ -163,19 +183,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS", &
                           description="target accuracy for the convergence of the conjugate gradient.", &
-                          usage="EPS 1.e-6", default_r_val=1.e-6_dp)
+                          usage="EPS 1.e-6", default_r_val=def_eps)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Filter threshold for response density matrix.", &
-                          usage="EPS 1.e-8", default_r_val=0.0_dp)
+                          usage="EPS 1.e-8", default_r_val=def_eps_filter)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of conjugate gradient iteration to be performed for one optimization.", &
-                          usage="MAX_ITER 200", default_i_val=50)
+                          usage="MAX_ITER 200", default_i_val=def_max_iter)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -191,7 +211,7 @@ CONTAINS
          "They differ in effectiveness, cost of construction, cost of application. "// &
          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
          usage="PRECONDITIONER FULL_ALL", &
-         default_i_val=ot_precond_none, &
+         default_i_val=def_precond, &
          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
                          "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
@@ -214,7 +234,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_GAP", &
                           description="Energy gap estimate [a.u.] for preconditioning", &
                           usage="ENERGY_GAP 0.1", &
-                          default_r_val=0.2_dp)
+                          default_r_val=def_egap)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -234,62 +254,67 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL create_localize_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+      IF (create_subsections) THEN
+         NULLIFY (subsection)
 
-      CALL create_current_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_localize_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_nmr_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_current_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_spin_spin_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_nmr_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_epr_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_spin_spin_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_polarizability_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_epr_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_dcdr_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_polarizability_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL create_vcd_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL create_dcdr_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL section_create(subsection, __LOCATION__, name="PRINT", &
-                          description="printing of information during the linear response calculation", &
-                          repeats=.FALSE.)
+         CALL create_vcd_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      CALL cp_print_key_section_create( &
-         print_key, __LOCATION__, "program_run_info", &
-         description="Controls the printing of basic iteration information during the LINRES calculation", &
-         print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(subsection, print_key)
-      CALL section_release(print_key)
+         CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                             description="printing of information during the linear response calculation", &
+                             repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
-                                       description="Controls the dumping of restart file of the response wavefunction. "// &
-                                       "For each set of response functions, i.e. for each perturbation, "// &
-                                       "one different restart file is dumped. These restart files should be "// &
-                                       "employed only to restart the same type of LINRES calculation, "// &
-                                       "i.e. with the same perturbation.", &
-                                       print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("ITER"), &
-                                       add_last=add_last_numeric, each_iter_values=(/3/), filename="")
-      CALL section_add_subsection(subsection, print_key)
-      CALL section_release(print_key)
+         CALL cp_print_key_section_create( &
+            print_key, __LOCATION__, "program_run_info", &
+            description="Controls the printing of basic iteration information during the LINRES calculation", &
+            print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+         CALL section_add_subsection(subsection, print_key)
+         CALL section_release(print_key)
 
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
+                                          description="Controls the dumping of restart file of the response wavefunction. "// &
+                                          "For each set of response functions, i.e. for each perturbation, "// &
+                                          "one different restart file is dumped. These restart files should be "// &
+                                          "employed only to restart the same type of LINRES calculation, "// &
+                                          "i.e. with the same perturbation.", &
+                                          print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("ITER"), &
+                                          add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+         CALL section_add_subsection(subsection, print_key)
+         CALL section_release(print_key)
+
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+
+      END IF
 
    END SUBROUTINE create_linres_section
 
@@ -1653,6 +1678,11 @@ CONTAINS
 
       ! LRI subsection
       CALL create_lrigpw_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! LINRES section
+      CALL create_linres_section(subsection, create_subsections=.FALSE., default_set_tdlr=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
