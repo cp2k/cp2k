@@ -18,7 +18,6 @@
 MODULE realspace_grid_types
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE fast,                            ONLY: copy_cr
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -38,6 +37,7 @@ MODULE realspace_grid_types
    USE pw_grids,                        ONLY: pw_grid_release,&
                                               pw_grid_retain
    USE pw_methods,                      ONLY: pw_copy_from_array,&
+                                              pw_copy_to_array,&
                                               pw_integrate_function
    USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                               REALDATA3D,&
@@ -779,7 +779,7 @@ CONTAINS
             END IF
          ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
             IF (rs%desc%border == 0) THEN
-               CALL copy_cr(pw%cc3d, rs%r)
+               CALL pw_copy_to_array(pw, rs%r)
             ELSE
 !$OMP          PARALLEL DO DEFAULT(NONE) &
 !$OMP                      PRIVATE(i,im,j,jm,k,km) &

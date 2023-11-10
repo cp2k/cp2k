@@ -26,8 +26,6 @@ MODULE pw_methods
 
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
-   USE fast,                            ONLY: copy_cr,&
-                                              zero_c
    USE fft_tools,                       ONLY: BWFFT,&
                                               FWFFT,&
                                               fft3d
@@ -35,6 +33,7 @@ MODULE pw_methods
                                               accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
+   USE mathconstants,                   ONLY: z_zero
    USE pw_copy_all,                     ONLY: pw_copy_match
    USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
                                               pw_fpga_c1dr3d_3d_sp,&
@@ -1888,7 +1887,7 @@ CONTAINS
       ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
                  ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
 
-         IF (.NOT. PRESENT(scale)) CALL zero_c(c)
+         IF (.NOT. PRESENT(scale)) c = z_zero
 
          IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -2134,7 +2133,7 @@ CONTAINS
 #endif
                CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
                ! use real part only
-               CALL copy_cr(c_out, pw2%cr3d)
+               CALL pw_copy_from_array(pw2, c_out)
             ELSE
                IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
                CALL pw_scatter(pw1, c_out)
@@ -2142,7 +2141,7 @@ CONTAINS
                CALL fft3d(dir, n, c_out, scale=norm, debug=test)
                ! use real part only
                IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-               CALL copy_cr(c_out, pw2%cr3d)
+               CALL pw_copy_from_array(pw2, c_out)
             END IF
             DEALLOCATE (c_out)
 #else
@@ -2153,7 +2152,7 @@ CONTAINS
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
             ! use real part only
             IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-            CALL copy_cr(c_out, pw2%cr3d)
+            CALL pw_copy_from_array(pw2, c_out)
             DEALLOCATE (c_out)
 #endif
          END SELECT
@@ -2195,7 +2194,7 @@ CONTAINS
          CASE ("FW_C3DC1D")
             !..prepare input
             c_in => pw1%cc3d
-            CALL zero_c(grays)
+            grays = z_zero
             !..transform
             IF (pw1%pw_grid%para%ray_distribution) THEN
                CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -2222,7 +2221,7 @@ CONTAINS
                nloc = pw1%pw_grid%npts_local
                ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
                CALL pw_copy_to_array(pw1, c_in)
-               CALL zero_c(grays)
+               grays = z_zero
                !..transform
                IF (pw1%pw_grid%para%ray_distribution) THEN
                   CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -2246,7 +2245,7 @@ CONTAINS
             !..prepare input
             IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-            CALL zero_c(grays)
+            grays = z_zero
             CALL pw_scatter(pw1, grays)
             c_in => pw2%cc3d
             !..transform
@@ -2271,7 +2270,7 @@ CONTAINS
 !..   prepare input
                IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                   WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-               CALL zero_c(grays)
+               grays = z_zero
                CALL pw_scatter(pw1, grays)
                nloc = pw2%pw_grid%npts_local
                ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
@@ -2288,7 +2287,7 @@ CONTAINS
                !..prepare output
                IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                   WRITE (out_unit, '(A)') "  Real part "
-               CALL copy_cr(c_in, pw2%cr3d)
+               CALL pw_copy_from_array(pw2, c_in)
                DEALLOCATE (c_in)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
             END IF

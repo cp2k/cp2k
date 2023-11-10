@@ -12,14 +12,14 @@
 ! **************************************************************************************************
 MODULE dgs
 
-   USE fast,                            ONLY: copy_cri,&
-                                              rankup
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FFT_RADIX_NEXT_ODD,&
                                               fft3d,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE pw_grid_info,                    ONLY: pw_find_cutoff
@@ -1133,5 +1133,62 @@ CONTAINS
       END DO
 
    END SUBROUTINE dg_int_patch_folded_1d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param n ...
+!> \param za ...
+!> \param cmat ...
+!> \param zb ...
+!> \param ex ...
+!> \param ey ...
+!> \param ez ...
+!> \param scr ...
+! **************************************************************************************************
+   SUBROUTINE rankup(n, za, cmat, zb, ex, ey, ez, scr)
+!
+! cmat(i,j,k) <- za * cmat(i,j,k) + ex(i) * ey(j) * ez(k)
+!
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      COMPLEX(KIND=dp), INTENT(IN)                       :: za
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: cmat
+      COMPLEX(KIND=dp), INTENT(IN)                       :: zb
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex, ey, ez
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: scr
+
+      INTEGER                                            :: n2, n3
+
+      n2 = n(1)*n(2)
+      n3 = n2*n(3)
+      scr(1:n2) = z_zero
+      CALL zgeru(n(1), n(2), zb, ex, 1, ey, 1, scr, n(1))
+      CALL zscal(n3, za, cmat, 1)
+      CALL zgeru(n2, n(3), z_one, scr, 1, ez, 1, cmat, n2)
+
+   END SUBROUTINE rankup
+
+! **************************************************************************************************
+!> \brief Copy a the real and imag. parts of a complex 3D array into two real arrays
+!> \param z the complex array
+!> \param r1 the real array for the real part
+!> \param r2 the real array for the imaginary part
+! **************************************************************************************************
+   SUBROUTINE copy_cri(z, r1, r2)
+!
+! r1 = real ( z )
+! r2 = imag ( z )
+!
+
+      COMPLEX(KIND=dp), INTENT(IN)                       :: z(:, :, :)
+      REAL(KIND=dp), INTENT(INOUT)                       :: r1(:, :, :), r2(:, :, :)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(r1,r2,z)
+      r1(:, :, :) = REAL(z(:, :, :), KIND=dp)
+      r2(:, :, :) = AIMAG(z(:, :, :))
+!$OMP END PARALLEL WORKSHARE
+
+   END SUBROUTINE copy_cri
 
 END MODULE dgs

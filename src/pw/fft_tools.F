@@ -31,7 +31,6 @@ MODULE fft_tools
                                               C_PTR,&
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE fast,                            ONLY: zero_c
    USE fft_lib,                         ONLY: &
         fft_1dm, fft_3d, fft_alloc, fft_create_plan_1dm, fft_create_plan_3d, fft_dealloc, &
         fft_destroy_plan, fft_do_cleanup, fft_do_init, fft_get_lengths, fft_library
@@ -39,6 +38,7 @@ MODULE fft_tools
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               sp
+   USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_null,&
                                               mp_comm_type,&
@@ -820,8 +820,8 @@ CONTAINS
          sbuf => fft_scratch%r1buf
          tbuf => fft_scratch%tbuf
 
-         CALL zero_c(sbuf)
-         CALL zero_c(tbuf)
+         sbuf = z_zero
+         tbuf = z_zero
 
          IF (sign == FWFFT) THEN
             ! cin -> gin

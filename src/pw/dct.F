@@ -15,7 +15,6 @@
 ! **************************************************************************************************
 MODULE dct
 
-   USE fast,                            ONLY: copy_cr
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_request_null,&
@@ -24,11 +23,8 @@ MODULE dct
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              RECIPROCALSPACE,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -716,7 +712,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
-      COMPLEX(dp), DIMENSION(:, :, :), POINTER           :: cc3d
       INTEGER :: group_size, handle, i, in_space, in_use, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
          lb3_orig, lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, &
          send_ub2, send_ub3, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
@@ -749,32 +744,15 @@ CONTAINS
       END SELECT
 
 ! cosine transform is a real transform. The cosine transform of a 3D data must be real and 3D.
-      NULLIFY (cr3d, cc3d)
+      NULLIFY (cr3d)
       lb1_xpnd = bounds_local_xpnd(1, 1)
       ub1_xpnd = bounds_local_xpnd(2, 1)
       lb2_xpnd = bounds_local_xpnd(1, 2)
       ub2_xpnd = bounds_local_xpnd(2, 2)
       lb3_xpnd = bounds_local_xpnd(1, 3)
       ub3_xpnd = bounds_local_xpnd(2, 3)
-      IF ((in_use .EQ. REALDATA1D) .OR. (in_use .EQ. COMPLEXDATA1D)) THEN
-         IF (in_space .EQ. RECIPROCALSPACE) THEN
-            ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-            ALLOCATE (cc3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-            cc3d = RESHAPE(pw_in%cc, (/ub1_xpnd - lb1_xpnd + 1, ub2_xpnd - lb2_xpnd + 1, ub3_xpnd - lb3_xpnd + 1/))
-            CALL copy_cr(cc3d, cr3d)
-            DEALLOCATE (cc3d)
-         ELSE
-            ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-            cr3d = RESHAPE(pw_in%cr, (/ub1_xpnd - lb1_xpnd + 1, ub2_xpnd - lb2_xpnd + 1, ub3_xpnd - lb3_xpnd + 1/))
-         END IF
-      ELSE
-         IF (in_space .EQ. RECIPROCALSPACE) THEN
-            CALL copy_cr(pw_in%cc3d, cr3d)
-         ELSE
-            ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-            cr3d = pw_in%cr3d
-         END IF
-      END IF
+      ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
+      cr3d = pw_in%cr3d
 
 ! let all the nodes know about each others shifted local bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))
