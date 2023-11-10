@@ -196,13 +196,6 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_METHOD", &
                                 i_val=mp2_env%ri_g0w0%bse_method)
-      !MG todel
-      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_Z_VECTORS", &
-      !                           i_val=mp2_env%ri_g0w0%num_z_vectors)
-      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%THRESHOLD_MIN_TRANS", &
-      !                           r_val=mp2_env%ri_g0w0%eps_min_trans)
-      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%MAX_ITER", &
-      !                           i_val=mp2_env%ri_g0w0%max_iter_bse)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)
