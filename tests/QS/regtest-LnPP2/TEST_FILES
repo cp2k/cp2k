@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-cecl3.inp                                              1      1e-12             -77.54312538365372
+cecl3.inp                                              1      1e-12             -77.31559707496631
 prcl3.inp                                              1      1e-12             -78.91224828674710
 ndcl3.inp                                              1      1e-12             -79.61092934924595
 pmcl3.inp                                              1      1e-12             -79.80305283944482
@@ -17,4 +17,3 @@ ercl3.inp                                              1      1e-12             
 tmcl3.inp                                              1      1e-12             -85.00748037087227
 ybcl3.inp                                              1      1e-12             -85.87918090026510
 lucl3.inp                                              1      1e-12             -86.48488077721177
-
