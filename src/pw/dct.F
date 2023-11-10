@@ -706,7 +706,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
-      INTEGER, INTENT(IN)                                :: srcs_shrink
+      INTEGER, INTENT(INOUT)                             :: srcs_shrink
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_local_shftd
       TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_shrinked
 
@@ -714,12 +714,11 @@ CONTAINS
 
       INTEGER :: group_size, handle, i, in_space, in_use, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
          lb3_orig, lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, &
-         send_ub2, send_ub3, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
+         send_ub2, send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
       REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d, send_crmsg
       TYPE(mp_comm_type)                                 :: rs_group
-      TYPE(mp_request_type)                              :: recv_req, send_req
       TYPE(pw_grid_type), POINTER                        :: pw_grid_orig
 
       CALL timeset(routineN, handle)
@@ -733,6 +732,7 @@ CONTAINS
       in_use = pw_in%in_use
       CPASSERT(in_space == REALSPACE)
       CPASSERT(in_use == REALDATA3D)
+      tag = 1
 
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ, neumannXY)
@@ -770,8 +770,7 @@ CONTAINS
 
             ALLOCATE (send_crmsg(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3))
             send_crmsg = cr3d(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3)
-            CALL rs_group%isend(send_crmsg, dests_shrink(i), send_req)
-            CALL send_req%wait()
+            CALL rs_group%send(send_crmsg, dests_shrink(i), tag)
             DEALLOCATE (send_crmsg)
          END IF
       END DO
@@ -789,8 +788,7 @@ CONTAINS
       ELSE IF (srcs_shrink .EQ. -1) THEN
 ! the source is invalid ... do nothing
       ELSE
-         CALL rs_group%irecv(pw_shrinked%cr3d, srcs_shrink, recv_req)
-         CALL recv_req%wait()
+         CALL rs_group%recv(pw_shrinked%cr3d, srcs_shrink, tag)
       END IF
 
       DEALLOCATE (bounds_local_all)
