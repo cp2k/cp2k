@@ -508,21 +508,18 @@ CONTAINS
             INTEGER                                            :: idir
 
             IF (rho_set%owns%rho) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%rho, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%rho)
             ELSE
                NULLIFY (rho_set%rho)
             END IF
             IF (rho_set%owns%rho_1_3) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%rho_1_3, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%rho_1_3)
             ELSE
                NULLIFY (rho_set%rho_1_3)
             END IF
             IF (rho_set%owns%drho) THEN
                DO idir = 1, 3
-                  CALL pw_pool%give_back_cr3d(rho_set%drho(idir)%array, &
-                                              accept_non_compatible=.TRUE.)
+                  CALL pw_pool%give_back_cr3d(rho_set%drho(idir)%array)
                END DO
             ELSE
                DO idir = 1, 3
@@ -530,45 +527,36 @@ CONTAINS
                END DO
             END IF
             IF (rho_set%owns%norm_drho) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%norm_drho, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%norm_drho)
             ELSE
                NULLIFY (rho_set%norm_drho)
             END IF
             IF (rho_set%owns%laplace_rho) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%laplace_rho, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%laplace_rho)
             ELSE
                NULLIFY (rho_set%laplace_rho)
             END IF
             IF (rho_set%owns%tau) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%tau, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%tau)
             ELSE
                NULLIFY (rho_set%tau)
             END IF
             IF (rho_set%owns%rho_spin) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%rhoa, &
-                                           accept_non_compatible=.TRUE.)
-               CALL pw_pool%give_back_cr3d(rho_set%rhob, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%rhoa)
+               CALL pw_pool%give_back_cr3d(rho_set%rhob)
             ELSE
                NULLIFY (rho_set%rhoa, rho_set%rhob)
             END IF
             IF (rho_set%owns%rho_spin_1_3) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%rhoa_1_3, &
-                                           accept_non_compatible=.TRUE.)
-               CALL pw_pool%give_back_cr3d(rho_set%rhob_1_3, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%rhoa_1_3)
+               CALL pw_pool%give_back_cr3d(rho_set%rhob_1_3)
             ELSE
                NULLIFY (rho_set%rhoa_1_3, rho_set%rhob_1_3)
             END IF
             IF (rho_set%owns%drho_spin) THEN
                DO idir = 1, 3
-                  CALL pw_pool%give_back_cr3d(rho_set%drhoa(idir)%array, &
-                                              accept_non_compatible=.TRUE.)
-                  CALL pw_pool%give_back_cr3d(rho_set%drhob(idir)%array, &
-                                              accept_non_compatible=.TRUE.)
+                  CALL pw_pool%give_back_cr3d(rho_set%drhoa(idir)%array)
+                  CALL pw_pool%give_back_cr3d(rho_set%drhob(idir)%array)
                END DO
             ELSE
                DO idir = 1, 3
@@ -576,26 +564,20 @@ CONTAINS
                END DO
             END IF
             IF (rho_set%owns%laplace_rho_spin) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%laplace_rhoa, &
-                                           accept_non_compatible=.TRUE.)
-               CALL pw_pool%give_back_cr3d(rho_set%laplace_rhob, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%laplace_rhoa)
+               CALL pw_pool%give_back_cr3d(rho_set%laplace_rhob)
             ELSE
                NULLIFY (rho_set%laplace_rhoa, rho_set%laplace_rhob)
             END IF
             IF (rho_set%owns%norm_drho_spin) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%norm_drhoa, &
-                                           accept_non_compatible=.TRUE.)
-               CALL pw_pool%give_back_cr3d(rho_set%norm_drhob, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%norm_drhoa)
+               CALL pw_pool%give_back_cr3d(rho_set%norm_drhob)
             ELSE
                NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob)
             END IF
             IF (rho_set%owns%tau_spin) THEN
-               CALL pw_pool%give_back_cr3d(rho_set%tau_a, &
-                                           accept_non_compatible=.TRUE.)
-               CALL pw_pool%give_back_cr3d(rho_set%tau_b, &
-                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool%give_back_cr3d(rho_set%tau_a)
+               CALL pw_pool%give_back_cr3d(rho_set%tau_b)
             ELSE
                NULLIFY (rho_set%tau_a, rho_set%tau_b)
             END IF

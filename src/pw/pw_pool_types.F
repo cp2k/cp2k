@@ -27,8 +27,6 @@ MODULE pw_pool_types
         cp_sll_3d_r_insert_el, cp_sll_3d_r_next, cp_sll_3d_r_rm_first_el, cp_sll_3d_r_type, &
         cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
         cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
    USE kinds,                           ONLY: dp
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_compare,&
@@ -50,7 +48,7 @@ MODULE pw_pool_types
    INTEGER, PARAMETER :: default_max_cache = 75, max_max_cache = 150
 
    PUBLIC :: pw_pool_type, pw_pool_p_type
-   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release
+   PUBLIC :: pw_pool_create, pw_pool_release
    PUBLIC :: pw_pools_copy, pw_pools_dealloc, &
              pw_pools_create_pws, pw_pools_give_back_pws
 
@@ -75,6 +73,7 @@ MODULE pw_pool_types
                                        complex1d_pw => NULL(), complex3d_pw => NULL()
       TYPE(cp_sll_3d_r_type), POINTER :: real3d_array => NULL()
    CONTAINS
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: retain => pw_pool_retain
       PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create_pw => pw_pool_create_pw
       PROCEDURE, PUBLIC, NON_OVERRIDABLE :: give_back_pw => pw_pool_give_back_pw
       PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create_cr3d => pw_pool_create_cr3d
@@ -108,10 +107,6 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, OPTIONAL                                  :: max_cache
 
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
-
       ALLOCATE (pool)
       pool%pw_grid => pw_grid
       CALL pw_grid_retain(pw_grid)
@@ -131,13 +126,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_retain(pool)
-      TYPE(pw_pool_type), POINTER                        :: pool
+      CLASS(pw_pool_type), INTENT(INOUT)                  :: pool
 
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
-
-      CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
 
       pool%ref_count = pool%ref_count + 1
@@ -155,14 +145,11 @@ CONTAINS
 
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: array_att
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_sll_3d_r_type), POINTER                    :: array_iterator
       TYPE(cp_sll_pw_type), POINTER                      :: iterator
       TYPE(pw_type), POINTER                             :: pw_el
 
       NULLIFY (iterator, array_iterator, pw_el, array_att)
-      logger => cp_get_default_logger()
-
       iterator => pool%real1d_pw
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
@@ -214,10 +201,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_pool_release(pool)
       TYPE(pw_pool_type), POINTER                        :: pool
-
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
 
       IF (ASSOCIATED(pool)) THEN
          CPASSERT(pool%ref_count > 0)
@@ -275,12 +258,10 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: cr3d_ptr
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: el
 
       CALL timeset(routineN, handle)
       NULLIFY (cr3d_ptr)
-      logger => cp_get_default_logger()
 
       SELECT CASE (use_data)
       CASE (REALDATA1D)
@@ -332,10 +313,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
 
       INTEGER                                            :: handle
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: el
-
-      logger => cp_get_default_logger()
 
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(pw%pw_grid)) THEN
@@ -418,12 +396,9 @@ CONTAINS
       CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
 
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: pw
 
       NULLIFY (pw)
-      logger => cp_get_default_logger()
-
       IF (ASSOCIATED(pw_pool%real3d_array)) THEN
          cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array)
          CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array)
@@ -448,31 +423,22 @@ CONTAINS
 !>      REALDATA3D, allocating it if none is present in the pool
 !> \param pw_pool the pool that caches the cr3d
 !> \param cr3d the pointer that will contain the array
-!> \param accept_non_compatible if true deallocates the non compatible
-!>        arrays passed in, if false (the default) stops with an error
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d, accept_non_compatible)
+   SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d)
       CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: cr3d
-      LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
 
-      LOGICAL                                            :: compatible, my_accept_non_compatible
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      my_accept_non_compatible = .FALSE.
-      logger => cp_get_default_logger()
-      IF (PRESENT(accept_non_compatible)) my_accept_non_compatible = accept_non_compatible
+      LOGICAL                                            :: compatible
 
       IF (ASSOCIATED(cr3d)) THEN
          compatible = ALL(MERGE(pw_pool%pw_grid%bounds_local(1, :) == LBOUND(cr3d) .AND. &
                                 pw_pool%pw_grid%bounds_local(2, :) == UBOUND(cr3d), &
                                 pw_pool%pw_grid%bounds_local(2, :) < pw_pool%pw_grid%bounds_local(1, :), &
                                 UBOUND(cr3d) >= LBOUND(cr3d)))
-         CPASSERT(compatible .OR. my_accept_non_compatible)
          IF (compatible) THEN
             IF (cp_sll_3d_r_get_length(pw_pool%real3d_array) < pw_pool%max_cache) THEN
                CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d)
@@ -484,8 +450,6 @@ CONTAINS
          ELSE
             DEALLOCATE (cr3d)
          END IF
-      ELSE
-         CPASSERT(my_accept_non_compatible)
       END IF
       NULLIFY (cr3d)
    END SUBROUTINE pw_pool_give_back_cr3d
@@ -556,7 +520,7 @@ CONTAINS
       ALLOCATE (target_pools(SIZE(source_pools)))
       DO i = 1, SIZE(source_pools)
          target_pools(i)%pool => source_pools(i)%pool
-         CALL pw_pool_retain(source_pools(i)%pool)
+         CALL source_pools(i)%pool%retain()
       END DO
    END SUBROUTINE pw_pools_copy
 

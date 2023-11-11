@@ -86,7 +86,6 @@ MODULE pw_env_methods
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_release,&
-                                              pw_pool_retain,&
                                               pw_pools_dealloc
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -454,7 +453,7 @@ CONTAINS
          CALL pw_grid_release(xc_super_ref_grid)
       ELSE
          pw_env%xc_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
-         CALL pw_pool_retain(pw_env%xc_pw_pool)
+         CALL pw_env%xc_pw_pool%retain()
       END IF
 
       ! init vdw_pool
@@ -481,7 +480,7 @@ CONTAINS
          CALL pw_grid_release(vdw_grid)
       ELSE
          pw_env%vdw_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
-         CALL pw_pool_retain(pw_env%vdw_pw_pool)
+         CALL pw_env%vdw_pw_pool%retain()
       END IF
 
       IF (do_io) CALL cp_print_key_finished_output(iounit, logger, print_section, '')

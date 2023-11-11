@@ -24,7 +24,6 @@ MODULE xc_derivative_set_types
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_release,&
-                                              pw_pool_retain,&
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
@@ -123,7 +122,7 @@ CONTAINS
 
       IF (PRESENT(pw_pool)) THEN
          derivative_set%pw_pool => pw_pool
-         CALL pw_pool_retain(pw_pool)
+         CALL pw_pool%retain()
          IF (PRESENT(local_bounds)) THEN
             IF (ANY(pw_pool%pw_grid%bounds_local /= local_bounds)) &
                CPABORT("incompatible local_bounds and pw_pool")

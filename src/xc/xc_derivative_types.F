@@ -79,8 +79,7 @@ CONTAINS
 
       IF (PRESENT(pw_pool)) THEN
          IF (ASSOCIATED(pw_pool)) THEN
-            CALL pw_pool%give_back_cr3d(derivative%deriv_data, &
-                                        accept_non_compatible=.TRUE.)
+            CALL pw_pool%give_back_cr3d(derivative%deriv_data)
          END IF
       END IF
       IF (ASSOCIATED(derivative%deriv_data)) THEN

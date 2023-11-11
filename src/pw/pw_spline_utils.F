@@ -30,7 +30,6 @@ MODULE pw_spline_utils
                                               pw_integral_ab,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_release,&
-                                              pw_pool_retain,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -2497,7 +2496,7 @@ CONTAINS
       preconditioner%pool => pool
       preconditioner%pbc = pbc
       preconditioner%transpose = transpose
-      CALL pw_pool_retain(pool)
+      CALL pool%retain()
       CALL pw_spline_precond_set_kind(preconditioner, precond_kind)
    END SUBROUTINE pw_spline_precond_create
 

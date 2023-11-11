@@ -42,7 +42,6 @@ MODULE ewald_pw_types
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_release,&
-                                              pw_pool_retain,&
                                               pw_pool_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
@@ -350,12 +349,12 @@ CONTAINS
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
 
       IF (PRESENT(pw_big_pool)) THEN
-         CALL pw_pool_retain(pw_big_pool)
+         CALL pw_big_pool%retain()
          CALL pw_pool_release(ewald_pw%pw_big_pool)
          ewald_pw%pw_big_pool => pw_big_pool
       END IF
       IF (PRESENT(pw_small_pool)) THEN
-         CALL pw_pool_retain(pw_small_pool)
+         CALL pw_small_pool%retain()
          CALL pw_pool_release(ewald_pw%pw_small_pool)
          ewald_pw%pw_small_pool => pw_small_pool
       END IF
