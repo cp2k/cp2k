@@ -1131,7 +1131,6 @@ list(
   pw_env_methods.F
   pw_env/pw_env_types.F
   pw_env/rs_pw_interface.F
-  pw/fast.F
   pw/fft/fft_kinds.F
   pw/fft/fft_lib.F
   pw/fft/fft_plan.F
