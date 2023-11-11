@@ -26,9 +26,6 @@ MODULE pw_methods
 
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
-   USE fast,                            ONLY: copy_cr,&
-                                              copy_rc,&
-                                              zero_c
    USE fft_tools,                       ONLY: BWFFT,&
                                               FWFFT,&
                                               fft3d
@@ -36,6 +33,7 @@ MODULE pw_methods
                                               accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
+   USE mathconstants,                   ONLY: z_zero
    USE pw_copy_all,                     ONLY: pw_copy_match
    USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
                                               pw_fpga_c1dr3d_3d_sp,&
@@ -71,6 +69,7 @@ MODULE pw_methods
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
    PUBLIC :: pw_set, pw_truncated
+   PUBLIC :: pw_copy_to_array, pw_copy_from_array
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
@@ -87,6 +86,16 @@ MODULE pw_methods
 
    INTERFACE pw_set
       MODULE PROCEDURE pw_set_value, pw_set_array
+   END INTERFACE
+
+   INTERFACE pw_copy_to_array
+      MODULE PROCEDURE pw_copy_to_array_r
+      MODULE PROCEDURE pw_copy_to_array_c
+   END INTERFACE
+
+   INTERFACE pw_copy_from_array
+      MODULE PROCEDURE pw_copy_from_array_r
+      MODULE PROCEDURE pw_copy_from_array_c
    END INTERFACE
 
 CONTAINS
@@ -267,6 +276,16 @@ CONTAINS
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
                pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
 !$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
+                     pw1%in_space == REALSPACE) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cr3d(:, :, :) = REAL(pw1%cc3d(:, :, :), KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+            ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == COMPLEXDATA3D .AND. &
+                     pw1%in_space == REALSPACE) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1,pw2)
+               pw2%cc3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
             ELSE
                CPABORT("No suitable data field")
             END IF
@@ -320,6 +339,22 @@ CONTAINS
             pw2%cc3d(:, :, :) = pw1%cc3d(:, :, :)
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
+         ELSE IF (pw1%in_use == REALDATA3D .AND. &
+                  pw2%in_use == COMPLEXDATA3D) THEN
+            ns = SIZE(pw1%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
+            pw2%cc3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
+         ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
+                  pw2%in_use == REALDATA3D) THEN
+            ns = SIZE(pw1%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
+            pw2%cr3d(:, :, :) = REAL(pw1%cc3d(:, :, :), KIND=dp)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
          ELSE
             CPABORT("No suitable data field")
          END IF
@@ -331,6 +366,127 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_copy
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_to_array_r(pw, array)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_to_array_r'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         array = pw%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         array = REAL(pw%cc3d, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("PW grid must be 3D!")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_copy_to_array_r
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_to_array_c(pw, array)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: array
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_to_array_c'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         array = pw%cr3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         array = pw%cc3d
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("PW grid must be 3D!")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_copy_to_array_c
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_from_array_r(pw, array)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: array
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_from_array_r'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         pw%cr3d = array
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         pw%cc3d = array
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("PW grid must be 3D!")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_copy_from_array_r
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param array ...
+! **************************************************************************************************
+   SUBROUTINE pw_copy_from_array_c(pw, array)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: array
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_from_array_c'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (pw%in_use == REALDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         pw%cr3d = REAL(array, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+         pw%cc3d = array
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+         CPABORT("PW grid must be 3D!")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_copy_from_array_c
 
 ! **************************************************************************************************
 !> \brief multiplies pw coeffs with a number
@@ -1731,7 +1887,7 @@ CONTAINS
       ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
                  ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
 
-         IF (.NOT. PRESENT(scale)) CALL zero_c(c)
+         IF (.NOT. PRESENT(scale)) c = z_zero
 
          IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -1922,7 +2078,7 @@ CONTAINS
             ! check if bitstream for the fft size is present
             ! if not, perform fft3d in CPU
             IF (pw_fpga_init_bitstream(n) == 1) THEN
-               CALL copy_rc(pw1%cr3d, c_out)
+               CALL pw_copy_to_array(pw1, c_out)
 #if (__PW_FPGA_SP && __PW_FPGA)
                CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
 #else
@@ -1931,14 +2087,14 @@ CONTAINS
                CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
                CALL pw_gather(pw2, c_out)
             ELSE
-               CALL copy_rc(pw1%cr3d, c_out)
+               CALL pw_copy_to_array(pw1, c_out)
                CALL fft3d(dir, n, c_out, scale=norm, debug=test)
                CALL pw_gather(pw2, c_out)
             END IF
             DEALLOCATE (c_out)
 #else
             ALLOCATE (c_out(n(1), n(2), n(3)))
-            CALL copy_rc(pw1%cr3d, c_out)
+            CALL pw_copy_to_array(pw1, c_out)
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
             CALL pw_gather(pw2, c_out)
             DEALLOCATE (c_out)
@@ -1977,7 +2133,7 @@ CONTAINS
 #endif
                CALL zdscal(n(1)*n(2)*n(3), norm, c_out, 1)
                ! use real part only
-               CALL copy_cr(c_out, pw2%cr3d)
+               CALL pw_copy_from_array(pw2, c_out)
             ELSE
                IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
                CALL pw_scatter(pw1, c_out)
@@ -1985,7 +2141,7 @@ CONTAINS
                CALL fft3d(dir, n, c_out, scale=norm, debug=test)
                ! use real part only
                IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-               CALL copy_cr(c_out, pw2%cr3d)
+               CALL pw_copy_from_array(pw2, c_out)
             END IF
             DEALLOCATE (c_out)
 #else
@@ -1996,7 +2152,7 @@ CONTAINS
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
             ! use real part only
             IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-            CALL copy_cr(c_out, pw2%cr3d)
+            CALL pw_copy_from_array(pw2, c_out)
             DEALLOCATE (c_out)
 #endif
          END SELECT
@@ -2038,7 +2194,7 @@ CONTAINS
          CASE ("FW_C3DC1D")
             !..prepare input
             c_in => pw1%cc3d
-            CALL zero_c(grays)
+            grays = z_zero
             !..transform
             IF (pw1%pw_grid%para%ray_distribution) THEN
                CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -2064,8 +2220,8 @@ CONTAINS
 !..   prepare input
                nloc = pw1%pw_grid%npts_local
                ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-               CALL copy_rc(pw1%cr3d, c_in)
-               CALL zero_c(grays)
+               CALL pw_copy_to_array(pw1, c_in)
+               grays = z_zero
                !..transform
                IF (pw1%pw_grid%para%ray_distribution) THEN
                   CALL fft3d(dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -2089,7 +2245,7 @@ CONTAINS
             !..prepare input
             IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-            CALL zero_c(grays)
+            grays = z_zero
             CALL pw_scatter(pw1, grays)
             c_in => pw2%cc3d
             !..transform
@@ -2114,7 +2270,7 @@ CONTAINS
 !..   prepare input
                IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                   WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-               CALL zero_c(grays)
+               grays = z_zero
                CALL pw_scatter(pw1, grays)
                nloc = pw2%pw_grid%npts_local
                ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
@@ -2131,7 +2287,7 @@ CONTAINS
                !..prepare output
                IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                   WRITE (out_unit, '(A)') "  Real part "
-               CALL copy_cr(c_in, pw2%cr3d)
+               CALL pw_copy_from_array(pw2, c_in)
                DEALLOCATE (c_in)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
             END IF

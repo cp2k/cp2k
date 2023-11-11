@@ -28,11 +28,11 @@ MODULE pw_gpu
                                               C_INT,&
                                               C_LOC,&
                                               C_PTR
-   USE fast,                            ONLY: zero_c
    USE fft_tools,                       ONLY: &
         cube_transpose_1, cube_transpose_2, fft_scratch_sizes, fft_scratch_type, get_fft_scratch, &
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type
    USE pw_grid_types,                   ONLY: FULLSPACE
@@ -504,7 +504,7 @@ CONTAINS
             CALL pw_gpu_sf(pw1, pbuf, scale)
 
             ! Exchange data ( transpose of matrix ) and sort
-            IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(qbuf)
+            IF (pw1%pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
             CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
@@ -515,7 +515,7 @@ CONTAINS
             CALL pw_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix )
-            IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(sbuf)
+            IF (pw1%pw_grid%grid_span /= FULLSPACE) sbuf = z_zero
 
             CALL cube_transpose_1(rbuf, bo(:, :, :, 2), bo(:, :, :, 1), sbuf, fft_scratch)
 
@@ -541,7 +541,7 @@ CONTAINS
             CALL pw_gpu_sf(pw1, sbuf, scale)
 
             ! Exchange data ( transpose of matrix ) and sort
-            IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(tbuf)
+            IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
             CALL x_to_yz(sbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 

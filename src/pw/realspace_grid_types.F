@@ -18,8 +18,6 @@
 MODULE realspace_grid_types
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE fast,                            ONLY: copy_cr,&
-                                              copy_rc
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -38,7 +36,9 @@ MODULE realspace_grid_types
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_release,&
                                               pw_grid_retain
-   USE pw_methods,                      ONLY: pw_integrate_function
+   USE pw_methods,                      ONLY: pw_copy_from_array,&
+                                              pw_copy_to_array,&
+                                              pw_integrate_function
    USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                               REALDATA3D,&
                                               pw_type
@@ -659,7 +659,7 @@ CONTAINS
    SUBROUTINE transfer_rs2pw(rs, pw)
 
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_rs2pw'
 
@@ -692,7 +692,7 @@ CONTAINS
             END IF
          ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
             IF (rs%desc%border == 0) THEN
-               CALL copy_rc(rs%r, pw%cc3d)
+               CALL pw_copy_from_array(pw, rs%r)
             ELSE
                CPASSERT(LBOUND(pw%cr3d, 3) .EQ. rs%lb_real(3))
 !$OMP          PARALLEL DO DEFAULT(NONE) SHARED(pw,rs)
@@ -779,7 +779,7 @@ CONTAINS
             END IF
          ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
             IF (rs%desc%border == 0) THEN
-               CALL copy_cr(pw%cc3d, rs%r)
+               CALL pw_copy_to_array(pw, rs%r)
             ELSE
 !$OMP          PARALLEL DO DEFAULT(NONE) &
 !$OMP                      PRIVATE(i,im,j,jm,k,km) &
@@ -831,7 +831,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw_replicated(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
 
       INTEGER                                            :: dest, ii, ip, ix, iy, iz, nma, nn, s(3), &
                                                             source
@@ -888,7 +888,7 @@ CONTAINS
       IF (pw%in_use == REALDATA3D) THEN
          CALL dcopy(nn, sendbuf, 1, pw%cr3d, 1)
       ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-         CALL copy_rc(RESHAPE(sendbuf, SHAPE(pw%cc3d)), pw%cc3d)
+         CALL pw_copy_from_array(pw, RESHAPE(sendbuf, SHAPE(pw%cc3d)))
       ELSE
          CPABORT("PW type not compatible")
       END IF

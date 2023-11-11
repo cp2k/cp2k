@@ -12,17 +12,14 @@
 ! **************************************************************************************************
 MODULE dgs
 
-   USE fast,                            ONLY: copy_cr,&
-                                              copy_cri,&
-                                              rankup,&
-                                              vc_x_vc,&
-                                              vr_x_vc
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FFT_RADIX_NEXT_ODD,&
                                               fft3d,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE pw_grid_info,                    ONLY: pw_find_cutoff
@@ -30,8 +27,12 @@ MODULE dgs
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_change,&
                                               pw_grid_setup
+   USE pw_methods,                      ONLY: pw_copy,&
+                                              pw_multiply_with,&
+                                              pw_zero
    USE pw_types,                        ONLY: COMPLEXDATA3D,&
-                                              REALDATA3D,&
+                                              pw_create,&
+                                              pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
@@ -861,28 +862,25 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
       INTEGER                                            :: nd(3)
+      TYPE(pw_type)                                      :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      ALLOCATE (cd(nd(1), nd(2), nd(3)))
-      cd = 0.0_dp
+      CALL pw_create(cd, rho0%pw_grid, COMPLEXDATA3D, rho0%in_space)
+      CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd, zb, ex1, ey1, ez1, zs)
-      IF (rho0%in_use == REALDATA3D) &
-         CALL vr_x_vc(rho0%cr3d, cd)
-      IF (rho0%in_use == COMPLEXDATA3D) &
-         CALL vc_x_vc(rho0%cc3d, cd)
-      CALL fft3d(BWFFT, nd, cd)
-      CALL copy_cr(cd, rhos1%cr3d)
+      CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
+      CALL pw_multiply_with(cd, rho0)
+      CALL fft3d(BWFFT, nd, cd%cc3d)
+      CALL pw_copy(cd, rhos1)
 
       DEALLOCATE (zs)
-      DEALLOCATE (cd)
+      CALL pw_release(cd)
 
    END SUBROUTINE dg_get_patch_1
 
@@ -910,31 +908,28 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
       INTEGER                                            :: nd(3)
+      TYPE(pw_type)                                      :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      ALLOCATE (cd(nd(1), nd(2), nd(3)))
-      cd = 0.0_dp
+      CALL pw_create(cd, rhos1%pw_grid, COMPLEXDATA3D, rho0%in_space)
+      CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       zb = CMPLX(charge2, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd, zb, ex2, ey2, ez2, zs)
+      CALL rankup(nd, za, cd%cc3d, zb, ex2, ey2, ez2, zs)
       za = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd, zb, ex1, ey1, ez1, zs)
-      IF (rho0%in_use == REALDATA3D) &
-         CALL vr_x_vc(rho0%cr3d, cd)
-      IF (rho0%in_use == COMPLEXDATA3D) &
-         CALL vc_x_vc(rho0%cc3d, cd)
-      CALL fft3d(BWFFT, nd, cd)
-      CALL copy_cri(cd, rhos1%cr3d, rhos2%cr3d)
+      CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
+      CALL pw_multiply_with(cd, rho0)
+      CALL fft3d(BWFFT, nd, cd%cc3d)
+      CALL copy_cri(cd%cc3d, rhos1%cr3d, rhos2%cr3d)
 
       DEALLOCATE (zs)
-      DEALLOCATE (cd)
+      CALL pw_release(cd)
 
    END SUBROUTINE dg_get_patch_2
 
@@ -1138,5 +1133,62 @@ CONTAINS
       END DO
 
    END SUBROUTINE dg_int_patch_folded_1d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param n ...
+!> \param za ...
+!> \param cmat ...
+!> \param zb ...
+!> \param ex ...
+!> \param ey ...
+!> \param ez ...
+!> \param scr ...
+! **************************************************************************************************
+   SUBROUTINE rankup(n, za, cmat, zb, ex, ey, ez, scr)
+!
+! cmat(i,j,k) <- za * cmat(i,j,k) + ex(i) * ey(j) * ez(k)
+!
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      COMPLEX(KIND=dp), INTENT(IN)                       :: za
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: cmat
+      COMPLEX(KIND=dp), INTENT(IN)                       :: zb
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex, ey, ez
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: scr
+
+      INTEGER                                            :: n2, n3
+
+      n2 = n(1)*n(2)
+      n3 = n2*n(3)
+      scr(1:n2) = z_zero
+      CALL zgeru(n(1), n(2), zb, ex, 1, ey, 1, scr, n(1))
+      CALL zscal(n3, za, cmat, 1)
+      CALL zgeru(n2, n(3), z_one, scr, 1, ez, 1, cmat, n2)
+
+   END SUBROUTINE rankup
+
+! **************************************************************************************************
+!> \brief Copy a the real and imag. parts of a complex 3D array into two real arrays
+!> \param z the complex array
+!> \param r1 the real array for the real part
+!> \param r2 the real array for the imaginary part
+! **************************************************************************************************
+   SUBROUTINE copy_cri(z, r1, r2)
+!
+! r1 = real ( z )
+! r2 = imag ( z )
+!
+
+      COMPLEX(KIND=dp), INTENT(IN)                       :: z(:, :, :)
+      REAL(KIND=dp), INTENT(INOUT)                       :: r1(:, :, :), r2(:, :, :)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(r1,r2,z)
+      r1(:, :, :) = REAL(z(:, :, :), KIND=dp)
+      r2(:, :, :) = AIMAG(z(:, :, :))
+!$OMP END PARALLEL WORKSHARE
+
+   END SUBROUTINE copy_cri
 
 END MODULE dgs
