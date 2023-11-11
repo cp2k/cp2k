@@ -20,8 +20,7 @@ MODULE exstates_types
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                               local_rho_type
 #include "./base/base_uses.f90"
@@ -142,25 +141,25 @@ CONTAINS
 
       IF (ASSOCIATED(ex_env)) THEN
          IF (ASSOCIATED(ex_env%vh_rspace%pw_grid)) THEN
-            CALL pw_release(ex_env%vh_rspace)
+            CALL ex_env%vh_rspace%release()
          END IF
          IF (ASSOCIATED(ex_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vxc_rspace)
-               CALL pw_release(ex_env%vxc_rspace(iab))
+               CALL ex_env%vxc_rspace(iab)%release()
             END DO
             DEALLOCATE (ex_env%vxc_rspace)
             NULLIFY (ex_env%vxc_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vtau_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vtau_rspace)
-               CALL pw_release(ex_env%vtau_rspace(iab))
+               CALL ex_env%vtau_rspace(iab)%release()
             END DO
             DEALLOCATE (ex_env%vtau_rspace)
             NULLIFY (ex_env%vtau_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vadmm_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vadmm_rspace)
-               CALL pw_release(ex_env%vadmm_rspace(iab))
+               CALL ex_env%vadmm_rspace(iab)%release()
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
             NULLIFY (ex_env%vadmm_rspace)

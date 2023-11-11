@@ -101,7 +101,6 @@ MODULE qs_active_space_methods
                        REALDATA3D, &
                        REALSPACE, &
                        RECIPROCALSPACE, &
-                       pw_release, &
                        pw_type
    USE qcschema, ONLY: qcschema_env_create, &
                        qcschema_env_release, &
@@ -1649,17 +1648,17 @@ CONTAINS
          DO ispin = 1, nspins
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
-               CALL pw_release(wfn_a(iwfn, ispin))
+               CALL wfn_a(iwfn, ispin)%release()
             END DO
          END DO
          DEALLOCATE (wfn_a)
       ELSE
-         CALL pw_release(wfn1)
-         CALL pw_release(wfn2)
+         CALL wfn1%release()
+         CALL wfn2%release()
          DEALLOCATE (wfn1, wfn2)
          IF (eri_env%method /= eri_method_gpw_ht) THEN
-            CALL pw_release(wfn3)
-            CALL pw_release(wfn4)
+            CALL wfn3%release()
+            CALL wfn4%release()
             DEALLOCATE (wfn3, wfn4)
          END IF
       END IF

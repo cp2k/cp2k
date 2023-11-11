@@ -50,7 +50,6 @@ MODULE hirshfeld_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -520,7 +519,7 @@ CONTAINS
       NULLIFY (fnorm)
       CALL get_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
       IF (ASSOCIATED(fnorm)) THEN
-         CALL pw_release(fnorm)
+         CALL fnorm%release()
          DEALLOCATE (fnorm)
       END IF
       ALLOCATE (fnorm)

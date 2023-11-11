@@ -93,8 +93,6 @@ MODULE library_tests
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
@@ -744,7 +742,7 @@ CONTAINS
       CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
-      CALL pw_create(ca, grid, REALDATA3D, REALSPACE)
+      CALL ca%create(grid, REALDATA3D, REALSPACE)
       CALL pw_zero(ca)
 
       ! .. rs input setting type
@@ -791,7 +789,7 @@ CONTAINS
       !cleanup
       CALL rs_grid_release(rs_grid)
       CALL rs_grid_release_descriptor(rs_desc)
-      CALL pw_release(ca)
+      CALL ca%release()
       CALL pw_grid_release(grid)
       CALL cell_release(box)
       CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name)
@@ -940,9 +938,9 @@ CONTAINS
             ! note that the number of grid points might be different from what the user requested (fft-able needed)
             no = grid%npts
 
-            CALL pw_create(ca, grid, COMPLEXDATA1D, RECIPROCALSPACE)
-            CALL pw_create(cb, grid, COMPLEXDATA3D, REALSPACE)
-            CALL pw_create(cc, grid, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL ca%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL cb%create(grid, COMPLEXDATA3D, REALSPACE)
+            CALL cc%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
 
             ! initialize data
             CALL pw_zero(ca)
@@ -998,9 +996,9 @@ CONTAINS
             END IF
 
             ! done with these grids
-            CALL pw_release(ca)
-            CALL pw_release(cb)
-            CALL pw_release(cc)
+            CALL ca%release()
+            CALL cb%release()
+            CALL cc%release()
             CALL pw_grid_release(grid)
 
          END DO

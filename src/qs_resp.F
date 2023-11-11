@@ -78,7 +78,6 @@ MODULE qs_resp
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_rho_resp_single
@@ -983,9 +982,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_release(va_gspace)
-      CALL pw_release(va_rspace)
-      CALL pw_release(rho_ga)
+      CALL va_gspace%release()
+      CALL va_rspace%release()
+      CALL rho_ga%release()
 
       DO i = 1, natom
          DO j = 1, natom
@@ -1751,8 +1750,8 @@ CONTAINS
       IF (resp_env%use_repeat_method) THEN
          v_resp_rspace%cr3d(:, :, :) = v_resp_rspace%cr3d(:, :, :) - resp_env%offset*dvol
       END IF
-      CALL pw_release(v_resp_gspace)
-      CALL pw_release(rho_resp)
+      CALL v_resp_gspace%release()
+      CALL rho_resp%release()
 
       !***now print the v_resp_rspace%pw to a cube file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, resp_section, &
@@ -1807,7 +1806,7 @@ CONTAINS
             "(RRMS) error of RESP fit:", rrms
       END IF
 
-      CALL pw_release(v_resp_rspace)
+      CALL v_resp_rspace%release()
 
       CALL timestop(handle)
 

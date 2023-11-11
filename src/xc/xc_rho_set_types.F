@@ -28,7 +28,7 @@ MODULE xc_rho_set_types
                        REALSPACE, &
                        RECIPROCALSPACE, &
                        pw_p_type, &
-                       pw_type, pw_create
+                       pw_type
    USE xc_input_constants, ONLY: xc_deriv_pw, &
                                  xc_deriv_spline2, &
                                  xc_deriv_spline3, &
@@ -480,9 +480,9 @@ CONTAINS
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob
 
             IF (ASSOCIATED(rho)) THEN
-               CALL pw_create(rho_pw, pw_grid=pw_grid, &
-                              cr3d_ptr=rho, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
+               CALL rho_pw%create(pw_grid=pw_grid, &
+                                  cr3d_ptr=rho, &
+                                  use_data=REALDATA3D, in_space=REALSPACE)
                NULLIFY (rho)
             ELSE IF (PRESENT(rhoa) .AND. PRESENT(rhob)) THEN
                CALL pw_pool_create_pw(pw_pool, rho_pw, &

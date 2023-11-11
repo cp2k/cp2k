@@ -90,7 +90,6 @@ MODULE qs_ks_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
@@ -491,7 +490,7 @@ CONTAINS
                      qmmm_env=qs_env%qmmm_env_qm, qs_env=qs_env)
                END IF
             END IF
-            CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace)
+            CALL qs_env%ks_qmmm_env%v_metal_rspace%release()
             DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace)
          END IF
          IF (.NOT. just_energy) THEN

@@ -44,7 +44,6 @@ MODULE qs_vxc
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -412,8 +411,8 @@ CONTAINS
             IF (.NOT. my_just_energy) THEN
                CALL pw_axpy(my_vxc_rho(1), vxc_rho(1), -dft_control%sic_scaling_b)
                CALL pw_axpy(my_vxc_rho(1), vxc_rho(2), dft_control%sic_scaling_b)
-               CALL pw_release(my_vxc_rho(1))
-               CALL pw_release(my_vxc_rho(2))
+               CALL my_vxc_rho(1)%release()
+               CALL my_vxc_rho(2)%release()
                DEALLOCATE (my_vxc_rho)
             END IF
 
@@ -476,8 +475,8 @@ CONTAINS
                ! and take care of the potential only vxc_rho is taken into account
                IF (.NOT. my_just_energy) THEN
                   CALL pw_axpy(my_vxc_rho(1), vxc_rho(ispin), -dft_control%sic_scaling_b)
-                  CALL pw_release(my_vxc_rho(1))
-                  CALL pw_release(my_vxc_rho(2))
+                  CALL my_vxc_rho(1)%release()
+                  CALL my_vxc_rho(2)%release()
                   DEALLOCATE (my_vxc_rho)
                END IF
             END DO
@@ -523,8 +522,8 @@ CONTAINS
             IF (.NOT. my_just_energy) THEN
                ! both go to minority spin
                CALL pw_axpy(my_vxc_rho(1), vxc_rho(2), 2.0_dp*dft_control%sic_scaling_b)
-               CALL pw_release(my_vxc_rho(1))
-               CALL pw_release(my_vxc_rho(2))
+               CALL my_vxc_rho(1)%release()
+               CALL my_vxc_rho(2)%release()
                DEALLOCATE (my_vxc_rho)
             END IF
             DEALLOCATE (rho_r, rho_g)
@@ -738,17 +737,17 @@ CONTAINS
          ! remove arrays
          IF (ASSOCIATED(vxc_rho)) THEN
             DO ispin = 1, nspins
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
          END IF
          IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, nspins
-               CALL pw_release(vxc_tau(ispin))
+               CALL vxc_tau(ispin)%release()
             END DO
             DEALLOCATE (vxc_tau)
          END IF
-         CALL pw_release(exc_r)
+         CALL exc_r%release()
          !
       END IF
 

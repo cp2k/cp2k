@@ -74,7 +74,6 @@ MODULE optimize_embedding_potential
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_wavefunction
@@ -908,7 +907,7 @@ CONTAINS
 
       IF (ASSOCIATED(opt_embed%prev_subsys_dens)) THEN
          DO i_dens = 1, SIZE(opt_embed%prev_subsys_dens)
-            CALL pw_release(opt_embed%prev_subsys_dens(i_dens))
+            CALL opt_embed%prev_subsys_dens(i_dens)%release()
          END DO
          DEALLOCATE (opt_embed%prev_subsys_dens)
       END IF
@@ -917,26 +916,26 @@ CONTAINS
       DEALLOCATE (opt_embed%all_nspins)
 
       IF (ASSOCIATED(opt_embed%const_pot)) THEN
-         CALL pw_release(opt_embed%const_pot)
+         CALL opt_embed%const_pot%release()
          DEALLOCATE (opt_embed%const_pot)
       END IF
 
       IF (ASSOCIATED(opt_embed%pot_diff)) THEN
-         CALL pw_release(opt_embed%pot_diff)
+         CALL opt_embed%pot_diff%release()
          DEALLOCATE (opt_embed%pot_diff)
       END IF
 
       IF (ASSOCIATED(opt_embed%prev_embed_pot)) THEN
-         CALL pw_release(opt_embed%prev_embed_pot)
+         CALL opt_embed%prev_embed_pot%release()
          DEALLOCATE (opt_embed%prev_embed_pot)
       END IF
       IF (ASSOCIATED(opt_embed%prev_spin_embed_pot)) THEN
-         CALL pw_release(opt_embed%prev_spin_embed_pot)
+         CALL opt_embed%prev_spin_embed_pot%release()
          DEALLOCATE (opt_embed%prev_spin_embed_pot)
       END IF
       IF (ASSOCIATED(opt_embed%v_w)) THEN
          DO i_spin = 1, SIZE(opt_embed%v_w)
-            CALL pw_release(opt_embed%v_w(i_spin))
+            CALL opt_embed%v_w(i_spin)%release()
          END DO
          DEALLOCATE (opt_embed%v_w)
       END IF
@@ -1030,9 +1029,9 @@ CONTAINS
       CALL pw_copy(v_resp_rspace, v_rspace)
 
       ! Release plane waves
-      CALL pw_release(v_resp_gspace)
-      CALL pw_release(v_resp_rspace)
-      CALL pw_release(rho_resp)
+      CALL v_resp_gspace%release()
+      CALL v_resp_rspace%release()
+      CALL rho_resp%release()
 
       ! Deallocate map_index array
       DEALLOCATE (map_index)
@@ -2668,15 +2667,15 @@ CONTAINS
          CALL pw_scale(spin_embed_pot, a=0.5_dp)
 
          DO i_spin = 1, nspins
-            CALL pw_release(rho_n_1(i_spin))
-            CALL pw_release(temp_embed_pot(i_spin))
+            CALL rho_n_1(i_spin)%release()
+            CALL temp_embed_pot(i_spin)%release()
          END DO
          DEALLOCATE (rho_n_1)
          DEALLOCATE (temp_embed_pot)
       END IF
 
       DO i_spin = 1, nspins
-         CALL pw_release(new_embed_pot(i_spin))
+         CALL new_embed_pot(i_spin)%release()
       END DO
 
       DEALLOCATE (new_embed_pot)
@@ -2863,16 +2862,16 @@ CONTAINS
             CALL pw_scale(spin_embed_pot, a=0.5_dp)
 
             DO i_spin = 1, nspins
-               CALL pw_release(temp_embed_pot(i_spin))
+               CALL temp_embed_pot(i_spin)%release()
             END DO
             DEALLOCATE (temp_embed_pot)
 
          END IF
 
          DO i_spin = 1, nspins
-            CALL pw_release(curr_rho(i_spin))
-            CALL pw_release(new_embed_pot(i_spin))
-            CALL pw_release(v_w(i_spin))
+            CALL curr_rho(i_spin)%release()
+            CALL new_embed_pot(i_spin)%release()
+            CALL v_w(i_spin)%release()
          END DO
 
          DEALLOCATE (new_embed_pot)
@@ -3030,7 +3029,7 @@ CONTAINS
       CALL xc_rho_set_release(rho_set, pw_pool=auxbas_pw_pool)
 
       DO i_spin = 1, nspins
-         CALL pw_release(rho_g(i_spin))
+         CALL rho_g(i_spin)%release()
       END DO
       DEALLOCATE (rho_g)
 
@@ -3370,9 +3369,9 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID")
          ! Release structures
-         CALL pw_release(pot_alpha)
+         CALL pot_alpha%release()
          IF (open_shell_embed) THEN
-            CALL pw_release(pot_beta)
+            CALL pot_beta%release()
          END IF
 
       END IF

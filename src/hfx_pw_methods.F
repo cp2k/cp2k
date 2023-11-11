@@ -52,8 +52,6 @@ MODULE hfx_pw_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -188,12 +186,12 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            CALL pw_create(rho_i(iorb_block), rho_r%pw_grid, &
-                           use_data=REALDATA3D, &
-                           in_space=REALSPACE)
-            CALL pw_create(rho_j(iorb_block), rho_r%pw_grid, &
-                           use_data=REALDATA3D, &
-                           in_space=REALSPACE)
+            CALL rho_i(iorb_block)%create(rho_r%pw_grid, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
+            CALL rho_j(iorb_block)%create(rho_r%pw_grid, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
          END DO
 
          exchange_energy = 0.0_dp
@@ -259,8 +257,8 @@ CONTAINS
          END DO
 
          DO iorb_block = 1, blocksize
-            CALL pw_release(rho_i(iorb_block))
-            CALL pw_release(rho_j(iorb_block))
+            CALL rho_i(iorb_block)%release()
+            CALL rho_j(iorb_block)%release()
          END DO
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)

@@ -21,8 +21,7 @@ MODULE ec_env_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
    USE qs_force_types,                  ONLY: deallocate_qs_force,&
@@ -174,23 +173,23 @@ CONTAINS
          END IF
          ! potential
          IF (ASSOCIATED(ec_env%vh_rspace%pw_grid)) THEN
-            CALL pw_release(ec_env%vh_rspace)
+            CALL ec_env%vh_rspace%release()
          END IF
          IF (ASSOCIATED(ec_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vxc_rspace)
-               CALL pw_release(ec_env%vxc_rspace(iab))
+               CALL ec_env%vxc_rspace(iab)%release()
             END DO
             DEALLOCATE (ec_env%vxc_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vtau_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vtau_rspace)
-               CALL pw_release(ec_env%vtau_rspace(iab))
+               CALL ec_env%vtau_rspace(iab)%release()
             END DO
             DEALLOCATE (ec_env%vtau_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vadmm_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vadmm_rspace)
-               CALL pw_release(ec_env%vadmm_rspace(iab))
+               CALL ec_env%vadmm_rspace(iab)%release()
             END DO
             DEALLOCATE (ec_env%vadmm_rspace)
          END IF

@@ -50,7 +50,6 @@ MODULE xc
                        REALSPACE, &
                        RECIPROCALSPACE, &
                        pw_p_type, &
-                       pw_release, &
                        pw_type
    USE xc_derivative_desc, ONLY: &
       deriv_rho, deriv_rhoa, deriv_rhob, &
@@ -1412,7 +1411,7 @@ CONTAINS
          IF (PRESENT(exc_r)) THEN
             exc_r = v_drho_r
          ELSE
-            CALL pw_release(v_drho_r)
+            CALL v_drho_r%release()
          END IF
       ELSE
          exc = 0.0_dp
@@ -1746,12 +1745,12 @@ CONTAINS
                END IF
             END DO
             DO ispin = 1, nspins
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
                DO ispin = 1, nspins
-                  CALL pw_release(vxc_tau(ispin))
+                  CALL vxc_tau(ispin)%release()
                END DO
                DEALLOCATE (vxc_tau)
             END IF
@@ -1797,12 +1796,12 @@ CONTAINS
                CALL pw_axpy(vxc_tau(1), v_tau(1), weight)
             END IF
             DO ispin = 1, 2
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, 2
-               CALL pw_release(vxc_tau(ispin))
+               CALL vxc_tau(ispin)%release()
             END DO
             DEALLOCATE (vxc_tau)
             END IF
@@ -1830,12 +1829,12 @@ CONTAINS
                CALL pw_axpy(vxc_tau(1), v_tau(1), weight)
             END IF
             DO ispin = 1, 2
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, 2
-               CALL pw_release(vxc_tau(ispin))
+               CALL vxc_tau(ispin)%release()
             END DO
             DEALLOCATE (vxc_tau)
             END IF
@@ -1869,10 +1868,10 @@ CONTAINS
             IF (ASSOCIATED(vxc_tau) .AND. ASSOCIATED(v_tau)) THEN
                CALL pw_axpy(vxc_tau(1), v_tau(1), weight)
             END IF
-            CALL pw_release(vxc_rho(1))
+            CALL vxc_rho(1)%release()
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
-               CALL pw_release(vxc_tau(1))
+               CALL vxc_tau(1)%release()
                DEALLOCATE (vxc_tau)
             END IF
          END DO
@@ -3073,6 +3072,8 @@ CONTAINS
       ELSE
          ALLOCATE (pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          pw%cr3d = 0.0_dp
+         pw%in_use = REALDATA3D
+         pw%in_space = REALSPACE
       END IF
 
    END SUBROUTINE allocate_pw
@@ -3089,7 +3090,7 @@ CONTAINS
       IF (ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, pw)
       ELSE
-         DEALLOCATE (pw%cr3d)
+         CALL pw%release()
       END IF
 
    END SUBROUTINE deallocate_pw

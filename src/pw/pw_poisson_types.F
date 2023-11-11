@@ -51,7 +51,6 @@ MODULE pw_poisson_types
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs_grid_release
@@ -445,17 +444,17 @@ CONTAINS
             DEALLOCATE (gftype%p3m_charge)
          END IF
       ELSE
-         CALL pw_release(gftype%influence_fn)
+         CALL gftype%influence_fn%release()
          IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-            CALL pw_release(gftype%dct_influence_fn)
+            CALL gftype%dct_influence_fn%release()
             DEALLOCATE (gftype%dct_influence_fn)
          END IF
          IF (ASSOCIATED(gftype%screen_fn)) THEN
-            CALL pw_release(gftype%screen_fn)
+            CALL gftype%screen_fn%release()
             DEALLOCATE (gftype%screen_fn)
          END IF
          IF (ASSOCIATED(gftype%p3m_charge)) THEN
-            CALL pw_release(gftype%p3m_charge)
+            CALL gftype%p3m_charge%release()
             DEALLOCATE (gftype%p3m_charge)
          END IF
       END IF

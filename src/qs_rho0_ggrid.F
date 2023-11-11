@@ -42,7 +42,6 @@ MODULE qs_rho0_ggrid
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -287,7 +286,7 @@ CONTAINS
 
       ! rho0 density in real space
       IF (ASSOCIATED(rho0_mpole%rho0_s_rs)) THEN
-         CALL pw_release(rho0_mpole%rho0_s_rs)
+         CALL rho0_mpole%rho0_s_rs%release()
       ELSE
          ALLOCATE (rho0_mpole%rho0_s_rs)
       END IF
@@ -296,7 +295,7 @@ CONTAINS
 
       ! rho0 density in reciprocal space
       IF (ASSOCIATED(rho0_mpole%rho0_s_gs)) THEN
-         CALL pw_release(rho0_mpole%rho0_s_gs)
+         CALL rho0_mpole%rho0_s_gs%release()
       ELSE
          ALLOCATE (rho0_mpole%rho0_s_gs)
       END IF

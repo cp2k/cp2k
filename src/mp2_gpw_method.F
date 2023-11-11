@@ -50,7 +50,6 @@ MODULE mp2_gpw_method
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: qs_environment_type
@@ -545,7 +544,7 @@ CONTAINS
       END DO
 
       DO i = my_I_occupied_start, my_I_occupied_end
-         CALL pw_release(psi_i(i))
+         CALL psi_i(i)%release()
       END DO
       DEALLOCATE (psi_i)
 

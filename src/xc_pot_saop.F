@@ -54,7 +54,6 @@ MODULE xc_pot_saop
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -470,8 +469,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin))
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin))
-         CALL pw_release(vxc_LB(ispin))
-         CALL pw_release(vxc_tmp(ispin))
+         CALL vxc_LB(ispin)%release()
+         CALL vxc_tmp(ispin)%release()
       END DO
       DEALLOCATE (vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix)
 

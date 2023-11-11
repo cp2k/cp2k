@@ -30,7 +30,6 @@ MODULE xc_derivative_set_types
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_create,&
                                               pw_type
    USE xc_derivative_desc,              ONLY: standardize_desc
    USE xc_derivative_types,             ONLY: xc_derivative_create,&
@@ -207,7 +206,7 @@ CONTAINS
 
       deriv_att => xc_dset_get_derivative(deriv_set, description)
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL pw_create(pw, pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
+         CALL pw%create(pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
                         use_data=REALDATA3D, in_space=REALSPACE)
          NULLIFY (deriv_att%deriv_data)
       ELSE IF (PRESENT(pw_pool)) THEN

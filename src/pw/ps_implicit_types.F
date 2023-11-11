@@ -23,8 +23,7 @@ MODULE ps_implicit_types
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -107,10 +106,10 @@ CONTAINS
             DEALLOCATE (ps_implicit_env%initial_guess, ps_implicit_env%v_eps, ps_implicit_env%cstr_charge)
             CALL dbc_release(ps_implicit_env%contacts, do_dbc_cube, pw_pool=pw_pool)
          ELSE
-            CALL pw_release(ps_implicit_env%initial_guess)
-            CALL pw_release(ps_implicit_env%v_eps)
+            CALL ps_implicit_env%initial_guess%release()
+            CALL ps_implicit_env%v_eps%release()
             IF (ASSOCIATED(ps_implicit_env%cstr_charge)) THEN
-               CALL pw_release(ps_implicit_env%cstr_charge)
+               CALL ps_implicit_env%cstr_charge%release()
                DEALLOCATE (ps_implicit_env%cstr_charge)
             END IF
             DEALLOCATE (ps_implicit_env%initial_guess, ps_implicit_env%v_eps)

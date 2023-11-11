@@ -132,7 +132,6 @@ MODULE energy_corrections
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
                                               pw_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -792,8 +791,8 @@ CONTAINS
       pw_grid => v_hartree_rspace%pw_grid
       ALLOCATE (v_rspace_in(nspins))
       DO ispin = 1, nspins
-         CALL pw_create(v_rspace_in(ispin), pw_grid, &
-                        use_data=REALDATA3D, in_space=REALSPACE)
+         CALL v_rspace_in(ispin)%create(pw_grid, &
+                                        use_data=REALDATA3D, in_space=REALSPACE)
       END DO
 
       ! v_rspace_in = v_H[n_in] + v_xc[n_in] calculated in ks_ref_potential

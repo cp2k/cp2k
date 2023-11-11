@@ -42,7 +42,6 @@ MODULE qs_environment_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_charges_types,                ONLY: qs_charges_create,&
                                               qs_charges_type
@@ -241,7 +240,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(new_pw_env))
          IF (dft_control%qs_control%gapw) THEN
             IF (ASSOCIATED(rho_core)) THEN
-               CALL pw_release(rho_core)
+               CALL rho_core%release()
                DEALLOCATE (rho_core)
             END IF
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -274,7 +273,7 @@ CONTAINS
             END IF
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
-               CALL pw_release(rho_core)
+               CALL rho_core%release()
                DEALLOCATE (rho_core)
             END IF
             ALLOCATE (rho_core)
@@ -289,7 +288,7 @@ CONTAINS
             NULLIFY (vppl)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vppl=vppl)
             IF (ASSOCIATED(vppl)) THEN
-               CALL pw_release(vppl)
+               CALL vppl%release()
             ELSE
                ALLOCATE (vppl)
             END IF
@@ -306,7 +305,7 @@ CONTAINS
             NULLIFY (rho_nlcc)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc=rho_nlcc)
             IF (ASSOCIATED(rho_nlcc)) THEN
-               CALL pw_release(rho_nlcc)
+               CALL rho_nlcc%release()
             ELSE
                ALLOCATE (rho_nlcc)
             END IF
@@ -317,7 +316,7 @@ CONTAINS
             NULLIFY (rho_nlcc_g)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc_g=rho_nlcc_g)
             IF (ASSOCIATED(rho_nlcc_g)) THEN
-               CALL pw_release(rho_nlcc_g)
+               CALL rho_nlcc_g%release()
             ELSE
                ALLOCATE (rho_nlcc_g)
             END IF
@@ -331,7 +330,7 @@ CONTAINS
             NULLIFY (vee)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vee=vee)
             IF (ASSOCIATED(vee)) THEN
-               CALL pw_release(vee)
+               CALL vee%release()
                DEALLOCATE (vee)
             END IF
             ALLOCATE (vee)
@@ -346,7 +345,7 @@ CONTAINS
             NULLIFY (external_vxc)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, external_vxc=external_vxc)
             IF (ASSOCIATED(external_vxc)) THEN
-               CALL pw_release(external_vxc)
+               CALL external_vxc%release()
             ELSE
                ALLOCATE (external_vxc)
             END IF
@@ -361,7 +360,7 @@ CONTAINS
             NULLIFY (embed_pot)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, embed_pot=embed_pot)
             IF (ASSOCIATED(embed_pot)) THEN
-               CALL pw_release(embed_pot)
+               CALL embed_pot%release()
             ELSE
                ALLOCATE (embed_pot)
             END IF
@@ -372,7 +371,7 @@ CONTAINS
             NULLIFY (spin_embed_pot)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, spin_embed_pot=spin_embed_pot)
             IF (ASSOCIATED(spin_embed_pot)) THEN
-               CALL pw_release(spin_embed_pot)
+               CALL spin_embed_pot%release()
                DEALLOCATE (spin_embed_pot)
             ELSE
                ALLOCATE (spin_embed_pot)
@@ -384,7 +383,7 @@ CONTAINS
 
          CALL get_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
          IF (ASSOCIATED(v_hartree_rspace)) THEN
-            CALL pw_release(v_hartree_rspace)
+            CALL v_hartree_rspace%release()
             DEALLOCATE (v_hartree_rspace)
          END IF
          CALL get_qs_env(qs_env, pw_env=new_pw_env)

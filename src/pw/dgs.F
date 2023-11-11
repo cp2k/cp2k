@@ -31,8 +31,6 @@ MODULE dgs
                                               pw_multiply_with,&
                                               pw_zero
    USE pw_types,                        ONLY: COMPLEXDATA3D,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
@@ -869,7 +867,7 @@ CONTAINS
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      CALL pw_create(cd, rho0%pw_grid, COMPLEXDATA3D, rho0%in_space)
+      CALL cd%create(rho0%pw_grid, COMPLEXDATA3D, rho0%in_space)
       CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -880,7 +878,7 @@ CONTAINS
       CALL pw_copy(cd, rhos1)
 
       DEALLOCATE (zs)
-      CALL pw_release(cd)
+      CALL cd%release()
 
    END SUBROUTINE dg_get_patch_1
 
@@ -915,7 +913,7 @@ CONTAINS
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      CALL pw_create(cd, rhos1%pw_grid, COMPLEXDATA3D, rho0%in_space)
+      CALL cd%create(rhos1%pw_grid, COMPLEXDATA3D, rho0%in_space)
       CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -929,7 +927,7 @@ CONTAINS
       CALL copy_cri(cd%cc3d, rhos1%cr3d, rhos2%cr3d)
 
       DEALLOCATE (zs)
-      CALL pw_release(cd)
+      CALL cd%release()
 
    END SUBROUTINE dg_get_patch_2
 

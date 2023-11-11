@@ -42,8 +42,6 @@ MODULE qs_ks_reference
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
@@ -204,11 +202,11 @@ CONTAINS
 
       ! allocate potentials
       IF (ASSOCIATED(vh_rspace%pw_grid)) THEN
-         CALL pw_release(vh_rspace)
+         CALL vh_rspace%release()
       END IF
       IF (ASSOCIATED(vxc_rspace)) THEN
          DO iab = 1, SIZE(vxc_rspace)
-            CALL pw_release(vxc_rspace(iab))
+            CALL vxc_rspace(iab)%release()
          END DO
       ELSE
          ALLOCATE (vxc_rspace(nspins))
@@ -216,7 +214,7 @@ CONTAINS
       IF (ASSOCIATED(v_tau_rspace)) THEN
          IF (ASSOCIATED(vtau_rspace)) THEN
             DO iab = 1, SIZE(vtau_rspace)
-               CALL pw_release(vtau_rspace(iab))
+               CALL vtau_rspace(iab)%release()
             END DO
          ELSE
             ALLOCATE (vtau_rspace(nspins))
@@ -227,7 +225,7 @@ CONTAINS
       IF (ASSOCIATED(v_admm_rspace)) THEN
          IF (ASSOCIATED(vadmm_rspace)) THEN
             DO iab = 1, SIZE(vadmm_rspace)
-               CALL pw_release(vadmm_rspace(iab))
+               CALL vadmm_rspace(iab)%release()
             END DO
          ELSE
             ALLOCATE (vadmm_rspace(nspins))
@@ -237,17 +235,17 @@ CONTAINS
       END IF
 
       pw_grid => v_hartree_rspace%pw_grid
-      CALL pw_create(vh_rspace, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL vh_rspace%create(pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
       DO ispin = 1, nspins
-         CALL pw_create(vxc_rspace(ispin), pw_grid, &
-                        use_data=REALDATA3D, in_space=REALSPACE)
+         CALL vxc_rspace(ispin)%create(pw_grid, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL pw_create(vtau_rspace(ispin), pw_grid, &
-                           use_data=REALDATA3D, in_space=REALSPACE)
+            CALL vtau_rspace(ispin)%create(pw_grid, &
+                                           use_data=REALDATA3D, in_space=REALSPACE)
          END IF
          IF (ASSOCIATED(vadmm_rspace)) THEN
-            CALL pw_create(vadmm_rspace(ispin), pw_grid, &
-                           use_data=REALDATA3D, in_space=REALSPACE)
+            CALL vadmm_rspace(ispin)%create(pw_grid, &
+                                            use_data=REALDATA3D, in_space=REALSPACE)
          END IF
       END DO
       !

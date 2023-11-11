@@ -43,7 +43,6 @@ MODULE qs_rho_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_drho_elec,&
                                               calculate_rho_elec
@@ -238,7 +237,7 @@ CONTAINS
       IF (my_rebuild_grids .OR. .NOT. ASSOCIATED(rho_r)) THEN
          IF (ASSOCIATED(rho_r)) THEN
             DO i = 1, SIZE(rho_r)
-               CALL pw_release(rho_r(i))
+               CALL rho_r(i)%release()
             END DO
             DEALLOCATE (rho_r)
          END IF
@@ -254,7 +253,7 @@ CONTAINS
       IF (my_rebuild_grids .OR. .NOT. ASSOCIATED(rho_g)) THEN
          IF (ASSOCIATED(rho_g)) THEN
             DO i = 1, SIZE(rho_g)
-               CALL pw_release(rho_g(i))
+               CALL rho_g(i)%release()
             END DO
             DEALLOCATE (rho_g)
          END IF
@@ -270,7 +269,7 @@ CONTAINS
       IF (dft_control%do_sccs) THEN
          IF (my_rebuild_grids .OR. (.NOT. ASSOCIATED(rho_r_sccs))) THEN
             IF (ASSOCIATED(rho_r_sccs)) THEN
-               CALL pw_release(rho_r_sccs)
+               CALL rho_r_sccs%release()
                DEALLOCATE (rho_r_sccs)
             END IF
             ALLOCATE (rho_r_sccs)
@@ -289,7 +288,7 @@ CONTAINS
             IF (ASSOCIATED(drho_r)) THEN
                DO j = 1, SIZE(drho_r, 2)
                   DO i = 1, SIZE(drho_r, 1)
-                     CALL pw_release(drho_r(i, j))
+                     CALL drho_r(i, j)%release()
                   END DO
                END DO
                DEALLOCATE (drho_r)
@@ -308,7 +307,7 @@ CONTAINS
             IF (ASSOCIATED(drho_g)) THEN
                DO j = 1, SIZE(drho_g, 2)
                   DO i = 1, SIZE(drho_r, 1)
-                     CALL pw_release(drho_g(i, j))
+                     CALL drho_g(i, j)%release()
                   END DO
                END DO
                DEALLOCATE (drho_g)
@@ -330,7 +329,7 @@ CONTAINS
          IF (my_rebuild_grids .OR. .NOT. ASSOCIATED(tau_r)) THEN
             IF (ASSOCIATED(tau_r)) THEN
                DO i = 1, SIZE(tau_r)
-                  CALL pw_release(tau_r(i))
+                  CALL tau_r(i)%release()
                END DO
                DEALLOCATE (tau_r)
             END IF
@@ -346,7 +345,7 @@ CONTAINS
          IF (my_rebuild_grids .OR. .NOT. ASSOCIATED(tau_g)) THEN
             IF (ASSOCIATED(tau_g)) THEN
                DO i = 1, SIZE(tau_g)
-                  CALL pw_release(tau_g(i))
+                  CALL tau_g(i)%release()
                END DO
                DEALLOCATE (tau_g)
             END IF

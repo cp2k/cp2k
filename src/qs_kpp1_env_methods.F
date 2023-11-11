@@ -64,8 +64,6 @@ MODULE qs_kpp1_env_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
    USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                               deallocate_qs_energy,&
@@ -337,16 +335,16 @@ CONTAINS
          lsd = .TRUE.
          ALLOCATE (rho1_r_pw(2))
          DO ispin = 1, 2
-            CALL pw_create(rho1_r_pw(ispin), rho1_r(1)%pw_grid, &
-                           rho1_r(1)%in_use, rho1_r(1)%in_space)
+            CALL rho1_r_pw(ispin)%create(rho1_r(1)%pw_grid, &
+                                         rho1_r(1)%in_use, rho1_r(1)%in_space)
             CALL pw_transfer(rho1_r(1), rho1_r_pw(ispin))
          END DO
 
          IF (ASSOCIATED(tau1_r)) THEN
             ALLOCATE (tau1_r_pw(2))
             DO ispin = 1, 2
-               CALL pw_create(tau1_r_pw(ispin), tau1_r(1)%pw_grid, &
-                              tau1_r(1)%in_use, tau1_r(1)%in_space)
+               CALL tau1_r_pw(ispin)%create(tau1_r(1)%pw_grid, &
+                                            tau1_r(1)%in_use, tau1_r(1)%in_space)
                CALL pw_transfer(tau1_r(1), tau1_r_pw(ispin))
             END DO
          END IF
@@ -392,12 +390,12 @@ CONTAINS
       IF (nspins == 1 .AND. do_excitations .AND. &
           (lsd_singlets .OR. do_triplet)) THEN
          DO ispin = 1, SIZE(rho1_r_pw)
-            CALL pw_release(rho1_r_pw(ispin))
+            CALL rho1_r_pw(ispin)%release()
          END DO
          DEALLOCATE (rho1_r_pw)
          IF (ASSOCIATED(tau1_r_pw)) THEN
          DO ispin = 1, SIZE(tau1_r_pw)
-            CALL pw_release(tau1_r_pw(ispin))
+            CALL tau1_r_pw(ispin)%release()
          END DO
          DEALLOCATE (tau1_r_pw)
          END IF
@@ -745,12 +743,12 @@ CONTAINS
          IF (nspins == 1 .AND. (do_excitations .AND. &
                                 (lsd_singlets .OR. do_triplet))) THEN
             DO ispin = 1, SIZE(my_rho_r)
-               CALL pw_release(my_rho_r(ispin))
+               CALL my_rho_r(ispin)%release()
             END DO
             DEALLOCATE (my_rho_r)
             IF (ASSOCIATED(my_tau_r)) THEN
                DO ispin = 1, SIZE(my_tau_r)
-                  CALL pw_release(my_tau_r(ispin))
+                  CALL my_tau_r(ispin)%release()
                END DO
                DEALLOCATE (my_tau_r)
             END IF

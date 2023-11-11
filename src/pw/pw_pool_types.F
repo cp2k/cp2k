@@ -38,8 +38,6 @@ MODULE pw_pool_types
                                               COMPLEXDATA3D,&
                                               REALDATA1D,&
                                               REALDATA3D,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -163,7 +161,7 @@ CONTAINS
       iterator => pool%real1d_pw
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
+         CALL pw_el%release()
          DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%real1d_pw)
@@ -171,7 +169,7 @@ CONTAINS
       iterator => pool%real3d_pw
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
+         CALL pw_el%release()
          DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%real3d_pw)
@@ -179,7 +177,7 @@ CONTAINS
       iterator => pool%complex1d_pw
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
+         CALL pw_el%release()
          DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%complex1d_pw)
@@ -187,7 +185,7 @@ CONTAINS
       iterator => pool%complex3d_pw
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
-         CALL pw_release(pw_el)
+         CALL pw_el%release()
          DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%complex3d_pw)
@@ -300,7 +298,7 @@ CONTAINS
       END SELECT
 
       IF (.NOT. ASSOCIATED(el)) THEN
-         CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
+         CALL pw%create(pool%pw_grid, use_data=use_data, &
                         in_space=in_space, cr3d_ptr=cr3d_ptr)
       ELSE
          pw = el
@@ -335,7 +333,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(pw%pw_grid)) THEN
          IF (.NOT. pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
-            CALL pw_release(pw)
+            CALL pw%release()
          ELSE
             NULLIFY (el)
             ALLOCATE (el)
@@ -348,7 +346,7 @@ CONTAINS
                ELSE
                   IF (max_max_cache >= 0) &
                      CPWARN("hit max_cache")
-                  CALL pw_release(el)
+                  CALL el%release()
                   DEALLOCATE (el)
                END IF
             CASE (REALDATA3D)
@@ -358,11 +356,11 @@ CONTAINS
                   ELSE
                      IF (max_max_cache >= 0) &
                         CPWARN("hit max_cache")
-                     CALL pw_release(el)
+                     CALL el%release()
                      DEALLOCATE (el)
                   END IF
                ELSE
-                  CALL pw_release(el)
+                  CALL el%release()
                   DEALLOCATE (el)
                END IF
             CASE (COMPLEXDATA1D)
@@ -371,7 +369,7 @@ CONTAINS
                ELSE
                   IF (max_max_cache >= 0) &
                      CPWARN("hit max_cache")
-                  CALL pw_release(el)
+                  CALL el%release()
                   DEALLOCATE (el)
                END IF
             CASE (COMPLEXDATA3D)
@@ -380,7 +378,7 @@ CONTAINS
                ELSE
                   IF (max_max_cache >= 0) &
                      CPWARN("hit max_cache")
-                  CALL pw_release(el)
+                  CALL el%release()
                   DEALLOCATE (el)
                END IF
             CASE default
@@ -427,7 +425,7 @@ CONTAINS
          IF (ASSOCIATED(pw)) THEN
             cr3d => pw%cr3d
             NULLIFY (pw%cr3d)
-            CALL pw_release(pw)
+            CALL pw%release()
             DEALLOCATE (pw)
          END IF
       END IF

@@ -36,7 +36,6 @@ MODULE tip_scan_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -294,12 +293,12 @@ CONTAINS
       NULLIFY (pw_grid)
       CALL pw_grid_create(pw_grid, para_env)
       CALL pw_grid_setup(dcell, pw_grid, npts=npts)
-      CALL pw_create(scan_env%tip_pw_r, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL scan_env%tip_pw_r%create(pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
 !deb
       scaling = 0.1_dp
 !deb
       CALL cp_cube_to_pw(scan_env%tip_pw_r, scan_env%tip_cube_file, scaling, silent=.TRUE.)
-      CALL pw_create(scan_env%tip_pw_g, pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL scan_env%tip_pw_g%create(pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_transfer(scan_env%tip_pw_r, scan_env%tip_pw_g)
       CALL pw_grid_release(pw_grid)
 
