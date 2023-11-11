@@ -66,9 +66,7 @@ MODULE qs_linres_kernel
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -277,20 +275,20 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL qs_rho_get(rho1, rho_g=rho1_g)
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
@@ -307,7 +305,7 @@ CONTAINS
          CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho1_tot_gspace)
 
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
@@ -534,15 +532,15 @@ CONTAINS
          END IF
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
+         CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
       END DO
       DEALLOCATE (v_rspace_new)
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_xc_tau(ispin))
          END DO
          DEALLOCATE (v_xc_tau)
       END IF
@@ -952,7 +950,7 @@ CONTAINS
             END IF
 
             DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
+               CALL auxbas_pw_pool%give_back_pw(v_xc(ispin))
             END DO
             DEALLOCATE (v_xc)
             CALL dbcsr_deallocate_matrix(xcmat%matrix)

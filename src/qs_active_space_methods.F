@@ -94,9 +94,8 @@ MODULE qs_active_space_methods
                                pw_poisson_analytic, &
                                pw_poisson_periodic, &
                                pw_poisson_type
-   USE pw_pool_types, ONLY: pw_pool_create_pw, &
-                            pw_pool_give_back_pw, &
-                            pw_pool_type
+   USE pw_pool_types, ONLY: &
+      pw_pool_type
    USE pw_types, ONLY: COMPLEXDATA1D, &
                        REALDATA3D, &
                        REALSPACE, &
@@ -1406,8 +1405,8 @@ CONTAINS
          ! Copy the active space of the MOs into DBCSR matrices
       END IF
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, wfn_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wfn_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
@@ -1429,9 +1428,9 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
-               CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin), &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin), &
+                                             use_data=REALDATA3D, &
+                                             in_space=REALSPACE)
                CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
@@ -1442,26 +1441,26 @@ CONTAINS
       ELSE
          ! Even if we do not store all WFNs, we still need containers for the functions to store
          ALLOCATE (wfn1, wfn2)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wfn1, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wfn2, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wfn1, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wfn2, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          IF (eri_env%method /= eri_method_gpw_ht) THEN
             ALLOCATE (wfn3, wfn4)
-            CALL pw_pool_create_pw(auxbas_pw_pool, wfn3, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, wfn4, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(wfn3, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(wfn4, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
          END IF
       END IF
 
       ! get some of the grids ready
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(pot_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
       CALL pw_zero(rho_r)
@@ -1662,10 +1661,10 @@ CONTAINS
             DEALLOCATE (wfn3, wfn4)
          END IF
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wfn_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
+      CALL auxbas_pw_pool%give_back_pw(wfn_r)
+      CALL auxbas_pw_pool%give_back_pw(rho_g)
+      CALL auxbas_pw_pool%give_back_pw(rho_r)
+      CALL auxbas_pw_pool%give_back_pw(pot_g)
       CALL mp_para_env_release(para_env_sub)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
@@ -1907,8 +1906,8 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       !
       dft_section => section_vals_get_subs_vals(scf_input, "DFT")
       !
@@ -1970,8 +1969,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
 
    END SUBROUTINE print_orbital_cubes
 

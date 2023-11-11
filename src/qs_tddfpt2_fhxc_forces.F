@@ -86,9 +86,7 @@ MODULE qs_tddfpt2_fhxc_forces
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -395,13 +393,13 @@ CONTAINS
 
       ALLOCATE (rhox_r(nspins), rhox_g(nspins))
       DO ispin = 1, nspins
-         CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin), &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhox_r(ispin), &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhox_g(ispin), &
+                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhox_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       CALL pw_zero(rhox_tot_gspace)
       DO ispin = 1, nspins
@@ -416,10 +414,10 @@ CONTAINS
       IF (gapw_xc) THEN
          ALLOCATE (rhoxx_r(nspins), rhoxx_g(nspins))
          DO ispin = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, rhoxx_r(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rhoxx_g(ispin), &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rhoxx_r(ispin), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(rhoxx_g(ispin), &
+                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          END DO
          DO ispin = 1, nspins
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
@@ -433,10 +431,10 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force)
 
       IF (.NOT. is_rks_triplets) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(xv_hartree_rspace, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(xv_hartree_gspace, &
+                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          ! calculate associated hartree potential
          IF (gapw) THEN
             CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rhox_tot_gspace)
@@ -661,10 +659,10 @@ CONTAINS
             ! rhox_aux
             ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
             DO ispin = 1, nspins
-               CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r_aux(ispin), &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g_aux(ispin), &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(rhox_r_aux(ispin), &
+                                             use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(rhox_g_aux(ispin), &
+                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
@@ -693,8 +691,8 @@ CONTAINS
             DEALLOCATE (rhox_aux)
 
             DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r_aux(ispin))
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g_aux(ispin))
+               CALL auxbas_pw_pool%give_back_pw(rhox_r_aux(ispin))
+               CALL auxbas_pw_pool%give_back_pw(rhox_g_aux(ispin))
             END DO
             DEALLOCATE (rhox_r_aux, rhox_g_aux)
             fscal = 1.0_dp
@@ -841,21 +839,21 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r(ispin))
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g(ispin))
+         CALL auxbas_pw_pool%give_back_pw(rhox_r(ispin))
+         CALL auxbas_pw_pool%give_back_pw(rhox_g(ispin))
       END DO
       DEALLOCATE (rhox_r, rhox_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rhox_tot_gspace)
       IF (gapw_xc) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoxx_r(ispin))
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoxx_g(ispin))
+            CALL auxbas_pw_pool%give_back_pw(rhoxx_r(ispin))
+            CALL auxbas_pw_pool%give_back_pw(rhoxx_g(ispin))
          END DO
          DEALLOCATE (rhoxx_r, rhoxx_g)
       END IF
       IF (.NOT. is_rks_triplets) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_rspace)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace)
+         CALL auxbas_pw_pool%give_back_pw(xv_hartree_rspace)
+         CALL auxbas_pw_pool%give_back_pw(xv_hartree_gspace)
       END IF
 
       ! HFX

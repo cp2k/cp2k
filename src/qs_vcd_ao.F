@@ -44,9 +44,7 @@ MODULE qs_vcd_ao
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
@@ -1042,8 +1040,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -1062,7 +1060,7 @@ CONTAINS
 
       ! return pw grids
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin))
+         CALL auxbas_pw_pool%give_back_pw(v_rspace(ispin))
       END DO
       DEALLOCATE (v_rspace)
 

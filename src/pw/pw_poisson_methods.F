@@ -50,9 +50,7 @@ MODULE pw_poisson_methods
         greens_fn_type, pw_green_create, pw_green_release, pw_poisson_analytic, &
         pw_poisson_implicit, pw_poisson_mt, pw_poisson_multipole, pw_poisson_none, &
         pw_poisson_parameter_type, pw_poisson_periodic, pw_poisson_type, pw_poisson_wavelet
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type,&
                                               pw_pools_copy,&
                                               pw_pools_dealloc
@@ -281,9 +279,9 @@ CONTAINS
             CPABORT("vhartree has a different grid than the poisson solver")
       END IF
       ! density in G space
-      CALL pw_pool_create_pw(pw_pool, rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       IF (PRESENT(aux_density)) THEN
-         CALL pw_pool_create_pw(pw_pool, rhog_aux, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(rhog_aux, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END IF
 
       SELECT CASE (poisson_env%used_grid)
@@ -297,7 +295,7 @@ CONTAINS
                CALL pw_transfer(aux_density, rhog_aux)
             END IF
             IF (PRESENT(ehartree) .AND. (.NOT. PRESENT(vhartree))) THEN
-               CALL pw_pool_create_pw(pw_pool, tmpg, use_data=COMPLEXDATA1D, &
+               CALL pw_pool%create_pw(tmpg, use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog, tmpg)
             END IF
@@ -321,7 +319,7 @@ CONTAINS
                END IF
             ELSE IF (PRESENT(ehartree)) THEN
                ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
-               CALL pw_pool_give_back_pw(pw_pool, tmpg)
+               CALL pw_pool%give_back_pw(tmpg)
             END IF
 
          CASE (PS_IMPLICIT)
@@ -348,8 +346,8 @@ CONTAINS
                END SELECT
             END IF
 
-            CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(rhor, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(density, rhor)
 
             SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
@@ -373,8 +371,8 @@ CONTAINS
                CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
             END IF
 
-            CALL pw_pool_give_back_pw(pw_pool, rhor)
-            CALL pw_pool_give_back_pw(pw_pool, vhartree_rs)
+            CALL pw_pool%give_back_pw(rhor)
+            CALL pw_pool%give_back_pw(vhartree_rs)
 
          CASE DEFAULT
             CALL cp_abort(__LOCATION__, &
@@ -384,7 +382,7 @@ CONTAINS
 
       CASE (use_rs_grid)
 
-         CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(rhor, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(density, rhor)
          CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
          CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -400,21 +398,21 @@ CONTAINS
          IF (PRESENT(h_stress) .OR. PRESENT(dvhartree)) THEN
             CALL pw_transfer(rhor, rhog)
          END IF
-         CALL pw_pool_give_back_pw(pw_pool, rhor)
+         CALL pw_pool%give_back_pw(rhor)
 
       END SELECT
 
       ! do we need to calculate the derivative of the potential?
       IF (PRESENT(h_stress) .OR. PRESENT(dvhartree)) THEN
          DO i = 1, 3
-            CALL pw_pool_create_pw(pw_pool, dvg(i), use_data=COMPLEXDATA1D, &
+            CALL pw_pool%create_pw(dvg(i), use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             n = 0
             n(i) = 1
             CALL pw_copy(rhog, dvg(i))
             CALL pw_derive(dvg(i), n)
             IF (PRESENT(aux_density)) THEN
-               CALL pw_pool_create_pw(pw_pool, dvg_aux(i), use_data=COMPLEXDATA1D, &
+               CALL pw_pool%create_pw(dvg_aux(i), use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog_aux, dvg_aux(i))
                CALL pw_derive(dvg_aux(i), n)
@@ -507,16 +505,16 @@ CONTAINS
          END IF
 
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, dvg(i))
+            CALL pw_pool%give_back_pw(dvg(i))
             IF (PRESENT(aux_density)) THEN
-               CALL pw_pool_give_back_pw(pw_pool, dvg_aux(i))
+               CALL pw_pool%give_back_pw(dvg_aux(i))
             END IF
          END DO
 
       END IF
-      CALL pw_pool_give_back_pw(pw_pool, rhog)
+      CALL pw_pool%give_back_pw(rhog)
       IF (PRESENT(aux_density)) THEN
-         CALL pw_pool_give_back_pw(pw_pool, rhog_aux)
+         CALL pw_pool%give_back_pw(rhog_aux)
       END IF
 
       CALL timestop(handle)

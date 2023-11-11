@@ -38,6 +38,8 @@ MODULE pw_pool_types
                                               COMPLEXDATA3D,&
                                               REALDATA1D,&
                                               REALDATA3D,&
+                                              REALSPACE,&
+                                              RECIPROCALSPACE,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -48,9 +50,7 @@ MODULE pw_pool_types
    INTEGER, PARAMETER :: default_max_cache = 75, max_max_cache = 150
 
    PUBLIC :: pw_pool_type, pw_pool_p_type
-   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release, &
-             pw_pool_create_pw, pw_pool_give_back_pw, &
-             pw_pool_create_cr3d, pw_pool_give_back_cr3d
+   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release
    PUBLIC :: pw_pools_copy, pw_pools_dealloc, &
              pw_pools_create_pws, pw_pools_give_back_pws
 
@@ -74,6 +74,11 @@ MODULE pw_pool_types
       TYPE(cp_sll_pw_type), POINTER :: real1d_pw => NULL(), real3d_pw => NULL(), &
                                        complex1d_pw => NULL(), complex3d_pw => NULL()
       TYPE(cp_sll_3d_r_type), POINTER :: real3d_array => NULL()
+   CONTAINS
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create_pw => pw_pool_create_pw
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: give_back_pw => pw_pool_give_back_pw
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create_cr3d => pw_pool_create_cr3d
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: give_back_cr3d => pw_pool_give_back_cr3d
    END TYPE pw_pool_type
 
 ! **************************************************************************************************
@@ -261,7 +266,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pool
+      CLASS(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(OUT)                         :: pw
       INTEGER, INTENT(in)                                :: use_data, in_space
 
@@ -303,6 +308,8 @@ CONTAINS
       ELSE
          pw = el
          DEALLOCATE (el)
+         IF (in_space /= REALSPACE .AND. in_space /= RECIPROCALSPACE) &
+            CPABORT("A PW grid either lives in real space or in reciprocal space!")
          pw%in_space = in_space
       END IF
 
@@ -319,7 +326,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_give_back_pw(pool, pw)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pool
+      CLASS(pw_pool_type), INTENT(IN)                     :: pool
       TYPE(pw_type), INTENT(INOUT)                       :: pw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
@@ -408,7 +415,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_pool_create_cr3d(pw_pool, cr3d)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
+      CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
 
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -448,7 +455,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d, accept_non_compatible)
-      TYPE(pw_pool_type), INTENT(IN)                     :: pw_pool
+      CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: cr3d
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
@@ -505,8 +512,8 @@ CONTAINS
 
       ALLOCATE (pws(SIZE(pools)))
       DO i = 1, SIZE(pools)
-         CALL pw_pool_create_pw(pools(i)%pool, pws(i), use_data, &
-                                in_space=in_space)
+         CALL pools(i)%pool%create_pw(pws(i), use_data, &
+                                      in_space=in_space)
       END DO
    END SUBROUTINE pw_pools_create_pws
 
@@ -527,7 +534,7 @@ CONTAINS
 
       CPASSERT(SIZE(pws) == SIZE(pools))
       DO i = 1, SIZE(pools)
-         CALL pw_pool_give_back_pw(pools(i)%pool, pws(i))
+         CALL pools(i)%pool%give_back_pw(pws(i))
       END DO
       DEALLOCATE (pws)
    END SUBROUTINE pw_pools_give_back_pws

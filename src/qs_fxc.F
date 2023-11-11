@@ -35,9 +35,7 @@ MODULE qs_fxc
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
@@ -222,8 +220,8 @@ CONTAINS
             IF (.NOT. ASSOCIATED(fxc_rho)) THEN
                ALLOCATE (fxc_rho(nspins))
                DO ispin = 1, nspins
-                  CALL pw_pool_create_pw(auxbas_pw_pool, fxc_rho(ispin), &
-                                         in_space=REALSPACE, use_data=REALDATA3D)
+                  CALL auxbas_pw_pool%create_pw(fxc_rho(ispin), &
+                                                in_space=REALSPACE, use_data=REALDATA3D)
                   CALL pw_zero(fxc_rho(ispin))
                END DO
             END IF
@@ -231,15 +229,15 @@ CONTAINS
                CALL pw_axpy(vxc00(ispin), fxc_rho(ispin), ak(istep))
             END DO
             DO ispin = 1, SIZE(vxc00)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc00(ispin))
+               CALL auxbas_pw_pool%give_back_pw(vxc00(ispin))
             END DO
             DEALLOCATE (vxc00)
             IF (ASSOCIATED(v_tau_rspace)) THEN
                IF (.NOT. ASSOCIATED(fxc_tau)) THEN
                   ALLOCATE (fxc_tau(nspins))
                   DO ispin = 1, nspins
-                     CALL pw_pool_create_pw(auxbas_pw_pool, fxc_tau(ispin), &
-                                            in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL auxbas_pw_pool%create_pw(fxc_tau(ispin), &
+                                                   in_space=REALSPACE, use_data=REALDATA3D)
                      CALL pw_zero(fxc_tau(ispin))
                   END DO
                END IF
@@ -247,7 +245,7 @@ CONTAINS
                   CALL pw_axpy(v_tau_rspace(ispin), fxc_tau(ispin), ak(istep))
                END DO
                DO ispin = 1, SIZE(v_tau_rspace)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
+                  CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
                END DO
                DEALLOCATE (v_tau_rspace)
             END IF
@@ -366,16 +364,16 @@ CONTAINS
          IF (.NOT. ASSOCIATED(fxc_rho)) THEN
             ALLOCATE (fxc_rho(nspins))
             DO ispin = 1, nspins
-               CALL pw_pool_create_pw(auxbas_pw_pool, fxc_rho(ispin), &
-                                      in_space=REALSPACE, use_data=REALDATA3D)
+               CALL auxbas_pw_pool%create_pw(fxc_rho(ispin), &
+                                             in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_zero(fxc_rho(ispin))
             END DO
          END IF
          IF (.NOT. ASSOCIATED(gxc_rho)) THEN
             ALLOCATE (gxc_rho(nspins))
             DO ispin = 1, nspins
-               CALL pw_pool_create_pw(auxbas_pw_pool, gxc_rho(ispin), &
-                                      in_space=REALSPACE, use_data=REALDATA3D)
+               CALL auxbas_pw_pool%create_pw(gxc_rho(ispin), &
+                                             in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_zero(gxc_rho(ispin))
             END DO
          END IF
@@ -389,7 +387,7 @@ CONTAINS
             END IF
          END DO
          DO ispin = 1, SIZE(vxc00)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc00(ispin))
+            CALL auxbas_pw_pool%give_back_pw(vxc00(ispin))
          END DO
          DEALLOCATE (vxc00)
 
@@ -428,25 +426,25 @@ CONTAINS
 
       IF (ASSOCIATED(fxc_rho)) THEN
          DO ispin = 1, SIZE(fxc_rho)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_rho(ispin))
+            CALL auxbas_pw_pool%give_back_pw(fxc_rho(ispin))
          END DO
          DEALLOCATE (fxc_rho)
       END IF
       IF (ASSOCIATED(fxc_tau)) THEN
          DO ispin = 1, SIZE(fxc_tau)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_tau(ispin))
+            CALL auxbas_pw_pool%give_back_pw(fxc_tau(ispin))
          END DO
          DEALLOCATE (fxc_tau)
       END IF
       IF (ASSOCIATED(gxc_rho)) THEN
          DO ispin = 1, SIZE(gxc_rho)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_rho(ispin))
+            CALL auxbas_pw_pool%give_back_pw(gxc_rho(ispin))
          END DO
          DEALLOCATE (gxc_rho)
       END IF
       IF (ASSOCIATED(gxc_tau)) THEN
          DO ispin = 1, SIZE(gxc_tau)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_tau(ispin))
+            CALL auxbas_pw_pool%give_back_pw(gxc_tau(ispin))
          END DO
          DEALLOCATE (gxc_tau)
       END IF

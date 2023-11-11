@@ -55,8 +55,7 @@ MODULE qs_cdft_utils
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
@@ -391,8 +390,8 @@ CONTAINS
             DEALLOCATE (cores)
          END DO
          DEALLOCATE (pab)
-         CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%cavity, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(becke_control%cavity, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL transfer_rs2pw(rs_cavity, becke_control%cavity)
          ! Grid points where the Gaussian density falls below eps_cavity are ignored
          ! We can calculate the smallest/largest values along z-direction outside

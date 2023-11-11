@@ -14,8 +14,7 @@
 MODULE dielectric_types
 
    USE kinds,                           ONLY: dp
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
 
@@ -94,11 +93,11 @@ CONTAINS
          can_give_back = PRESENT(pw_pool)
          IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
          IF (can_give_back) THEN
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%eps)
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho)
+            CALL pw_pool%give_back_pw(dielectric%eps)
+            CALL pw_pool%give_back_pw(dielectric%deps_drho)
             DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i))
+               CALL pw_pool%give_back_pw(dielectric%dln_eps(i))
             END DO
          ELSE
             CALL dielectric%eps%release()

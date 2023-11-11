@@ -46,8 +46,7 @@ MODULE mp2_gpw_method
                                               pw_transfer,&
                                               pw_zero
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
@@ -361,9 +360,9 @@ CONTAINS
 
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
-         CALL pw_pool_create_pw(auxbas_pw_pool, psi_i(i), &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(psi_i(i), &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))

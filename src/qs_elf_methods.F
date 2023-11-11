@@ -20,9 +20,7 @@ MODULE qs_elf_methods
    USE pw_methods,                      ONLY: pw_derive,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -111,17 +109,17 @@ CONTAINS
       ! We will not have further use for it, so we will need only one
       IF (.NOT. tau_r_valid) THEN
          ALLOCATE (tau_r)
-         CALL pw_pool_create_pw(auxbas_pw_pool, tau_r, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(tau_r, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
       END IF
       IF (.NOT. tau_r_valid .OR. .NOT. drho_r_valid) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(tmp_g, &
+                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END IF
       IF (.NOT. drho_r_valid) THEN
          DO idir = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(idir), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(drho_r(idir), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
          END DO
       END IF
 
@@ -186,15 +184,15 @@ CONTAINS
 
       IF (.NOT. drho_r_valid) THEN
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(idir))
+            CALL auxbas_pw_pool%give_back_pw(drho_r(idir))
          END DO
       END IF
       IF (.NOT. tau_r_valid) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_r)
+         CALL auxbas_pw_pool%give_back_pw(tau_r)
          DEALLOCATE (tau_r)
       END IF
       IF (.NOT. tau_r_valid .OR. .NOT. drho_r_valid) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
+         CALL auxbas_pw_pool%give_back_pw(tmp_g)
       END IF
 
       CALL timestop(handle)

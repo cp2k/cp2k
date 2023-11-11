@@ -85,9 +85,7 @@ MODULE qs_loc_methods
    USE physcon,                         ONLY: angstrom
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -823,12 +821,12 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       my_state0 = 0
       IF (PRESENT(state0)) my_state0 = state0
@@ -890,8 +888,8 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_out_c, logger, print_key, "", mpi_io=mpi_io)
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
       CALL timestop(handle)
    END SUBROUTINE qs_print_cubes
 

@@ -15,8 +15,7 @@
 MODULE dirichlet_bc_types
 
    USE kinds,                           ONLY: dp
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
 
@@ -206,7 +205,7 @@ CONTAINS
       n_tiles = dbc%n_tiles
       IF (PRESENT(pw_pool)) THEN
          DO k = 1, n_tiles
-            CALL pw_pool_give_back_pw(pw_pool, dbc%tiles(k)%tile%tile_pw)
+            CALL pw_pool%give_back_pw(dbc%tiles(k)%tile%tile_pw)
             DEALLOCATE (dbc%tiles(k)%tile%tile_pw)
             DEALLOCATE (dbc%tiles(k)%tile)
          END DO

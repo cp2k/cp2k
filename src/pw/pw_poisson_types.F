@@ -42,8 +42,6 @@ MODULE pw_poisson_types
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_release
    USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
                                               pw_pool_p_type,&
                                               pw_pool_release,&
                                               pw_pool_type,&
@@ -272,7 +270,7 @@ CONTAINS
       ! allocate influence function,...
       SELECT CASE (green%method)
       CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT)
-         CALL pw_pool_create_pw(pw_pool, green%influence_fn, &
+         CALL pw_pool%create_pw(green%influence_fn, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
          IF (poisson_params%ewald_type == do_ewald_spme) THEN
@@ -284,7 +282,7 @@ CONTAINS
             CALL spme_coeff_calculate(n, green%p3m_coeff)
             NULLIFY (green%p3m_charge)
             ALLOCATE (green%p3m_charge)
-            CALL pw_pool_create_pw(pw_pool, green%p3m_charge, use_data=REALDATA1D, &
+            CALL pw_pool%create_pw(green%p3m_charge, use_data=REALDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL influence_factor(green)
             CALL calc_p3m_charge(green)
@@ -304,8 +302,8 @@ CONTAINS
                CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
                NULLIFY (green%dct_influence_fn)
                ALLOCATE (green%dct_influence_fn)
-               CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL pw_pool_xpndd%create_pw(green%dct_influence_fn, &
+                                            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                CALL pw_pool_release(pw_pool_xpndd)
             END IF
          END SELECT
@@ -430,17 +428,17 @@ CONTAINS
       can_give_back = PRESENT(pw_pool)
       IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
       IF (can_give_back) THEN
-         CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
+         CALL pw_pool%give_back_pw(gftype%influence_fn)
          IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-            CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
+            CALL pw_pool%give_back_pw(gftype%dct_influence_fn)
             DEALLOCATE (gftype%dct_influence_fn)
          END IF
          IF (ASSOCIATED(gftype%screen_fn)) THEN
-            CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn)
+            CALL pw_pool%give_back_pw(gftype%screen_fn)
             DEALLOCATE (gftype%screen_fn)
          END IF
          IF (ASSOCIATED(gftype%p3m_charge)) THEN
-            CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge)
+            CALL pw_pool%give_back_pw(gftype%p3m_charge)
             DEALLOCATE (gftype%p3m_charge)
          END IF
       ELSE

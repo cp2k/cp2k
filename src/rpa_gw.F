@@ -110,9 +110,7 @@ MODULE rpa_gw
                                               pw_copy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -2219,12 +2217,12 @@ CONTAINS
       CALL calculate_E_gap_rspace(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, &
                                   LDOS, qs_env, Eigenval, gw_corr_lev_occ, gw_corr_lev_virt, homo, dft_gw_char)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, E_gap_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, E_VBM_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, E_CBM_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_dummy)
+      CALL auxbas_pw_pool%give_back_pw(E_gap_rspace)
+      CALL auxbas_pw_pool%give_back_pw(E_VBM_rspace)
+      CALL auxbas_pw_pool%give_back_pw(E_CBM_rspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_g_dummy)
       DO i_E = 1, SIZE(LDOS)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, LDOS(i_E))
+         CALL auxbas_pw_pool%give_back_pw(LDOS(i_E))
       END DO
       DEALLOCATE (LDOS)
 
@@ -2523,10 +2521,10 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, E_gap_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, E_VBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, E_CBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_dummy, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_gap_rspace, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_VBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_CBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g_dummy, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       n_E = INT(mp2_env%ri_g0w0%energy_window_print_loc_bandgap/ &
                 mp2_env%ri_g0w0%energy_spacing_print_loc_bandgap)
@@ -2534,7 +2532,7 @@ CONTAINS
       ALLOCATE (LDOS(n_E))
 
       DO i_E = 1, n_E
-         CALL pw_pool_create_pw(auxbas_pw_pool, LDOS(i_E), use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(LDOS(i_E), use_data=REALDATA3D, in_space=REALSPACE)
       END DO
 
       CALL timestop(handle)

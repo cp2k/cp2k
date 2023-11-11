@@ -80,9 +80,7 @@ MODULE qs_collocate_density
                                               pw_integrate_function,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type,&
                                               pw_pools_create_pws,&
                                               pw_pools_give_back_pws
@@ -892,8 +890,8 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -901,7 +899,7 @@ CONTAINS
 
       CALL pw_transfer(rhoc_r, rho_core)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
       CALL timestop(handle)
 
@@ -1027,14 +1025,14 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, drho_core)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
       CALL timestop(handle)
 
@@ -1116,14 +1114,14 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, rho_gb)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
       CALL timestop(handle)
 
@@ -1221,8 +1219,8 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1231,7 +1229,7 @@ CONTAINS
          total_rho_metal = pw_integrate_function(rhoc_r, isign=-1)
 
       CALL pw_transfer(rhoc_r, rho_metal)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
       CALL timestop(handle)
 
@@ -1315,14 +1313,14 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, rho_gb)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
       CALL timestop(handle)
 
@@ -1420,13 +1418,13 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, rho_resp)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
       CALL timestop(handle)
 

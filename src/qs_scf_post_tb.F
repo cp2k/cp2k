@@ -90,9 +90,7 @@ MODULE qs_scf_post_tb
                                               pw_green_release,&
                                               pw_poisson_analytic,&
                                               pw_poisson_parameter_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -1060,10 +1058,9 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
          BLOCK
             TYPE(pw_type) :: rho_elec_rspace
-            CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                                   pw=rho_elec_rspace, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
             CALL pw_copy(rho_r(1), rho_elec_rspace)
             CALL pw_axpy(rho_r(2), rho_elec_rspace)
             filename = "ELECTRON_DENSITY"
@@ -1106,7 +1103,7 @@ CONTAINS
                                particles=particles, &
                                stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace)
+            CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
          END BLOCK
       ELSE
          IF (iounit > 0) THEN
@@ -1218,10 +1215,9 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rho_core, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=rho_core, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
       CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
 
       IF (iounit > 0) THEN
@@ -1231,8 +1227,8 @@ CONTAINS
             "Integrated core density:", total_rho_core_rspace
       END IF
 
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=rho_tot_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho_core, rho_tot_rspace)
       DO ispin = 1, dft_control%nspins
          CALL pw_axpy(rho_r(ispin), rho_tot_rspace)
@@ -1261,8 +1257,8 @@ CONTAINS
       IF (my_v_hartree .OR. my_efield) THEN
          BLOCK
             TYPE(pw_type) :: rho_tot_gspace
-            CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_gspace, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(pw=rho_tot_gspace, &
+                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL pw_transfer(rho_tot_rspace, rho_tot_gspace)
             poisson_params%solver = pw_poisson_analytic
             poisson_params%periodic = cell%perd
@@ -1276,8 +1272,8 @@ CONTAINS
                CALL pw_green_release(green_fft, auxbas_pw_pool)
             END BLOCK
             IF (my_v_hartree) THEN
-               CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(pw=vhartree, &
+                                             use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_transfer(rho_tot_gspace, vhartree)
                filename = "V_HARTREE"
                mpi_io = .TRUE.
@@ -1297,11 +1293,11 @@ CONTAINS
                                   particles=particles, &
                                   stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree)
+               CALL auxbas_pw_pool%give_back_pw(vhartree)
             END IF
             IF (my_efield) THEN
-               CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(pw=vhartree, &
+                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                udvol = 1.0_dp/rho_tot_rspace%pw_grid%dvol
                DO id = 1, 3
                   CALL pw_transfer(rho_tot_gspace, vhartree)
@@ -1330,14 +1326,14 @@ CONTAINS
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
                END DO
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree)
+               CALL auxbas_pw_pool%give_back_pw(vhartree)
             END IF
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+            CALL auxbas_pw_pool%give_back_pw(rho_tot_gspace)
          END BLOCK
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_core)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_rspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_core)
 
    END SUBROUTINE print_density_cubes
 
@@ -1396,9 +1392,9 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       DO ispin = 1, dft_control%nspins
-         CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin), &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(elf_r(ispin), &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL pw_zero(elf_r(ispin))
       END DO
 
@@ -1434,7 +1430,7 @@ CONTAINS
                             stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, elf_section, '', mpi_io=mpi_io)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin))
+         CALL auxbas_pw_pool%give_back_pw(elf_r(ispin))
       END DO
 
       DEALLOCATE (elf_r)
@@ -1518,12 +1514,12 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL get_qs_env(qs_env, subsys=subsys)
       CALL qs_subsys_get(subsys, particles=particles)
@@ -1595,8 +1591,8 @@ CONTAINS
          END DO
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
       IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
 
    END SUBROUTINE print_mo_cubes

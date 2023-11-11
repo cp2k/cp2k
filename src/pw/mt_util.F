@@ -18,8 +18,6 @@ MODULE mt_util
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
                                               pw_pool_release,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -81,7 +79,7 @@ CONTAINS
       END IF
       NULLIFY (screen_function)
       ALLOCATE (screen_function)
-      CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D, &
+      CALL pw_pool%create_pw(screen_function, use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(screen_function)
       SELECT CASE (method)
@@ -89,21 +87,21 @@ CONTAINS
          NULLIFY (Vloc, Vlocg)
          ALLOCATE (Vloc, Vlocg)
          IF (ASSOCIATED(pw_pool_aux)) THEN
-            CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL pw_pool_aux%create_pw(Vloc, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_aux%create_pw(Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          ELSE
-            CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(pw_pool, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(Vloc, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          END IF
          CALL mt0din(Vloc, alpha)
          CALL pw_transfer(Vloc, Vlocg)
          CALL pw_axpy(Vlocg, screen_function)
          IF (ASSOCIATED(pw_pool_aux)) THEN
-            CALL pw_pool_give_back_pw(pw_pool_aux, Vloc)
-            CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg)
+            CALL pw_pool_aux%give_back_pw(Vloc)
+            CALL pw_pool_aux%give_back_pw(Vlocg)
          ELSE
-            CALL pw_pool_give_back_pw(pw_pool, Vloc)
-            CALL pw_pool_give_back_pw(pw_pool, Vlocg)
+            CALL pw_pool%give_back_pw(Vloc)
+            CALL pw_pool%give_back_pw(Vlocg)
          END IF
          DEALLOCATE (Vloc, Vlocg)
          !

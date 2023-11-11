@@ -47,9 +47,7 @@ MODULE qs_cdft_methods
                                               pw_integrate_function,&
                                               pw_set,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
@@ -756,19 +754,19 @@ CONTAINS
          ! Setup pw
          CALL pw_zero(cdft_control%group(igroup)%weight)
 
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total_constraint, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_set(cdft_control%group(igroup)%hw_rho_total_constraint, 1.0_dp)
 
          IF (igroup == 1) THEN
-            CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total, &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_set(cdft_control%group(igroup)%hw_rho_total, 1.0_dp)
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
-                  CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(iatom), &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_atomic(iatom), &
+                                                use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_set(cdft_control%group(igroup)%hw_rho_atomic(iatom), 1.0_dp)
                END DO
             END IF
@@ -787,8 +785,8 @@ CONTAINS
             END DO
 
             DO iatom = 1, cdft_control%natoms
-               CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), &
+                                             use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_set(cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), 1.0_dp)
             END DO
          END IF
@@ -923,16 +921,16 @@ CONTAINS
 
       DO igroup = 1, SIZE(cdft_control%group)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint)
+         CALL auxbas_pw_pool%give_back_pw(cdft_control%group(igroup)%hw_rho_total_constraint)
 
          IF (.NOT. cdft_control%in_memory .AND. igroup == 1) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total)
+            CALL auxbas_pw_pool%give_back_pw(cdft_control%group(1)%hw_rho_total)
          END IF
 
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single(i))
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(i))
+               CALL auxbas_pw_pool%give_back_pw(cdft_control%group(igroup)%hw_rho_atomic(i))
             END DO
             DEALLOCATE (rs_single)
             DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic)
@@ -941,7 +939,7 @@ CONTAINS
          IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single_charge(i))
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i))
+               CALL auxbas_pw_pool%give_back_pw(cdft_control%group(igroup)%hw_rho_atomic_charge(i))
             END DO
             DEALLOCATE (rs_single_charge)
             DEALLOCATE (compute_charge)
@@ -975,8 +973,8 @@ CONTAINS
                ALLOCATE (rs_single_dr(num_species))
 
                DO i = 1, num_species
-                  CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i), use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(pw_single_dr(i), use_data=REALDATA3D, &
+                                                in_space=REALSPACE)
                   CALL pw_zero(pw_single_dr(i))
                END DO
 
@@ -1063,7 +1061,7 @@ CONTAINS
                DO iatom = 1, num_species
                   atom_a = atom_list(iatom)
                   cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%cr3d(:, :, :)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom))
+                  CALL auxbas_pw_pool%give_back_pw(pw_single_dr(iatom))
                END DO
 
                DEALLOCATE (rs_single_dr)
@@ -1127,7 +1125,7 @@ CONTAINS
             END DO
 
             IF (igroup == 1) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total)
+               CALL auxbas_pw_pool%give_back_pw(cdft_control%group(1)%hw_rho_total)
             END IF
          END DO
       END IF
@@ -1668,33 +1666,33 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       ! Total density (rho_alpha + rho_beta)
-      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 1), &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 1), &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
       CALL cp_cube_to_pw(cdft_control%fragments(1, 1), &
                          cdft_control%fragment_a_fname, 1.0_dp)
-      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 2), &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 2), &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
       CALL cp_cube_to_pw(cdft_control%fragments(1, 2), &
                          cdft_control%fragment_b_fname, 1.0_dp)
       ! Spin difference density (rho_alpha - rho_beta) if needed
       IF (needs_spin_density) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 1), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%fragments(2, 1), &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL cp_cube_to_pw(cdft_control%fragments(2, 1), &
                             cdft_control%fragment_a_spin_fname, multiplier(1))
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 2), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%fragments(2, 2), &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL cp_cube_to_pw(cdft_control%fragments(2, 2), &
                             cdft_control%fragment_b_spin_fname, multiplier(2))
       END IF
       ! Sum up fragments
       DO i = 1, nfrag_spins
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i), use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_frag(i), use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL pw_copy(cdft_control%fragments(i, 1), rho_frag(i))
          CALL pw_axpy(cdft_control%fragments(i, 2), rho_frag(i), 1.0_dp)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 1))
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 2))
+         CALL auxbas_pw_pool%give_back_pw(cdft_control%fragments(i, 1))
+         CALL auxbas_pw_pool%give_back_pw(cdft_control%fragments(i, 2))
       END DO
       DEALLOCATE (cdft_control%fragments)
       ! Check that the number of electrons is consistent
@@ -1735,7 +1733,7 @@ CONTAINS
          CALL para_env%sum(cdft_control%charges_fragment)
       END IF
       DO i = 1, nfrag_spins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i))
+         CALL auxbas_pw_pool%give_back_pw(rho_frag(i))
       END DO
       DEALLOCATE (rho_frag)
       cdft_control%fragments_integrated = .TRUE.

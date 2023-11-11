@@ -29,9 +29,7 @@ MODULE tip_scan_methods
                                               pw_structure_factor,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -128,11 +126,11 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          NULLIFY (vtip)
          ALLOCATE (vtip)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vtip, REALDATA3D, REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vtip, REALDATA3D, REALSPACE)
          CALL pw_zero(vtip)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vref, COMPLEXDATA1D, RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(vref, COMPLEXDATA1D, RECIPROCALSPACE)
          CALL pw_zero(vref)
-         CALL pw_pool_create_pw(auxbas_pw_pool, sf, COMPLEXDATA1D, RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(sf, COMPLEXDATA1D, RECIPROCALSPACE)
 
          ! get the reference tip potential and store it in reciprocal space (vref)
          CALL pw_transfer(scan_env%tip_pw_g, vref)
@@ -195,9 +193,9 @@ CONTAINS
             NULLIFY (vee)
             CALL set_ks_env(ks_env, vee=vee)
          END IF
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vtip)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vref)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, sf)
+         CALL auxbas_pw_pool%give_back_pw(vtip)
+         CALL auxbas_pw_pool%give_back_pw(vref)
+         CALL auxbas_pw_pool%give_back_pw(sf)
          DEALLOCATE (vtip)
 
          logger%iter_info%print_level = plevel

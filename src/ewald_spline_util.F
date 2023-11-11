@@ -31,8 +31,6 @@ MODULE ewald_spline_util
                                               pw_grid_setup
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_spline_utils,                 ONLY: &
         Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, pw_spline_do_precond, &
@@ -88,7 +86,7 @@ CONTAINS
       INTEGER                                            :: bo(2, 3), iounit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type)                                      :: pw
 
 !
 ! Setting Up Fit Procedure
@@ -97,7 +95,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(pw_grid))
       CPASSERT(.NOT. ASSOCIATED(pw_pool))
       CPASSERT(.NOT. ASSOCIATED(coeff))
-      NULLIFY (cell, pw)
+      NULLIFY (cell)
 
       CALL cell_create(cell, hmat=hmat, periodic=(/1, 1, 1/))
       CALL pw_grid_create(pw_grid, para_env, local=.TRUE.)
@@ -112,14 +110,13 @@ CONTAINS
                                         "")
       ! pw_pool initialized
       CALL pw_pool_create(pw_pool, pw_grid=pw_grid)
-      ALLOCATE (pw, coeff)
-      CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, coeff, use_data=REALDATA3D, in_space=REALSPACE)
+      ALLOCATE (coeff)
+      CALL pw_pool%create_pw(pw, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(coeff, use_data=REALDATA3D, in_space=REALSPACE)
       ! Evaluate function on grid
       CALL eval_pw_TabLR(pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat, &
                          param_section=param_section, tag=tag)
-      CALL pw_pool_give_back_pw(pw_pool, pw)
-      DEALLOCATE (pw)
+      CALL pw_pool%give_back_pw(pw)
       CALL cell_release(cell)
 
    END SUBROUTINE Setup_Ewald_Spline
@@ -143,7 +140,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eval_pw_TabLR(grid, pw_pool, TabLR, Lg, gx, gy, gz, hmat_mm, &
                             param_section, tag)
-      TYPE(pw_type), POINTER                             :: grid
+      TYPE(pw_type), INTENT(INOUT)                       :: grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type), POINTER                             :: TabLR
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Lg, gx, gy, gz

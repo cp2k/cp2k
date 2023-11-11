@@ -41,9 +41,7 @@ MODULE cp_ddapc
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -139,13 +137,13 @@ CONTAINS
       dft_control%qs_control%ddapc_explicit_potential = explicit_potential
       dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
       IF (explicit_potential) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_g, &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(v_spin_ddapc_rest_g, &
+                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_zero(v_spin_ddapc_rest_g)
          NULLIFY (v_spin_ddapc_rest_r)
          ALLOCATE (v_spin_ddapc_rest_r)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_r, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(v_spin_ddapc_rest_r, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
       END IF
 
       IF (calculate_forces) CALL reset_ch_pulay(qs_env)
@@ -204,7 +202,7 @@ CONTAINS
       END IF
 
       IF (explicit_potential) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_g)
+         CALL auxbas_pw_pool%give_back_pw(v_spin_ddapc_rest_g)
       END IF
       CALL timestop(handle)
 

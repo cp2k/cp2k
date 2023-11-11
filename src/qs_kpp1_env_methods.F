@@ -57,9 +57,7 @@ MODULE qs_kpp1_env_methods
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -276,17 +274,17 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
       DO ispin = 2, nspins
@@ -308,19 +306,19 @@ CONTAINS
       IF (.NOT. (nspins == 1 .AND. do_excitations .AND. do_triplet)) THEN
          BLOCK
             TYPE(pw_type) :: v_hartree_gspace
-            CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
             CALL pw_poisson_solve(poisson_env, rho1_tot_gspace, &
                                   energy_hartree, &
                                   v_hartree_gspace)
             CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+            CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
          END BLOCK
          CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho1_tot_gspace)
 
       ! *** calculate the xc potential ***
       IF (gapw_xc) THEN
@@ -368,7 +366,7 @@ CONTAINS
       END DO
       v_rspace_new => v_xc
       IF (SIZE(v_xc) /= nspins) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(2))
+         CALL auxbas_pw_pool%give_back_pw(v_xc(2))
       END IF
       NULLIFY (v_xc)
       IF (ASSOCIATED(v_xc_tau)) THEN
@@ -376,7 +374,7 @@ CONTAINS
          CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
       END DO
       IF (SIZE(v_xc_tau) /= nspins) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(2))
+         CALL auxbas_pw_pool%give_back_pw(v_xc_tau(2))
       END IF
       END IF
 
@@ -545,14 +543,14 @@ CONTAINS
                              rho_atom_external=p_env%local_rho_set%rho_atom_set)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
       DO ispin = 1, SIZE(v_rspace_new)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
+         CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
       END DO
       DEALLOCATE (v_rspace_new)
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, SIZE(v_xc_tau)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin))
+         CALL auxbas_pw_pool%give_back_pw(v_xc_tau(ispin))
       END DO
       DEALLOCATE (v_xc_tau)
       END IF
@@ -710,15 +708,15 @@ CONTAINS
                                 (lsd_singlets .OR. do_triplet))) THEN
             ALLOCATE (my_rho_r(2))
             DO ispin = 1, 2
-               CALL pw_pool_create_pw(auxbas_pw_pool, my_rho_r(ispin), &
-                                      use_data=rho_r(1)%in_use, in_space=rho_r(1)%in_space)
+               CALL auxbas_pw_pool%create_pw(my_rho_r(ispin), &
+                                             use_data=rho_r(1)%in_use, in_space=rho_r(1)%in_space)
                CALL pw_axpy(rho_r(1), my_rho_r(ispin), 0.5_dp, 0.0_dp)
             END DO
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(2))
                DO ispin = 1, 2
-                  CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin), &
-                                         use_data=tau_r(1)%in_use, in_space=tau_r(1)%in_space)
+                  CALL auxbas_pw_pool%create_pw(my_tau_r(ispin), &
+                                                use_data=tau_r(1)%in_use, in_space=tau_r(1)%in_space)
                   CALL pw_axpy(tau_r(1), my_tau_r(ispin), 0.5_dp, 0.0_dp)
                END DO
             END IF

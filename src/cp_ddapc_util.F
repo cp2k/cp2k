@@ -46,9 +46,7 @@ MODULE cp_ddapc_util
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_transfer
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_type
@@ -136,8 +134,8 @@ CONTAINS
             WRITE (iw, '(/,A)') " Initializing the DDAPC Environment"
          END IF
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pool)
-         CALL pw_pool_create_pw(auxbas_pool, rho_tot_g, in_space=RECIPROCALSPACE, &
-                                use_data=COMPLEXDATA1D)
+         CALL auxbas_pool%create_pw(rho_tot_g, in_space=RECIPROCALSPACE, &
+                                    use_data=COMPLEXDATA1D)
          Vol = rho_tot_g%pw_grid%vol
          !
          ! Get Input Parameters
@@ -179,7 +177,7 @@ CONTAINS
          CALL cp_print_key_finished_output(iw2, logger, density_fit_section, &
                                            "PROGRAM_RUN_INFO/CONDITION_NUMBER")
          DEALLOCATE (radii)
-         CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
+         CALL auxbas_pool%give_back_pw(rho_tot_g)
       END IF
       CALL timestop(handle)
    END SUBROUTINE cp_ddapc_init
@@ -277,8 +275,8 @@ CONTAINS
       END IF
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pool)
-      CALL pw_pool_create_pw(auxbas_pool, rho_tot_g, in_space=RECIPROCALSPACE, &
-                             use_data=COMPLEXDATA1D)
+      CALL auxbas_pool%create_pw(rho_tot_g, in_space=RECIPROCALSPACE, &
+                                 use_data=COMPLEXDATA1D)
       IF (PRESENT(ext_rho_tot_g)) THEN
          ! If provided use the input density in g-space
          CALL pw_transfer(ext_rho_tot_g, rho_tot_g)
@@ -516,7 +514,7 @@ CONTAINS
          CALL cp_print_key_finished_output(iw, logger, density_fit_section, &
                                            "PROGRAM_RUN_INFO")
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
+      CALL auxbas_pool%give_back_pw(rho_tot_g)
       CALL timestop(handle)
    END SUBROUTINE get_ddapc
 

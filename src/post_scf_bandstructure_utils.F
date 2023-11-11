@@ -80,9 +80,7 @@ MODULE post_scf_bandstructure_utils
                                               post_scf_bandstructure_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -2136,8 +2134,8 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, LDOS_3d, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(LDOS_3d, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       i_x_start = LBOUND(LDOS_3d%cr3d, 1)
       i_x_end = UBOUND(LDOS_3d%cr3d, 1)
@@ -2243,8 +2241,8 @@ CONTAINS
       ! set back nimages
       dft_control%nimages = nimages
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, LDOS_3d)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
+      CALL auxbas_pw_pool%give_back_pw(LDOS_3d)
+      CALL auxbas_pw_pool%give_back_pw(rho_g)
 
       CALL cp_cfm_release(cfm_work)
       CALL cp_cfm_release(cfm_weighted_dm_ikp)

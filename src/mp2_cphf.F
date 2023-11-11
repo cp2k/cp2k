@@ -85,9 +85,7 @@ MODULE mp2_cphf
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -1506,8 +1504,8 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(vhxc_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
       IF (use_virial) h_stress = virial%pv_virial
       IF (debug_forces) THEN
          deb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -1575,13 +1573,13 @@ CONTAINS
          END DO
       END IF
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin))
+         CALL auxbas_pw_pool%give_back_pw(vxc_rspace(ispin))
          IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(vtau_rspace(ispin))
          END IF
       END DO
       DEALLOCATE (vxc_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace)
+      CALL auxbas_pw_pool%give_back_pw(vhxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
 
       DO ispin = 1, nspins
@@ -1594,15 +1592,15 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! get some of the grids ready
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pot_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(pot_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_tot_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL pw_zero(rho_tot_g)
 
@@ -1614,9 +1612,9 @@ CONTAINS
       IF (use_virial) THEN
          ALLOCATE (dvg(3))
          DO idir = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir), &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(dvg(idir), &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
          END DO
       END IF
 
@@ -1638,14 +1636,14 @@ CONTAINS
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: core      ", e_dummy
          END IF
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace)
+      CALL auxbas_pw_pool%give_back_pw(vh_rspace)
 
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
-         CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(temp_pw_g, &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
 
          ! make a copy of the MP2 density in G space
          CALL pw_copy(rho_tot_g, temp_pw_g)
@@ -1676,9 +1674,9 @@ CONTAINS
          IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hartree  ", third_tr(h_stress)
 
          ! free stuff
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g)
+         CALL auxbas_pw_pool%give_back_pw(temp_pw_g)
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir))
+            CALL auxbas_pw_pool%give_back_pw(dvg(idir))
          END DO
          DEALLOCATE (dvg)
 
@@ -1877,7 +1875,7 @@ CONTAINS
                                              calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                              task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
                   END IF
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin))
+                  CALL auxbas_pw_pool%give_back_pw(vadmm_rspace(ispin))
                END DO
                IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - h_stress)
                DEALLOCATE (vadmm_rspace)
@@ -1965,9 +1963,9 @@ CONTAINS
          END IF
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_g)
+      CALL auxbas_pw_pool%give_back_pw(pot_r)
+      CALL auxbas_pw_pool%give_back_pw(pot_g)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_g)
 
       ! Release linres stuff
       CALL p_env_release(p_env)

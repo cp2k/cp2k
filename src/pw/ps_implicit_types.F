@@ -21,8 +21,7 @@ MODULE ps_implicit_types
    USE dirichlet_bc_types,              ONLY: dbc_release,&
                                               dirichlet_bc_p_type
    USE kinds,                           ONLY: dp
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
 
@@ -100,9 +99,9 @@ CONTAINS
          do_dbc_cube = ps_implicit_env%do_dbc_cube
 
          IF (can_give_back) THEN
-            CALL pw_pool_give_back_pw(pw_pool, ps_implicit_env%initial_guess)
-            CALL pw_pool_give_back_pw(pw_pool, ps_implicit_env%v_eps)
-            CALL pw_pool_give_back_pw(pw_pool, ps_implicit_env%cstr_charge)
+            CALL pw_pool%give_back_pw(ps_implicit_env%initial_guess)
+            CALL pw_pool%give_back_pw(ps_implicit_env%v_eps)
+            CALL pw_pool%give_back_pw(ps_implicit_env%cstr_charge)
             DEALLOCATE (ps_implicit_env%initial_guess, ps_implicit_env%v_eps, ps_implicit_env%cstr_charge)
             CALL dbc_release(ps_implicit_env%contacts, do_dbc_cube, pw_pool=pw_pool)
          ELSE

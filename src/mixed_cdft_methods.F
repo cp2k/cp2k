@@ -95,9 +95,7 @@ MODULE mixed_cdft_methods
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE
    USE qs_cdft_types,                   ONLY: cdft_control_type
@@ -653,8 +651,8 @@ CONTAINS
       ! In principle, we could reduce the memory footprint of becke_pot by only transferring the nonzero portion
       ! of the potential, but this would require a custom integrate_v_rspace
       ALLOCATE (cdft_control_target%group(1)%weight)
-      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control_target%group(1)%weight, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(cdft_control_target%group(1)%weight, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(cdft_control_target%group(1)%weight)
       ! Assemble the recved slices
       DO j = 1, SIZE(mixed_cdft%source_list)
@@ -947,21 +945,20 @@ CONTAINS
             ! Weight function
             DO igroup = 1, SIZE(cdft_control_target%group)
                ALLOCATE (cdft_control_target%group(igroup)%weight)
-               CALL pw_pool_create_pw(auxbas_pw_pool_target, &
-                                      cdft_control_target%group(igroup)%weight, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool_target%create_pw(cdft_control_target%group(igroup)%weight, &
+                                                    use_data=REALDATA3D, in_space=REALSPACE)
                ! We have ensured that the grids are consistent => no danger in using explicit copy
                CALL pw_copy(cdft_control_source%group(igroup)%weight, cdft_control_target%group(igroup)%weight)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%group(igroup)%weight)
+               CALL auxbas_pw_pool_source%give_back_pw(cdft_control_source%group(igroup)%weight)
                DEALLOCATE (cdft_control_source%group(igroup)%weight)
             END DO
             ! Cavity
             IF (cdft_control_source%type == outer_scf_becke_constraint) THEN
                IF (cdft_control_source%becke_control%cavity_confine) THEN
-                  CALL pw_pool_create_pw(auxbas_pw_pool_target, cdft_control_target%becke_control%cavity, &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL auxbas_pw_pool_target%create_pw(cdft_control_target%becke_control%cavity, &
+                                                       use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_copy(cdft_control_source%becke_control%cavity, cdft_control_target%becke_control%cavity)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%becke_control%cavity)
+                  CALL auxbas_pw_pool_source%give_back_pw(cdft_control_source%becke_control%cavity)
                END IF
             END IF
             ! Gradients
@@ -987,11 +984,10 @@ CONTAINS
                IF (.NOT. ASSOCIATED(cdft_control_target%charge)) &
                   ALLOCATE (cdft_control_target%charge(cdft_control_target%natoms))
                DO iatom = 1, cdft_control_target%natoms
-                  CALL pw_pool_create_pw(auxbas_pw_pool_target, &
-                                         cdft_control_target%charge(iatom), &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL auxbas_pw_pool_target%create_pw(cdft_control_target%charge(iatom), &
+                                                       use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_copy(cdft_control_source%charge(iatom), cdft_control_target%charge(iatom))
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%charge(iatom))
+                  CALL auxbas_pw_pool_source%give_back_pw(cdft_control_source%charge(iatom))
                END DO
             END IF
             ! Set some flags so the weight is not rebuilt during SCF
@@ -2585,8 +2581,8 @@ CONTAINS
             DEALLOCATE (cores)
          END DO
          DEALLOCATE (pab)
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%becke_control%cavity, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%becke_control%cavity, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL transfer_rs2pw(rs_cavity, cdft_control%becke_control%cavity)
          CALL hfun_zero(cdft_control%becke_control%cavity%cr3d, &
                         cdft_control%becke_control%eps_cavity, &
@@ -2672,7 +2668,7 @@ CONTAINS
                                                                        bo(1, 2) + offset_dlb:bo(2, 2), &
                                                                        bo_conf(1, 3):bo_conf(2, 3))
          END IF
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity)
+         CALL auxbas_pw_pool%give_back_pw(cdft_control%becke_control%cavity)
       END IF
       IF (mixed_cdft%is_special) THEN
          DO i = 1, SIZE(mixed_cdft%dest_list)

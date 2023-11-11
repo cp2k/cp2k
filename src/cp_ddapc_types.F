@@ -33,8 +33,7 @@ MODULE cp_ddapc_types
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_release
    USE pw_poisson_types,                ONLY: pw_poisson_multipole
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_release,&
+   USE pw_pool_types,                   ONLY: pw_pool_release,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
@@ -407,11 +406,11 @@ CONTAINS
 
       IF (ASSOCIATED(cp_ddapc_ewald)) THEN
          IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN
-            CALL pw_pool_give_back_pw(cp_ddapc_ewald%pw_pool_qm, cp_ddapc_ewald%coeff_qm)
+            CALL cp_ddapc_ewald%pw_pool_qm%give_back_pw(cp_ddapc_ewald%coeff_qm)
             DEALLOCATE (cp_ddapc_ewald%coeff_qm)
          END IF
          IF (ASSOCIATED(cp_ddapc_ewald%coeff_mm)) THEN
-            CALL pw_pool_give_back_pw(cp_ddapc_ewald%pw_pool_mm, cp_ddapc_ewald%coeff_mm)
+            CALL cp_ddapc_ewald%pw_pool_mm%give_back_pw(cp_ddapc_ewald%coeff_mm)
             DEALLOCATE (cp_ddapc_ewald%coeff_mm)
          END IF
          IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_qm)) THEN

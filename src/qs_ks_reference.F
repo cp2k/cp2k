@@ -35,9 +35,7 @@ MODULE qs_ks_reference
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -145,12 +143,12 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the Hartree potential
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! Get the total density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
@@ -160,8 +158,8 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
       CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_gspace)
       !
       CALL calculate_ecore_self(qs_env, E_self_core=eself)
       CALL calculate_ecore_overlap(qs_env, para_env, PRESENT(h_stress), E_overlap_core=eovrl)
@@ -272,12 +270,12 @@ CONTAINS
       END IF
 
       ! return pw grids
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_rspace(ispin))
             IF (ASSOCIATED(v_tau_rspace)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
+               CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
             END IF
          END DO
          DEALLOCATE (v_rspace)
@@ -285,7 +283,7 @@ CONTAINS
       IF (ASSOCIATED(v_tau_rspace)) DEALLOCATE (v_tau_rspace)
       IF (ASSOCIATED(v_admm_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_admm_rspace(ispin))
          END DO
          DEALLOCATE (v_admm_rspace)
       END IF

@@ -120,7 +120,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
-      CLASS(pw_type), INTENT(OUT)                         :: pw
+      CLASS(pw_type), INTENT(INOUT)                         :: pw
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(in)                                :: use_data, in_space
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
@@ -152,6 +152,9 @@ CONTAINS
             CPASSERT(use_data == REALDATA3D)
          END IF
       END IF
+
+      ! Ensure a clean grid to prevent memory leaks
+      CALL pw%release()
 
       pw%in_use = use_data
       pw%pw_grid => pw_grid

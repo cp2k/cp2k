@@ -25,8 +25,7 @@ MODULE qs_ks_qmmm_methods
                                               pw_env_retain
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_integral_ab
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
@@ -110,8 +109,8 @@ CONTAINS
       ks_qmmm_env%pc_ener = 0.0_dp
       ks_qmmm_env%n_evals = 0
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, ks_qmmm_env%v_qmmm_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(ks_qmmm_env%v_qmmm_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss) .OR. (qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN
          CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this

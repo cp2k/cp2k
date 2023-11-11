@@ -57,9 +57,7 @@ MODULE mp2_ri_grad
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_type
@@ -343,13 +341,13 @@ CONTAINS
          ! for calculate the MP2-volume contribution to the virial
          ! (hartree potential derivatives)
          IF (use_virial) THEN
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_copy, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_g_copy, &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
             DO i = 1, 3
-               CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i), &
-                                      use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(dvg(i), &
+                                             use_data=COMPLEXDATA1D, &
+                                             in_space=RECIPROCALSPACE)
             END DO
          END IF
 
@@ -407,9 +405,9 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
 
          IF (use_virial) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy)
+            CALL auxbas_pw_pool%give_back_pw(rho_g_copy)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i))
+               CALL auxbas_pw_pool%give_back_pw(dvg(i))
             END DO
          END IF
 

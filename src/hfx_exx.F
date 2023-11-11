@@ -58,8 +58,7 @@ MODULE hfx_exx
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_scale
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -474,11 +473,11 @@ CONTAINS
 
       ! Clean
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace)
+      CALL auxbas_pw_pool%give_back_pw(vh_rspace)
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin))
+         CALL auxbas_pw_pool%give_back_pw(vxc_rspace(ispin))
          IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(vtau_rspace(ispin))
          END IF
       END DO
       DEALLOCATE (vxc_rspace)
@@ -487,7 +486,7 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          DO ispin = 1, nspins
             IF (ASSOCIATED(vadmm_rspace)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin))
+               CALL auxbas_pw_pool%give_back_pw(vadmm_rspace(ispin))
             END IF
          END DO
          IF (ASSOCIATED(vadmm_rspace)) DEALLOCATE (vadmm_rspace)
@@ -680,13 +679,13 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_aux_fit)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_aux_fit(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_rspace_aux_fit(ispin))
          END DO
          DEALLOCATE (v_rspace_aux_fit)
       END IF
       IF (ASSOCIATED(v_dummy)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_dummy(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_dummy(ispin))
          END DO
          DEALLOCATE (v_dummy)
       END IF
@@ -712,13 +711,13 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_rspace(ispin))
          END DO
          DEALLOCATE (v_rspace)
       END IF
       IF (ASSOCIATED(v_dummy)) THEN
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_dummy(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_dummy(ispin))
          END DO
          DEALLOCATE (v_dummy)
       END IF

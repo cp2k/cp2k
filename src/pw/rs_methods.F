@@ -19,9 +19,7 @@ MODULE rs_methods
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -397,10 +395,10 @@ CONTAINS
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
       lb3 = bounds_local(1, 3); ub3 = bounds_local(2, 3)
 
-      CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(pw_pool, pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(G, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       CALL pw_zero(G)
       xmin = x_glbl(bounds(1, 1)); xmax = x_glbl(bounds(2, 1))
@@ -453,10 +451,10 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_pool_give_back_pw(pw_pool, G)
-      CALL pw_pool_give_back_pw(pw_pool, G_gs)
-      CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
-      CALL pw_pool_give_back_pw(pw_pool, pw_out_gs)
+      CALL pw_pool%give_back_pw(G)
+      CALL pw_pool%give_back_pw(G_gs)
+      CALL pw_pool%give_back_pw(pw_in_gs)
+      CALL pw_pool%give_back_pw(pw_out_gs)
       CALL timestop(handle)
 
    END SUBROUTINE pw_mollifier

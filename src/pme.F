@@ -43,9 +43,7 @@ MODULE pme
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -167,10 +165,10 @@ CONTAINS
                                         allocate_centre=.TRUE.)
       END IF
 
-      CALL pw_pool_create_pw(pw_small_pool, rhos1, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_small_pool, rhos2, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_small_pool%create_pw(rhos1, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_small_pool%create_pw(rhos2, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
 
       ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
@@ -244,20 +242,20 @@ CONTAINS
          END DO
       END IF
 
-      CALL pw_pool_create_pw(pw_big_pool, rhob_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_big_pool%create_pw(rhob_r, use_data=REALDATA3D, in_space=REALSPACE)
       CALL transfer_rs2pw(rden, rhob_r)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         CALL pw_pool_create_pw(pw_big_pool, dphi_g(i), &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
+         CALL pw_big_pool%create_pw(dphi_g(i), &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
       END DO
-      CALL pw_pool_create_pw(pw_big_pool, phi_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL pw_big_pool%create_pw(phi_r, &
+                                 use_data=REALDATA3D, &
+                                 in_space=REALSPACE)
 
       CALL pw_poisson_solve(poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress)
 
@@ -298,12 +296,12 @@ CONTAINS
             END IF
          END DO
          IF (atprop%stress) THEN
-            CALL pw_pool_create_pw(pw_big_pool, phi_g, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            CALL pw_pool_create_pw(pw_big_pool, rhob_g, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL pw_big_pool%create_pw(phi_g, &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
+            CALL pw_big_pool%create_pw(rhob_g, &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
             ffa = (0.5_dp/dg_rho0%zet(1))**2
             ffb = 1.0_dp/fourpi
             DO i = 1, 3
@@ -340,14 +338,14 @@ CONTAINS
                   END DO
                END DO
             END DO
-            CALL pw_pool_give_back_pw(pw_big_pool, phi_g)
-            CALL pw_pool_give_back_pw(pw_big_pool, rhob_g)
+            CALL pw_big_pool%give_back_pw(phi_g)
+            CALL pw_big_pool%give_back_pw(rhob_g)
          END IF
          CALL rs_grid_release(rpot)
          DEALLOCATE (rpot)
       END IF
 
-      CALL pw_pool_give_back_pw(pw_big_pool, phi_r)
+      CALL pw_big_pool%give_back_pw(phi_r)
 
       !---------- END OF ELECTROSTATIC CALCULATION --------
 
@@ -371,11 +369,11 @@ CONTAINS
          CALL rs_grid_create(drpot(i), rs_desc)
          CALL rs_grid_set_box(grid_b, rs=drpot(i))
          CALL pw_transfer(dphi_g(i), rhob_r)
-         CALL pw_pool_give_back_pw(pw_big_pool, dphi_g(i))
+         CALL pw_big_pool%give_back_pw(dphi_g(i))
          CALL transfer_pw2rs(drpot(i), rhob_r)
       END DO
 
-      CALL pw_pool_give_back_pw(pw_big_pool, rhob_r)
+      CALL pw_big_pool%give_back_pw(rhob_r)
 
       !----------------- FORCE CALCULATION ----------------
 
@@ -475,8 +473,8 @@ CONTAINS
          CALL rs_grid_release(drpot(i))
       END DO
 
-      CALL pw_pool_give_back_pw(pw_small_pool, rhos1)
-      CALL pw_pool_give_back_pw(pw_small_pool, rhos2)
+      CALL pw_small_pool%give_back_pw(rhos1)
+      CALL pw_small_pool%give_back_pw(rhos2)
       CALL structure_factor_deallocate(exp_igr)
 
       CALL timestop(handle)

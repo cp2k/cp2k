@@ -27,8 +27,6 @@ MODULE dielectric_methods
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
                                               pw_pool_release,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -82,14 +80,14 @@ CONTAINS
          NULLIFY (dielectric%eps)
          NULLIFY (dielectric%deps_drho)
          ALLOCATE (dielectric%eps, dielectric%deps_drho)
-         CALL pw_pool_create_pw(pw_pool, dielectric%eps, &
+         CALL pw_pool%create_pw(dielectric%eps, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(pw_pool, dielectric%deps_drho, &
+         CALL pw_pool%create_pw(dielectric%deps_drho, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          dielectric%eps%cr3d = 1.0_dp
          CALL pw_zero(dielectric%deps_drho)
          DO i = 1, 3
-            CALL pw_pool_create_pw(pw_pool, dielectric%dln_eps(i), &
+            CALL pw_pool%create_pw(dielectric%dln_eps(i), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dielectric%dln_eps(i))
          END DO
@@ -149,14 +147,14 @@ CONTAINS
                        "the dielectric constant function.")
       END IF
 
-      CALL pw_pool_create_pw(pw_pool, rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
 
       ! for evaluating epsilon make sure rho is in the real space
       CALL pw_transfer(rho, rho_elec_rs)
 
       IF (PRESENT(rho_core)) THEN
          ! make sure rho_core is in the real space
-         CALL pw_pool_create_pw(pw_pool, rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(rho_core, rho_core_rs)
          IF (dielectric%params%dielec_core_correction) THEN
             ! use (rho_elec - rho_core) to compute dielectric to avoid obtaining spurious
@@ -165,7 +163,7 @@ CONTAINS
          ELSE
             CALL pw_axpy(rho_core_rs, rho_elec_rs, -1.0_dp)
          END IF
-         CALL pw_pool_give_back_pw(pw_pool, rho_core_rs)
+         CALL pw_pool%give_back_pw(rho_core_rs)
       ELSE
          CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
       END IF
@@ -190,17 +188,17 @@ CONTAINS
           ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool_create_pw(pw_pool, ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
             ln_eps%cr3d = LOG(dielectric%eps%cr3d)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
-               CALL pw_pool_create_pw(pw_pool, deps(i), use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i))
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
-               CALL pw_pool_create_pw(pw_pool, deps(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_create_pw(pw_pool, drho(i), use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool%create_pw(drho(i), use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i))
                CALL pw_zero(drho(i))
             END DO
@@ -247,20 +245,20 @@ CONTAINS
 
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool_give_back_pw(pw_pool, ln_eps)
+            CALL pw_pool%give_back_pw(ln_eps)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, deps(i))
+               CALL pw_pool%give_back_pw(deps(i))
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, drho(i))
-               CALL pw_pool_give_back_pw(pw_pool, deps(i))
+               CALL pw_pool%give_back_pw(drho(i))
+               CALL pw_pool%give_back_pw(deps(i))
             END DO
          END SELECT
       END IF
 
-      CALL pw_pool_give_back_pw(pw_pool, rho_elec_rs)
+      CALL pw_pool%give_back_pw(rho_elec_rs)
 
       dielectric%params%times_called = dielectric%params%times_called + 1
 
@@ -335,19 +333,19 @@ CONTAINS
       CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
 
       ! make sure rho is in the real space
-      CALL pw_pool_create_pw(pw_pool_orig, rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_orig%create_pw(rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho, rho_elec_rs)
       ! expand rho_elec
-      CALL pw_pool_create_pw(pw_pool_xpndd, rho_elec_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_xpndd%create_pw(rho_elec_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                      rho_elec_rs, rho_elec_rs_xpndd)
 
       IF (PRESENT(rho_core)) THEN
          ! make sure rho_core is in the real space
-         CALL pw_pool_create_pw(pw_pool_orig, rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_orig%create_pw(rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(rho_core, rho_core_rs)
          ! expand rho_core
-         CALL pw_pool_create_pw(pw_pool_xpndd, rho_core_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_xpndd%create_pw(rho_core_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                         rho_core_rs, rho_core_rs_xpndd)
 
@@ -357,8 +355,8 @@ CONTAINS
          ELSE
             CALL pw_axpy(rho_core_rs_xpndd, rho_elec_rs_xpndd, -1.0_dp)
          END IF
-         CALL pw_pool_give_back_pw(pw_pool_orig, rho_core_rs)
-         CALL pw_pool_give_back_pw(pw_pool_xpndd, rho_core_rs_xpndd)
+         CALL pw_pool_orig%give_back_pw(rho_core_rs)
+         CALL pw_pool_xpndd%give_back_pw(rho_core_rs_xpndd)
       ELSE
          CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
       END IF
@@ -383,17 +381,17 @@ CONTAINS
           ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool_create_pw(pw_pool_xpndd, ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_xpndd%create_pw(ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
             ln_eps%cr3d = LOG(dielectric%eps%cr3d)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
-               CALL pw_pool_create_pw(pw_pool_xpndd, deps(i), use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_xpndd%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i))
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
-               CALL pw_pool_create_pw(pw_pool_xpndd, deps(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_create_pw(pw_pool_xpndd, drho(i), use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_xpndd%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_xpndd%create_pw(drho(i), use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i))
                CALL pw_zero(drho(i))
             END DO
@@ -440,21 +438,21 @@ CONTAINS
 
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool_give_back_pw(pw_pool_xpndd, ln_eps)
+            CALL pw_pool_xpndd%give_back_pw(ln_eps)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool_xpndd, deps(i))
+               CALL pw_pool_xpndd%give_back_pw(deps(i))
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool_xpndd, drho(i))
-               CALL pw_pool_give_back_pw(pw_pool_xpndd, deps(i))
+               CALL pw_pool_xpndd%give_back_pw(drho(i))
+               CALL pw_pool_xpndd%give_back_pw(deps(i))
             END DO
          END SELECT
       END IF
 
-      CALL pw_pool_give_back_pw(pw_pool_orig, rho_elec_rs)
-      CALL pw_pool_give_back_pw(pw_pool_xpndd, rho_elec_rs_xpndd)
+      CALL pw_pool_orig%give_back_pw(rho_elec_rs)
+      CALL pw_pool_xpndd%give_back_pw(rho_elec_rs_xpndd)
       CALL pw_pool_release(pw_pool_xpndd)
 
       dielectric%params%times_called = dielectric%params%times_called + 1
@@ -590,7 +588,7 @@ CONTAINS
                        "the simulation cell.")
       END IF
 
-      CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_copy(eps, eps_tmp)
 
       bounds_local = pw_grid%bounds_local
@@ -611,7 +609,7 @@ CONTAINS
       END DO
 
       CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps)
-      CALL pw_pool_give_back_pw(pw_pool, eps_tmp)
+      CALL pw_pool%give_back_pw(eps_tmp)
 
       CALL timestop(handle)
 
@@ -686,7 +684,7 @@ CONTAINS
                        "the simulation cell.")
       END IF
 
-      CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_copy(eps, eps_tmp)
 
       bounds_local = pw_grid%bounds_local
@@ -707,7 +705,7 @@ CONTAINS
       END DO
 
       CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps)
-      CALL pw_pool_give_back_pw(pw_pool, eps_tmp)
+      CALL pw_pool%give_back_pw(eps_tmp)
 
       CALL timestop(handle)
 
@@ -812,9 +810,9 @@ CONTAINS
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 
-      CALL pw_pool_create_pw(pw_pool, eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, swch_func, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, dswch_func_drho, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(swch_func, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(dswch_func_drho, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(eps_sptldep)
       CALL pw_zero(swch_func)
       CALL pw_zero(dswch_func_drho)
@@ -826,9 +824,9 @@ CONTAINS
       eps%cr3d = ((swch_func%cr3d - 1.0_dp)*(eps_sptldep%cr3d - 1.0_dp)) + 1.0_dp
       deps_drho%cr3d = dswch_func_drho%cr3d*(eps_sptldep%cr3d - 1.0_dp)
 
-      CALL pw_pool_give_back_pw(pw_pool, dswch_func_drho)
-      CALL pw_pool_give_back_pw(pw_pool, swch_func)
-      CALL pw_pool_give_back_pw(pw_pool, eps_sptldep)
+      CALL pw_pool%give_back_pw(dswch_func_drho)
+      CALL pw_pool%give_back_pw(swch_func)
+      CALL pw_pool%give_back_pw(eps_sptldep)
 
       CALL timestop(handle)
 
@@ -855,7 +853,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       DO i = 1, 2
-         CALL pw_pool_create_pw(pw_pool, work_gs(i), &
+         CALL pw_pool%create_pw(work_gs(i), &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
 
@@ -869,7 +867,7 @@ CONTAINS
       END DO
 
       DO i = 1, 2
-         CALL pw_pool_give_back_pw(pw_pool, work_gs(i))
+         CALL pw_pool%give_back_pw(work_gs(i))
       END DO
 
       CALL timestop(handle)

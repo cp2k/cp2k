@@ -75,8 +75,7 @@ MODULE qs_linres_current_utils
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -1264,11 +1263,11 @@ CONTAINS
          NULLIFY (rho_r, rho_g)
          ALLOCATE (rho_r(nspins), rho_g(nspins))
          DO ispin = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_r(ispin), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(rho_r(ispin))
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin), &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_g(ispin), &
+                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL pw_zero(rho_g(ispin))
          END DO
          NULLIFY (current_env%jrho1_set(idir)%rho)

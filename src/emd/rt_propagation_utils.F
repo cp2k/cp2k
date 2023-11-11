@@ -61,9 +61,7 @@ MODULE rt_propagation_utils
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_multiply,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -793,15 +791,15 @@ CONTAINS
       ! Setup the grids needed to compute a wavefunction given a vector
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, density_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(density_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
       CALL get_rtp(rtp=rtp, mos_new=mos_new)
 
       DO ispin = 1, nspins
@@ -874,9 +872,9 @@ CONTAINS
       END DO
 
       ! Deallocate grids needed to compute wavefunctions
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, density_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
+      CALL auxbas_pw_pool%give_back_pw(density_r)
 
       CALL timestop(handle)
 

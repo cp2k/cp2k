@@ -39,8 +39,7 @@ MODULE qs_2nd_kernel_ao
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_scale
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -358,7 +357,7 @@ CONTAINS
          DEALLOCATE (work_hmat%matrix)
 
          DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_xc(ispin))
          END DO
          DEALLOCATE (v_xc)
 

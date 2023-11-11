@@ -42,9 +42,7 @@ MODULE qs_epr_hyp
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_dr2_gg,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_type
@@ -284,10 +282,9 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rhototspin_elec_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhototspin_elec_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
       CALL pw_zero(rhototspin_elec_gspace)
 
       pw_grid => rhototspin_elec_gspace%pw_grid
@@ -298,10 +295,9 @@ CONTAINS
       CALL pw_axpy(rho_g(1), rhototspin_elec_gspace)
       CALL pw_axpy(rho_g(2), rhototspin_elec_gspace, alpha=-1._dp)
       ! grid to assemble anisotropic hyperfine terms
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             hypaniso_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(hypaniso_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       DO idir1 = 1, 3
          DO idir2 = idir1, 3 ! tensor symmetry
@@ -323,8 +319,8 @@ CONTAINS
          END DO ! idir2
       END DO ! idir1
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhototspin_elec_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, hypaniso_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rhototspin_elec_gspace)
+      CALL auxbas_pw_pool%give_back_pw(hypaniso_gspace)
 
       ! Multiply hyperfine matrices with constant*gyromagnetic ratio's
       ! to have it in units of Mhz.
