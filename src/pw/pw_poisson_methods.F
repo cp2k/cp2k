@@ -84,11 +84,9 @@ CONTAINS
 !>      none
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_cleanup(poisson_env)
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-
-      CPASSERT(ASSOCIATED(poisson_env))
 
       NULLIFY (pw_pool)
       IF (ASSOCIATED(poisson_env%pw_pools)) THEN
@@ -108,13 +106,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_check(poisson_env)
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
 
       LOGICAL                                            :: rebuild
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
 
-      CPASSERT(ASSOCIATED(poisson_env))
       CPASSERT(ASSOCIATED(poisson_env%pw_pools))
       CPASSERT(poisson_env%pw_level >= LBOUND(poisson_env%pw_pools, 1))
       CPASSERT(poisson_env%pw_level <= UBOUND(poisson_env%pw_pools, 1))
@@ -170,7 +167,7 @@ CONTAINS
 !>      rebuilds if poisson_env%rebuild is true
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_rebuild(poisson_env, density)
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
       TYPE(pw_type), INTENT(IN), OPTIONAL                :: density
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild'
@@ -179,7 +176,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(poisson_env))
       CPASSERT(ASSOCIATED(poisson_env%pw_pools))
 
       IF (poisson_env%rebuild) THEN
@@ -238,7 +234,7 @@ CONTAINS
    SUBROUTINE pw_poisson_solve(poisson_env, density, ehartree, vhartree, &
                                dvhartree, h_stress, rho_core, greenfn, aux_density)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
       TYPE(pw_type), INTENT(IN)                          :: density
       REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
       TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: vhartree
@@ -254,18 +250,15 @@ CONTAINS
       LOGICAL                                            :: has_dielectric
       REAL(KIND=dp)                                      :: ffa
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type)                                      :: dvg(3), dvg_aux(3), influence_fn, rhog, &
                                                             rhog_aux, rhor, tmpg, vhartree_rs
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(poisson_env))
       CALL pw_poisson_rebuild(poisson_env, density)
-      poisson_params => poisson_env%parameters
 
-      has_dielectric = poisson_params%has_dielectric
+      has_dielectric = poisson_env%parameters%has_dielectric
 
       ! point pw
       pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
@@ -321,7 +314,7 @@ CONTAINS
          CASE (PS_IMPLICIT)
 
             IF (has_dielectric .AND. PRESENT(rho_core)) THEN
-               SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+               SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
                CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
                   CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
                                           poisson_env%diel_rs_grid, &
@@ -332,7 +325,7 @@ CONTAINS
                                           poisson_env%diel_rs_grid, &
                                           poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                           poisson_env%dct_pw_grid, &
-                                          poisson_params%ps_implicit_params%neumann_directions, &
+                                          poisson_env%parameters%ps_implicit_params%neumann_directions, &
                                           poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
                                           poisson_env%implicit_env%dct_env%dests_expand, &
                                           poisson_env%implicit_env%dct_env%srcs_expand, &
@@ -346,7 +339,7 @@ CONTAINS
             CALL pw_pool%create_pw(vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(density, rhor)
 
-            SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+            SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
             CASE (PERIODIC_BC)
                CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
                                                      ehartree=ehartree)
@@ -540,7 +533,7 @@ CONTAINS
    SUBROUTINE pw_poisson_set(poisson_env, cell_hmat, parameters, pw_pools, use_level, &
                              mt_super_ref_pw_grid, dct_pw_grid, force_rebuild)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: cell_hmat
       TYPE(pw_poisson_parameter_type), INTENT(IN), &

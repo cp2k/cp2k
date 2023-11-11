@@ -79,10 +79,14 @@ MODULE pw_env_methods
                                               pw_grid_setup
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
-   USE pw_poisson_types,                ONLY: &
-        pw_poisson_analytic, pw_poisson_create, pw_poisson_implicit, pw_poisson_mt, &
-        pw_poisson_multipole, pw_poisson_none, pw_poisson_parameter_type, pw_poisson_periodic, &
-        pw_poisson_wavelet
+   USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
+                                              pw_poisson_implicit,&
+                                              pw_poisson_mt,&
+                                              pw_poisson_multipole,&
+                                              pw_poisson_none,&
+                                              pw_poisson_parameter_type,&
+                                              pw_poisson_periodic,&
+                                              pw_poisson_wavelet
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_release,&
@@ -487,7 +491,8 @@ CONTAINS
 
       ! complete init of the poisson_env
       IF (.NOT. ASSOCIATED(pw_env%poisson_env)) THEN
-         CALL pw_poisson_create(pw_env%poisson_env)
+         ALLOCATE (pw_env%poisson_env)
+         CALL pw_env%poisson_env%create()
       END IF
       poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
 

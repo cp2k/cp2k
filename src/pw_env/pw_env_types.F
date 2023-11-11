@@ -19,8 +19,7 @@ MODULE pw_env_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pw_poisson_types,                ONLY: pw_poisson_release,&
-                                              pw_poisson_type
+   USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_release,&
                                               pw_pool_type,&
@@ -183,7 +182,10 @@ CONTAINS
          CPASSERT(pw_env%ref_count > 0)
          pw_env%ref_count = pw_env%ref_count - 1
          IF (pw_env%ref_count < 1) THEN
-            CALL pw_poisson_release(pw_env%poisson_env)
+            IF (ASSOCIATED(pw_env%poisson_env)) THEN
+               CALL pw_env%poisson_env%release()
+               DEALLOCATE (pw_env%poisson_env)
+            END IF
             CALL pw_pools_dealloc(pw_env%pw_pools)
             IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
                CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, para_env)

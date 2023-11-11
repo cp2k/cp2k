@@ -188,7 +188,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, ehartree)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(IN)                  :: poisson_env
       TYPE(pw_type), INTENT(IN)                          :: density
       TYPE(pw_type), INTENT(INOUT)                       :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: ehartree
@@ -321,7 +321,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, ehartree)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(IN)                  :: poisson_env
       TYPE(pw_type), INTENT(IN)                          :: density
       TYPE(pw_type), INTENT(INOUT)                       :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: ehartree
@@ -489,7 +489,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, electric_enthalpy)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(IN)                  :: poisson_env
       TYPE(pw_type), INTENT(IN)                          :: density
       TYPE(pw_type), INTENT(INOUT)                       :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: electric_enthalpy
@@ -514,7 +514,6 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(ps_implicit_type), POINTER                    :: ps_implicit_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_type)                                      :: Axvbar, g, PxQAinvxres, QAinvxres, &
                                                             res_new, res_old, v_old
@@ -523,7 +522,6 @@ CONTAINS
 
       pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
       pw_grid => pw_pool%pw_grid
-      poisson_params => poisson_env%parameters
       dielectric => poisson_env%implicit_env%dielectric
       green => poisson_env%green_fft
       ps_implicit_env => poisson_env%implicit_env
@@ -532,10 +530,10 @@ CONTAINS
       ngpts = pw_grid%ngpts
       npts_local = pw_grid%npts_local
       bounds_local = pw_grid%bounds_local
-      tol = poisson_params%ps_implicit_params%tol
-      omega = poisson_params%ps_implicit_params%omega
-      max_iter = poisson_params%ps_implicit_params%max_iter
-      use_zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
+      tol = poisson_env%parameters%ps_implicit_params%tol
+      omega = poisson_env%parameters%ps_implicit_params%omega
+      max_iter = poisson_env%parameters%ps_implicit_params%max_iter
+      use_zero_initial_guess = poisson_env%parameters%ps_implicit_params%zero_initial_guess
       times_called = ps_implicit_env%times_called
 
       n_contacts = SIZE(ps_implicit_env%contacts)
@@ -676,7 +674,7 @@ CONTAINS
          END IF
 
 ! verbose output
-         IF (poisson_params%dbc_params%verbose_output) THEN
+         IF (poisson_env%parameters%dbc_params%verbose_output) THEN
             v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
             CALL pw_grid%para%group%sum(Bxv_new)
@@ -748,7 +746,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, electric_enthalpy)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_poisson_type), INTENT(IN)                  :: poisson_env
       TYPE(pw_type), INTENT(IN)                          :: density
       TYPE(pw_type), INTENT(INOUT)                       :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: electric_enthalpy
@@ -774,7 +772,6 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(ps_implicit_type), POINTER                    :: ps_implicit_env
       TYPE(pw_grid_type), POINTER                        :: dct_pw_grid, pw_grid
-      TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
       TYPE(pw_pool_type), POINTER                        :: pw_pool, pw_pool_xpndd
       TYPE(pw_type)                                      :: Axvbar, density_xpndd, g, PxQAinvxres, &
                                                             QAinvxres, res_new, res_old, &
@@ -784,7 +781,6 @@ CONTAINS
 
       pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
       pw_grid => pw_pool%pw_grid
-      poisson_params => poisson_env%parameters
       dielectric => poisson_env%implicit_env%dielectric
       green => poisson_env%green_fft
       ps_implicit_env => poisson_env%implicit_env
@@ -795,11 +791,11 @@ CONTAINS
       ngpts = dct_pw_grid%ngpts
       npts_local = dct_pw_grid%npts_local
       bounds_local = dct_pw_grid%bounds_local
-      tol = poisson_params%ps_implicit_params%tol
-      omega = poisson_params%ps_implicit_params%omega
-      max_iter = poisson_params%ps_implicit_params%max_iter
-      use_zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
-      neumann_directions = poisson_params%ps_implicit_params%neumann_directions
+      tol = poisson_env%parameters%ps_implicit_params%tol
+      omega = poisson_env%parameters%ps_implicit_params%omega
+      max_iter = poisson_env%parameters%ps_implicit_params%max_iter
+      use_zero_initial_guess = poisson_env%parameters%ps_implicit_params%zero_initial_guess
+      neumann_directions = poisson_env%parameters%ps_implicit_params%neumann_directions
       times_called = ps_implicit_env%times_called
 
       SELECT CASE (neumann_directions)
@@ -962,7 +958,7 @@ CONTAINS
          END IF
 
 ! verbose output
-         IF (poisson_params%dbc_params%verbose_output) THEN
+         IF (poisson_env%parameters%dbc_params%verbose_output) THEN
             v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%cr3d, (/data_size/))
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
             CALL pw_grid%para%group%sum(Bxv_new)

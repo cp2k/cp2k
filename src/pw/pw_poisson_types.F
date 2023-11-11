@@ -61,8 +61,6 @@ MODULE pw_poisson_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_types'
 
    PUBLIC :: pw_poisson_type
-   PUBLIC :: pw_poisson_create, &
-             pw_poisson_release
    PUBLIC :: greens_fn_type, pw_green_create, &
              pw_green_release
    PUBLIC :: pw_poisson_parameter_type
@@ -137,6 +135,9 @@ MODULE pw_poisson_types
       TYPE(ps_implicit_type), POINTER             :: implicit_env => NULL()
       TYPE(pw_grid_type), POINTER                 :: dct_pw_grid => NULL()
       TYPE(realspace_grid_type), POINTER          :: diel_rs_grid => NULL()
+   CONTAINS
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create => pw_poisson_create
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: release => pw_poisson_release
    END TYPE pw_poisson_type
 
 ! **************************************************************************************************
@@ -564,10 +565,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_create(poisson_env)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      CLASS(pw_poisson_type), INTENT(INOUT)              :: poisson_env
 
-      CPASSERT(.NOT. ASSOCIATED(poisson_env))
-      ALLOCATE (poisson_env)
+      ! Cleanup a potential previous poisson_env
+      CALL poisson_env%release()
 
    END SUBROUTINE pw_poisson_create
 
@@ -580,29 +581,25 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_release(poisson_env)
 
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      CLASS(pw_poisson_type), INTENT(INOUT)               :: poisson_env
 
-      IF (ASSOCIATED(poisson_env)) THEN
-         IF (ASSOCIATED(poisson_env%pw_pools)) THEN
-            CALL pw_pools_dealloc(poisson_env%pw_pools)
-         END IF
-
-         IF (ASSOCIATED(poisson_env%green_fft)) THEN
-            CALL pw_green_release(poisson_env%green_fft)
-            DEALLOCATE (poisson_env%green_fft)
-         END IF
-         CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid)
-         CALL ps_wavelet_release(poisson_env%wavelet)
-         CALL ps_implicit_release(poisson_env%implicit_env, &
-                                  poisson_env%parameters%ps_implicit_params)
-         CALL pw_grid_release(poisson_env%dct_pw_grid)
-         IF (ASSOCIATED(poisson_env%diel_rs_grid)) THEN
-            CALL rs_grid_release(poisson_env%diel_rs_grid)
-            DEALLOCATE (poisson_env%diel_rs_grid)
-         END IF
-         DEALLOCATE (poisson_env)
+      IF (ASSOCIATED(poisson_env%pw_pools)) THEN
+         CALL pw_pools_dealloc(poisson_env%pw_pools)
       END IF
-      NULLIFY (poisson_env)
+
+      IF (ASSOCIATED(poisson_env%green_fft)) THEN
+         CALL pw_green_release(poisson_env%green_fft)
+         DEALLOCATE (poisson_env%green_fft)
+      END IF
+      CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid)
+      CALL ps_wavelet_release(poisson_env%wavelet)
+      CALL ps_implicit_release(poisson_env%implicit_env, &
+                               poisson_env%parameters%ps_implicit_params)
+      CALL pw_grid_release(poisson_env%dct_pw_grid)
+      IF (ASSOCIATED(poisson_env%diel_rs_grid)) THEN
+         CALL rs_grid_release(poisson_env%diel_rs_grid)
+         DEALLOCATE (poisson_env%diel_rs_grid)
+      END IF
 
    END SUBROUTINE pw_poisson_release
 
