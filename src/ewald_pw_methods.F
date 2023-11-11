@@ -28,7 +28,6 @@ MODULE ewald_pw_methods
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_change
    USE pw_poisson_methods,              ONLY: pw_poisson_set
-! CJM, pw_poisson_rebuild
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&

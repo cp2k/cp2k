@@ -36,9 +36,14 @@ MODULE ewald_pw_types
                                               pw_grid_setup
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
-   USE pw_poisson_types,                ONLY: &
-        do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, pw_poisson_create, &
-        pw_poisson_parameter_type, pw_poisson_release, pw_poisson_retain, pw_poisson_type
+   USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                              do_ewald_none,&
+                                              do_ewald_pme,&
+                                              do_ewald_spme,&
+                                              pw_poisson_create,&
+                                              pw_poisson_parameter_type,&
+                                              pw_poisson_release,&
+                                              pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_release,&
@@ -368,9 +373,12 @@ CONTAINS
          ewald_pw%dg => dg
       END IF
       IF (PRESENT(poisson_env)) THEN
-         IF (ASSOCIATED(poisson_env)) &
-            CALL pw_poisson_retain(poisson_env)
-         CALL pw_poisson_release(ewald_pw%poisson_env)
+         IF (ASSOCIATED(ewald_pw%poisson_env)) THEN
+         IF (.NOT. ASSOCIATED(ewald_pw%poisson_env, poisson_env)) THEN
+            CALL pw_poisson_release(ewald_pw%poisson_env)
+            DEALLOCATE (ewald_pw%poisson_env)
+         END IF
+         END IF
          ewald_pw%poisson_env => poisson_env
       END IF
 

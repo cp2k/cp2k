@@ -89,7 +89,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
       CPASSERT(ASSOCIATED(poisson_env))
-      CPASSERT(poisson_env%ref_count > 0)
 
       NULLIFY (pw_pool)
       IF (ASSOCIATED(poisson_env%pw_pools)) THEN
@@ -116,7 +115,6 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
 
       CPASSERT(ASSOCIATED(poisson_env))
-      CPASSERT(poisson_env%ref_count > 0)
       CPASSERT(ASSOCIATED(poisson_env%pw_pools))
       CPASSERT(poisson_env%pw_level >= LBOUND(poisson_env%pw_pools, 1))
       CPASSERT(poisson_env%pw_level <= UBOUND(poisson_env%pw_pools, 1))
@@ -182,7 +180,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(poisson_env))
-      CPASSERT(poisson_env%ref_count > 0)
       CPASSERT(ASSOCIATED(poisson_env%pw_pools))
 
       IF (poisson_env%rebuild) THEN
@@ -265,7 +262,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(poisson_env))
-      CPASSERT(poisson_env%ref_count > 0)
       CALL pw_poisson_rebuild(poisson_env, density)
       poisson_params => poisson_env%parameters
 
