@@ -60,9 +60,7 @@ MODULE et_coupling_proj
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -1348,10 +1346,10 @@ CONTAINS
       ! Grids for wavefunction
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       ! Calculate the grid values
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
@@ -1365,8 +1363,8 @@ CONTAINS
       CALL cp_print_key_finished_output(unit_nr, logger, input, 'MO_CUBES')
 
       ! Clean memory
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
 
    END SUBROUTINE save_mo_cube
 

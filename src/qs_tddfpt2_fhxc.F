@@ -30,9 +30,7 @@ MODULE qs_tddfpt2_fhxc
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
@@ -295,8 +293,8 @@ CONTAINS
                   CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
                   ALLOCATE (V_rspace_sub(nspins))
                   DO ispin = 1, nspins
-                     CALL pw_pool_create_pw(auxbas_pw_pool, V_rspace_sub(ispin), &
-                                            use_data=REALDATA3D, in_space=REALSPACE)
+                     CALL auxbas_pw_pool%create_pw(V_rspace_sub(ispin), &
+                                                   use_data=REALDATA3D, in_space=REALSPACE)
                      CALL pw_zero(V_rspace_sub(ispin))
                   END DO
 
@@ -357,7 +355,7 @@ CONTAINS
                   CALL dbcsr_release(dbwork)
                   DEALLOCATE (dbwork)
                   DO ispin = 1, nspins
-                     CALL pw_pool_give_back_pw(auxbas_pw_pool, V_rspace_sub(ispin))
+                     CALL auxbas_pw_pool%give_back_pw(V_rspace_sub(ispin))
                   END DO
                   DEALLOCATE (V_rspace_sub)
                   CALL cp_fm_release(work_aux_orb)

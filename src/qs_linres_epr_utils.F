@@ -37,8 +37,7 @@ MODULE qs_linres_epr_utils
                                               e_gfactor
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -186,10 +185,10 @@ CONTAINS
             ALLOCATE (epr_env%bind_set(idir, i_B)%rho)
             CALL qs_rho_create(epr_env%bind_set(idir, i_B)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1), &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_r(1), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_g(1), &
+                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL qs_rho_set(epr_env%bind_set(idir, i_B)%rho, rho_r=rho_r, rho_g=rho_g)
          END DO
       END DO
@@ -202,10 +201,10 @@ CONTAINS
             ALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
             CALL qs_rho_create(epr_env%nablavks_set(idir, ispin)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1), &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_r(1), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_g(1), &
+                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL qs_rho_set(epr_env%nablavks_set(idir, ispin)%rho, &
                             rho_r=rho_r, rho_g=rho_g)
          END DO

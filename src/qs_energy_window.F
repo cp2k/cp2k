@@ -47,9 +47,7 @@ MODULE qs_energy_window
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -160,8 +158,8 @@ CONTAINS
       CALL cp_fm_create(S_minus_half_fm, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       !calculate S_minus_half
       CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, filter_eps, &
@@ -317,8 +315,8 @@ CONTAINS
       CALL cp_fm_release(P_window_fm)
       CALL cp_fm_release(eigenvectors_nonorth)
       CALL cp_fm_release(S_minus_half_fm)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
+      CALL auxbas_pw_pool%give_back_pw(rho_r)
+      CALL auxbas_pw_pool%give_back_pw(rho_g)
       DEALLOCATE (eigenvalues)
       DEALLOCATE (STRIDE)
 

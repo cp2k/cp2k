@@ -41,16 +41,13 @@ MODULE xc
                          pw_scale, &
                          pw_transfer, &
                          pw_zero, pw_integrate_function
-   USE pw_pool_types, ONLY: pw_pool_create_pw, &
-                            pw_pool_give_back_cr3d, &
-                            pw_pool_give_back_pw, &
-                            pw_pool_type
+   USE pw_pool_types, ONLY: &
+      pw_pool_type
    USE pw_types, ONLY: COMPLEXDATA1D, &
                        REALDATA3D, &
                        REALSPACE, &
                        RECIPROCALSPACE, &
                        pw_p_type, &
-                       pw_release, &
                        pw_type
    USE xc_derivative_desc, ONLY: &
       deriv_rho, deriv_rhoa, deriv_rhob, &
@@ -247,7 +244,7 @@ CONTAINS
 
       ALLOCATE (rho2_r(2))
       DO ispin = 1, 2
-         CALL pw_pool_create_pw(pw_pool, rho2_r(ispin), in_space=REALSPACE, &
+         CALL pw_pool%create_pw(rho2_r(ispin), in_space=REALSPACE, &
                                 use_data=REALDATA3D)
       END DO
       DO k = bo(1, 3), bo(2, 3)
@@ -263,7 +260,7 @@ CONTAINS
       IF (ASSOCIATED(tau)) THEN
          ALLOCATE (tau2(2))
          DO ispin = 1, 2
-            CALL pw_pool_create_pw(pw_pool, tau2(ispin), in_space=REALSPACE, &
+            CALL pw_pool%create_pw(tau2(ispin), in_space=REALSPACE, &
                                    use_data=REALDATA3D)
          END DO
 
@@ -519,10 +516,10 @@ CONTAINS
       CALL xc_dset_release(dSet2)
       CALL xc_dset_release(dSet1)
       DO ispin = 1, 2
-         CALL pw_pool_give_back_pw(pw_pool, rho2_r(ispin))
-         CALL pw_pool_give_back_pw(pw_pool, vxc_rho2(ispin))
+         CALL pw_pool%give_back_pw(rho2_r(ispin))
+         CALL pw_pool%give_back_pw(vxc_rho2(ispin))
          IF (ASSOCIATED(vxc_tau2)) THEN
-            CALL pw_pool_give_back_pw(pw_pool, vxc_tau2(ispin))
+            CALL pw_pool%give_back_pw(vxc_tau2(ispin))
          END IF
       END DO
       DEALLOCATE (vxc_rho2, rho2_r, rho2_g)
@@ -1234,7 +1231,7 @@ CONTAINS
 
          CPASSERT(ASSOCIATED(deriv_data))
          IF (use_virial) THEN
-            CALL pw_pool_create_pw(pw_pool, virial_pw, &
+            CALL pw_pool%create_pw(virial_pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
             CALL pw_zero(virial_pw)
@@ -1249,7 +1246,7 @@ CONTAINS
                   virial_xc(jdir, idir) = virial_xc(idir, jdir)
                END DO
             END DO
-            CALL pw_pool_give_back_pw(pw_pool, virial_pw)
+            CALL pw_pool%give_back_pw(virial_pw)
          END IF ! use_virial
          DO idir = 1, 3
             CPASSERT(ASSOCIATED(pw_to_deriv_rho(idir)%cr3d))
@@ -1259,15 +1256,15 @@ CONTAINS
          END DO
 
          ! Deallocate pw to save memory
-         CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data)
+         CALL pw_pool%give_back_cr3d(deriv_att%deriv_data)
 
       END IF
 
       IF ((has_gradient .AND. xc_requires_tmp_g(xc_deriv_method_id)) .OR. pw_grid%spherical) THEN
-         CALL pw_pool_create_pw(pw_pool, vxc_g, &
+         CALL pw_pool%create_pw(vxc_g, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          IF (.NOT. pw_grid%spherical) THEN
-            CALL pw_pool_create_pw(pw_pool, tmp_g, &
+            CALL pw_pool%create_pw(tmp_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          END IF
       END IF
@@ -1293,7 +1290,7 @@ CONTAINS
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
                IF (use_virial) THEN
-                  CALL pw_pool_create_pw(pw_pool, virial_pw, &
+                  CALL pw_pool%create_pw(virial_pw, &
                                          use_data=REALDATA3D, &
                                          in_space=REALSPACE)
                   CALL pw_zero(virial_pw)
@@ -1308,7 +1305,7 @@ CONTAINS
                         virial_xc(jdir, idir) = virial_xc(idir, jdir)
                      END DO
                   END DO
-                  CALL pw_pool_give_back_pw(pw_pool, virial_pw)
+                  CALL pw_pool%give_back_pw(virial_pw)
                END IF ! use_virial
 
                DO idir = 1, 3
@@ -1333,7 +1330,7 @@ CONTAINS
                   CALL pw_axpy(pw_to_deriv_rho(idir), pw_to_deriv(idir))
                   IF (ispin == 2) THEN
                      IF (dealloc_pw_to_deriv_rho) THEN
-                        CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv_rho(idir))
+                        CALL pw_pool%give_back_pw(pw_to_deriv_rho(idir))
                      END IF
                   END IF
                END DO
@@ -1349,7 +1346,7 @@ CONTAINS
 
             IF (dealloc_pw_to_deriv) THEN
             DO idir = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir))
+               CALL pw_pool%give_back_pw(pw_to_deriv(idir))
             END DO
             END IF
          END IF
@@ -1374,7 +1371,7 @@ CONTAINS
 
             CALL pw_axpy(pw_to_deriv(1), vxc_rho(ispin))
 
-            CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(1))
+            CALL pw_pool%give_back_pw(pw_to_deriv(1))
          END IF
 
          IF (pw_grid%spherical) THEN
@@ -1387,14 +1384,14 @@ CONTAINS
                             rho_smooth_cutoff_range=density_smooth_cut_range)
 
          v_drho_r = vxc_rho(ispin)
-         CALL pw_pool_create_pw(pw_pool, vxc_rho(ispin), &
+         CALL pw_pool%create_pw(vxc_rho(ispin), &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin), xc_rho_smooth_id)
-         CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
+         CALL pw_pool%give_back_pw(v_drho_r)
       END DO
 
-      CALL pw_pool_give_back_pw(pw_pool, vxc_g)
-      CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+      CALL pw_pool%give_back_pw(vxc_g)
+      CALL pw_pool%give_back_pw(tmp_g)
 
       ! 0-deriv -> value of exc
       ! this has to be kept consistent with xc_exc_calc
@@ -1412,7 +1409,7 @@ CONTAINS
          IF (PRESENT(exc_r)) THEN
             exc_r = v_drho_r
          ELSE
-            CALL pw_release(v_drho_r)
+            CALL v_drho_r%release()
          END IF
       ELSE
          exc = 0.0_dp
@@ -1583,7 +1580,7 @@ CONTAINS
       NULLIFY (v_xc, v_xc_tau)
       ALLOCATE (v_xc(nspins))
       DO ispin = 1, nspins
-         CALL pw_pool_create_pw(pw_pool, v_xc(ispin), &
+         CALL pw_pool%create_pw(v_xc(ispin), &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_zero(v_xc(ispin))
@@ -1597,7 +1594,7 @@ CONTAINS
             CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
          ALLOCATE (v_xc_tau(nspins))
          DO ispin = 1, nspins
-            CALL pw_pool_create_pw(pw_pool, v_xc_tau(ispin), &
+            CALL pw_pool%create_pw(v_xc_tau(ispin), &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
             CALL pw_zero(v_xc_tau(ispin))
@@ -1724,12 +1721,12 @@ CONTAINS
          NULLIFY (vxc_rho, rho_g, vxc_tau)
          ALLOCATE (rho_r(2))
          DO ispin = 1, nspins
-            CALL pw_pool_create_pw(pw_pool, rho_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
+            CALL pw_pool%create_pw(rho_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
          END DO
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(2))
             DO ispin = 1, nspins
-               CALL pw_pool_create_pw(pw_pool, tau_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
+               CALL pw_pool%create_pw(tau_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
             END DO
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rhoa=rhoa, rhob=rhob, tau_a=tau_a, tau_b=tau_b)
@@ -1746,12 +1743,12 @@ CONTAINS
                END IF
             END DO
             DO ispin = 1, nspins
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
                DO ispin = 1, nspins
-                  CALL pw_release(vxc_tau(ispin))
+                  CALL vxc_tau(ispin)%release()
                END DO
                DEALLOCATE (vxc_tau)
             END IF
@@ -1760,12 +1757,12 @@ CONTAINS
          NULLIFY (vxc_rho, vxc_tau, rho_g)
          ALLOCATE (rho_r(2))
          DO ispin = 1, 2
-            CALL pw_pool_create_pw(pw_pool, rho_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
+            CALL pw_pool%create_pw(rho_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
          END DO
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(2))
             DO ispin = 1, nspins
-               CALL pw_pool_create_pw(pw_pool, tau_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
+               CALL pw_pool%create_pw(tau_r(ispin), in_space=REALSPACE, use_data=REALDATA3D)
             END DO
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rhoa=rhoa, rhob=rhob, tau_a=tau_a, tau_b=tau_b)
@@ -1797,12 +1794,12 @@ CONTAINS
                CALL pw_axpy(vxc_tau(1), v_tau(1), weight)
             END IF
             DO ispin = 1, 2
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, 2
-               CALL pw_release(vxc_tau(ispin))
+               CALL vxc_tau(ispin)%release()
             END DO
             DEALLOCATE (vxc_tau)
             END IF
@@ -1830,12 +1827,12 @@ CONTAINS
                CALL pw_axpy(vxc_tau(1), v_tau(1), weight)
             END IF
             DO ispin = 1, 2
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, 2
-               CALL pw_release(vxc_tau(ispin))
+               CALL vxc_tau(ispin)%release()
             END DO
             DEALLOCATE (vxc_tau)
             END IF
@@ -1843,10 +1840,10 @@ CONTAINS
       ELSE
          NULLIFY (vxc_rho, rho_r, rho_g, vxc_tau, tau_r, tau)
          ALLOCATE (rho_r(1))
-         CALL pw_pool_create_pw(pw_pool, rho_r(1), in_space=REALSPACE, use_data=REALDATA3D)
+         CALL pw_pool%create_pw(rho_r(1), in_space=REALSPACE, use_data=REALDATA3D)
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(1))
-            CALL pw_pool_create_pw(pw_pool, tau_r(1), in_space=REALSPACE, use_data=REALDATA3D)
+            CALL pw_pool%create_pw(tau_r(1), in_space=REALSPACE, use_data=REALDATA3D)
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rho=rho, tau=tau)
          DO istep = -nsteps, nsteps
@@ -1869,10 +1866,10 @@ CONTAINS
             IF (ASSOCIATED(vxc_tau) .AND. ASSOCIATED(v_tau)) THEN
                CALL pw_axpy(vxc_tau(1), v_tau(1), weight)
             END IF
-            CALL pw_release(vxc_rho(1))
+            CALL vxc_rho(1)%release()
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
-               CALL pw_release(vxc_tau(1))
+               CALL vxc_tau(1)%release()
                DEALLOCATE (vxc_tau)
             END IF
          END DO
@@ -2263,13 +2260,13 @@ CONTAINS
       END IF
 
       DO ispin = 1, SIZE(rho_r)
-         CALL pw_pool_give_back_pw(pw_pool, rho_r(ispin))
+         CALL pw_pool%give_back_pw(rho_r(ispin))
       END DO
       DEALLOCATE (rho_r)
 
       IF (ASSOCIATED(tau_r)) THEN
       DO ispin = 1, SIZE(tau_r)
-         CALL pw_pool_give_back_pw(pw_pool, tau_r(ispin))
+         CALL pw_pool%give_back_pw(tau_r(ispin))
       END DO
       DEALLOCATE (tau_r)
       END IF
@@ -2723,9 +2720,9 @@ CONTAINS
 
          IF (xc_requires_tmp_g(xc_deriv_method_id) .AND. .NOT. my_gapw) THEN
             IF (ASSOCIATED(pw_pool)) THEN
-               CALL pw_pool_create_pw(pw_pool, tmp_g, &
+               CALL pw_pool%create_pw(tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(pw_pool, vxc_g, &
+               CALL pw_pool%create_pw(vxc_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             ELSE
                ! remember to refix for gapw
@@ -3040,11 +3037,11 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(tmp_g%pw_grid) .AND. ASSOCIATED(pw_pool)) THEN
-         CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+         CALL pw_pool%give_back_pw(tmp_g)
       END IF
 
       IF (ASSOCIATED(vxc_g%pw_grid) .AND. ASSOCIATED(pw_pool)) THEN
-         CALL pw_pool_give_back_pw(pw_pool, vxc_g)
+         CALL pw_pool%give_back_pw(vxc_g)
       END IF
 
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) THEN
@@ -3066,13 +3063,15 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
       IF (ASSOCIATED(pw_pool)) THEN
-         CALL pw_pool_create_pw(pw_pool, pw, &
+         CALL pw_pool%create_pw(pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_zero(pw)
       ELSE
          ALLOCATE (pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          pw%cr3d = 0.0_dp
+         pw%in_use = REALDATA3D
+         pw%in_space = REALSPACE
       END IF
 
    END SUBROUTINE allocate_pw
@@ -3087,9 +3086,9 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
 
       IF (ASSOCIATED(pw_pool)) THEN
-         CALL pw_pool_give_back_pw(pw_pool, pw)
+         CALL pw_pool%give_back_pw(pw)
       ELSE
-         DEALLOCATE (pw%cr3d)
+         CALL pw%release()
       END IF
 
    END SUBROUTINE deallocate_pw
@@ -3180,12 +3179,12 @@ CONTAINS
 
       NULLIFY (virial_pw, tmp_g, rho_g)
       ALLOCATE (virial_pw, tmp_g, rho_g)
-      CALL pw_pool_create_pw(pw_pool, virial_pw, &
+      CALL pw_pool%create_pw(virial_pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, tmp_g, &
+      CALL pw_pool%create_pw(tmp_g, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(pw_pool, rho_g, &
+      CALL pw_pool%create_pw(rho_g, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_zero(virial_pw)
       CALL pw_transfer(rho_r, rho_g)
@@ -3205,9 +3204,9 @@ CONTAINS
             virial_xc(jdir, idir) = virial_xc(idir, jdir)
          END DO
       END DO
-      CALL pw_pool_give_back_pw(pw_pool, virial_pw)
-      CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-      CALL pw_pool_give_back_pw(pw_pool, rho_g)
+      CALL pw_pool%give_back_pw(virial_pw)
+      CALL pw_pool%give_back_pw(tmp_g)
+      CALL pw_pool%give_back_pw(rho_g)
       DEALLOCATE (virial_pw, tmp_g, rho_g)
 
       CALL timestop(handle)

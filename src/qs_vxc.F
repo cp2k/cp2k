@@ -37,14 +37,11 @@ MODULE qs_vxc
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -250,13 +247,13 @@ CONTAINS
             ALLOCATE (rho_r(mspin))
             ALLOCATE (rho_g(mspin))
             DO ispin = 1, mspin
-               CALL pw_pool_create_pw(xc_pw_pool, rho_g(ispin), &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+               CALL xc_pw_pool%create_pw(rho_g(ispin), &
+                                         in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
                CALL pw_transfer(rho_struct_g(ispin), rho_g(ispin))
             END DO
             DO ispin = 1, mspin
-               CALL pw_pool_create_pw(xc_pw_pool, rho_r(ispin), &
-                                      in_space=REALSPACE, use_data=REALDATA3D)
+               CALL xc_pw_pool%create_pw(rho_r(ispin), &
+                                         in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_transfer(rho_g(ispin), rho_r(ispin))
             END DO
             IF (tau_r_valid) THEN
@@ -357,12 +354,12 @@ CONTAINS
          END IF
          IF (uf_grid) THEN
             DO ispin = 1, SIZE(rho_r)
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_r(ispin))
+               CALL xc_pw_pool%give_back_pw(rho_r(ispin))
             END DO
             DEALLOCATE (rho_r)
             IF (ASSOCIATED(rho_g)) THEN
                DO ispin = 1, SIZE(rho_g)
-                  CALL pw_pool_give_back_pw(xc_pw_pool, rho_g(ispin))
+                  CALL xc_pw_pool%give_back_pw(rho_g(ispin))
                END DO
                DEALLOCATE (rho_g)
             END IF
@@ -371,23 +368,23 @@ CONTAINS
          ! compute again the xc but now for Exc(m,o) and the opposite sign
          IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
-            CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1), &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1), &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL xc_pw_pool%create_pw(rho_m_gspace(1), &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+            CALL xc_pw_pool%create_pw(rho_m_rspace(1), &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
             CALL pw_copy(rho_struct_r(1), rho_m_rspace(1))
             CALL pw_axpy(rho_struct_r(2), rho_m_rspace(1), alpha=-1._dp)
             CALL pw_copy(rho_struct_g(1), rho_m_gspace(1))
             CALL pw_axpy(rho_struct_g(2), rho_m_gspace(1), alpha=-1._dp)
             ! bit sad, these will be just zero...
-            CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2), &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2), &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL xc_pw_pool%create_pw(rho_m_gspace(2), &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+            CALL xc_pw_pool%create_pw(rho_m_rspace(2), &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
             CALL pw_zero(rho_m_rspace(2))
             CALL pw_zero(rho_m_gspace(2))
 
@@ -412,14 +409,14 @@ CONTAINS
             IF (.NOT. my_just_energy) THEN
                CALL pw_axpy(my_vxc_rho(1), vxc_rho(1), -dft_control%sic_scaling_b)
                CALL pw_axpy(my_vxc_rho(1), vxc_rho(2), dft_control%sic_scaling_b)
-               CALL pw_release(my_vxc_rho(1))
-               CALL pw_release(my_vxc_rho(2))
+               CALL my_vxc_rho(1)%release()
+               CALL my_vxc_rho(2)%release()
                DEALLOCATE (my_vxc_rho)
             END IF
 
             DO ispin = 1, 2
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin))
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin))
+               CALL xc_pw_pool%give_back_pw(rho_m_rspace(ispin))
+               CALL xc_pw_pool%give_back_pw(rho_m_gspace(ispin))
             END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
@@ -434,12 +431,12 @@ CONTAINS
 
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
             DO ispin = 1, 2
-               CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin), &
-                                      use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin), &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
+               CALL xc_pw_pool%create_pw(rho_m_gspace(ispin), &
+                                         use_data=COMPLEXDATA1D, &
+                                         in_space=RECIPROCALSPACE)
+               CALL xc_pw_pool%create_pw(rho_m_rspace(ispin), &
+                                         use_data=REALDATA3D, &
+                                         in_space=REALSPACE)
             END DO
 
             DO ispin = 1, 2
@@ -476,15 +473,15 @@ CONTAINS
                ! and take care of the potential only vxc_rho is taken into account
                IF (.NOT. my_just_energy) THEN
                   CALL pw_axpy(my_vxc_rho(1), vxc_rho(ispin), -dft_control%sic_scaling_b)
-                  CALL pw_release(my_vxc_rho(1))
-                  CALL pw_release(my_vxc_rho(2))
+                  CALL my_vxc_rho(1)%release()
+                  CALL my_vxc_rho(2)%release()
                   DEALLOCATE (my_vxc_rho)
                END IF
             END DO
 
             DO ispin = 1, 2
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin))
-               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin))
+               CALL xc_pw_pool%give_back_pw(rho_m_rspace(ispin))
+               CALL xc_pw_pool%give_back_pw(rho_m_gspace(ispin))
             END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
@@ -523,8 +520,8 @@ CONTAINS
             IF (.NOT. my_just_energy) THEN
                ! both go to minority spin
                CALL pw_axpy(my_vxc_rho(1), vxc_rho(2), 2.0_dp*dft_control%sic_scaling_b)
-               CALL pw_release(my_vxc_rho(1))
-               CALL pw_release(my_vxc_rho(2))
+               CALL my_vxc_rho(1)%release()
+               CALL my_vxc_rho(2)%release()
                DEALLOCATE (my_vxc_rho)
             END IF
             DEALLOCATE (rho_r, rho_g)
@@ -537,39 +534,39 @@ CONTAINS
          IF (uf_grid .AND. (ASSOCIATED(vxc_rho) .OR. ASSOCIATED(vxc_tau))) THEN
             BLOCK
                TYPE(pw_type) :: tmp_pw, tmp_g, tmp_g2
-               CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
-                                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+               CALL xc_pw_pool%create_pw(tmp_g, &
+                                         in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
+               CALL auxbas_pw_pool%create_pw(tmp_g2, &
+                                             in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
                IF (ASSOCIATED(vxc_rho)) THEN
                   DO ispin = 1, SIZE(vxc_rho)
-                     CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
-                                            in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL auxbas_pw_pool%create_pw(tmp_pw, &
+                                                   in_space=REALSPACE, use_data=REALDATA3D)
                      CALL pw_transfer(vxc_rho(ispin), tmp_g)
                      CALL pw_transfer(tmp_g, tmp_g2)
                      CALL pw_transfer(tmp_g2, tmp_pw)
-                     CALL pw_pool_give_back_pw(xc_pw_pool, vxc_rho(ispin))
+                     CALL xc_pw_pool%give_back_pw(vxc_rho(ispin))
                      vxc_rho(ispin) = tmp_pw
                   END DO
                END IF
                IF (ASSOCIATED(vxc_tau)) THEN
                   DO ispin = 1, SIZE(vxc_tau)
-                     CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
-                                            in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL auxbas_pw_pool%create_pw(tmp_pw, &
+                                                   in_space=REALSPACE, use_data=REALDATA3D)
                      CALL pw_transfer(vxc_tau(ispin), tmp_g)
                      CALL pw_transfer(tmp_g, tmp_g2)
                      CALL pw_transfer(tmp_g2, tmp_pw)
-                     CALL pw_pool_give_back_pw(xc_pw_pool, vxc_tau(ispin))
+                     CALL xc_pw_pool%give_back_pw(vxc_tau(ispin))
                      vxc_tau(ispin) = tmp_pw
                   END DO
                END IF
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
-               CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
+               CALL auxbas_pw_pool%give_back_pw(tmp_g2)
+               CALL xc_pw_pool%give_back_pw(tmp_g)
             END BLOCK
          END IF
          IF (ASSOCIATED(tau) .AND. uf_grid) THEN
             DO ispin = 1, SIZE(tau)
-               CALL pw_pool_give_back_pw(xc_pw_pool, tau(ispin))
+               CALL xc_pw_pool%give_back_pw(tau(ispin))
             END DO
             DEALLOCATE (tau)
          END IF
@@ -738,17 +735,17 @@ CONTAINS
          ! remove arrays
          IF (ASSOCIATED(vxc_rho)) THEN
             DO ispin = 1, nspins
-               CALL pw_release(vxc_rho(ispin))
+               CALL vxc_rho(ispin)%release()
             END DO
             DEALLOCATE (vxc_rho)
          END IF
          IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, nspins
-               CALL pw_release(vxc_tau(ispin))
+               CALL vxc_tau(ispin)%release()
             END DO
             DEALLOCATE (vxc_tau)
          END IF
-         CALL pw_release(exc_r)
+         CALL exc_r%release()
          !
       END IF
 

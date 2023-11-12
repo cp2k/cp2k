@@ -14,10 +14,8 @@
 MODULE dielectric_types
 
    USE kinds,                           ONLY: dp
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_types,                        ONLY: pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -95,18 +93,18 @@ CONTAINS
          can_give_back = PRESENT(pw_pool)
          IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
          IF (can_give_back) THEN
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%eps)
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho)
+            CALL pw_pool%give_back_pw(dielectric%eps)
+            CALL pw_pool%give_back_pw(dielectric%deps_drho)
             DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i))
+               CALL pw_pool%give_back_pw(dielectric%dln_eps(i))
             END DO
          ELSE
-            CALL pw_release(dielectric%eps)
-            CALL pw_release(dielectric%deps_drho)
+            CALL dielectric%eps%release()
+            CALL dielectric%deps_drho%release()
             DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
-               CALL pw_release(dielectric%dln_eps(i))
+               CALL dielectric%dln_eps(i)%release()
             END DO
          END IF
          CALL dielectric_parameters_dealloc(dielectric%params)

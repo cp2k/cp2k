@@ -71,14 +71,11 @@ MODULE qs_resp
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_rho_resp_single
@@ -946,18 +943,15 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rho_ga, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             va_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             va_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_ga, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(va_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(va_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       !get fitting points and store them in resp_env%fitpoints
       CALL get_fitting_points(qs_env, resp_env, rep_sys, particles=particles, &
@@ -983,9 +977,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_release(va_gspace)
-      CALL pw_release(va_rspace)
-      CALL pw_release(rho_ga)
+      CALL va_gspace%release()
+      CALL va_rspace%release()
+      CALL rho_ga%release()
 
       DO i = 1, natom
          DO j = 1, natom
@@ -1722,18 +1716,15 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rho_resp, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             v_resp_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             v_resp_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_resp, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_resp_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_resp_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       CALL pw_zero(rho_resp)
       CALL calculate_rho_resp_all(rho_resp, resp_env%rhs, natom, &
@@ -1751,15 +1742,15 @@ CONTAINS
       IF (resp_env%use_repeat_method) THEN
          v_resp_rspace%cr3d(:, :, :) = v_resp_rspace%cr3d(:, :, :) - resp_env%offset*dvol
       END IF
-      CALL pw_release(v_resp_gspace)
-      CALL pw_release(rho_resp)
+      CALL v_resp_gspace%release()
+      CALL rho_resp%release()
 
       !***now print the v_resp_rspace%pw to a cube file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, resp_section, &
                                            "PRINT%V_RESP_CUBE"), cp_p_file)) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(aux_r, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          append_cube = section_get_lval(resp_section, "PRINT%V_RESP_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -1780,7 +1771,7 @@ CONTAINS
                             mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, resp_section, &
                                            "PRINT%V_RESP_CUBE", mpi_io=mpi_io)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r)
+         CALL auxbas_pw_pool%give_back_pw(aux_r)
       END IF
 
       !*** RMS and RRMS
@@ -1807,7 +1798,7 @@ CONTAINS
             "(RRMS) error of RESP fit:", rrms
       END IF
 
-      CALL pw_release(v_resp_rspace)
+      CALL v_resp_rspace%release()
 
       CALL timestop(handle)
 

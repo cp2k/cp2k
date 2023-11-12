@@ -23,14 +23,10 @@ MODULE xc_derivative_set_types
                                               pw_grid_release
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_create_cr3d,&
-                                              pw_pool_create_pw,&
                                               pw_pool_release,&
-                                              pw_pool_retain,&
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_create,&
                                               pw_type
    USE xc_derivative_desc,              ONLY: standardize_desc
    USE xc_derivative_types,             ONLY: xc_derivative_create,&
@@ -98,7 +94,7 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. ASSOCIATED(res) .AND. my_allocate_deriv) THEN
-         CALL pw_pool_create_cr3d(derivative_set%pw_pool, cr3d_ptr)
+         CALL derivative_set%pw_pool%create_cr3d(cr3d_ptr)
          cr3d_ptr = 0.0_dp
          ALLOCATE (res)
          CALL xc_derivative_create(res, std_deriv_desc, &
@@ -126,7 +122,7 @@ CONTAINS
 
       IF (PRESENT(pw_pool)) THEN
          derivative_set%pw_pool => pw_pool
-         CALL pw_pool_retain(pw_pool)
+         CALL pw_pool%retain()
          IF (PRESENT(local_bounds)) THEN
             IF (ANY(pw_pool%pw_grid%bounds_local /= local_bounds)) &
                CPABORT("incompatible local_bounds and pw_pool")
@@ -207,11 +203,11 @@ CONTAINS
 
       deriv_att => xc_dset_get_derivative(deriv_set, description)
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL pw_create(pw, pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
+         CALL pw%create(pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
                         use_data=REALDATA3D, in_space=REALSPACE)
          NULLIFY (deriv_att%deriv_data)
       ELSE IF (PRESENT(pw_pool)) THEN
-         CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(pw)
       END IF
 

@@ -20,9 +20,7 @@ MODULE qs_gspace_mixing
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_type
@@ -107,10 +105,9 @@ CONTAINS
 
          IF (nspin == 2) THEN
             CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   rho_tmp, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_tmp, &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
             CALL pw_zero(rho_tmp)
             CALL pw_copy(rho_g(1), rho_tmp)
             CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
@@ -144,7 +141,7 @@ CONTAINS
                CALL pw_scale(rho_g(1), 0.5_dp)
                CALL pw_axpy(rho_g(1), rho_g(2), -1.0_dp)
                CALL pw_scale(rho_g(2), -1.0_dp)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp)
+               CALL auxbas_pw_pool%give_back_pw(rho_tmp)
             END IF
             CALL timestop(handle)
             RETURN
@@ -177,7 +174,7 @@ CONTAINS
             CALL pw_scale(rho_g(1), 0.5_dp)
             CALL pw_axpy(rho_g(1), rho_g(2), -1.0_dp)
             CALL pw_scale(rho_g(2), -1.0_dp)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp)
+            CALL auxbas_pw_pool%give_back_pw(rho_tmp)
          END IF
 
          DO ispin = 1, nspin

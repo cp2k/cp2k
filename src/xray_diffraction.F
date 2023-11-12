@@ -46,9 +46,7 @@ MODULE xray_diffraction
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_type
@@ -163,10 +161,9 @@ CONTAINS
 
       ! Plane waves grid to assemble the total electronic density
 
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rhotot_elec_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=rhotot_elec_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
       CALL pw_zero(rhotot_elec_gspace)
 
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw_grid, &
@@ -467,8 +464,7 @@ CONTAINS
          DEALLOCATE (q_shell_gather)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                rhotot_elec_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rhotot_elec_gspace)
 
       CALL timestop(handle)
 
@@ -565,10 +561,9 @@ CONTAINS
 
       ! Load the soft contribution of the electronic density
 
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rho_elec_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL pw_zero(rhotot_elec_gspace)
 
@@ -586,8 +581,7 @@ CONTAINS
       ! Release the auxiliary PW grid for the calculation of the soft
       ! contribution
 
-      CALL pw_pool_give_back_pw(pool=auxbas_pw_pool, &
-                                pw=rho_elec_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
 
       rho_soft = pw_integrate_function(rhotot_elec_gspace, isign=-1)
 

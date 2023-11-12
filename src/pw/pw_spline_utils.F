@@ -29,10 +29,7 @@ MODULE pw_spline_utils
                                               pw_copy,&
                                               pw_integral_ab,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_release,&
-                                              pw_pool_retain,&
+   USE pw_pool_types,                   ONLY: pw_pool_release,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -2499,7 +2496,7 @@ CONTAINS
       preconditioner%pool => pool
       preconditioner%pbc = pbc
       preconditioner%transpose = transpose
-      CALL pw_pool_retain(pool)
+      CALL pool%retain()
       CALL pw_spline_precond_set_kind(preconditioner, precond_kind)
    END SUBROUTINE pw_spline_precond_create
 
@@ -2693,10 +2690,10 @@ CONTAINS
 
       res = .FALSE.
       logger => cp_get_default_logger()
-      CALL pw_pool_create_pw(pool, r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pool, z, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pool, p, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pool, Ap, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pool%create_pw(r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pool%create_pw(z, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pool%create_pw(p, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pool%create_pw(Ap, use_data=REALDATA3D, in_space=REALSPACE)
 
       !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
       ext_do: DO iiter = 1, max_iter, 10
@@ -2750,10 +2747,10 @@ CONTAINS
       END DO ext_do
       !CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
 
-      CALL pw_pool_give_back_pw(pool, r)
-      CALL pw_pool_give_back_pw(pool, z)
-      CALL pw_pool_give_back_pw(pool, p)
-      CALL pw_pool_give_back_pw(pool, Ap)
+      CALL pool%give_back_pw(r)
+      CALL pool%give_back_pw(z)
+      CALL pool%give_back_pw(p)
+      CALL pool%give_back_pw(Ap)
 
    END FUNCTION find_coeffs
 

@@ -84,9 +84,7 @@ MODULE iao_analysis
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -990,8 +988,8 @@ CONTAINS
       END DO
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       nspins = SIZE(iao_coef)
       nstart = MIN(1, n_rep)
@@ -1028,8 +1026,8 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (blk_sizes, first_bas)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
 
    END SUBROUTINE print_iao_cubes
 
@@ -1072,8 +1070,8 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       nspins = SIZE(ibo_coef)
       nstart = MIN(1, n_rep)
@@ -1108,8 +1106,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
 
    END SUBROUTINE print_ibo_cubes
 

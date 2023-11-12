@@ -47,14 +47,11 @@ MODULE xc_pot_saop
                                               pw_copy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -296,9 +293,9 @@ CONTAINS
 
       ALLOCATE (vxc_GLLB(nspins))
       DO ispin = 1, nspins
-         CALL pw_pool_create_pw(auxbas_pw_pool, vxc_GLLB(ispin), &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vxc_GLLB(ispin), &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
       END DO
 
       DO ispin = 1, nspins
@@ -307,12 +304,12 @@ CONTAINS
 
       CALL xc_dset_release(deriv_set)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, orbital, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, orbital_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(orbital, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(orbital_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       DO ispin = 1, nspins
 
@@ -384,8 +381,8 @@ CONTAINS
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vxc_SAOP(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vxc_SAOP(ispin), &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(vxc_SAOP(ispin))
 
          ALLOCATE (coeff_col(nrow(ispin), 1))
@@ -445,8 +442,8 @@ CONTAINS
       CALL cp_fm_release(single_mo_coeff)
 
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g)
+      CALL auxbas_pw_pool%give_back_pw(orbital)
+      CALL auxbas_pw_pool%give_back_pw(orbital_g)
 
       !--------------------!
       ! Do the integration !
@@ -468,10 +465,10 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin))
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin))
-         CALL pw_release(vxc_LB(ispin))
-         CALL pw_release(vxc_tmp(ispin))
+         CALL auxbas_pw_pool%give_back_pw(vxc_SAOP(ispin))
+         CALL auxbas_pw_pool%give_back_pw(vxc_GLLB(ispin))
+         CALL vxc_LB(ispin)%release()
+         CALL vxc_tmp(ispin)%release()
       END DO
       DEALLOCATE (vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix)
 

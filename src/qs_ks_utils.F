@@ -93,9 +93,7 @@ MODULE qs_ks_utils
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -316,16 +314,16 @@ CONTAINS
       ALLOCATE (rho_r(Nspin))
       ALLOCATE (rho_g(Nspin))
       DO ispin = 1, Nspin
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin), &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin), &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_r(ispin), &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_g(ispin), &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
       END DO
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       ! get mo matrices needed to construct the density matrices
       ! we will base all on the alpha spin matrix, obviously possible in ROKS
@@ -389,7 +387,7 @@ CONTAINS
                CALL pw_axpy(vxc(ispin), work_v_rspace, energy_scaling(iterm)*vxc(ispin)%pw_grid%dvol, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin))
+               CALL auxbas_pw_pool%give_back_pw(vxc(ispin))
             END DO
             DEALLOCATE (vxc)
 
@@ -436,8 +434,8 @@ CONTAINS
 
       ! release allocated memory
       DO ispin = 1, Nspin
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin))
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin))
+         CALL auxbas_pw_pool%give_back_pw(rho_r(ispin))
+         CALL auxbas_pw_pool%give_back_pw(rho_g(ispin))
       END DO
       DEALLOCATE (rho_r, rho_g)
       CALL dbcsr_deallocate_matrix_set(matrix_p)
@@ -446,7 +444,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(matrix_hfx)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace)
+      CALL auxbas_pw_pool%give_back_pw(work_v_rspace)
 
       CALL dbcsr_release_p(fm_deriv)
       CALL dbcsr_release_p(fm_scaled)
@@ -618,24 +616,24 @@ CONTAINS
       END SELECT
 
       ! data needed for each of the orbs
-      CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(orb_rho_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(tmp_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(orb_rho_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(tmp_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       ALLOCATE (orb_density_matrix)
       CALL dbcsr_copy(orb_density_matrix, rho_ao(1)%matrix, &
@@ -730,20 +728,20 @@ CONTAINS
                            tmp_dbcsr(sic_orbital_list(3, iorb))%matrix, 1.0_dp, 1.0_dp)
             !
             ! need to deallocate vxc
-            CALL pw_pool_give_back_pw(xc_pw_pool, vxc(1))
-            CALL pw_pool_give_back_pw(xc_pw_pool, vxc(2))
+            CALL xc_pw_pool%give_back_pw(vxc(1))
+            CALL xc_pw_pool%give_back_pw(vxc(2))
             DEALLOCATE (vxc)
 
          END IF
 
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace)
+      CALL auxbas_pw_pool%give_back_pw(orb_rho_r)
+      CALL auxbas_pw_pool%give_back_pw(tmp_r)
+      CALL auxbas_pw_pool%give_back_pw(orb_rho_g)
+      CALL auxbas_pw_pool%give_back_pw(tmp_g)
+      CALL auxbas_pw_pool%give_back_pw(work_v_gspace)
+      CALL auxbas_pw_pool%give_back_pw(work_v_rspace)
 
       CALL dbcsr_deallocate_matrix(orb_density_matrix)
       CALL dbcsr_deallocate_matrix(orb_h)
@@ -803,12 +801,12 @@ CONTAINS
       ! OK, right now we like two spins to do sic, could be relaxed for AD
       CPASSERT(dft_control%nspins == 2)
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_rho, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_rho, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL qs_rho_get(rho, rho_g=rho_g)
 
@@ -879,16 +877,16 @@ CONTAINS
 
       IF (.NOT. just_energy) THEN
          ALLOCATE (v_sic_rspace)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_sic_rspace, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(v_sic_rspace, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(work_v, v_sic_rspace)
          ! also take into account the scaling (in addition to the volume element)
          CALL pw_scale(v_sic_rspace, &
                        dft_control%sic_scaling_a*v_sic_rspace%pw_grid%dvol)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_rho)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v)
+      CALL auxbas_pw_pool%give_back_pw(work_rho)
+      CALL auxbas_pw_pool%give_back_pw(work_v)
 
    END SUBROUTINE calc_v_sic_rspace
 
@@ -1439,7 +1437,7 @@ CONTAINS
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
                CALL pw_axpy(v_rspace_embed(ispin), v_rspace_new(ispin), v_rspace_embed(ispin)%pw_grid%dvol)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
+               CALL auxbas_pw_pool%give_back_pw(v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
@@ -1482,13 +1480,13 @@ CONTAINS
                                        calculate_forces=calculate_forces, &
                                        gapw=gapw)
             END IF
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
          END DO ! ispin
 
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
          CASE (sic_mauri_us, sic_mauri_spz, sic_ad)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace)
+            CALL auxbas_pw_pool%give_back_pw(v_sic_rspace)
             DEALLOCATE (v_sic_rspace)
          END SELECT
          DEALLOCATE (v_rspace_new)
@@ -1510,7 +1508,7 @@ CONTAINS
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
                CALL pw_axpy(v_rspace_embed(ispin), v_rspace, v_rspace_embed(ispin)%pw_grid%dvol)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
+               CALL auxbas_pw_pool%give_back_pw(v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
@@ -1596,7 +1594,7 @@ CONTAINS
                                     qs_env=qs_env, &
                                     calculate_forces=calculate_forces, compute_tau=.TRUE., &
                                     gapw=gapw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
          END DO
          DEALLOCATE (v_tau_rspace)
       END IF
@@ -1657,14 +1655,14 @@ CONTAINS
                                  matrix_ks_aux_fit(ispin, img)%matrix, 1.0_dp, -1.0_dp)
                END DO
 
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new_aux_fit(ispin))
+               CALL auxbas_pw_pool%give_back_pw(v_rspace_new_aux_fit(ispin))
             END DO
             DEALLOCATE (v_rspace_new_aux_fit)
          END IF
          ! Clean up v_tau_rspace_aux_fit, which is actually not needed
          IF (ASSOCIATED(v_tau_rspace_aux_fit)) THEN
             DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace_aux_fit(ispin))
+               CALL auxbas_pw_pool%give_back_pw(v_tau_rspace_aux_fit(ispin))
             END DO
             DEALLOCATE (v_tau_rspace_aux_fit)
          END IF
@@ -1734,10 +1732,10 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
       nspins = 1
       ALLOCATE (v_rspace_new(nspins))
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_new(1), &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_xc_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=v_rspace_new(1), &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=v_xc_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL pw_zero(v_rspace_new(1))
       do_zmp_read = dft_control%apply_external_vxc
@@ -1749,14 +1747,12 @@ CONTAINS
          BLOCK
             REAL(KIND=dp)                                      :: factor
             TYPE(pw_type) :: rho_eff_gspace, v_xc_gspace
-            CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                                   pw=rho_eff_gspace, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                                   pw=v_xc_gspace, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(pw=rho_eff_gspace, &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(pw=v_xc_gspace, &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
             CALL pw_zero(rho_eff_gspace)
             CALL pw_zero(v_xc_gspace)
             CALL pw_zero(v_xc_rspace)
@@ -1788,14 +1784,12 @@ CONTAINS
 !Note that this is not the xc energy but \int(\rho*v_xc)
 !Vxc---> v_rspace_new
 !Exc---> energy%exc
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                      rho_eff_gspace)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                      v_xc_gspace)
+            CALL auxbas_pw_pool%give_back_pw(rho_eff_gspace)
+            CALL auxbas_pw_pool%give_back_pw(v_xc_gspace)
          END BLOCK
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_xc_rspace)
 
       CALL timestop(handle)
 
@@ -1843,8 +1837,8 @@ CONTAINS
       embed_corr = 0.0_dp
 
       DO ispin = 1, dft_control%nspins
-         CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(pw=v_rspace_embed(ispin), &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(v_rspace_embed(ispin))
 
          CALL pw_copy(qs_env%embed_pot, v_rspace_embed(ispin))
@@ -1865,7 +1859,7 @@ CONTAINS
       ! If only energy requiested we delete the potential
       IF (just_energy) THEN
          DO ispin = 1, dft_control%nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_rspace_embed(ispin))
          END DO
          DEALLOCATE (v_rspace_embed)
       END IF

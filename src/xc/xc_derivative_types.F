@@ -12,8 +12,7 @@
 MODULE xc_derivative_types
 
    USE kinds,                           ONLY: dp
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_cr3d,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE xc_derivative_desc,              ONLY: create_split_desc
 #include "../base/base_uses.f90"
 
@@ -80,8 +79,7 @@ CONTAINS
 
       IF (PRESENT(pw_pool)) THEN
          IF (ASSOCIATED(pw_pool)) THEN
-            CALL pw_pool_give_back_cr3d(pw_pool, derivative%deriv_data, &
-                                        accept_non_compatible=.TRUE.)
+            CALL pw_pool%give_back_cr3d(derivative%deriv_data)
          END IF
       END IF
       IF (ASSOCIATED(derivative%deriv_data)) THEN

@@ -73,9 +73,7 @@ MODULE qs_sccs
    USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
                                               pw_poisson_mt,&
                                               pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -271,10 +269,9 @@ CONTAINS
       ! Retrieve the total electronic density in r-space
       BLOCK
          TYPE(pw_type) :: rho_elec
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                rho_elec, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_elec, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
 
          ! Retrieve grid parameters
          ngpts = rho_elec%pw_grid%ngpts
@@ -291,14 +288,12 @@ CONTAINS
          tot_rho_elec = pw_integrate_function(rho_elec)
 
          ! Calculate the dielectric (smoothed) function of rho_elec in r-space
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                eps_elec, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                deps_elec, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(eps_elec, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(deps_elec, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          ! Relative permittivity or dielectric constant of the solvent (medium)
          epsilon_solvent = sccs_control%epsilon_solvent
          SELECT CASE (sccs_control%method_id)
@@ -350,10 +345,9 @@ CONTAINS
             BLOCK
                TYPE(pw_type) :: theta, norm_drho_elec
                TYPE(pw_type), DIMENSION(3)                        :: drho_elec
-               CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                      theta, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(theta, &
+                                             use_data=REALDATA3D, &
+                                             in_space=REALSPACE)
                CALL pw_zero(theta)
 
                ! Calculate the (quantum) volume of the solute cavity
@@ -374,17 +368,15 @@ CONTAINS
                ! Calculate the derivative of the electronic density in r-space
                ! TODO: Could be retrieved from the QS environment
                DO i = 1, 3
-                  CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                         drho_elec(i), &
-                                         use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(drho_elec(i), &
+                                                use_data=REALDATA3D, &
+                                                in_space=REALSPACE)
                END DO
                CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input)
 
-               CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                      norm_drho_elec, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(norm_drho_elec, &
+                                             use_data=REALDATA3D, &
+                                             in_space=REALSPACE)
 
                ! Calculate the norm of the gradient of the electronic density in r-space
 !$OMP    PARALLEL DO DEFAULT(NONE) &
@@ -449,25 +441,24 @@ CONTAINS
                cavity_surface = pw_integrate_function(theta)
 
                ! Release storage
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, theta)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, norm_drho_elec)
+               CALL auxbas_pw_pool%give_back_pw(theta)
+               CALL auxbas_pw_pool%give_back_pw(norm_drho_elec)
                DO i = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_elec(i))
+                  CALL auxbas_pw_pool%give_back_pw(drho_elec(i))
                END DO
             END BLOCK
 
          END IF ! epsilon_solvent > 1
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec)
+         CALL auxbas_pw_pool%give_back_pw(rho_elec)
       END BLOCK
 
       BLOCK
          TYPE(pw_type) :: rho_tot, phi_tot, rho_solute, rho_tot_zero
          ! Retrieve the total charge density (core + elec) of the solute in r-space
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                rho_solute, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_solute, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL pw_zero(rho_solute)
          CALL pw_transfer(rho_tot_gspace, rho_solute)
          tot_rho_solute = pw_integrate_function(rho_solute)
@@ -485,10 +476,9 @@ CONTAINS
          END IF
 
          ! Reassign work storage to rho_tot_zero, because rho_elec is no longer needed
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                rho_tot_zero, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot_zero, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
 
          ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
          ! eps_elec <- ln(eps_elec)
@@ -514,14 +504,13 @@ CONTAINS
 
          ! Build the derivative of LOG(eps_elec)
          DO i = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   dln_eps_elec(i), &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dln_eps_elec(i), &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
             CALL pw_zero(dln_eps_elec(i))
          END DO
          CALL derive(eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, eps_elec)
+         CALL auxbas_pw_pool%give_back_pw(eps_elec)
 
          ! Print header for the SCCS cycle
          IF (should_output .AND. (output_unit > 0)) THEN
@@ -550,24 +539,21 @@ CONTAINS
 
          ! Get storage for the derivative of the total potential (field) in r-space
          DO i = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   dphi_tot(i), &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dphi_tot(i), &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
          END DO
 
          ! Initialise the total charge density in r-space rho_tot with rho_tot_zero + rho_iter_zero
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                rho_tot, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL pw_copy(rho_tot_zero, rho_tot)
          CALL pw_axpy(rho_pw_r_sccs, rho_tot)
 
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                phi_tot, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(phi_tot, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL pw_zero(phi_tot)
 
          ! Main SCCS iteration loop
@@ -657,9 +643,9 @@ CONTAINS
          END DO iter_loop
 
          ! Release work storage which is no longer needed
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_zero)
+         CALL auxbas_pw_pool%give_back_pw(rho_tot_zero)
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dln_eps_elec(i))
+            CALL auxbas_pw_pool%give_back_pw(dln_eps_elec(i))
          END DO
 
          ! Optional output of the total charge density in cube file format
@@ -713,9 +699,9 @@ CONTAINS
          ! Calculate the Hartree energy and potential of the solute only
          BLOCK
             TYPE(pw_type) :: phi_solute
-            CALL pw_pool_create_pw(auxbas_pw_pool, phi_solute, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(phi_solute, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
             CALL pw_zero(phi_solute)
             CALL pw_poisson_solve(poisson_env=poisson_env, &
                                   density=rho_solute, &
@@ -725,7 +711,7 @@ CONTAINS
             ! Calculate the polarisation potential (store it in phi_tot)
             ! phi_pol = phi_tot - phi_solute
             CALL pw_axpy(phi_solute, phi_tot, alpha=-1.0_dp)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, phi_solute)
+            CALL auxbas_pw_pool%give_back_pw(phi_solute)
          END BLOCK
 
          ! Optional output of the SCCS polarisation potential in cube file format
@@ -791,9 +777,9 @@ CONTAINS
 
          ! Calculate SCCS polarisation energy
          energy%sccs_pol = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_solute)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, phi_tot)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot)
+         CALL auxbas_pw_pool%give_back_pw(rho_solute)
+         CALL auxbas_pw_pool%give_back_pw(phi_tot)
+         CALL auxbas_pw_pool%give_back_pw(rho_tot)
       END BLOCK
 
       ! Calculate additional solvation terms
@@ -832,9 +818,9 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, deps_elec)
+      CALL auxbas_pw_pool%give_back_pw(deps_elec)
       DO i = 1, 3
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, dphi_tot(i))
+         CALL auxbas_pw_pool%give_back_pw(dphi_tot(i))
       END DO
 
       ! Release the SCCS printout environment
@@ -1046,10 +1032,9 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ! Get work storage for the 1d grids in g-space (derivative calculation)
          DO i = 1, SIZE(work_g1d)
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   work_g1d(i), &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(work_g1d(i), &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
          END DO
       END SELECT
 
@@ -1083,7 +1068,7 @@ CONTAINS
          CALL rs_grid_release_descriptor(rs_desc)
       CASE (sccs_derivative_fft)
          DO i = 1, SIZE(work_g1d)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g1d(i))
+            CALL auxbas_pw_pool%give_back_pw(work_g1d(i))
          END DO
       END SELECT
 

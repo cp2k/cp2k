@@ -37,9 +37,7 @@ MODULE qs_linres_epr_ownutils
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                               find_coeffs,&
@@ -384,9 +382,8 @@ CONTAINS
 
          DO ispin = 1, nspins
             DO idir1 = 1, 3
-               CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                      vks_pw_spline(idir1, ispin), &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(vks_pw_spline(idir1, ispin), &
+                                             use_data=REALDATA3D, in_space=REALSPACE)
                ! calculate spline coefficients
                CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                              pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
@@ -519,7 +516,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             DO idir1 = 1, 3
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vks_pw_spline(idir1, ispin))
+               CALL auxbas_pw_pool%give_back_pw(vks_pw_spline(idir1, ispin))
             END DO
          END DO
          DEALLOCATE (vks_pw_spline)
@@ -654,9 +651,8 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
          DO idir1 = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   bind_pw_spline(idir1, iB), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(bind_pw_spline(idir1, iB), &
+                                          use_data=REALDATA3D, in_space=REALSPACE)
             ! calculate spline coefficients
             CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                           pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
@@ -746,7 +742,7 @@ CONTAINS
          g_soo(iB, :) = g_soo(iB, :) + temp_soo_gapw(iB, :)
 
          DO idir1 = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, bind_pw_spline(idir1, iB))
+            CALL auxbas_pw_pool%give_back_pw(bind_pw_spline(idir1, iB))
          END DO
          DEALLOCATE (bind_pw_spline)
 
@@ -815,18 +811,18 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin), &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(shift_pw_gspace(idir, ispin), &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
             CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
       END DO
-      CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(shift_pw_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(shift_pw_rspace)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw_gspace_work, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
       CALL pw_zero(pw_gspace_work)
       !
       CALL set_vecp(iB, iiB, iiiB)
@@ -867,14 +863,14 @@ CONTAINS
       END IF
       !
       ! Dellocate grids for the calculation of jrho and the shift
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work)
+      CALL auxbas_pw_pool%give_back_pw(pw_gspace_work)
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin))
+            CALL auxbas_pw_pool%give_back_pw(shift_pw_gspace(idir, ispin))
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace)
+      CALL auxbas_pw_pool%give_back_pw(shift_pw_rspace)
       !
       ! Finalize
       CALL timestop(handle)

@@ -45,15 +45,11 @@ MODULE hfx_pw_methods
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
-                                              pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -137,22 +133,22 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_r, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_g, &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(pot_g, &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
 
          ALLOCATE (rho_i(blocksize))
          ALLOCATE (rho_j(blocksize))
 
-         CALL pw_pool_create_pw(auxbas_pw_pool, greenfn, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(greenfn, &
+                                       use_data=COMPLEXDATA1D, &
+                                       in_space=RECIPROCALSPACE)
          ip_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL")
          CALL section_vals_get(ip_section, explicit=explicit)
          potential_type = do_potential_coulomb
@@ -188,12 +184,12 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            CALL pw_create(rho_i(iorb_block), rho_r%pw_grid, &
-                           use_data=REALDATA3D, &
-                           in_space=REALSPACE)
-            CALL pw_create(rho_j(iorb_block), rho_r%pw_grid, &
-                           use_data=REALDATA3D, &
-                           in_space=REALSPACE)
+            CALL rho_i(iorb_block)%create(rho_r%pw_grid, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
+            CALL rho_j(iorb_block)%create(rho_r%pw_grid, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
          END DO
 
          exchange_energy = 0.0_dp
@@ -259,14 +255,14 @@ CONTAINS
          END DO
 
          DO iorb_block = 1, blocksize
-            CALL pw_release(rho_i(iorb_block))
-            CALL pw_release(rho_j(iorb_block))
+            CALL rho_i(iorb_block)%release()
+            CALL rho_j(iorb_block)%release()
          END DO
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, greenfn)
+         CALL auxbas_pw_pool%give_back_pw(rho_r)
+         CALL auxbas_pw_pool%give_back_pw(rho_g)
+         CALL auxbas_pw_pool%give_back_pw(pot_g)
+         CALL auxbas_pw_pool%give_back_pw(greenfn)
 
          iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
                                    extension=".scfLog")

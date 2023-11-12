@@ -17,9 +17,7 @@ MODULE xc_fxc_kernel
                                               pw_copy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -97,8 +95,8 @@ CONTAINS
       CALL xc_rho_cflags_setall(needs, .FALSE.)
       CALL fxc_kernel_info(fxc_name, needs, lsd)
 
-      CALL pw_pool_create_pw(pw_pool, rhoa, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(pw_pool, rhob, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(rhoa, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(rhob, use_data=REALDATA3D, in_space=REALSPACE)
       IF (lsd) THEN
          CALL pw_copy(rho_r(1), rhoa)
          CALL pw_copy(rho_r(2), rhob)
@@ -114,12 +112,12 @@ CONTAINS
       IF (needs%norm_drho) THEN
          ! deriv rho
          DO idir = 1, 3
-            CALL pw_pool_create_pw(pw_pool, drhoa(idir), use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(drhoa(idir), use_data=REALDATA3D, in_space=REALSPACE)
          END DO
-         CALL pw_pool_create_pw(pw_pool, norm_drhoa, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(pw_pool, norm_drhob, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(pw_pool, rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_pool_create_pw(pw_pool, tmpg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(norm_drhoa, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(norm_drhob, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(tmpg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          IF (lsd) THEN
             CALL pw_copy(rho_g(1), rhog)
          ELSE IF (triplet) THEN
@@ -157,8 +155,8 @@ CONTAINS
          ELSE
             norm_drhob%cr3d(:, :, :) = norm_drhoa%cr3d(:, :, :)
          END IF
-         CALL pw_pool_give_back_pw(pw_pool, rhog)
-         CALL pw_pool_give_back_pw(pw_pool, tmpg)
+         CALL pw_pool%give_back_pw(rhog)
+         CALL pw_pool%give_back_pw(tmpg)
       END IF
       IF (needs%tau) THEN
          MARK_USED(tau_r)
@@ -205,8 +203,8 @@ CONTAINS
          CALL b97_fxc_eval(rhob, norm_drhob, fxc_rspace(3), g_ab(3), ccaa, eps_rho)
          CALL b97_fcc_eval(rhoa, rhob, norm_drhoa, norm_drhob, fxc_rspace(2), g_ab(2), ccab, eps_rho)
          ! exchange
-         CALL pw_pool_create_pw(pw_pool, fxa, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(pw_pool, fxb, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(fxa, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(fxb, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(fxa)
          CALL pw_zero(fxb)
          CALL xalpha_fxc_eval(rhoa, rhob, fxa, fxb, scalex, eps_rho)
@@ -214,8 +212,8 @@ CONTAINS
          CALL b97_fxc_eval(rhob, norm_drhob, fxb, g_ab(1), cxaa, eps_rho)
          CALL pw_axpy(fxa, fxc_rspace(1))
          CALL pw_axpy(fxb, fxc_rspace(3))
-         CALL pw_pool_give_back_pw(pw_pool, fxa)
-         CALL pw_pool_give_back_pw(pw_pool, fxb)
+         CALL pw_pool%give_back_pw(fxa)
+         CALL pw_pool%give_back_pw(fxb)
       CASE ("NONE")
          CALL pw_zero(fxc_rspace(1))
          CALL pw_zero(fxc_rspace(2))
@@ -224,13 +222,13 @@ CONTAINS
          CPABORT("Fxc Kernel functional is defined incorrectly")
       END SELECT
 
-      CALL pw_pool_give_back_pw(pw_pool, rhoa)
-      CALL pw_pool_give_back_pw(pw_pool, rhob)
+      CALL pw_pool%give_back_pw(rhoa)
+      CALL pw_pool%give_back_pw(rhob)
       IF (needs%norm_drho) THEN
-         CALL pw_pool_give_back_pw(pw_pool, norm_drhoa)
-         CALL pw_pool_give_back_pw(pw_pool, norm_drhob)
+         CALL pw_pool%give_back_pw(norm_drhoa)
+         CALL pw_pool%give_back_pw(norm_drhob)
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, drhoa(idir))
+            CALL pw_pool%give_back_pw(drhoa(idir))
          END DO
       END IF
 

@@ -24,10 +24,8 @@ MODULE qs_rho_types
                                               kpoint_transitional_type,&
                                               set_1d_pointer,&
                                               set_2d_pointer
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
-   USE pw_types,                        ONLY: pw_release,&
-                                              pw_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -128,14 +126,14 @@ CONTAINS
 
       IF (ASSOCIATED(rho_struct%rho_r)) THEN
          DO i = 1, SIZE(rho_struct%rho_r)
-            CALL pw_release(rho_struct%rho_r(i))
+            CALL rho_struct%rho_r(i)%release()
          END DO
          DEALLOCATE (rho_struct%rho_r)
       END IF
       IF (ASSOCIATED(rho_struct%drho_r)) THEN
          DO j = 1, SIZE(rho_struct%drho_r, 2)
             DO i = 1, SIZE(rho_struct%drho_r, 1)
-               CALL pw_release(rho_struct%drho_r(i, j))
+               CALL rho_struct%drho_r(i, j)%release()
             END DO
          END DO
          DEALLOCATE (rho_struct%drho_r)
@@ -143,31 +141,31 @@ CONTAINS
       IF (ASSOCIATED(rho_struct%drho_g)) THEN
          DO i = 1, SIZE(rho_struct%drho_g, 2)
             DO j = 1, SIZE(rho_struct%drho_g, 1)
-               CALL pw_release(rho_struct%drho_g(i, j))
+               CALL rho_struct%drho_g(i, j)%release()
             END DO
          END DO
          DEALLOCATE (rho_struct%drho_g)
       END IF
       IF (ASSOCIATED(rho_struct%tau_r)) THEN
          DO i = 1, SIZE(rho_struct%tau_r)
-            CALL pw_release(rho_struct%tau_r(i))
+            CALL rho_struct%tau_r(i)%release()
          END DO
          DEALLOCATE (rho_struct%tau_r)
       END IF
       IF (ASSOCIATED(rho_struct%rho_g)) THEN
          DO i = 1, SIZE(rho_struct%rho_g)
-            CALL pw_release(rho_struct%rho_g(i))
+            CALL rho_struct%rho_g(i)%release()
          END DO
          DEALLOCATE (rho_struct%rho_g)
       END IF
       IF (ASSOCIATED(rho_struct%tau_g)) THEN
          DO i = 1, SIZE(rho_struct%tau_g)
-            CALL pw_release(rho_struct%tau_g(i))
+            CALL rho_struct%tau_g(i)%release()
          END DO
          DEALLOCATE (rho_struct%tau_g)
       END IF
       IF (ASSOCIATED(rho_struct%rho_r_sccs)) THEN
-         CALL pw_release(rho_struct%rho_r_sccs)
+         CALL rho_struct%rho_r_sccs%release()
          DEALLOCATE (rho_struct%rho_r_sccs)
       END IF
 
@@ -352,14 +350,14 @@ CONTAINS
 
       IF (ASSOCIATED(rho_struct%rho_r)) THEN
          DO i = 1, SIZE(rho_struct%rho_r)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_struct%rho_r(i))
+            CALL auxbas_pw_pool%give_back_pw(rho_struct%rho_r(i))
          END DO
          DEALLOCATE (rho_struct%rho_r)
          NULLIFY (rho_struct%rho_r)
       END IF
       IF (ASSOCIATED(rho_struct%rho_g)) THEN
          DO i = 1, SIZE(rho_struct%rho_g)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_struct%rho_g(i))
+            CALL auxbas_pw_pool%give_back_pw(rho_struct%rho_g(i))
          END DO
          DEALLOCATE (rho_struct%rho_g)
          NULLIFY (rho_struct%rho_g)

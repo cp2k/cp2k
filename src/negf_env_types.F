@@ -53,9 +53,7 @@ MODULE negf_env_types
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_type
@@ -797,13 +795,13 @@ CONTAINS
          CALL dbcsr_copy(matrix_b=hmat%matrix, matrix_a=matrix_s_kp(1, 1)%matrix)
          CALL dbcsr_set(hmat%matrix, 0.0_dp)
 
-         CALL pw_pool_create_pw(pw_pool, v_hartree, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(v_hartree, use_data=REALDATA3D, in_space=REALSPACE)
          CALL negf_env_init_v_hartree(v_hartree, negf_env%contacts, negf_control%contacts)
 
          CALL integrate_v_rspace(v_rspace=v_hartree, hmat=hmat, qs_env=qs_env, &
                                  calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
 
-         CALL pw_pool_give_back_pw(pw_pool, v_hartree)
+         CALL pw_pool%give_back_pw(v_hartree)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=hmat%matrix, &
                                                fm=negf_env%v_hartree_s, &

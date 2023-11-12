@@ -18,9 +18,7 @@ MODULE xc_util
                                               pw_laplace,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_spline_utils,                 ONLY: &
         nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, &
         pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
@@ -159,7 +157,7 @@ CONTAINS
 
          owns_tmp_g = .FALSE.
          IF (.NOT. ASSOCIATED(my_tmp_g%pw_grid)) THEN
-            CALL pw_pool_create_pw(pw_pool, my_tmp_g, &
+            CALL pw_pool%create_pw(my_tmp_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             owns_tmp_g = .TRUE.
          END IF
@@ -174,7 +172,7 @@ CONTAINS
             CALL pw_transfer(my_tmp_g, pw)
          END IF
          IF (owns_tmp_g) THEN
-            CALL pw_pool_give_back_pw(pw_pool, my_tmp_g)
+            CALL pw_pool%give_back_pw(my_tmp_g)
          END IF
       CASE default
          CPABORT("Unsupported derivative method")

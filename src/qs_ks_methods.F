@@ -83,14 +83,11 @@ MODULE qs_ks_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
@@ -347,14 +344,12 @@ CONTAINS
       END IF
 
       ! Calculate the Hartree potential
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rho_tot_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, scf_section, &
@@ -381,10 +376,9 @@ CONTAINS
          ! Self-consistent continuum solvation (SCCS) model
          NULLIFY (v_sccs_rspace)
          ALLOCATE (v_sccs_rspace)
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                v_sccs_rspace, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(v_sccs_rspace, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
 
          IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
             CPABORT("The implicit Poisson solver cannot be used together with SCCS.")
@@ -427,7 +421,7 @@ CONTAINS
             CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
          END IF
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
 
       IF (dft_control%correct_surf_dip) THEN
          IF (dft_control%surf_dip_correct_switch) THEN
@@ -491,7 +485,7 @@ CONTAINS
                      qmmm_env=qs_env%qmmm_env_qm, qs_env=qs_env)
                END IF
             END IF
-            CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace)
+            CALL qs_env%ks_qmmm_env%v_metal_rspace%release()
             DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace)
          END IF
          IF (.NOT. just_energy) THEN
@@ -499,7 +493,7 @@ CONTAINS
                                          v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, scale=1.0_dp)
          END IF
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_gspace)
 
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
@@ -654,11 +648,11 @@ CONTAINS
                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
                BLOCK
                   TYPE(pw_type) :: v_minus_veps
-                  CALL pw_pool_create_pw(auxbas_pw_pool, v_minus_veps, use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(v_minus_veps, use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_copy(v_hartree_rspace, v_minus_veps)
                   CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps, -v_hartree_rspace%pw_grid%dvol)
                   CALL integrate_v_core_rspace(v_minus_veps, qs_env)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_minus_veps)
+                  CALL auxbas_pw_pool%give_back_pw(v_minus_veps)
                END BLOCK
             ELSE
                CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
@@ -739,32 +733,32 @@ CONTAINS
       END IF ! .NOT. just energy
 
       IF (dft_control%qs_control%ddapc_explicit_potential) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_r)
+         CALL auxbas_pw_pool%give_back_pw(v_spin_ddapc_rest_r)
          DEALLOCATE (v_spin_ddapc_rest_r)
       END IF
 
       IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN
          IF (.NOT. cdft_control%transfer_pot) THEN
             DO iatom = 1, SIZE(cdft_control%group)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight)
+               CALL auxbas_pw_pool%give_back_pw(cdft_control%group(iatom)%weight)
                DEALLOCATE (cdft_control%group(iatom)%weight)
             END DO
             IF (cdft_control%atomic_charges) THEN
                DO iatom = 1, cdft_control%natoms
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom))
+                  CALL auxbas_pw_pool%give_back_pw(cdft_control%charge(iatom))
                END DO
                DEALLOCATE (cdft_control%charge)
             END IF
             IF (cdft_control%type == outer_scf_becke_constraint .AND. &
                 cdft_control%becke_control%cavity_confine) THEN
                IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity)
+                  CALL auxbas_pw_pool%give_back_pw(cdft_control%becke_control%cavity)
                ELSE
                   DEALLOCATE (cdft_control%becke_control%cavity_mat)
                END IF
             ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
                IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm)
+                  CALL auxbas_pw_pool%give_back_pw(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)
                END IF
             END IF
             IF (ASSOCIATED(cdft_control%charges_fragment)) DEALLOCATE (cdft_control%charges_fragment)
@@ -775,7 +769,7 @@ CONTAINS
       END IF
 
       IF (dft_control%do_sccs) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sccs_rspace)
+         CALL auxbas_pw_pool%give_back_pw(v_sccs_rspace)
          DEALLOCATE (v_sccs_rspace)
       END IF
 

@@ -49,9 +49,7 @@ MODULE qs_linres_epr_nablavks
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -282,14 +280,14 @@ CONTAINS
 !   Add Hartree potential
 !   -------------------------------------
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gtemp, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rtemp, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gtemp, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rtemp, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       IF (gapw) THEN
          ! need to rebuild the coeff !
@@ -455,10 +453,10 @@ CONTAINS
       CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
       CALL pw_copy(v_hartree_rtemp, pwz)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gtemp)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rtemp)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gtemp)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rtemp)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_gspace)
 
 !   -------------------------------------
 !   Add Coulomb potential
@@ -504,12 +502,12 @@ CONTAINS
 
             IF (gth_gspace) THEN
 
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gspace, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gtemp, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_rtemp, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_gspace, &
+                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_gtemp, &
+                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_rtemp, &
+                                             use_data=REALDATA3D, in_space=REALSPACE)
 
                CALL pw_zero(v_coulomb_gspace)
 
@@ -605,9 +603,9 @@ CONTAINS
                CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
                CALL pw_axpy(v_coulomb_rtemp, pwz)
 
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gspace)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gtemp)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_rtemp)
+               CALL auxbas_pw_pool%give_back_pw(v_coulomb_gspace)
+               CALL auxbas_pw_pool%give_back_pw(v_coulomb_gtemp)
+               CALL auxbas_pw_pool%give_back_pw(v_coulomb_rtemp)
             ELSE
 
                ! Attic of the atomic parallellisation
@@ -850,10 +848,10 @@ CONTAINS
 !   Add V_xc potential
 !   -------------------------------------
 
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_gtemp, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_rtemp, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_xc_gtemp, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_xc_rtemp, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
       ! a possible vdW section in xc_section will be ignored
@@ -888,7 +886,7 @@ CONTAINS
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
 
          END DO
 
@@ -917,15 +915,15 @@ CONTAINS
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
 
          END DO
 
          DEALLOCATE (v_tau_rspace)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_gtemp)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rtemp)
+      CALL auxbas_pw_pool%give_back_pw(v_xc_gtemp)
+      CALL auxbas_pw_pool%give_back_pw(v_xc_rtemp)
 
       IF (gapw .OR. gapw_xc) THEN
          CALL calculate_vxc_atom(qs_env=qs_env, energy_only=.FALSE., exc1=exc1, &
@@ -938,9 +936,9 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, lr_section, &
                                            "EPR%PRINT%NABLAVKS_CUBES"), cp_p_file)) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          DO idir = 1, 3
             CALL pw_zero(wf_r)
             CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho_r)
@@ -960,7 +958,7 @@ CONTAINS
             CALL cp_print_key_finished_output(unit_nr, logger, lr_section, &
                                               "EPR%PRINT%NABLAVKS_CUBES", mpi_io=mpi_io)
          END DO
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+         CALL auxbas_pw_pool%give_back_pw(wf_r)
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &

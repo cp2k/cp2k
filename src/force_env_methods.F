@@ -131,12 +131,9 @@ MODULE force_env_methods
                                               pw_copy,&
                                               pw_integral_ab,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_release,&
                                               pw_type
    USE pwdft_environment,               ONLY: pwdft_calc_energy_force
    USE pwdft_environment_types,         ONLY: pwdft_environment_type
@@ -1490,14 +1487,14 @@ CONTAINS
                CALL get_qs_env(qs_env=force_env%sub_force_env(iforce_eval)%force_env%qs_env, &
                                embed_pot=embed_pot, spin_embed_pot=spin_embed_pot, pw_env=pw_env)
                CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, embed_pot)
+               CALL auxbas_pw_pool%give_back_pw(embed_pot)
                IF (ASSOCIATED(embed_pot)) THEN
-                  CALL pw_release(embed_pot)
+                  CALL embed_pot%release()
                   DEALLOCATE (embed_pot)
                END IF
                IF (ASSOCIATED(spin_embed_pot)) THEN
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, spin_embed_pot)
-                  CALL pw_release(spin_embed_pot)
+                  CALL auxbas_pw_pool%give_back_pw(spin_embed_pot)
+                  CALL spin_embed_pot%release()
                   DEALLOCATE (spin_embed_pot)
                END IF
             END IF
@@ -1665,14 +1662,14 @@ CONTAINS
 
       ! Prepare the pw object to store density differences
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(diff_rho_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
       CALL pw_zero(diff_rho_r)
       IF (opt_embed%open_shell_embed) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_spin, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(diff_rho_spin, &
+                                       use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
          CALL pw_zero(diff_rho_spin)
       END IF
 
@@ -1841,10 +1838,10 @@ CONTAINS
             END IF
 
             ! Release embedding potential for subsystem
-            CALL pw_release(embed_pot_subsys)
+            CALL embed_pot_subsys%release()
             DEALLOCATE (embed_pot_subsys)
             IF (opt_embed%open_shell_embed) THEN
-               CALL pw_release(spin_embed_pot_subsys)
+               CALL spin_embed_pot_subsys%release()
                DEALLOCATE (spin_embed_pot_subsys)
             END IF
 
@@ -1914,9 +1911,9 @@ CONTAINS
       END IF
 
       ! Give away plane waves pools
-      CALL pw_release(diff_rho_r)
+      CALL diff_rho_r%release()
       IF (opt_embed%open_shell_embed) THEN
-         CALL pw_release(diff_rho_spin)
+         CALL diff_rho_spin%release()
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
@@ -1954,10 +1951,10 @@ CONTAINS
       CALL release_opt_embed(opt_embed)
 
       ! Deallocate embedding potential
-      CALL pw_release(embed_pot)
+      CALL embed_pot%release()
       DEALLOCATE (embed_pot)
       IF (opt_embed%open_shell_embed) THEN
-         CALL pw_release(spin_embed_pot)
+         CALL spin_embed_pot%release()
          DEALLOCATE (spin_embed_pot)
       END IF
 

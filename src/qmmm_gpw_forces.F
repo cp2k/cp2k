@@ -45,9 +45,7 @@ MODULE qmmm_gpw_forces
                                               pw_integral_ab,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type,&
                                               pw_pools_create_pws,&
                                               pw_pools_give_back_pws
@@ -208,9 +206,9 @@ CONTAINS
                          auxbas_pw_pool=auxbas_pool)
          NULLIFY (rho_tot_r)
          ALLOCATE (rho_tot_r)
-         CALL pw_pool_create_pw(auxbas_pool, rho_tot_r, &
-                                in_space=REALSPACE, &
-                                use_data=REALDATA3D)
+         CALL auxbas_pool%create_pw(rho_tot_r, &
+                                    in_space=REALSPACE, &
+                                    use_data=REALDATA3D)
          ! IF GAPW the core charge is replaced by the compensation charge
          IF (gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -218,12 +216,12 @@ CONTAINS
                energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace)
                NULLIFY (rho_tot_r2)
                ALLOCATE (rho_tot_r2)
-               CALL pw_pool_create_pw(auxbas_pool, rho_tot_r2, &
-                                      in_space=REALSPACE, &
-                                      use_data=REALDATA3D)
+               CALL auxbas_pool%create_pw(rho_tot_r2, &
+                                          in_space=REALSPACE, &
+                                          use_data=REALDATA3D)
                CALL pw_transfer(rho0_s_gs, rho_tot_r2)
                CALL pw_axpy(rho_tot_r2, rho_tot_r)
-               CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r2)
+               CALL auxbas_pool%give_back_pw(rho_tot_r2)
                DEALLOCATE (rho_tot_r2)
             ELSE
                CALL pw_transfer(rho0_s_gs, rho_tot_r)
@@ -317,7 +315,7 @@ CONTAINS
       ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
       IF ((.NOT. dft_control%qs_control%semi_empirical) .AND. &
           (.NOT. dft_control%qs_control%dftb) .AND. (.NOT. dft_control%qs_control%xtb)) THEN
-         CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r)
+         CALL auxbas_pool%give_back_pw(rho_tot_r)
          DEALLOCATE (rho_tot_r)
       END IF
       IF (iw > 0) THEN
@@ -1367,8 +1365,8 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".qmmmLog")
       CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools)
-      CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pools(1)%pool%create_pw(v_qmmm_rspace, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
       ALLOCATE (Num_Forces(3, num_mm_atoms))
       ks_qmmm_env_loc => qs_env%ks_qmmm_env
       IF (iw > 0) WRITE (iw, '(/A)') "DEBUG SECTION:"
@@ -1446,7 +1444,7 @@ CONTAINS
       END SELECT
       CALL cp_print_key_finished_output(iw, logger, print_section, "PROGRAM_RUN_INFO")
 
-      CALL pw_pool_give_back_pw(pw_pools(1)%pool, v_qmmm_rspace)
+      CALL pw_pools(1)%pool%give_back_pw(v_qmmm_rspace)
       DEALLOCATE (Num_Forces)
       CALL timestop(handle)
 100   FORMAT(I5, 2F15.9, " ( ", F7.2, " ) ", 2F15.9, " ( ", F7.2, " ) ", 2F15.9, " ( ", F7.2, " ) ")

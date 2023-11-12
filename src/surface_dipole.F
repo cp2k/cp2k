@@ -22,9 +22,7 @@ MODULE surface_dipole
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
@@ -100,12 +98,12 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, vdip_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(vdip_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       IF (dft_control%qs_control%gapw) THEN
          CALL pw_transfer(rho0_s_gs, wf_r)
@@ -268,8 +266,8 @@ CONTAINS
 !    Add the dipole potential to the hartree potential on the realspace grid
       CALL pw_axpy(vdip_r, v_hartree_rspace)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vdip_r)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+      CALL auxbas_pw_pool%give_back_pw(vdip_r)
 
       CALL timestop(handle)
 

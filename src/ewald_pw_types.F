@@ -36,13 +36,15 @@ MODULE ewald_pw_types
                                               pw_grid_setup
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
-   USE pw_poisson_types,                ONLY: &
-        do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, pw_poisson_create, &
-        pw_poisson_parameter_type, pw_poisson_release, pw_poisson_retain, pw_poisson_type
+   USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                              do_ewald_none,&
+                                              do_ewald_pme,&
+                                              do_ewald_spme,&
+                                              pw_poisson_parameter_type,&
+                                              pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_release,&
-                                              pw_pool_retain,&
                                               pw_pool_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
@@ -103,7 +105,10 @@ CONTAINS
       CALL pw_pool_release(ewald_pw%pw_small_pool)
       CALL pw_pool_release(ewald_pw%pw_big_pool)
       CALL rs_grid_release_descriptor(ewald_pw%rs_desc)
-      CALL pw_poisson_release(ewald_pw%poisson_env)
+      IF (ASSOCIATED(ewald_pw%poisson_env)) THEN
+         CALL ewald_pw%poisson_env%release()
+         DEALLOCATE (ewald_pw%poisson_env)
+      END IF
       CALL dg_release(ewald_pw%dg)
       DEALLOCATE (ewald_pw%dg)
 
@@ -188,7 +193,8 @@ CONTAINS
          logger => cp_get_default_logger()
          output_unit = cp_print_key_unit_nr(logger, print_section, "", extension=".Log")
          IF (.NOT. ASSOCIATED(ewald_pw%poisson_env)) THEN
-            CALL pw_poisson_create(ewald_pw%poisson_env)
+            ALLOCATE (ewald_pw%poisson_env)
+            CALL ewald_pw%poisson_env%create()
          END IF
          CALL pw_grid_create(pw_small_grid, mp_comm_self)
          CALL pw_grid_create(pw_big_grid, para_env)
@@ -251,7 +257,8 @@ CONTAINS
          logger => cp_get_default_logger()
          output_unit = cp_print_key_unit_nr(logger, print_section, "", extension=".Log")
          IF (.NOT. ASSOCIATED(ewald_pw%poisson_env)) THEN
-            CALL pw_poisson_create(ewald_pw%poisson_env)
+            ALLOCATE (ewald_pw%poisson_env)
+            CALL ewald_pw%poisson_env%create()
          END IF
          CALL pw_grid_create(pw_big_grid, para_env)
          npts_s = gmax
@@ -350,12 +357,12 @@ CONTAINS
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
 
       IF (PRESENT(pw_big_pool)) THEN
-         CALL pw_pool_retain(pw_big_pool)
+         CALL pw_big_pool%retain()
          CALL pw_pool_release(ewald_pw%pw_big_pool)
          ewald_pw%pw_big_pool => pw_big_pool
       END IF
       IF (PRESENT(pw_small_pool)) THEN
-         CALL pw_pool_retain(pw_small_pool)
+         CALL pw_small_pool%retain()
          CALL pw_pool_release(ewald_pw%pw_small_pool)
          ewald_pw%pw_small_pool => pw_small_pool
       END IF
@@ -369,9 +376,12 @@ CONTAINS
          ewald_pw%dg => dg
       END IF
       IF (PRESENT(poisson_env)) THEN
-         IF (ASSOCIATED(poisson_env)) &
-            CALL pw_poisson_retain(poisson_env)
-         CALL pw_poisson_release(ewald_pw%poisson_env)
+         IF (ASSOCIATED(ewald_pw%poisson_env)) THEN
+         IF (.NOT. ASSOCIATED(ewald_pw%poisson_env, poisson_env)) THEN
+            CALL ewald_pw%poisson_env%release()
+            DEALLOCATE (ewald_pw%poisson_env)
+         END IF
+         END IF
          ewald_pw%poisson_env => poisson_env
       END IF
 

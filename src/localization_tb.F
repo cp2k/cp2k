@@ -30,9 +30,7 @@ MODULE localization_tb
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -180,12 +178,12 @@ CONTAINS
 
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
-            CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, wf_g, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(wf_r, &
+                                          use_data=REALDATA3D, &
+                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(wf_g, &
+                                          use_data=COMPLEXDATA1D, &
+                                          in_space=RECIPROCALSPACE)
 
             NULLIFY (marked_states, qs_loc_env_homo)
             ALLOCATE (qs_loc_env_homo)
@@ -212,8 +210,8 @@ CONTAINS
             IF (qs_loc_env_homo%do_localize) THEN
                CALL loc_dipole(qs_env%input, dft_control, qs_loc_env_homo, logger, qs_env)
             END IF
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+            CALL auxbas_pw_pool%give_back_pw(wf_g)
+            CALL auxbas_pw_pool%give_back_pw(wf_r)
             CALL qs_loc_env_release(qs_loc_env_homo)
             DEALLOCATE (qs_loc_env_homo)
             IF (ASSOCIATED(marked_states)) THEN

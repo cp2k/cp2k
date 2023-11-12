@@ -19,8 +19,7 @@ MODULE qs_ks_qmmm_types
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_type
 #include "./base/base_uses.f90"
 
@@ -72,7 +71,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pool
 
       CALL pw_env_get(ks_qmmm_env%pw_env, auxbas_pw_pool=pool)
-      CALL pw_pool_give_back_pw(pool, ks_qmmm_env%v_qmmm_rspace)
+      CALL pool%give_back_pw(ks_qmmm_env%v_qmmm_rspace)
       CALL pw_env_release(ks_qmmm_env%pw_env)
       IF (ASSOCIATED(ks_qmmm_env%cube_info)) THEN
          DO i = 1, SIZE(ks_qmmm_env%cube_info)

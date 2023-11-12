@@ -47,9 +47,7 @@ MODULE qs_dcdr_ao
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_p_type,&
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
@@ -241,17 +239,17 @@ CONTAINS
       ! Done with deriv_set and rho_set
 
       ALLOCATE (v_rspace_new(dcdr_env%nspins))
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       ! Calculate the Hartree potential on the total density
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
 
       CALL qs_rho_get(perturbed_density, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
@@ -264,7 +262,7 @@ CONTAINS
                             v_hartree_gspace)
       CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho1_tot_gspace)
 
       ! Calculate the second derivative of the exchange-correlation potential
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
@@ -298,10 +296,10 @@ CONTAINS
                                  calculate_forces=.FALSE.)
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
       DO ispin = 1, dcdr_env%nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin))
+         CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
       END DO
       DEALLOCATE (v_rspace_new)
 
@@ -313,7 +311,7 @@ CONTAINS
                                  compute_tau=.TRUE., &
                                  calculate_forces=.FALSE.)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(1))
+         CALL auxbas_pw_pool%give_back_pw(v_xc_tau(1))
          DEALLOCATE (v_xc_tau)
       END IF
 
@@ -366,17 +364,15 @@ CONTAINS
                       pw_pools=pw_pools)
 
       ! Create the Hartree potential grids in real and reciprocal space.
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             v_hartree_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
       ! Create the grid for the derivative of the core potential
-      CALL pw_pool_create_pw(auxbas_pw_pool, drho_g, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(drho_g, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       DO beta = 1, 3
          CALL pw_zero(v_hartree_gspace)
@@ -398,9 +394,9 @@ CONTAINS
                                  calculate_forces=.FALSE.)
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(drho_g)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
 
       CALL timestop(handle)
    END SUBROUTINE d_core_charge_density_dR
@@ -538,23 +534,23 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools, poisson_env=poisson_env)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       DO ispin = 1, dcdr_env%nspins
-         CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(ispin), &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(ispin), &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(drho_r(ispin), &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(drho_g(ispin), &
+                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
-      CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_total, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_total, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(drho_g_total, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(drho_r_total, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
 
       DO idir = 1, 3
          CALL pw_zero(v_hartree_gspace)
@@ -608,19 +604,19 @@ CONTAINS
                                     calculate_forces=.FALSE.)
 
             ! v_xc gets allocated again in xc_calc_2nd_deriv
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin))
+            CALL auxbas_pw_pool%give_back_pw(v_xc(ispin))
          END DO ! ispin
          DEALLOCATE (v_xc)
       END DO ! idir
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g_total)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r_total)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(drho_g_total)
+      CALL auxbas_pw_pool%give_back_pw(drho_r_total)
 
       DO ispin = 1, dcdr_env%nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(ispin))
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(ispin))
+         CALL auxbas_pw_pool%give_back_pw(drho_g(ispin))
+         CALL auxbas_pw_pool%give_back_pw(drho_r(ispin))
       END DO
 
       DEALLOCATE (drho_g)
@@ -691,7 +687,7 @@ CONTAINS
                                  qs_env=qs_env, &
                                  lambda=dcdr_env%lambda)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hxc_r(ispin))
+         CALL auxbas_pw_pool%give_back_pw(v_hxc_r(ispin))
       END DO
 
       DEALLOCATE (v_hxc_r)

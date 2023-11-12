@@ -44,9 +44,7 @@ MODULE mp2_eri_gpw
         pw_scale, pw_transfer, pw_truncated, pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -1028,18 +1026,18 @@ CONTAINS
                                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
 
       ! get some of the grids ready
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
-                             use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, psi_L, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_r, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pot_g, &
+                                    use_data=COMPLEXDATA1D, &
+                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(psi_L, &
+                                    use_data=REALDATA3D, &
+                                    in_space=REALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
       CALL pw_zero(rho_r)
@@ -1084,10 +1082,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! and now free the whole lot
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L)
+      CALL auxbas_pw_pool%give_back_pw(rho_r)
+      CALL auxbas_pw_pool%give_back_pw(rho_g)
+      CALL auxbas_pw_pool%give_back_pw(pot_g)
+      CALL auxbas_pw_pool%give_back_pw(psi_L)
 
       CALL deallocate_task_list(task_list_sub)
       CALL pw_env_release(pw_env_sub, para_env=para_env_sub)
