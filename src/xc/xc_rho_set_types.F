@@ -477,8 +477,7 @@ CONTAINS
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob
 
             IF (ASSOCIATED(rho)) THEN
-               CALL rho_pw%create(pw_grid=pw_grid, &
-                                  cr3d_ptr=rho, &
+               CALL rho_pw%create(pw_grid=pw_grid, r3d_ptr=rho, &
                                   use_data=REALDATA3D, in_space=REALSPACE)
                NULLIFY (rho)
             ELSE IF (PRESENT(rhoa) .AND. PRESENT(rhob)) THEN

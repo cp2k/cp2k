@@ -6,22 +6,26 @@
 #!-------------------------------------------------------------------------------------------------!
 #:mute
 
-   #:set nametype1 =['r', 'i', 'logical']
-   #:set type1 = ['REAL(kind=dp)','INTEGER(kind=int_4)','logical']
+   #:set nametype1 =['r', 'c', 'i', 'logical']
+   #:set type1 = ['REAL(kind=dp)','COMPLEX(KIND=dp)','INTEGER(kind=int_4)','logical']
 
-   #:set usekinds = ['dp', 'int_4', '']
+   #:set usekinds = ['dp', 'dp', 'int_4', '']
 
-   #:set defaultFormatType1 = ['"(es14.6)"', '"(i6)"', '"(l1)"']
+   #:set defaultFormatType1 = ['"(es14.6)"', '"(es14.6)"','"(i6)"', '"(l1)"']
 
    #:def lessQnum(el1, el2)
       ${el1}$ < ${el2}$
+   #:enddef
+
+   #:def lessQcomplex(el1, el2)
+REAL(${el1}$) < REAL(${el2}$) .OR. (ABS(REAL(${el1}$)-REAL(${el2}$)) < epsilon(MAX(ABS(REAL(${el1}$)), ABS(REAL(${el2}$)))) .and. AIMAG(${el1}$) <  AIMAG(${el2}$))
    #:enddef
 
    #:def lessQlog(el1, el2)
       (.not. ${el1}$) .and. ${el2}$
    #:enddef
 
-   #:set lessQ = [lessQnum, lessQnum, lessQlog]
+   #:set lessQ = [lessQnum, lessQcomplex, lessQnum, lessQlog]
 
    #:set inst_params = list(zip(nametype1, type1, defaultFormatType1, lessQ))
 

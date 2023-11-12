@@ -74,11 +74,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: std_deriv_desc
       LOGICAL                                            :: my_allocate_deriv
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: cr3d_ptr
+         POINTER                                         :: r3d_ptr
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
-      NULLIFY (pos, deriv_att, cr3d_ptr)
+      NULLIFY (pos, deriv_att, r3d_ptr)
 
       my_allocate_deriv = .FALSE.
       IF (PRESENT(allocate_deriv)) my_allocate_deriv = allocate_deriv
@@ -94,11 +94,11 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. ASSOCIATED(res) .AND. my_allocate_deriv) THEN
-         CALL derivative_set%pw_pool%create_cr3d(cr3d_ptr)
-         cr3d_ptr = 0.0_dp
+         CALL derivative_set%pw_pool%create_cr3d(r3d_ptr)
+         r3d_ptr = 0.0_dp
          ALLOCATE (res)
          CALL xc_derivative_create(res, std_deriv_desc, &
-                                   cr3d_ptr=cr3d_ptr)
+                                   r3d_ptr=r3d_ptr)
          CALL cp_sll_xc_deriv_insert_el(derivative_set%derivs, res)
       END IF
    END FUNCTION xc_dset_get_derivative
@@ -203,7 +203,7 @@ CONTAINS
 
       deriv_att => xc_dset_get_derivative(deriv_set, description)
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL pw%create(pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
+         CALL pw%create(pw_grid=pw_grid, r3d_ptr=deriv_att%deriv_data, &
                         use_data=REALDATA3D, in_space=REALSPACE)
          NULLIFY (deriv_att%deriv_data)
       ELSE IF (PRESENT(pw_pool)) THEN
