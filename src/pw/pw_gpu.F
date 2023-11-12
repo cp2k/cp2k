@@ -128,6 +128,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (pw2%in_space /= RECIPROCALSPACE) &
+         CPABORT("Grid 2 must be in reciprocal space!")
+
       ngpts = SIZE(pw2%pw_grid%gsq)
       l1 = LBOUND(pw1%cr3d, 1)
       l2 = LBOUND(pw1%cr3d, 2)
@@ -148,8 +151,6 @@ CONTAINS
       MARK_USED(scale)
       CPABORT("Compiled without pw offloading.")
 #endif
-
-      pw2%in_space = RECIPROCALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_r3dc1d_3d
@@ -187,6 +188,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (pw2%in_space /= REALSPACE) &
+         CPABORT("Grid 2 must be in real space!")
+
       ngpts = SIZE(pw1%pw_grid%gsq)
       l1 = LBOUND(pw2%cr3d, 1)
       l2 = LBOUND(pw2%cr3d, 2)
@@ -208,8 +212,6 @@ CONTAINS
       MARK_USED(scale)
       CPABORT("Compiled without pw offloading")
 #endif
-
-      pw2%in_space = REALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_c1dr3d_3d
@@ -243,6 +245,9 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
+
+      IF (pw2%in_space /= RECIPROCALSPACE) &
+         CPABORT("Grid 2 must be in reciprocal space!")
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -383,8 +388,6 @@ CONTAINS
          !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
 
-      pw2%in_space = RECIPROCALSPACE
-
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_r3dc1d_3d_ps
 
@@ -417,6 +420,9 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
+
+      IF (pw2%in_space /= REALSPACE) &
+         CPABORT("Grid 2 must be in real space!")
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -560,8 +566,6 @@ CONTAINS
          !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
          !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
-
-      pw2%in_space = REALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_c1dr3d_3d_ps
