@@ -145,10 +145,12 @@ CONTAINS
 !> \param weights ...
 !> \param ispin ...
 !> \param print_loc_section ...
+!> \param restricted ...
 !> \param nextra ...
 !> \param nmo ...
 !> \param vectors_2 ...
 !> \param guess_mos ...
+!> \param restricted: flag for LOW SPIN ROKS UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -159,7 +161,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE optimize_loc_berry(method, qs_loc_env, vectors, op_sm_set, &
                                  zij_fm_set, para_env, cell, weights, ispin, print_loc_section, &
-                                 nextra, nmo, vectors_2, guess_mos)
+                                 restricted, nextra, nmo, vectors_2, guess_mos)
 
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
@@ -171,6 +173,7 @@ CONTAINS
       REAL(dp), DIMENSION(:)                             :: weights
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
+      INTEGER                                            :: restricted
       INTEGER, INTENT(IN), OPTIONAL                      :: nextra, nmo
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: vectors_2, guess_mos
 
@@ -213,7 +216,8 @@ CONTAINS
       CASE (do_loc_jacobi)
          CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
                                eps_localization=eps_localization, sweeps=sweeps, &
-                               out_each=out_each, target_time=target_time, start_time=start_time)
+                               out_each=out_each, target_time=target_time, start_time=start_time, &
+                               restricted=restricted)
       CASE (do_loc_gapo)
          IF (my_do_mixed) THEN
             IF (nextra > 0) THEN
@@ -247,7 +251,8 @@ CONTAINS
                                        ispin, print_loc_section, only_initial_out=.TRUE.)
             CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
                                   eps_localization=eps_localization, sweeps=sweeps, &
-                                  out_each=out_each, target_time=target_time, start_time=start_time)
+                                  out_each=out_each, target_time=target_time, start_time=start_time, &
+                                  restricted=restricted)
          END IF
       CASE (do_loc_crazy)
          CALL crazy_rotations(weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle=max_crazy_angle, &
@@ -261,7 +266,8 @@ CONTAINS
                   " iterations, switching to jacobi rotations"
                CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
                                      eps_localization=eps_localization, sweeps=sweeps, &
-                                     out_each=out_each, target_time=target_time, start_time=start_time)
+                                     out_each=out_each, target_time=target_time, start_time=start_time, &
+                                     restricted=restricted)
             ELSE
                IF (output_unit > 0) WRITE (output_unit, "(T4,A,I6,/,T4,A)") &
                   " Crazy Wannier localization not converged after ", sweeps, &
