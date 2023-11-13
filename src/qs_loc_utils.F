@@ -1048,7 +1048,6 @@ CONTAINS
                           do_homo, do_mo_cubes, mo_loc_history, evals, &
                           tot_zeff_corr, do_mixed)
 
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: localize_section
@@ -1071,6 +1070,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1085,7 +1085,7 @@ CONTAINS
                       matrix_ks=ks_rmpv, &
                       mo_derivs=mo_derivs, &
                       scf_control=scf_control, &
-                      dft_control=dft_control,&
+                      dft_control=dft_control, &
                       para_env=para_env)
 
       loc_print_section => section_vals_get_subs_vals(localize_section, "PRINT")
@@ -1166,7 +1166,7 @@ CONTAINS
                ! Get eigenstates (only needed if not already calculated before)
                IF ((.NOT. my_do_mo_cubes) &
                    !                  .OR. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO")==0)&
-                   .AND. my_do_homo .AND. qs_env%scf_env%method == ot_method_nr .AND. (.NOT.dft_control%restricted)) THEN
+                   .AND. my_do_homo .AND. qs_env%scf_env%method == ot_method_nr .AND. (.NOT. dft_control%restricted)) THEN
                   CALL make_mo_eig(mos, nspin, ks_rmpv, scf_control, mo_derivs)
                END IF
                IF (localized_wfn_control%set_of_states == state_loc_all .AND. my_do_homo) THEN
