@@ -1,9 +1,10 @@
 # Density Functional Theory
 
 ```{toctree}
-:titlesonly:
-:maxdepth: 1
-
+---
+titlesonly:
+maxdepth: 1
+---
 gpw
 gapw
 hfx

@@ -1,9 +1,10 @@
 # Sampling
 
 ```{toctree}
-:titlesonly:
-:maxdepth: 1
-
+---
+titlesonly:
+maxdepth: 1
+---
 Molecular Dynamics <https://www.cp2k.org/howto:md>
 metadynamics
 path_integrals
