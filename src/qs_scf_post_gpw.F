@@ -69,8 +69,8 @@ MODULE qs_scf_post_gpw
    USE iao_types,                       ONLY: iao_env_type,&
                                               iao_read_input
    USE input_constants,                 ONLY: &
-        do_loc_both, do_loc_homo, do_loc_lumo, do_loc_mixed, ot_precond_full_all, radius_covalent, &
-        radius_user, ref_charge_atomic, ref_charge_mulliken
+        do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
+        ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -244,7 +244,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
 
       INTEGER :: handle, homo, ispin, min_lumos, n_rep, nchk_nmoloc, nhomo, nlumo, nlumo_stm, &
-         nlumo_tddft, nlumos, nmo, output_unit, unit_nr
+         nlumo_tddft, nlumos, nmo, nspins, output_unit, unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
       LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_mo_cubes, do_stm, &
          do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_do_mp2, &
@@ -459,6 +459,12 @@ CONTAINS
                                        in_space=RECIPROCALSPACE)
       END IF
 
+      !Some info about ROKS
+      IF (dft_control%restricted .AND. (do_mo_cubes .OR. p_loc_homo)) THEN
+         CALL cp_warn(__LOCATION__, "Unclear how we define MOs / localization in the restricted case ... "// &
+                      "Experimental feature. ")
+         ! It is possible to obtain Wannier centers for ROKS without rotations for SINGLE OCCUPIED ORBITALS
+      END IF
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
       IF (do_kpoints) THEN
          IF (do_mo_cubes) THEN
@@ -469,10 +475,7 @@ CONTAINS
                          mos=mos, &
                          matrix_ks=ks_rmpv)
          IF ((do_mo_cubes .AND. nhomo /= 0) .OR. do_stm .OR. dft_control%do_tddfpt_calculation) THEN
-            IF (dft_control%restricted) THEN
-               IF (output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") &
-                  " Unclear how we define MOs in the restricted case ... skipping"
-            ELSE
+            IF (.NOT. dft_control%restricted) THEN
                CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
                IF (dft_control%do_admm) THEN
                   CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -488,7 +491,13 @@ CONTAINS
             has_homo = .TRUE.
          END IF
          IF (do_mo_cubes .AND. nhomo /= 0) THEN
-            DO ispin = 1, dft_control%nspins
+            IF (dft_control%restricted) THEN
+               !For ROKS usefull only first term
+               nspins = 1
+            ELSE
+               nspins = dft_control%nspins
+            END IF
+            DO ispin = 1, nspins
                ! Prints the cube files of OCCUPIED ORBITALS
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
@@ -505,9 +514,10 @@ CONTAINS
       IF (p_loc_homo) THEN
          IF (do_kpoints) THEN
             CPWARN("Localization not implemented for k-point calculations!!")
-         ELSEIF (dft_control%restricted) THEN
-            IF (output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") &
-               " Unclear how we define MOs / localization in the restricted case ... skipping"
+         ELSEIF (dft_control%restricted &
+                 .AND. (section_get_ival(localize_section, "METHOD") .NE. do_loc_none) &
+                 .AND. (section_get_ival(localize_section, "METHOD") .NE. do_loc_jacobi)) THEN
+            CPABORT("ROKS works only with LOCALIZE METHOD NONE or JACOBI")
          ELSE
             ALLOCATE (occupied_orbs(dft_control%nspins))
             ALLOCATE (occupied_evals(dft_control%nspins))

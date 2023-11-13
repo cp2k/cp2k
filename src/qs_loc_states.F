@@ -80,7 +80,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info'
 
-      INTEGER                                            :: handle, ispin, mystate, ns, output_unit
+      INTEGER                                            :: handle, ispin, mystate, ns, nspins, &
+                                                            output_unit
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
       LOGICAL                                            :: do_homo, do_mixed
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
@@ -109,8 +110,15 @@ CONTAINS
             ALLOCATE (wc(dft_control%nspins))
          END IF
       END IF
+
+      IF (dft_control%restricted) THEN
+         !For ROKS usefull only first term
+         nspins = 1
+      ELSE
+         nspins = dft_control%nspins
+      END IF
       !
-      DO ispin = 1, dft_control%nspins
+      DO ispin = 1, nspins
          !
          IF (do_homo) THEN
             qs_loc_env%tag_mo = "HOMO"

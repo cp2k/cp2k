@@ -103,7 +103,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
       INTEGER                                            :: dim_op, handle, i, imo, imoloc, j, lb, &
-                                                            loc_method, nao, nmosub, ub
+                                                            loc_method, nao, nmosub, restricted, ub
+      INTEGER, DIMENSION(:), POINTER                     :: ivec
       LOGICAL, SAVE                                      :: first_time = .TRUE.
       REAL(dp), DIMENSION(6)                             :: weights
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
@@ -117,6 +118,7 @@ CONTAINS
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section
 
       CALL timeset(routineN, handle)
       NULLIFY (para_env, mos, dft_control)
@@ -130,7 +132,17 @@ CONTAINS
                           moloc_coeff=moloc_coeff, op_sm_set=op_sm_set, op_fm_set=op_fm_set, cell=cell, &
                           weights=weights, dim_op=dim_op)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env, mos=mos)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
+                      para_env=para_env, mos=mos, input=input)
+
+      !calculation of single occupied states to which unitary transformations should not be applied in LOW SPIN ROKS
+      IF (dft_control%restricted) THEN
+         low_spin_roks_section => section_vals_get_subs_vals(input, "DFT%LOW_SPIN_ROKS")
+         CALL section_vals_val_get(low_spin_roks_section, "SPIN_CONFIGURATION", i_rep_val=1, i_vals=ivec)
+         restricted = SIZE(ivec)
+      ELSE
+         restricted = 0
+      END IF
 
       NULLIFY (locorb)
       IF (PRESENT(ext_mo_coeff)) THEN
@@ -166,7 +178,8 @@ CONTAINS
          SELECT CASE (localized_wfn_control%operator_type)
          CASE (op_loc_berry)
             CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
-                                    op_fm_set, para_env, cell, weights, myspin, print_loc_section)
+                                    op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
+                                    restricted=restricted)
          CASE (op_loc_boys)
             CPABORT("Boys localization not implemented")
          CASE (op_loc_pipek)
@@ -245,8 +258,9 @@ CONTAINS
 
       INTEGER                                            :: dim_op, handle, jspin, loc_method, nao, &
                                                             ndummy, nextra, ngextra, nguess, nmo, &
-                                                            nmosub, norextra
+                                                            nmosub, norextra, restricted
       INTEGER, DIMENSION(2)                              :: nelectron_spin
+      INTEGER, DIMENSION(:), POINTER                     :: ivec
       LOGICAL                                            :: do_ortho, has_unit_metric, &
                                                             my_guess_atomic, my_guess_wan
       REAL(dp), DIMENSION(6)                             :: weights
@@ -268,11 +282,22 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: input, low_spin_roks_section
 
       CALL timeset(routineN, handle)
 
       NULLIFY (moloc_coeff, op_sm_set)
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env, mos=mos)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env, mos=mos, input=input)
+
+      !calculation of single occupied states to which unitary transformations should not be applied in LOW SPIN ROKS
+      IF (dft_control%restricted) THEN
+         low_spin_roks_section => section_vals_get_subs_vals(input, "DFT%LOW_SPIN_ROKS")
+         CALL section_vals_val_get(low_spin_roks_section, "SPIN_CONFIGURATION", i_rep_val=1, i_vals=ivec)
+         restricted = SIZE(ivec)
+      ELSE
+         restricted = 0
+      END IF
+
       CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
                           localized_wfn_control=localized_wfn_control, &
                           moloc_coeff=moloc_coeff, op_sm_set=op_sm_set, cell=cell, &
@@ -419,19 +444,21 @@ CONTAINS
 
             CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
                                     op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
-                                    nextra=nextra, nmo=nmo, vectors_2=vectors_2, &
-                                    guess_mos=mos_guess)
+                                    restricted=restricted, &
+                                    nextra=nextra, nmo=nmo, vectors_2=vectors_2, guess_mos=mos_guess)
             CALL cp_fm_release(mos_guess)
          ELSE
             CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
                                     op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
+                                    restricted=restricted, &
                                     nextra=nextra, nmo=nmo, vectors_2=vectors_2)
          END IF
          CALL cp_fm_release(vectors_2)
          IF (my_guess_atomic) CALL dbcsr_deallocate_matrix_set(p_rmpv)
       ELSE
          CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(myspin), op_sm_set, &
-                                 op_fm_set, para_env, cell, weights, myspin, print_loc_section, nextra=0)
+                                 op_fm_set, para_env, cell, weights, myspin, print_loc_section, &
+                                 restricted=restricted, nextra=0)
       END IF
 
       CALL timestop(handle)
