@@ -309,7 +309,7 @@ CONTAINS
 
       IF (para_env%num_pe == 1) THEN
          CALL jacobi_rotations_serial(weights, zij, vectors, max_iter, eps_localization, &
-         sweeps, out_each, restricted=restricted)
+                                      sweeps, out_each, restricted=restricted)
       ELSE
          CALL jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
                               sweeps, out_each, target_time, start_time, restricted=restricted)
@@ -330,7 +330,7 @@ CONTAINS
 !> \param restricted ...
 ! **************************************************************************************************
    SUBROUTINE jacobi_rotations_serial(weights, zij, vectors, max_iter, eps_localization, sweeps, &
-      out_each, restricted)
+                                      out_each, restricted)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
@@ -369,7 +369,7 @@ CONTAINS
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
       tolerance = 1.0e10_dp
-      
+
       IF (restricted > 0) THEN
          WRITE (6, *) "JACOBI: The last ", restricted, " orbitals do not rotate"
          nstate = nstate - restricted
@@ -2184,7 +2184,7 @@ CONTAINS
 !> \author MI (11.2009)
 ! **************************************************************************************************
    SUBROUTINE jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
-      sweeps, out_each, target_time, start_time, restricted)
+                              sweeps, out_each, target_time, start_time, restricted)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
