@@ -1650,9 +1650,6 @@ CONTAINS
          END IF
 
          IF (dft_control%do_sccs) THEN
-            IF (dft_control%qs_control%gapw) THEN
-               CPABORT("SCCS is not yet implemented with GAPW")
-            END IF
             WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
                "SCCS| Self-consistent continuum solvation model"
             WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &

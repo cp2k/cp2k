@@ -677,8 +677,11 @@ CONTAINS
       ! set periodicity flag
       dft_control%qs_control%periodicity = SUM(cell%perd)
 
-      !   *** Read the input section with the Quickstep control parameters ***
+      !  Read the input section with the Quickstep control parameters
       CALL read_qs_section(dft_control%qs_control, qs_section)
+      IF (dft_control%do_sccs .AND. dft_control%qs_control%gapw) THEN
+         CPABORT("SCCS is not yet implemented with GAPW")
+      END IF
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
       IF (do_kpoints) THEN
          ! reset some of the settings for wfn extrapolation for kpoints
