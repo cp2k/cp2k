@@ -1,26 +1,24 @@
 # STMV benchmark
 
-This benchmark test the performance of CP2K to run calculations of the electronic
-structure of relatively complex systems containing a million atoms. The input is
-based on [earlier work](https://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00398)
-where the electronic structure of the STMV virus was simulated based on DFT and
-subsystem DFT. Here, instead, the xTB tight-binding method is employed. The input
-is realistic in its input settings and might be useful to set up similar systems.
+This benchmark test the performance of CP2K to run calculations of the electronic structure of
+relatively complex systems containing a million atoms. The input is based on
+[earlier work](https://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00398) where the electronic
+structure of the STMV virus was simulated based on DFT and subsystem DFT. Here, instead, the xTB
+tight-binding method is employed. The input is realistic in its input settings and might be useful
+to set up similar systems.
 
 ## Properties of the benchmark
 
-The benchmark exercises in particular the sparse matrix handling and linear
-scaling algorithms in CP2K. It performs 1 step of geometry optimization, so
-requires SCF, energy and force calculations. Some properties are computed as well.
-Given the xTB method, relatively small block sizes dominate in the sparse matrix
-multiplication.
+The benchmark exercises in particular the sparse matrix handling and linear scaling algorithms in
+CP2K. It performs 1 step of geometry optimization, so requires SCF, energy and force calculations.
+Some properties are computed as well. Given the xTB method, relatively small block sizes dominate in
+the sparse matrix multiplication.
 
 ## Typical timings and setup
 
-A typical parallel run will require on the order of 256 nodes, to see completion
-of the benchmark in a reasonable time, and memory consumption. An invocation with
-slurm on a system with 32 threads per node (dual socket, Intel(R) Xeon(R)
-CPU E5-2695 v4 @ 2.10GHz, Piz Daint multi-core) could look like:
+A typical parallel run will require on the order of 256 nodes, to see completion of the benchmark in
+a reasonable time, and memory consumption. An invocation with slurm on a system with 32 threads per
+node (dual socket, Intel(R) Xeon(R) CPU E5-2695 v4 @ 2.10GHz, Piz Daint multi-core) could look like:
 
 ```shell
 export OMP_NUM_THREADS=8
@@ -28,8 +26,8 @@ srun --cpu-bind=none --nodes=256 --ntasks=1024 --ntasks-per-node=4 \
      --cpus-per-task=8 ./cp2k.psmp -i stmv_xtb.inp -o stmv_xtb.out
 ```
 
-Which would need roughly 7Gb per rank (28Gb per node), and would run in in less
-than 4h. The timing report for  this run (based on CP2K 7.0, git:bf104a630):
+Which would need roughly 7Gb per rank (28Gb per node), and would run in in less than 4h. The timing
+report for this run (based on CP2K 7.0, git:bf104a630):
 
 ```cp2k-output
 SUBROUTINE                       CALLS  ASD         SELF TIME        TOTAL TIME

@@ -2,16 +2,14 @@
 
 ## Description
 
-This benchmark performs a short QM/MM MD simulation of 5 steps.
-The MQAE system is a solute-solvent system consisting of a N-(6-methoxyquinolyl)
-acetoethyl ester in solution. All 34 atoms of the ester are treated with QM
-whereas the remaining water atoms are treated with MM. The parameters for the
-organic molecule are created using the General Amber Force Field (GAFF) and the
-water molecules are modelled using the SPCE model. The BLYP functional as the XC
-functional are used and an energy cut-off of 400 Ry for the plane waves was
-found to be suitable. The QM/MM coupling is described with the Gaussian Expansion
-of the Electrostatic Potential (GEEP) method, and the bonds between theQM and MM
-atoms are treated using the Generalized Hybrid Orbital (GHO) method.
+This benchmark performs a short QM/MM MD simulation of 5 steps. The MQAE system is a solute-solvent
+system consisting of a N-(6-methoxyquinolyl) acetoethyl ester in solution. All 34 atoms of the ester
+are treated with QM whereas the remaining water atoms are treated with MM. The parameters for the
+organic molecule are created using the General Amber Force Field (GAFF) and the water molecules are
+modelled using the SPCE model. The BLYP functional as the XC functional are used and an energy
+cut-off of 400 Ry for the plane waves was found to be suitable. The QM/MM coupling is described with
+the Gaussian Expansion of the Electrostatic Potential (GEEP) method, and the bonds between theQM and
+MM atoms are treated using the Generalized Hybrid Orbital (GHO) method.
 
 See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
@@ -19,8 +17,8 @@ See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
 `MQAE.inp` - CP2K input file.
 
-`MQAE.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and
-the SPCE water model are used.
+`MQAE.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and the SPCE water model are
+used.
 
 `MQAE.pdb` - Atomic input coordinates.
 

@@ -2,8 +2,7 @@
 
 ## Description of Input Files
 
-- [`H2O-128-PBE-TZ.inp`](H2O-128-PBE-TZ.inp):
-  needed to generate an initial wfn for the SCF runs
+- [`H2O-128-PBE-TZ.inp`](H2O-128-PBE-TZ.inp): needed to generate an initial wfn for the SCF runs
 - [`H2O-128-RI-dRPA-TZ.inp`](H2O-128-RI-dRPA-TZ.inp): actual RI-dRPA benchmark
 
 ## Additional files
@@ -14,8 +13,8 @@
 
 ## How to Run the Benchmark
 
-1. run `H2O-128-PBE-TZ.inp`: this will generate the file `H2O-128-PBE-TZ-RESTART.wfn`,
-   necessary for the benchmark run.
+1. run `H2O-128-PBE-TZ.inp`: this will generate the file `H2O-128-PBE-TZ-RESTART.wfn`, necessary for
+   the benchmark run.
 1. run `H2O-128-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
 
 ## Results

@@ -1,31 +1,21 @@
 # CP2K Precommit
 
-The precommit system consists of the following tools that analyze and format the
-source code:
+The precommit system consists of the following tools that analyze and format the source code:
 
-- [doxify](../doxify/)
-  to add Doxygen templates.
-- [prettify](../prettify/)
-  to format Fortran files.
-- [analyze_src](../conventions/analyze_src.py)
-  to check copyright banners and a few other things.
-- [ast.parse](https://docs.python.org/3/library/ast.html)
-  to check Python syntax.
-- [clang-format](https://clang.llvm.org/docs/ClangFormat.html)
-  to format C and Cuda files.
-- [black](https://github.com/psf/black)
-  to format Python scripts.
-- [shfmt](https://github.com/mvdan/sh)
-  to format Shell scripts.
-- [shellcheck](https://github.com/koalaman/shellcheck)
-  to analyze Shell scripts.
-- [mdformat](https://github.com/executablebooks/mdformat) with [gfm plugin](https://github.com/hukkin/mdformat-gfm)
-  to format Markdown scripts.
-- [cmake-format](https://github.com/cheshirekow/cmake_format)
-  to format CMake scripts.
+- [doxify](../doxify/) to add Doxygen templates.
+- [prettify](../prettify/) to format Fortran files.
+- [analyze_src](../conventions/analyze_src.py) to check copyright banners and a few other things.
+- [ast.parse](https://docs.python.org/3/library/ast.html) to check Python syntax.
+- [clang-format](https://clang.llvm.org/docs/ClangFormat.html) to format C and Cuda files.
+- [black](https://github.com/psf/black) to format Python scripts.
+- [shfmt](https://github.com/mvdan/sh) to format Shell scripts.
+- [shellcheck](https://github.com/koalaman/shellcheck) to analyze Shell scripts.
+- [mdformat](https://github.com/executablebooks/mdformat) with
+  [gfm plugin](https://github.com/hukkin/mdformat-gfm) to format Markdown scripts.
+- [cmake-format](https://github.com/cheshirekow/cmake_format) to format CMake scripts.
 
-In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools
-process each file individually, which makes them much more lightweight.
+In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools process each file
+individually, which makes them much more lightweight.
 
 ## Install Git Hook
 
@@ -37,9 +27,9 @@ ln -fs ../../tools/precommit/precommit.py .git/hooks/pre-commit
 
 ## Server
 
-Many of the tools listed above require more than just Python. To avoid their
-tedious installation a remote server is used by default. It is hosted at
-<https://precommit.cp2k.org> via [Cloud Run](https://cloud.google.com/run).
+Many of the tools listed above require more than just Python. To avoid their tedious installation a
+remote server is used by default. It is hosted at <https://precommit.cp2k.org> via
+[Cloud Run](https://cloud.google.com/run).
 
 The same server can also be started locally when Docker is available:
 
@@ -61,12 +51,10 @@ Searching for files...
 
 ## Backups and Cache
 
-Before precommit runs an external tool on a file it create a backup copy in
-`obj/precommit`. If the tool leaves the file unmodified then the backup copy is
-remove afterwards. If the tool modifies the file and precommit was invoked
-without `--allow-modifications` then the backup copy is used to restore the
-file's original content.
+Before precommit runs an external tool on a file it create a backup copy in `obj/precommit`. If the
+tool leaves the file unmodified then the backup copy is remove afterwards. If the tool modifies the
+file and precommit was invoked without `--allow-modifications` then the backup copy is used to
+restore the file's original content.
 
-After a successful tool run the file's timestamp is recorded in
-`obj/precommit/cache.json` and precommit will skip it in future unless it's
-invoked with `--no-cache`.
+After a successful tool run the file's timestamp is recorded in `obj/precommit/cache.json` and
+precommit will skip it in future unless it's invoked with `--no-cache`.

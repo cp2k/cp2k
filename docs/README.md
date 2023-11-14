@@ -1,8 +1,9 @@
 # CP2K Documentation
 
-These are the source of the [CP2K manual](https://manual.cp2k.org/trunk). They are published daily by [this script](../tools/docker/scripts/test_manual.sh).
+These are the source of the [CP2K manual](https://manual.cp2k.org/trunk). They are published daily
+by [this script](../tools/docker/scripts/test_manual.sh).
 
-To build  a local version of the manual perform the following steps:
+To build a local version of the manual perform the following steps:
 
 1. Install the required Python packaged:
 

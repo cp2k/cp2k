@@ -2,13 +2,11 @@
 
 ## Description of Input Files
 
-- [`H2O-64-PBE-TZ.inp`](H2O-64-PBE-TZ.inp):
-  needed to generate an initial wfn for the SCF runs
-- [`H2O-64-RI-MP2-TZ.inp`](H2O-64-RI-MP2-TZ.inp): actual RI-MP2 benchmark:
-  the system consists of 64 water molecules in a 12.4 cubic angstrom cell.
-  This is exactly the same system as used in the [Quickstep H2O-64](../../QS/H2O-64.inp)
-  benchmark but using a much more accurate model, which is around 100 times more
-  computationally demanding than standard DFT calculations.
+- [`H2O-64-PBE-TZ.inp`](H2O-64-PBE-TZ.inp): needed to generate an initial wfn for the SCF runs
+- [`H2O-64-RI-MP2-TZ.inp`](H2O-64-RI-MP2-TZ.inp): actual RI-MP2 benchmark: the system consists of 64
+  water molecules in a 12.4 cubic angstrom cell. This is exactly the same system as used in the
+  [Quickstep H2O-64](../../QS/H2O-64.inp) benchmark but using a much more accurate model, which is
+  around 100 times more computationally demanding than standard DFT calculations.
 - [`H2O-64-RI-dRPA-TZ.inp`](H2O-64-RI-dRPA-TZ.inp): actual RI-dRPA benchmark
 
 ## Additional files
@@ -17,13 +15,13 @@
 - [`POTENTIAL_H2O`](POTENTIAL_H2O): contains the GTH pseudo potentials
 - [`H2O-64.xyz`](H2O-64.xyz): geometry in xyz format
 
-the additional files [`t_c_g.dat`](../../../data/t_c_g.dat) is needed for the
-RI-MP2 run, and can be found in the [cp2k/data](../../../data) directory.
+the additional files [`t_c_g.dat`](../../../data/t_c_g.dat) is needed for the RI-MP2 run, and can be
+found in the [cp2k/data](../../../data) directory.
 
 ## How to Run the Benchmark
 
-1. run `H2O-64-PBE-TZ.inp`: this will generate the file `H2O-64-PBE-TZ-RESTART.wfn`,
-   necessary for the two benchmark runs.
+1. run `H2O-64-PBE-TZ.inp`: this will generate the file `H2O-64-PBE-TZ-RESTART.wfn`, necessary for
+   the two benchmark runs.
 1. run `H2O-64-RI-MP2-TZ.inp` for the RI-MP2 benchmark.
 1. and/or run `H2O-64-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
 
@@ -31,8 +29,7 @@ RI-MP2 run, and can be found in the [cp2k/data](../../../data) directory.
 
 ### Best Configurations
 
-The best configurations are shown below.
-Click the links under "Detailed Results"to see more detail.
+The best configurations are shown below. Click the links under "Detailed Results"to see more detail.
 
 | Machine Name | Architecture | Date       | SVN Revision | Fastest time (s) | Number of Cores | Number of Threads                  | Detailed Results                                                                    |
 | ------------ | ------------ | ---------- | ------------ | ---------------- | --------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |

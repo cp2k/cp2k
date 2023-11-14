@@ -1,18 +1,18 @@
 # grid: High performance primitives to power GPW & Co
 
-This package hosts the performance critical grid operations of cp2k. The code is
-entirely written in C and can be built stand-alone in order to provide a good
-separation of concerns between computational chemists and performance engineers.
+This package hosts the performance critical grid operations of cp2k. The code is entirely written in
+C and can be built stand-alone in order to provide a good separation of concerns between
+computational chemists and performance engineers.
 
 Currently, this package offers the following main features:
 
 - Collocate a single task, see `grid_ref_collocate_pgf_product` in
   [grid_ref_collocate.h](ref/grid_ref_collocate.h) for details.
-- Collocate a list of tasks, see `grid_collocate_task_list` in
-  [grid_task_list.h](grid_task_list.h) for details.
+- Collocate a list of tasks, see `grid_collocate_task_list` in [grid_task_list.h](grid_task_list.h)
+  for details.
 
-In order to support diverse hardware architectures different backends are available.
-Currently, the following backends exist:
+In order to support diverse hardware architectures different backends are available. Currently, the
+following backends exist:
 
 - [ref](./ref/): A reference implementations for documentation and validation purposes.
 - [cpu](./cpu/): A performance optimized implementation for x86 CPUs.
@@ -22,16 +22,16 @@ Currently, the following backends exist:
 
 ## The .task files
 
-For debugging all collocations by the CPU backend can be written to .task
-files. To enable this feature edit the following line in [grid_cpu_collocate.c](cpu/grid_cpu_collocate.c):
+For debugging all collocations by the CPU backend can be written to .task files. To enable this
+feature edit the following line in [grid_cpu_collocate.c](cpu/grid_cpu_collocate.c):
 
 ```C
 // Set this to true to write each task to a file.
 const bool DUMP_TASKS = false;
 ```
 
-The files are given sequential names like `grid_collocate_00123.task`.
-Beware that MPI ranks can overwrite each other's files.
+The files are given sequential names like `grid_collocate_00123.task`. Beware that MPI ranks can
+overwrite each other's files.
 
 The resulting .task files are human readable and diffable:
 
@@ -49,9 +49,9 @@ For more information see [grid_replay.c](grid_replay.c).
 
 ## MiniApp
 
-The `grid_miniapp.x` binary allows to run individual .task files.
-By default `grid_ref_collocate_pgf_product` is called. When the `--batch` flag
-is set then `grid_collocate_task_list` is called instead.
+The `grid_miniapp.x` binary allows to run individual .task files. By default
+`grid_ref_collocate_pgf_product` is called. When the `--batch` flag is set then
+`grid_collocate_task_list` is called instead.
 
 ```shell
 $ cd cp2k/src/grid
@@ -65,10 +65,9 @@ Task: ./sample_tasks/ortho_density_l2200.task                   Collocate Batche
 
 ## Unit Test
 
-The `grid_unittest.x` binary runs the .task files from the
-[sample_tasks](./sample_tasks/) directory - with and without batching.
-Beware that this is merely a smoke test.
-The cp2k regtest suite provides much more thorough testing.
+The `grid_unittest.x` binary runs the .task files from the [sample_tasks](./sample_tasks/) directory
+\- with and without batching. Beware that this is merely a smoke test. The cp2k regtest suite
+provides much more thorough testing.
 
 ```shell
 $ cd cp2k/src/grid
