@@ -4,38 +4,33 @@ Hybrid benchmark to test CP2K scaling up to 10000s of cores
 
 ## Description
 
-This is a single-point DFT energy calculation using Quickstep GAPW (Gaussian and
-Augmented Plane-Waves) with hybrid Hartree-Fock exchange. It consists of a 216
-atom Lithium Hydride crystal with 432 electrons in a 12.3 cubic angstrom cell.
-These types of calculations are generally around one hundred times the
-computational cost of a standard local DFT calculation, although this can be
-reduced using the Auxiliary Density Matrix Method (ADMM). Using OpenMP is of
-particular benefit here as the HFX implementation requires a large amount of
-memory to store partial integrals. By using several threads, fewer MPI processes
-share the available memory on the node and thus enough memory is available to
-avoid recomputing any integrals on-the-fly, improving performance.
+This is a single-point DFT energy calculation using Quickstep GAPW (Gaussian and Augmented
+Plane-Waves) with hybrid Hartree-Fock exchange. It consists of a 216 atom Lithium Hydride crystal
+with 432 electrons in a 12.3 cubic angstrom cell. These types of calculations are generally around
+one hundred times the computational cost of a standard local DFT calculation, although this can be
+reduced using the Auxiliary Density Matrix Method (ADMM). Using OpenMP is of particular benefit here
+as the HFX implementation requires a large amount of memory to store partial integrals. By using
+several threads, fewer MPI processes share the available memory on the node and thus enough memory
+is available to avoid recomputing any integrals on-the-fly, improving performance.
 
 ## Files description
 
-- [`input_bulk_B88_3.inp`](input_bulk_B88_3.inp): needed to generate an initial
-  wfn (wave function) file for the HFX runs (this should be run once before
-  running the actual HFX benchmark, and is not a part of the benchmark)
-- [`input_bulk_HFX_3.inp`](input_bulk_HFX_3.inp): the actual input file for the
-  HFX benchmark
-- the additional files [`t_c_g.dat`](../../data/t_c_g.dat) and
-  [`POTENTIAL`](../../data/POTENTIAL) are needed, and can be found in the
-  `cp2k/data/` directory.
+- [`input_bulk_B88_3.inp`](input_bulk_B88_3.inp): needed to generate an initial wfn (wave function)
+  file for the HFX runs (this should be run once before running the actual HFX benchmark, and is not
+  a part of the benchmark)
+- [`input_bulk_HFX_3.inp`](input_bulk_HFX_3.inp): the actual input file for the HFX benchmark
+- the additional files [`t_c_g.dat`](../../data/t_c_g.dat) and [`POTENTIAL`](../../data/POTENTIAL)
+  are needed, and can be found in the `cp2k/data/` directory.
 
 ## Benchmark Requirements
 
-To run these this benchmark, CP2K needs to be compiled with libint support
-(-D\_\_LIBINT), and it is advantageous to have a OMP/MPI hybrid code (cp2k.psmp).
+To run these this benchmark, CP2K needs to be compiled with libint support (-D\_\_LIBINT), and it is
+advantageous to have a OMP/MPI hybrid code (cp2k.psmp).
 
 ## How to Run the Benchmark
 
-1. as a preliminary step, not part of the benchmark: run `input_bulk_B88_3.inp`
-   (5min. with 256x1 mpixomp tasks) and rename the resulting wavefunction file
-   `LiH_bulk_3-RESTART.wfn` to `B88.wfn`
+1. as a preliminary step, not part of the benchmark: run `input_bulk_B88_3.inp` (5min. with 256x1
+   mpixomp tasks) and rename the resulting wavefunction file `LiH_bulk_3-RESTART.wfn` to `B88.wfn`
 
    ```shell
    cp LiH_bulk_3-RESTART.wfn B88.wfn
@@ -57,10 +52,9 @@ To run these this benchmark, CP2K needs to be compiled with libint support
 
 ## Notes
 
-The amount of memory available per MPI process must be altered according to the
-number of MPI processes being used. If this is not done the benchmark will crash
-with an out of memory (OOM) error. The input file keyword `MAX_MEMORY` in
-`input_bulk_HFX_3.inp` needs to be changed as follows:
+The amount of memory available per MPI process must be altered according to the number of MPI
+processes being used. If this is not done the benchmark will crash with an out of memory (OOM)
+error. The input file keyword `MAX_MEMORY` in `input_bulk_HFX_3.inp` needs to be changed as follows:
 
 ```cp2k-input
 MAX_MEMORY 14000
@@ -72,9 +66,9 @@ should be changed to
 MAX_MEMORY new_value
 ```
 
-The new value of `MAX_MEMORY` is chosen by dividing the total amount of memory
-available on a node by the number of MPI processes being used per node.
-If a shorter runtime is desirable, the following line in `input_bulk_HFX_3.inp`:
+The new value of `MAX_MEMORY` is chosen by dividing the total amount of memory available on a node
+by the number of MPI processes being used per node. If a shorter runtime is desirable, the following
+line in `input_bulk_HFX_3.inp`:
 
 ```cp2k-input
 MAX_SCF 20
@@ -86,10 +80,9 @@ may be changed to
 MAX_SCF 1
 ```
 
-in order to reduce the maximum number of SCF cycles and hence the execution
-time. If the runtime or required memory needs to be reduced so the benchmark can
-run on a smaller number of nodes, the OPT1 basis set can be used instead of the
-default OPT2. To this end, the line
+in order to reduce the maximum number of SCF cycles and hence the execution time. If the runtime or
+required memory needs to be reduced so the benchmark can run on a smaller number of nodes, the OPT1
+basis set can be used instead of the default OPT2. To this end, the line
 
 ```cp2k-input
 BASIS_SET OPT2
@@ -105,8 +98,8 @@ BASIS_SET OPT1
 
 ### Best Configurations
 
-The best configurations are shown below. Click the links under
-"Detailed Results" to see more detail.
+The best configurations are shown below. Click the links under "Detailed Results" to see more
+detail.
 
 | Machine Name | Architecture |       Date | SVN Revision | Fastest time (s) | Number of cores |                  Number of threads |                                                        Detailed results |
 | -----------: | -----------: | ---------: | -----------: | ---------------: | --------------: | ---------------------------------: | ----------------------------------------------------------------------: |
@@ -117,14 +110,14 @@ The best configurations are shown below. Click the links under
 |       Cirrus |   SGI ICE XA | 24/11/2016 |        17566 |          483.676 |            2016 |         6 OMP threads per MPI task |       [cirrus-lih-hfx](https://www.cp2k.org/performance:cirrus-lih-hfx) |
 |       Noctua |   Cray CS500 | 25/09/2019 |      9f58d81 |          131.290 |           10240 |         4 OMP threads per MPI task |       [noctua-lih-hfx](https://www.cp2k.org/performance:noctua-lih-hfx) |
 
-(\*) Prior to r14945, a bug resulted in an underestimation of the number of ERIs
-which should be computed (by roughly 50% for this benchmark. Therefore these
-results cannot be compared directly with later ones.
+(\*) Prior to r14945, a bug resulted in an underestimation of the number of ERIs which should be
+computed (by roughly 50% for this benchmark. Therefore these results cannot be compared directly
+with later ones.
 
 ### 2009-04-15
 
-Running on ORNL's Cray XT5 (Jaguar) the following runtime has been obtained in a
-setup using 8 OMP threads per node (8 cores per node / 16 Gb per node).
+Running on ORNL's Cray XT5 (Jaguar) the following runtime has been obtained in a setup using 8 OMP
+threads per node (8 cores per node / 16 Gb per node).
 
 | Cores | Full CP2K\[s\] | HFX\[s\] | local HFX\[s\] | Mem/node\[Mb\] |
 | ----: | -------------: | -------: | -------------: | -------------: |

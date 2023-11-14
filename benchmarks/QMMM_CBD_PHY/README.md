@@ -2,22 +2,20 @@
 
 ## Description
 
-This benchmark performs a short QM/MM MD simulation of 5 steps.
-The CBD_PHY system contains a phytochrome dimer (PBD-ID: 4O0P) with a bound
-chromophore, solvated in water. There are 68 QM atoms in this system and 167,922
-atoms in total. The QM atoms are modelled using the GPW method with the DZVP-MOLOPT-GTH
-basis set and PBE XC functional. For the MM part the Amber03 forcefield is used
-for the protein and water molecules are treated using the TIP3P model. The QM/MM
-coupling is described with the Gaussian Expansion of the Electrostatic Potential
-(GEEP) method, and the bonds between the QM and MM atoms are treated using the
-Generalized Hybrid Orbital (GHO) method.
+This benchmark performs a short QM/MM MD simulation of 5 steps. The CBD_PHY system contains a
+phytochrome dimer (PBD-ID: 4O0P) with a bound chromophore, solvated in water. There are 68 QM atoms
+in this system and 167,922 atoms in total. The QM atoms are modelled using the GPW method with the
+DZVP-MOLOPT-GTH basis set and PBE XC functional. For the MM part the Amber03 forcefield is used for
+the protein and water molecules are treated using the TIP3P model. The QM/MM coupling is described
+with the Gaussian Expansion of the Electrostatic Potential (GEEP) method, and the bonds between the
+QM and MM atoms are treated using the Generalized Hybrid Orbital (GHO) method.
 
 ## Files description
 
 `CBD_PHY.inp` - CP2K input file.
 
-`CBD_PHY.prmtop` - Amber forcefield for MM atoms. The Amber03 forcefield and
-the TIP3P water model are used.
+`CBD_PHY.prmtop` - Amber forcefield for MM atoms. The Amber03 forcefield and the TIP3P water model
+are used.
 
 `CBD_PHY.pdb` - Atomic input coordinates.
 

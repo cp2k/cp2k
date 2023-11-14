@@ -7,8 +7,7 @@ Large scale benchmark for PAO ML (and/or LS DFT in general).
 Bunzip2 all files, have [`BASIS_MOLOPT`](../../data/BASIS_MOLOPT) and
 [`GTH_POTENTIALS`](../../data/GTH_POTENTIALS) available (from [cp2k/data](../../data/).
 
-For tuning purposes, the length of the full benchmark can be reduced in the
-following ways:
+For tuning purposes, the length of the full benchmark can be reduced in the following ways:
 
 - by reducing the number of MD steps (STEPS 20 -> STEPS 5)
 - by doing only an energy calculation (RUN_TYPE MD -> RUN_TYPE ENERGY)
@@ -16,8 +15,8 @@ following ways:
 
 ## Results Archive
 
-Reference energies and timings using CP2K svn:17405, Piz Daint, Cray XC30, 1024
-nodes, SB + K20X, +- 8Gb mem used per node
+Reference energies and timings using CP2K svn:17405, Piz Daint, Cray XC30, 1024 nodes, SB + K20X, +-
+8Gb mem used per node
 
 ### Output File
 

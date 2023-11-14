@@ -2,8 +2,8 @@
 
 **Authors:** V. Weber and U. Borstnik
 
-The purpose of this benchmark is to analyse the time spent in the following
-linear algebra routines as displayed at the end of the cp2k output.
+The purpose of this benchmark is to analyse the time spent in the following linear algebra routines
+as displayed at the end of the cp2k output.
 
 **Main Routines:**
 
@@ -30,5 +30,5 @@ On rosa the total run times are approximately:
 | H2O-4096.inp  |   2304 cores |                15 min |
 | H2O-65536.inp |              | doesn't run so far... |
 
-Runs performed with cp2k from 30.01.09 (no libdbcsr routines used), compiled
-with gfortran and linked to the default libraries.
+Runs performed with cp2k from 30.01.09 (no libdbcsr routines used), compiled with gfortran and
+linked to the default libraries.

@@ -45,7 +45,7 @@ def shellcheck():
 @app.route("/mdformat", methods=["POST"])
 @app.route("/markdownlint", methods=["POST"])  # for backwards compatibility
 def mdformat():
-    return run_tool(["mdformat"])
+    return run_tool(["mdformat", "--wrap=100"])
 
 
 # ======================================================================================

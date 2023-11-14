@@ -2,19 +2,17 @@
 
 ## Description
 
-This benchmark performs a short QM/MM MD simulation of 5 steps.
-ClC consists of a (ClC-ec1) chloride ion channel embedded in a lipid bilayer
-(PDB-ID: 1KPK), which is solvated in water. Two variants are included for this
-system - ClC-19 and ClC-253 which differ only in having respectively 19 and 253
-atoms treated quantum mechanically, representing a small and large QM subsystem
-within a large MM subsystem (150,925 atoms in total). The QM regions are modelled
-using the GPW method with the DZVP-MOLOPT-GTH basis set and the BLYP XC functional
-and the corresponding pseudopotentials. An energy cut-off for the plane waves of
-300 Ry was found to be suitable. The Amber14 forcefield is used for the protein
-and lipid14 forcefield is used for the lipid molecules, and water molecules are
-treated using the TIP3P model. The QM/MM coupling is described with the Gaussian
-Expansion of the Electrostatic Potential (GEEP) method, and the bonds between
-the QM and MM atoms are treated using the Generalized Hybrid Orbital (GHO) method.
+This benchmark performs a short QM/MM MD simulation of 5 steps. ClC consists of a (ClC-ec1) chloride
+ion channel embedded in a lipid bilayer (PDB-ID: 1KPK), which is solvated in water. Two variants are
+included for this system - ClC-19 and ClC-253 which differ only in having respectively 19 and 253
+atoms treated quantum mechanically, representing a small and large QM subsystem within a large MM
+subsystem (150,925 atoms in total). The QM regions are modelled using the GPW method with the
+DZVP-MOLOPT-GTH basis set and the BLYP XC functional and the corresponding pseudopotentials. An
+energy cut-off for the plane waves of 300 Ry was found to be suitable. The Amber14 forcefield is
+used for the protein and lipid14 forcefield is used for the lipid molecules, and water molecules are
+treated using the TIP3P model. The QM/MM coupling is described with the Gaussian Expansion of the
+Electrostatic Potential (GEEP) method, and the bonds between the QM and MM atoms are treated using
+the Generalized Hybrid Orbital (GHO) method.
 
 See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
@@ -24,8 +22,8 @@ See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
 `ClC-253.inp` - ClC with 253 QM atoms.
 
-`ClC.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and
-the TIP3P water model are used.
+`ClC.prmtop` - Amber forcefield for MM atoms. The Amber14 forcefield and the TIP3P water model are
+used.
 
 `ClC.pdb` - Atomic input coordinates.
 

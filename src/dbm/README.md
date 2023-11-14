@@ -1,13 +1,12 @@
 # DBM: Distributed Block-sparse Matrices
 
-The DBM is a drop-in replacement for [DBCSR](https://github.com/cp2k/dbcsr)
-written in C. For the time being only features required by [DBT](../dbt/) are implemented.
+The DBM is a drop-in replacement for [DBCSR](https://github.com/cp2k/dbcsr) written in C. For the
+time being only features required by [DBT](../dbt/) are implemented.
 
 ## Storage
 
 The DBM uses [coordinate lists](<https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)>)
-as internal storage format.
-An existing block is represented by the following data structure:
+as internal storage format. An existing block is represented by the following data structure:
 
 ```C
 typedef struct {
@@ -17,8 +16,9 @@ typedef struct {
 } dbm_block_t;
 ```
 
-To allow for efficient OpenMP parallelism the blocks are [sharded](<https://en.wikipedia.org/wiki/Shard_(database_architecture)>)
-across threads similar to how they are distributed across MPI ranks:
+To allow for efficient OpenMP parallelism the blocks are
+[sharded](<https://en.wikipedia.org/wiki/Shard_(database_architecture)>) across threads similar to
+how they are distributed across MPI ranks:
 
 ```C
 int dbm_get_shard_index(const dbm_matrix_t *matrix, const int row, const int col) {
@@ -30,8 +30,8 @@ int dbm_get_shard_index(const dbm_matrix_t *matrix, const int row, const int col
 
 ## MPI Communication
 
-The communication scheme in [dbm_multiply_comm.c](./dbm_multiply_comm.c) is decoupled
-from the local multiplication in [dbm_multiply.c](./dbm_multiply.c) via the
+The communication scheme in [dbm_multiply_comm.c](./dbm_multiply_comm.c) is decoupled from the local
+multiplication in [dbm_multiply.c](./dbm_multiply.c) via the
 [iterator pattern](https://en.wikipedia.org/wiki/Iterator_pattern):
 
 ```C
@@ -45,9 +45,9 @@ while (dbm_comm_iterator_next(iter, &pack_a, &pack_b)) {
 ## Backends
 
 The last stage of the multiplication are the backends for specific hardware, e.g.
-[CPU](./dbm_multiply_cpu.c) and [CUDA](./dbm_multiply_cuda.cu).
-They are passed batches of task for processing. Each task describes a single block
-multiplication. A simplest backend implementation looks like this:
+[CPU](./dbm_multiply_cpu.c) and [CUDA](./dbm_multiply_cuda.cu). They are passed batches of task for
+processing. Each task describes a single block multiplication. A simplest backend implementation
+looks like this:
 
 ```C
 for (int itask = 0; itask < ntasks; itask++) {
