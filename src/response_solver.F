@@ -1153,11 +1153,11 @@ CONTAINS
       ! Vhxc (KS potentials calculated externally)
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
-      ! 
+      !
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          xc_section => admm_env%xc_section_primary
-      ELSE  
+      ELSE
          xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
       END IF
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
