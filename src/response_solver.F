@@ -875,6 +875,7 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), POINTER :: rho_g_aux, rho_g_gs, rho_g_t, rho_r_aux, rho_r_gs, &
          rho_r_t, rhoz_g, rhoz_g_aux, rhoz_g_xc, rhoz_r, rhoz_r_aux, rhoz_r_xc, tau_r_aux, tauz_r, &
          tauz_r_xc, v_xc, v_xc_tau
+      TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1210,6 +1211,10 @@ CONTAINS
             ! add rho0 contributions to GS density (only for Coulomb) only for gapw
             CALL get_rho0_mpole(local_rho_set_gs%rho0_mpole)
             CALL pw_axpy(local_rho_set_gs%rho0_mpole%rho0_s_gs, rho_tot_gspace_gs)
+            IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+               CALL get_qs_env(qs_env=qs_env, rho_core=rho_core)
+               CALL pw_axpy(rho_core, rho_tot_gspace_gs)
+            END IF
             ! compute GS potential
             CALL auxbas_pw_pool%create_pw(v_hartree_gspace_gs, &
                                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -1225,7 +1230,7 @@ CONTAINS
       END IF
 
       IF (gapw) THEN
-         !    ! Hartree grid PAW term
+         ! Hartree grid PAW term
          CPASSERT(do_ex)
          CPASSERT(.NOT. use_virial)
          IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
@@ -1756,11 +1761,11 @@ CONTAINS
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKh*rhoz ", fodeb
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKhxc*rhoz ", fodeb
          END IF
       ELSE
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (myfun /= xc_none) THEN
-            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             DO ispin = 1, nspins
                CALL integrate_v_rspace(qs_env=qs_env, &
                                        v_rspace=v_xc(ispin), &
@@ -1769,14 +1774,8 @@ CONTAINS
                                        gapw=.TRUE., &
                                        calculate_forces=.TRUE.)
             END DO
-            IF (debug_forces) THEN
-               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-               CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKxc*rhoz ", fodeb
-            END IF
          END IF ! my_fun
          ! Coulomb T+Dz
-         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          DO ispin = 1, nspins
             CALL pw_zero(v_xc(ispin))
             IF (gapw) THEN ! Hartree potential of response density
@@ -1794,7 +1793,7 @@ CONTAINS
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKh*rhoz ", fodeb
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKhxc*rhoz ", fodeb
          END IF
       END IF
 
