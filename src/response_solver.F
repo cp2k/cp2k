@@ -139,7 +139,6 @@ MODULE response_solver
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace,&
                                               rho0_s_grid_create
    USE qs_rho0_methods,                 ONLY: init_rho0
-   USE qs_rho0_types,                   ONLY: get_rho0_mpole
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                               calculate_rho_atom_coeff
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -1214,7 +1213,6 @@ CONTAINS
          IF (gapw) THEN
             CALL get_qs_env(qs_env, natom=natom)
             ! add rho0 contributions to GS density (only for Coulomb) only for gapw
-            CALL get_rho0_mpole(local_rho_set_gs%rho0_mpole)
             CALL pw_axpy(local_rho_set_gs%rho0_mpole%rho0_s_gs, rho_tot_gspace_gs)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                CALL get_qs_env(qs_env=qs_env, rho_core=rho_core)
@@ -1253,7 +1251,6 @@ CONTAINS
       IF (gapw .OR. gapw_xc) THEN
          IF (myfun /= xc_none) THEN
             ! add 1c hard and soft XC contributions
-            !xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
             NULLIFY (local_rho_set_vxc)
             CALL local_rho_set_create(local_rho_set_vxc)
             CALL allocate_rho_atom_internals(local_rho_set_vxc%rho_atom_set, atomic_kind_set, &
@@ -1326,7 +1323,7 @@ CONTAINS
 
       IF (gapw .OR. gapw_xc) THEN
          CPASSERT(do_ex)
-         !      ! HXC term
+         ! HXC term
          IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
          IF (gapw) CALL update_ks_atom(qs_env, scrm, mpa, forces=.TRUE., tddft=.FALSE., &
                                        rho_atom_external=local_rho_set_gs%rho_atom_set)
@@ -1337,12 +1334,11 @@ CONTAINS
             CALL para_env%sum(fodeb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: (T+Dz)*dVhxc[D^GS]PAW ", fodeb
          END IF
-         !   ! release local environments for GAPW
+         ! release local environments for GAPW
          IF (myfun /= xc_none) THEN
             IF (ASSOCIATED(local_rho_set_vxc)) CALL local_rho_set_release(local_rho_set_vxc)
          END IF
          IF (ASSOCIATED(local_rho_set_gs)) CALL local_rho_set_release(local_rho_set_gs)
-         IF (ASSOCIATED(local_rho_set_t)) CALL local_rho_set_release(local_rho_set_t)
          IF (gapw) THEN
             IF (ASSOCIATED(hartree_local_gs)) CALL hartree_local_release(hartree_local_gs)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace_gs)
@@ -1588,9 +1584,15 @@ CONTAINS
 
          ! calculate associated hartree potential
          ! contribution for both T and D^Z
+         IF (gapw) THEN
+            CALL pw_axpy(local_rho_set_t%rho0_mpole%rho0_s_gs, rhoz_tot_gspace)
+         END IF
          CALL pw_poisson_solve(poisson_env, rhoz_tot_gspace, ehartree, zv_hartree_gspace)
 
       END IF ! use virial
+      IF (gapw .OR. gapw_xc) THEN
+         IF (ASSOCIATED(local_rho_set_t)) CALL local_rho_set_release(local_rho_set_t)
+      END IF
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_core(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_ehartree
@@ -1681,7 +1683,6 @@ CONTAINS
          END DO
          ! add rho0 contributions to response density (only for Coulomb) only for gapw
          IF (gapw) THEN
-            CALL get_rho0_mpole(local_rho_set_t%rho0_mpole)
             CALL pw_axpy(local_rho_set_t%rho0_mpole%rho0_s_gs, rho_tot_gspace_t)
             ! compute response Coulomb potential
             CALL auxbas_pw_pool%create_pw(v_hartree_gspace_t, &
@@ -1882,7 +1883,7 @@ CONTAINS
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_xctau[Pz]*Pin', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
-      !! Stress-tensor integral contribution of 2nd derivative terms
+      ! Stress-tensor integral contribution of 2nd derivative terms
       IF (use_virial) THEN
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
       END IF
