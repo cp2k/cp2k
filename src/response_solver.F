@@ -1590,7 +1590,9 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env, rhoz_tot_gspace, ehartree, zv_hartree_gspace)
 
       END IF ! use virial
-      IF (ASSOCIATED(local_rho_set_t)) CALL local_rho_set_release(local_rho_set_t)
+      IF (gapw .OR. gapw_xc) THEN
+         IF (ASSOCIATED(local_rho_set_t)) CALL local_rho_set_release(local_rho_set_t)
+      END IF
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_core(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_ehartree
