@@ -370,16 +370,17 @@ CONTAINS
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
       tolerance = 1.0e10_dp
 
-      IF (restricted > 0) THEN
-         WRITE (6, *) "JACOBI: The last ", restricted, " orbitals do not rotate"
-         nstate = nstate - restricted
-      END IF
-
       sweeps = 0
       unit_nr = -1
       IF (rmat%matrix_struct%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr()
          WRITE (unit_nr, '(T4,A )') " Localization by iterative Jacobi rotation"
+      END IF
+
+      IF (restricted > 0) THEN
+         unit_nr = cp_logger_get_default_unit_nr()
+         WRITE (unit_nr, '(T4,A,I2,A )') "JACOBI: for the ROKS method, the last ", restricted, " orbitals DO NOT ROTATE"
+         nstate = nstate - restricted
       END IF
 
       ! do jacobi sweeps until converged
@@ -2222,7 +2223,7 @@ CONTAINS
 
       IF (restricted > 0) THEN
          IF (output_unit > 0) THEN
-            WRITE (6, *) "JACOBI: The last ", restricted, " orbitals do not rotate"
+            WRITE (output_unit, '(T4,A,I2,A )') "JACOBI: for the ROKS method, the last ", restricted, " orbitals DO NOT ROTATE"
          END IF
          nstate = nstate - restricted
       END IF
