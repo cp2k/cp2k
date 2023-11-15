@@ -143,6 +143,8 @@ FFTW can be used to improve FFT speed on a wide range of architectures. It is st
 to install and use FFTW3. The current version of CP2K works with FFTW 3.X (use `-D__FFTW3`). It can
 be downloaded from <http://www.fftw.org>
 
+FFTW is also provided by MKL. Use `-D__FFTW3_MKL` to use the correct import path.
+
 :warning: Note that FFTW must know the Fortran compiler you will use in order to install properly
 (e.g., `export F77=gfortran` before configure if you intend to use gfortran).
 
