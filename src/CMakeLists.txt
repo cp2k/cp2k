@@ -1567,45 +1567,47 @@ string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 target_compile_definitions(
   cp2k
-  PUBLIC $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
-         $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
-         $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
-         __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
-         __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
-         __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
-         __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
-         __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
-         $<$<CONFIG:Release>:NDEBUG>
-         $<$<CONFIG:COVERAGE>:__NO_ABORT>
-         $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
-         $<$<CONFIG:DEBUG>:__CHECK_DIAG>
-         $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
-         $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
-         $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
-         $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
-         $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
-         $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
-         $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
-         $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
-         $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
-         $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
-         $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
-         $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
-         $<$<BOOL:${CP2K_USE_FFTW3_}>:__FFTW3>
-         $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
-         $<$<BOOL:${CP2K_USE_PEXSI}>:__LIBPEXSI>
-         $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
-         $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
-         $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-         $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
-         $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
-         $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
-         $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-         $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
-         $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
-         __OFFLOAD_HIP>
-         $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
-         __OFFLOAD_HIP>)
+  PUBLIC
+    $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
+    $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
+    $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
+    __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
+    __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
+    __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
+    __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
+    __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
+    $<$<CONFIG:Release>:NDEBUG>
+    $<$<CONFIG:COVERAGE>:__NO_ABORT>
+    $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
+    $<$<CONFIG:DEBUG>:__CHECK_DIAG>
+    $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
+    $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
+    $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
+    $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
+    $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
+    $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
+    $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
+    $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
+    $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
+    $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
+    $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
+    $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
+    $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+    $<$<BOOL:${CP2K_USE_FFTW3_MKL_}>:__FFTW3_MKL>
+    $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
+    $<$<BOOL:${CP2K_USE_PEXSI}>:__LIBPEXSI>
+    $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
+    $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
+    $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+    $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
+    $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
+    $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
+    $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
+    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
+    $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
+    __OFFLOAD_HIP>
+    $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
+    __OFFLOAD_HIP>)
 
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
   # these checks are only relevant when the debug mode is on

@@ -613,6 +613,7 @@ if(CP2K_USE_FFTW3)
     set(CP2K_USE_FFTW3_ ON)
   else()
     message("-- Using the MKL implementation of FFTW3.")
+    set(CP2K_USE_FFTW3_MKL_ ON)
   endif()
 endif()
 

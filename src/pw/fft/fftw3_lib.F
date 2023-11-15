@@ -39,7 +39,11 @@ MODULE fftw3_lib
    PUBLIC :: fftw_alloc, fftw_dealloc
 
 #if defined ( __FFTW3 )
+#if defined ( __FFTW3_MKL )
+#include "fftw/fftw3.f03"
+#else
 #include "fftw3.f03"
+#endif
 #endif
 
    INTERFACE fftw_alloc
