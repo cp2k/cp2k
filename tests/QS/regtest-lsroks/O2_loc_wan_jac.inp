@@ -1,0 +1,63 @@
+! Test PRINT WANNIER_CENTERS, the program should rotate only double occupied orbital, and print centers for all orbitals, including SOMO-1
+&GLOBAL
+  PROJECT O2
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    MULTIP 3
+    ROKS
+    &LOW_SPIN_ROKS
+       ! Singlet: E(s) = E(t) - 2*E(t) + 2*E(m) = 2*E(m) - E(t)
+       ENERGY_SCALING -2.0 2.0
+       SPIN_CONFIGURATION 1 1  ! (t)
+       SPIN_CONFIGURATION 1 2  ! (m)
+    &END
+    &LOCALIZE
+      METHOD JACOBI ! for ROKS only JACOBI or NONE
+      &PRINT
+        &WANNIER_CENTERS
+            IONS+CENTERS TRUE
+        &END WANNIER_CENTERS
+      &END PRINT
+    &END LOCALIZE
+    &MGRID
+      CUTOFF 280
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+       SCF_GUESS ATOMIC
+       EPS_SCF 1.0E-6
+       MAX_SCF 3
+       &OT
+         ROTATION
+       &END
+       &OUTER_SCF
+          EPS_SCF 1.0E-6
+          MAX_SCF 1
+       &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 6.0
+    &END CELL
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &COORD
+      O  0.000000  0.000000  0.608000
+      O  0.000000  0.000000 -0.608000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
