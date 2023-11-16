@@ -110,6 +110,7 @@ MODULE qs_active_space_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: vxc_sub => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: h_sub => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: fock_sub => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER      :: sab_sub => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: pmat_inactive => NULL()
    END TYPE active_space_type
 
@@ -196,6 +197,7 @@ CONTAINS
          CALL cp_fm_release(active_space_env%vxc_sub)
          CALL cp_fm_release(active_space_env%h_sub)
          CALL cp_fm_release(active_space_env%fock_sub)
+         CALL cp_fm_release(active_space_env%sab_sub)
 
          IF (ASSOCIATED(active_space_env%pmat_inactive)) &
             CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)

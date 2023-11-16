@@ -38,7 +38,7 @@ MODULE qs_active_space_methods
                            cp_fm_struct_type
    USE cp_fm_types, ONLY: &
       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_init_random, cp_fm_release, &
-      cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
+      cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type, cp_fm_write_formatted
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
@@ -925,9 +925,6 @@ CONTAINS
          active_space_env%eri%eri_gpw%store_wfn = store_wfn
          CALL section_vals_val_get(as_input, "ERI_GPW%GROUP_SIZE", i_val=group_size)
          active_space_env%eri%eri_gpw%group_size = group_size
-         ! Always redo Poisson solver for now
-         !active_space_env%eri%eri_gpw%redo_poisson = .TRUE.
-         ! active_space_env%eri%eri_gpw%redo_poisson = (ex_operator .OR. ex_perd)
 
          IF (iw > 0) THEN
             WRITE (iw, '(/,T2,A,T71,F10.1)') "ERI_GPW| Energy cutoff [Ry]", eri_gpw_cutoff
@@ -997,6 +994,10 @@ CONTAINS
          CPABORT("NOT IMPLEMENTED")
       END SELECT
 
+      ! compute alpha-beta overlap matrix in case of spin-polarized calculation
+      CALL calculate_spin_pol_overlap(active_space_env%mos_active, qs_env, active_space_env)
+      CALL cp_fm_write_formatted(active_space_env%sab_sub(1), iw)
+
       ! transform KS/Fock, Vxc and Hcore to AS MO basis
       CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
       ! set the reference energy in the active space
@@ -1039,6 +1040,45 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE active_space_main
+
+! **************************************************************************************************
+!> \brief computes the one-electron operators in the subspace of the provided orbital set
+!> \param mos the molecular orbital set within the active subspace
+!> \param qs_env ...
+!> \param active_space_env ...
+!> \par History
+!>      04.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE calculate_spin_pol_overlap(mos, qs_env, active_space_env)
+
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(active_space_type), POINTER                   :: active_space_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_spin_pol_overlap'
+
+      INTEGER                                            :: handle, nmo, nspins
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_a, mo_coeff_b
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
+
+      CALL timeset(routineN, handle)
+
+      nspins = active_space_env%nspins
+
+      ! overlap in AO
+      IF (nspins > 1) THEN
+         CALL get_qs_env(qs_env, matrix_s=s_matrix)
+         ALLOCATE (active_space_env%sab_sub(1))
+
+         CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff_a, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(2), mo_coeff=mo_coeff_b, nmo=nmo)
+         CALL subspace_operator(mo_coeff_a, nmo, s_matrix(1)%matrix, active_space_env%sab_sub(1), mo_coeff_b)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_spin_pol_overlap
+
 
 ! **************************************************************************************************
 !> \brief computes the one-electron operators in the subspace of the provided orbital set
@@ -1117,9 +1157,10 @@ CONTAINS
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub)
+   SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub, orbitals_b)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: orbitals_b
       INTEGER, INTENT(IN)                                :: nmo
       TYPE(dbcsr_type), POINTER                          :: op_matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: op_sub
@@ -1135,17 +1176,19 @@ CONTAINS
       CPASSERT(nmo <= ncol)
 
       IF (nmo > 0) THEN
-
          CALL cp_fm_create(vectors, orbitals%matrix_struct, "vectors")
-
          CALL create_subspace_matrix(orbitals, op_sub, nmo)
 
-         CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
+         IF (PRESENT(orbitals_b)) THEN
+            ! if beta orbitals are present, compute the cross alpha_beta term
+            CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals_b, vectors, nmo)
+         ELSE
+            ! otherwise the same spin, whatever that is
+            CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
+         END IF
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
-
          CALL cp_fm_release(vectors)
-
       END IF
 
       CALL timestop(handle)
@@ -1380,8 +1423,6 @@ CONTAINS
       ! print info on the cell dimension for the GPW integrals
       IF (iw > 0) THEN
          CALL write_cell_low(cell, "angstrom", iw, "ERI_CELL|")
-         !WRITE (UNIT=iw, FMT="(T2,A,T57,3F8.2)") "ERI_GPW| Cell parameters (abc) used for ERI", &
-         !   (cell%hmat(iwa1,iwa1)*angstrom, iwa1=1,3)
       END IF
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
@@ -1393,14 +1434,6 @@ CONTAINS
       END IF
       ! store qs poisson solver info
       qs_poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
-      ! CALL section_vals_val_get(input, "DFT%POISSON%POISSON_SOLVER", i_val=qs_poisson_solver)
-      ! CALL section_vals_val_get(input, "DFT%POISSON%PERIODIC", i_val=qs_poisson_perd)
-      ! CALL section_vals_val_get(input, "DFT%POISSON%MT%ALPHA", r_val=qs_poisson_mt_alpha)
-      ! CALL section_vals_val_get(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=qs_poisson_mt_rel_cutoff)
-      ! CALL section_vals_val_get(input, "DFT%POISSON%WAVELET%SCF_TYPE", i_val=qs_poisson_wavelet_scf_type)
-      ! IF ((qs_poisson_solver == pw_poisson_implicit) .OR. (qs_poisson_solver == pw_poisson_multipole)) THEN
-      !    CPABORT("Unsupported use of implicit/multiopole Poisson solver in QS")
-      ! END IF
 
       ! hack: modify the input on the fly to generate correct pw grids and poisson solver
       IF (eri_env%poisson_solver == eri_poisson_analytic) THEN
@@ -1824,11 +1857,6 @@ CONTAINS
       CALL init_cell(cell, old_hmat, old_perd)
       ! restore the initial poisson solver
       CALL section_vals_set_subs_vals(input, "DFT%POISSON", qs_poisson_section)
-      ! CALL section_vals_val_set(input, "DFT%POISSON%POISSON_SOLVER", i_val=qs_poisson_solver)
-      ! CALL section_vals_val_set(input, "DFT%POISSON%PERIODIC", i_val=qs_poisson_perd)
-      ! CALL section_vals_val_set(input, "DFT%POISSON%MT%ALPHA", r_val=qs_poisson_mt_alpha)
-      ! CALL section_vals_val_set(input, "DFT%POISSON%MT%REL_CUTOFF", r_val=qs_poisson_mt_rel_cutoff)
-      ! CALL section_vals_val_set(input, "DFT%POISSON%WAVELET%SCF_TYPE", i_val=qs_poisson_wavelet_scf_type)
 
       ! print out progress
       IF (iw > 0) THEN
@@ -3226,7 +3254,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: header
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: ionode
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb, s_ab
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -3243,6 +3271,12 @@ CONTAINS
          CALL eri_to_array(active_space_env%eri, eri_ab, active_space_env%active_orbitals, 1, 2)
          ALLOCATE (eri_bb(active_space_env%nmo_active**4))
          CALL eri_to_array(active_space_env%eri, eri_bb, active_space_env%active_orbitals, 2, 2)
+         ! get the overlap_ab matrix into Fortran array
+         ALLOCATE (s_ab(active_space_env%nmo_active**2))
+         ASSOCIATE (act_indices_a => active_space_env%active_orbitals(:, 1), &
+                    act_indices_b => active_space_env%active_orbitals(:, 2))
+            CALL subspace_matrix_to_array(active_space_env%sab_sub(1), s_ab, act_indices_a, act_indices_b)
+         END ASSOCIATE
       END IF
 
       ! ask the status of the client
@@ -3273,6 +3307,7 @@ CONTAINS
                IF (active_space_env%nspins == 2) THEN
                   CALL writebuffer(client_fd, eri_ab, SIZE(eri_ab))
                   CALL writebuffer(client_fd, eri_bb, SIZE(eri_bb))
+                  CALL writebuffer(client_fd, s_ab, SIZE(s_ab))
                END IF
             END IF
          ELSE IF (TRIM(header) == "RECEIVED") THEN
@@ -3284,6 +3319,7 @@ CONTAINS
       IF (active_space_env%nspins == 2) THEN
          DEALLOCATE (eri_ab)
          DEALLOCATE (eri_bb)
+         DEALLOCATE (s_ab)
       END IF
 
       CALL para_env%sync()
