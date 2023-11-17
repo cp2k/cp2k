@@ -15,7 +15,12 @@ author = "CP2K Developers"
 
 extensions = ["myst_parser", "sphinx_rtd_theme", "sphinx.ext.mathjax"]
 
-myst_enable_extensions = ["dollarmath"]
+myst_enable_extensions = [
+    "attrs_inline",
+    "dollarmath",
+    "smartquotes",
+    "strikethrough",
+]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
