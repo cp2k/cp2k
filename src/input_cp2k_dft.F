@@ -20,7 +20,7 @@ MODULE input_cp2k_dft
       Ehrhardt1985, Eriksen2020, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
       Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
       Knizia2013, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
-      Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
+      Lippert1999, Lu2004, Merlot2014, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
       Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
       Yin2017
@@ -105,7 +105,8 @@ MODULE input_cp2k_dft
       xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
       xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
       xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
-      xas_tp_xfh, xas_tp_xhh, xes_tp_val
+      xas_tp_xfh, xas_tp_xhh, xes_tp_val, &
+      no_admm_type, admm1_type, admm2_type, admms_type, admmp_type, admmq_type
    USE input_cp2k_almo, ONLY: create_almo_scf_section
    USE input_cp2k_distribution, ONLY: create_distribution_section
    USE input_cp2k_ec, ONLY: create_ec_section
@@ -3479,6 +3480,24 @@ CONTAINS
                           description="Parameters needed for the ADMM method.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
                           citations=(/Guidon2010/))
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="ADMM_TYPE", &
+         description="Type of ADMM (sort name) as refered in literature. "// &
+         "This sets values for METHOD, ADMM_PURIFICATION_METHOD, and EXCH_SCALING_MODEL", &
+         enum_c_vals=s2a("NONE", "ADMM1", "ADMM2", "ADMMS", "ADMMP", "ADMMQ"), &
+         enum_desc=s2a("No short name is used, use specific definitions (default)", &
+                       "ADMM1 method from Guidon2010", &
+                       "ADMM2 method from Guidon2010", &
+                       "ADMMS method from Merlot2014", &
+                       "ADMMP method from Merlot2014", &
+                       "ADMMQ method from Merlot2014"), &
+         enum_i_vals=(/no_admm_type, admm1_type, admm2_type, admms_type, admmp_type, admmq_type/), &
+         default_i_val=no_admm_type, &
+         citations=(/Guidon2010, Merlot2014/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &

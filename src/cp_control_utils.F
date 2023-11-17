@@ -29,22 +29,28 @@ MODULE cp_control_utils
                                               cp_unit_to_cp2k
    USE force_fields_input,              ONLY: read_gp_section
    USE input_constants,                 ONLY: &
-        constant_env, custom_env, do_admm_basis_projection, do_admm_blocked_projection, &
-        do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
-        do_admm_exch_scaling_merlot, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-        do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, &
-        do_ddapc_constraint, do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
-        do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
-        do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_pwgrid_ns_fullspace, &
-        do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
-        do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-        do_se_lr_ewald_r3, do_se_lr_none, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
-        gapw_1c_small, gapw_1c_very_large, gaussian_env, numerical, ramp_env, &
-        real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        tddfpt_dipole_length, tddfpt_excitations, tddfpt_kernel_stda, use_mom_ref_user
+        admm1_type, admm2_type, admmp_type, admmq_type, admms_type, constant_env, custom_env, &
+        do_admm_aux_exch_func_bee, do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
+        do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
+        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
+        do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, &
+        do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
+        do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
+        do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
+        do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+        do_admm_purify_none, do_admm_purify_none_dm, do_ddapc_constraint, do_ddapc_restraint, &
+        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
+        do_method_rm1, do_method_xtb, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
+        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
+        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
+        gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
+        gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+        sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_excitations, &
+        tddfpt_kernel_stda, use_mom_ref_user
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -82,6 +88,7 @@ MODULE cp_control_utils
              read_tddfpt2_control, &
              write_dft_control, &
              write_qs_control, &
+             write_admm_control, &
              read_ddapc_section
 CONTAINS
 
@@ -97,10 +104,11 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: excitations, irep, isize, method_id, &
-                                                            nrep, xc_deriv_method_id
-      LOGICAL                                            :: do_ot, do_rtp, explicit, is_present, &
-                                                            l_param, not_SE, was_present
+      INTEGER                                            :: admmtype, excitations, irep, isize, &
+                                                            method_id, nrep, xc_deriv_method_id
+      LOGICAL                                            :: do_ot, do_rtp, exopt1, exopt2, exopt3, &
+                                                            explicit, is_present, l_param, not_SE, &
+                                                            was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -235,16 +243,62 @@ CONTAINS
          CALL section_vals_val_get(scf_section, "OT%_SECTION_PARAMETERS_", l_val=do_ot)
          CALL admm_control_create(dft_control%admm_control)
 
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_TYPE", i_val=admmtype)
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD", explicit=exopt1)
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%METHOD", explicit=exopt2)
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_SCALING_MODEL", explicit=exopt3)
+         dft_control%admm_control%admm_type = admmtype
+         SELECT CASE (admmtype)
+         CASE (no_admm_type)
+            CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD", i_val=method_id)
+            dft_control%admm_control%purification_method = method_id
+            CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%METHOD", i_val=method_id)
+            dft_control%admm_control%method = method_id
+            CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_SCALING_MODEL", i_val=method_id)
+            dft_control%admm_control%scaling_model = method_id
+         CASE (admm1_type)
+            ! METHOD BASIS_PROJECTION
+            ! ADMM_PURIFICATION_METHOD NONE
+            ! EXCH_SCALING_MODEL NONE
+            dft_control%admm_control%purification_method = do_admm_purify_none
+            dft_control%admm_control%method = do_admm_basis_projection
+            dft_control%admm_control%scaling_model = do_admm_exch_scaling_none
+         CASE (admm2_type)
+            ! METHOD BASIS_PROJECTION
+            ! ADMM_PURIFICATION_METHOD choose
+            ! EXCH_SCALING_MODEL NONE
+            CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD", i_val=method_id)
+            dft_control%admm_control%purification_method = method_id
+            dft_control%admm_control%method = do_admm_basis_projection
+            dft_control%admm_control%scaling_model = do_admm_exch_scaling_none
+         CASE (admms_type)
+            ! ADMM_PURIFICATION_METHOD NONE
+            ! METHOD CHARGE_CONSTRAINED_PROJECTION
+            ! EXCH_SCALING_MODEL MERLOT
+            dft_control%admm_control%purification_method = do_admm_purify_none
+            dft_control%admm_control%method = do_admm_charge_constrained_projection
+            dft_control%admm_control%scaling_model = do_admm_exch_scaling_merlot
+         CASE (admmp_type)
+            ! ADMM_PURIFICATION_METHOD NONE
+            ! METHOD BASIS_PROJECTION
+            ! EXCH_SCALING_MODEL MERLOT
+            dft_control%admm_control%purification_method = do_admm_purify_none
+            dft_control%admm_control%method = do_admm_basis_projection
+            dft_control%admm_control%scaling_model = do_admm_exch_scaling_merlot
+         CASE (admmq_type)
+            ! ADMM_PURIFICATION_METHOD NONE
+            ! METHOD CHARGE_CONSTRAINED_PROJECTION
+            ! EXCH_SCALING_MODEL NONE
+            dft_control%admm_control%purification_method = do_admm_purify_none
+            dft_control%admm_control%method = do_admm_charge_constrained_projection
+            dft_control%admm_control%scaling_model = do_admm_exch_scaling_none
+         CASE DEFAULT
+            CALL cp_abort(__LOCATION__, &
+                          "ADMM_TYPE keyword in &AUXILIARY_DENSITY_MATRIX_METHOD section has a wrong value.")
+         END SELECT
+
          CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%EPS_FILTER", &
                                    r_val=dft_control%admm_control%eps_filter)
-         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD", i_val=method_id)
-         dft_control%admm_control%purification_method = method_id
-
-         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%METHOD", i_val=method_id)
-         dft_control%admm_control%method = method_id
-
-         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_SCALING_MODEL", i_val=method_id)
-         dft_control%admm_control%scaling_model = method_id
 
          CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_CORRECTION_FUNC", i_val=method_id)
          dft_control%admm_control%aux_exch_func = method_id
@@ -262,6 +316,22 @@ CONTAINS
          IF (explicit) dft_control%admm_control%aux_exch_func_param = .TRUE.
 
          CALL read_admm_block_list(dft_control%admm_control, dft_section)
+
+         ! check for double assignments
+         SELECT CASE (admmtype)
+         CASE (admm2_type)
+            IF (exopt2) CALL cp_warn(__LOCATION__, &
+                                     "Value of ADMM_PURIFICATION_METHOD keyword will be overwritten with ADMM_TYPE selections.")
+            IF (exopt3) CALL cp_warn(__LOCATION__, &
+                                     "Value of EXCH_SCALING_MODEL keyword will be overwritten with ADMM_TYPE selections.")
+         CASE (admm1_type, admms_type, admmp_type, admmq_type)
+            IF (exopt1) CALL cp_warn(__LOCATION__, &
+                                     "Value of METHOD keyword will be overwritten with ADMM_TYPE selections.")
+            IF (exopt2) CALL cp_warn(__LOCATION__, &
+                                     "Value of METHOD keyword will be overwritten with ADMM_TYPE selections.")
+            IF (exopt3) CALL cp_warn(__LOCATION__, &
+                                     "Value of EXCH_SCALING_MODEL keyword will be overwritten with ADMM_TYPE selections.")
+         END SELECT
 
          !    In the case of charge-constrained projection (e.g. according to Merlot),
          !    there is no purification needed and hence, do_admm_purify_none has to be set.
@@ -332,8 +402,8 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "SURF_DIP_DIR", i_val=dft_control%dir_surf_dip)
       dft_control%pos_dir_surf_dip = -1.0_dp
       CALL section_vals_val_get(dft_section, "SURF_DIP_POS", r_val=dft_control%pos_dir_surf_dip)
-! another logical variable, surf_dip_correct_switch, is introduced for
-! implementation of "SURF_DIP_SWITCH" [SGh]
+      ! another logical variable, surf_dip_correct_switch, is introduced for
+      ! implementation of "SURF_DIP_SWITCH" [SGh]
       dft_control%switch_surf_dip = .FALSE.
       dft_control%surf_dip_correct_switch = dft_control%correct_surf_dip
       CALL section_vals_val_get(dft_section, "SURF_DIP_SWITCH", l_val=dft_control%switch_surf_dip)
@@ -1729,6 +1799,110 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_dft_control
+
+! **************************************************************************************************
+!> \brief Write the ADMM control parameters to the output unit.
+!> \param admm_control ...
+!> \param dft_section ...
+! **************************************************************************************************
+   SUBROUTINE write_admm_control(admm_control, dft_section)
+      TYPE(admm_control_type), POINTER                   :: admm_control
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      INTEGER                                            :: iounit
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+
+      iounit = cp_print_key_unit_nr(logger, dft_section, &
+                                    "PRINT%DFT_CONTROL_PARAMETERS", extension=".Log")
+
+      IF (iounit > 0) THEN
+
+         SELECT CASE (admm_control%admm_type)
+         CASE (no_admm_type)
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T77,A)") "ADMM| Specific ADMM type specified", "NONE"
+         CASE (admm1_type)
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T76,A)") "ADMM| Specific ADMM type specified", "ADMM1"
+         CASE (admm2_type)
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T76,A)") "ADMM| Specific ADMM type specified", "ADMM2"
+         CASE (admms_type)
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T76,A)") "ADMM| Specific ADMM type specified", "ADMMS"
+         CASE (admmp_type)
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T76,A)") "ADMM| Specific ADMM type specified", "ADMMP"
+         CASE (admmq_type)
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T76,A)") "ADMM| Specific ADMM type specified", "ADMMQ"
+         CASE DEFAULT
+            CPABORT("admm_type")
+         END SELECT
+
+         SELECT CASE (admm_control%purification_method)
+         CASE (do_admm_purify_none)
+            WRITE (UNIT=iounit, FMT="(T2,A,T77,A)") "ADMM| Density matrix purification method", "NONE"
+         CASE (do_admm_purify_cauchy)
+            WRITE (UNIT=iounit, FMT="(T2,A,T75,A)") "ADMM| Density matrix purification method", "Cauchy"
+         CASE (do_admm_purify_cauchy_subspace)
+            WRITE (UNIT=iounit, FMT="(T2,A,T66,A)") "ADMM| Density matrix purification method", "Cauchy subspace"
+         CASE (do_admm_purify_mo_diag)
+            WRITE (UNIT=iounit, FMT="(T2,A,T63,A)") "ADMM| Density matrix purification method", "MO diagonalization"
+         CASE (do_admm_purify_mo_no_diag)
+            WRITE (UNIT=iounit, FMT="(T2,A,T71,A)") "ADMM| Density matrix purification method", "MO no diag"
+         CASE (do_admm_purify_mcweeny)
+            WRITE (UNIT=iounit, FMT="(T2,A,T74,A)") "ADMM| Density matrix purification method", "McWeeny"
+         CASE (do_admm_purify_none_dm)
+            WRITE (UNIT=iounit, FMT="(T2,A,T73,A)") "ADMM| Density matrix purification method", "NONE(DM)"
+         CASE DEFAULT
+            CPABORT("admm_purification_method")
+         END SELECT
+
+         SELECT CASE (admm_control%method)
+         CASE (do_admm_basis_projection)
+            WRITE (UNIT=iounit, FMT="(T2,A)") "ADMM| Orbital projection on ADMM basis"
+         CASE (do_admm_blocking_purify_full)
+            WRITE (UNIT=iounit, FMT="(T2,A)") "ADMM| Blocked Fock matrix projection with full purification"
+         CASE (do_admm_blocked_projection)
+            WRITE (UNIT=iounit, FMT="(T2,A)") "ADMM| Blocked Fock matrix projection"
+         CASE (do_admm_charge_constrained_projection)
+            WRITE (UNIT=iounit, FMT="(T2,A)") "ADMM| Orbital projection with charge constrain"
+         CASE DEFAULT
+            CPABORT("admm method")
+         END SELECT
+
+         SELECT CASE (admm_control%scaling_model)
+         CASE (do_admm_exch_scaling_none)
+         CASE (do_admm_exch_scaling_merlot)
+            WRITE (UNIT=iounit, FMT="(T2,A)") "ADMM| Use Merlot (2014) scaling model"
+         CASE DEFAULT
+            CPABORT("admm scaling_model")
+         END SELECT
+
+         WRITE (UNIT=iounit, FMT="(T2,A,T61,G20.10)") "ADMM| eps_filter", admm_control%eps_filter
+
+         SELECT CASE (admm_control%aux_exch_func)
+         CASE (do_admm_aux_exch_func_none)
+            WRITE (UNIT=iounit, FMT="(T2,A)") "ADMM| No exchange functional correction term used"
+         CASE (do_admm_aux_exch_func_default, do_admm_aux_exch_func_default_libxc)
+            WRITE (UNIT=iounit, FMT="(T2,A,T74,A)") "ADMM| Exchange functional in correction term", "(W)PBEX"
+         CASE (do_admm_aux_exch_func_pbex, do_admm_aux_exch_func_pbex_libxc)
+            WRITE (UNIT=iounit, FMT="(T2,A,T77,A)") "ADMM| Exchange functional in correction term", "PBEX"
+         CASE (do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc)
+            WRITE (UNIT=iounit, FMT="(T2,A,T77,A)") "ADMM| Exchange functional in correction term", "OPTX"
+         CASE (do_admm_aux_exch_func_bee, do_admm_aux_exch_func_bee_libxc)
+            WRITE (UNIT=iounit, FMT="(T2,A,T74,A)") "ADMM| Exchange functional in correction term", "Becke88"
+         CASE (do_admm_aux_exch_func_sx_libxc)
+            WRITE (UNIT=iounit, FMT="(T2,A,T74,A)") "ADMM| Exchange functional in correction term", "SlaterX"
+         CASE DEFAULT
+            CPABORT("admm aux_exch_func")
+         END SELECT
+
+         WRITE (UNIT=iounit, FMT="(A)") ""
+
+      END IF
+
+      CALL cp_print_key_finished_output(iounit, logger, dft_section, &
+                                        "PRINT%DFT_CONTROL_PARAMETERS")
+   END SUBROUTINE write_admm_control
 
 ! **************************************************************************************************
 !> \brief Write the xTB control parameters to the output unit.
