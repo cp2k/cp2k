@@ -1,0 +1,9 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+H2O-ADMM1.inp                                          11      1e-10             -16.718556848108
+H2O-ADMM2.inp                                          11      1e-10             -16.806632978548
+H2O-ADMMP-GAPW.inp                                     11      1e-10             -16.701137600827
+H2O-ADMMQ-OPTX.inp                                     11      1e-10             -16.813276281820
+H2O-ADMMS-HYB.inp                                      11      1e-10             -17.056296138649
+#EOF

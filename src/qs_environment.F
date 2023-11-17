@@ -41,14 +41,10 @@ MODULE qs_environment
                                               qs_control_type,&
                                               semi_empirical_control_type,&
                                               xtb_control_type
-   USE cp_control_utils,                ONLY: read_ddapc_section,&
-                                              read_dft_control,&
-                                              read_mgrid_section,&
-                                              read_qs_section,&
-                                              read_tddfpt2_control,&
-                                              read_tddfpt_control,&
-                                              write_dft_control,&
-                                              write_qs_control
+   USE cp_control_utils,                ONLY: &
+        read_ddapc_section, read_dft_control, read_mgrid_section, read_qs_section, &
+        read_tddfpt2_control, read_tddfpt_control, write_admm_control, write_dft_control, &
+        write_qs_control
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -1661,6 +1657,11 @@ CONTAINS
 
          ! Print the Quickstep control parameters
          CALL write_qs_control(dft_control%qs_control, dft_section)
+
+         ! Print the ADMM control parameters
+         IF (dft_control%do_admm) THEN
+            CALL write_admm_control(dft_control%admm_control, dft_section)
+         END IF
 
          ! Print XES/XAS control parameters
          IF (dft_control%do_xas_calculation) THEN

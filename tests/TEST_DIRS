@@ -116,6 +116,7 @@ DFTB/regtest-scc-2
 QS/regtest-hfx                                              libint
 QS/regtest-rel
 QS/regtest-ls-rtp
+QS/regtest-admm-type                                        libint
 QS/regtest-admm-qps                                         libint
 QS/regtest-admm-qps-2                                       libint
 ATOM/regtest-pseudo
