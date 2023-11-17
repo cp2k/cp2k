@@ -40,6 +40,18 @@ const uint32_t colormap[] = {0xFFFFFF00,  // Yellow
                              0xFF000080}; // Navy
 
 /*******************************************************************************
+ * \brief Initialize runtime.
+ * \author Rocco Meli
+ ******************************************************************************/
+void offload_init(void) {
+#ifdef __OFFLOAD_CUDA
+  OFFLOAD_CHECK(cuInit(0));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipInit(0));
+#endif
+}
+
+/*******************************************************************************
  * \brief Returns the number of available devices.
  * \author Ole Schuett
  ******************************************************************************/

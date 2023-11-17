@@ -112,7 +112,8 @@ MODULE f77_interface
    USE nnp_environment_types,           ONLY: nnp_type
    USE offload_api,                     ONLY: offload_get_chosen_device,&
                                               offload_get_device_count,&
-                                              offload_set_chosen_device
+                                              offload_set_chosen_device, &
+                                              offload_init
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_gpu,                          ONLY: pw_gpu_finalize,&
                                               pw_gpu_init
@@ -211,6 +212,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
 
       INTEGER                                            :: unit_nr
+      INTEGER                                            :: offload_device_count
       TYPE(cp_logger_type), POINTER                      :: logger
 
       IF (.NOT. module_initialized) THEN
@@ -225,6 +227,8 @@ CONTAINS
 
          ! get runtime information
          CALL get_runtime_info()
+
+         CALL offload_init()
 
          ! re-create the para_env and log with correct (reordered) ranks
          ALLOCATE (default_para_env)
@@ -262,15 +266,17 @@ CONTAINS
          !   *** init the bibliography ***
          CALL add_all_references()
 
+         offload_device_count = offload_get_device_count()
+
          ! Select active offload device when available.
-         IF (offload_get_device_count() > 0) THEN
-            CALL offload_set_chosen_device(MOD(default_para_env%mepos, offload_get_device_count()))
+         IF (offload_device_count > 0) THEN
+            CALL offload_set_chosen_device(MOD(default_para_env%mepos, offload_device_count))
          END IF
 
          ! Initialize the DBCSR configuration
          ! Attach the time handler hooks to DBCSR
 #if defined __DBCSR_ACC
-         IF (offload_get_device_count() > 0) THEN
+         IF (offload_device_count > 0) THEN
             CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                                 accdrv_active_device_id=offload_get_chosen_device())
