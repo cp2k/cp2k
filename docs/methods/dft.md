@@ -9,7 +9,7 @@ gpw
 gapw
 hfx
 lrigpw
-Constrained DFT <https://www.cp2k.org/howto:cdft>
+cdft
 ls-dft
 basis_sets
 pseudopotentials
