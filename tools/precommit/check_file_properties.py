@@ -133,6 +133,13 @@ def get_flags_src() -> str:
     return match.group(1)
 
 
+@lru_cache(maxsize=None)
+def get_bibliography_dois() -> list[str]:
+    bib = CP2K_DIR.joinpath("src/common/bibliography.F").read_text()
+    matches = re.findall(r'DOI="([^"]+)"', bib, flags=re.IGNORECASE)
+    return [doi for doi in matches if "/" in doi]  # filter invalid DOIs.
+
+
 def check_file(path: pathlib.Path) -> List[str]:
     """
     Check the given source file for convention violations, like:
@@ -239,6 +246,13 @@ def check_file(path: pathlib.Path) -> List[str]:
             warnings += [f"{path}: Flag '{flag}' not mentioned in INSTALL.md"]
         if flag not in get_flags_src():
             warnings += [f"{path}: Flag '{flag}' not mentioned in cp2k_flags()"]
+
+    # Check for DOIs that could be a bibliography reference.
+    if re.match(r"docs/[^/]+/.*\.md", str(path)) and "docs/CP2K_INPUT" not in str(path):
+        for line in content.splitlines():
+            for doi in get_bibliography_dois():
+                if doi.lower() in line:
+                    warnings += [f"{path}: Please replace doi:{doi} with biblio ref."]
 
     return warnings
 
