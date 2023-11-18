@@ -5,8 +5,7 @@ generate geometry adopted small basis sets. It also provides exact ionic forces.
 serve as an almost drop-in replacement for conventional basis sets to speedup otherwise standard DFT
 calculations. The method is similar to semi-empirical models based on minimal basis sets, but offers
 improved accuracy and quasi-automatic parameterization. However, the method is still in an early
-stage - so use with caution. For more information see:
-[10.1021/acs.jctc.8b00378](https://dx.doi.org/10.1021/acs.jctc.8b00378).
+stage - so use with caution. For more information see: [](#Schuett2018).
 
 ## Step 1: Obtain training structures
 

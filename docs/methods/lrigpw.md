@@ -6,8 +6,7 @@ Density functional theory (DFT) calculations in CP2K employ the Gaussian and pla
 method. In GPW, the description of the total density on realspace grids is typically the
 computationally most expensive part. By introducing a local resolution-of-the-identity (LRI)
 approach, the linear scaling of the GPW approach can be retained, while reducing the prefactor for
-the grid operations. The combined approach, LRIGPW, is comprehensively described in
-[J. Chem. Theory Comput., 13, 2202 (2017)](https://dx.doi.org/10.1021/acs.jctc.7b00148).
+the grid operations. The combined approach, LRIGPW, is comprehensively described in [](#Golze2017b).
 
 In LRIGPW, the atomic pair densities $\rho_{\mathrm{AB}}$ are approximated by an expansion in a set
 of fit functions centered at atom A $\{f_i^{\mathrm{A}}(\mathbf{r})\}$ and atom B
@@ -59,9 +58,8 @@ sets are available in different sizes: `MEDIUM` and `LARGE`. Using the large aux
 the accuracy is improved, but the computational overhead increases.
 
 The LRI auxiliary basis sets are generally quite large leading to a potentially ill-conditioned
-overlap matrix, Equation (10) in
-[J. Chem. Theory Comput., 13, 2202 (2017)](https://dx.doi.org/10.1021/acs.jctc.7b00148). The
-inversion of this matrix can thus be numerical instable.
+overlap matrix, Equation (10) in [](#Golze2017b). The inversion of this matrix can thus be numerical
+instable.
 
 If the SCF is not converging, set
 [LRI_OVERLAP_MATRIX](#CP2K_INPUT.FORCE_EVAL.DFT.QS.LRIGPW.LRI_OVERLAP_MATRIX) to `AUTOSELECT`. In
@@ -70,13 +68,11 @@ pairs, the pseudoinverse instead of the regular inverse is calculated. The thres
 condition number can be given by
 [MAX_CONDITION_NUM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.LRIGPW.MAX_CONDITION_NUM).
 
-The LRI integrals, Equations (31)-(34) in
-[J. Chem. Theory Comput., 13, 2202 (2017)](https://dx.doi.org/10.1021/acs.jctc.7b00148), are
-calculated prior to the SCF. The traditionally used Obara-Saika scheme is computationally too
-demanding here. Therefore, a more efficient integral scheme based on solid harmonic Gaussians (SHG)
-is employed and invoked by
-[SHG_LRI_INTEGRALS](#CP2K_INPUT.FORCE_EVAL.DFT.QS.LRIGPW.SHG_LRI_INTEGRALS), see
-[J. Chem. Phys., 146, 034105, 2017](https://dx.doi.org/10.1063/1.4973510) for details.
+The LRI integrals, Equations (31)-(34) in [](#Golze2017b), are calculated prior to the SCF. The
+traditionally used Obara-Saika scheme is computationally too demanding here. Therefore, a more
+efficient integral scheme based on solid harmonic Gaussians (SHG) is employed and invoked by
+[SHG_LRI_INTEGRALS](#CP2K_INPUT.FORCE_EVAL.DFT.QS.LRIGPW.SHG_LRI_INTEGRALS), see [](#Golze2017) for
+details.
 
 ## When to use it
 
