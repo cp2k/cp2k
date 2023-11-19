@@ -586,7 +586,7 @@ $S_\mathrm{AB}= \left<\Phi_\mathrm{A}|\Phi_\mathrm{B}\right>$, $E_\mathrm{I}$ is
 state $\mathrm{I}$, and $\mathbf{W}_c^\mathrm{AB}$ are the weight function matrices defined by
 
 $$
-\mathbf{W}_c^\mathrm{AB} = \left<\Phi_\mathrm{A}\left| w_c^\mathrm{B}(\mathbf{r}) \right|\Phi_\mathrm{B}\right> 
+\mathbf{W}_c^\mathrm{AB} = \left<\Phi_\mathrm{A}\left| w_c^\mathrm{B}(\mathbf{r}) \right|\Phi_\mathrm{B}\right>
 $$
 
 In the above expressions, capital subscripts have been used to emphasize the fact that the CDFT
@@ -595,7 +595,7 @@ matrices $\mathbf{H}$ and $\mathbf{S}$, respectively. The off-diagonal elements 
 not symmetric. The matrix is converted to symmetric form by setting
 
 $$
-\mathbf{H'}_\mathrm{AB}=\frac{\mathbf{H}_\mathrm{AB}+\mathbf{H}_\mathrm{BA}}{2} = \frac{E_\mathrm{A}+E_\mathrm{B}}{2}S_\mathrm{AB}-\sum_c \left<\Phi_\mathrm{A}\left|\frac{\lambda_c^\mathrm{A}w_c^\mathrm{A}(\mathbf{r})+\lambda_c^\mathrm{B}w_c^\mathrm{B}(\mathbf{r})}{2} \right|\Phi_\mathrm{B}\right>  
+\mathbf{H'}_\mathrm{AB}=\frac{\mathbf{H}_\mathrm{AB}+\mathbf{H}_\mathrm{BA}}{2} = \frac{E_\mathrm{A}+E_\mathrm{B}}{2}S_\mathrm{AB}-\sum_c \left<\Phi_\mathrm{A}\left|\frac{\lambda_c^\mathrm{A}w_c^\mathrm{A}(\mathbf{r})+\lambda_c^\mathrm{B}w_c^\mathrm{B}(\mathbf{r})}{2} \right|\Phi_\mathrm{B}\right>
 $$
 
 and setting $\mathbf{H'}_\mathrm{BA}=\mathbf{H'}_\mathrm{AB}$.
@@ -686,11 +686,9 @@ In the above example input file, a common file `${DFT_FILE}` is used as a templa
 wavefunction filename are passed through variables. The electronic coupling is calculated using the
 default weight function matrix and Löwdin orthogonalization methods. If molecular dynamics were
 performed with the above input file, the forces would be mixed according to linear mixing scheme
-$F
-= \\lambda F_1 + (1-\\lambda)
-F_2$, where the states $F_i$ are selected with the keyword
+$F = \lambda F_1 + (1-\lambda) F_2$, where the states $F_i$ are selected with the keyword
 [FORCE_STATES](#CP2K_INPUT.FORCE_EVAL.MIXED.MIXED_CDFT.FORCE_STATES) and the mixing parameter
-\$\\lambda\$ with [LAMBDA](#CP2K_INPUT.FORCE_EVAL.MIXED.MIXED_CDFT.LAMBDA). No configuration
+$\lambda$ with [LAMBDA](#CP2K_INPUT.FORCE_EVAL.MIXED.MIXED_CDFT.LAMBDA). No configuration
 interaction calculation is performed. The [MIXED_CDFT](#CP2K_INPUT.FORCE_EVAL.MIXED.MIXED_CDFT)
 section accepts some additional keywords, which have been described in the manual.
 
@@ -785,7 +783,7 @@ Other files created during the execution are related to the individual CDFT stat
 Because preconverged solutions were employed, these CDFT simulations terminate immediately after the
 first SCF step, and any matrices that are subsequently needed in the mixed CDFT analysis are stored
 in memory. In the input file, the full project name and CDFT state ID number were stored in the
-variable `\$\{NAME}` on a per state basis. This variable was used to prepend the name of any other
+variable `${NAME}` on a per state basis. This variable was used to prepend the name of any other
 output files (e.g. the cdftLog files) that are created during the CDFT simulation of the individual
 CDFT states. The output files from different CDFT states are therefore straightforward to
 distinguish. The content of the additional files was discussed in a
