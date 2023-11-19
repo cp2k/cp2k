@@ -5,6 +5,6 @@
 titlesonly:
 maxdepth: 1
 ---
-Kim-Gordon <https://www.cp2k.org/howto:kg>
+kim-gordon
 qm_qm
 ```
