@@ -23,7 +23,7 @@ MODULE bse_full_diag
                                               cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type
+                                              cp_fm_type, cp_fm_write_formatted
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -41,7 +41,7 @@ MODULE bse_full_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
-   PUBLIC :: create_and_diagonalize_A
+   PUBLIC :: create_A, diagonalize_A
 
 CONTAINS
 
@@ -50,6 +50,7 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_A ...
 !> \param Eigenval ...
 !> \param homo ...
 !> \param virtual ...
@@ -60,13 +61,14 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param blacs_env_BSE ...
 ! **************************************************************************************************
-   SUBROUTINE create_and_diagonalize_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
-                                       Eigenval, &
-                                       homo, virtual, dimen_RI, bse_spin_config, unit_nr, &
-                                       para_env, para_env_RPA, blacs_env_BSE)
+   SUBROUTINE create_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
+                       fm_mat_A, Eigenval, &
+                       homo, virtual, dimen_RI, bse_spin_config, unit_nr, &
+                       para_env, para_env_RPA, blacs_env_BSE)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, bse_spin_config
       INTEGER                                            :: unit_nr
@@ -74,22 +76,20 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_and_diagonalize_A'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
 
-      INTEGER :: a_virt_row, ab_loc, b_virt_col, diag_info, dummy_proc, handle, handle2, &
-         i_entry_rec, i_occ_row, i_row_global, ii, ij_loc, iproc, j_col_global, j_occ_col, jj, &
-         ncol_block_A, ncol_block_W, ncol_local_A, ncol_local_W, npcol, nprocs, nprow, &
-         nrow_block_A, nrow_block_W, nrow_local_A, nrow_local_W, proc_send, send_pcol, send_prow
+      INTEGER :: a_virt_row, ab_loc, b_virt_col, dummy_proc, handle, handle2, i_entry_rec, &
+         i_occ_row, i_row_global, ii, ij_loc, iproc, j_col_global, j_occ_col, jj, ncol_block_A, &
+         ncol_block_W, ncol_local_A, ncol_local_W, npcol, nprocs, nprow, nrow_block_A, &
+         nrow_block_W, nrow_local_A, nrow_local_W, proc_send, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, col_indices_W, &
                                                             row_indices_A, row_indices_W
       REAL(KIND=dp)                                      :: alpha, eigen_diff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_eigvec, &
-                                                            fm_struct_W
-      TYPE(cp_fm_type)                                   :: fm_mat_A, fm_mat_eigvec, fm_mat_W
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
+      TYPE(cp_fm_type)                                   :: fm_mat_W
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
@@ -145,7 +145,7 @@ CONTAINS
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_A)
 
-      !CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full V")
+      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: alpha* Full V")
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocated A_iajb'
       END IF
@@ -154,7 +154,7 @@ CONTAINS
       CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
-      !CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: Full W")
+      CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: Full W")
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocated W_ijab'
       END IF
@@ -347,7 +347,7 @@ CONTAINS
                   IF (i_row_global == buffer_rec(iproc)%indx(i_entry_rec, 1) .AND. &
                       j_col_global == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
                      !Subtract buffer, since A = Delta E + alpha V - W
-                     fm_mat_A%local_data(ii, jj) = -buffer_rec(iproc)%msg(i_entry_rec)
+                     fm_mat_A%local_data(ii, jj) = fm_mat_A%local_data(ii, jj) - buffer_rec(iproc)%msg(i_entry_rec)
 
                   END IF
                END DO
@@ -378,6 +378,7 @@ CONTAINS
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_struct_release(fm_struct_W)
       CALL cp_fm_release(fm_mat_W)
+      CALL cp_fm_struct_release(fm_struct_A)
 
       CALL timestop(handle2)
 
@@ -404,23 +405,42 @@ CONTAINS
             END IF
          END DO
       END DO
-      !CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full A")
+      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full A")
 
       CALL timestop(handle2)
+      CALL timestop(handle)
 
-      CALL timeset(routineN//"_9_diagonalize_A", handle2)
+   END SUBROUTINE create_A
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_A ...
+!> \param homo ...
+!> \param virtual ...
+!> \param bse_spin_config ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, bse_spin_config, unit_nr)
+
+      TYPE(cp_fm_type)                                   :: fm_mat_A
+      INTEGER, INTENT(IN)                                :: homo, virtual, bse_spin_config
+      INTEGER                                            :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
+
+      INTEGER                                            :: diag_info, handle
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
+      TYPE(cp_fm_type)                                   :: fm_mat_eigvec
+
+      CALL timeset(routineN, handle)
+      !Continue with formatting of subroutine create_A
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Diagonalizing A'
       END IF
 
       !We have now the full matrix A_iajb, distributed over all ranks
       !Now: Diagonalize it
-      CALL cp_fm_struct_create(fmstruct=fm_struct_eigvec, &
-                               context=blacs_env_BSE, &
-                               nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual)
-
-      CALL cp_fm_create(fm_mat_eigvec, fm_struct_eigvec)
+      CALL cp_fm_create(fm_mat_eigvec, fm_mat_A%matrix_struct)
 
       ALLOCATE (Exc_ens(homo*virtual))
 
@@ -428,17 +448,15 @@ CONTAINS
       CPASSERT(diag_info == 0)
       CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual)
 
-      !Release all local matrices and
-      CALL cp_fm_struct_release(fm_struct_A)
+      !Release all local matrices
       CALL cp_fm_release(fm_mat_A)
-      CALL cp_fm_struct_release(fm_struct_eigvec)
+      !CALL cp_fm_struct_release(fm_struct_eigvec)
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
 
-      CALL timestop(handle2)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE diagonalize_A
 
 ! **************************************************************************************************
 !> \brief ...
@@ -495,6 +513,6 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE success_message
 
 END MODULE bse_full_diag

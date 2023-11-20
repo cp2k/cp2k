@@ -22,7 +22,8 @@ MODULE rpa_main
                                               do_subspace_iterations,&
                                               fill_local_3c_arrays,&
                                               mult_B_with_W
-   USE bse_full_diag,                   ONLY: create_and_diagonalize_A
+   USE bse_full_diag,                   ONLY: create_A,&
+                                              diagonalize_A
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1180,9 +1181,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
-         fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_work, fm_mo_coeff_occ_scaled, &
-         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type) :: fm_mat_A, fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+         fm_mat_RI_global_work, fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_work, &
+         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1819,10 +1821,11 @@ CONTAINS
          END IF
 
          IF (bse_full_diag) THEN
-            CALL create_and_diagonalize_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
-                                          Eigenval(:, 1, 1), &
-                                          homo(1), virtual(1), dimen_RI, bse_spin_config, unit_nr, &
-                                          para_env, para_env_RPA, blacs_env_BSE)
+            CALL create_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
+                          fm_mat_A, Eigenval(:, 1, 1), &
+                          homo(1), virtual(1), dimen_RI, bse_spin_config, unit_nr, &
+                          para_env, para_env_RPA, blacs_env_BSE)
+            CALL diagonalize_A(fm_mat_A, homo(1), virtual(1), bse_spin_config, unit_nr)
          END IF
 
          CALL cp_fm_release(fm_mat_S_bar_ia_bse)
