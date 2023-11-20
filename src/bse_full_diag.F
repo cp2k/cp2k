@@ -14,7 +14,7 @@ MODULE bse_full_diag
 
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver, cp_fm_syevd
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -23,13 +23,10 @@ MODULE bse_full_diag
                                               cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type, &
-                                              cp_fm_write_formatted
-
+                                              cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
-   USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type
@@ -79,15 +76,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_and_diagonalize_A'
 
-      INTEGER :: a_virt_row, ab_loc, b_virt_col, dummy_proc, handle, handle2, i_entry_rec, i_occ_row, &
-         i_row_global, ii, ij_loc, iproc, j_col_global, j_occ_col, jj, ncol_block_A, ncol_block_W, &
-         ncol_local_A, ncol_local_W, npcol, nprow, nrow_block_A, nrow_block_W, nrow_local_A, &
-         nrow_local_W, proc_send, send_pcol, send_prow, diag_info, nprocs
+      INTEGER :: a_virt_row, ab_loc, b_virt_col, diag_info, dummy_proc, handle, handle2, &
+         i_entry_rec, i_occ_row, i_row_global, ii, ij_loc, iproc, j_col_global, j_occ_col, jj, &
+         ncol_block_A, ncol_block_W, ncol_local_A, ncol_local_W, npcol, nprocs, nprow, &
+         nrow_block_A, nrow_block_W, nrow_local_A, nrow_local_W, proc_send, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, col_indices_W, &
                                                             row_indices_A, row_indices_W
-      REAL(KIND=dp)                                      :: alpha, eigen_diff, t1, t2
+      REAL(KIND=dp)                                      :: alpha, eigen_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_eigvec, &
@@ -108,7 +105,7 @@ CONTAINS
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
-      
+
       ! create the blacs env for BSE matrices (NOT fm_mat_S related parallel_gemms!)
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
@@ -129,14 +126,13 @@ CONTAINS
       CALL cp_fm_set_all(fm_mat_W, 888.0_dp)
 
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','BSE - Full diagonalization'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'BSE - Full diagonalization'
       END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Row number of A_iajb', homo*virtual
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Column number of A_iajb', homo*virtual
       END IF
-
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Row number of W_ijab', homo**2
@@ -149,18 +145,18 @@ CONTAINS
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_A)
 
-      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full V")
+      !CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full V")
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Allocated A_iajb'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocated A_iajb'
       END IF
-      
+
       !W_ijab
       CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
-      CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: Full W")
+      !CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: Full W")
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Allocated W_ijab'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocated W_ijab'
       END IF
 
       ! A_iajb
@@ -177,7 +173,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Row block size of A_iajb', nrow_block_A
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Column block size of A_iajb', ncol_block_A
       END IF
-      
+
       nprow = fm_mat_A%matrix_struct%context%num_pe(1)
       npcol = fm_mat_A%matrix_struct%context%num_pe(2)
 
@@ -196,8 +192,7 @@ CONTAINS
                           col_indices=col_indices_W, &
                           nrow_block=nrow_block_W, &
                           ncol_block=ncol_block_W)
-      
-                          
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Row block size of W_ijab', nrow_block_W
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Column block size of W_ijab', ncol_block_W
@@ -209,20 +204,19 @@ CONTAINS
       DO ij_loc = 1, nrow_local_W
          i_occ_row = (row_indices_W(ij_loc) - 1)/homo + 1
          j_occ_col = MOD(row_indices_W(ij_loc) - 1, homo) + 1
-         
+
          DO ab_loc = 1, ncol_local_W
             a_virt_row = (col_indices_W(ab_loc) - 1)/virtual + 1
             b_virt_col = MOD(col_indices_W(ab_loc) - 1, virtual) + 1
 
-            send_prow = cp_fm_indxg2p(a_virt_row+(i_occ_row-1)*virtual, nrow_block_A, dummy_proc, &
+            send_prow = cp_fm_indxg2p(a_virt_row + (i_occ_row - 1)*virtual, nrow_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(1), nprow)
 
-            send_pcol = cp_fm_indxg2p(b_virt_col+(j_occ_col-1)*virtual, ncol_block_A, dummy_proc, &
+            send_pcol = cp_fm_indxg2p(b_virt_col + (j_occ_col - 1)*virtual, ncol_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(2), npcol)
 
             proc_send = fm_mat_A%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-            
-            
+
             num_entries_send(proc_send) = num_entries_send(proc_send) + 1
 
          END DO
@@ -232,7 +226,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Communicating entry numbers'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Communicating entry numbers'
       END IF
 
       CALL para_env_RPA%alltoall(num_entries_send, num_entries_rec, 1)
@@ -241,7 +235,7 @@ CONTAINS
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Allocating buffers'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocating buffers'
       END IF
 
       ! Buffers for entries and their indices
@@ -281,7 +275,7 @@ CONTAINS
 
       CALL timeset(routineN//"_4_W_to_buffer", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Writing data from W into buffers'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Writing data from W into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_RPA%num_pe - 1))
@@ -294,10 +288,10 @@ CONTAINS
          DO ab_loc = 1, ncol_local_W
             a_virt_row = (col_indices_W(ab_loc) - 1)/virtual + 1
             b_virt_col = MOD(col_indices_W(ab_loc) - 1, virtual) + 1
-            send_prow = cp_fm_indxg2p(a_virt_row+(i_occ_row-1)*virtual, nrow_block_A, dummy_proc, &
+            send_prow = cp_fm_indxg2p(a_virt_row + (i_occ_row - 1)*virtual, nrow_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(1), nprow)
 
-            send_pcol = cp_fm_indxg2p(b_virt_col+(j_occ_col-1)*virtual, ncol_block_A, dummy_proc, &
+            send_pcol = cp_fm_indxg2p(b_virt_col + (j_occ_col - 1)*virtual, ncol_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(2), npcol)
 
             proc_send = fm_mat_A%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
@@ -306,10 +300,9 @@ CONTAINS
             buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
                fm_mat_W%local_data(ij_loc, ab_loc)
 
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = a_virt_row+(i_occ_row-1)*virtual!homo*(a_virt_row-1)/virtual+i_occ_row
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = b_virt_col+(j_occ_col-1)*virtual!homo*(b_virt_col-1)/virtual+j_occ_col
-         
-         
+            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = a_virt_row + (i_occ_row - 1)*virtual
+            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = b_virt_col + (j_occ_col - 1)*virtual
+
          END DO
       END DO
 
@@ -319,7 +312,7 @@ CONTAINS
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Communicating buffers'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Communicating buffers'
       END IF
 
       ! communicate the buffer
@@ -330,7 +323,7 @@ CONTAINS
 
       CALL timeset(routineN//"_6_buffer_to_A", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Writing from buffers to A'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Writing from buffers to A'
       END IF
 
       ! MG to do: OMP parallel
@@ -350,11 +343,11 @@ CONTAINS
 
                DO jj = 1, ncol_local_A
                   j_col_global = col_indices_A(jj)
-                  
+
                   IF (i_row_global == buffer_rec(iproc)%indx(i_entry_rec, 1) .AND. &
                       j_col_global == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
                      !Subtract buffer, since A = Delta E + alpha V - W
-                     fm_mat_A%local_data(ii, jj) = - buffer_rec(iproc)%msg(i_entry_rec) !fm_mat_A%local_data(ii, jj) - buffer_rec(iproc)%msg(i_entry_rec)
+                     fm_mat_A%local_data(ii, jj) = -buffer_rec(iproc)%msg(i_entry_rec)
 
                   END IF
                END DO
@@ -362,13 +355,12 @@ CONTAINS
          END DO
       END DO
 !$OMP END PARALLEL DO
-      
 
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Starting cleanup of communication buffers'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Starting cleanup of communication buffers'
       END IF
 
       !Clean up all the arrays from the communication process W_ijab -> A_iajb
@@ -390,9 +382,9 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_8_energy_diffs", handle2)
-      
+
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Inserting GW energy differences'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Inserting GW energy differences'
       END IF
       !Now add the energy differences to A
       DO ii = 1, nrow_local_A
@@ -412,13 +404,13 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full A")
+      !CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full A")
 
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_9_diagonalize_A", handle2)
       IF (unit_nr > 0) THEN
-        WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Diagonalizing A'
+         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Diagonalizing A'
       END IF
 
       !We have now the full matrix A_iajb, distributed over all ranks
@@ -431,8 +423,8 @@ CONTAINS
       CALL cp_fm_create(fm_mat_eigvec, fm_struct_eigvec)
 
       ALLOCATE (Exc_ens(homo*virtual))
-      
-      CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens,diag_info)
+
+      CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual)
 
@@ -496,7 +488,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A16,T50,A22)') &
             ' Excitonic level', 'Excitation energy (eV)'
          !prints actual energies values
-         DO i = 1, MIN(15,num_exc_en)
+         DO i = 1, MIN(15, num_exc_en)
             WRITE (unit_nr, '(T3,I16,T50,F22.3)') i, Exc_ens(i)*evolt
          END DO
          WRITE (unit_nr, '(T3,A)') ' '
