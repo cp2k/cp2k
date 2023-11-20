@@ -23,7 +23,8 @@ MODULE bse_full_diag
                                               cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_write_formatted
 
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
@@ -107,7 +108,7 @@ CONTAINS
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
-
+      
       ! create the blacs env for BSE matrices (NOT fm_mat_S related parallel_gemms!)
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
@@ -120,12 +121,12 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_a, context=blacs_env_BSE, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_A, fm_struct_a, name="fm_mat_A_iajb_BSE")
-      CALL cp_fm_set_all(fm_mat_A, 0.0_dp)
+      CALL cp_fm_set_all(fm_mat_A, 111.0_dp)
 
       CALL cp_fm_struct_create(fm_struct_W, context=blacs_env, nrow_global=homo**2, &
                                ncol_global=virtual**2, para_env=para_env)
       CALL cp_fm_create(fm_mat_W, fm_struct_W, name="fm_mat_W_ijab_BSE")
-      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
+      CALL cp_fm_set_all(fm_mat_W, 888.0_dp)
 
       IF (unit_nr > 0) THEN
         WRITE (unit_nr, '(T3,A1,T8,A35)') '|','BSE - Full diagonalization'
@@ -148,6 +149,7 @@ CONTAINS
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_A)
 
+      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full V")
       IF (unit_nr > 0) THEN
         WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Allocated A_iajb'
       END IF
@@ -156,6 +158,7 @@ CONTAINS
       CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
+      CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: Full W")
       IF (unit_nr > 0) THEN
         WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Allocated W_ijab'
       END IF
@@ -193,8 +196,8 @@ CONTAINS
                           col_indices=col_indices_W, &
                           nrow_block=nrow_block_W, &
                           ncol_block=ncol_block_W)
-
-
+      
+                          
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Row block size of W_ijab', nrow_block_W
          WRITE (unit_nr, '(T3,A1,T8,A35,T58,I10)') '|', 'Column block size of W_ijab', ncol_block_W
@@ -204,20 +207,22 @@ CONTAINS
       ! Use scalapack wrapper to find process index in A, where ijab -> iajb is needed
       ! To that end, we obtain the global index in A from the level indices
       DO ij_loc = 1, nrow_local_W
-         i_occ_row = (row_indices_W(ij_loc) - 1)/virtual + 1
-         j_occ_col = MOD(row_indices_W(ij_loc) - 1, virtual) + 1
-
+         i_occ_row = (row_indices_W(ij_loc) - 1)/homo + 1
+         j_occ_col = MOD(row_indices_W(ij_loc) - 1, homo) + 1
+         
          DO ab_loc = 1, ncol_local_W
             a_virt_row = (col_indices_W(ab_loc) - 1)/virtual + 1
             b_virt_col = MOD(col_indices_W(ab_loc) - 1, virtual) + 1
 
-            send_prow = cp_fm_indxg2p(i_occ_row*a_virt_row, nrow_block_A, dummy_proc, &
+            send_prow = cp_fm_indxg2p(a_virt_row+(i_occ_row-1)*virtual, nrow_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(1), nprow)
-            send_pcol = cp_fm_indxg2p(j_occ_col*b_virt_col, ncol_block_A, dummy_proc, &
+
+            send_pcol = cp_fm_indxg2p(b_virt_col+(j_occ_col-1)*virtual, ncol_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(2), npcol)
 
             proc_send = fm_mat_A%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
+            
+            
             num_entries_send(proc_send) = num_entries_send(proc_send) + 1
 
          END DO
@@ -247,14 +252,14 @@ CONTAINS
       DO iproc = 0, para_env_RPA%num_pe - 1
 
          ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
-         buffer_rec(iproc)%msg = 0.0_dp
+         buffer_rec(iproc)%msg = 222.0_dp
 
       END DO
 
       DO iproc = 0, para_env_RPA%num_pe - 1
 
          ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
-         buffer_send(iproc)%msg = 0.0_dp
+         buffer_send(iproc)%msg = 333.0_dp
 
       END DO
 
@@ -284,28 +289,27 @@ CONTAINS
 
       ! Now we can write the actual data and indices to the send-buffer
       DO ij_loc = 1, nrow_local_W
-         i_occ_row = (row_indices_W(ij_loc) - 1)/virtual + 1
-         j_occ_col = MOD(row_indices_W(ij_loc) - 1, virtual) + 1
-
+         i_occ_row = (row_indices_W(ij_loc) - 1)/homo + 1
+         j_occ_col = MOD(row_indices_W(ij_loc) - 1, homo) + 1
          DO ab_loc = 1, ncol_local_W
             a_virt_row = (col_indices_W(ab_loc) - 1)/virtual + 1
             b_virt_col = MOD(col_indices_W(ab_loc) - 1, virtual) + 1
-
-            send_prow = cp_fm_indxg2p(i_occ_row*a_virt_row, nrow_block_A, dummy_proc, &
+            send_prow = cp_fm_indxg2p(a_virt_row+(i_occ_row-1)*virtual, nrow_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(1), nprow)
 
-            send_pcol = cp_fm_indxg2p(j_occ_col*b_virt_col, ncol_block_A, dummy_proc, &
+            send_pcol = cp_fm_indxg2p(b_virt_col+(j_occ_col-1)*virtual, ncol_block_A, dummy_proc, &
                                       fm_mat_A%matrix_struct%first_p_pos(2), npcol)
 
             proc_send = fm_mat_A%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
-
             entry_counter(proc_send) = entry_counter(proc_send) + 1
 
             buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
                fm_mat_W%local_data(ij_loc, ab_loc)
 
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = i_occ_row*a_virt_row
-            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = j_occ_col*b_virt_col
+            buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = a_virt_row+(i_occ_row-1)*virtual!homo*(a_virt_row-1)/virtual+i_occ_row
+            buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = b_virt_col+(j_occ_col-1)*virtual!homo*(b_virt_col-1)/virtual+j_occ_col
+         
+         
          END DO
       END DO
 
@@ -332,11 +336,12 @@ CONTAINS
       ! MG to do: OMP parallel
       ! fill fm_mat_A with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
       nprocs = para_env_RPA%num_pe
+
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_mat_A) &
+!$OMP SHARED(fm_mat_A, nprocs, nrow_local_A,ncol_local_A, &
+!$OMP          num_entries_rec, buffer_rec, row_indices_A, col_indices_A ) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj, &
-!$OMP          nrow_local_A,ncol_local_A, i_row_global, j_col_global, &
-!$OMP          nprocs, num_entries_rec, buffer_rec, row_indices_A, col_indices_A )
+!$OMP          i_row_global, j_col_global )
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
             DO ii = 1, nrow_local_A
@@ -345,11 +350,11 @@ CONTAINS
 
                DO jj = 1, ncol_local_A
                   j_col_global = col_indices_A(jj)
-
+                  
                   IF (i_row_global == buffer_rec(iproc)%indx(i_entry_rec, 1) .AND. &
                       j_col_global == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
                      !Subtract buffer, since A = Delta E + alpha V - W
-                     fm_mat_A%local_data(ii, jj) = fm_mat_A%local_data(ii, jj) - buffer_rec(iproc)%msg(i_entry_rec)
+                     fm_mat_A%local_data(ii, jj) = - buffer_rec(iproc)%msg(i_entry_rec) !fm_mat_A%local_data(ii, jj) - buffer_rec(iproc)%msg(i_entry_rec)
 
                   END IF
                END DO
@@ -358,7 +363,6 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
       
-      print *,"MG - B2A took",t2-t1,"s on proc",para_env_RPA%mepos
 
       CALL timestop(handle2)
 
@@ -386,10 +390,10 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_8_energy_diffs", handle2)
+      
       IF (unit_nr > 0) THEN
         WRITE (unit_nr, '(T3,A1,T8,A35)') '|','Inserting GW energy differences'
       END IF
-
       !Now add the energy differences to A
       DO ii = 1, nrow_local_A
 
@@ -408,7 +412,8 @@ CONTAINS
             END IF
          END DO
       END DO
-      
+      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full A")
+
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_9_diagonalize_A", handle2)
