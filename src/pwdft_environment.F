@@ -98,7 +98,9 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
-      TYPE(section_vals_type), POINTER                   :: pwdft_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: dft_plus_u_section, &
+                                                            dft_u_plus_v_section, pwdft_section, &
+                                                            xc_section
 
       CALL timeset(routineN, handle)
 
@@ -112,9 +114,13 @@ CONTAINS
 
       ! retrieve the functionals parameters
       xc_section => section_vals_get_subs_vals(force_env_section, "DFT%XC%XC_FUNCTIONAL")
+      dft_u_plus_v_section => section_vals_get_subs_vals(force_env_section, "DFT%DFT_U_PLUS_V")
+      dft_plus_u_section => section_vals_get_subs_vals(force_env_section, "DFT%DFT_PLUS_U")
 
       CALL pwdft_env_set(pwdft_env=pwdft_env, pwdft_input=pwdft_section, &
-                         force_env_input=force_env_section, xc_input=xc_section)
+                         force_env_input=force_env_section, xc_input=xc_section, &
+                         dft_plus_u_input=dft_plus_u_section, &
+                         u_plus_v_input=dft_u_plus_v_section)
 
       ! parallel environment
       CALL pwdft_env_set(pwdft_env=pwdft_env, para_env=para_env)
