@@ -14,6 +14,12 @@
 #include "offload_library.h"
 #include "offload_runtime.h"
 
+#if defined(__OFFLOAD_CUDA)
+#include <cuda.h>
+#elif defined(__OFFLOAD_HIP)
+#include <hip/hip_runtime_api.h>
+#endif
+
 #if defined(__OFFLOAD_PROFILING)
 #if defined(__OFFLOAD_CUDA)
 #include <nvToolsExt.h>
@@ -38,6 +44,23 @@ const uint32_t colormap[] = {0xFFFFFF00,  // Yellow
                              0xFF008000,  // Green
                              0xFF0000FF,  // Blue
                              0xFF000080}; // Navy
+
+/*******************************************************************************
+ * \brief Initialize runtime.
+ * \author Rocco Meli
+ ******************************************************************************/
+void offload_init(void) {
+#if defined(__OFFLOAD_CUDA)
+  CUresult error = cuInit(0);
+  if (error != CUDA_SUCCESS) {
+    fprintf(stderr, "ERROR: %s %d %s %d\n", "cuInit failed with error: ", error,
+            __FILE__, __LINE__);
+    abort();
+  }
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipInit(0));
+#endif
+}
 
 /*******************************************************************************
  * \brief Returns the number of available devices.

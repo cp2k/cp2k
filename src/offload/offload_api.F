@@ -28,6 +28,7 @@ MODULE offload_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'offload_api'
 
+   PUBLIC :: offload_init
    PUBLIC :: offload_get_device_count
    PUBLIC :: offload_set_chosen_device, offload_get_chosen_device, offload_activate_chosen_device
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
@@ -85,6 +86,22 @@ CONTAINS
 
       res = offload_free_pinned_mem_c(buffer)
    END FUNCTION offload_free_pinned_mem
+
+! **************************************************************************************************
+!> \brief Initialize runtime.
+!> \return ...
+!> \author Rocco Meli
+! **************************************************************************************************
+   SUBROUTINE offload_init()
+      INTERFACE
+         SUBROUTINE offload_init_c() &
+            BIND(C, name="offload_init")
+         END SUBROUTINE offload_init_c
+      END INTERFACE
+
+      CALL offload_init_c()
+
+   END SUBROUTINE offload_init
 
 ! **************************************************************************************************
 !> \brief Returns the number of available devices.
