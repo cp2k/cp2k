@@ -112,8 +112,8 @@ MODULE f77_interface
    USE nnp_environment_types,           ONLY: nnp_type
    USE offload_api,                     ONLY: offload_get_chosen_device,&
                                               offload_get_device_count,&
-                                              offload_set_chosen_device, &
-                                              offload_init
+                                              offload_init,&
+                                              offload_set_chosen_device
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_gpu,                          ONLY: pw_gpu_finalize,&
                                               pw_gpu_init
@@ -211,8 +211,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      INTEGER                                            :: unit_nr
-      INTEGER                                            :: offload_device_count
+      INTEGER                                            :: offload_device_count, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
       IF (.NOT. module_initialized) THEN
