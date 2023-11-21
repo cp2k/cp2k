@@ -14,6 +14,12 @@
 #include "offload_library.h"
 #include "offload_runtime.h"
 
+#if defined(__OFFLOAD_CUDA)
+#include <cuda.h>
+#elif defined(__OFFLOAD_HIP)
+#include <hip/hip_runtime_api.h>
+#endif
+
 #if defined(__OFFLOAD_PROFILING)
 #if defined(__OFFLOAD_CUDA)
 #include <nvToolsExt.h>
