@@ -50,7 +50,7 @@ const uint32_t colormap[] = {0xFFFFFF00,  // Yellow
  * \author Rocco Meli
  ******************************************************************************/
 void offload_init(void) {
-#ifdef __OFFLOAD_CUDA
+#if defined(__OFFLOAD_CUDA)
   CUresult error = cuInit(0);
   if (error != CUDA_SUCCESS) {
     fprintf(stderr, "ERROR: %s %d %s %d\n", "cuInit failed with error: ", error,
