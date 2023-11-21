@@ -1156,18 +1156,18 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: bse_method, bse_spin_config, count_ev_sc_GW, cut_memory, group_size_P, &
-         gw_corr_lev_tot, handle, handle3, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, &
-         min_bsize, mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, &
-         num_fit_points, Pspin, Qspin, size_P
+      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
+         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
+         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
+         size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
-      LOGICAL :: bse_full_diag, bse_iterat_diag, do_apply_ic_corr_to_gw, do_gw_im_time, &
-         do_ic_model, do_kpoints_cubic_RPA, do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, &
-         first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
+      LOGICAL :: bse_abba, bse_full_diag, bse_iterat_diag, bse_tda, do_apply_ic_corr_to_gw, &
+         do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, do_periodic, do_print, do_ri_Sigma_x, &
+         exit_ev_gw, first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
@@ -1775,17 +1775,21 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
-
-         !MG to del
-         bse_spin_config = mp2_env%ri_g0w0%bse_spin_config
-         bse_method = mp2_env%ri_g0w0%bse_method
          bse_full_diag = .FALSE.
          bse_iterat_diag = .FALSE.
-         SELECT CASE (bse_method)
+         bse_tda = .FALSE.
+         bse_abba = .FALSE.
+         SELECT CASE (mp2_env%ri_g0w0%bse_method)
          CASE (bse_fulldiag_tda, bse_fulldiag_abba)
             bse_full_diag = .TRUE.
          CASE (bse_iter_tda, bse_iter_abba)
             bse_iterat_diag = .TRUE.
+         END SELECT
+         SELECT CASE (mp2_env%ri_g0w0%bse_method)
+         CASE (bse_fulldiag_tda, bse_iter_tda)
+            bse_tda = .TRUE.
+         CASE (bse_fulldiag_abba, bse_iter_abba)
+            bse_abba = .TRUE.
          END SELECT
 
          !MG: Is this IF clause necessary?
@@ -1823,9 +1827,11 @@ CONTAINS
          IF (bse_full_diag) THEN
             CALL create_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                           fm_mat_A, Eigenval(:, 1, 1), &
-                          homo(1), virtual(1), dimen_RI, bse_spin_config, unit_nr, &
+                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
                           para_env, para_env_RPA, blacs_env_BSE)
-            CALL diagonalize_A(fm_mat_A, homo(1), virtual(1), bse_spin_config, unit_nr)
+            IF (bse_tda) THEN
+               CALL diagonalize_A(fm_mat_A, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+            END IF
          END IF
 
          CALL cp_fm_release(fm_mat_S_bar_ia_bse)
@@ -1835,7 +1841,7 @@ CONTAINS
          CALL deallocate_matrices_bse(fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
          IF (bse_iterat_diag) THEN
             CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                        B_iaQ_bse_local, homo(1), virtual(1), bse_spin_config, unit_nr, &
+                                        B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
                                         Eigenval(:, 1, 1), para_env, mp2_env)
             !Deallocate "three center" integrals
             DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)

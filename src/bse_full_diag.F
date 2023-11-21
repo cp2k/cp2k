@@ -23,7 +23,7 @@ MODULE bse_full_diag
                                               cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type, cp_fm_write_formatted
+                                              cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -41,7 +41,7 @@ MODULE bse_full_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
-   PUBLIC :: create_A, diagonalize_A
+   PUBLIC :: create_A, diagonalize_A, create_B
 
 CONTAINS
 
@@ -145,7 +145,7 @@ CONTAINS
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_A)
 
-      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: alpha* Full V")
+      !CALL cp_fm_write_formatted(fm_mat_A, unit_nr, "MG: alpha* Full V")
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocated A_iajb'
       END IF
@@ -154,7 +154,7 @@ CONTAINS
       CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
-      CALL cp_fm_write_formatted(fm_mat_W,unit_nr,"MG: Full W")
+      !CALL cp_fm_write_formatted(fm_mat_W, unit_nr, "MG: Full W")
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'Allocated W_ijab'
       END IF
@@ -405,12 +405,51 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL cp_fm_write_formatted(fm_mat_A,unit_nr,"MG: Full A")
+      !CALL cp_fm_write_formatted(fm_mat_A, unit_nr, "MG: Full A")
 
       CALL timestop(handle2)
       CALL timestop(handle)
 
    END SUBROUTINE create_A
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_S ...
+!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_B ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param bse_spin_config ...
+!> \param unit_nr ...
+!> \param para_env ...
+!> \param para_env_RPA ...
+!> \param blacs_env_BSE ...
+! **************************************************************************************************
+   SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
+                       fm_mat_B, &
+                       homo, virtual, dimen_RI, bse_spin_config, unit_nr, &
+                       para_env, para_env_RPA, blacs_env_BSE)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
+                                                            fm_mat_S_ab_bse
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_B
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, bse_spin_config
+      INTEGER                                            :: unit_nr
+      TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE create_B
 
 ! **************************************************************************************************
 !> \brief ...
