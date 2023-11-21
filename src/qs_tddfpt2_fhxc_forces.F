@@ -98,6 +98,7 @@ MODULE qs_tddfpt2_fhxc_forces
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_fxc,                          ONLY: qs_fgxc_create,&
+                                              qs_fgxc_gdiff,&
                                               qs_fgxc_release
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -130,7 +131,8 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
-   USE qs_vxc_atom,                     ONLY: calculate_gfxc_atom
+   USE qs_vxc_atom,                     ONLY: calculate_gfxc_atom,&
+                                              gfxc_atom_diff
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -172,11 +174,11 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nkind, &
-                                                            norb, nspins
+                                                            norb, nspins, order
       LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, use_virial
-      REAL(KIND=dp)                                      :: eh1, eh1c, eps_fit, focc, fscal, fval, &
-                                                            kval, xehartree
+      REAL(KIND=dp)                                      :: eh1, eh1c, eps_delta, eps_fit, focc, &
+                                                            fscal, fval, kval, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -510,6 +512,8 @@ CONTAINS
          CASE DEFAULT
             CPABORT("invalid xc_kernel_method")
          END SELECT
+         order = ex_env%diff_order
+         eps_delta = ex_env%eps_delta_rho
 
          IF (gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, rho_xc=rho)
@@ -529,9 +533,16 @@ CONTAINS
          END IF
          IF (do_analytic .AND. .NOT. do_numeric) THEN
             CPABORT("Analytic 3rd EXC derivatives not available")
+         ELSEIF (do_numeric) THEN
+            IF (do_analytic) THEN
+               CALL qs_fgxc_gdiff(ks_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
+                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+            ELSE
+               CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, order, is_rks_triplets, &
+                                   fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+            END IF
          ELSE
-            CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, 6, is_rks_triplets, &
-                                fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+            CPABORT("FHXC forces analytic/numeric")
          END IF
 
          ! Well, this is a hack :-(
@@ -547,9 +558,21 @@ CONTAINS
             END DO
          END IF
          IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_gfxc_atom(qs_env, ex_env%local_rho_set%rho_atom_set, &
-                                     local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
-                                     qs_kind_set, xc_section, is_rks_triplets, 6)
+            IF (do_analytic .AND. .NOT. do_numeric) THEN
+               CPABORT("Analytic 3rd EXC derivatives not available")
+            ELSEIF (do_numeric) THEN
+               IF (do_analytic) THEN
+                  CALL gfxc_atom_diff(qs_env, ex_env%local_rho_set%rho_atom_set, &
+                                      local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
+                                      qs_kind_set, xc_section, is_rks_triplets, order, eps_delta)
+               ELSE
+                  CALL calculate_gfxc_atom(qs_env, ex_env%local_rho_set%rho_atom_set, &
+                                           local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
+                                           qs_kind_set, xc_section, is_rks_triplets, order)
+               END IF
+            ELSE
+               CPABORT("FHXC forces analytic/numeric")
+            END IF
          END IF
 
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -679,9 +702,16 @@ CONTAINS
                             rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
             IF (do_analytic .AND. .NOT. do_numeric) THEN
                CPABORT("Analytic 3rd derivatives of EXC not available")
+            ELSEIF (do_numeric) THEN
+               IF (do_analytic) THEN
+                  CALL qs_fgxc_gdiff(ks_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
+                                     is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               ELSE
+                  CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
+                                      order, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               END IF
             ELSE
-               CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
-                                   6, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               CPABORT("FHXC forces analytic/numeric")
             END IF
 
             ! Well, this is a hack :-(
@@ -740,9 +770,25 @@ CONTAINS
                rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
                rho_atom_set_f => local_rho_set_f_admm%rho_atom_set
                rho_atom_set_g => local_rho_set_g_admm%rho_atom_set
-               CALL calculate_gfxc_atom(qs_env, rho_atom_set, &
-                                        rho_atom_set_f, rho_atom_set_g, &
-                                        admm_env%admm_gapw_env%admm_kind_set, xc_section, is_rks_triplets, 6)
+
+               IF (do_analytic .AND. .NOT. do_numeric) THEN
+                  CPABORT("Analytic 3rd EXC derivatives not available")
+               ELSEIF (do_numeric) THEN
+                  IF (do_analytic) THEN
+                     CALL gfxc_atom_diff(qs_env, rho_atom_set, &
+                                         rho_atom_set_f, rho_atom_set_g, &
+                                         admm_env%admm_gapw_env%admm_kind_set, xc_section, &
+                                         is_rks_triplets, order, eps_delta)
+                  ELSE
+                     CALL calculate_gfxc_atom(qs_env, rho_atom_set, &
+                                              rho_atom_set_f, rho_atom_set_g, &
+                                              admm_env%admm_gapw_env%admm_kind_set, xc_section, &
+                                              is_rks_triplets, order)
+                  END IF
+               ELSE
+                  CPABORT("FHXC forces analytic/numeric")
+               END IF
+
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
                IF (nspins == 1) THEN
                   CALL update_ks_atom(qs_env, mfx, matrix_px1_admm, forces=.TRUE., tddft=.TRUE., &

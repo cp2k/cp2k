@@ -21,6 +21,7 @@ MODULE input_cp2k_exstate
    USE input_section_types,             ONLY: section_add_keyword,&
                                               section_create,&
                                               section_type
+   USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
@@ -71,6 +72,20 @@ CONTAINS
                           enum_c_vals=s2a("BEST_AVAILABLE", "ANALYTIC", "NUMERIC"), &
                           enum_i_vals=(/xc_kernel_method_best, xc_kernel_method_analytic, xc_kernel_method_numeric/), &
                           default_i_val=xc_kernel_method_best)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_DELTA_RHO", &
+                          description="Step size for finite difference calculation of functional derivatives.", &
+                          usage="EPS_DELTA_RHO  1.E-02", &
+                          default_r_val=1.E-03_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DIFF_ORDER", &
+                          description="Order of finite differentiation formula used for functional derivatives.", &
+                          usage="DIFF_ORDER 4", &
+                          default_i_val=6)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

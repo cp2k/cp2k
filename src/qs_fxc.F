@@ -63,7 +63,7 @@ MODULE qs_fxc
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: qs_fxc_fdiff, qs_fxc_analytic, qs_fgxc_create, qs_fgxc_release
+   PUBLIC :: qs_fxc_fdiff, qs_fxc_analytic, qs_fgxc_gdiff, qs_fgxc_create, qs_fgxc_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fxc'
 
@@ -266,6 +266,140 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_fxc_fdiff
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ks_env ...
+!> \param rho0_struct ...
+!> \param rho1_struct ...
+!> \param xc_section ...
+!> \param accuracy ...
+!> \param epsrho ...
+!> \param is_triplet ...
+!> \param fxc_rho ...
+!> \param fxc_tau ...
+!> \param gxc_rho ...
+!> \param gxc_tau ...
+! **************************************************************************************************
+   SUBROUTINE qs_fgxc_gdiff(ks_env, rho0_struct, rho1_struct, xc_section, accuracy, epsrho, &
+                            is_triplet, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      INTEGER, INTENT(IN)                                :: accuracy
+      REAL(KIND=dp), INTENT(IN)                          :: epsrho
+      LOGICAL, INTENT(IN)                                :: is_triplet
+      TYPE(pw_type), DIMENSION(:), POINTER               :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_gdiff'
+
+      INTEGER                                            :: handle, ispin, istep, nspins, nstep
+      REAL(KIND=dp)                                      :: alpha, beta, exc, oeps1
+      REAL(KIND=dp), DIMENSION(-4:4)                     :: ak
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:), POINTER               :: v_tau_rspace, vxc00
+      TYPE(qs_rho_type), POINTER                         :: rhoin
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(.NOT. ASSOCIATED(fxc_rho))
+      CPASSERT(.NOT. ASSOCIATED(fxc_tau))
+      CPASSERT(.NOT. ASSOCIATED(gxc_rho))
+      CPASSERT(.NOT. ASSOCIATED(gxc_tau))
+      CPASSERT(ASSOCIATED(rho0_struct))
+      CPASSERT(ASSOCIATED(rho1_struct))
+
+      ak = 0.0_dp
+      SELECT CASE (accuracy)
+      CASE (:4)
+         nstep = 2
+         ak(-2:2) = (/1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp/)/12.0_dp
+      CASE (5:7)
+         nstep = 3
+         ak(-3:3) = (/-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp/)/60.0_dp
+      CASE (8:)
+         nstep = 4
+         ak(-4:4) = (/1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                      224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp/)/280.0_dp
+      END SELECT
+
+      CALL get_ks_env(ks_env, dft_control=dft_control, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+      nspins = dft_control%nspins
+      exc = 0.0_dp
+
+      CALL qs_fxc_fdiff(ks_env, rho0_struct, rho1_struct, xc_section, accuracy, is_triplet, &
+                        fxc_rho, fxc_tau)
+
+      DO istep = -nstep, nstep
+
+         IF (ak(istep) /= 0.0_dp) THEN
+            alpha = 1.0_dp
+            beta = REAL(istep, KIND=dp)*epsrho
+            NULLIFY (rhoin)
+            ALLOCATE (rhoin)
+            CALL qs_rho_create(rhoin)
+            NULLIFY (vxc00, v_tau_rspace)
+            CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
+            CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
+            CALL qs_fxc_fdiff(ks_env=ks_env, rho0_struct=rhoin, rho1_struct=rho1_struct, &
+                              xc_section=xc_section, accuracy=accuracy, is_triplet=is_triplet, &
+                              fxc_rho=vxc00, fxc_tau=v_tau_rspace)
+            CALL qs_rho_release(rhoin)
+            DEALLOCATE (rhoin)
+            IF (.NOT. ASSOCIATED(gxc_rho)) THEN
+               ALLOCATE (gxc_rho(nspins))
+               DO ispin = 1, nspins
+                  CALL auxbas_pw_pool%create_pw(gxc_rho(ispin), &
+                                                in_space=REALSPACE, use_data=REALDATA3D)
+                  CALL pw_zero(gxc_rho(ispin))
+               END DO
+            END IF
+            DO ispin = 1, nspins
+               CALL pw_axpy(vxc00(ispin), gxc_rho(ispin), ak(istep))
+            END DO
+            DO ispin = 1, SIZE(vxc00)
+               CALL auxbas_pw_pool%give_back_pw(vxc00(ispin))
+            END DO
+            DEALLOCATE (vxc00)
+            IF (ASSOCIATED(v_tau_rspace)) THEN
+               IF (.NOT. ASSOCIATED(gxc_tau)) THEN
+                  ALLOCATE (gxc_tau(nspins))
+                  DO ispin = 1, nspins
+                     CALL auxbas_pw_pool%create_pw(gxc_tau(ispin), &
+                                                   in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL pw_zero(gxc_tau(ispin))
+                  END DO
+               END IF
+               DO ispin = 1, nspins
+                  CALL pw_axpy(v_tau_rspace(ispin), gxc_tau(ispin), ak(istep))
+               END DO
+               DO ispin = 1, SIZE(v_tau_rspace)
+                  CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
+               END DO
+               DEALLOCATE (v_tau_rspace)
+            END IF
+         END IF
+
+      END DO
+
+      oeps1 = 1.0_dp/epsrho
+      DO ispin = 1, nspins
+         CALL pw_scale(gxc_rho(ispin), oeps1)
+      END DO
+      IF (ASSOCIATED(gxc_tau)) THEN
+         DO ispin = 1, nspins
+            CALL pw_scale(gxc_tau(ispin), oeps1)
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fgxc_gdiff
 
 ! **************************************************************************************************
 !> \brief ...
