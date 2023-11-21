@@ -227,6 +227,8 @@ CONTAINS
          ! get runtime information
          CALL get_runtime_info()
 
+         ! Intialize CUDA/HIP before MPI
+         ! Needed for HIP on ALPS & LUMI
          CALL offload_init()
 
          ! re-create the para_env and log with correct (reordered) ranks
