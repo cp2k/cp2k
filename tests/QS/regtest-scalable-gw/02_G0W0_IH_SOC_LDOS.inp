@@ -45,6 +45,8 @@
       &END
       &DOS
         KPOINTS 1 1 2
+        ENERGY_WINDOW 0.5
+        ENERGY_STEP   0.05
         &LDOS
           BIN_MESH 4 4
           INTEGRATION Z
