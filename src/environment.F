@@ -26,6 +26,7 @@ MODULE environment
                                               get_data_dir,&
                                               open_file
    USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
+                                              FM_DIAG_TYPE_DLAF,&
                                               FM_DIAG_TYPE_ELPA,&
                                               FM_DIAG_TYPE_SCALAPACK,&
                                               diag_finalize,&
@@ -545,6 +546,9 @@ CONTAINS
       unit_nr = cp_print_key_unit_nr(logger, global_section, "PRINT_ELPA", extension=".Log")
       IF (unit_nr > 0) globenv%elpa_print = .TRUE.
       CALL cp_print_key_finished_output(unit_nr, logger, global_section, "PRINT_ELPA")
+#if defined(__DLAF)
+      CALL section_vals_val_get(global_section, "DLAF_NEIGVEC_MIN", i_val=globenv%dlaf_neigvec_min)
+#endif
       CALL section_vals_val_get(global_section, "PREFERRED_FFT_LIBRARY", i_val=i_fft)
       CALL section_vals_val_get(global_section, "PRINT_LEVEL", i_val=print_level)
       CALL section_vals_val_get(global_section, "PROGRAM_NAME", i_val=globenv%prog_name_id)
@@ -600,6 +604,12 @@ CONTAINS
          CALL cite_reference(Marek2014)
       CASE (FM_DIAG_TYPE_CUSOLVER)
          globenv%diag_library = "cuSOLVER"
+      CASE (FM_DIAG_TYPE_DLAF)
+#if defined(__DLAF)
+         globenv%diag_library = "DLAF"
+#else
+         CPABORT("DLA-Future specified, but CP2K built without DLA-Future support.")
+#endif
       CASE DEFAULT
          CPABORT("Unknown diagonalization library specified")
       END SELECT
@@ -789,6 +799,14 @@ CONTAINS
                start_section_label//"| Minimum number of eigenvectors for ELPA usage", &
                globenv%elpa_neigvec_min
          END IF
+
+#if defined(__DLAF)
+         IF (globenv%diag_library == "DLAF") THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+               start_section_label//"| Minimum number of eigenvectors for DLAF usage", &
+               globenv%dlaf_neigvec_min
+         END IF
+#endif
 
 #if defined(__CHECK_DIAG)
          ! Perform default check if no threshold value has been specified explicitly
@@ -1062,6 +1080,7 @@ CONTAINS
                      elpa_qr=globenv%elpa_qr, &
                      elpa_print=globenv%elpa_print, &
                      elpa_qr_unsafe=globenv%elpa_qr_unsafe, &
+                     dlaf_neigvec_min_input=globenv%dlaf_neigvec_min, &
                      eps_check_diag_input=globenv%eps_check_diag)
 
       IF (fallback_applied) THEN

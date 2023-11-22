@@ -349,6 +349,7 @@ Fist/regtest-gauss
 QS/regtest-fftw                                             fftw3
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 QS/regtest-cusolver                                         cusolvermp
+QS/regtest-dlaf                                             dlaf
 ATOM/regtest-libxc                                          libxc
 Fist/regtest-spgr                                           spglib
 Fist/regtest-plumed2                                        plumed2

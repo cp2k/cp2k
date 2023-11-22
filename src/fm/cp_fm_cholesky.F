@@ -12,11 +12,14 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_fm_cholesky
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_to_string
-   USE kinds,                           ONLY: dp,&
-                                              sp
+   USE cp_blacs_env, ONLY: cp_blacs_env_type
+   USE cp_fm_types, ONLY: cp_fm_type
+   USE cp_log_handling, ONLY: cp_to_string
+   USE kinds, ONLY: dp, &
+                    sp
+#ifdef __DLAF
+   USE cp_fm_dlaf_api, ONLY: cp_pdpotrf_dlaf, cp_pspotrf_dlaf
+#endif
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,13 +74,19 @@ CONTAINS
 
 #if defined(__SCALAPACK)
       desca(:) = matrix%matrix_struct%descriptor(:)
-
+#if defined(__DLAF)
+      IF (matrix%use_sp) THEN
+         CALL cp_pspotrf_dlaf('U', my_n, a_sp(:, :), 1, 1, desca, info)
+      ELSE
+         CALL cp_pdpotrf_dlaf('U', my_n, a(:, :), 1, 1, desca, info)
+      END IF
+#else
       IF (matrix%use_sp) THEN
          CALL pspotrf('U', my_n, a_sp(1, 1), 1, 1, desca, info)
       ELSE
          CALL pdpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
       END IF
-
+#endif
 #else
 
       IF (matrix%use_sp) THEN

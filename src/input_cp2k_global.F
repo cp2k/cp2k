@@ -23,6 +23,7 @@ MODULE input_cp2k_global
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
    USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
                                               FM_DIAG_TYPE_DEFAULT,&
+                                              FM_DIAG_TYPE_DLAF,&
                                               FM_DIAG_TYPE_ELPA,&
                                               FM_DIAG_TYPE_SCALAPACK
    USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
@@ -120,12 +121,14 @@ CONTAINS
                           enum_i_vals=(/FM_DIAG_TYPE_ELPA, &
                                         FM_DIAG_TYPE_SCALAPACK, &
                                         FM_DIAG_TYPE_SCALAPACK, &
-                                        FM_DIAG_TYPE_CUSOLVER/), &
-                          enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL", "CUSOLVER"), &
+                                        FM_DIAG_TYPE_CUSOLVER, &
+                                        FM_DIAG_TYPE_DLAF/), &
+                          enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL", "CUSOLVER", "DLAF"), &
                           enum_desc=s2a("ELPA library", &
                                         "ScaLAPACK library", &
                                         "ScaLAPACK library (shorthand)", &
-                                        "cuSOLVER (CUDA GPU library)"), &
+                                        "cuSOLVER (CUDA GPU library)", &
+                                        "DLA-Future (CUDA/HIP GPU library)"), &
                           default_i_val=FM_DIAG_TYPE_DEFAULT)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -205,6 +208,17 @@ CONTAINS
                                        filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
+
+#if defined(__DLAF)
+      CALL keyword_create(keyword, __LOCATION__, name="DLAF_NEIGVEC_MIN", &
+                          description="Minimum number of eigenvectors for the use of the eigensolver from "// &
+                          "the DLA-Future library. The eigensolver from the ScaLAPACK library is used as fallback "// &
+                          "for all smaller cases", &
+                          usage="DLAF_NEIGVEC_MIN 512", &
+                          default_i_val=1024)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+#endif
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="PREFERRED_FFT_LIBRARY", &

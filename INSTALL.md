@@ -243,7 +243,30 @@ tools for the solution of dense linear systems and eigenvalue problems.
 - Add `-D__CUSOLVERMP` to `DFLAGS`
 - Add `-lcusolverMp -lcusolver -lcal -lnvidia-ml` to `LIBS`
 
-### 2m. PEXSI (optional, low scaling SCF method)
+### 2m. DLA-Future (optional, experimental, improved performance for diagonalization on Nvidia and AMD GPUs)
+
+[DLA-Future](https://github.com/eth-cscs/DLA-Future) is a high-performance, distributed-memory,
+GPU-accelerated library that provides tools for the solution of eigenvalue problems,
+based on the [pika](https://pikacpp.org/) runtime.
+
+- DLA-Future replaces the ScaLAPACK `SYEVD` to improve performance of the diagonalization
+- DLA-Future is available at <https://github.com/eth-cscs/DLA-Future>
+- DLA-Future is available via the [Spack](https://packages.spack.io/package.html?name=dla-future) package manager
+- `-D__DLAF` is defined by CMake when `-DCP2K_USE_DLAF=ON`
+
+### 2n. PEXSI (optional, low scaling SCF method)
+
+[DLA-Future](https://github.com/eth-cscs/DLA-Future) is a high-performance, distributed-memory,
+GPU-accelerated library that provides tools for the solution of eigenvalue problems, based on the
+[pika](https://pikacpp.org/) runtime.
+
+- DLA-Future replaces the ScaLAPACK `SYEVD` to improve performance of the diagonalization
+- DLA-Future is available at <https://github.com/eth-cscs/DLA-Future>
+- DLA-Future is available via the [Spack](https://packages.spack.io/package.html?name=dla-future)
+  package manager
+- `-D__DLAF` is defined by CMake when `-DCP2K_USE_DLAF=ON`
+
+### 2n. PEXSI (optional, low scaling SCF method)
 
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library and two
 dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
@@ -274,27 +297,27 @@ METISLIB = -lscotchmetis -lscotch -lscotcherr
 PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 ```
 
-### 2n. QUIP (optional, wider range of interaction potentials)
+### 2o. QUIP (optional, wider range of interaction potentials)
 
 QUIP - QUantum mechanics and Interatomic Potentials Support for QUIP can be enabled via the flag
 `-D__QUIP`.
 
 For more information see <http://www.libatoms.org>.
 
-### 2o. PLUMED (optional, enables various enhanced sampling methods)
+### 2p. PLUMED (optional, enables various enhanced sampling methods)
 
 CP2K can be compiled with PLUMED 2.x (`-D__PLUMED2`).
 
 See <https://cp2k.org/howto:install_with_plumed> for full instructions.
 
-### 2p. spglib (optional, crystal symmetries tools)
+### 2q. spglib (optional, crystal symmetries tools)
 
 A library for finding and handling crystal symmetries
 
 - The spglib can be downloaded from <https://github.com/atztogo/spglib>
 - For building CP2K with the spglib add `-D__SPGLIB` to DFLAGS
 
-### 2q. SIRIUS (optional, plane wave calculations)
+### 2r. SIRIUS (optional, plane wave calculations)
 
 SIRIUS is a domain specific library for electronic structure calculations.
 
@@ -303,7 +326,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - Add `-D__LIBVDWXC` if support is activated in SIRIUS.
 - See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.
 
-### 2r. FPGA (optional, plane wave FFT calculations)
+### 2s. FPGA (optional, plane wave FFT calculations)
 
 - Use `-D__PW_FPGA` to enable FPGA support for PW (fft) calculations. Currently tested only for
   Intel Stratix 10 and Arria 10 GX1150 FPGAs.
@@ -319,14 +342,14 @@ SIRIUS is a domain specific library for electronic structure calculations.
   `LDFLAGS` and aocl libs to `LIBS`.
 - When building FPGA and OFFLOAD together then `-D__NO_OFFLOAD_PW` must be used.
 
-### 2s. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
+### 2t. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
 
 - COSMA is an alternative for the pdgemm routine included in ScaLAPACK. The library supports both
   CPU and GPUs.
 - Add `-D__COSMA` to the DFLAGS to enable support for COSMA.
 - See <https://github.com/eth-cscs/COSMA> for more information.
 
-### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
+### 2u. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
 
 - LibVori is a library which enables the calculation of electrostatic properties (charge, dipole
   vector, quadrupole tensor, etc.) via integration of the total electron density in the Voronoi cell
@@ -337,12 +360,12 @@ SIRIUS is a domain specific library for electronic structure calculations.
   <https://brehm-research.de/bqb> for more information as well as the `bqbtool` to inspect BQB
   files.
 
-### 2u. Torch (Machine Learning Framework needed for NequIP)
+### 2v. Torch (Machine Learning Framework needed for NequIP)
 
 - The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
 - Add `-D__LIBTORCH` to the DFLAGS to enable support for libtorch.
 
-### 2v. ROCM/HIP (Support for AMD GPU)
+### 2w. ROCM/HIP (Support for AMD GPU)
 
 The code for the HIP based grid backend was developed and tested on Mi100 but should work out of the
 box on Nvidia hardware as well.
@@ -371,7 +394,7 @@ box on Nvidia hardware as well.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray. It requires to link
   `-lroctx64 -lroctracer64`.
 
-### 2w. OpenCL Devices
+### 2x. OpenCL Devices
 
 OpenCL devices are currently supported for DBCSR and can cover GPUs and other devices. Kernels can
 be automatically tuned like for the CUDA/HIP backend in DBCSR. Note: the OpenCL backend uses some
@@ -412,7 +435,7 @@ functionality from LIBXSMM (dependency).
 - Refer to <https://cp2k.github.io/dbcsr/> for, e.g., environment variables, or how to tune kernels
   (auto tuned parameters).
 
-### 2x. matrix-matrix multiplication offloading on GPU using SPLA
+### 2y. matrix-matrix multiplication offloading on GPU using SPLA
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a standalone library. It
 provides a generic interface to the blas gemm family with offloading on GPU. Offloading supports

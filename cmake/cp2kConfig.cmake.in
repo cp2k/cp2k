@@ -55,6 +55,10 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(Elpa REQUIRED)
   endif()
 
+  if(@CP2K_USE_DLAF@)
+    find_dependency(DLAF REQUIRED)
+  endif()
+
   if(@CP2K_USE_LIBXC@)
     find_dependency(LibXC 6 REQUIRED EXACT)
   endif()

@@ -139,6 +139,10 @@ MODULE f77_interface
                                               timings_register_hooks
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
+#if defined(__DLAF)
+   USE cp_dlaf_utils, ONLY: cp_dlaf_finalize, &
+                            cp_dlaf_initialize
+#endif
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -292,6 +296,10 @@ CONTAINS
          CALL pw_gpu_init()
          CALL grid_library_init()
 
+#if defined(__DLAF)
+         CALL cp_dlaf_initialize()
+#endif
+
          CALL dbm_library_init()
       ELSE
          ierr = cp_failure_level
@@ -337,6 +345,10 @@ CONTAINS
          CALL mp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()
+
+#if defined(__DLAF)
+         CALL cp_dlaf_finalize()
+#endif
 
          !   *** deallocate the bibliography ***
          CALL remove_all_references()

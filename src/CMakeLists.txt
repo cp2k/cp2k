@@ -977,6 +977,11 @@ list(
 
 list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c)
 
+if(CP2K_USE_DLAF)
+  list(APPEND CP2K_SRCS_F fm/cp_dlaf_utils.F fm/cp_fm_dlaf_api.F)
+  list(APPEND CP2K_SRCS_C fm/cp_dlaf_utils.c)
+endif()
+
 list(APPEND CP2K_SRCS_F hfxbase/hfx_compression_core_methods.F
      hfxbase/hfx_contract_block.F hfxbase/hfx_contraction_methods.F)
 
@@ -1559,6 +1564,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_TORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
+    $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::DLAF>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
@@ -1593,6 +1599,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
     $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
     $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
+    $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
     $<$<BOOL:${CP2K_USE_FFTW3_MKL_}>:__FFTW3_MKL>
