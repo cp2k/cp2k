@@ -7,7 +7,7 @@
        ADMM_KERNEL_XC_CORRECTION          F
        NSTATES      2
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-5
+       CONVERGENCE [eV] 1.0e-7
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
@@ -34,10 +34,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  20
-         EPS_SCF 1.0E-6
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
