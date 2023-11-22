@@ -45,13 +45,10 @@
       &END
       &DOS
         KPOINTS 1 1 2
-      &END
-      &LOCAL_VBM_CBM_GAP
-        BIN_MESH 4 4
-        ENERGY_STEP 0.05 
-        ENERGY_WINDOW 0.2 0.5
-        INTEGRATION Z
-        EPS_LDOS 0.5 0.1
+        &LDOS
+          BIN_MESH 4 4
+          INTEGRATION Z
+        &END
       &END
     &END
   &END PROPERTIES

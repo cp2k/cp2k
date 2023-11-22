@@ -144,12 +144,14 @@ CONTAINS
                                                   bs_env%eigenval_prim_cell_scf_soc, &
                                                   "bandstructure_SCF_SOC.bs", &
                                                   bs_env%cfm_ks_spinor_ao_Gamma)
-         IF (bs_env%do_gw) THEN
-            CALL bandstructure_primitive_cell_spinor(qs_env, bs_env, &
-                                                     bs_env%eigenval_prim_cell_G0W0_soc, &
-                                                     "bandstructure_G0W0_SOC.bs", &
-                                                     bs_env%cfm_h_G0W0_spinor_ao_Gamma)
-         END IF
+
+! JW todo later: GW+SOC band structure of primitive cell
+!         IF (bs_env%do_gw) THEN
+!            CALL bandstructure_primitive_cell_spinor(qs_env, bs_env, &
+!                                                     bs_env%eigenval_prim_cell_G0W0_soc, &
+!                                                     "bandstructure_G0W0_SOC.bs", &
+!                                                     bs_env%cfm_h_G0W0_spinor_ao_Gamma)
+!         END IF
       END IF
 
       CALL timestop(handle)
