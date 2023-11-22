@@ -1173,16 +1173,15 @@ CONTAINS
                                                             tau_f
       REAL(dp)                                           :: beta, density_cut, gradient_cut, oeps1, &
                                                             tau_cut
-      REAL(dp), CONTIGUOUS, DIMENSION(:, :), POINTER     :: rho_nlcc, weight
-      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: rho0_h, rho0_s, rho1_h, rho1_s, rho_h, &
-                                                            rho_s, tau0_h, tau0_s, tau1_h, tau1_s, &
-                                                            tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
-                                                            vxc_s
-      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :, :), &
-         POINTER                                         :: drho0_h, drho0_s, drho1_h, drho1_s, &
-                                                            drho_h, drho_s, vxg_h, vxg_s
+      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc_h, vxc_s
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: rho0_h, rho0_s, rho1_h, rho1_s, rho_h, &
+                                                            rho_s, tau0_h, tau0_s, tau1_h, tau1_s, &
+                                                            tau_h, tau_s, vtau_h, vtau_s
+      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho0_h, drho0_s, drho1_h, drho1_s, &
+                                                            drho_h, drho_s, vxg_h, vxg_s
       REAL(KIND=dp), DIMENSION(-4:4)                     :: ak
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1445,16 +1444,12 @@ CONTAINS
 
                   ! hard atom density !
                   CALL xc_dset_zero_all(deriv_set)
-!deb              CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
-!deb                                lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h)
                   CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                          rho_set=rho_set_h, rho1_set=rho1_set_h, &
                                          deriv_set=deriv_set, &
                                          w=weight, vxc=vxc_h, vxg=vxg_h, do_triplet=is_triplet)
                   ! soft atom density !
                   CALL xc_dset_zero_all(deriv_set)
-!deb              CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
-!deb                                lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s)
                   CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                          rho_set=rho_set_s, rho1_set=rho1_set_s, &
                                          deriv_set=deriv_set, &
