@@ -1621,7 +1621,7 @@ CONTAINS
 
       CALL get_cell(cell=cell, periodic=periodic)
 
-      shortest_dist_cell_planes = 1.0E10_dp
+      shortest_dist_cell_planes = 1.0E4_dp
       IF (periodic(1) == 1) THEN
          IF (shortest_dist_cell_planes > plane_distance(1, 0, 0, cell)) THEN
             shortest_dist_cell_planes = plane_distance(1, 0, 0, cell)

@@ -1,6 +1,6 @@
 &GLOBAL
   PROJECT IH
-  PRINT_LEVEL SILENT
+  PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
      THRESHOLD 0.01
@@ -14,6 +14,8 @@
     BASIS_SET_FILE_NAME  ./REGTEST_BASIS
     SORT_BASIS EXP
     POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS
+    UKS
+    MULTIPLICITY 3
     &MGRID
       CUTOFF  100
       REL_CUTOFF  20
@@ -27,7 +29,6 @@
       SCF_GUESS ATOMIC
       EPS_SCF 1.0E-5
       MAX_SCF 100
-      ADDED_MOS -1
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -46,19 +47,12 @@
       &DOS
         KPOINTS 2 2 1
       &END
-      &BANDSTRUCTURE_PATH
-        SPECIAL_POINT Gamma 0.0   0.0   0.0
-        SPECIAL_POINT X     0.5   0.0   0.0
-        SPECIAL_POINT Y     0.0   0.5   0.0
-        SPECIAL_POINT Gamma 0.0   0.0   0.0
-        NPOINTS 10
-      &END
     &END
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom]  3.000   10.000  3.000
-      MULTIPLE_UNIT_CELL  3 1 1
+      ABC [angstrom]  5.000   10.000  3.000
+      MULTIPLE_UNIT_CELL  2 1 1
       PERIODIC XY
     &END CELL
     &KIND H
@@ -66,17 +60,17 @@
       BASIS_SET RI_AUX RI-dummy-regtest
       POTENTIAL        GTH-PBE-q1
     &END KIND
-    &KIND I
+    &KIND Te
       BASIS_SET ORB    SZV-MOLOPT-SR-GTH
       BASIS_SET RI_AUX RI-dummy-regtest
-      POTENTIAL        GTH-PBE-q7
+      POTENTIAL        GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL  3 1 1
+      MULTIPLE_UNIT_CELL  2 1 1
     &END TOPOLOGY
     &COORD
       H  0.2 0.0 0.0
-      I  1.2 0.0 0.0
+      Te 1.4 0.0 0.0
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

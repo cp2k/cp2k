@@ -14,6 +14,8 @@ MODULE gw_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE bibliography,                    ONLY: Graml2023,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -24,13 +26,11 @@ MODULE gw_utils
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-   USE cp_fm_diag,                      ONLY: cp_fm_geeig_canon
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm
+                                              cp_fm_set_all
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_generate_filename
@@ -122,9 +122,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL cite_reference(Graml2023)
+
       CALL read_gw_input_parameters(bs_env, bs_sec)
 
       CALL print_header_and_input_parameters(bs_env)
+
+      CALL setup_AO_and_RI_basis_set(qs_env, bs_env)
 
       CALL get_RI_basis_and_basis_function_indices(qs_env, bs_env)
 
@@ -153,7 +157,7 @@ CONTAINS
       ! Recommendation: perform GW calculation without calculating local VBM, CBM, gap
       !                 to deallocate qs_env (and safe memory). Then use GW restart files
       !                 in a subsequent calculation to calculate local VBM, CBM, gap
-      IF (.NOT. bs_env%do_local_VBM_CBM_gap) THEN
+      IF (.NOT. bs_env%do_ldos) THEN
          CALL qs_env_part_release(qs_env)
       END IF
 
@@ -207,12 +211,50 @@ CONTAINS
 
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
-      CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", i_val=bs_env%input_memory_per_proc_GB)
+      CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
 
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE setup_AO_and_RI_basis_set(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_AO_and_RI_basis_set'
+
+      INTEGER                                            :: handle, natom, nkind
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, &
+                      natom=natom, nkind=nkind)
+
+      ! set up basis
+      ALLOCATE (bs_env%sizes_RI(natom), bs_env%sizes_AO(natom))
+      ALLOCATE (bs_env%basis_set_RI(nkind), bs_env%basis_set_AO(nkind))
+
+      CALL basis_set_list_setup(bs_env%basis_set_RI, "RI_AUX", qs_kind_set)
+      CALL basis_set_list_setup(bs_env%basis_set_AO, "ORB", qs_kind_set)
+
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=bs_env%sizes_RI, &
+                            basis=bs_env%basis_set_RI)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=bs_env%sizes_AO, &
+                            basis=bs_env%basis_set_AO)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE setup_AO_and_RI_basis_set
 
 ! **************************************************************************************************
 !> \brief ...
@@ -225,10 +267,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_RI_basis_and_basis_function_indices'
 
-      INTEGER                                            :: handle, iatom, ikind, &
+      INTEGER                                            :: handle, i_RI, iatom, ikind, iset, &
                                                             max_AO_bf_per_atom, n_ao_test, n_atom, &
-                                                            n_kind, n_RI, nsgf, u
+                                                            n_kind, n_RI, nset, nsgf, u
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER, DIMENSION(:), POINTER                     :: l_max, l_min, nsgf_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -277,6 +320,25 @@ CONTAINS
       CPASSERT(n_ao_test == bs_env%n_ao)
       bs_env%max_AO_bf_per_atom = max_AO_bf_per_atom
 
+      ALLOCATE (bs_env%l_RI(n_RI))
+      i_RI = 0
+      DO iatom = 1, n_atom
+         ikind = kind_of(iatom)
+
+         nset = bs_env%basis_set_RI(ikind)%gto_basis_set%nset
+         l_max => bs_env%basis_set_RI(ikind)%gto_basis_set%lmax
+         l_min => bs_env%basis_set_RI(ikind)%gto_basis_set%lmin
+         nsgf_set => bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf_set
+
+         DO iset = 1, nset
+            CPASSERT(l_max(iset) == l_min(iset))
+            bs_env%l_RI(i_RI + 1:i_RI + nsgf_set(iset)) = l_max(iset)
+            i_RI = i_RI + nsgf_set(iset)
+         END DO
+
+      END DO
+      CPASSERT(i_RI == n_RI)
+
       u = bs_env%unit_nr
 
       IF (u > 0) THEN
@@ -303,9 +365,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_kpoints_chi_eps_W'
 
-      INTEGER                                            :: handle, i_dim, nkp, nkp_extra, nkp_orig, &
-                                                            u
+      INTEGER                                            :: handle, i_dim, n_dim, nkp, nkp_extra, &
+                                                            nkp_orig, u
       INTEGER, DIMENSION(3)                              :: nkp_grid, nkp_grid_extra, periodic
+      REAL(KIND=dp)                                      :: exp_s_p, n_dim_inv
 
       CALL timeset(routineN, handle)
 
@@ -354,23 +417,42 @@ CONTAINS
       bs_env%nkp_chi_eps_W_orig_plus_extra = nkp
 
       ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
-
-      ! k-point weights are chosen to automatically extrapolate the k-point mesh
-      kpoints%wkp(1:nkp_orig) = 1.0_dp/REAL(nkp_orig, KIND=dp) &
-                                /(1.0_dp - SQRT(REAL(nkp_extra, KIND=dp)/REAL(nkp_orig, KIND=dp)))
-
-      ! exclude nkp_extra = 0 which is the case for molecules
-      IF (nkp_extra > 0) THEN
-         kpoints%wkp(nkp_orig + 1:nkp) = 1.0_dp/REAL(nkp_extra, KIND=dp) &
-                                         /(1.0_dp - SQRT(REAL(nkp_orig, KIND=dp) &
-                                                         /REAL(nkp_extra, KIND=dp)))
-      END IF
+      ALLOCATE (bs_env%wkp_no_extra(nkp), bs_env%wkp_s_p(nkp))
 
       CALL compute_xkp(kpoints%xkp, 1, nkp_orig, nkp_grid)
       CALL compute_xkp(kpoints%xkp, nkp_orig + 1, nkp, nkp_grid_extra)
 
+      n_dim = SUM(periodic)
+      IF (n_dim == 0) THEN
+         ! molecules
+         kpoints%wkp(1) = 1.0_dp
+         bs_env%wkp_s_p(1) = 1.0_dp
+         bs_env%wkp_no_extra(1) = 1.0_dp
+      ELSE
+
+         n_dim_inv = 1.0_dp/REAL(n_dim, KIND=dp)
+
+         ! k-point weights are chosen to automatically extrapolate the k-point mesh
+         CALL compute_wkp(kpoints%wkp(1:nkp_orig), nkp_orig, nkp_extra, n_dim_inv)
+         CALL compute_wkp(kpoints%wkp(nkp_orig + 1:nkp), nkp_extra, nkp_orig, n_dim_inv)
+
+         bs_env%wkp_no_extra(1:nkp_orig) = 0.0_dp
+         bs_env%wkp_no_extra(nkp_orig + 1:nkp) = 1.0_dp/REAL(nkp_extra, KIND=dp)
+
+         IF (n_dim == 3) THEN
+            ! W_PQ(k) for an s-function P and a p-function Q diverges as 1/k at k=0
+            ! (instead of 1/k^2 for P and Q both being s-functions).
+            exp_s_p = 2.0_dp*n_dim_inv
+            CALL compute_wkp(bs_env%wkp_s_p(1:nkp_orig), nkp_orig, nkp_extra, exp_s_p)
+            CALL compute_wkp(bs_env%wkp_s_p(nkp_orig + 1:nkp), nkp_extra, nkp_orig, exp_s_p)
+         ELSE
+            bs_env%wkp_s_p(1:nkp) = bs_env%wkp_no_extra(1:nkp)
+         END IF
+
+      END IF
+
       IF (bs_env%approx_kp_extrapol) THEN
-         bs_env%wkp_no_extra = 1.0_dp/REAL(nkp_orig, KIND=dp)
+         bs_env%wkp_orig = 1.0_dp/REAL(nkp_orig, KIND=dp)
       END IF
 
       CALL kpoint_init_cell_index_simple(kpoints, qs_env)
@@ -467,6 +549,33 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param wkp ...
+!> \param nkp_1 ...
+!> \param nkp_2 ...
+!> \param exponent ...
+! **************************************************************************************************
+   SUBROUTINE compute_wkp(wkp, nkp_1, nkp_2, exponent)
+      REAL(KIND=dp), DIMENSION(:)                        :: wkp
+      INTEGER                                            :: nkp_1, nkp_2
+      REAL(KIND=dp)                                      :: exponent
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_wkp'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: nkp_ratio
+
+      CALL timeset(routineN, handle)
+
+      nkp_ratio = REAL(nkp_2, KIND=dp)/REAL(nkp_1, KIND=dp)
+
+      wkp(:) = 1.0_dp/REAL(nkp_1, KIND=dp)/(1.0_dp - nkp_ratio**exponent)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
 !> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
@@ -488,12 +597,8 @@ CONTAINS
 
       fm_struct => bs_env%fm_ks_Gamma(1)%matrix_struct
 
-      ALLOCATE (bs_env%fm_Gocc(bs_env%num_time_freq_points))
-      ALLOCATE (bs_env%fm_Gvir(bs_env%num_time_freq_points))
-      DO i_t = 1, bs_env%num_time_freq_points
-         CALL cp_fm_create(bs_env%fm_Gocc(i_t), fm_struct)
-         CALL cp_fm_create(bs_env%fm_Gvir(i_t), fm_struct)
-      END DO
+      CALL cp_fm_create(bs_env%fm_Gocc, fm_struct)
+      CALL cp_fm_create(bs_env%fm_Gvir, fm_struct)
       CALL cp_fm_create(bs_env%fm_h_G0W0_Gamma, fm_struct)
 
       NULLIFY (fm_struct_RI_global)
@@ -510,7 +615,7 @@ CONTAINS
       END IF
       CALL cp_fm_struct_release(fm_struct_RI_global)
 
-      ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, bs_env%nkp_DOS))
+      ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, bs_env%nkp_DOS, bs_env%n_spin))
 
       num_time_freq_points = bs_env%num_time_freq_points
 
@@ -562,51 +667,33 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_tensors'
 
-      INTEGER                                            :: handle, n_atom_step, natom, nkind, &
-                                                            RI_atom
+      INTEGER                                            :: handle, n_atom_step, RI_atom
       INTEGER(int_8)                                     :: mem, non_zero_elements_sum, nze
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_AO, sizes_RI
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       TYPE(dbt_type)                                     :: t_3c_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_global_array
       TYPE(neighbor_list_3c_type)                        :: nl_3c_global
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      ! code inspired by mp2_integrals.F
-
-      CALL get_qs_env(qs_env, &
-                      qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set, &
-                      natom=natom, nkind=nkind)
-
-      ! set up basis
-      ALLOCATE (sizes_RI(natom), sizes_AO(natom))
-      ALLOCATE (bs_env%basis_set_RI(nkind), bs_env%basis_set_AO(nkind))
-      CALL basis_set_list_setup(bs_env%basis_set_RI, "RI_AUX", qs_kind_set)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=bs_env%basis_set_RI)
-      CALL basis_set_list_setup(bs_env%basis_set_AO, "ORB", qs_kind_set)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=bs_env%basis_set_AO)
-
+      ! be careful: routine needs bs_env%eps_3c_int which is set in set_heuristic_parameters
       CALL init_interaction_radii(bs_env)
 
       ! split blocks does not improve load balancing/efficienfy for tensor contraction, so we go
       ! with the standard atomic blocks
       CALL create_3c_t(bs_env%t_RI_AO__AO, bs_env%para_env_tensor, "(RI AO | AO)", [1, 2], [3], &
-                       sizes_RI, sizes_AO, create_nl_3c=.TRUE., nl_3c=bs_env%nl_3c, qs_env=qs_env)
+                       bs_env%sizes_RI, bs_env%sizes_AO, &
+                       create_nl_3c=.TRUE., nl_3c=bs_env%nl_3c, qs_env=qs_env)
       CALL create_3c_t(bs_env%t_RI__AO_AO, bs_env%para_env_tensor, "(RI | AO AO)", [1], [2, 3], &
-                       sizes_RI, sizes_AO)
+                       bs_env%sizes_RI, bs_env%sizes_AO)
 
-      CALL create_2c_t(bs_env, sizes_RI, sizes_AO)
+      CALL create_2c_t(bs_env, bs_env%sizes_RI, bs_env%sizes_AO)
 
       ! check the sparsity of 3c integral tensor (µν|P); calculate maximum distance between
       ! AO atoms µ, ν where at least a single integral (µν|P) is larger than the filter threshold
       CALL create_3c_t(t_3c_global, bs_env%para_env, "(RI AO | AO)", [1, 2], [3], &
-                       sizes_RI, sizes_AO, create_nl_3c=.TRUE., nl_3c=nl_3c_global, qs_env=qs_env)
-
-      DEALLOCATE (sizes_RI, sizes_AO)
+                       bs_env%sizes_RI, bs_env%sizes_AO, &
+                       create_nl_3c=.TRUE., nl_3c=nl_3c_global, qs_env=qs_env)
 
       CALL m_memory(mem)
       CALL bs_env%para_env%max(mem)
@@ -665,7 +752,7 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A)') ''
          WRITE (bs_env%unit_nr, '(T2,A,F27.1,A)') &
             'Computed 3-center integrals (µν|P), execution time', bs_env%t2 - bs_env%t1, ' s'
-         WRITE (bs_env%unit_nr, '(T2,A,F50.3,A)') 'Fraction of non-zero (µν|P)', &
+         WRITE (bs_env%unit_nr, '(T2,A,F48.3,A)') 'Percentage of non-zero (µν|P)', &
             occupation_sum*100, ' %'
          WRITE (bs_env%unit_nr, '(T2,A,F33.1,A)') 'Max. distance between µ,ν in non-zero (µν|P)', &
             max_dist_AO_atoms*angstrom, ' A'
@@ -917,10 +1004,14 @@ CONTAINS
                                                  bs_env%atoms_j(2))
       END DO
 
+      ALLOCATE (bs_env%skip_Sigma_occ(n_intervals_i, n_intervals_j))
+      ALLOCATE (bs_env%skip_Sigma_vir(n_intervals_i, n_intervals_j))
+      bs_env%skip_Sigma_occ(:, :) = .FALSE.
+      bs_env%skip_Sigma_vir(:, :) = .FALSE.
+
       ! choose atomic range for µ and σ ("inner loop (IL) atom") in
       ! M_λνP(iτ) = sum_µ (µν|P) G^occ_µλ(i|τ|,k=0)
       ! N_νλQ(iτ) = sum_σ (σλ|Q) G^vir_σν(i|τ|,k=0)
-      ! such that M and N fit into the memory
       n_atom_per_IL_ivl = MIN(INT(bs_env%safety_factor_memory*bs_env%input_memory_per_proc &
                                   *bs_env%group_size_tensor/n_atom_per_ivl &
                                   /bs_env%max_AO_bf_per_atom &
@@ -961,22 +1052,25 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_for_restart_files'
 
-      CHARACTER(LEN=default_path_length)                 :: f_chi, f_Goc, f_Gvi, f_S_n, f_S_p, &
-                                                            f_S_x, f_W_t, prefix, project_name
-      INTEGER                                            :: handle, i_t_or_w, num_time_freq_points
-      LOGICAL                                            :: chi_exists, G_occ_exists, G_vir_exists, &
-                                                            Sigma_neg_time_exists, &
-                                                            Sigma_pos_time_exists, W_time_exists
+      CHARACTER(LEN=9)                                   :: frmt
+      CHARACTER(LEN=default_path_length)                 :: f_chi, f_S_n, f_S_p, f_S_x, f_W_t, &
+                                                            prefix, project_name
+      INTEGER                                            :: handle, i_spin, i_t_or_w, ind, n_spin, &
+                                                            num_time_freq_points
+      LOGICAL                                            :: chi_exists, Sigma_neg_time_exists, &
+                                                            Sigma_pos_time_exists, &
+                                                            Sigma_x_spin_exists, W_time_exists
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input, print_key
 
       CALL timeset(routineN, handle)
 
       num_time_freq_points = bs_env%num_time_freq_points
+      n_spin = bs_env%n_spin
 
-      ALLOCATE (bs_env%read_chi_and_G_occ_vir(num_time_freq_points))
-      ALLOCATE (bs_env%calc_chi_and_G_occ_vir(num_time_freq_points))
-      ALLOCATE (bs_env%Sigma_c_exists(num_time_freq_points))
+      ALLOCATE (bs_env%read_chi(num_time_freq_points))
+      ALLOCATE (bs_env%calc_chi(num_time_freq_points))
+      ALLOCATE (bs_env%Sigma_c_exists(num_time_freq_points, n_spin))
 
       CALL get_qs_env(qs_env, input=input)
 
@@ -992,46 +1086,61 @@ CONTAINS
       DO i_t_or_w = 1, num_time_freq_points
 
          IF (i_t_or_w < 10) THEN
-            WRITE (f_chi, '(3A,I1,A)') TRIM(prefix), bs_env%chi_name, "_00", i_t_or_w, ".matrix"
-            WRITE (f_Goc, '(3A,I1,A)') TRIM(prefix), bs_env%Gocc_name, "_00", i_t_or_w, ".matrix"
-            WRITE (f_Gvi, '(3A,I1,A)') TRIM(prefix), bs_env%Gvir_name, "_00", i_t_or_w, ".matrix"
-            WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), bs_env%W_time_name, "_00", i_t_or_w, ".matrix"
-            WRITE (f_S_p, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_p_name, "_00", i_t_or_w, ".matrix"
-            WRITE (f_S_n, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_n_name, "_00", i_t_or_w, ".matrix"
+            WRITE (frmt, '(A)') '(3A,I1,A)'
+            WRITE (f_chi, frmt) TRIM(prefix), bs_env%chi_name, "_0", i_t_or_w, ".matrix"
+            WRITE (f_W_t, frmt) TRIM(prefix), bs_env%W_time_name, "_0", i_t_or_w, ".matrix"
          ELSE IF (i_t_or_w < 100) THEN
-            WRITE (f_chi, '(3A,I2,A)') TRIM(prefix), bs_env%chi_name, "_0", i_t_or_w, ".matrix"
-            WRITE (f_Goc, '(3A,I2,A)') TRIM(prefix), bs_env%Gocc_name, "_0", i_t_or_w, ".matrix"
-            WRITE (f_Gvi, '(3A,I2,A)') TRIM(prefix), bs_env%Gvir_name, "_0", i_t_or_w, ".matrix"
-            WRITE (f_W_t, '(3A,I2,A)') TRIM(prefix), bs_env%W_time_name, "_0", i_t_or_w, ".matrix"
-            WRITE (f_S_p, '(3A,I2,A)') TRIM(prefix), bs_env%Sigma_p_name, "_0", i_t_or_w, ".matrix"
-            WRITE (f_S_n, '(3A,I2,A)') TRIM(prefix), bs_env%Sigma_n_name, "_0", i_t_or_w, ".matrix"
+            WRITE (frmt, '(A)') '(3A,I2,A)'
+            WRITE (f_chi, frmt) TRIM(prefix), bs_env%chi_name, "_", i_t_or_w, ".matrix"
+            WRITE (f_W_t, frmt) TRIM(prefix), bs_env%W_time_name, "_", i_t_or_w, ".matrix"
          ELSE
             CPABORT('Please implement more than 99 time/frequency points.')
          END IF
 
          INQUIRE (file=TRIM(f_chi), exist=chi_exists)
-         INQUIRE (file=TRIM(f_Goc), exist=G_occ_exists)
-         INQUIRE (file=TRIM(f_Gvi), exist=G_vir_exists)
          INQUIRE (file=TRIM(f_W_t), exist=W_time_exists)
-         INQUIRE (file=TRIM(f_S_p), exist=Sigma_pos_time_exists)
-         INQUIRE (file=TRIM(f_S_n), exist=Sigma_neg_time_exists)
 
-         bs_env%read_chi_and_G_occ_vir(i_t_or_w) = chi_exists .AND. G_occ_exists .AND. G_vir_exists
-         bs_env%calc_chi_and_G_occ_vir(i_t_or_w) = .NOT. bs_env%read_chi_and_G_occ_vir(i_t_or_w)
+         bs_env%read_chi(i_t_or_w) = chi_exists
+         bs_env%calc_chi(i_t_or_w) = .NOT. chi_exists
 
          bs_env%all_W_exist = bs_env%all_W_exist .AND. W_time_exists
 
-         bs_env%Sigma_c_exists(i_t_or_w) = Sigma_pos_time_exists .AND. Sigma_neg_time_exists
+         ! the self-energy is spin-dependent
+         DO i_spin = 1, n_spin
 
-         IF (bs_env%Sigma_c_exists(i_t_or_w)) THEN
-            bs_env%read_chi_and_G_occ_vir(i_t_or_w) = .FALSE.
-            bs_env%calc_chi_and_G_occ_vir(i_t_or_w) = .FALSE.
-         END IF
+            ind = i_t_or_w + (i_spin - 1)*num_time_freq_points
+
+            IF (ind < 10) THEN
+               WRITE (frmt, '(A)') '(3A,I1,A)'
+               WRITE (f_S_p, frmt) TRIM(prefix), bs_env%Sigma_p_name, "_0", ind, ".matrix"
+               WRITE (f_S_n, frmt) TRIM(prefix), bs_env%Sigma_n_name, "_0", ind, ".matrix"
+            ELSE IF (i_t_or_w < 100) THEN
+               WRITE (frmt, '(A)') '(3A,I2,A)'
+               WRITE (f_S_p, frmt) TRIM(prefix), bs_env%Sigma_p_name, "_", ind, ".matrix"
+               WRITE (f_S_n, frmt) TRIM(prefix), bs_env%Sigma_n_name, "_", ind, ".matrix"
+            END IF
+
+            INQUIRE (file=TRIM(f_S_p), exist=Sigma_pos_time_exists)
+            INQUIRE (file=TRIM(f_S_n), exist=Sigma_neg_time_exists)
+
+            bs_env%Sigma_c_exists(i_t_or_w, i_spin) = Sigma_pos_time_exists .AND. &
+                                                      Sigma_neg_time_exists
+
+         END DO
 
       END DO
 
-      WRITE (f_S_x, '(3A)') TRIM(prefix), bs_env%Sigma_x_name, "_000.matrix"
-      INQUIRE (file=TRIM(f_S_x), exist=bs_env%Sigma_x_exists)
+      IF (bs_env%all_W_exist) THEN
+         bs_env%read_chi(:) = .FALSE.
+         bs_env%calc_chi(:) = .FALSE.
+      END IF
+
+      bs_env%Sigma_x_exists = .TRUE.
+      DO i_spin = 1, n_spin
+         WRITE (f_S_x, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_x_name, "_0", i_spin, ".matrix"
+         INQUIRE (file=TRIM(f_S_x), exist=Sigma_x_spin_exists)
+         bs_env%Sigma_x_exists = bs_env%Sigma_x_exists .AND. Sigma_x_spin_exists
+      END DO
 
       CALL timestop(handle)
 
@@ -1098,7 +1207,7 @@ CONTAINS
          WRITE (u, '(T2,A)') ''
          WRITE (u, '(T2,A,I47)') 'Group size for tensor operations', bs_env%group_size_tensor
          WRITE (u, '(T2,A)') ''
-         WRITE (u, '(T2,A,I37,A)') 'Input: Available memory per MPI process', &
+         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
             bs_env%input_memory_per_proc_GB, ' GB'
          WRITE (u, '(T2,A,F35.1,A)') 'Used memory per MPI process before GW run', &
             REAL(mem, KIND=dp)/1.E9_dp, ' GB'
@@ -1261,9 +1370,9 @@ CONTAINS
       bs_env%eps_3c_int = bs_env%eps_filter
 
       ! Determines number of cells used for summing the cells R in the Coulomb matrix,
-      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 4 gives
-      ! excellent convergence
-      bs_env%size_lattice_sum_V = 4
+      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 3 gives 
+      ! good convergence
+      bs_env%size_lattice_sum_V = 3
 
       ! for generating numerically stable minimax Fourier integration weights
       bs_env%num_points_per_magnitude = 200
@@ -1356,39 +1465,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE diagonalize_ks_matrix(bs_env)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'diagonalize_ks_matrix'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      ! use work matrices because the matrices are overwritten in cp_fm_geeig_canon
-      CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(1), bs_env%fm_work_mo(1))
-      CALL cp_fm_to_fm(bs_env%fm_s_Gamma, bs_env%fm_work_mo(2))
-
-      ! diagonalize the Kohn-Sham matrix to obtain MO coefficients and SCF eigenvalues
-      ! (at the Gamma-point)
-      CALL cp_fm_geeig_canon(bs_env%fm_work_mo(1), &
-                             bs_env%fm_work_mo(2), &
-                             bs_env%fm_mo_coeff_Gamma(1), &
-                             bs_env%eigenval_scf_Gamma, &
-                             bs_env%fm_work_mo(3), &
-                             bs_env%eps_eigval_mat_s)
-
-      bs_env%e_fermi(1) = 0.5_dp*(bs_env%eigenval_scf_Gamma(bs_env%n_occ(1)) + &
-                                  bs_env%eigenval_scf_Gamma(bs_env%n_occ(1) + 1))
-
-      CALL timestop(handle)
-
-   END SUBROUTINE diagonalize_ks_matrix
-
-! **************************************************************************************************
-!> \brief ...
 !> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
@@ -1435,13 +1511,15 @@ CONTAINS
       CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
                                         ext_ks_matrix=mat_ks_without_v_xc)
 
-      ! transfer dbcsr matrix to fm
-      CALL cp_fm_create(bs_env%fm_V_xc_Gamma(1), bs_env%fm_s_Gamma%matrix_struct)
-      CALL copy_dbcsr_to_fm(mat_ks_without_v_xc(1)%matrix, bs_env%fm_V_xc_Gamma(1))
+      DO ispin = 1, bs_env%n_spin
+         ! transfer dbcsr matrix to fm
+         CALL cp_fm_create(bs_env%fm_V_xc_Gamma(ispin), bs_env%fm_s_Gamma%matrix_struct)
+         CALL copy_dbcsr_to_fm(mat_ks_without_v_xc(ispin)%matrix, bs_env%fm_V_xc_Gamma(ispin))
 
-      ! finally compute the xc potential in the AO basis
-      CALL cp_fm_scale_and_add(alpha=-1.0_dp, matrix_a=bs_env%fm_V_xc_Gamma(1), &
-                               beta=1.0_dp, matrix_b=bs_env%fm_ks_Gamma(1))
+         ! finally compute the xc potential in the AO basis
+         CALL cp_fm_scale_and_add(alpha=-1.0_dp, matrix_a=bs_env%fm_V_xc_Gamma(ispin), &
+                                  beta=1.0_dp, matrix_b=bs_env%fm_ks_Gamma(ispin))
+      END DO
 
       ! set back the energy
       energy%total = energy_total
@@ -1482,8 +1560,10 @@ CONTAINS
       num_time_freq_points = bs_env%num_time_freq_points
 
       ! minimum and maximum difference between eigenvalues of unoccupied and an occupied MOs
-      E_min = bs_env%eigenval_scf_Gamma(homo + 1) - bs_env%eigenval_scf_Gamma(homo)
-      E_max = bs_env%eigenval_scf_Gamma(n_mo) - bs_env%eigenval_scf_Gamma(1)
+      E_min = MINVAL(bs_env%eigenval_scf_Gamma(homo + 1, :)) - &
+              MAXVAL(bs_env%eigenval_scf_Gamma(homo, :))
+      E_max = MAXVAL(bs_env%eigenval_scf_Gamma(n_mo, :)) - &
+              MINVAL(bs_env%eigenval_scf_Gamma(1, :))
 
       E_range = E_max/E_min
 
