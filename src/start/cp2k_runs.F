@@ -285,7 +285,7 @@ CONTAINS
          CALL dbcsr_finalize_lib()
          IF (method_name_id == do_sirius) CALL cp_sirius_finalize()
 
-#ifdef __DLAF
+#if defined(__DLAF)
          CALL cp_dlaf_finalize()
 #endif
 
@@ -430,7 +430,7 @@ CONTAINS
       CALL pw_gpu_finalize()
       CALL pw_fpga_finalize()
 
-#ifdef __DLAF
+#if defined(__DLAF)
       CALL cp_dlaf_finalize()
 #endif
       CALL dbcsr_print_statistics()
