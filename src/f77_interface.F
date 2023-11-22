@@ -18,7 +18,6 @@
 !> \author fawzi & Johanna
 ! **************************************************************************************************
 MODULE f77_interface
-<<<<<<< HEAD
    USE base_hooks, ONLY: cp_abort_hook, &
                          cp_warn_hook, &
                          timeset_hook, &
