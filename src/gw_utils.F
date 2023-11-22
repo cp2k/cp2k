@@ -1370,7 +1370,7 @@ CONTAINS
       bs_env%eps_3c_int = bs_env%eps_filter
 
       ! Determines number of cells used for summing the cells R in the Coulomb matrix,
-      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 3 gives 
+      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 3 gives
       ! good convergence
       bs_env%size_lattice_sum_V = 3
 

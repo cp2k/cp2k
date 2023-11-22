@@ -158,6 +158,7 @@ CONTAINS
 !>        Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
 !> \param cfm_ks_spinor_ao ...
 !> \param fm_ks ...
+!> \param n_spin ...
 !> \param mat_V_SOC_xyz ...
 !> \param cfm_s_double ...
 !> \param fm_s ...
@@ -165,13 +166,14 @@ CONTAINS
    SUBROUTINE H_KS_spinor(cfm_ks_spinor_ao, fm_ks, n_spin, mat_V_SOC_xyz, cfm_s_double, fm_s)
       TYPE(cp_cfm_type)                                  :: cfm_ks_spinor_ao
       TYPE(cp_fm_type), DIMENSION(:)                     :: fm_ks
+      INTEGER                                            :: n_spin
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
       TYPE(cp_cfm_type), OPTIONAL                        :: cfm_s_double
       TYPE(cp_fm_type), OPTIONAL                         :: fm_s
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'H_KS_spinor'
 
-      INTEGER                                            :: handle, nao, s, n_spin
+      INTEGER                                            :: handle, nao, s
       TYPE(cp_fm_struct_type), POINTER                   :: str
 
       CALL timeset(routineN, handle)
@@ -192,14 +194,14 @@ CONTAINS
 
       CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), 1, 1)
 
-      SELECT CASE(n_spin)
-      CASE(1)
-        CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), s, s)
-      CASE(2)
-        CPASSERT(SIZE(fm_ks) == 2)
-        CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(2), s, s)
+      SELECT CASE (n_spin)
+      CASE (1)
+         CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), s, s)
+      CASE (2)
+         CPASSERT(SIZE(fm_ks) == 2)
+         CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(2), s, s)
       CASE DEFAULT
-        CPABORT("We have either one or two spin channels.")
+         CPABORT("We have either one or two spin channels.")
       END SELECT
 
       IF (PRESENT(cfm_s_double)) THEN
