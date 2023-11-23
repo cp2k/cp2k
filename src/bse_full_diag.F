@@ -40,7 +40,7 @@ MODULE bse_full_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
-   PUBLIC :: create_A, diagonalize_A, create_B, create_ABBA
+   PUBLIC :: create_A, diagonalize_A, create_B, create_ABBA, diagonalize_ABBA
 
 CONTAINS
 
@@ -261,8 +261,9 @@ CONTAINS
 
       !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
       reordering = (/1, 4, 3, 2/)
-      CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, homo, &
+      CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
                      virtual, virtual, unit_nr, para_env_RPA, reordering)
+
       CALL timestop(handle)
 
    END SUBROUTINE create_B
@@ -319,6 +320,28 @@ CONTAINS
                               1, 1, homo*virtual + 1, homo*virtual + 1)
 
       CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_ABBA ...
+!> \param homo ...
+!> \param virtual ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE diagonalize_ABBA(fm_mat_ABBA, homo, virtual, unit_nr)
+
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_ABBA
+      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_ABBA'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL timestop(handle)
+
    END SUBROUTINE
 
 ! **************************************************************************************************

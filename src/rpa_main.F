@@ -25,7 +25,8 @@ MODULE rpa_main
    USE bse_full_diag,                   ONLY: create_A,&
                                               create_ABBA,&
                                               create_B,&
-                                              diagonalize_A
+                                              diagonalize_A,&
+                                              diagonalize_ABBA
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1840,6 +1841,7 @@ CONTAINS
             IF (bse_abba) THEN
                CALL create_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_ABBA_BSE, para_env_RPA, &
                                 blacs_env_BSE, homo(1), virtual(1), unit_nr)
+               CALL diagonalize_ABBA(fm_mat_ABBA_BSE, homo(1), virtual(1), unit_nr)
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
             CALL cp_fm_release(fm_mat_B_BSE)
