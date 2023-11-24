@@ -976,7 +976,7 @@ CONTAINS
                   qmat(ia, i) = integrate_grid(basis%bf(:, ia, l), pgauss(:), basis%grid)
                END DO
             END DO
-            qmat = SQRT(fourpi)*MATMUL(qmat, sgp_pot%c_nonlocal(:, :, l))
+            qmat(1:na, 1:n) = SQRT(fourpi)*MATMUL(qmat(1:na, 1:n), sgp_pot%c_nonlocal(1:n, 1:n, l))
             DO i = 1, na
                DO j = i, na
                   DO ia = 1, n
