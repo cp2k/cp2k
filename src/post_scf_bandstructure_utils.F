@@ -1467,7 +1467,6 @@ CONTAINS
          band_edges_scf_SOC%CBM = 1000.0_dp
          band_edges_scf_SOC%DBG = 1000.0_dp
 
-         ! JW for later: G0W0+SOC
          IF (bs_env%do_gw) THEN
             band_edges_G0W0_SOC%VBM = -1000.0_dp
             band_edges_G0W0_SOC%CBM = 1000.0_dp
