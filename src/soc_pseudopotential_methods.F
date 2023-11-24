@@ -154,17 +154,19 @@ CONTAINS
    END SUBROUTINE V_SOC_xyz_from_pseudopotential
 
 ! **************************************************************************************************
-!> \brief Spinor KS-matrix H_µν,σσ' = h_µν*δ_σσ' + sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ', see
+!> \brief Spinor KS-matrix H_µν,σσ' = h_µν,σ*δ_σσ' + sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ', see
 !>        Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
 !> \param cfm_ks_spinor_ao ...
 !> \param fm_ks ...
+!> \param n_spin ...
 !> \param mat_V_SOC_xyz ...
 !> \param cfm_s_double ...
 !> \param fm_s ...
 ! **************************************************************************************************
-   SUBROUTINE H_KS_spinor(cfm_ks_spinor_ao, fm_ks, mat_V_SOC_xyz, cfm_s_double, fm_s)
+   SUBROUTINE H_KS_spinor(cfm_ks_spinor_ao, fm_ks, n_spin, mat_V_SOC_xyz, cfm_s_double, fm_s)
       TYPE(cp_cfm_type)                                  :: cfm_ks_spinor_ao
-      TYPE(cp_fm_type)                                   :: fm_ks
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_ks
+      INTEGER                                            :: n_spin
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
       TYPE(cp_cfm_type), OPTIONAL                        :: cfm_s_double
       TYPE(cp_fm_type), OPTIONAL                         :: fm_s
@@ -176,12 +178,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(fm_ks, nrow_global=nao)
+      CALL cp_fm_get_info(fm_ks(1), nrow_global=nao)
 
-      CALL create_cfm_double(fm_ks, cfm_ks_spinor_ao)
+      CALL create_cfm_double(fm_ks(1), cfm_ks_spinor_ao)
       CALL cp_cfm_set_all(cfm_ks_spinor_ao, z_zero)
 
-      str => fm_ks%matrix_struct
+      str => fm_ks(1)%matrix_struct
 
       s = nao + 1
 
@@ -190,8 +192,17 @@ CONTAINS
       CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(3)%matrix, str, 1, 1, z_one, .FALSE.)
       CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(3)%matrix, str, s, s, -z_one, .FALSE.)
 
-      CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks, 1, 1)
-      CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks, s, s)
+      CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), 1, 1)
+
+      SELECT CASE (n_spin)
+      CASE (1)
+         CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), s, s)
+      CASE (2)
+         CPASSERT(SIZE(fm_ks) == 2)
+         CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(2), s, s)
+      CASE DEFAULT
+         CPABORT("We have either one or two spin channels.")
+      END SELECT
 
       IF (PRESENT(cfm_s_double)) THEN
          CPASSERT(PRESENT(fm_s))

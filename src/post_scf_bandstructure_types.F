@@ -57,12 +57,12 @@ MODULE post_scf_bandstructure_types
                                                          do_soc = .FALSE., &
                                                          do_bs = .FALSE., &
                                                          do_bs_primitive_cell = .FALSE., &
-                                                         do_local_vbm_cbm_gap = .FALSE.
+                                                         do_ldos = .FALSE.
 
-      ! various eigenvalues computed in GW code, some depend on k-points and
-      ! have therefore two dimensions (spin dependence yet to do)
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: eigenval_scf_Gamma
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf, &
+      ! various eigenvalues computed in GW code, some depend on k-points
+      ! and have therefore three dimensions (band index, k-point, spin)
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_Gamma
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenval_scf, &
                                                          eigenval_G0W0
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenval_scGW0
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_prim_cell_scf, &
@@ -71,6 +71,7 @@ MODULE post_scf_bandstructure_types
                                                          eigenval_prim_cell_G0W0_soc
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_soc, &
                                                          eigenval_G0W0_soc
+      TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma
       TYPE(band_edges_type)                           :: band_edges_scf, &
                                                          band_edges_G0W0
 
@@ -103,7 +104,10 @@ MODULE post_scf_bandstructure_types
                                                          kpoints_DOS => NULL(), &
                                                          kpoints_bandstructure => NULL()
       LOGICAL                                         :: approx_kp_extrapol = .FALSE.
-      REAL(KIND=dp)                                   :: wkp_no_extra = -1.0_dp
+      REAL(KIND=dp)                                   :: wkp_orig = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: wkp_s_p, &
+                                                         wkp_no_extra
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: l_RI
       INTEGER                                         :: input_kp_bs_npoints = -1, &
                                                          input_kp_bs_n_sp_pts = -1, &
                                                          nkp_bs = -1, &
@@ -152,12 +156,12 @@ MODULE post_scf_bandstructure_types
                                                          regularization_RI = -1.0_dp
 
       ! global full matrices used in GW
-      TYPE(cp_fm_type)                                :: fm_s_Gamma
+      TYPE(cp_fm_type)                                :: fm_s_Gamma, &
+                                                         fm_Gocc, &
+                                                         fm_Gvir
       TYPE(cp_fm_type), DIMENSION(2)                  :: fm_ks_Gamma, &
                                                          fm_V_xc_Gamma, &
                                                          fm_mo_coeff_Gamma
-      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE     :: fm_Gocc, &
-                                                         fm_Gvir
       TYPE(cp_fm_type), DIMENSION(4)                  :: fm_work_mo
       TYPE(cp_fm_type)                                :: fm_RI_RI, &
                                                          fm_chi_Gamma_freq, &
@@ -190,8 +194,8 @@ MODULE post_scf_bandstructure_types
                                                          num_tensor_groups = -1, &
                                                          diag_group_color = -1, &
                                                          num_diag_groups = -1, &
-                                                         min_block_size = -1, &
-                                                         input_memory_per_proc_GB = -1
+                                                         min_block_size = -1
+      REAL(KIND=dp)                                   :: input_memory_per_proc_GB = -1.0_dp
       INTEGER(KIND=int_8)                             :: input_memory_per_proc = -1
       TYPE(mp_para_env_type), POINTER                 :: para_env => NULL(), &
                                                          para_env_tensor => NULL()
@@ -210,19 +214,19 @@ MODULE post_scf_bandstructure_types
                                                          n_atom_per_IL_interval = -1
       INTEGER, DIMENSION(:, :), ALLOCATABLE           :: i_atom_intervals, &
                                                          j_atom_intervals, &
-                                                         inner_loop_atom_intervals
-      INTEGER, DIMENSION(:, :), ALLOCATABLE           :: atoms_i_t_group, &
+                                                         inner_loop_atom_intervals, &
+                                                         atoms_i_t_group, &
                                                          atoms_j_t_group
+      LOGICAL, DIMENSION(:, :), ALLOCATABLE           :: skip_Sigma_occ, &
+                                                         skip_Sigma_vir
 
       ! check-arrays and names for restarting
-      LOGICAL, DIMENSION(:), ALLOCATABLE              :: read_chi_and_G_occ_vir, &
-                                                         calc_chi_and_G_occ_vir, &
-                                                         Sigma_c_exists
+      LOGICAL, DIMENSION(:), ALLOCATABLE              :: read_chi, &
+                                                         calc_chi
+      LOGICAL, DIMENSION(:, :), ALLOCATABLE           :: Sigma_c_exists
       LOGICAL                                         :: all_W_exist = .FALSE., &
                                                          Sigma_x_exists = .FALSE.
       CHARACTER(LEN=3)                                :: chi_name = "chi"
-      CHARACTER(LEN=5)                                :: Gocc_name = "G_occ", &
-                                                         Gvir_name = "G_vir"
       CHARACTER(LEN=6)                                :: W_time_name = "W_time"
       CHARACTER(LEN=7)                                :: Sigma_x_name = "Sigma_x"
       CHARACTER(LEN=13)                               :: Sigma_p_name = "Sigma_pos_tau", &
@@ -234,9 +238,11 @@ MODULE post_scf_bandstructure_types
       INTEGER                                         :: unit_nr = -1
 
       ! parameters and data for basis sets
-      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
-         DIMENSION(:)                                 :: basis_set_AO, &
+      TYPE(gto_basis_set_p_type), DIMENSION(:), &
+         ALLOCATABLE                                  :: basis_set_AO, &
                                                          basis_set_RI
+      INTEGER, DIMENSION(:), ALLOCATABLE              :: sizes_AO, &
+                                                         sizes_RI
       TYPE(neighbor_list_3c_type)                     :: nl_3c
       TYPE(libint_potential_type)                     :: ri_metric, &
                                                          trunc_coulomb
@@ -257,9 +263,6 @@ MODULE post_scf_bandstructure_types
 
       ! parameters for local VBM, CBM, gap calculation (from local density of states, ldos)
       INTEGER                                         :: int_ldos_xyz = -1
-      REAL(KIND=dp), DIMENSION(:), POINTER            :: energy_window_ldos => NULL(), &
-                                                         eps_ldos => NULL()
-      REAL(KIND=dp)                                   :: energy_step_ldos = -1.0_dp
       INTEGER, DIMENSION(:), POINTER                  :: bin_mesh => NULL()
       INTEGER                                         :: n_bins_max_for_printing = -1
 
@@ -286,6 +289,9 @@ CONTAINS
       CALL safe_kpoints_release(bs_env%kpoints_DOS)
       CALL safe_kpoints_release(bs_env%kpoints_bandstructure)
 
+      IF (ALLOCATED(bs_env%wkp_s_p)) DEALLOCATE (bs_env%wkp_s_p)
+      IF (ALLOCATED(bs_env%wkp_no_extra)) DEALLOCATE (bs_env%wkp_no_extra)
+      IF (ALLOCATED(bs_env%l_RI)) DEALLOCATE (bs_env%l_RI)
       IF (ALLOCATED(bs_env%xkp_special)) DEALLOCATE (bs_env%xkp_special)
       IF (ALLOCATED(bs_env%kp_special_name)) DEALLOCATE (bs_env%kp_special_name)
       IF (ALLOCATED(bs_env%atoms_i_primitive_cell)) DEALLOCATE (bs_env%atoms_i_primitive_cell)
@@ -311,9 +317,13 @@ CONTAINS
       IF (ALLOCATED(bs_env%j_atom_intervals)) DEALLOCATE (bs_env%j_atom_intervals)
       IF (ALLOCATED(bs_env%atoms_i_t_group)) DEALLOCATE (bs_env%atoms_i_t_group)
       IF (ALLOCATED(bs_env%atoms_j_t_group)) DEALLOCATE (bs_env%atoms_j_t_group)
-      IF (ALLOCATED(bs_env%read_chi_and_G_occ_vir)) DEALLOCATE (bs_env%read_chi_and_G_occ_vir)
-      IF (ALLOCATED(bs_env%calc_chi_and_G_occ_vir)) DEALLOCATE (bs_env%calc_chi_and_G_occ_vir)
+      IF (ALLOCATED(bs_env%skip_Sigma_occ)) DEALLOCATE (bs_env%skip_Sigma_occ)
+      IF (ALLOCATED(bs_env%skip_Sigma_vir)) DEALLOCATE (bs_env%skip_Sigma_vir)
+      IF (ALLOCATED(bs_env%read_chi)) DEALLOCATE (bs_env%read_chi)
+      IF (ALLOCATED(bs_env%calc_chi)) DEALLOCATE (bs_env%calc_chi)
       IF (ALLOCATED(bs_env%Sigma_c_exists)) DEALLOCATE (bs_env%Sigma_c_exists)
+      IF (ALLOCATED(bs_env%sizes_AO)) DEALLOCATE (bs_env%sizes_AO)
+      IF (ALLOCATED(bs_env%sizes_RI)) DEALLOCATE (bs_env%sizes_RI)
 
       CALL cp_fm_release(bs_env%fm_s_Gamma)
       CALL cp_fm_release(bs_env%fm_ks_Gamma(1))

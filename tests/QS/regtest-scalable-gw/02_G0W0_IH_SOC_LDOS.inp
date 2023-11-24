@@ -44,22 +44,21 @@
         ENERGY_WINDOW 3.0
       &END
       &DOS
-        KPOINTS 2 2 1
-      &END
-      &BANDSTRUCTURE_PATH
-        SPECIAL_POINT Gamma 0.0   0.0   0.0
-        SPECIAL_POINT X     0.5   0.0   0.0
-        SPECIAL_POINT Y     0.0   0.5   0.0
-        SPECIAL_POINT Gamma 0.0   0.0   0.0
-        NPOINTS 10
+        KPOINTS 1 1 2
+        ENERGY_WINDOW 0.5
+        ENERGY_STEP   0.05
+        &LDOS
+          BIN_MESH 4 4
+          INTEGRATION Z
+        &END
       &END
     &END
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom]  3.000   10.000  3.000
-      MULTIPLE_UNIT_CELL  3 1 1
-      PERIODIC XY
+      ABC [angstrom]  3.000  10.000  3.000
+      MULTIPLE_UNIT_CELL  1 1 1
+      PERIODIC YZ
     &END CELL
     &KIND H
       BASIS_SET ORB    DZVP-GTH
@@ -72,11 +71,11 @@
       POTENTIAL        GTH-PBE-q7
     &END KIND
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL  3 1 1
+      MULTIPLE_UNIT_CELL  1 1 1
     &END TOPOLOGY
     &COORD
-      H  0.2 0.0 0.0
-      I  1.2 0.0 0.0
+      I  0.5  0.0  1.0
+      H  0.0  0.5 -1.0
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
