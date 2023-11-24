@@ -650,8 +650,8 @@ CONTAINS
                                                             nct_lpot, npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
-      LOGICAL                                            :: do_symmetric, dokp, ecp_local, found, &
-                                                            lpotextended
+      LOGICAL                                            :: do_symmetric, dokp, ecp_local, &
+                                                            ecp_semi_local, found, lpotextended
       REAL(KIND=dp)                                      :: alpha, dab, dac, dbc, ppl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab, qab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ppl_work, rhab, work
@@ -754,7 +754,7 @@ CONTAINS
 !$OMP PRIVATE (sgfa, jset, ncob, sgfb, work, hab, rhab, kkind, nseta) &
 !$OMP PRIVATE (gth_potential, sgp_potential, alpha, cexp_ppl, lpotextended) &
 !$OMP PRIVATE (ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl) &
-!$OMP PRIVATE (nct_lpot, cval_ppl, cval_lpot, rac, dac, rbc, dbc) &
+!$OMP PRIVATE (ecp_semi_local, nct_lpot, cval_ppl, cval_lpot, rac, dac, rbc, dbc) &
 !$OMP PRIVATE (mepos) &
 !$OMP PRIVATE (katom, ppl_work, cellind, ecp_local) &
 !$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, sphi_a, zeta, scon_a) &
@@ -858,7 +858,8 @@ CONTAINS
                   END DO
                END IF
             ELSE IF (ASSOCIATED(sgp_potential)) THEN
-               CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ppl_radius=ppl_radius)
+               CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ecp_semi_local=ecp_semi_local, &
+                                  ppl_radius=ppl_radius)
                IF (ecp_local) THEN
                   CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
                   IF (SUM(ABS(aloc(1:nloc))) < 1.0e-12_dp) CYCLE
@@ -874,6 +875,9 @@ CONTAINS
                   nct_ppl(1:n_local) = 1
                   alpha_ppl(1:n_local) = a_local(1:n_local)
                   cval_ppl(1, 1:n_local) = c_local(1:n_local)
+               END IF
+               IF (ecp_semi_local) THEN
+                  CPABORT("VCD with semi-local ECPs not implemented")
                END IF
             ELSE
                CYCLE

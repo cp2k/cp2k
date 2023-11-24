@@ -17,6 +17,7 @@ MODULE mp2_cphf
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -1305,8 +1306,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_mp2_forces'
 
       INTEGER                                            :: alpha, beta, handle, idir, iounit, &
-                                                            ispin, nocc, nspins
+                                                            ispin, nimages, nocc, nspins
       INTEGER, DIMENSION(3)                              :: comp
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_exx, do_hfx, use_virial
       REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, ehartree, exc
       REAL(KIND=dp), DIMENSION(3)                        :: deb
@@ -1327,7 +1329,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -1385,6 +1387,10 @@ CONTAINS
          CALL section_vals_get(hfx_section, explicit=do_exx)
       END IF
 
+      nimages = dft_control%nimages
+      CPASSERT(nimages == 1)
+      NULLIFY (cell_to_index)
+
       p_env => qs_env%mp2_env%ri_grad%p_env
 
       CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, rho_r=rho_r, rho_g=rho_g)
@@ -1435,7 +1441,27 @@ CONTAINS
       ! Add pseudo potential terms
       scrm_kp(1:nspins, 1:1) => matrix_ks(1:nspins)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
+                      atomic_kind_set=atomic_kind_set, sac_ae=sac_ae, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
+      IF (ASSOCIATED(sac_ae)) THEN
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%all_potential(1:3, 1)
+            IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+         END IF
+         CALL build_core_ae(scrm_kp, rho_ao_kp, force, &
+                            virial, .TRUE., use_virial, 1, &
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index)
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%all_potential(1:3, 1) - deb(1:3)
+            CALL para_env%sum(deb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHae     ", deb
+            IF (use_virial) THEN
+               e_dummy = third_tr(virial%pv_virial) - e_dummy
+               CALL para_env%sum(e_dummy)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hae        ", e_dummy
+            END IF
+         END IF
+      END IF
       IF (ASSOCIATED(sac_ppl)) THEN
          IF (debug_forces) THEN
             deb(1:3) = force(1)%gth_ppl(1:3, 1)

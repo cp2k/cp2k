@@ -55,6 +55,7 @@ list(
   atom_optimization.F
   atom_output.F
   atom_pseudo.F
+  atom_set_basis.F
   atom_sgp.F
   atoms_input.F
   atom_types.F

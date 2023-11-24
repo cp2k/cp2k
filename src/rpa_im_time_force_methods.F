@@ -20,6 +20,7 @@ MODULE rpa_im_time_force_methods
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -3161,7 +3162,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -3179,7 +3180,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (scrm, rho, dft_control, matrix_p_mp2, matrix_s, matrix_p_mp2_admm, admm_env, sab_orb, &
-               cell_to_index, dbcsr_work_p, dbcsr_work_h, sac_ppl, sap_ppnl, force, virial, &
+               cell_to_index, dbcsr_work_p, dbcsr_work_h, sac_ae, sac_ppl, sap_ppnl, force, virial, &
                qs_kind_set, atomic_kind_set, particle_set, pw_env, poisson_env, auxbas_pw_pool, &
                task_list_aux_fit, matrix_s_aux_fit, scrm_admm, rho_aux_fit, rho_ao_aux, x_data, &
                hfx_section, xc_section, para_env, rhoz_g, rhoz_r, tauz_r, v_xc, v_xc_tau, &
@@ -3188,9 +3189,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_s=matrix_s, admm_env=admm_env, &
-                      sab_orb=sab_orb, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl, force=force, virial=virial, &
-                      particle_set=particle_set, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
-                      x_data=x_data, para_env=para_env)
+                      sab_orb=sab_orb, sac_ae=sac_ae, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl, force=force, &
+                      virial=virial, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set, x_data=x_data, para_env=para_env)
       nspins = dft_control%nspins
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
@@ -3234,6 +3235,13 @@ CONTAINS
          dbcsr_work_p(ispin, 1)%matrix => matrix_p_mp2(ispin)%matrix
          dbcsr_work_h(ispin, 1)%matrix => scrm(ispin)%matrix
       END DO
+
+      IF (ASSOCIATED(sac_ae)) THEN
+         CALL build_core_ae(dbcsr_work_h, dbcsr_work_p, force, &
+                            virial, .TRUE., use_virial, nder, &
+                            qs_kind_set, atomic_kind_set, particle_set, &
+                            sab_orb, sac_ae, nimages, cell_to_index)
+      END IF
 
       IF (ASSOCIATED(sac_ppl)) THEN
          CALL build_core_ppl(dbcsr_work_h, dbcsr_work_p, force, &

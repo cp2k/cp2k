@@ -261,7 +261,7 @@ CONTAINS
 
       nspins = SIZE(rho_r)
 
-      NULLIFY (rho_nlcc, rho_nlcc_g)!deb
+      NULLIFY (rho_nlcc, rho_nlcc_g)
       CALL get_qs_env(qs_env, &
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g)

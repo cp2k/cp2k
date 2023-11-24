@@ -196,6 +196,13 @@ MODULE external_potential_types
       INTEGER, DIMENSION(1:10)                   :: nrloc = 0 ! r**(n-2)
       REAL(dp), DIMENSION(1:10)                  :: aloc = 0.0_dp ! coefficient
       REAL(dp), DIMENSION(1:10)                  :: bloc = 0.0_dp ! exponent
+      ! ECP semi-local
+      LOGICAL                                    :: ecp_semi_local = .FALSE.
+      INTEGER                                    :: sl_lmax = 0
+      INTEGER, DIMENSION(0:10)                   :: npot = 0 ! # terms
+      INTEGER, DIMENSION(1:15, 0:10)             :: nrpot = 0 ! r**(n-2)
+      REAL(dp), DIMENSION(1:15, 0:10)            :: apot = 0.0_dp ! coefficient
+      REAL(dp), DIMENSION(1:15, 0:10)            :: bpot = 0.0_dp ! exponent
       ! NON-LOCAL
       INTEGER                                    :: n_nonlocal = 0
       INTEGER                                    :: nppnl = 0
@@ -817,6 +824,7 @@ CONTAINS
 !> \param ppnl_radius ...
 !> \param ppl_present ...
 !> \param ppnl_present ...
+!> \param ppsl_present ...
 !> \param ecp_local ...
 !> \param n_local ...
 !> \param a_local ...
@@ -825,6 +833,12 @@ CONTAINS
 !> \param nrloc ...
 !> \param aloc ...
 !> \param bloc ...
+!> \param ecp_semi_local ...
+!> \param sl_lmax ...
+!> \param npot ...
+!> \param nrpot ...
+!> \param apot ...
+!> \param bpot ...
 !> \param n_nonlocal ...
 !> \param nppnl ...
 !> \param lmax ...
@@ -842,9 +856,10 @@ CONTAINS
    SUBROUTINE get_sgp_potential(potential, name, description, aliases, elec_conf, &
                                 z, zeff, zeff_correction, alpha_core_charge, &
                                 ccore_charge, core_charge_radius, &
-                                ppl_radius, ppnl_radius, ppl_present, ppnl_present, &
+                                ppl_radius, ppnl_radius, ppl_present, ppnl_present, ppsl_present, &
                                 ecp_local, n_local, a_local, c_local, &
                                 nloc, nrloc, aloc, bloc, &
+                                ecp_semi_local, sl_lmax, npot, nrpot, apot, bpot, &
                                 n_nonlocal, nppnl, lmax, is_nonlocal, a_nonlocal, h_nonlocal, c_nonlocal, &
                                 cprj_ppnl, vprj_ppnl, has_nlcc, n_nlcc, a_nlcc, c_nlcc)
 
@@ -861,12 +876,18 @@ CONTAINS
                                                             alpha_core_charge, ccore_charge, &
                                                             core_charge_radius, ppl_radius, &
                                                             ppnl_radius
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present, ecp_local
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present, ppsl_present, &
+                                                            ecp_local
       INTEGER, INTENT(OUT), OPTIONAL                     :: n_local
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_local, c_local
       INTEGER, INTENT(OUT), OPTIONAL                     :: nloc
       INTEGER, DIMENSION(1:10), INTENT(OUT), OPTIONAL    :: nrloc
       REAL(dp), DIMENSION(1:10), INTENT(OUT), OPTIONAL   :: aloc, bloc
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: ecp_semi_local
+      INTEGER, INTENT(OUT), OPTIONAL                     :: sl_lmax
+      INTEGER, DIMENSION(0:10), OPTIONAL                 :: npot
+      INTEGER, DIMENSION(1:15, 0:10), OPTIONAL           :: nrpot
+      REAL(dp), DIMENSION(1:15, 0:10), OPTIONAL          :: apot, bpot
       INTEGER, INTENT(OUT), OPTIONAL                     :: n_nonlocal, nppnl, lmax
       LOGICAL, DIMENSION(0:5), OPTIONAL                  :: is_nonlocal
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nonlocal
@@ -900,6 +921,9 @@ CONTAINS
       IF (PRESENT(ppnl_present)) THEN
          ppnl_present = ANY(potential%is_nonlocal)
       END IF
+      IF (PRESENT(ppsl_present)) THEN
+         ppsl_present = potential%ecp_semi_local
+      END IF
 
       IF (PRESENT(ecp_local)) ecp_local = potential%ecp_local
       IF (PRESENT(n_local)) n_local = potential%n_local
@@ -910,6 +934,13 @@ CONTAINS
       IF (PRESENT(nrloc)) nrloc = potential%nrloc
       IF (PRESENT(aloc)) aloc = potential%aloc
       IF (PRESENT(bloc)) bloc = potential%bloc
+
+      IF (PRESENT(ecp_semi_local)) ecp_semi_local = potential%ecp_semi_local
+      IF (PRESENT(sl_lmax)) sl_lmax = potential%sl_lmax
+      IF (PRESENT(npot)) npot = potential%npot
+      IF (PRESENT(nrpot)) nrpot = potential%nrpot
+      IF (PRESENT(apot)) apot = potential%apot
+      IF (PRESENT(bpot)) bpot = potential%bpot
 
       IF (PRESENT(n_nonlocal)) n_nonlocal = potential%n_nonlocal
       IF (PRESENT(nppnl)) nppnl = potential%nppnl
@@ -996,7 +1027,7 @@ CONTAINS
       IF (potential%nppnl > 0) THEN
 
          ! Initialise the projector coefficients of the non-local part of the GTH pseudopotential
-         ! andthe transformation matrices "pgf" -> "prj_ppnl"
+         ! and the transformation matrices "pgf" -> "prj_ppnl"
          CALL init_cprj_ppnl(potential)
 
          ! Initialise the h(i,j) projector coefficients of the non-local part of the
@@ -1170,22 +1201,17 @@ CONTAINS
             IF (ASSOCIATED(potential%cprj_ppnl)) THEN
                DEALLOCATE (potential%cprj_ppnl)
             END IF
+            nnl = potential%n_nonlocal
             nprj = 0
             DO l = 0, potential%lmax
-               nnl = potential%n_nonlocal
-               IF (potential%is_nonlocal(l)) nprj = nprj + nnl*nso(l)
+               nprj = nprj + nnl*nso(l)
             END DO
             ALLOCATE (potential%cprj_ppnl(potential%nppnl, nprj))
             cprj => potential%cprj_ppnl
             cprj = 0.0_dp
             cn => potential%c_nonlocal
-            nnl = potential%n_nonlocal
             !
-            n1 = 0
-            DO la = 0, potential%lmax
-               n1 = n1 + nnl*nco(la)
-            END DO
-            ALLOCATE (ind1(n1, 3))
+            ALLOCATE (ind1(potential%nppnl, 3))
             n1 = 0
             DO i1 = 1, nnl
                DO la = 0, potential%lmax
@@ -1198,18 +1224,10 @@ CONTAINS
                END DO
             END DO
             !
+            ALLOCATE (ind2(nprj, 3))
             n2 = 0
             DO i2 = 1, nnl
                DO lb = 0, potential%lmax
-                  IF (.NOT. potential%is_nonlocal(lb)) CYCLE
-                  n2 = n2 + nso(lb)
-               END DO
-            END DO
-            ALLOCATE (ind2(n2, 3))
-            n2 = 0
-            DO i2 = 1, nnl
-               DO lb = 0, potential%lmax
-                  IF (.NOT. potential%is_nonlocal(lb)) CYCLE
                   DO j2 = 1, nso(lb)
                      n2 = n2 + 1
                      ind2(n2, 1) = lb
@@ -2595,6 +2613,12 @@ CONTAINS
 !> \param nrloc ...
 !> \param aloc ...
 !> \param bloc ...
+!> \param ecp_semi_local ...
+!> \param sl_lmax ...
+!> \param npot ...
+!> \param nrpot ...
+!> \param apot ...
+!> \param bpot ...
 !> \param n_nonlocal ...
 !> \param nppnl ...
 !> \param lmax ...
@@ -2613,6 +2637,7 @@ CONTAINS
                                 ppl_radius, ppnl_radius, &
                                 ecp_local, n_local, a_local, c_local, &
                                 nloc, nrloc, aloc, bloc, &
+                                ecp_semi_local, sl_lmax, npot, nrpot, apot, bpot, &
                                 n_nonlocal, nppnl, lmax, is_nonlocal, a_nonlocal, h_nonlocal, c_nonlocal, &
                                 has_nlcc, n_nlcc, a_nlcc, c_nlcc)
 
@@ -2635,6 +2660,11 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc
       INTEGER, DIMENSION(1:10), INTENT(IN), OPTIONAL     :: nrloc
       REAL(dp), DIMENSION(1:10), INTENT(IN), OPTIONAL    :: aloc, bloc
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ecp_semi_local
+      INTEGER, INTENT(IN), OPTIONAL                      :: sl_lmax
+      INTEGER, DIMENSION(0:10), OPTIONAL                 :: npot
+      INTEGER, DIMENSION(1:15, 0:10), OPTIONAL           :: nrpot
+      REAL(dp), DIMENSION(1:15, 0:10), OPTIONAL          :: apot, bpot
       INTEGER, INTENT(IN), OPTIONAL                      :: n_nonlocal, nppnl, lmax
       LOGICAL, DIMENSION(0:5), INTENT(IN), OPTIONAL      :: is_nonlocal
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nonlocal
@@ -2676,6 +2706,13 @@ CONTAINS
       IF (PRESENT(nrloc)) potential%nrloc = nrloc
       IF (PRESENT(aloc)) potential%aloc = aloc
       IF (PRESENT(bloc)) potential%bloc = bloc
+
+      IF (PRESENT(ecp_semi_local)) potential%ecp_semi_local = ecp_semi_local
+      IF (PRESENT(sl_lmax)) potential%sl_lmax = sl_lmax
+      IF (PRESENT(npot)) potential%npot = npot
+      IF (PRESENT(nrpot)) potential%nrpot = nrpot
+      IF (PRESENT(apot)) potential%apot = apot
+      IF (PRESENT(bpot)) potential%bpot = bpot
 
       IF (PRESENT(n_nonlocal)) potential%n_nonlocal = n_nonlocal
       IF (PRESENT(nppnl)) potential%nppnl = nppnl
@@ -2833,6 +2870,8 @@ CONTAINS
 
       CHARACTER(LEN=40)                                  :: string
       INTEGER                                            :: i, l
+      CHARACTER(LEN=1), DIMENSION(0:10) :: &
+         slqval = ["s", "p", "d", "f", "g", "h", "j", "k", "l", "m", "n"]
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T6,A,T41,A40,/)") &
@@ -2866,6 +2905,16 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
                   'Coefficients:', potential%c_local(1:potential%n_local)
             END IF
+         END IF
+         IF (potential%ecp_semi_local) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T8,'Semi-local pseudopotential')")
+            DO l = 0, potential%sl_lmax
+               WRITE (UNIT=output_unit, FMT="(T8,A,A)") 'l-value: ', slqval(l)
+               DO i = 1, potential%npot(l)
+                  WRITE (UNIT=output_unit, FMT="(T21,I5,2F20.8)") &
+                     potential%nrpot(i, l), potential%bpot(i, l), potential%apot(i, l)
+               END DO
+            END DO
          END IF
          ! nonlocal PP
          IF (potential%n_nonlocal > 0) THEN
@@ -3078,6 +3127,12 @@ CONTAINS
       pot_out%nrloc = pot_in%nrloc
       pot_out%aloc = pot_in%aloc
       pot_out%bloc = pot_in%bloc
+      pot_out%ecp_semi_local = pot_in%ecp_semi_local
+      pot_out%sl_lmax = pot_in%sl_lmax
+      pot_out%npot = pot_in%npot
+      pot_out%nrpot = pot_in%nrpot
+      pot_out%apot = pot_in%apot
+      pot_out%bpot = pot_in%bpot
       pot_out%n_nonlocal = pot_in%n_nonlocal
       pot_out%nppnl = pot_in%nppnl
       pot_out%lmax = pot_in%lmax

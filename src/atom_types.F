@@ -134,13 +134,13 @@ MODULE atom_types
       REAL(dp)                                      :: zion = 0.0_dp
       INTEGER                                       :: lmax = 0
       INTEGER                                       :: nloc = 0 ! # terms
-      INTEGER, DIMENSION(1:10)                      :: nrloc = 0 ! r**(n-2)
-      REAL(dp), DIMENSION(1:10)                     :: aloc = 0.0_dp ! coefficient
-      REAL(dp), DIMENSION(1:10)                     :: bloc = 0.0_dp ! exponent
+      INTEGER, DIMENSION(1:15)                      :: nrloc = 0 ! r**(n-2)
+      REAL(dp), DIMENSION(1:15)                     :: aloc = 0.0_dp ! coefficient
+      REAL(dp), DIMENSION(1:15)                     :: bloc = 0.0_dp ! exponent
       INTEGER, DIMENSION(0:10)                      :: npot = 0 ! # terms
-      INTEGER, DIMENSION(1:10, 0:10)                :: nrpot = 0 ! r**(n-2)
-      REAL(dp), DIMENSION(1:10, 0:10)               :: apot = 0.0_dp ! coefficient
-      REAL(dp), DIMENSION(1:10, 0:10)               :: bpot = 0.0_dp ! exponent
+      INTEGER, DIMENSION(1:15, 0:10)                :: nrpot = 0 ! r**(n-2)
+      REAL(dp), DIMENSION(1:15, 0:10)               :: apot = 0.0_dp ! coefficient
+      REAL(dp), DIMENSION(1:15, 0:10)               :: bpot = 0.0_dp ! exponent
    END TYPE atom_ecppot_type
 
    TYPE atom_sgppot_type
@@ -2932,7 +2932,7 @@ CONTAINS
                         ! read local potential flag line "<XX> ul"
                         CALL parser_get_object(parser, line, newline=.TRUE.)
                         ! read local potential
-                        DO i = 1, 10
+                        DO i = 1, 15
                            CALL parser_read_line(parser, 1)
                            IF (parser_test_next_token(parser) == "STR") EXIT
                            potential%nloc = potential%nloc + 1
@@ -2942,12 +2942,12 @@ CONTAINS
                            CALL parser_get_object(parser, potential%aloc(ic))
                         END DO
                         ! read potentials (start with l loop)
-                        DO l = 0, 10
+                        DO l = 0, 15
                            CALL parser_get_object(parser, symbol)
                            IF (symbol == element_symbol) THEN
                               ! new l block
                               potential%lmax = potential%lmax + 1
-                              DO i = 1, 10
+                              DO i = 1, 15
                                  CALL parser_read_line(parser, 1)
                                  IF (parser_test_next_token(parser) == "STR") EXIT
                                  potential%npot(l) = potential%npot(l) + 1

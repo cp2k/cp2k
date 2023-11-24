@@ -25,6 +25,7 @@ MODULE energy_corrections
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -1150,7 +1151,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1184,7 +1185,7 @@ CONTAINS
       calculate_forces = .FALSE.
 
       ! get neighbor lists, we need the full sab_orb list from the ec_env
-      NULLIFY (sab_orb, sac_ppl, sap_ppnl)
+      NULLIFY (sab_orb, sac_ae, sac_ppl, sap_ppnl)
       sab_orb => ec_env%sab_orb
       sac_ppl => ec_env%sac_ppl
       sap_ppnl => ec_env%sap_ppnl
@@ -1211,6 +1212,16 @@ CONTAINS
       CALL dbcsr_copy(ec_env%matrix_h(1, 1)%matrix, ec_env%matrix_t(1, 1)%matrix, &
                       keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
 
+      ! Possible AE contributions (also ECP)
+      IF (ASSOCIATED(sac_ae)) THEN
+         CPABORT("ECP/AE not available for energy corrections")
+         ! missig code: sac_ae has to bee calculated and stored in ec_env
+         ! build_core_ae: needs functionality to set the basis type at input
+         CALL build_core_ae(ec_env%matrix_h, ec_env%matrix_p, force, &
+                            virial, calculate_forces, use_virial, nder, &
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index)
+      END IF
       ! compute the ppl contribution to the core hamiltonian
       IF (ASSOCIATED(sac_ppl)) THEN
          CALL build_core_ppl(ec_env%matrix_h, ec_env%matrix_p, force, &
