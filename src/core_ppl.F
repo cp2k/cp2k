@@ -381,6 +381,7 @@ CONTAINS
 
             CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential, &
                              sgp_potential=sgp_potential)
+            ecp_semi_local = .FALSE.
             IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
                                   alpha_ppl=alpha, cexp_ppl=cexp_ppl, &
@@ -807,6 +808,7 @@ CONTAINS
 
          CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential, &
                           sgp_potential=sgp_potential)
+         ecp_semi_local = .FALSE.
          IF (ASSOCIATED(gth_potential)) THEN
             CALL get_potential(potential=gth_potential, &
                                alpha_ppl=alpha, cexp_ppl=cexp_ppl, &
