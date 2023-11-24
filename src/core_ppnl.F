@@ -121,7 +121,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: do_dR, do_gth, do_kp, do_soc, found, &
                                                             ppnl_present
-      LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
@@ -136,9 +135,11 @@ CONTAINS
       TYPE(clist_type), POINTER                          :: clist
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, alkint, bchint, bcint, &
-                                                            blkint, c_nl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: cprj, h_block, h_nl, l_block_x, l_block_y, &
-         l_block_z, p_block, r_2block, r_3block, rpgfa, sphi_a, vprj_ppnl, wprj_ppnl, zeta
+                                                            blkint
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, l_block_x, l_block_y, &
+                                                            l_block_z, p_block, r_2block, &
+                                                            r_3block, rpgfa, sphi_a, vprj_ppnl, &
+                                                            wprj_ppnl, zeta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
       REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -280,7 +281,7 @@ CONTAINS
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, work_l, sab, lab, ai_work, nprjc, &
 !$OMP          ppnl_radius, ncoc, rpgfa, first_col, vprj_ppnl, wprj_ppnl, i, j, l, do_gth, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
-!$OMP          na, nb, np, nnl, is_nonlocal, a_nl, h_nl, c_nl, radp, i_dim, ib, jb)
+!$OMP          na, nb, np, nnl, a_nl, radp, i_dim, ib, jb)
 
          ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
          sab = 0.0_dp
@@ -338,11 +339,7 @@ CONTAINS
                IF (nprjc == 0) CYCLE
                nnl = spotential(kkind)%sgp_potential%n_nonlocal
                lppnl = spotential(kkind)%sgp_potential%lmax
-               is_nonlocal = .FALSE.
-               is_nonlocal(0:lppnl) = spotential(kkind)%sgp_potential%is_nonlocal(0:lppnl)
                a_nl => spotential(kkind)%sgp_potential%a_nonlocal
-               h_nl => spotential(kkind)%sgp_potential%h_nonlocal
-               c_nl => spotential(kkind)%sgp_potential%c_nonlocal
                ppnl_radius = spotential(kkind)%sgp_potential%ppnl_radius
                ALLOCATE (radp(nnl))
                radp(:) = ppnl_radius

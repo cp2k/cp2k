@@ -878,8 +878,9 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
                                                             max_iso_not0, max_s_harm, n, &
-                                                            ngrid_rad, nkind, nrloc(10)
-      LOGICAL                                            :: dft_plus_u_atom, paw_atom
+                                                            ngrid_rad, nkind, nrloc(10), &
+                                                            nrpot(1:15, 0:10)
+      LOGICAL                                            :: dft_plus_u_atom, ecp_semi_local, paw_atom
       REAL(KIND=dp)                                      :: brcut, zeff, zeff_correction
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
@@ -950,9 +951,15 @@ CONTAINS
                CALL get_potential(potential=gth_potential, nexp_ppl=n)
                maxlppl = MAX(maxlppl, 2*(n - 1))
             ELSEIF (PRESENT(maxlppl) .AND. ASSOCIATED(sgp_potential)) THEN
-               CALL get_potential(potential=sgp_potential, nrloc=nrloc)
+               CALL get_potential(potential=sgp_potential, nrloc=nrloc, ecp_semi_local=ecp_semi_local)
                n = MAXVAL(nrloc) - 2
                maxlppl = MAX(maxlppl, 2*(n - 1))
+               IF (ecp_semi_local) THEN
+                  CALL get_potential(potential=sgp_potential, sl_lmax=imax, nrpot=nrpot)
+                  n = MAXVAL(nrpot) - 2
+                  n = 2*(n - 1) + imax
+                  maxlppl = MAX(maxlppl, n)
+               END IF
             END IF
 
             IF (PRESENT(maxlppnl) .AND. ASSOCIATED(gth_potential)) THEN
@@ -1016,6 +1023,8 @@ CONTAINS
                END IF
                IF (ASSOCIATED(sgp_potential)) THEN
                   CALL get_potential(potential=sgp_potential, lmax=imax)
+                  maxco = MAX(maxco, ncoset(imax))
+                  CALL get_potential(potential=sgp_potential, sl_lmax=imax)
                   maxco = MAX(maxco, ncoset(imax))
                END IF
             END IF
@@ -1501,8 +1510,9 @@ CONTAINS
       INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
          nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
-      LOGICAL :: check, explicit, explicit_basis, explicit_J, explicit_kgpot, explicit_potential, &
-         explicit_U, explicit_u_m_j, nobasis, section_enabled, subsection_enabled, update_input
+      LOGICAL :: check, ecp_semi_local, explicit, explicit_basis, explicit_J, explicit_kgpot, &
+         explicit_potential, explicit_U, explicit_u_m_j, nobasis, section_enabled, &
+         subsection_enabled, update_input
       REAL(KIND=dp)                                      :: alpha, ccore, r, rc, zeff_correction
       REAL(KIND=dp), DIMENSION(6)                        :: error
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
@@ -1730,6 +1740,10 @@ CONTAINS
                                    keyword_name="KG_POTENTIAL_FILE_NAME", c_val=kg_potential_fn_kind)
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="KG_POTENTIAL", c_val=kgpot_name)
+
+         ! Semi-local vs. full nonlocal form of ECPs
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="ECP_SEMI_LOCAL", l_val=ecp_semi_local)
 
          ! Assign atomic covalent radius
          qs_kind%covalent_radius = ptable(z)%covalent_radius*bohr
@@ -2330,26 +2344,37 @@ CONTAINS
                CASE ("ECP")
                   CALL allocate_potential(qs_kind%sgp_potential)
                   CALL get_potential(qs_kind%sgp_potential, description=description)
-                  description(4) = "ECP "//TRIM(potential_name)
                   CALL read_ecp_potential(ptable(z)%symbol, ecppot, &
                                           potential_name, potential_file_name, potential_section)
+                  IF (ecp_semi_local) THEN
+                     description(1) = "Semi-local Gaussian pseudopotential                     "
+                     description(2) = "ECP "//TRIM(potential_name)
+                     description(3) = "LIBGRPP: A. V. Oleynichenko et al., Symmetry 15 197 2023"
+                     description(4) = "                                                        "
+                  ELSE
+                     description(4) = "ECP "//TRIM(potential_name)
+                  END IF
                   CALL set_potential(qs_kind%sgp_potential, name=ecppot%pname, description=description, &
-                                     zeff=ecppot%zion, z=z, ecp_local=.TRUE., &
+                                     zeff=ecppot%zion, z=z, ecp_local=.TRUE., ecp_semi_local=ecp_semi_local, &
                                      nloc=ecppot%nloc, nrloc=ecppot%nrloc, aloc=ecppot%aloc, bloc=ecppot%bloc, &
                                      has_nlcc=.FALSE.)
+                  CALL set_potential(qs_kind%sgp_potential, sl_lmax=ecppot%lmax, &
+                                     npot=ecppot%npot, nrpot=ecppot%nrpot, apot=ecppot%apot, bpot=ecppot%bpot)
                   ! convert PP
-                  CALL get_qs_kind(qs_kind, basis_set=orb_basis_set)
-                  CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, orb_basis=orb_basis_set, error=error)
-                  IF (iounit > 0) THEN
-                     WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
-                     IF (sgppot%has_local) THEN
-                        WRITE (iounit, "(T8,'Accuracy for local part:',T41,F10.3,'%',T61,F20.12)") error(4), error(1)
-                     END IF
-                     IF (sgppot%has_nonlocal) THEN
-                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T41,F10.3,'%',T61,F20.12)") error(5), error(2)
-                     END IF
-                     IF (sgppot%has_nlcc) THEN
-                        WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
+                  IF (.NOT. ecp_semi_local) THEN
+                     CALL get_qs_kind(qs_kind, basis_set=orb_basis_set)
+                     CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, orb_basis=orb_basis_set, error=error)
+                     IF (iounit > 0) THEN
+                        WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
+                        IF (sgppot%has_local) THEN
+                           WRITE (iounit, "(T8,'Accuracy for local part:',T41,F10.3,'%',T61,F20.12)") error(4), error(1)
+                        END IF
+                        IF (sgppot%has_nonlocal) THEN
+                           WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T41,F10.3,'%',T61,F20.12)") error(5), error(2)
+                        END IF
+                        IF (sgppot%has_nlcc) THEN
+                           WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)
+                        END IF
                      END IF
                   END IF
                   IF (sgppot%has_nonlocal) THEN

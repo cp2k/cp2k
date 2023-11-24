@@ -373,7 +373,8 @@ CONTAINS
       ! transform semilocal potential into a separable local form
       sgp_pot%has_nonlocal = .TRUE.
       !
-      nl = 12
+      ! hardcoded number of projectors (equal for all l values)
+      nl = 8
       !
       sgp_pot%n_nonlocal = nl
       sgp_pot%lmax = ecp_pot%lmax

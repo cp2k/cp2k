@@ -20,10 +20,10 @@ MODULE atom_kind_orbitals
                                               atom_relint_setup
    USE atom_set_basis,                  ONLY: set_kind_basis_atomic
    USE atom_types,                      ONLY: &
-        CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
-        atom_orbitals, atom_potential_type, atom_sgppot_type, atom_type, create_atom_orbs, &
-        create_atom_type, lmat, release_atom_basis, release_atom_potential, release_atom_type, &
-        set_atom
+        CGTO_BASIS, Clementi_geobas, GTO_BASIS, atom_basis_type, atom_ecppot_type, &
+        atom_gthpot_type, atom_integrals, atom_orbitals, atom_potential_type, atom_sgppot_type, &
+        atom_type, create_atom_orbs, create_atom_type, lmat, release_atom_basis, &
+        release_atom_potential, release_atom_type, set_atom
    USE atom_utils,                      ONLY: atom_density,&
                                               get_maxl_occ,&
                                               get_maxn_occ
@@ -38,8 +38,8 @@ MODULE atom_kind_orbitals
    USE input_constants,                 ONLY: &
         barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
         do_gapw_log, do_nonrel_atom, do_numeric, do_rks_atom, do_sczoramp_atom, do_uks_atom, &
-        do_zoramp_atom, gth_pseudo, no_pseudo, poly_conf, rel_dkh, rel_none, rel_sczora_mp, &
-        rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
+        do_zoramp_atom, ecp_pseudo, gth_pseudo, no_pseudo, poly_conf, rel_dkh, rel_none, &
+        rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
@@ -116,7 +116,7 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, ls
-      LOGICAL                                            :: has_pp, uks
+      LOGICAL                                            :: ecp_semi_local, has_pp, uks
       REAL(KIND=dp)                                      :: ok, scal, zeff
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -150,7 +150,6 @@ CONTAINS
 
       atom%z = z
       CALL set_atom(atom, &
-                    !                   pp_calc=(ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)), &
                     pp_calc=has_pp, &
                     do_zmp=.FALSE., &
                     doread=.FALSE., &
@@ -181,9 +180,16 @@ CONTAINS
          CALL gth_potential_conversion(gth_potential, potential%gth_pot)
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
-         potential%ppot_type = sgp_pseudo
-         CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
-         potential%sgp_pot%symbol = ptable(z)%symbol
+         CALL get_potential(sgp_potential, ecp_semi_local=ecp_semi_local)
+         IF (ecp_semi_local) THEN
+            potential%ppot_type = ecp_pseudo
+            CALL ecp_potential_conversion(sgp_potential, potential%ecp_pot)
+            potential%ecp_pot%symbol = ptable(z)%symbol
+         ELSE
+            potential%ppot_type = sgp_pseudo
+            CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
+            potential%sgp_pot%symbol = ptable(z)%symbol
+         END IF
          CALL get_potential(sgp_potential, zeff=zeff)
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE
@@ -478,6 +484,7 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat)                         :: starti
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(:), POINTER                     :: econf
+      LOGICAL                                            :: ecp_semi_local
       REAL(KIND=dp)                                      :: al, aval, cc, cval, ear, rk, xx, zeff
       REAL(KIND=dp), DIMENSION(num_gto+2)                :: results
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -547,9 +554,16 @@ CONTAINS
          CALL gth_potential_conversion(gth_potential, potential%gth_pot)
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
-         potential%ppot_type = sgp_pseudo
-         CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
-         potential%sgp_pot%symbol = ptable(z)%symbol
+         CALL get_potential(sgp_potential, ecp_semi_local=ecp_semi_local)
+         IF (ecp_semi_local) THEN
+            potential%ppot_type = ecp_pseudo
+            CALL ecp_potential_conversion(sgp_potential, potential%ecp_pot)
+            potential%ecp_pot%symbol = ptable(z)%symbol
+         ELSE
+            potential%ppot_type = sgp_pseudo
+            CALL sgp_potential_conversion(sgp_potential, potential%sgp_pot)
+            potential%sgp_pot%symbol = ptable(z)%symbol
+         END IF
          CALL get_potential(sgp_potential, zeff=zeff)
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE
@@ -1227,6 +1241,37 @@ CONTAINS
       END IF
 
    END SUBROUTINE sgp_potential_conversion
+
+! **************************************************************************************************
+!> \brief ...
+!> \param sgp_potential ...
+!> \param ecp_atompot ...
+! **************************************************************************************************
+   SUBROUTINE ecp_potential_conversion(sgp_potential, ecp_atompot)
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+      TYPE(atom_ecppot_type)                             :: ecp_atompot
+
+      INTEGER, DIMENSION(:), POINTER                     :: ppeconf
+      LOGICAL                                            :: ecp_local, ecp_semi_local
+      REAL(KIND=dp)                                      :: zeff
+
+      CALL get_potential(sgp_potential, ecp_local=ecp_local, ecp_semi_local=ecp_semi_local)
+      CPASSERT(ecp_semi_local .AND. ecp_local)
+      CALL get_potential(sgp_potential, &
+                         name=ecp_atompot%pname, &
+                         zeff=zeff, &
+                         elec_conf=ppeconf)
+      ecp_atompot%zion = zeff
+      ecp_atompot%econf(0:3) = ppeconf(0:3)
+      CALL get_potential(sgp_potential, lmax=ecp_atompot%lmax)
+      ! local
+      CALL get_potential(sgp_potential, nloc=ecp_atompot%nloc, nrloc=ecp_atompot%nrloc, &
+                         aloc=ecp_atompot%aloc, bloc=ecp_atompot%bloc)
+      ! nonlocal
+      CALL get_potential(sgp_potential, npot=ecp_atompot%npot, nrpot=ecp_atompot%nrpot, &
+                         apot=ecp_atompot%apot, bpot=ecp_atompot%bpot)
+
+   END SUBROUTINE ecp_potential_conversion
 ! **************************************************************************************************
 
 END MODULE atom_kind_orbitals

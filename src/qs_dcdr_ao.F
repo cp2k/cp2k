@@ -15,6 +15,7 @@ MODULE qs_dcdr_ao
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
@@ -426,7 +427,7 @@ CONTAINS
                                                             matrix_ppnl_1_pass
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -438,7 +439,8 @@ CONTAINS
 
       failure = .FALSE.
 
-      NULLIFY (atomic_kind_set, qs_kind_set, ks_env, dft_control, particle_set, sab_orb, sac_ppl, sap_ppnl, virial, rho, rho_ao)
+      NULLIFY (atomic_kind_set, qs_kind_set, ks_env, dft_control, particle_set, &
+               sab_orb, sac_ae, sac_ppl, sap_ppnl, virial, rho, rho_ao)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -447,6 +449,7 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       sab_orb=sab_orb, &
+                      sac_ae=sac_ae, &
                       sac_ppl=sac_ppl, &
                       sap_ppnl=sap_ppnl, &
                       virial=virial)
@@ -459,6 +462,19 @@ CONTAINS
 
       my_basis_type = "ORB"
 
+      ! ECP/AE contribution to the core hamiltonian
+      IF (ASSOCIATED(sac_ae)) THEN
+         CPABORT("ECP/AE functionality in qs_dcdr_ao missing")
+         ! Missing feature: deltaR weighting factors of the derivatives wrt. nuclear positions
+         matrix_hc_pass(1:3, 1:1) => dcdr_env%matrix_hc(1:3)
+         matrix_p_pass(1:1, 1:1) => rho_ao(1:1)
+         CALL build_core_ae(matrix_h=matrix_hc_pass, matrix_p=matrix_p_pass, &
+                            force=force, virial=virial, calculate_forces=calculate_forces, &
+                            use_virial=use_virial, nder=nder, qs_kind_set=qs_kind_set, &
+                            atomic_kind_set=atomic_kind_set, particle_set=particle_set, &
+                            sab_orb=sab_orb, sac_ae=sac_ae, nimages=1, &
+                            cell_to_index=cell_to_index)
+      END IF
       ! *** compute the ppl contribution to the core hamiltonian ***
       ppl_present = ASSOCIATED(sac_ppl)
       IF (ppl_present) THEN

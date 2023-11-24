@@ -78,15 +78,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii'
 
-      INTEGER :: handle, i, iexp_ppl, ikind, ip, iprj_ppnl, j, l, lppl, lppnl, lprj, lprj_ppnl, &
-         maxl, n_local, nexp_lpot, nexp_lsd, nexp_ppl, nkind, nloc
+      INTEGER :: handle, i, iexp_ppl, ikind, ip, iprj_ppnl, j, l, lppl, lppnl, lppsl, lprj, &
+         lprj_ppnl, maxl, n_local, nexp_lpot, nexp_lsd, nexp_ppl, nkind, nloc
+      INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(1:10)                           :: nrloc
+      INTEGER, DIMENSION(1:15, 0:10)                     :: nrpot
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nprj, nprj_ppnl
-      LOGICAL                                            :: ecp_local, llsd, lpot, paw_atom
+      LOGICAL                                            :: ecp_local, ecp_semi_local, llsd, lpot, &
+                                                            paw_atom
       LOGICAL, DIMENSION(0:5)                            :: is_nonlocal
-      REAL(dp), DIMENSION(1:10)                          :: aloc, bloc
       REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, core_charge_radius, &
          cval, ppl_radius, ppnl_radius, rcprj, zeta
+      REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
+      REAL(KIND=dp), DIMENSION(1:15, 0:10)               :: apot, bpot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, a_nonlocal, alpha_lpot, &
                                                             alpha_lsd, alpha_ppnl, c_local, &
                                                             cexp_ppl
@@ -269,6 +273,20 @@ CONTAINS
                DO i = 1, n_local
                   ppl_radius = MAX(ppl_radius, &
                                    exp_radius(0, a_local(i), qs_control%eps_ppl, c_local(i), rlow=ppl_radius))
+               END DO
+            END IF
+            ! Calculate the radii of the semi-local part
+            CALL get_potential(potential=sgp_potential, ecp_semi_local=ecp_semi_local)
+            IF (ecp_semi_local) THEN
+               CALL get_potential(potential=sgp_potential, sl_lmax=lppsl, npot=npot, nrpot=nrpot, &
+                                  apot=apot, bpot=bpot)
+               DO l = 0, lppsl
+                  DO i = 1, npot(l)
+                     lppl = MAX(0, nrpot(i, l) - 2)
+                     ppl_radius = MAX(ppl_radius, &
+                                      exp_radius(lppl, bpot(i, l), qs_control%eps_ppl, apot(i, l), &
+                                                 rlow=ppl_radius))
+                  END DO
                END DO
             END IF
             ! Calculate the radii of the non-local part

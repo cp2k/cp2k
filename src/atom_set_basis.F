@@ -17,7 +17,6 @@ MODULE atom_set_basis
    USE input_constants,                 ONLY: do_gapw_log
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
-                                              pi,&
                                               twopi
    USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                               create_grid_atom,&
@@ -141,10 +140,16 @@ CONTAINS
                   DO ii = 1, nshell(i)
                      IF (ls(ii, i) == j) THEN
                         ns = ns + 1
-                        DO ipgf = 1, npgf(i)
-                           an = cn*zet(ipgf, i)**en
-                           basis%cm(nj + ipgf, ns, j) = an*gcc(ipgf, ii, i)
-                        END DO
+                        IF (set_norm) THEN
+                           DO ipgf = 1, npgf(i)
+                              an = cn*zet(ipgf, i)**en
+                              basis%cm(nj + ipgf, ns, j) = an*gcc(ipgf, ii, i)
+                           END DO
+                        ELSE
+                           DO ipgf = 1, npgf(i)
+                              basis%cm(nj + ipgf, ns, j) = gcc(ipgf, ii, i)
+                           END DO
+                        END IF
                      END IF
                   END DO
                   nj = nj + npgf(i)
@@ -152,7 +157,9 @@ CONTAINS
             END DO
          END DO
          ! Normalization
-         CALL normalize_basis_cp2k(basis, set_norm)
+         IF (set_norm) THEN
+            CALL normalize_basis_cp2k(basis)
+         END IF
       ELSE
          ! use default basis
          IF (has_pp) THEN
@@ -221,44 +228,28 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param basis ...
-!> \param set_norm ...
 ! **************************************************************************************************
-   SUBROUTINE normalize_basis_cp2k(basis, set_norm)
+   SUBROUTINE normalize_basis_cp2k(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
-      LOGICAL, INTENT(IN)                                :: set_norm
 
-      INTEGER                                            :: ii, ipgf, l, n, np
-      REAL(KIND=dp)                                      :: expzet, fnorm, gcca, prefac, zeta
+      INTEGER                                            :: ii, l, n, np
+      REAL(KIND=dp)                                      :: fnorm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat
 
-      IF (set_norm) THEN
-         DO l = 0, lmat
-            n = basis%nbas(l)
-            np = basis%nprim(l)
-            IF (n > 0) THEN
-               ALLOCATE (smat(np, np))
-               CALL sg_overlap(smat, l, basis%am(1:np, l), basis%am(1:np, l))
-               DO ii = 1, basis%nbas(l)
-                  fnorm = DOT_PRODUCT(basis%cm(1:np, ii, l), MATMUL(smat, basis%cm(1:np, ii, l)))
-                  fnorm = 1._dp/SQRT(fnorm)
-                  basis%cm(1:np, ii, l) = fnorm*basis%cm(1:np, ii, l)
-               END DO
-               DEALLOCATE (smat)
-            END IF
-         END DO
-      ELSE
-         DO l = 0, lmat
-            expzet = 0.25_dp*REAL(2*l + 3, dp)
-            prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
-            DO ipgf = 1, basis%nprim(l)
-               DO ii = 1, basis%nbas(l)
-                  gcca = basis%cm(ipgf, ii, l)
-                  zeta = 2._dp*basis%am(ipgf, l)
-                  basis%cm(ipgf, ii, l) = zeta**expzet*gcca/prefac
-               END DO
+      DO l = 0, lmat
+         n = basis%nbas(l)
+         np = basis%nprim(l)
+         IF (n > 0) THEN
+            ALLOCATE (smat(np, np))
+            CALL sg_overlap(smat, l, basis%am(1:np, l), basis%am(1:np, l))
+            DO ii = 1, basis%nbas(l)
+               fnorm = DOT_PRODUCT(basis%cm(1:np, ii, l), MATMUL(smat, basis%cm(1:np, ii, l)))
+               fnorm = 1._dp/SQRT(fnorm)
+               basis%cm(1:np, ii, l) = fnorm*basis%cm(1:np, ii, l)
             END DO
-         END DO
-      END IF
+            DEALLOCATE (smat)
+         END IF
+      END DO
 
    END SUBROUTINE normalize_basis_cp2k
 

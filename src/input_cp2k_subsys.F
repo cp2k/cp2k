@@ -1183,6 +1183,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ECP_SEMI_LOCAL", &
+                          description="Use ECPs in the original semi-local form."// &
+                          " This requires the availability of the corresponding integral library."// &
+                          " If set to False, a fully nonlocal one-center expansion of the ECP is constructed.", &
+                          usage="ECP_SEMI_LOCAL {T,F}", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="COVALENT_RADIUS", &
                           description="Use this covalent radius (in Angstrom) for all atoms of "// &
                           "the atomic kind instead of the internally tabulated default value", &
