@@ -46,7 +46,7 @@ MODULE gw_utils
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
-   USE kinds,                           ONLY: default_path_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
@@ -152,11 +152,11 @@ CONTAINS
 
       CALL setup_time_and_frequency_minimax_grid(bs_env)
 
-      ! free memory in qs_env; only if one is not doing local VBM, CBM, gap because
-      ! we need real-space grid operations in pw_env, task_list there
-      ! Recommendation: perform GW calculation without calculating local VBM, CBM, gap
-      !                 to deallocate qs_env (and safe memory). Then use GW restart files
-      !                 in a subsequent calculation to calculate local VBM, CBM, gap
+      ! free memory in qs_env; only if one is not calculating the LDOS because
+      ! we need real-space grid operations in pw_env, task_list for the LDOS
+      ! Recommendation in case of memory issues: first perform GW calculation without calculating
+      !                                          LDOS (to safe memor). Then, use GW restart files
+      !                                          in a subsequent calculation to calculate the LDOS
       IF (.NOT. bs_env%do_ldos) THEN
          CALL qs_env_part_release(qs_env)
       END IF
@@ -1053,7 +1053,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_for_restart_files'
 
       CHARACTER(LEN=9)                                   :: frmt
-      CHARACTER(LEN=default_path_length)                 :: f_chi, f_S_n, f_S_p, f_S_x, f_W_t, &
+      CHARACTER(LEN=default_string_length)               :: f_chi, f_S_n, f_S_p, f_S_x, f_W_t, &
                                                             prefix, project_name
       INTEGER                                            :: handle, i_spin, i_t_or_w, ind, n_spin, &
                                                             num_time_freq_points

@@ -8,7 +8,9 @@
 MODULE soc_pseudopotential_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE core_ppnl,                       ONLY: build_core_ppnl
-   USE cp_cfm_types,                    ONLY: cp_cfm_set_all,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -162,14 +164,17 @@ CONTAINS
 !> \param mat_V_SOC_xyz ...
 !> \param cfm_s_double ...
 !> \param fm_s ...
+!> \param cfm_SOC_spinor_ao ...
 ! **************************************************************************************************
-   SUBROUTINE H_KS_spinor(cfm_ks_spinor_ao, fm_ks, n_spin, mat_V_SOC_xyz, cfm_s_double, fm_s)
+   SUBROUTINE H_KS_spinor(cfm_ks_spinor_ao, fm_ks, n_spin, mat_V_SOC_xyz, cfm_s_double, fm_s, &
+                          cfm_SOC_spinor_ao)
       TYPE(cp_cfm_type)                                  :: cfm_ks_spinor_ao
       TYPE(cp_fm_type), DIMENSION(:)                     :: fm_ks
       INTEGER                                            :: n_spin
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
       TYPE(cp_cfm_type), OPTIONAL                        :: cfm_s_double
       TYPE(cp_fm_type), OPTIONAL                         :: fm_s
+      TYPE(cp_cfm_type), OPTIONAL                        :: cfm_SOC_spinor_ao
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'H_KS_spinor'
 
@@ -191,6 +196,11 @@ CONTAINS
       CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(2)%matrix, str, s, 1, gaussi, .TRUE.)
       CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(3)%matrix, str, 1, 1, z_one, .FALSE.)
       CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(3)%matrix, str, s, s, -z_one, .FALSE.)
+
+      IF (PRESENT(cfm_SOC_spinor_ao)) THEN
+         CALL cp_cfm_create(cfm_SOC_spinor_ao, cfm_ks_spinor_ao%matrix_struct)
+         CALL cp_cfm_to_cfm(cfm_ks_spinor_ao, cfm_SOC_spinor_ao)
+      END IF
 
       CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), 1, 1)
 

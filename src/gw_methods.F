@@ -60,7 +60,7 @@ MODULE gw_methods
                                               de_init_bs_env
    USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: default_path_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
@@ -78,7 +78,8 @@ MODULE gw_methods
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-   USE post_scf_bandstructure_utils,    ONLY: cfm_ikp_from_fm_Gamma
+   USE post_scf_bandstructure_utils,    ONLY: cfm_ikp_from_fm_Gamma,&
+                                              get_fname
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -305,7 +306,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_read'
 
-      CHARACTER(LEN=default_path_length)                 :: f_chi
+      CHARACTER(LEN=default_string_length)               :: f_chi
       INTEGER                                            :: handle, unit_nr
 
       CALL timeset(routineN, handle)
@@ -600,7 +601,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'fm_write'
 
-      CHARACTER(LEN=default_path_length)                 :: filename
+      CHARACTER(LEN=default_string_length)               :: filename
       INTEGER                                            :: handle, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input
@@ -2353,7 +2354,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_unnecessary_files'
 
-      CHARACTER(LEN=default_path_length)                 :: f_chi, f_W_t, prefix
+      CHARACTER(LEN=default_string_length)               :: f_chi, f_W_t, prefix
       INTEGER                                            :: handle, i_t
 
       CALL timeset(routineN, handle)
@@ -2661,10 +2662,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'analyt_conti_and_print'
 
-      CHARACTER(len=1)                                   :: digits_ikp
       CHARACTER(len=3)                                   :: occ_vir
-      CHARACTER(len=default_path_length)                 :: fname
-      INTEGER                                            :: handle, i_mo, iunit, n_mo, n_zeros
+      CHARACTER(len=default_string_length)               :: fname
+      INTEGER                                            :: handle, i_mo, iunit, n_mo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, Sigma_c_ikp_n_qp
 
       CALL timeset(routineN, handle)
@@ -2698,29 +2698,7 @@ CONTAINS
                                             Sigma_x_ikp_n(:) - &
                                             V_xc_ikp_n(:)
 
-      n_zeros = count_digits(bs_env%kpoints_DOS%nkp) - count_digits(ikp)
-
-      WRITE (digits_ikp, '(I1)') count_digits(ikp)
-
-      SELECT CASE (n_zeros)
-      CASE (0)
-         WRITE (fname, "(A39,I"//digits_ikp//")") "SCF_and_G0W0_band_structure_for_kpoint_", ikp
-      CASE (1)
-         WRITE (fname, "(A40,I"//digits_ikp//")") "SCF_and_G0W0_band_structure_for_kpoint_0", ikp
-      CASE (2)
-         WRITE (fname, "(A41,I"//digits_ikp//")") "SCF_and_G0W0_band_structure_for_kpoint_00", ikp
-      CASE (3)
-         WRITE (fname, "(A42,I"//digits_ikp//")") "SCF_and_G0W0_band_structure_for_kpoint_000", ikp
-      END SELECT
-
-      ! for molecules, we don't have any k-points
-      IF (ikp == 1 .AND. bs_env%kpoints_DOS%nkp == 1) THEN
-         WRITE (fname, "(A)") "SCF_and_G0W0_band_structure"
-      END IF
-
-      IF (bs_env%n_spin == 2) THEN
-         WRITE (fname, "(2A,I1)") TRIM(fname), "_spin_", ispin
-      END IF
+      CALL get_fname(fname, bs_env, ikp, "SCF_and_G0W0", ispin=ispin)
 
       IF (bs_env%para_env%is_source()) THEN
 
@@ -2751,31 +2729,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE analyt_conti_and_print
-
-! **************************************************************************************************
-!> \brief ...
-!> \param int_number ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION count_digits(int_number)
-
-      INTEGER, INTENT(IN)                                :: int_number
-      INTEGER                                            :: count_digits
-
-      INTEGER                                            :: digitCount, tempInt
-
-      digitCount = 0
-
-      tempInt = int_number
-
-      DO WHILE (tempInt /= 0)
-         tempInt = tempInt/10
-         digitCount = digitCount + 1
-      END DO
-
-      count_digits = digitCount
-
-   END FUNCTION count_digits
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2907,15 +2860,6 @@ CONTAINS
       CALL parallel_gemm(transa="N", transb="N", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
                          matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_s_Gamma, &
                          beta=0.0_dp, matrix_c=bs_env%fm_h_G0W0_Gamma)
-
-      ! JW think again how to best incorporate SOC in GW...
-!      IF (bs_env%do_soc) THEN
-!         ! Spinor G0W0-matrix
-!         ! H^G0W0_µν,σσ' = h^G0W0_µν,σ*δ_σσ' + sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ',
-!         ! see Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
-!         CALL H_KS_spinor(bs_env%cfm_h_G0W0_spinor_ao_Gamma, bs_env%fm_h_G0W0_Gamma, &
-!                          bs_env%mat_V_SOC_xyz(:, 1))
-!      END IF
 
       CALL timestop(handle)
 
