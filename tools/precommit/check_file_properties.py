@@ -10,8 +10,7 @@ import sys
 from datetime import datetime, timezone
 from functools import lru_cache
 import itertools
-from typing import Tuple, List, TypeVar
-from collections.abc import Iterable
+from typing import Tuple, List, TypeVar, Iterable
 
 T = TypeVar("T")
 
@@ -122,20 +121,20 @@ BSD_DIRECTORIES = ("src/offload/", "src/grid/", "src/dbm/")
 
 @lru_cache(maxsize=None)
 def get_install_txt() -> str:
-    return CP2K_DIR.joinpath("INSTALL.md").read_text()
+    return CP2K_DIR.joinpath("INSTALL.md").read_text(encoding="utf8")
 
 
 @lru_cache(maxsize=None)
 def get_flags_src() -> str:
-    cp2k_info = CP2K_DIR.joinpath("src/cp2k_info.F").read_text()
+    cp2k_info = CP2K_DIR.joinpath("src/cp2k_info.F").read_text(encoding="utf8")
     match = CP2K_FLAGS_RE.search(cp2k_info)
     assert match
     return match.group(1)
 
 
 @lru_cache(maxsize=None)
-def get_bibliography_dois() -> list[str]:
-    bib = CP2K_DIR.joinpath("src/common/bibliography.F").read_text()
+def get_bibliography_dois() -> List[str]:
+    bib = CP2K_DIR.joinpath("src/common/bibliography.F").read_text(encoding="utf8")
     matches = re.findall(r'DOI="([^"]+)"', bib, flags=re.IGNORECASE)
     return [doi for doi in matches if "/" in doi]  # filter invalid DOIs.
 
