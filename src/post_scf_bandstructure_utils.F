@@ -11,6 +11,9 @@
 !> \date 07.2023
 ! **************************************************************************************************
 MODULE post_scf_bandstructure_utils
+   USE soc_pseudopotential_methods,     ONLY: H_KS_spinor,&
+                                              V_SOC_xyz_from_pseudopotential,&
+                                              remove_soc_outside_energy_window_mo
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -1597,25 +1600,33 @@ CONTAINS
                                   cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
                                   z_zero, cfm_ks_ikp_spinor)
 
-               ! 3. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
+               ! 3. remove SOC outside of energy window (otherwise, numerical problems arise
+               !    because energetically low semicore states and energetically very high
+               !    unbound states couple to the states around the Fermi level)
+               CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
+                                                        bs_env%energy_window_soc, &
+                                                        eigenval_spinor_no_SOC, &
+                                                        homo_spinor)
+
+               ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
                eigenval_spinor_no_SOC(1:n_ao) = bs_env%eigenval_G0W0(1:n_ao, ikp, 1)
                eigenval_spinor_no_SOC(n_ao + 1:) = bs_env%eigenval_G0W0(1:n_ao, ikp, bs_env%n_spin)
                CALL cfm_add_on_diag(cfm_ks_ikp_spinor, eigenval_spinor_no_SOC)
 
-               ! 4. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
+               ! 5. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
                CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_work_ikp_spinor, eigenval_spinor_G0W0)
 
-               ! 5. write SCF+SOC and G0W0+SOC eigenvalues to file
+               ! 6. write SCF+SOC and G0W0+SOC eigenvalues to file
                !    SCF_and_G0W0_band_structure_for_kpoint_<ikp>_+_SOC
                CALL write_SOC_eigenvalues(eigenval_spinor, "SCF_and_G0W0", ikp, bs_env, &
                                           eigenval_spinor_G0W0)
 
-               ! 6. DOS from spinors, no PDOS
+               ! 7. DOS from spinors, no PDOS
                CALL add_to_DOS_PDOS(DOS_G0W0_SOC, PDOS_G0W0_SOC, eigenval_spinor_G0W0, &
                                     ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
                PDOS_G0W0_SOC = 0.0_dp
 
-               ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
+               ! 8. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
                band_edges_G0W0_SOC%VBM = MAX(band_edges_G0W0_SOC%VBM, &
                                              eigenval_spinor_G0W0(homo_spinor))
                band_edges_G0W0_SOC%CBM = MIN(band_edges_G0W0_SOC%CBM, &

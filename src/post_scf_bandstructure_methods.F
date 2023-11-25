@@ -18,7 +18,7 @@ MODULE post_scf_bandstructure_methods
    USE qs_scf,                          ONLY: scf
    USE soc_pseudopotential_methods,     ONLY: H_KS_spinor,&
                                               V_SOC_xyz_from_pseudopotential,&
-                                              remove_soc_outside_energy_window
+                                              remove_soc_outside_energy_window_ao
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -94,8 +94,9 @@ CONTAINS
       ! Hartwigsen, Goedecker, Hutter, Eq.(18), (19) (doi.org/10.1103/PhysRevB.58.3641)
       CALL V_SOC_xyz_from_pseudopotential(qs_env, bs_env%mat_V_SOC_xyz)
 
+      ! JW this is not correct for open-shell...
       IF (bs_env%energy_window_soc > 0.0_dp) THEN
-         CALL remove_soc_outside_energy_window(bs_env%mat_V_SOC_xyz(:, 1), &
+         CALL remove_soc_outside_energy_window_ao(bs_env%mat_V_SOC_xyz(:, 1), &
                                                bs_env%energy_window_soc, &
                                                bs_env%fm_mo_coeff_Gamma(1), &
                                                bs_env%n_occ(1), &

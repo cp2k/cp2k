@@ -23,6 +23,13 @@ MODULE soc_pseudopotential_methods
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_desymmetrize,&
@@ -53,7 +60,8 @@ MODULE soc_pseudopotential_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soc_pseudopotential_methods'
 
-   PUBLIC :: V_SOC_xyz_from_pseudopotential, H_KS_spinor, remove_soc_outside_energy_window
+   PUBLIC :: V_SOC_xyz_from_pseudopotential, H_KS_spinor, remove_soc_outside_energy_window_ao, &
+remove_soc_outside_energy_window_mo
 
 CONTAINS
 
@@ -227,7 +235,10 @@ CONTAINS
    END SUBROUTINE H_KS_spinor
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Remove SOC outside of energy window (otherwise, numerical problems arise
+!>        because energetically low semicore states and energetically very high
+!>        unbound states couple to the states around the Fermi level).
+!>        This routine is for mat_V_SOC_xyz being in the atomic-orbital (ao) basis.
 !> \param mat_V_SOC_xyz ...
 !> \param e_win ...
 !> \param fm_mo_coeff ...
@@ -235,7 +246,7 @@ CONTAINS
 !> \param eigenval ...
 !> \param fm_s ...
 ! **************************************************************************************************
-   SUBROUTINE remove_soc_outside_energy_window(mat_V_SOC_xyz, e_win, fm_mo_coeff, homo, &
+   SUBROUTINE remove_soc_outside_energy_window_ao(mat_V_SOC_xyz, e_win, fm_mo_coeff, homo, &
                                                eigenval, fm_s)
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
       REAL(KIND=dp)                                      :: e_win
@@ -244,7 +255,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval
       TYPE(cp_fm_type)                                   :: fm_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_ao'
 
       INTEGER                                            :: handle, i_glob, iiB, j_glob, jjB, nao, &
                                                             ncol_local, nrow_local, xyz
@@ -319,6 +330,70 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE remove_soc_outside_energy_window
+   END SUBROUTINE remove_soc_outside_energy_window_ao
+
+! **************************************************************************************************!> \brief Remove SOC outside of energy window (otherwise, numerical problems arise
+!>        because energetically low semicore states and energetically very high
+!>        unbound states couple to the states around the Fermi level).
+!>        This routine is for cfm_ks_spinor being in the molecular-orbital (mo) with 
+!>        corresponding eigenvalues "eigenval". 
+!> \param e_win ...
+!> \param fm_mo_coeff ...
+!> \param homo ...
+!> \param eigenval ...
+!> \param fm_s ...
+! **************************************************************************************************
+   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win, eigenval, homo_spinor)
+      REAL(KIND=dp)                                      :: e_win
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff
+      INTEGER                                            :: homo_spinor
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenval
+      TYPE(cp_fm_type)                                   :: fm_s
+      TYPE(cp_cfm_type)                                   :: cfm_ks_spinor
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_mo'
+
+      INTEGER                                            :: handle, i_glob, iiB, j_glob, jjB, nao, &
+                                                            ncol_local, nrow_local, xyz, &
+ nrow_global, ncol_global
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: E_HOMO, E_i, E_j, E_LUMO
+      TYPE(cp_fm_type)                                   :: fm_V_ao, fm_V_mo, fm_work
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix=cfm_ks_spinor, &
+                           nrow_global=nrow_global, &
+                           ncol_global=ncol_global, &                          
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      CPASSERT(nrow_global==SIZE(eigenval))
+      CPASSERT(ncol_global==SIZE(eigenval))
+
+      E_HOMO = eigenval(homo_spinor)
+      E_LUMO = eigenval(homo_spinor + 1)
+
+      DO jjB = 1, ncol_local
+         j_glob = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_glob = row_indices(iiB)
+
+            E_i = eigenval(i_glob)
+            E_j = eigenval(j_glob)
+
+            IF (E_i < E_HOMO - 0.5_dp*e_win .OR. E_i > E_LUMO + 0.5_dp*e_win .OR. &
+                E_j < E_HOMO - 0.5_dp*e_win .OR. E_j > E_LUMO + 0.5_dp*e_win) THEN
+               cfm_ks_spinor%local_data(iiB, jjB) = 0.0_dp
+            END IF
+
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE remove_soc_outside_energy_window_mo
 
 END MODULE soc_pseudopotential_methods

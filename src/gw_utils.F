@@ -472,7 +472,7 @@ CONTAINS
          WRITE (UNIT=u, FMT="(T2,1A,T71,3I4)") "K-point mesh 1 for χ, ε, W", nkp_grid(1:3)
          WRITE (UNIT=u, FMT="(T2,2A,T71,3I4)") "K-point mesh 2 for χ, ε, W ", &
             "(for k-point extrapolation of W)", nkp_grid_extra(1:3)
-         WRITE (UNIT=u, FMT="(T2,A,T79,L)") "Approximate the k-point extrapolation", &
+         WRITE (UNIT=u, FMT="(T2,A,T80,L)") "Approximate the k-point extrapolation", &
             bs_env%approx_kp_extrapol
       END IF
 
