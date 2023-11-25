@@ -355,7 +355,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i_glob, iiB, j_glob, jjB, nao, &
                                                             ncol_local, nrow_local, xyz, &
- nrow_global, ncol_global
+                                                            nrow_global, ncol_global
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: E_HOMO, E_i, E_j, E_LUMO
       TYPE(cp_fm_type)                                   :: fm_V_ao, fm_V_mo, fm_work

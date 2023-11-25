@@ -1924,16 +1924,13 @@ CONTAINS
                                          bs_env%fm_s_Gamma%matrix_struct, &
                                          ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-      PRINT *, 'ikp =', ikp, 'cfm_SOC_ikp_spinor(7:10,7:10) ='
-      PRINT *, cfm_SOC_ikp_spinor%local_data(7:10,7:10)
-
       ! 2. V^SOC_nn',σσ'(k_i) = sum_µν C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i) C_νn'(k_i),
       !    C_µn,σ(k_i): MO coefficiencts from diagonalizing KS-matrix h^KS_nn',σσ'(k_i)
 
       ! 2.1 build matrix C_µn,σ(k_i)
       CALL cp_cfm_set_all(cfm_mos_ikp_spinor, z_zero)
       CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(1), 1, 1)
-      CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao, n_ao)
+      CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao+1, n_ao+1)
 
       ! 2.2 work_nν,σσ' = sum_µ C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i)
       CALL parallel_gemm('C', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
@@ -1959,10 +1956,6 @@ CONTAINS
                                                   eigenval_spinor_no_SOC, &
                                                   band_edges_no_SOC%VBM, &
                                                   band_edges_no_SOC%CBM)
-
-      PRINT *, 'ikp =', ikp, 'cfm_ks_ikp_spinor(7:10,7:10) after removing outside energy_window ='
-      PRINT *, cfm_ks_ikp_spinor%local_data(7:10,7:10)
-
       END IF
 
       ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
