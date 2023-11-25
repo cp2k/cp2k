@@ -1541,37 +1541,6 @@ CONTAINS
             CALL SOC(bs_env, qs_env, ikp, bs_env%eigenval_scf, band_edges_scf, E_min, cfm_mos_ikp, &
                      DOS_scf_SOC, PDOS_scf_SOC, band_edges_scf_SOC, eigenval_spinor)
 
-! JW 2del
-!            ! 1. get H^KS_µν,σσ'(k_i) from H^KS_µν,σσ'(k=0)
-!            CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_ks_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma, &
-!                                               bs_env%fm_s_Gamma%matrix_struct, &
-!                                               ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-!
-!            ! 2. get S_µν,σσ'(k_i) from S_µν,σσ'(k=0)
-!            CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_s_ikp_spinor, bs_env%cfm_s_spinor_Gamma, &
-!                                               bs_env%fm_s_Gamma%matrix_struct, &
-!                                               ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-!            CALL cp_cfm_to_cfm(cfm_s_ikp_spinor, cfm_s_ikp_spinor_copy)
-!
-!            ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
-!            CALL cp_cfm_geeig(cfm_ks_ikp_spinor, cfm_s_ikp_spinor_copy, cfm_mos_ikp_spinor, &
-!                              eigenval_spinor, cfm_work_ikp_spinor)
-!
-!            ! 4. Projection p_nk^A of spinor ψ_nk(r) on atom type A (inspired by Mulliken charge)
-!            !    p_nk^A = sum_µ^A,ν,σ,σ' C*_µ^Aσ,n(k) S_µ^A,ν,σσ'(k) C_νσ',nσ(k)
-!            CALL compute_proj_mo_on_kind(proj_mo_on_kind_spinor, qs_env, &
-!                                         cfm_mos_ikp_spinor, cfm_s_ikp_spinor)
-!
-!            ! 5. DOS and PDOS from spinors
-!            CALL add_to_DOS_PDOS(DOS_scf_SOC, PDOS_scf_SOC, eigenval_spinor, &
-!                                 ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
-!
-!            ! 6. valence band maximum (VBM), conduction band minimum (CBM) and direct bandgap (DBG)
-!            band_edges_scf_SOC%VBM = MAX(band_edges_scf_SOC%VBM, eigenval_spinor(homo_spinor))
-!            band_edges_scf_SOC%CBM = MIN(band_edges_scf_SOC%CBM, eigenval_spinor(homo_spinor + 1))
-!            band_edges_scf_SOC%DBG = MIN(band_edges_scf_SOC%DBG, eigenval_spinor(homo_spinor + 1) &
-!                                         - eigenval_spinor(homo_spinor))
-
             IF (.NOT. bs_env%do_gw) CALL write_SOC_eigenvalues(eigenval_spinor, "SCF", ikp, bs_env)
 
             IF (bs_env%do_ldos) THEN
@@ -1881,7 +1850,7 @@ CONTAINS
 
       INTEGER                                            :: handle, homo, homo_1, homo_2, &
                                                             homo_spinor, ikp, ispin, n_ao, n_E, &
-                                                            nkind
+                                                            nkind, i, j
       REAL(KIND=dp)                                      :: broadening, E_max, E_max_G0W0, E_min, &
                                                             E_min_G0W0, E_total_window, &
                                                             energy_step_DOS, energy_window_DOS
@@ -1945,9 +1914,6 @@ CONTAINS
       ! 3. remove SOC outside of energy window (otherwise, numerical problems arise
       !    because energetically low semicore states and energetically very high
       !    unbound states couple to the states around the Fermi level)
-! JW 2del
-!      eigenval_spinor_no_SOC(1:n_ao) = bs_env%eigenval_G0W0(1:n_ao, ikp, 1)
-!      eigenval_spinor_no_SOC(n_ao + 1:) = bs_env%eigenval_G0W0(1:n_ao, ikp, bs_env%n_spin)
       eigenval_spinor_no_SOC(1:n_ao) = eigenval_no_SOC(1:n_ao, ikp, 1)
       eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
       IF (bs_env%energy_window_soc > 0.0_dp) THEN
@@ -1964,17 +1930,11 @@ CONTAINS
       ! 5. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
       CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_work_ikp_spinor, eigenval_spinor)
 
-      ! 6. write SCF+SOC and G0W0+SOC eigenvalues to file
-      !    SCF_and_G0W0_band_structure_for_kpoint_<ikp>_+_SOC
-! JW 2del printing of SOC eigenvalues
-!      CALL write_SOC_eigenvalues(eigenval_spinor, "SCF_and_G0W0", ikp, bs_env, &
-!                                 eigenval_spinor_G0W0)
-
-      ! 7. DOS from spinors, no PDOS
+      ! 6. DOS from spinors, no PDOS
       CALL add_to_DOS_PDOS(DOS, PDOS, eigenval_spinor, &
                            ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
 
-      ! 8. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
+      ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
       band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_spinor))
       band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_spinor + 1))
       band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_spinor + 1) &
