@@ -94,17 +94,6 @@ CONTAINS
       ! Hartwigsen, Goedecker, Hutter, Eq.(18), (19) (doi.org/10.1103/PhysRevB.58.3641)
       CALL V_SOC_xyz_from_pseudopotential(qs_env, bs_env%mat_V_SOC_xyz)
 
-! JW 2del
-!      ! JW this is not correct for open-shell...
-!      IF (bs_env%energy_window_soc > 0.0_dp) THEN
-!         CALL remove_soc_outside_energy_window_ao(bs_env%mat_V_SOC_xyz(:, 1), &
-!                                               bs_env%energy_window_soc, &
-!                                               bs_env%fm_mo_coeff_Gamma(1), &
-!                                               bs_env%n_occ(1), &
-!                                               bs_env%eigenval_scf_Gamma(:, 1), &
-!                                               bs_env%fm_s_Gamma)
-!      END IF
-
       ! Spinor KS-matrix H_µν,σσ' = h^SCF_µν*δ_σσ' + sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ', see
       ! Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
       CALL H_KS_spinor(bs_env%cfm_ks_spinor_ao_Gamma, bs_env%fm_ks_Gamma(1:2), bs_env%n_spin, &

@@ -343,7 +343,7 @@ CONTAINS
 !> \param eigenval ...
 !> \param fm_s ...
 ! **************************************************************************************************
-   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win, eigenval, homo_spinor)
+   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win, eigenval, E_HOMO, E_LUMO)
       REAL(KIND=dp)                                      :: e_win
       TYPE(cp_fm_type)                                   :: fm_mo_coeff
       INTEGER                                            :: homo_spinor
@@ -372,9 +372,6 @@ CONTAINS
 
       CPASSERT(nrow_global==SIZE(eigenval))
       CPASSERT(ncol_global==SIZE(eigenval))
-
-      E_HOMO = eigenval(homo_spinor)
-      E_LUMO = eigenval(homo_spinor + 1)
 
       DO jjB = 1, ncol_local
          j_glob = col_indices(jjB)

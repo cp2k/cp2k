@@ -1537,35 +1537,40 @@ CONTAINS
          ! now the same with spin-orbit coupling
          IF (bs_env%do_soc) THEN
 
-            ! 1. get H^KS_µν,σσ'(k_i) from H^KS_µν,σσ'(k=0)
-            CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_ks_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma, &
-                                               bs_env%fm_s_Gamma%matrix_struct, &
-                                               ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+            ! compute G0W0+SOC eigenvalues; based on these, compute band edges and DOS
+            CALL SOC(bs_env, qs_env, ikp, bs_env%eigenval_scf, band_edges_scf, E_min, cfm_mos_ikp, &
+                     DOS_scf_SOC, PDOS_scf_SOC, band_edges_scf_SOC, eigenval_spinor)
 
-            ! 2. get S_µν,σσ'(k_i) from S_µν,σσ'(k=0)
-            CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_s_ikp_spinor, bs_env%cfm_s_spinor_Gamma, &
-                                               bs_env%fm_s_Gamma%matrix_struct, &
-                                               ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-            CALL cp_cfm_to_cfm(cfm_s_ikp_spinor, cfm_s_ikp_spinor_copy)
-
-            ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
-            CALL cp_cfm_geeig(cfm_ks_ikp_spinor, cfm_s_ikp_spinor_copy, cfm_mos_ikp_spinor, &
-                              eigenval_spinor, cfm_work_ikp_spinor)
-
-            ! 4. Projection p_nk^A of spinor ψ_nk(r) on atom type A (inspired by Mulliken charge)
-            !    p_nk^A = sum_µ^A,ν,σ,σ' C*_µ^Aσ,n(k) S_µ^A,ν,σσ'(k) C_νσ',nσ(k)
-            CALL compute_proj_mo_on_kind(proj_mo_on_kind_spinor, qs_env, &
-                                         cfm_mos_ikp_spinor, cfm_s_ikp_spinor)
-
-            ! 5. DOS and PDOS from spinors
-            CALL add_to_DOS_PDOS(DOS_scf_SOC, PDOS_scf_SOC, eigenval_spinor, &
-                                 ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
-
-            ! 6. valence band maximum (VBM), conduction band minimum (CBM) and direct bandgap (DBG)
-            band_edges_scf_SOC%VBM = MAX(band_edges_scf_SOC%VBM, eigenval_spinor(homo_spinor))
-            band_edges_scf_SOC%CBM = MIN(band_edges_scf_SOC%CBM, eigenval_spinor(homo_spinor + 1))
-            band_edges_scf_SOC%DBG = MIN(band_edges_scf_SOC%DBG, eigenval_spinor(homo_spinor + 1) &
-                                         - eigenval_spinor(homo_spinor))
+! JW 2del
+!            ! 1. get H^KS_µν,σσ'(k_i) from H^KS_µν,σσ'(k=0)
+!            CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_ks_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma, &
+!                                               bs_env%fm_s_Gamma%matrix_struct, &
+!                                               ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+!
+!            ! 2. get S_µν,σσ'(k_i) from S_µν,σσ'(k=0)
+!            CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_s_ikp_spinor, bs_env%cfm_s_spinor_Gamma, &
+!                                               bs_env%fm_s_Gamma%matrix_struct, &
+!                                               ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+!            CALL cp_cfm_to_cfm(cfm_s_ikp_spinor, cfm_s_ikp_spinor_copy)
+!
+!            ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
+!            CALL cp_cfm_geeig(cfm_ks_ikp_spinor, cfm_s_ikp_spinor_copy, cfm_mos_ikp_spinor, &
+!                              eigenval_spinor, cfm_work_ikp_spinor)
+!
+!            ! 4. Projection p_nk^A of spinor ψ_nk(r) on atom type A (inspired by Mulliken charge)
+!            !    p_nk^A = sum_µ^A,ν,σ,σ' C*_µ^Aσ,n(k) S_µ^A,ν,σσ'(k) C_νσ',nσ(k)
+!            CALL compute_proj_mo_on_kind(proj_mo_on_kind_spinor, qs_env, &
+!                                         cfm_mos_ikp_spinor, cfm_s_ikp_spinor)
+!
+!            ! 5. DOS and PDOS from spinors
+!            CALL add_to_DOS_PDOS(DOS_scf_SOC, PDOS_scf_SOC, eigenval_spinor, &
+!                                 ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
+!
+!            ! 6. valence band maximum (VBM), conduction band minimum (CBM) and direct bandgap (DBG)
+!            band_edges_scf_SOC%VBM = MAX(band_edges_scf_SOC%VBM, eigenval_spinor(homo_spinor))
+!            band_edges_scf_SOC%CBM = MIN(band_edges_scf_SOC%CBM, eigenval_spinor(homo_spinor + 1))
+!            band_edges_scf_SOC%DBG = MIN(band_edges_scf_SOC%DBG, eigenval_spinor(homo_spinor + 1) &
+!                                         - eigenval_spinor(homo_spinor))
 
             IF (.NOT. bs_env%do_gw) CALL write_SOC_eigenvalues(eigenval_spinor, "SCF", ikp, bs_env)
 
@@ -1577,75 +1582,15 @@ CONTAINS
             IF (bs_env%do_gw) THEN
 
                ! compute G0W0+SOC eigenvalues; based on these, compute band edges and DOS
-               CALL SOC(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, E_min, cfm_mos_ikp, &
-                        DOS_G0W0_SOC, PDOS_G0W0_SOC, band_edges_G0W0_SOC, eigenval_spinor_G0W0)
+               CALL SOC(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, band_edges_G0W0, &
+                        E_min, cfm_mos_ikp, DOS_G0W0_SOC, PDOS_G0W0_SOC, &
+                        band_edges_G0W0_SOC, eigenval_spinor_G0W0)
 
                ! write SCF+SOC and G0W0+SOC eigenvalues to file
                ! SCF_and_G0W0_band_structure_for_kpoint_<ikp>_+_SOC
                CALL write_SOC_eigenvalues(eigenval_spinor, "SCF_and_G0W0", ikp, bs_env, &
                                           eigenval_spinor_G0W0)
 
-! JW 2del
-!               ! 1. get V^SOC_µν,σσ'(k_i) from V^SOC_µν,σσ'(k=0)
-!               CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_SOC_ikp_spinor, &
-!                                                  bs_env%cfm_SOC_spinor_ao_Gamma, &
-!                                                  bs_env%fm_s_Gamma%matrix_struct, &
-!                                                  ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-!
-!               ! 2. V^SOC_nn',σσ'(k_i) = sum_µν C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i) C_νn'(k_i),
-!               !    C_µn,σ(k_i): MO coefficiencts from diagonalizing KS-matrix h^KS_nn',σσ'(k_i)
-!
-!               ! 2.1 build matrix C_µn,σ(k_i)
-!               CALL cp_cfm_set_all(cfm_mos_ikp_spinor, z_zero)
-!               CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(1), 1, 1)
-!               CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao, n_ao)
-!
-!               ! 2.2 work_nν,σσ' = sum_µ C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i)
-!               CALL parallel_gemm('C', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
-!                                  cfm_mos_ikp_spinor, cfm_SOC_ikp_spinor, &
-!                                  z_zero, cfm_work_ikp_spinor)
-!
-!               ! 2.3 V^SOC_nn',σσ'(k_i) = sum_ν work_nν,σσ' C_νn'(k_i)
-!               CALL parallel_gemm('N', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
-!                                  cfm_work_ikp_spinor, cfm_mos_ikp_spinor, &
-!                                  z_zero, cfm_ks_ikp_spinor)
-!
-!               ! 3. remove SOC outside of energy window (otherwise, numerical problems arise
-!               !    because energetically low semicore states and energetically very high
-!               !    unbound states couple to the states around the Fermi level)
-!               eigenval_spinor_no_SOC(1:n_ao) = bs_env%eigenval_G0W0(1:n_ao, ikp, 1)
-!               eigenval_spinor_no_SOC(n_ao + 1:) = bs_env%eigenval_G0W0(1:n_ao, ikp, bs_env%n_spin)
-!               IF (bs_env%energy_window_soc > 0.0_dp) THEN
-!                  CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
-!                                                           bs_env%energy_window_soc, &
-!                                                           eigenval_spinor_no_SOC, &
-!                                                           homo_spinor)
-!               END IF
-!
-!               ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
-!               CALL cfm_add_on_diag(cfm_ks_ikp_spinor, eigenval_spinor_no_SOC)
-!
-!               ! 5. diagonalize h^G0W0+SOC_nn',σσ'(k_i) to get eigenvalues
-!               CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_work_ikp_spinor, eigenval_spinor_G0W0)
-!
-!               ! 6. write SCF+SOC and G0W0+SOC eigenvalues to file
-!               !    SCF_and_G0W0_band_structure_for_kpoint_<ikp>_+_SOC
-!               CALL write_SOC_eigenvalues(eigenval_spinor, "SCF_and_G0W0", ikp, bs_env, &
-!                                          eigenval_spinor_G0W0)
-!
-!               ! 7. DOS from spinors, no PDOS
-!               CALL add_to_DOS_PDOS(DOS_G0W0_SOC, PDOS_G0W0_SOC, eigenval_spinor_G0W0, &
-!                                    ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
-!               PDOS_G0W0_SOC = 0.0_dp ! not yet implemented
-!
-!               ! 8. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
-!               band_edges_G0W0_SOC%VBM = MAX(band_edges_G0W0_SOC%VBM, &
-!                                             eigenval_spinor_G0W0(homo_spinor))
-!               band_edges_G0W0_SOC%CBM = MIN(band_edges_G0W0_SOC%CBM, &
-!                                             eigenval_spinor_G0W0(homo_spinor + 1))
-!               band_edges_G0W0_SOC%DBG = MIN(band_edges_G0W0_SOC%DBG, &
-!                                             eigenval_spinor_G0W0(homo_spinor + 1) &
-!                                             - eigenval_spinor_G0W0(homo_spinor))
             END IF ! do_gw
 
          END IF ! do_soc
@@ -1926,7 +1871,7 @@ CONTAINS
 
    END SUBROUTINE get_print_format
 
-   SUBROUTINE SOC(bs_env, qs_env, ikp, eigenval_no_SOC, E_min, cfm_mos_ikp, &
+   SUBROUTINE SOC(bs_env, qs_env, ikp, eigenval_no_SOC, band_edges_no_SOC, E_min, cfm_mos_ikp, &
                   DOS, PDOS, band_edges, eigenval_spinor)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1949,7 +1894,7 @@ CONTAINS
                                                             LDOS_scf_2d_SOC
       TYPE(band_edges_type)                              :: band_edges_G0W0, band_edges_G0W0_SOC, &
                                                             band_edges_scf, band_edges_scf_guess, &
-                                                            band_edges
+                                                            band_edges, band_edges_no_SOC
       TYPE(cp_cfm_type) :: cfm_ks_ikp, cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, cfm_s_ikp, &
          cfm_s_ikp_copy, cfm_s_ikp_spinor, cfm_s_ikp_spinor_copy, cfm_SOC_ikp_spinor, &
          cfm_work_ikp, cfm_work_ikp_spinor
@@ -1978,6 +1923,9 @@ CONTAINS
                                          bs_env%cfm_SOC_spinor_ao_Gamma, &
                                          bs_env%fm_s_Gamma%matrix_struct, &
                                          ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+
+      PRINT *, 'ikp =', ikp, 'cfm_SOC_ikp_spinor(7:10,7:10) ='
+      PRINT *, cfm_SOC_ikp_spinor%local_data(7:10,7:10)
 
       ! 2. V^SOC_nn',σσ'(k_i) = sum_µν C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i) C_νn'(k_i),
       !    C_µn,σ(k_i): MO coefficiencts from diagonalizing KS-matrix h^KS_nn',σσ'(k_i)
@@ -2009,7 +1957,12 @@ CONTAINS
          CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
                                                   bs_env%energy_window_soc, &
                                                   eigenval_spinor_no_SOC, &
-                                                  homo_spinor)
+                                                  band_edges_no_SOC%VBM, &
+                                                  band_edges_no_SOC%CBM)
+
+      PRINT *, 'ikp =', ikp, 'cfm_ks_ikp_spinor(7:10,7:10) after removing outside energy_window ='
+      PRINT *, cfm_ks_ikp_spinor%local_data(7:10,7:10)
+
       END IF
 
       ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
