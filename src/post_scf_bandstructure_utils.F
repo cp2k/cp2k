@@ -1428,8 +1428,6 @@ CONTAINS
 
       ALLOCATE (proj_mo_on_kind(n_ao, nkind))
       proj_mo_on_kind(:, :) = 0.0_dp
-      ALLOCATE (proj_mo_on_kind_spinor(2*n_ao, nkind))
-      proj_mo_on_kind_spinor(:, :) = 0.0_dp
 
       ALLOCATE (eigenval(n_ao))
       ALLOCATE (eigenval_spinor(2*n_ao))
