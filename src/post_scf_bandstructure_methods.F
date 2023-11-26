@@ -8,7 +8,6 @@
 MODULE post_scf_bandstructure_methods
    USE gw_methods,                      ONLY: gw
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: bandstructure_primitive_cell,&
                                               bandstructure_primitive_cell_spinor,&
@@ -17,8 +16,7 @@ MODULE post_scf_bandstructure_methods
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_scf,                          ONLY: scf
    USE soc_pseudopotential_methods,     ONLY: H_KS_spinor,&
-                                              V_SOC_xyz_from_pseudopotential,&
-                                              remove_soc_outside_energy_window_ao
+                                              V_SOC_xyz_from_pseudopotential
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

@@ -11,9 +11,6 @@
 !> \date 07.2023
 ! **************************************************************************************************
 MODULE post_scf_bandstructure_utils
-   USE soc_pseudopotential_methods,     ONLY: H_KS_spinor,&
-                                              V_SOC_xyz_from_pseudopotential,&
-                                              remove_soc_outside_energy_window_mo
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -97,6 +94,7 @@ MODULE post_scf_bandstructure_utils
                                               mo_set_type
    USE rpa_gw_im_time_util,             ONLY: get_atom_index_from_basis_function_index
    USE scf_control_types,               ONLY: scf_control_type
+   USE soc_pseudopotential_methods,     ONLY: remove_soc_outside_energy_window_mo
    USE soc_pseudopotential_utils,       ONLY: add_cfm_submat,&
                                               cfm_add_on_diag,&
                                               get_cfm_submat
@@ -1354,8 +1352,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: DOS_G0W0, DOS_G0W0_SOC, DOS_scf, DOS_scf_SOC, &
          eigenval, eigenval_spinor, eigenval_spinor_G0W0, eigenval_spinor_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: PDOS_G0W0, PDOS_G0W0_SOC, PDOS_scf, &
-                                                            PDOS_scf_SOC, proj_mo_on_kind, &
-                                                            proj_mo_on_kind_spinor
+                                                            PDOS_scf_SOC, proj_mo_on_kind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: LDOS_G0W0_2d, LDOS_scf_2d, &
                                                             LDOS_scf_2d_SOC
       TYPE(band_edges_type)                              :: band_edges_G0W0, band_edges_G0W0_SOC, &
@@ -1838,35 +1835,42 @@ CONTAINS
 
    END SUBROUTINE get_print_format
 
+! **************************************************************************************************
+!> \brief ...
+!> \param bs_env ...
+!> \param qs_env ...
+!> \param ikp ...
+!> \param eigenval_no_SOC ...
+!> \param band_edges_no_SOC ...
+!> \param E_min ...
+!> \param cfm_mos_ikp ...
+!> \param DOS ...
+!> \param PDOS ...
+!> \param band_edges ...
+!> \param eigenval_spinor ...
+! **************************************************************************************************
    SUBROUTINE SOC(bs_env, qs_env, ikp, eigenval_no_SOC, band_edges_no_SOC, E_min, cfm_mos_ikp, &
                   DOS, PDOS, band_edges, eigenval_spinor)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: ikp
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
+      TYPE(band_edges_type)                              :: band_edges_no_SOC
+      REAL(KIND=dp)                                      :: E_min
+      TYPE(cp_cfm_type), DIMENSION(2)                    :: cfm_mos_ikp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: DOS
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: PDOS
+      TYPE(band_edges_type)                              :: band_edges
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'SOC'
 
-      INTEGER                                            :: handle, homo, homo_1, homo_2, &
-                                                            homo_spinor, ikp, ispin, n_ao, n_E, &
-                                                            nkind, i, j
-      REAL(KIND=dp)                                      :: broadening, E_max, E_max_G0W0, E_min, &
-                                                            E_min_G0W0, E_total_window, &
-                                                            energy_step_DOS, energy_window_DOS
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: DOS, DOS_G0W0_SOC, DOS_scf, DOS_scf_SOC, &
-         eigenval, eigenval_spinor, eigenval_spinor_G0W0, eigenval_spinor_no_SOC
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: PDOS, PDOS_G0W0_SOC, PDOS_scf, &
-                                                            PDOS_scf_SOC, proj_mo_on_kind, &
-                                                            proj_mo_on_kind_spinor
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: LDOS_G0W0_2d, LDOS_scf_2d, &
-                                                            LDOS_scf_2d_SOC
-      TYPE(band_edges_type)                              :: band_edges_G0W0, band_edges_G0W0_SOC, &
-                                                            band_edges_scf, band_edges_scf_guess, &
-                                                            band_edges, band_edges_no_SOC
-      TYPE(cp_cfm_type) :: cfm_ks_ikp, cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, cfm_s_ikp, &
-         cfm_s_ikp_copy, cfm_s_ikp_spinor, cfm_s_ikp_spinor_copy, cfm_SOC_ikp_spinor, &
-         cfm_work_ikp, cfm_work_ikp_spinor
-      TYPE(cp_cfm_type), DIMENSION(2)                    :: cfm_mos_ikp
-      REAL(KIND=dp), DIMENSION(:, :, :)        :: eigenval_no_SOC
+      INTEGER                                            :: handle, homo_spinor, n_ao, n_E, nkind
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor_no_SOC
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_mo_on_kind_spinor
+      TYPE(cp_cfm_type)                                  :: cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, &
+                                                            cfm_SOC_ikp_spinor, cfm_work_ikp_spinor
 
       CALL timeset(routineN, handle)
 
@@ -1875,7 +1879,7 @@ CONTAINS
       n_E = SIZE(DOS)
       nkind = SIZE(PDOS, 2)
 
-         CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma%matrix_struct)
+      CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma%matrix_struct)
       CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma%matrix_struct)
       CALL cp_cfm_create(cfm_mos_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma%matrix_struct)
       CALL cp_cfm_create(cfm_work_ikp_spinor, bs_env%cfm_ks_spinor_ao_Gamma%matrix_struct)
@@ -1897,7 +1901,7 @@ CONTAINS
       ! 2.1 build matrix C_µn,σ(k_i)
       CALL cp_cfm_set_all(cfm_mos_ikp_spinor, z_zero)
       CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(1), 1, 1)
-      CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao+1, n_ao+1)
+      CALL add_cfm_submat(cfm_mos_ikp_spinor, cfm_mos_ikp(bs_env%n_spin), n_ao + 1, n_ao + 1)
 
       ! 2.2 work_nν,σσ' = sum_µ C^*_µn,σ(k_i) V^SOC_µν,σσ'(k_i)
       CALL parallel_gemm('C', 'N', 2*n_ao, 2*n_ao, 2*n_ao, z_one, &
@@ -1936,7 +1940,7 @@ CONTAINS
       band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_spinor))
       band_edges%CBM = MIN(band_edges%CBM, eigenval_spinor(homo_spinor + 1))
       band_edges%DBG = MIN(band_edges%DBG, eigenval_spinor(homo_spinor + 1) &
-                                           - eigenval_spinor(homo_spinor))
+                           - eigenval_spinor(homo_spinor))
 
       CALL cp_cfm_release(cfm_ks_ikp_spinor)
       CALL cp_cfm_release(cfm_SOC_ikp_spinor)

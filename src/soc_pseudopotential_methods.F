@@ -9,6 +9,7 @@ MODULE soc_pseudopotential_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
@@ -23,13 +24,6 @@ MODULE soc_pseudopotential_methods
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
-                                              cp_cfm_release,&
-                                              cp_cfm_set_all,&
-                                              cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
-                                              cp_cfm_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_desymmetrize,&
@@ -61,7 +55,7 @@ MODULE soc_pseudopotential_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soc_pseudopotential_methods'
 
    PUBLIC :: V_SOC_xyz_from_pseudopotential, H_KS_spinor, remove_soc_outside_energy_window_ao, &
-remove_soc_outside_energy_window_mo
+             remove_soc_outside_energy_window_mo
 
 CONTAINS
 
@@ -247,7 +241,7 @@ CONTAINS
 !> \param fm_s ...
 ! **************************************************************************************************
    SUBROUTINE remove_soc_outside_energy_window_ao(mat_V_SOC_xyz, e_win, fm_mo_coeff, homo, &
-                                               eigenval, fm_s)
+                                                  eigenval, fm_s)
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
       REAL(KIND=dp)                                      :: e_win
       TYPE(cp_fm_type)                                   :: fm_mo_coeff
@@ -332,46 +326,46 @@ CONTAINS
 
    END SUBROUTINE remove_soc_outside_energy_window_ao
 
-! **************************************************************************************************!> \brief Remove SOC outside of energy window (otherwise, numerical problems arise
-!>        because energetically low semicore states and energetically very high
-!>        unbound states couple to the states around the Fermi level).
-!>        This routine is for cfm_ks_spinor being in the molecular-orbital (mo) with 
-!>        corresponding eigenvalues "eigenval". 
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_ks_spinor ...
 !> \param e_win ...
-!> \param fm_mo_coeff ...
-!> \param homo ...
 !> \param eigenval ...
-!> \param fm_s ...
+!> \param E_HOMO ...
+!> \param E_LUMO ...
 ! **************************************************************************************************
    SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win, eigenval, E_HOMO, E_LUMO)
+      TYPE(cp_cfm_type)                                  :: cfm_ks_spinor
       REAL(KIND=dp)                                      :: e_win
-      TYPE(cp_fm_type)                                   :: fm_mo_coeff
-      INTEGER                                            :: homo_spinor
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval
-      TYPE(cp_fm_type)                                   :: fm_s
-      TYPE(cp_cfm_type)                                   :: cfm_ks_spinor
+      REAL(KIND=dp)                                      :: E_HOMO, E_LUMO
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_mo'
 
-      INTEGER                                            :: handle, i_glob, iiB, j_glob, jjB, nao, &
-                                                            ncol_local, nrow_local, xyz, &
-                                                            nrow_global, ncol_global
+      INTEGER                                            :: handle, i_glob, iiB, j_glob, jjB, &
+                                                            ncol_global, ncol_local, nrow_global, &
+                                                            nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: E_HOMO, E_i, E_j, E_LUMO
-      TYPE(cp_fm_type)                                   :: fm_V_ao, fm_V_mo, fm_work
+      REAL(KIND=dp)                                      :: E_i, E_j
+
+      ! Remove SOC outside of energy window (otherwise, numerical problems arise
+      ! because energetically low semicore states and energetically very high
+      ! unbound states couple to the states around the Fermi level).
+      ! This routine is for cfm_ks_spinor being in the molecular-orbital (mo) with
+      ! corresponding eigenvalues "eigenval".
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_get_info(matrix=cfm_ks_spinor, &
                            nrow_global=nrow_global, &
-                           ncol_global=ncol_global, &                          
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
+                           ncol_global=ncol_global, &
+                           nrow_local=nrow_local, &
+                           ncol_local=ncol_local, &
+                           row_indices=row_indices, &
+                           col_indices=col_indices)
 
-      CPASSERT(nrow_global==SIZE(eigenval))
-      CPASSERT(ncol_global==SIZE(eigenval))
+      CPASSERT(nrow_global == SIZE(eigenval))
+      CPASSERT(ncol_global == SIZE(eigenval))
 
       DO jjB = 1, ncol_local
          j_glob = col_indices(jjB)
