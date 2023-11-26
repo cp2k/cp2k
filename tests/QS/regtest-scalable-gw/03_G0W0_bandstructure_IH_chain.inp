@@ -41,7 +41,7 @@
         EPS_FILTER             1.0E-6
       &END
       &SOC
-        ENERGY_WINDOW 3.0
+        ENERGY_WINDOW 4.0
       &END
       &DOS
         KPOINTS 2 2 1
