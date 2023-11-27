@@ -2870,7 +2870,7 @@ CONTAINS
 
       CHARACTER(LEN=40)                                  :: string
       INTEGER                                            :: i, l
-      CHARACTER(LEN=1), DIMENSION(0:10) :: &
+      CHARACTER(LEN=1), DIMENSION(0:10), PARAMETER :: &
          slqval = ["s", "p", "d", "f", "g", "h", "j", "k", "l", "m", "n"]
 
       IF (output_unit > 0) THEN
