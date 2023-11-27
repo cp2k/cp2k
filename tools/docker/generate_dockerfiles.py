@@ -468,6 +468,9 @@ def toolchain_intel() -> str:
     return rf"""
 FROM intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04
 
+# Workaround expired key.
+RUN curl -sS https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor > /usr/share/keyrings/intel-oneapi-archive-keyring.gpg
+
 """ + install_toolchain(
         base_image="ubuntu",
         install_all="",
