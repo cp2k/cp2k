@@ -269,6 +269,7 @@ def render_keyword(
 
     # Find more keyword fields.
     default_value = get_text(keyword.find("DEFAULT_VALUE"))
+    default_unit = get_text(keyword.find("DEFAULT_UNIT"))
     usage = get_text(keyword.find("USAGE"))
     description = get_text(keyword.find("DESCRIPTION"))
     deprecation_notice = get_text(keyword.find("DEPRECATION_NOTICE"))
@@ -306,8 +307,9 @@ def render_keyword(
     else:
         output += [":noindex:"]
     output += [f":type: '{data_type}{n_var_brackets}'"]
-    if default_value:
-        output += [f":value: '{default_value}'"]
+    if default_value or default_unit:
+        default_unit_bracketed = f"[{default_unit}]" if default_unit else ""
+        output += [f":value: '{default_value} {default_unit_bracketed}'"]
     output += [""]
     if repeats:
         output += ["**Keyword can be repeated.**", ""]
