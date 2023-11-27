@@ -9847,12 +9847,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="SUBSPACE_METHOD", &
-                          description="Select which subspace method to use for generating the hubbard subspace "// &
-                          "NONE : Use bare atomic wave functions "// &
-                          "NORMALIZE : Normalize the wave functions contributing to the hubbard subspace "// &
-                          "ORTHOGONALIZE : Orthogonalize the wave functions contributing to the hubbard subspace "// &
-                          "FULL_ORTHOGONALIZATION : Use all atomic wave functions to orthogonalize the hubbard subspace ", &
-                          enum_c_vals=s2a("FULL_ORTHOGONALIZATION", "ORTHOGONALIZE", "NORMALIZE", "NONE"), &
+                          description="Select which subspace method to use for generating the hubbard subspace", &
+                    enum_desc=s2a("FULL_ORTHOGONALIZATION : Use all atomic wave functions to orthogonalize the hubbard subspace.", &
+                                     "ORTHOGONALIZATION : Orthogonalize the wave functions contributing to the hubbard subspace.", &
+                                        "NORMALIZATION : Normalize the wave functions contributing to the hubbard subspace.", &
+                                        "NONE : Use bare atomic wave functions "), &
+                          enum_c_vals=s2a("FULL_ORTHOGONALIZATION", "ORTHOGONALIZATION", "NORMALIZATION", "NONE"), &
                           usage="SUBSPACE_METHOD FULL_ORTHOGONALIZATION", &
                           enum_i_vals=(/SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION, SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION, &
                                         SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION, SIRIUS_HUBBARD_SUBSPACE_NONE/), &
