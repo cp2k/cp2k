@@ -8,7 +8,6 @@
 MODULE post_scf_bandstructure_methods
    USE gw_methods,                      ONLY: gw
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: bandstructure_primitive_cell,&
                                               bandstructure_primitive_cell_spinor,&
@@ -17,8 +16,7 @@ MODULE post_scf_bandstructure_methods
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_scf,                          ONLY: scf
    USE soc_pseudopotential_methods,     ONLY: H_KS_spinor,&
-                                              V_SOC_xyz_from_pseudopotential,&
-                                              remove_soc_outside_energy_window
+                                              V_SOC_xyz_from_pseudopotential
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -94,19 +92,11 @@ CONTAINS
       ! Hartwigsen, Goedecker, Hutter, Eq.(18), (19) (doi.org/10.1103/PhysRevB.58.3641)
       CALL V_SOC_xyz_from_pseudopotential(qs_env, bs_env%mat_V_SOC_xyz)
 
-      IF (bs_env%energy_window_soc > 0.0_dp) THEN
-         CALL remove_soc_outside_energy_window(bs_env%mat_V_SOC_xyz(:, 1), &
-                                               bs_env%energy_window_soc, &
-                                               bs_env%fm_mo_coeff_Gamma(1), &
-                                               bs_env%n_occ(1), &
-                                               bs_env%eigenval_scf_Gamma(:, 1), &
-                                               bs_env%fm_s_Gamma)
-      END IF
-
       ! Spinor KS-matrix H_µν,σσ' = h^SCF_µν*δ_σσ' + sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ', see
       ! Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
       CALL H_KS_spinor(bs_env%cfm_ks_spinor_ao_Gamma, bs_env%fm_ks_Gamma(1:2), bs_env%n_spin, &
-                       bs_env%mat_V_SOC_xyz(:, 1), bs_env%cfm_s_spinor_Gamma, bs_env%fm_s_Gamma)
+                       bs_env%mat_V_SOC_xyz(:, 1), bs_env%cfm_s_spinor_Gamma, bs_env%fm_s_Gamma, &
+                       bs_env%cfm_SOC_spinor_ao_Gamma)
 
       CALL timestop(handle)
 
@@ -144,14 +134,6 @@ CONTAINS
                                                   bs_env%eigenval_prim_cell_scf_soc, &
                                                   "bandstructure_SCF_SOC.bs", &
                                                   bs_env%cfm_ks_spinor_ao_Gamma)
-
-! JW todo later: GW+SOC band structure of primitive cell
-!         IF (bs_env%do_gw) THEN
-!            CALL bandstructure_primitive_cell_spinor(qs_env, bs_env, &
-!                                                     bs_env%eigenval_prim_cell_G0W0_soc, &
-!                                                     "bandstructure_G0W0_SOC.bs", &
-!                                                     bs_env%cfm_h_G0W0_spinor_ao_Gamma)
-!         END IF
       END IF
 
       CALL timestop(handle)

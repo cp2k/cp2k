@@ -21,8 +21,7 @@ MODULE post_scf_bandstructure_types
                                               dbcsr_release
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_release,&
@@ -231,7 +230,7 @@ MODULE post_scf_bandstructure_types
       CHARACTER(LEN=7)                                :: Sigma_x_name = "Sigma_x"
       CHARACTER(LEN=13)                               :: Sigma_p_name = "Sigma_pos_tau", &
                                                          Sigma_n_name = "Sigma_neg_tau"
-      CHARACTER(LEN=default_path_length)              :: prefix = ""
+      CHARACTER(LEN=default_string_length)            :: prefix = ""
 
       REAL(KIND=dp)                                   :: t1 = -1.0_dp, &
                                                          t2 = -1.0_dp
@@ -252,7 +251,7 @@ MODULE post_scf_bandstructure_types
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_V_SOC_xyz => NULL()
       TYPE(cp_fm_type), DIMENSION(3)                  :: fm_V_SOC_xyz_mo
       TYPE(cp_cfm_type)                               :: cfm_ks_spinor_ao_Gamma, &
-                                                         cfm_h_G0W0_spinor_ao_Gamma, &
+                                                         cfm_SOC_spinor_ao_Gamma, &
                                                          cfm_s_spinor_Gamma
       TYPE(band_edges_type)                           :: band_edges_scf_SOC, &
                                                          band_edges_G0W0_SOC
@@ -373,7 +372,7 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(2))
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(3))
       CALL cp_cfm_release(bs_env%cfm_ks_spinor_ao_Gamma)
-      CALL cp_cfm_release(bs_env%cfm_h_G0W0_spinor_ao_Gamma)
+      CALL cp_cfm_release(bs_env%cfm_SOC_spinor_ao_Gamma)
       CALL cp_cfm_release(bs_env%cfm_s_spinor_Gamma)
 
       DEALLOCATE (bs_env)
