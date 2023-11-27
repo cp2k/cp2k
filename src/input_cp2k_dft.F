@@ -9729,58 +9729,6 @@ CONTAINS
 
    END SUBROUTINE create_cdft_opt_section
 
-   SUBROUTINE create_dft_plus_u_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-
-      CALL section_create(section, __LOCATION__, &
-                          name="DFT_PLUS_U", &
-                          description="Define the parameters for the DFT+U correction implemented in the pwdft method", &
-                          n_keywords=4, &
-                          repeats=.FALSE.)
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="_SECTION_PARAMETERS_", &
-                          description="Controls the activation of the DFT+U section", &
-                          usage="&DFT_PLUS_U ON", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! SIRIUS_HUBBARD_SUBSPACE_NONE 0
-      ! SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION 1
-      ! SIRIUS_HUBBARD_SUBSPACE_NORMALIZE 2
-      ! SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZE 3
-
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="SUBSPACE_METHOD", &
-                          description="Select which subspace method to use for generating the hubbard subspace "// &
-                          "NONE : Use bare atomic wave functions "// &
-                          "NORMALIZE : Normalize the wave functions contributing to the hubbard subspace "// &
-                          "ORTHOGONALIZE : Orthogonalize the wave functions contributing to the hubbard subspace "// &
-                          "FULL_ORTHOGONALIZATION : Use all atomic wave functions to orthogonalize the hubbard subspace ", &
-                          enum_c_vals=s2a("NONE", "NORMALIZE", "ORTHOGONALIZE", "FULL_ORTHOGONALIZATION"), &
-                          usage="FULL_ORTHOGANIZATION NONE", &
-                          enum_i_vals=(/0, 1, 2, 3/), &
-                          default_i_val=0)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="SIMPLIFIED", &
-                          description="if on, the dft engine will select a simplified version of the dft+U method ", &
-                          usage="SIMPLIFED true", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-   END SUBROUTINE create_dft_plus_u_section
-
    SUBROUTINE create_dft_u_plus_v_section(section)
 
       TYPE(section_type), POINTER                        :: section
@@ -9845,7 +9793,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="V", &
-                          description="Effective parameter V (in eV)", &
+                          description="Effective parameter V", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -9868,4 +9816,62 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
    END SUBROUTINE
+
+   SUBROUTINE create_dft_plus_u_section(section)
+      TYPE(section_type), POINTER                        :: section, subsection
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, &
+                          name="DFT_PLUS_U", &
+                          description="Define the parameters for the DFT+U correction implemented in the pwdft method", &
+                          n_keywords=4, &
+                          n_subsections=1, &
+                          repeats=.FALSE.)
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the DFT+U section", &
+                          usage="&DFT_PLUS_U ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! SIRIUS_HUBBARD_SUBSPACE_NONE 0
+      ! SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION 1
+      ! SIRIUS_HUBBARD_SUBSPACE_NORMALIZE 2
+      ! SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZE 3
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SUBSPACE_METHOD", &
+                          description="Select which subspace method to use for generating the hubbard subspace "// &
+                          "NONE : Use bare atomic wave functions "// &
+                          "NORMALIZE : Normalize the wave functions contributing to the hubbard subspace "// &
+                          "ORTHOGONALIZE : Orthogonalize the wave functions contributing to the hubbard subspace "// &
+                          "FULL_ORTHOGONALIZATION : Use all atomic wave functions to orthogonalize the hubbard subspace ", &
+                          enum_c_vals=s2a("NONE", "NORMALIZE", "ORTHOGONALIZE", "FULL_ORTHOGONALIZATION"), &
+                          usage="FULL_ORTHOGANIZATION NONE", &
+                          enum_i_vals=(/0, 1, 2, 3/), &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SIMPLIFIED", &
+                          description="if on, the dft engine will select a simplified version of the dft+U method ", &
+                          usage="SIMPLIFED true", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_dft_u_plus_v_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_dft_plus_u_section
 END MODULE input_cp2k_dft

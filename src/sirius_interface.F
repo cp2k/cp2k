@@ -458,6 +458,10 @@ CONTAINS
                CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
             END IF
 
+            IF (lu >= nu) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): the angular momentum should be lower than the principal quantum number")
+            END IF
+
             IF (occ_u < 0.0) THEN
                CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
             END IF
@@ -542,14 +546,22 @@ CONTAINS
                CALL section_vals_val_get(link_section, i_rep_section=link, keyword_name="ANGULAR_MOMENTUMS", i_vals=kk)
                l_pair(1) = kk(1)
                l_pair(2) = kk(2)
+
+               ! check that the two atoms are distinct.
                IF ((atom_pair(1) .EQ. atom_pair(2)) .AND. &
                    (translation(1) .EQ. translation(2)) .AND. &
                    (translation(3) .EQ. translation(2)) .AND. (translation(1) .EQ. 0)) THEN
-                  CALL cp_abort(__LOCATION__, "The two atoms of this link can not be identical and in the same unit cell.")
-               ELSE
-                  CALL sirius_add_hubbard_atom_pair(sctx, atom_pair, translation, &
-                                                    n_pair, l_pair, V_)
+                  CALL cp_abort(__LOCATION__, "The two atoms of this link should be distinct.")
                END IF
+
+               ! check consistancy of the atomic orbital 0 <= l < n
+               IF ((l_pair(1) >= n_pair(1)) .OR. (l_pair(2) >= n_pair(2))) THEN
+                  CPABORT("CP2K/SIRIUS (hubbard): the angular momentum should be lower than the "// &
+                          "principal quantum number.")
+               END IF
+
+               CALL sirius_add_hubbard_atom_pair(sctx, atom_pair, translation, &
+                                                 n_pair, l_pair, V_)
             END DO
          END IF
       END IF

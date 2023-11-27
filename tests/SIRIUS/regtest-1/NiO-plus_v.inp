@@ -42,7 +42,6 @@
     &END XC
     &DFT_PLUS_U ON
       SUBSPACE_METHOD "full_orthogonalization"
-    &END DFT_PLUS_U
     &DFT_U_PLUS_V ON
     &LINK
         TRANSLATION -1 -1 0
@@ -213,6 +212,7 @@
   ATOMIC_LEVELS 2 3
 &END LINK
 &END DFT_U_PLUS_V
+&END DFT_PLUS_U
   &END DFT
   &SUBSYS
     &CELL
