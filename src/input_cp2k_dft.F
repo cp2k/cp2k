@@ -9852,7 +9852,7 @@ CONTAINS
                           "NORMALIZE : Normalize the wave functions contributing to the hubbard subspace "// &
                           "ORTHOGONALIZE : Orthogonalize the wave functions contributing to the hubbard subspace "// &
                           "FULL_ORTHOGONALIZATION : Use all atomic wave functions to orthogonalize the hubbard subspace ", &
-                          enum_c_vals=s2a("NONE", "NORMALIZE", "ORTHOGONALIZE", "FULL_ORTHOGONALIZATION"), &
+                          enum_c_vals=s2a("FULL_ORTHOGONALIZATION", "ORTHOGONALIZE", "NORMALIZE", "NONE"), &
                           usage="SUBSPACE_METHOD FULL_ORTHOGONALIZATION", &
                           enum_i_vals=(/SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION, SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION, &
                                         SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION, SIRIUS_HUBBARD_SUBSPACE_NONE/), &
