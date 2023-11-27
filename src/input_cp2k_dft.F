@@ -132,6 +132,10 @@ MODULE input_cp2k_dft
    USE input_cp2k_voronoi, ONLY: create_print_voronoi_section
    USE input_cp2k_xc, ONLY: create_xc_fun_section, &
                             create_xc_section
+   USE input_cp2k_pwdft, ONLY: SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION, &
+                               SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION, &
+                               SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION, &
+                               SIRIUS_HUBBARD_SUBSPACE_NONE
    USE input_keyword_types, ONLY: keyword_create, &
                                   keyword_release, &
                                   keyword_type
@@ -9739,7 +9743,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, &
-                          name="DFT_U_PLUS_V", &
+                          name="PLUS_V", &
                           description="Define the parameters for PWDFT+U+V calculations", &
                           n_keywords=0, &
                           n_subsections=1, &
@@ -9748,7 +9752,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the PWDFT+U+V calculations", &
-                          usage="&DFT_U_PLUS_V ON", &
+                          usage="&PLUS_V ON", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -9841,11 +9845,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! SIRIUS_HUBBARD_SUBSPACE_NONE 0
-      ! SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION 1
-      ! SIRIUS_HUBBARD_SUBSPACE_NORMALIZE 2
-      ! SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZE 3
-
       CALL keyword_create(keyword, __LOCATION__, &
                           name="SUBSPACE_METHOD", &
                           description="Select which subspace method to use for generating the hubbard subspace "// &
@@ -9854,9 +9853,10 @@ CONTAINS
                           "ORTHOGONALIZE : Orthogonalize the wave functions contributing to the hubbard subspace "// &
                           "FULL_ORTHOGONALIZATION : Use all atomic wave functions to orthogonalize the hubbard subspace ", &
                           enum_c_vals=s2a("NONE", "NORMALIZE", "ORTHOGONALIZE", "FULL_ORTHOGONALIZATION"), &
-                          usage="FULL_ORTHOGANIZATION NONE", &
-                          enum_i_vals=(/0, 1, 2, 3/), &
-                          default_i_val=0)
+                          usage="SUBSPACE_METHOD FULL_ORTHOGONALIZATION", &
+                          enum_i_vals=(/SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION, SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION, &
+                                        SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION, SIRIUS_HUBBARD_SUBSPACE_NONE/), &
+                          default_i_val=SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

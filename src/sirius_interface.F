@@ -36,7 +36,11 @@ MODULE sirius_interface
    USE input_constants,                 ONLY: do_gapw_log
    USE input_cp2k_pwdft,                ONLY: SIRIUS_FUNC_VDWDF,&
                                               SIRIUS_FUNC_VDWDF2,&
-                                              SIRIUS_FUNC_VDWDFCX
+                                              SIRIUS_FUNC_VDWDFCX,&
+                                              SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION,&
+                                              SIRIUS_HUBBARD_SUBSPACE_NONE,&
+                                              SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION,&
+                                              SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -458,8 +462,9 @@ CONTAINS
                CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
             END IF
 
-            IF (lu >= nu) THEN
-               CPABORT("CP2K/SIRIUS (hubbard): the angular momentum should be lower than the principal quantum number")
+            IF (lu .GE. nu) THEN
+               CALL cp_abort(__LOCATION__, "CP2K/SIRIUS (hubbard): the angular momentum should be lower "// &
+                             "than the principal quantum number")
             END IF
 
             IF (occ_u < 0.0) THEN
@@ -481,18 +486,22 @@ CONTAINS
          CALL section_vals_val_get(dft_plus_u_section, keyword_name="_SECTION_PARAMETERS_", l_val=use_u_plus_v)
          CALL sirius_set_parameters(sctx, hubbard_correction=use_u_plus_v)
          CALL section_vals_val_get(dft_plus_u_section, keyword_name="SUBSPACE_METHOD", i_val=subspace_method)
-         IF (subspace_method .EQ. 0) THEN
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_NONE) THEN
             CALL sirius_set_parameters(sctx, hubbard_orbitals="none")
          END IF
-         IF (subspace_method .EQ. 1) THEN
+
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION) THEN
             CALL sirius_set_parameters(sctx, hubbard_orbitals="normalize")
          END IF
-         IF (subspace_method .EQ. 2) THEN
+
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION) THEN
             CALL sirius_set_parameters(sctx, hubbard_orbitals="orthogonalize")
          END IF
-         IF (subspace_method .EQ. 3) THEN
+
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION) THEN
             CALL sirius_set_parameters(sctx, hubbard_orbitals="full_orthogonalization")
          END IF
+
          CALL section_vals_val_get(dft_plus_u_section, keyword_name="SIMPLIFIED", l_val=simplified_method)
          IF (simplified_method) THEN
             CALL sirius_set_parameters(sctx, hubbard_correction_kind=0)
@@ -555,9 +564,9 @@ CONTAINS
                END IF
 
                ! check consistancy of the atomic orbital 0 <= l < n
-               IF ((l_pair(1) >= n_pair(1)) .OR. (l_pair(2) >= n_pair(2))) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): the angular momentum should be lower than the "// &
-                          "principal quantum number.")
+               IF ((l_pair(1) .GE. n_pair(1)) .OR. (l_pair(2) .GE. n_pair(2))) THEN
+                  CALL cp_abort(__LOCATION__, "CP2K/SIRIUS (hubbard): the angular momentum should be lower than the "// &
+                                "principal quantum number.")
                END IF
 
                CALL sirius_add_hubbard_atom_pair(sctx, atom_pair, translation, &

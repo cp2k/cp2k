@@ -42,7 +42,7 @@
     &END XC
     &DFT_PLUS_U ON
       SUBSPACE_METHOD "full_orthogonalization"
-    &DFT_U_PLUS_V ON
+    &PLUS_V ON
     &LINK
         TRANSLATION -1 -1 0
         V 0.3653
@@ -211,7 +211,7 @@
   ANGULAR_MOMENTUMS 1 2
   ATOMIC_LEVELS 2 3
 &END LINK
-&END DFT_U_PLUS_V
+&END PLUS_V
 &END DFT_PLUS_U
   &END DFT
   &SUBSYS

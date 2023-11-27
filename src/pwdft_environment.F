@@ -114,7 +114,7 @@ CONTAINS
 
       ! retrieve the functionals parameters
       xc_section => section_vals_get_subs_vals(force_env_section, "DFT%XC%XC_FUNCTIONAL")
-      dft_u_plus_v_section => section_vals_get_subs_vals(force_env_section, "DFT%DFT_PLUS_U%DFT_U_PLUS_V")
+      dft_u_plus_v_section => section_vals_get_subs_vals(force_env_section, "DFT%DFT_PLUS_U%PLUS_V")
       dft_plus_u_section => section_vals_get_subs_vals(force_env_section, "DFT%DFT_PLUS_U")
 
       CALL pwdft_env_set(pwdft_env=pwdft_env, pwdft_input=pwdft_section, &
