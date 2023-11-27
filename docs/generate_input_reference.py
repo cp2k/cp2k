@@ -367,7 +367,7 @@ def sanitize_name(name: str) -> str:
 # ======================================================================================
 def escape_markdown(text: str) -> str:
     # Code blocks without a language get mistaken for the end of the py:data directive.
-    text = text.replace(r"\n\n```\n", r"\n\n```none\n")
+    text = text.replace("\n\n```\n", "\n\n```none\n")
 
     # Underscores are very common in our docs. Luckily asterisks also work for emphasis.
     text = text.replace(r"__", r"\_\_")
