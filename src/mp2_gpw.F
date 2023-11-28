@@ -1025,6 +1025,9 @@ CONTAINS
          POINTER                                         :: my_sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      REAL(KIND=dp)                                      :: eps_pgf_orb_old
+      REAL(KIND=dp)                                      :: eps_rho_rspace_old
+      REAL(KIND=dp)                                      :: eps_gvg_rspace_old
 
       CALL timeset(routineN, handle)
 
@@ -1071,6 +1074,10 @@ CONTAINS
             CPWARN("WFC_GPW%EPS_GRID has been set to QS%EPS_PGF_ORB")
          END IF
       END IF
+
+      eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
+      eps_rho_rspace_old = dft_control%qs_control%eps_rho_rspace
+      eps_gvg_rspace_old = dft_control%qs_control%eps_gvg_rspace
 
       ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
       dft_control%qs_control%eps_pgf_orb = eps_grid
@@ -1220,6 +1227,10 @@ CONTAINS
          END IF
 
       END IF
+
+      dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
+      dft_control%qs_control%eps_rho_rspace = eps_rho_rspace_old
+      dft_control%qs_control%eps_gvg_rspace = eps_gvg_rspace_old
 
       DEALLOCATE (row_blk_sizes)
 
