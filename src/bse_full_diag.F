@@ -16,7 +16,15 @@ MODULE bse_full_diag
    USE bse_util,                        ONLY: redist_fm
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -24,6 +32,7 @@ MODULE bse_full_diag
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
+                                              cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
@@ -40,7 +49,8 @@ MODULE bse_full_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
-   PUBLIC :: create_A, diagonalize_A, create_B, create_ABBA, diagonalize_ABBA
+   PUBLIC :: create_A, diagonalize_A, create_B, create_ABBA, diagonalize_ABBA_via_skew, create_skew_of_ABBA, &
+             create_hermitian_form_of_ABBA, diagonalize_C
 
 CONTAINS
 
@@ -89,6 +99,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T4,A11)') '|', '-Creating A'
+      END IF
+
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
       SELECT CASE (bse_spin_config)
       CASE (bse_singlet)
@@ -109,16 +123,12 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_a, context=blacs_env_BSE, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_A, fm_struct_a, name="fm_A_iajb")
-      CALL cp_fm_set_all(fm_mat_A, 111.0_dp)
+      CALL cp_fm_set_all(fm_mat_A, 0.0_dp)
 
       CALL cp_fm_struct_create(fm_struct_W, context=blacs_env, nrow_global=homo**2, &
                                ncol_global=virtual**2, para_env=para_env)
       CALL cp_fm_create(fm_mat_W, fm_struct_W, name="fm_W_ijab")
-      CALL cp_fm_set_all(fm_mat_W, 888.0_dp)
-
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'BSE - Full diagonalization'
-      END IF
+      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
       !Create A matrix from GW Energies, v_iajb and W_ijab (different blacs_env!)
       !v_iajb, which is directly initialized in A (with a factor of alpha)
@@ -176,6 +186,9 @@ CONTAINS
             END IF
          END DO
       END DO
+      !IF (para_env_RPA%mepos == 0) THEN
+      !   print *,"MG - A on 0:", fm_mat_A%local_data
+      !END IF
       !CALL cp_fm_write_formatted(fm_mat_A, unit_nr, "MG: Full A")
 
       CALL timestop(handle)
@@ -213,11 +226,14 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER, DIMENSION(4)                              :: reordering
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v, fm_struct_W
       TYPE(cp_fm_type)                                   :: fm_mat_W
 
       CALL timeset(routineN, handle)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T4,A11)') '|', '-Creating B'
+      END IF
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
       SELECT CASE (bse_spin_config)
@@ -227,23 +243,16 @@ CONTAINS
          alpha = 0.0_dp
       END SELECT
 
-      ! create the blacs env for BSE matrices (NOT fm_mat_S related parallel_gemms!)
-      NULLIFY (blacs_env)
-      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
-
       !MG to do: Maybe create V once, before create_A/B ? But prob. not critical for timing
       CALL cp_fm_struct_create(fm_struct_v, context=blacs_env_BSE, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_B, fm_struct_v, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_mat_B, 0.0_dp)
 
-      ! CALL cp_fm_create(fm_mat_V, fm_struct_v, name="fm_v_iajb")
-      ! CALL cp_fm_set_all(fm_mat_V, 222.0_dp)
-
-      CALL cp_fm_struct_create(fm_struct_W, context=blacs_env, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=para_env)
+      CALL cp_fm_struct_create(fm_struct_W, context=blacs_env_BSE, nrow_global=homo*virtual, &
+                               ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_W, fm_struct_W, name="fm_W_ibaj")
-      CALL cp_fm_set_all(fm_mat_W, 888.0_dp)
+      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A16)') '|', 'Allocated B_iajb'
@@ -264,6 +273,8 @@ CONTAINS
       CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
                      virtual, virtual, unit_nr, para_env_RPA, reordering)
 
+      CALL cp_fm_release(fm_mat_W)
+      CALL cp_fm_struct_release(fm_struct_W)
       CALL timestop(handle)
 
    END SUBROUTINE create_B
@@ -322,24 +333,230 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE
 
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_mat_ABBA ...
+   ! **************************************************************************************************
+!> \brief Prepare ABBA for Diag. following Penke et al., Parallel Computing 2020
+!> \brief https://doi.org/10.1016/j.parco.2020.102639
+!> \param fm_mat_A ...
+!> \param fm_mat_B ...
+!> \param fm_mat_C ...
+!> \param para_env ...
+!> \param blacs_env_BSE ...
 !> \param homo ...
 !> \param virtual ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_ABBA(fm_mat_ABBA, homo, virtual, unit_nr)
+   SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, para_env, &
+                                            blacs_env_BSE, homo, virtual, unit_nr)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_ABBA
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_ABBA'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: dim_mat, handle, n_dependent
+      TYPE(cp_fm_type)                                   :: fm_mat_work_diff, &
+                                                            fm_mat_work_diff_eigvec, &
+                                                            fm_mat_work_product, fm_mat_work_sum
 
       CALL timeset(routineN, handle)
 
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T4,A46)') '|', '-Creating C for hermitian solution of full BSE'
+      END IF
+      !Create C as A+B
+      CALL cp_fm_create(fm_mat_C, fm_mat_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_A, fm_mat_C)
+
+      !Create work matrix, which will hold A+b and A-B
+      CALL cp_fm_create(fm_mat_work_sum, fm_mat_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_sum)
+      CALL cp_fm_create(fm_mat_work_diff, fm_mat_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_diff)
+
+      CALL cp_fm_create(fm_mat_work_diff_eigvec, fm_mat_A%matrix_struct)
+      CALL cp_fm_create(fm_mat_work_product, fm_mat_A%matrix_struct)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T8,A19)') '|', 'Created work arrays'
+      END IF
+      !Add/Substract B
+      CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_sum, 1.0_dp, fm_mat_B)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_diff, -1.0_dp, fm_mat_B)
+
+      !Now raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
+      CALL cp_fm_power(fm_mat_work_diff, fm_mat_work_diff_eigvec, 0.5_dp, 0.0_dp, n_dependent)
+      !(A-B)**-0.5 is written to the eigvec - work matrix
+      CALL cp_fm_release(fm_mat_work_diff_eigvec)
+
+      !Create C = (A-B)^0.5 (A+B) (A-B)^0.5
+      dim_mat = homo*virtual
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_diff, fm_mat_work_sum, 0.0_dp, &
+                         fm_mat_work_product)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_product, fm_mat_work_diff, 0.0_dp, &
+                         fm_mat_C)
+      CALL cp_fm_release(fm_mat_work_product)
+      CALL cp_fm_release(fm_mat_work_sum)
+      CALL cp_fm_release(fm_mat_work_diff)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T8,A36)') '|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_C ...
+!> \param homo ...
+!> \param virtual ...
+!> \param bse_spin_config ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, bse_spin_config, unit_nr)
+
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
+      INTEGER, INTENT(IN)                                :: homo, virtual, bse_spin_config
+      INTEGER                                            :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
+
+      INTEGER                                            :: diag_info, handle
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
+      TYPE(cp_fm_type)                                   :: fm_mat_eigvec
+
+      CALL timeset(routineN, handle)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T8,A15)') '|', 'Diagonalizing C'
+      END IF
+
+      !We have now the full matrix C**2, distributed over all ranks
+      !Now: Diagonalize it
+      CALL cp_fm_create(fm_mat_eigvec, fm_mat_C%matrix_struct)
+
+      ALLOCATE (Exc_ens(homo*virtual))
+
+      CALL choose_eigv_solver(fm_mat_C, fm_mat_eigvec, Exc_ens, diag_info)
+      CPASSERT(diag_info == 0)
+      Exc_ens = SQRT(Exc_ens)
+      CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual, .FALSE.)
+
+      CALL cp_fm_release(fm_mat_eigvec)
+      DEALLOCATE (Exc_ens)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE diagonalize_C
+
+! **************************************************************************************************
+!> \brief Prepare ABBA for Diag. following Penke et al., Parallel Computing 2020
+!> \brief https://doi.org/10.1016/j.parco.2020.102639
+!> \param fm_mat_A ...
+!> \param fm_mat_B ...
+!> \param fm_mat_skew ...
+!> \param para_env ...
+!> \param blacs_env_BSE ...
+!> \param homo ...
+!> \param virtual ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE create_skew_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_skew, para_env, &
+                                  blacs_env_BSE, homo, virtual, unit_nr)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_skew
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
+      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_skew_of_ABBA'
+
+      INTEGER                                            :: handle, info_cholesky
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_skew
+      TYPE(cp_fm_type)                                   :: fm_mat_work
+
+      CALL timeset(routineN, handle)
+
+      !Create ABBA
+      CALL cp_fm_struct_create(fm_struct_skew, context=blacs_env_BSE, nrow_global=2*homo*virtual, &
+                               ncol_global=2*homo*virtual, para_env=para_env)
+      CALL cp_fm_create(fm_mat_skew, fm_struct_skew, name="fm_ABBA_skew")
+      CALL cp_fm_set_all(fm_mat_skew, 0.0_dp)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T8,A14)') '|', 'Allocated skew of ABBA'
+      END IF
+
+      !Create work matrix, which will hold A+B and A-B
+      CALL cp_fm_create(fm_mat_work, fm_mat_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_A, fm_mat_work)
+
+      fm_mat_work%local_data = fm_mat_work%local_data + fm_mat_B%local_data
+
+      !Copy A+B to 11-block
+      CALL cp_fm_to_fm_submat(fm_mat_work, fm_mat_skew, homo*virtual, homo*virtual, &
+                              1, 1, 1, 1)
+
+      !Now A-B
+      CALL cp_fm_to_fm(fm_mat_A, fm_mat_work)
+
+      fm_mat_work%local_data = fm_mat_work%local_data - fm_mat_B%local_data
+
+      !Copy A-B to 22-block
+      CALL cp_fm_to_fm_submat(fm_mat_work, fm_mat_skew, homo*virtual, homo*virtual, &
+                              1, 1, homo*virtual + 1, homo*virtual + 1)
+
+      !Now we decompose it via Cholesky -> Matrix is replaced by its decomposition!
+      CALL cp_fm_cholesky_decompose(fm_mat_skew, 2*homo*virtual, info_cholesky)
+      CPASSERT(info_cholesky == 0)
+      !.... Paper uses lower triangular?
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Diagonalize ABBA following Penke et al., Parallel Computing 2020
+!> \brief https://doi.org/10.1016/j.parco.2020.102639
+!> \param fm_mat_skew ...
+!> \param homo ...
+!> \param virtual ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE diagonalize_ABBA_via_skew(fm_mat_skew, homo, virtual, unit_nr)
+
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_skew
+      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'diagonalize_ABBA_via_skew'
+
+      INTEGER                                            :: diag_info, handle
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, Exc_ens
+      TYPE(cp_cfm_type)                                  :: cfm_mat_eigvec, cfm_mat_skew
+      TYPE(cp_fm_type)                                   :: fm_mat_eigvec
+
+      CALL timeset(routineN, handle)
+      ALLOCATE (Exc_ens(2*homo*virtual))
+      CALL cp_fm_create(fm_mat_eigvec, fm_mat_skew%matrix_struct)
+
+      CALL choose_eigv_solver(fm_mat_skew, fm_mat_eigvec, Exc_ens, diag_info)
+      CPASSERT(diag_info == 0)
+      PRINT *, "MG - Full BSE eigenvalues from fm (no B)", Exc_ens*evolt
+      DEALLOCATE (Exc_ens)
+      !Use existing cfm routines for benchmark
+      CALL cp_cfm_create(cfm_mat_skew, fm_mat_skew%matrix_struct, "cfm_ABBA_skew")
+      CALL cp_cfm_create(cfm_mat_eigvec, fm_mat_skew%matrix_struct, "cfm_ABBA_eigvec")
+
+      !Create hermitian matrix by multiplication with imaginary unit
+      CALL cp_fm_to_cfm(msourcei=fm_mat_skew, mtarget=cfm_mat_skew)
+      ALLOCATE (eigenvalues(2*homo*virtual))
+      CALL cp_cfm_heevd(cfm_mat_skew, cfm_mat_eigvec, eigenvalues)
+      PRINT *, "MG evolt", evolt
+      PRINT *, "MG - Full BSE eigenvalues from cfm (no B)", eigenvalues*evolt
+      DEALLOCATE (eigenvalues)
+      CALL cp_cfm_release(cfm_mat_eigvec)
+      CALL cp_cfm_release(cfm_mat_skew)
       CALL timestop(handle)
 
    END SUBROUTINE
@@ -378,9 +595,8 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual)
+      CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual, .TRUE.)
 
-      !CALL cp_fm_struct_release(fm_struct_eigvec)
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
 
@@ -394,15 +610,17 @@ CONTAINS
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 !> \param num_exc_en ...
+!> \param flag_TDA ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, bse_spin_config, unit_nr, num_exc_en)
+   SUBROUTINE success_message(Exc_ens, bse_spin_config, unit_nr, num_exc_en, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       INTEGER                                            :: bse_spin_config, unit_nr, num_exc_en
+      LOGICAL, OPTIONAL                                  :: flag_TDA
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
-      CHARACTER(LEN=10)                                  :: multiplet
+      CHARACTER(LEN=10)                                  :: info_approximation, multiplet
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: alpha
 
@@ -416,12 +634,21 @@ CONTAINS
          multiplet = "Triplet"
          alpha = 0.0_dp
       END IF
+      IF (.NOT. PRESENT(flag_TDA)) THEN
+         flag_TDA = .FALSE.
+      END IF
+      IF (flag_TDA) THEN
+         info_approximation = "TDA "
+      ELSE
+         info_approximation = "full"
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) ' '
          WRITE (unit_nr, '(T3,A)') '******************************************************************************'
          WRITE (unit_nr, '(T3,A)') '**                                                                          **'
-         WRITE (unit_nr, '(T3,A)') '**                        BSE-TDA EXCITONIC ENERGIES                        **'
+         WRITE (unit_nr, '(T3,A30,A4,A45)') '**                        BSE-', info_approximation, &
+            ' EXCITONIC ENERGIES                        **'
          WRITE (unit_nr, '(T3,A)') '**                                                                          **'
          WRITE (unit_nr, '(T3,A)') '******************************************************************************'
          WRITE (unit_nr, '(T3,A)') ' '
@@ -429,6 +656,9 @@ CONTAINS
          WRITE (unit_nr, '(T3,A)') ' The excitation energies are calculated by fully diagonalizing: '
          WRITE (unit_nr, '(T3,A)') ' '
          WRITE (unit_nr, '(T3,A)') '    A_iajb   =  (E_a-E_i) delta_ij delta_ab   +  alpha * v_iajb   -  W_ijab   '
+         IF (.NOT. flag_TDA) THEN
+            WRITE (unit_nr, '(T3,A)') '    B_iajb   =  alpha * v_iajb   -  W_ibaj   '
+         END IF
          WRITE (unit_nr, '(T3,A)') ' '
          WRITE (unit_nr, '(T3,A48,A7,A12,F3.1)') &
             ' The spin-dependent factor is for the requested ', multiplet, " is alpha = ", alpha

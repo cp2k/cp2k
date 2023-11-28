@@ -291,7 +291,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A1,T8,A41)') '|', 'Starting cleanup of communication buffers'
       END IF
 
-      !Clean up all the arrays from the communication process W_ijab -> A_iajb
+      !Clean up all the arrays from the communication process
       DO iproc = 0, para_env_out%num_pe - 1
          DEALLOCATE (buffer_rec(iproc)%msg)
          DEALLOCATE (buffer_rec(iproc)%indx)

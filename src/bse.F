@@ -18,7 +18,6 @@ MODULE bse
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
@@ -1604,15 +1603,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S%matrix_struct)
-      CALL cp_fm_to_fm(fm_mat_S, fm_mat_S_bar_ia_bse)
+      !CALL cp_fm_to_fm(fm_mat_S, fm_mat_S_bar_ia_bse)
       CALL cp_fm_set_all(fm_mat_S_bar_ia_bse, 0.0_dp)
 
       CALL cp_fm_create(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
-      CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
+      !CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
       CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
 
       CALL cp_fm_create(fm_mat_work, fm_mat_Q_static_bse_gemm%matrix_struct)
-      CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_mat_work)
+      !CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_mat_work)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
       ! get info of fm_mat_Q_static_bse and compute ((1+Q(0))^-1-1)

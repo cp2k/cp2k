@@ -23,10 +23,10 @@ MODULE rpa_main
                                               fill_local_3c_arrays,&
                                               mult_B_with_W
    USE bse_full_diag,                   ONLY: create_A,&
-                                              create_ABBA,&
                                               create_B,&
+                                              create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
-                                              diagonalize_ABBA
+                                              diagonalize_C
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1184,7 +1184,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_ABBA_BSE, fm_mat_B_BSE, fm_mat_Q_static_bse, &
+      TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, fm_mat_Q_static_bse, &
          fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_bar_ia_bse, &
          fm_mat_S_bar_ij_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
          fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
@@ -1828,6 +1828,10 @@ CONTAINS
          END IF
 
          IF (bse_full_diag) THEN
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'BSE - Full diagonalization'
+               WRITE (unit_nr, '(T3,A1,T8)') '|'
+            END IF
             CALL create_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                           fm_mat_A_BSE, Eigenval(:, 1, 1), &
                           homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
@@ -1839,13 +1843,13 @@ CONTAINS
                CALL diagonalize_A(fm_mat_A_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             END IF
             IF (bse_abba) THEN
-               CALL create_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_ABBA_BSE, para_env_RPA, &
-                                blacs_env_BSE, homo(1), virtual(1), unit_nr)
-               CALL diagonalize_ABBA(fm_mat_ABBA_BSE, homo(1), virtual(1), unit_nr)
+               CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, para_env_RPA, &
+                                                  blacs_env_BSE, homo(1), virtual(1), unit_nr)
+               CALL diagonalize_C(fm_mat_C_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
             CALL cp_fm_release(fm_mat_B_BSE)
-            CALL cp_fm_release(fm_mat_ABBA_BSE)
+            CALL cp_fm_release(fm_mat_C_BSE)
          END IF
 
          CALL cp_fm_release(fm_mat_S_bar_ia_bse)
