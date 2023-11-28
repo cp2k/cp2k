@@ -253,7 +253,6 @@ CONTAINS
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw
       TYPE(cp_fm_type), DIMENSION(1)                     :: fm_mat_R_gw, fm_mat_S_ab_bse, &
@@ -587,12 +586,7 @@ CONTAINS
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
                             dimen_ia_for_block_size=dimen_ia(1), &
-                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, qs_env=qs_env, &
-                            blacs_env_BSE=blacs_env_BSE)
-      !Do not keep the pointer, if not need for BSE
-      IF (.NOT. do_bse) THEN
-         NULLIFY (blacs_env_BSE)
-      END IF
+                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, qs_env=qs_env)
 
       DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
 
@@ -662,7 +656,7 @@ CONTAINS
                        starts_array_mc_block, ends_array_mc_block, &
                        matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
                        do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces, &
-                       idx_array=idx_array, blacs_env_BSE=blacs_env_BSE) !MG
+                       idx_array=idx_array) !MG
 
       CALL release_group_dist(gd_array)
 
@@ -833,7 +827,6 @@ CONTAINS
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
 !> \param qs_env ...
-!> \param blacs_env_BSE ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_ia, color_rpa_group, &
@@ -842,7 +835,7 @@ CONTAINS
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
                                blacs_env_ext, blacs_env_ext_S, dimen_ia_for_block_size, &
-                               do_im_time, fm_mat_Q_gemm, fm_mat_Q, qs_env, blacs_env_BSE)
+                               do_im_time, fm_mat_Q_gemm, fm_mat_Q, qs_env)
 
       TYPE(two_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C_2D
@@ -864,7 +857,6 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL           :: fm_mat_Q_gemm, fm_mat_Q
       TYPE(qs_environment_type), INTENT(IN), OPTIONAL, &
          POINTER                                         :: qs_env
-      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_BSE
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_integ_mat'
 
@@ -1024,10 +1016,8 @@ CONTAINS
             CALL cp_blacs_env_release(blacs_env_Q)
       END IF
 
-      ! Keep blacs_env for usage in full diag. of BSE
-      IF (PRESENT(blacs_env_BSE)) blacs_env_BSE => blacs_env
       ! release blacs_env
-      IF (.NOT. my_blacs_S_ext .AND. .NOT. PRESENT(blacs_env_BSE)) CALL cp_blacs_env_release(blacs_env)
+      IF (.NOT. my_blacs_S_ext) CALL cp_blacs_env_release(blacs_env)
 
       CALL timestop(handle)
 
@@ -1089,7 +1079,6 @@ CONTAINS
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param calc_forces ...
 !> \param idx_array ...
-!> \param blacs_env_BSE ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
@@ -1106,7 +1095,7 @@ CONTAINS
                           starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
                           do_ri_sos_laplace_mp2, calc_forces, &
-                          idx_array, blacs_env_BSE) !MG
+                          idx_array) !MG
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
@@ -1153,7 +1142,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: color_sub
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, calc_forces
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: idx_array
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
@@ -1808,12 +1796,6 @@ CONTAINS
             END DO
          END IF
 
-         ! CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &
-         !                                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-         !                                             fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-         !                                             B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-         !                                             B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &
-         !                                             gd_array, color_sub, para_env, bse_full_diag)
          CALL mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &
                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                             fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
@@ -1835,16 +1817,15 @@ CONTAINS
             CALL create_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                           fm_mat_A_BSE, Eigenval(:, 1, 1), &
                           homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
-                          para_env, para_env_RPA, blacs_env_BSE)
+                          para_env)
             CALL create_B(fm_mat_S(1), fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
-                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
-                          para_env, para_env_RPA, blacs_env_BSE)
+                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             IF (bse_tda) THEN
                CALL diagonalize_A(fm_mat_A_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             END IF
             IF (bse_abba) THEN
-               CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, para_env_RPA, &
-                                                  blacs_env_BSE, homo(1), virtual(1), unit_nr)
+               CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
+                                                  homo(1), virtual(1), unit_nr)
                CALL diagonalize_C(fm_mat_C_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)

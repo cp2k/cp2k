@@ -67,13 +67,11 @@ CONTAINS
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 !> \param para_env ...
-!> \param para_env_RPA ...
-!> \param blacs_env_BSE ...
 ! **************************************************************************************************
    SUBROUTINE create_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                        fm_mat_A, Eigenval, &
                        homo, virtual, dimen_RI, bse_spin_config, unit_nr, &
-                       para_env, para_env_RPA, blacs_env_BSE)
+                       para_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -82,8 +80,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, bse_spin_config
       INTEGER                                            :: unit_nr
       TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
 
@@ -111,7 +107,7 @@ CONTAINS
          alpha = 0.0_dp
       END SELECT
 
-      ! create the blacs env for BSE matrices (NOT fm_mat_S related parallel_gemms!)
+      ! create the blacs env for ij matrices (NOT fm_mat_S%matrix_struct related parallel_gemms!)
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
@@ -120,8 +116,8 @@ CONTAINS
       ! We create v_iajb and W_ijab, then we communicate entries from local W_ijab
       ! to the full matrix v_iajb. By adding these and the energy diffenences: v_iajb -> A_iajb
       ! We use the A matrix already from the start instead of v
-      CALL cp_fm_struct_create(fm_struct_a, context=blacs_env_BSE, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=para_env_RPA)
+      CALL cp_fm_struct_create(fm_struct_a, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
+                               ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
       CALL cp_fm_create(fm_mat_A, fm_struct_a, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_mat_A, 0.0_dp)
 
@@ -162,7 +158,7 @@ CONTAINS
       ! nrow_secidx_out = virtual, ncol_secidx_out = virtual !from A_iajb
       reordering = (/1, 3, 2, 4/)
       CALL redist_fm(fm_mat_A, fm_mat_W, -1.0_dp, homo, virtual, &
-                     virtual, virtual, unit_nr, para_env_RPA, reordering)
+                     virtual, virtual, unit_nr, reordering)
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_struct_release(fm_struct_W)
       CALL cp_fm_release(fm_mat_W)
@@ -186,10 +182,6 @@ CONTAINS
             END IF
          END DO
       END DO
-      !IF (para_env_RPA%mepos == 0) THEN
-      !   print *,"MG - A on 0:", fm_mat_A%local_data
-      !END IF
-      !CALL cp_fm_write_formatted(fm_mat_A, unit_nr, "MG: Full A")
 
       CALL timestop(handle)
 
@@ -205,28 +197,21 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param bse_spin_config ...
 !> \param unit_nr ...
-!> \param para_env ...
-!> \param para_env_RPA ...
-!> \param blacs_env_BSE ...
 ! **************************************************************************************************
    SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ia_bse, fm_mat_B, &
-                       homo, virtual, dimen_RI, bse_spin_config, unit_nr, &
-                       para_env, para_env_RPA, blacs_env_BSE)
+                       homo, virtual, dimen_RI, bse_spin_config, unit_nr)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ia_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_B
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, bse_spin_config
       INTEGER                                            :: unit_nr
-      TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(4)                              :: reordering
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v, fm_struct_W
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
       TYPE(cp_fm_type)                                   :: fm_mat_W
 
       CALL timeset(routineN, handle)
@@ -243,15 +228,14 @@ CONTAINS
          alpha = 0.0_dp
       END SELECT
 
-      !MG to do: Maybe create V once, before create_A/B ? But prob. not critical for timing
-      CALL cp_fm_struct_create(fm_struct_v, context=blacs_env_BSE, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=para_env_RPA)
+      CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
+                               ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
       CALL cp_fm_create(fm_mat_B, fm_struct_v, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_mat_B, 0.0_dp)
 
-      CALL cp_fm_struct_create(fm_struct_W, context=blacs_env_BSE, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=para_env_RPA)
-      CALL cp_fm_create(fm_mat_W, fm_struct_W, name="fm_W_ibaj")
+      ! CALL cp_fm_struct_create(fm_struct_W, context=blacs_env_BSE, nrow_global=homo*virtual, &
+      !                          ncol_global=homo*virtual, para_env=para_env_RPA)
+      CALL cp_fm_create(fm_mat_W, fm_struct_v, name="fm_W_ibaj")
       CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
       IF (unit_nr > 0) THEN
@@ -271,10 +255,9 @@ CONTAINS
       !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
       reordering = (/1, 4, 3, 2/)
       CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
-                     virtual, virtual, unit_nr, para_env_RPA, reordering)
+                     virtual, virtual, unit_nr, reordering)
 
       CALL cp_fm_release(fm_mat_W)
-      CALL cp_fm_struct_release(fm_struct_W)
       CALL timestop(handle)
 
    END SUBROUTINE create_B
@@ -339,19 +322,15 @@ CONTAINS
 !> \param fm_mat_A ...
 !> \param fm_mat_B ...
 !> \param fm_mat_C ...
-!> \param para_env ...
-!> \param blacs_env_BSE ...
 !> \param homo ...
 !> \param virtual ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, para_env, &
-                                            blacs_env_BSE, homo, virtual, unit_nr)
+   SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, &
+                                            homo, virtual, unit_nr)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'

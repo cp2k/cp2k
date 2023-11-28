@@ -42,18 +42,16 @@ CONTAINS
 !> \param nrow_secidx_out ...
 !> \param ncol_secidx_out ...
 !> \param unit_nr ...
-!> \param para_env_out ...
 !> \param reordering ...
 ! **************************************************************************************************
    SUBROUTINE redist_fm(fm_mat_out, fm_mat_in, beta, nrow_secidx_in, ncol_secidx_in, &
-                        nrow_secidx_out, ncol_secidx_out, unit_nr, para_env_out, reordering)
+                        nrow_secidx_out, ncol_secidx_out, unit_nr, reordering)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out, fm_mat_in
       REAL(kind=dp)                                      :: beta
       INTEGER, INTENT(IN)                                :: nrow_secidx_in, ncol_secidx_in, &
                                                             nrow_secidx_out, ncol_secidx_out
       INTEGER                                            :: unit_nr
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_out
       INTEGER, DIMENSION(4)                              :: reordering
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'redist_fm'
@@ -69,10 +67,13 @@ CONTAINS
                                                             row_indices_in, row_indices_out
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
+      TYPE(mp_para_env_type), POINTER                    :: para_env_out
       TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
 
       CALL timeset(routineN, handle)
       CALL timeset(routineN//"_1_setup", handle2)
+
+      para_env_out => fm_mat_out%matrix_struct%para_env
       ! A_iajb
       ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
       CALL cp_fm_get_info(matrix=fm_mat_out, &
