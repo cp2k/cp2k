@@ -50,7 +50,7 @@ MODULE bse_full_diag
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
    PUBLIC :: create_A, diagonalize_A, create_B, create_ABBA, diagonalize_ABBA_via_skew, create_skew_of_ABBA, &
-             create_hermitian_form_of_ABBA, diagonalize_C
+             create_hermitian_form_of_ABBA, diagonalize_C, reduce_BSE_matrices
 
 CONTAINS
 
@@ -653,5 +653,29 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE success_message
+
+
+   SUBROUTINE reduce_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse,&
+                                  fm_mat_S_reduced, Eigenval, homo, virtual, dimen_RI, &
+                                  homo_red, virtual_red)
+
+   TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                                         fm_mat_S_reduced
+      REAL(KIND=dp), DIMENSION(:)                     :: Eigenval
+   INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI
+   INTEGER, INTENT(OUT)                               :: homo_red, virtual_red
+
+   CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reduce_BSE_matrices'
+
+   INTEGER :: handle
+
+
+   CALL timeset(routineN, handle)
+
+
+
+   CALL timestop(handle)
+
+   END SUBROUTINE reduce_BSE_matrices
 
 END MODULE bse_full_diag

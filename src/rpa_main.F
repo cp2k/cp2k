@@ -26,7 +26,8 @@ MODULE rpa_main
                                               create_B,&
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
-                                              diagonalize_C
+                                              diagonalize_C, &
+                                              reduce_BSE_matrices
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -40,7 +41,6 @@ MODULE rpa_main
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-!MG
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
@@ -1152,7 +1152,7 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
          ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
          nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
-         size_P
+         size_P, homo_red, virtual_red
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1177,7 +1177,7 @@ CONTAINS
       TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, fm_mat_Q_static_bse, &
          fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_bar_ia_bse, &
          fm_mat_S_bar_ij_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mat_S_reduced
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1772,12 +1772,14 @@ CONTAINS
          bse_iterat_diag = .FALSE.
          bse_tda = .FALSE.
          bse_abba = .FALSE.
+         !Method: Iterative or full diagonalization
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
          CASE (bse_fulldiag_tda, bse_fulldiag_abba, bse_fulldiag_both)
             bse_full_diag = .TRUE.
          CASE (bse_iter_tda, bse_iter_abba, bse_iter_both)
             bse_iterat_diag = .TRUE.
          END SELECT
+         !Approximation: TDA or full ABBA matrix
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
          CASE (bse_fulldiag_tda, bse_iter_tda)
             bse_tda = .TRUE.
@@ -1799,6 +1801,17 @@ CONTAINS
                CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
                                               Eigenval_scf(:, 1, ispin), homo(ispin), omega)
             END DO
+         END IF
+
+         !Reduce matrices in case of given cutoff for BSE matrices
+         IF (mp2_env%ri_g0w0%bse_cutoff_homo > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+            CALL reduce_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                     fm_mat_S_reduced, Eigenval(:,1,1), homo(1), virtual(1), dimen_RI, &
+                                     homo_red, virtual_red)
+         ELSE
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No truncation of BSE matrices applied'
+            END IF
          END IF
 
          CALL mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &

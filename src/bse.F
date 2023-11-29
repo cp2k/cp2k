@@ -9,6 +9,7 @@
 !> \brief Routines for GW + Bethe-Salpeter for computing electronic excitations
 !> \par History
 !>      04.2017 created [Jan Wilhelm]
+!>      11.2023 Davidson solver implemented [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full

@@ -1223,7 +1223,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters influencing the Bethe-Salpeter calculations on "// &
                           "top of GW eigenvalues.", &
-                          n_keywords=2, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=4, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1259,6 +1259,20 @@ CONTAINS
                                         "Iteratively diagonalizes the ABBA matrix.", &
                                         "Iteratively diagonalizes the A and the ABBA matrix."), &
                           default_i_val=bse_fulldiag_tda)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_CUTOFF_HOMO", &
+                          description="Truncating occupied orbitals below given cutoff", &
+                          usage="BSE_CUTOFF_HOMO 10.0", unit_str="eV", &
+                          type_of_var=real_t, default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_CUTOFF_VIRT", &
+                          description="Truncating unoccupied orbitals above given cutoff", &
+                          usage="BSE_CUTOFF_VIRT 10.0", unit_str="eV", &
+                          type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
