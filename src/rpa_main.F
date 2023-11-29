@@ -59,8 +59,10 @@ MODULE rpa_main
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
    USE input_constants,                 ONLY: bse_fulldiag_abba,&
+                                              bse_fulldiag_both,&
                                               bse_fulldiag_tda,&
                                               bse_iter_abba,&
+                                              bse_iter_both,&
                                               bse_iter_tda,&
                                               wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
@@ -1771,15 +1773,18 @@ CONTAINS
          bse_tda = .FALSE.
          bse_abba = .FALSE.
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
-         CASE (bse_fulldiag_tda, bse_fulldiag_abba)
+         CASE (bse_fulldiag_tda, bse_fulldiag_abba, bse_fulldiag_both)
             bse_full_diag = .TRUE.
-         CASE (bse_iter_tda, bse_iter_abba)
+         CASE (bse_iter_tda, bse_iter_abba, bse_iter_both)
             bse_iterat_diag = .TRUE.
          END SELECT
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
          CASE (bse_fulldiag_tda, bse_iter_tda)
             bse_tda = .TRUE.
          CASE (bse_fulldiag_abba, bse_iter_abba)
+            bse_abba = .TRUE.
+         CASE (bse_iter_both, bse_fulldiag_both)
+            bse_tda = .TRUE.
             bse_abba = .TRUE.
          END SELECT
 

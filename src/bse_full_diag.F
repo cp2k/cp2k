@@ -626,8 +626,8 @@ CONTAINS
          WRITE (unit_nr, *) ' '
          WRITE (unit_nr, '(T3,A)') '******************************************************************************'
          WRITE (unit_nr, '(T3,A)') '**                                                                          **'
-         WRITE (unit_nr, '(T3,A30,A4,A45)') '**                        BSE-', info_approximation, &
-            ' EXCITONIC ENERGIES                        **'
+         WRITE (unit_nr, '(T3,A30,A4,A44)') '**                        BSE-', info_approximation, &
+            ' EXCITONIC ENERGIES                       **'
          WRITE (unit_nr, '(T3,A)') '**                                                                          **'
          WRITE (unit_nr, '(T3,A)') '******************************************************************************'
          WRITE (unit_nr, '(T3,A)') ' '

@@ -1285,8 +1285,10 @@ MODULE input_constants
    ! BSE "flavor": Cross product of TDA/ABBA and full/iterative diagonalization
    INTEGER, PARAMETER, PUBLIC               :: bse_fulldiag_tda = 0, &
                                                bse_fulldiag_abba = 1, &
-                                               bse_iter_tda = 2, &
-                                               bse_iter_abba = 3
+                                               bse_fulldiag_both = 2, &
+                                               bse_iter_tda = 3, &
+                                               bse_iter_abba = 4, &
+                                               bse_iter_both = 5
 
    ! BSE iterative abortion condition
    INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &
