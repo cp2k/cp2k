@@ -105,7 +105,7 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, ls
-      LOGICAL                                            :: ecp_semi_local, has_pp, uks
+      LOGICAL                                            :: ecp_semi_local, ghost, has_pp, uks
       REAL(KIND=dp)                                      :: ok, scal, zeff
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2)            :: edelta
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -131,6 +131,7 @@ CONTAINS
       NULLIFY (all_potential, gth_potential, sgp_potential, orb_basis_set)
       CALL get_qs_kind(qs_kind, zeff=zeff, &
                        basis_set=orb_basis_set, &
+                       ghost=ghost, &
                        all_potential=all_potential, &
                        gth_potential=gth_potential, &
                        sgp_potential=sgp_potential)
@@ -270,7 +271,9 @@ CONTAINS
       atom%state%maxn_calc = atom%state%maxn_occ
 
       ! total number of occupied orbitals
-      IF (PRESENT(nocc)) THEN
+      IF (PRESENT(nocc) .AND. ghost) THEN
+         nocc = 0
+      ELSEIF (PRESENT(nocc)) THEN
          nocc = 0
          DO l = 0, lmat
             DO k = 1, 7
@@ -309,10 +312,12 @@ CONTAINS
       CALL create_atom_orbs(orbitals, mb, mo)
       CALL set_atom(atom, orbitals=orbitals)
 
-      IF (PRESENT(iunit)) THEN
-         CALL calculate_atom(atom, iunit)
-      ELSE
-         CALL calculate_atom(atom, -1)
+      IF (.NOT. ghost) THEN
+         IF (PRESENT(iunit)) THEN
+            CALL calculate_atom(atom, iunit)
+         ELSE
+            CALL calculate_atom(atom, -1)
+         END IF
       END IF
 
       IF (PRESENT(pmat)) THEN
@@ -340,29 +345,31 @@ CONTAINS
          END IF
          ALLOCATE (pmat(nsgf, nsgf, 2))
          pmat = 0._dp
-         DO l = 0, lmat
-            ll = 2*l
-            DO k1 = 1, atom%basis%nbas(l)
-               DO k2 = 1, atom%basis%nbas(l)
-                  scal = SQRT(atom%integrals%ovlp(k1, k1, l)*atom%integrals%ovlp(k2, k2, l))/REAL(2*l + 1, KIND=dp)
-                  i = first_sgf(shell_index(l, k1), set_index(l, k1))
-                  j = first_sgf(shell_index(l, k2), set_index(l, k2))
-                  IF (uks) THEN
-                     DO m = 0, ll
-                        pmat(i + m, j + m, 1) = atom%orbitals%pmata(k1, k2, l)*scal
-                        pmat(i + m, j + m, 2) = atom%orbitals%pmatb(k1, k2, l)*scal
-                     END DO
-                  ELSE
-                     DO m = 0, ll
-                        pmat(i + m, j + m, 1) = atom%orbitals%pmat(k1, k2, l)*scal
-                     END DO
-                  END IF
+         IF (.NOT. ghost) THEN
+            DO l = 0, lmat
+               ll = 2*l
+               DO k1 = 1, atom%basis%nbas(l)
+                  DO k2 = 1, atom%basis%nbas(l)
+                     scal = SQRT(atom%integrals%ovlp(k1, k1, l)*atom%integrals%ovlp(k2, k2, l))/REAL(2*l + 1, KIND=dp)
+                     i = first_sgf(shell_index(l, k1), set_index(l, k1))
+                     j = first_sgf(shell_index(l, k2), set_index(l, k2))
+                     IF (uks) THEN
+                        DO m = 0, ll
+                           pmat(i + m, j + m, 1) = atom%orbitals%pmata(k1, k2, l)*scal
+                           pmat(i + m, j + m, 2) = atom%orbitals%pmatb(k1, k2, l)*scal
+                        END DO
+                     ELSE
+                        DO m = 0, ll
+                           pmat(i + m, j + m, 1) = atom%orbitals%pmat(k1, k2, l)*scal
+                        END DO
+                     END IF
+                  END DO
                END DO
             END DO
-         END DO
-         IF (uks) THEN
-            pmat(:, :, 1) = pmat(:, :, 1) + pmat(:, :, 2)
-            pmat(:, :, 2) = pmat(:, :, 1) - 2.0_dp*pmat(:, :, 2)
+            IF (uks) THEN
+               pmat(:, :, 1) = pmat(:, :, 1) + pmat(:, :, 2)
+               pmat(:, :, 2) = pmat(:, :, 1) - 2.0_dp*pmat(:, :, 2)
+            END IF
          END IF
       END IF
 
@@ -391,25 +398,31 @@ CONTAINS
          IF (.NOT. ASSOCIATED(atom%fmat)) CPABORT("atom%fmat not associated")
          ALLOCATE (fmat(nsgf, nsgf, 1))
          fmat = 0.0_dp
-         DO l = 0, lmat
-            ll = 2*l
-            DO k1 = 1, atom%basis%nbas(l)
-            DO k2 = 1, atom%basis%nbas(l)
-               scal = SQRT(atom%integrals%ovlp(k1, k1, l)*atom%integrals%ovlp(k2, k2, l))
-               i = first_sgf(shell_index(l, k1), set_index(l, k1))
-               j = first_sgf(shell_index(l, k2), set_index(l, k2))
-               DO m = 0, ll
-                  fmat(i + m, j + m, 1) = atom%fmat%op(k1, k2, l)/scal
+         IF (.NOT. ghost) THEN
+            DO l = 0, lmat
+               ll = 2*l
+               DO k1 = 1, atom%basis%nbas(l)
+               DO k2 = 1, atom%basis%nbas(l)
+                  scal = SQRT(atom%integrals%ovlp(k1, k1, l)*atom%integrals%ovlp(k2, k2, l))
+                  i = first_sgf(shell_index(l, k1), set_index(l, k1))
+                  j = first_sgf(shell_index(l, k2), set_index(l, k2))
+                  DO m = 0, ll
+                     fmat(i + m, j + m, 1) = atom%fmat%op(k1, k2, l)/scal
+                  END DO
+               END DO
                END DO
             END DO
-            END DO
-         END DO
+         END IF
       END IF
 
       IF (PRESENT(density)) THEN
          IF (ASSOCIATED(density)) DEALLOCATE (density)
          ALLOCATE (density(nr))
-         CALL atom_density(density, atom%orbitals%pmat, atom%basis, atom%state%maxl_occ)
+         IF (ghost) THEN
+            density = 0.0_dp
+         ELSE
+            CALL atom_density(density, atom%orbitals%pmat, atom%basis, atom%state%maxl_occ)
+         END IF
       END IF
 
       IF (PRESENT(wavefunction)) THEN
@@ -419,21 +432,23 @@ CONTAINS
          mo = SUM(atom%state%maxn_occ)
          ALLOCATE (wavefunction(nr, mo), wfninfo(2, mo))
          wavefunction = 0.0_dp
-         ii = 0
-         DO l = 0, lmat
-            DO i = 1, atom%state%maxn_occ(l)
-               IF (atom%state%occupation(l, i) > 0.0_dp) THEN
-                  ii = ii + 1
-                  wfninfo(1, ii) = atom%state%occupation(l, i)
-                  wfninfo(2, ii) = REAL(l, dp)
-                  DO j = 1, atom%basis%nbas(l)
-                     wavefunction(:, ii) = wavefunction(:, ii) + &
-                                           atom%orbitals%wfn(j, i, l)*basis%bf(:, j, l)
-                  END DO
-               END IF
+         IF (.NOT. ghost) THEN
+            ii = 0
+            DO l = 0, lmat
+               DO i = 1, atom%state%maxn_occ(l)
+                  IF (atom%state%occupation(l, i) > 0.0_dp) THEN
+                     ii = ii + 1
+                     wfninfo(1, ii) = atom%state%occupation(l, i)
+                     wfninfo(2, ii) = REAL(l, dp)
+                     DO j = 1, atom%basis%nbas(l)
+                        wavefunction(:, ii) = wavefunction(:, ii) + &
+                                              atom%orbitals%wfn(j, i, l)*basis%bf(:, j, l)
+                     END DO
+                  END IF
+               END DO
             END DO
-         END DO
-         CPASSERT(mo == ii)
+            CPASSERT(mo == ii)
+         END IF
       END IF
 
       ! clean up
