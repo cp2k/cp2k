@@ -27,7 +27,7 @@ MODULE rpa_main
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
                                               diagonalize_C, &
-                                              reduce_BSE_matrices
+                                              truncate_BSE_matrices
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1167,7 +1167,7 @@ CONTAINS
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
-                                                            wkp_W
+                                                            wkp_W, Eigenval_reduced
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
@@ -1177,7 +1177,8 @@ CONTAINS
       TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, fm_mat_Q_static_bse, &
          fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_bar_ia_bse, &
          fm_mat_S_bar_ij_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mat_S_reduced
+         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mat_S_trunc, fm_mat_S_ij_trunc, &
+         fm_mat_S_ab_trunc
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1805,9 +1806,12 @@ CONTAINS
 
          !Reduce matrices in case of given cutoff for BSE matrices
          IF (mp2_env%ri_g0w0%bse_cutoff_homo > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-            CALL reduce_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                     fm_mat_S_reduced, Eigenval(:,1,1), homo(1), virtual(1), dimen_RI, &
-                                     homo_red, virtual_red)
+            CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                     Eigenval(:,1,1), Eigenval_reduced, &
+                                     homo(1), virtual(1), dimen_RI, &
+                                     homo_red, virtual_red, &
+                                     mp2_env%ri_g0w0%bse_cutoff_homo, mp2_env%ri_g0w0%bse_cutoff_homo)
          ELSE
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No truncation of BSE matrices applied'

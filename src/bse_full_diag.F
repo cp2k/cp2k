@@ -34,7 +34,8 @@ MODULE bse_full_diag
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_to_fm_submat_general
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -50,7 +51,7 @@ MODULE bse_full_diag
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
    PUBLIC :: create_A, diagonalize_A, create_B, create_ABBA, diagonalize_ABBA_via_skew, create_skew_of_ABBA, &
-             create_hermitian_form_of_ABBA, diagonalize_C, reduce_BSE_matrices
+             create_hermitian_form_of_ABBA, diagonalize_C, truncate_BSE_matrices
 
 CONTAINS
 
@@ -655,27 +656,75 @@ CONTAINS
    END SUBROUTINE success_message
 
 
-   SUBROUTINE reduce_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse,&
-                                  fm_mat_S_reduced, Eigenval, homo, virtual, dimen_RI, &
-                                  homo_red, virtual_red)
+   SUBROUTINE truncate_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                  fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                  Eigenval, Eigenval_reduced, &
+                                  homo, virtual, dimen_RI, &
+                                  homo_red, virt_red, &
+                                  cutoff_homo, cutoff_virt)
 
-   TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                                         fm_mat_S_reduced
-      REAL(KIND=dp), DIMENSION(:)                     :: Eigenval
+   TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse
+   TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc
+   REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
+   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: Eigenval_reduced
+   REAL(KIND=dp)                                      :: cutoff_homo, cutoff_virt
    INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI
-   INTEGER, INTENT(OUT)                               :: homo_red, virtual_red
+   INTEGER, INTENT(OUT)                               :: homo_red, virt_red
 
-   CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reduce_BSE_matrices'
+   CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_BSE_matrices'
 
-   INTEGER :: handle
+   INTEGER :: handle, homo_incl, virt_incl, i_homo, j_virt
+   TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ia, fm_struct_ij, fm_struct_ab
+   TYPE(mp_para_env_type), POINTER                    :: para_env
+   TYPE(cp_blacs_env_type), POINTER                   :: context
 
 
    CALL timeset(routineN, handle)
 
+   ! Determine index in homo and virtual for truncation
+   ! Uses indices of outermost orbitals within energy range (-cutoff_homo,cutoff_virt)
+   homo_incl = 1
+   DO i_homo = 1, homo
+      IF (Eigenval(i_homo) .GT. -cutoff_homo) THEN
+         homo_incl = i_homo
+         EXIT
+      END IF
+   END DO
+   homo_red = homo - homo_incl + 1
 
+   virt_incl = homo+1
+   DO j_virt = 1, virtual
+      IF (Eigenval(homo+j_virt) .GT. cutoff_virt) THEN
+         virt_incl = j_virt - 1
+         EXIT
+      END IF
+   END DO
+   virt_red = virt_incl
+
+   !Truncate eigenvals
+   ALLOCATE(Eigenval_reduced(homo_red + virt_red))
+   Eigenval_reduced(:) = Eigenval(homo_incl:homo+virt_incl)
+
+
+   !Truncate full fm_S matrices
+   !Allocate new truncated matrices of proper size
+   para_env => fm_mat_S%matrix_struct%para_env
+   context => fm_mat_S%matrix_struct%context
+
+   CALL cp_fm_struct_create(fm_struct_ia, para_env, context, dimen_RI, homo_red*virt_red)
+   CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
+   CALL cp_fm_struct_create(fm_struct_ab, para_env, context, dimen_RI, virt_red*virt_red)
+
+   CALL cp_fm_create(fm_mat_S_trunc,fm_struct_ia,"fm_mat_S_trunc")
+   CALL cp_fm_create(fm_mat_S_ij_trunc,fm_struct_ij,"fm_mat_S_ij_trunc")
+   CALL cp_fm_create(fm_mat_S_ab_trunc,fm_struct_ab,"fm_mat_S_ab_trunc")
+
+   !Copy parts of original matrices to truncated ones
+   CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
+                                   1, 1, 1, 1, context)
 
    CALL timestop(handle)
 
-   END SUBROUTINE reduce_BSE_matrices
+   END SUBROUTINE truncate_BSE_matrices
 
 END MODULE bse_full_diag
