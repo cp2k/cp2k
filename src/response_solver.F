@@ -2052,7 +2052,7 @@ CONTAINS
                CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
                CALL update_ks_atom(qs_env, mhx(:, 1), mpz(:, 1), forces=.TRUE., tddft=.FALSE., &
-                                   rho_atom_external=ex_env%local_rho_set_admm%rho_atom_set, &
+                                   rho_atom_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
                                    kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                    oce_external=admm_env%admm_gapw_env%oce, &
                                    sab_external=sab_aux_fit)
@@ -2077,8 +2077,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpz(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
-                                       basis_type="AUX_FIT", &
-                                       task_list_external=task_list_aux_fit)
+                                       basis_type=basis_type, task_list_external=task_list)
             END DO
             !
             ! Add ADMM volume contribution to stress tensor
@@ -2139,8 +2138,8 @@ CONTAINS
                CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
                                        hmat=mhy(ispin, 1), pmat=matrix_p(ispin, 1), &
-                                       calculate_forces=.TRUE., basis_type="AUX_FIT", &
-                                       task_list_external=task_list_aux_fit)
+                                       calculate_forces=.TRUE., &
+                                       basis_type=basis_type, task_list_external=task_list)
             END DO
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -2174,7 +2173,8 @@ CONTAINS
                CALL prepare_gapw_den(qs_env, local_rho_set=local_rhoz_set_admm, &
                                      do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                !compute the potential due to atomic densities
-               CALL calculate_xc_2nd_deriv_atom(ex_env%local_rho_set_admm%rho_atom_set, local_rhoz_set_admm%rho_atom_set, &
+               CALL calculate_xc_2nd_deriv_atom(admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
+                                                local_rhoz_set_admm%rho_atom_set, &
                                                 qs_env, xc_section, para_env, do_tddft=.FALSE., do_triplet=.FALSE., &
                                                 kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                !
