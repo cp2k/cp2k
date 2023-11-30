@@ -58,7 +58,10 @@ MODULE input_cp2k_pwdft
    INTEGER, PARAMETER, PUBLIC :: SIRIUS_FUNC_VDWDF = 1
    INTEGER, PARAMETER, PUBLIC :: SIRIUS_FUNC_VDWDF2 = 2
    INTEGER, PARAMETER, PUBLIC :: SIRIUS_FUNC_VDWDFCX = 3
-
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION = 0
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION = 1
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION = 2
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_HUBBARD_SUBSPACE_NONE = 3
 CONTAINS
 
 #if defined(__SIRIUS)
@@ -111,9 +114,13 @@ CONTAINS
       ! uncomment these lines when nlcg is officialy supported in cp2k
       !
 
-      !      CALL create_sirius_section(subsection, 'nlcg')
-      !      CALL section_add_subsection(section, subsection)
-      !      CALL section_release(subsection)
+      CALL create_sirius_section(subsection, 'nlcg')
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_sirius_section(subsection, 'vcsqnm')
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL create_print_section(subsection)
       CALL section_add_subsection(section, subsection)

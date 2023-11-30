@@ -36,7 +36,11 @@ MODULE sirius_interface
    USE input_constants,                 ONLY: do_gapw_log
    USE input_cp2k_pwdft,                ONLY: SIRIUS_FUNC_VDWDF,&
                                               SIRIUS_FUNC_VDWDF2,&
-                                              SIRIUS_FUNC_VDWDFCX
+                                              SIRIUS_FUNC_VDWDFCX,&
+                                              SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION,&
+                                              SIRIUS_HUBBARD_SUBSPACE_NONE,&
+                                              SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION,&
+                                              SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -75,7 +79,7 @@ MODULE sirius_interface
         sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
         sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_hubbard, &
         sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, &
-        sirius_update_ground_state
+        sirius_set_parameters, sirius_update_ground_state
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -131,12 +135,12 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: label
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
-                                                            num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu
+                                                            num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu, subspace_method
       INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
       LOGICAL                                            :: up, use_ref_cell
-      LOGICAL(4)                                         :: use_so, use_symmetry, dft_plus_u_atom
+      LOGICAL(4)                                         :: use_so, use_symmetry, dft_plus_u_atom, use_plus_u_, simplified_method
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:)     :: fun
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: dion
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v1, v2
@@ -159,7 +163,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
       TYPE(section_vals_type), POINTER                   :: pwdft_section, pwdft_sub_section, &
-                                                            xc_fun, xc_section
+                                                            xc_fun, xc_section, dft_plus_u_section
       TYPE(sirius_context_handler)                       :: sctx
       TYPE(sirius_ground_state_handler)                  :: gs_handler
       TYPE(sirius_kpoint_set_handler)                    :: ks_handler
@@ -173,7 +177,7 @@ CONTAINS
 
 !     the "fun" starts.
 
-      CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_section, xc_input=xc_section)
+      CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_section, xc_input=xc_section, plus_u_input=dft_plus_u_section)
 
       ! cp2k should *have* a function that return all xc_functionals. Doing
       ! manually is prone to errors
@@ -189,7 +193,6 @@ CONTAINS
             CALL sirius_add_xc_functional(sctx, "XC_"//TRIM(xc_fun%section%name))
          END DO
       END IF
-
       !     import control section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
@@ -421,39 +424,6 @@ CONTAINS
             CALL sirius_add_atom_type_radial_function(sctx, label, "ps_rho_total", &
                                                       fun(1), nmesh)
 
-            CALL get_qs_kind(qs_kind_set(ikind), &
-                             dft_plus_u_atom=dft_plus_u_atom, &
-                             l_of_dft_plus_u=lu, &
-                             n_of_dft_plus_u=nu, &
-                             u_minus_j_target=u_minus_j, &
-                             U_of_dft_plus_u=U_u, &
-                             J_of_dft_plus_u=J_u, &
-                             alpha_of_dft_plus_u=alpha_u, &
-                             beta_of_dft_plus_u=beta_u, &
-                             J0_of_dft_plus_u=J0_u, &
-                             occupation_of_dft_plus_u=occ_u)
-
-            IF (dft_plus_u_atom) THEN
-               IF (nu < 1) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): principal quantum number not specified")
-               END IF
-
-               IF (lu < 0) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
-               END IF
-
-               IF (occ_u < 0.0) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
-               END IF
-
-               IF (ABS(u_minus_j) < 1e-8) THEN
-                  CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                    occ_u, U_u, J_u, alpha_u, beta_u, J0_u)
-               ELSE
-                  CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                    occ_u, u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
-               END IF
-            END IF
             IF (ASSOCIATED(density)) DEALLOCATE (density)
             IF (ASSOCIATED(wavefunction)) DEALLOCATE (wavefunction)
             IF (ASSOCIATED(wfninfo)) DEALLOCATE (wfninfo)
@@ -466,8 +436,71 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "CP2K/SIRIUS: atomic kind needs UPF or GTH potential definition")
          END IF
+
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          dft_plus_u_atom=dft_plus_u_atom, &
+                          l_of_dft_plus_u=lu, &
+                          n_of_dft_plus_u=nu, &
+                          u_minus_j_target=u_minus_j, &
+                          U_of_dft_plus_u=U_u, &
+                          J_of_dft_plus_u=J_u, &
+                          alpha_of_dft_plus_u=alpha_u, &
+                          beta_of_dft_plus_u=beta_u, &
+                          J0_of_dft_plus_u=J0_u, &
+                          occupation_of_dft_plus_u=occ_u)
+
+         IF (dft_plus_u_atom) THEN
+            IF (nu < 1) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): principal quantum number not specified")
+            END IF
+
+            IF (lu < 0) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
+            END IF
+
+            IF (lu .GE. nu) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): l should be lower or equal to n - 1.")
+            END IF
+
+            IF (occ_u < 0.0) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
+            END IF
+
+            IF (ABS(u_minus_j) < 1e-8) THEN
+               CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
+                                                 occ_u, U_u, J_u, alpha_u, beta_u, J0_u)
+            ELSE
+               CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
+                                                 occ_u, u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
+            END IF
+         END IF
       END DO
 
+      IF (ASSOCIATED(dft_plus_u_section)) THEN
+         CALL section_vals_val_get(dft_plus_u_section, keyword_name="_SECTION_PARAMETERS_", l_val=use_plus_u_)
+         CALL sirius_set_parameters(sctx, hubbard_correction=use_plus_u_)
+         CALL section_vals_val_get(dft_plus_u_section, keyword_name="SUBSPACE_METHOD", i_val=subspace_method)
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_NONE) THEN
+            CALL sirius_set_parameters(sctx, hubbard_orbitals="none")
+         END IF
+
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_NORMALIZATION) THEN
+            CALL sirius_set_parameters(sctx, hubbard_orbitals="normalize")
+         END IF
+
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_ORTHOGONALIZATION) THEN
+            CALL sirius_set_parameters(sctx, hubbard_orbitals="orthogonalize")
+         END IF
+
+         IF (subspace_method .EQ. SIRIUS_HUBBARD_SUBSPACE_FULL_ORTHOGONALIZATION) THEN
+            CALL sirius_set_parameters(sctx, hubbard_orbitals="full_orthogonalization")
+         END IF
+
+         CALL section_vals_val_get(dft_plus_u_section, keyword_name="SIMPLIFIED", l_val=simplified_method)
+         IF (simplified_method) THEN
+            CALL sirius_set_parameters(sctx, hubbard_correction_kind=0)
+         END IF
+      END IF
 ! add atoms to the unit cell
 ! WARNING: sirius accepts only fractional coordinates;
       natom = SIZE(particle_set)

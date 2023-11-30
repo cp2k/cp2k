@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.4.3"
-sirius_sha256="015679a60a39fa750c5d1bd8fb1ce73945524bef561270d8a171ea2fd4687fec"
+sirius_ver="7.5.0"
+sirius_sha256="c583f88ffc02e9acac24e786bc35c7c32066882d2f70a1e0c14b5780b510365d"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -160,8 +160,8 @@ case "$with_sirius" in
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
-        -DUSE_MEMORY_POOL=OFF \
-        -DUSE_ELPA=OFF \
+        -DSIRIUS_USE_MEMORY_POOL=OFF \
+        -DSIRIUS_USE_ELPA=OFF \
         ${EXTRA_CMAKE_FLAGS} .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
 
@@ -186,9 +186,9 @@ case "$with_sirius" in
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
           -DUSE_CUDA=ON \
-          -DUSE_ELPA=OFF \
+          -DSIRIUS_USE_ELPA=OFF \
           -DGPU_MODEL=P100 \
-          -DUSE_MEMORY_POOL=OFF \
+          -DSIRIUS_USE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_C_COMPILER="${MPICC}" \

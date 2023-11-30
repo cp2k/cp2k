@@ -1,0 +1,83 @@
+&FORCE_EVAL
+  METHOD SIRIUS
+  &PW_DFT
+    &CONTROL
+       PROCESSING_UNIT cpu
+       STD_EVP_SOLVER_NAME lapack
+       GEN_EVP_SOLVER_NAME lapack
+       VERBOSITY 2
+    &END CONTROL
+    &PARAMETERS
+       ELECTRONIC_STRUCTURE_METHOD  pseudopotential
+       SMEARING_WIDTH 0.025
+       USE_SYMMETRY true
+       NUM_MAG_DIMS 1
+       GK_CUTOFF 8.94427190999916
+       PW_CUTOFF 25.298221281347036
+       NUM_DFT_ITER 100
+       NGRIDK 2 2 2
+    &END PARAMETERS
+    &ITERATIVE_SOLVER
+       ENERGY_TOLERANCE 1e-2
+       RESIDUAL_TOLERANCE 1e-6
+       NUM_STEPS 20
+       SUBSPACE_SIZE 4
+       TYPE davidson
+       CONVERGE_BY_ENERGY 1
+    &END ITERATIVE_SOLVER
+    &MIXER
+       BETA 0.75
+       TYPE broyden2
+       MAX_HISTORY 8
+    &END MIXER
+  &END PW_DFT
+  &DFT
+    &XC
+      &XC_FUNCTIONAL
+         &LDA_X
+         &END LDA_X
+         &LDA_C_PZ
+         &END LDA_C_PZ
+      &END XC_FUNCTIONAL
+    &END XC
+    &DFT_PLUS_U ON
+      SUBSPACE_METHOD "full_orthogonalization"
+    &END DFT_PLUS_U
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 7.89357814 3.94678907 3.94678907
+      B [bohr] 3.94678907 7.89357814 3.94678907
+      C [bohr] 3.94678907 3.94678907 7.89357814
+    &END CELL
+    &COORD
+      SCALED
+        Ni 0.0 0.0 0.0 0.0 0.0 4.0
+        Ni 0.5 0.5 0.5 0.0 0.0 -4.0
+        O 0.75 0.75 0.75
+        O 0.25 0.25 0.25
+    &END COORD
+    &KIND Ni
+      POTENTIAL UPF "ni_lda_v1.4.uspp.F.UPF.json"
+      &DFT_PLUS_U ON
+        L 2
+        N 3
+        U 6.6
+        occupation 8
+        &END DFT_PLUS_U
+    &END KIND
+    &KIND O
+      POTENTIAL UPF o_lda_v1.2.uspp.F.UPF.json
+      &DFT_PLUS_U ON
+        L 1
+        N 2
+        U 0.0
+        occupation 6
+      &END DFT_PLUS_U
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT NiO
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
