@@ -35,10 +35,28 @@
       CUTOFF 180
       REL_CUTOFF 30
     &END MGRID
-    &POISSON
-      PERIODIC NONE
-      POISSON_SOLVER MT
-    &END POISSON
+    &QS
+      METHOD GAPW
+      EPS_DEFAULT 1.E-10
+    &END QS
+    &EXCITED_STATES T
+       STATE 1
+       DEBUG_FORCES T
+    &END EXCITED_STATES
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF  100
+      EPS_SCF 1.0E-6
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE0 
+      &END XC_FUNCTIONAL
+      &HF
+         &SCREENING
+            SCREEN_P_FORCES F
+         &END SCREENING
+      &END HF
+    &END XC
     &PRINT
       &MOMENTS ON
         PERIODIC .FALSE.
@@ -75,7 +93,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.5 4.5 4.5
+      ABC [angstrom]  4.5  4.5  4.5
       PERIODIC NONE
     &END CELL
     &COORD
