@@ -22,7 +22,7 @@ MODULE dm_ls_scf_methods
         dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_4
+        dbcsr_type_no_symmetry
    USE dm_ls_scf_qs,                    ONLY: matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_mstruct_type,&
@@ -40,8 +40,7 @@ MODULE dm_ls_scf_methods
                                               matrix_sqrt_Newton_Schulz,&
                                               matrix_sqrt_proot
    USE kinds,                           ONLY: dp,&
-                                              int_8,&
-                                              sp
+                                              int_8
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathlib,                         ONLY: abnormal_value
@@ -228,7 +227,6 @@ CONTAINS
       INTEGER                                            :: datatype, handle, iblock_col, iblock_row
       LOGICAL                                            :: block_needed
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_dp
-      REAL(sp), DIMENSION(:, :), POINTER                 :: block_sp
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_bs
 
@@ -244,11 +242,7 @@ CONTAINS
       CASE (ls_s_preconditioner_atomic, ls_s_preconditioner_molecular)
          CALL dbcsr_iterator_start(iter, matrix_s)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            IF (datatype == dbcsr_type_real_4) THEN
-               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_sp)
-            ELSE
-               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_dp)
-            END IF
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_dp)
 
             ! do we need the block ?
             ! this depends on the preconditioner, but also the matrix clustering method employed
@@ -268,11 +262,7 @@ CONTAINS
 
             ! add it
             IF (block_needed) THEN
-               IF (datatype == dbcsr_type_real_4) THEN
-                  CALL dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_sp)
-               ELSE
-                  CALL dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_dp)
-               END IF
+               CALL dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_dp)
             END IF
 
          END DO

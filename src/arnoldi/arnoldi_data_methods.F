@@ -19,16 +19,14 @@ MODULE arnoldi_data_methods
       arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
       arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
       get_data_z, get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, &
-      has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
+      has_d_real, set_control, set_data_c, set_data_d, set_data_s, &
       set_data_z
    USE dbcsr_api, ONLY: &
       dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_data_type, &
       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
-      dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-      dbcsr_type_real_8, dbcsr_type_symmetric
+      dbcsr_type, dbcsr_type_complex_8, dbcsr_type_real_8, dbcsr_type_symmetric
    USE dbcsr_vector, ONLY: create_col_vec_from_matrix
-   USE kinds, ONLY: real_4, &
-                    real_8
+   USE kinds, ONLY: real_8
    USE util, ONLY: sort
 #include "../base/base_uses.f90"
 
@@ -76,12 +74,8 @@ CONTAINS
       SELECT CASE (dbcsr_get_data_type(matrix(1)%matrix))
       CASE (dbcsr_type_real_8)
          CALL setup_arnoldi_data_d(arnoldi_data, matrix, max_iter)
-      CASE (dbcsr_type_real_4)
-         CALL setup_arnoldi_data_s(arnoldi_data, matrix, max_iter)
       CASE (dbcsr_type_complex_8)
          CALL setup_arnoldi_data_z(arnoldi_data, matrix, max_iter)
-      CASE (dbcsr_type_complex_4)
-         CALL setup_arnoldi_data_c(arnoldi_data, matrix, max_iter)
       END SELECT
 
    END SUBROUTINE setup_arnoldi_data
@@ -181,9 +175,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix, vector
 
       IF (has_d_real(arnoldi_data)) CALL get_selected_ritz_vector_d(arnoldi_data, ind, matrix, vector)
-      IF (has_s_real(arnoldi_data)) CALL get_selected_ritz_vector_s(arnoldi_data, ind, matrix, vector)
       IF (has_d_cmplx(arnoldi_data)) CALL get_selected_ritz_vector_z(arnoldi_data, ind, matrix, vector)
-      IF (has_s_cmplx(arnoldi_data)) CALL get_selected_ritz_vector_c(arnoldi_data, ind, matrix, vector)
 
    END SUBROUTINE get_selected_ritz_vector
 
@@ -197,9 +189,7 @@ CONTAINS
       TYPE(arnoldi_control_type), POINTER                :: control
 
       IF (has_d_real(arnoldi_data)) CALL deallocate_arnoldi_data_d(arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL deallocate_arnoldi_data_s(arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL deallocate_arnoldi_data_z(arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL deallocate_arnoldi_data_c(arnoldi_data)
 
       control => get_control(arnoldi_data)
       DEALLOCATE (control%selected_ind)
@@ -215,9 +205,7 @@ CONTAINS
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       IF (has_d_real(arnoldi_data)) CALL select_evals_d(arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL select_evals_s(arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL select_evals_z(arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL select_evals_c(arnoldi_data)
 
    END SUBROUTINE select_evals
 
@@ -312,7 +300,6 @@ CONTAINS
       INTEGER                                            :: ind
       COMPLEX(real_8)                                    :: eval_out
 
-      COMPLEX(real_4), DIMENSION(:), POINTER             :: evals_s
       COMPLEX(real_8), DIMENSION(:), POINTER             :: evals_d
       INTEGER                                            :: ev_ind
       INTEGER, DIMENSION(:), POINTER                     :: selected_ind
@@ -324,12 +311,8 @@ CONTAINS
       ev_ind = selected_ind(ind)
       IF (has_d_real(ar_data)) THEN
          evals_d => get_evals_d(ar_data); eval_out = evals_d(ev_ind)
-      ELSE IF (has_s_real(ar_data)) THEN
-         evals_s => get_evals_s(ar_data); eval_out = CMPLX(evals_s(ev_ind), KIND=real_8)
       ELSE IF (has_d_cmplx(ar_data)) THEN
          evals_d => get_evals_z(ar_data); eval_out = evals_d(ev_ind)
-      ELSE IF (has_s_cmplx(ar_data)) THEN
-         evals_s => get_evals_c(ar_data); eval_out = CMPLX(evals_s(ev_ind), KIND=real_8)
       END IF
 
    END FUNCTION get_selected_ritz_val
@@ -344,25 +327,21 @@ CONTAINS
       TYPE(arnoldi_data_type)                            :: ar_data
       COMPLEX(real_8), DIMENSION(:)                      :: eval_out
 
-      COMPLEX(real_4), DIMENSION(:), POINTER             :: evals_s
       COMPLEX(real_8), DIMENSION(:), POINTER             :: evals_d
       INTEGER                                            :: ev_ind, ind
       INTEGER, DIMENSION(:), POINTER                     :: selected_ind
 
-      NULLIFY (evals_d, evals_s)
+      NULLIFY (evals_d)
       IF (SIZE(eval_out) .LT. get_nval_out(ar_data)) &
          CPABORT('array for eval output too small')
       selected_ind => get_sel_ind(ar_data)
 
       IF (has_d_real(ar_data)) evals_d => get_evals_d(ar_data)
-      IF (has_s_real(ar_data)) evals_s => get_evals_s(ar_data)
       IF (has_d_cmplx(ar_data)) evals_d => get_evals_d(ar_data)
-      IF (has_s_cmplx(ar_data)) evals_s => get_evals_c(ar_data)
 
       DO ind = 1, get_nval_out(ar_data)
          ev_ind = selected_ind(ind)
          IF (ASSOCIATED(evals_d)) eval_out(ind) = evals_d(ev_ind)
-         IF (ASSOCIATED(evals_s)) eval_out(ind) = CMPLX(evals_s(ev_ind), KIND=real_8)
       END DO
 
    END SUBROUTINE get_all_selected_ritz_val
@@ -382,9 +361,7 @@ CONTAINS
       control%has_initial_vector = .TRUE.
 
       IF (has_d_real(ar_data)) CALL set_initial_vector_d(ar_data, vector)
-      IF (has_s_real(ar_data)) CALL set_initial_vector_s(ar_data, vector)
       IF (has_d_cmplx(ar_data)) CALL set_initial_vector_z(ar_data, vector)
-      IF (has_s_cmplx(ar_data)) CALL set_initial_vector_c(ar_data, vector)
 
    END SUBROUTINE set_arnoldi_initial_vector
 
