@@ -424,6 +424,15 @@ functions replacing the dgemm calls with `offload_dgemm` will eventually be offl
 The SPLA library has internal criteria to decide if it is worth to do the operation on GPU or not.
 Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 
+### 2y. libgrpp (optional, enables calculations with ECPs)
+
+- libgrpp is a library for the calculation of integrals with GTOs and ECPs
+- The libgrpp library can be found under <https://github.com/aoleynichenko/libgrpp>
+- During the installation, the directories `$(LIBGRPP_DIR)/lib` and `$(LIBGRPP_DIR)/include` are
+  created.
+- Add `-D__LIBGRPP` to DFLAGS, `-I$(LIBGRPP_DIR)/include` to FCFLAGS and
+  `-L$(LIBGRPP_DIR)/lib -llibgrpp` to LIBS
+
 <!---
 ### 2y. LibMaxwell (External Maxwell Solver)
 
@@ -508,6 +517,7 @@ libraries (see 2.)
 - `-D__parallel -D__SCALAPACK` parallel runs
 - `-D__LIBINT` use LIBINT (needed for HF exchange)
 - `-D__LIBXC` use LIBXC
+- `-D__LIBGRPP` use libgrpp (for calculations with ECPs)
 - `-D__ELPA` use ELPA in place of SYEVD to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
 - `-D__MKL` link the MKL library for linear algebra and/or FFT

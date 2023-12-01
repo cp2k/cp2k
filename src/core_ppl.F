@@ -31,6 +31,8 @@ MODULE core_ppl
                                               sgp_potential_type
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libgrpp_integrals,               ONLY: libgrpp_local_integral,&
+                                              libgrpp_semilocal_integral
    USE lri_environment_types,           ONLY: lri_kind_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
@@ -123,7 +125,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
       LOGICAL                                            :: do_dR, dokp, ecp_local, ecp_semi_local, &
-                                                            found, lpotextended
+                                                            found, lpotextended, only_gaussians
       REAL(KIND=dp)                                      :: alpha, dab, dac, dbc, f0, ppl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: qab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab2_w, ppl_fwork, ppl_work
@@ -234,7 +236,7 @@ CONTAINS
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
 !$OMP          slot, f0, katom, ppl_work, cellind, img, ecp_local, ecp_semi_local, &
 !$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, &
-!$OMP          slmax, npot, nrpot, apot, bpot, &
+!$OMP          slmax, npot, nrpot, apot, bpot, only_gaussians, &
 !$OMP          ldai, hash, hash1, hash2, iatom8) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
@@ -382,6 +384,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential, &
                              sgp_potential=sgp_potential)
             ecp_semi_local = .FALSE.
+            only_gaussians = .TRUE.
             IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
                                   alpha_ppl=alpha, cexp_ppl=cexp_ppl, &
@@ -409,9 +412,11 @@ CONTAINS
                   CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
                   nexp_ppl = nloc
                   CPASSERT(nexp_ppl <= nexp_max)
-                  nct_ppl(1:nloc) = nrloc(1:nloc) - 1
+                  nct_ppl(1:nloc) = nrloc(1:nloc)
                   alpha_ppl(1:nloc) = bloc(1:nloc)
                   cval_ppl(1, 1:nloc) = aloc(1:nloc)
+                  only_gaussians = ALL(nct_ppl(1:nloc) == 2)
+                  IF (only_gaussians) nct_ppl(1:nloc) = nct_ppl(1:nloc) - 1
                ELSE
                   CALL get_potential(potential=sgp_potential, n_local=n_local, a_local=a_local, c_local=c_local)
                   nexp_ppl = n_local
@@ -509,16 +514,37 @@ CONTAINS
                            CPABORT("Option not implemented")
                         END IF
                      ELSE
-                        CALL ppl_integral( &
-                           la_max(iset), la_min(iset), npgfa(iset), &
-                           rpgfa(:, iset), zeta(:, iset), &
-                           lb_max(jset), lb_min(jset), npgfb(jset), &
-                           rpgfb(:, jset), zetb(:, jset), &
-                           nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
-                           rab, dab, rac, dac, rbc, dbc, hab(:, :, iset, jset), ppl_work)
+                        IF (only_gaussians) THEN
+                           !If the local part of the pseudo-potential only has Gaussian functions
+                           !we can use CP2K native code, that can run without libgrpp installation
+                           CALL ppl_integral( &
+                              la_max(iset), la_min(iset), npgfa(iset), &
+                              rpgfa(:, iset), zeta(:, iset), &
+                              lb_max(jset), lb_min(jset), npgfb(jset), &
+                              rpgfb(:, jset), zetb(:, jset), &
+                              nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
+                              rab, dab, rac, dac, rbc, dbc, hab(:, :, iset, jset), ppl_work)
+
+                        ELSE
+                           !If the local part of the potential is more complex, we need libgrpp
+                           CALL libgrpp_local_integral(la_max(iset), la_min(iset), npgfa(iset), &
+                                                       rpgfa(:, iset), zeta(:, iset), &
+                                                       lb_max(jset), lb_min(jset), npgfb(jset), &
+                                                       rpgfb(:, jset), zetb(:, jset), &
+                                                       nexp_ppl, alpha_ppl, cval_ppl(1, :), nct_ppl, &
+                                                       ppl_radius, rab, dab, rac, dac, dbc, &
+                                                       hab(:, :, iset, jset))
+                        END IF
+
                         IF (ecp_semi_local) THEN
                            ! semi local ECP part
-                           CPABORT("NYA")
+                           CALL libgrpp_semilocal_integral(la_max(iset), la_min(iset), npgfa(iset), &
+                                                           rpgfa(:, iset), zeta(:, iset), &
+                                                           lb_max(jset), lb_min(jset), npgfb(jset), &
+                                                           rpgfb(:, jset), zetb(:, jset), &
+                                                           slmax, npot, bpot, apot, nrpot, &
+                                                           ppl_radius, rab, dab, rac, dac, dbc, &
+                                                           hab(:, :, iset, jset))
                         END IF
                      END IF
                   END DO
@@ -837,7 +863,7 @@ CONTAINS
                IF (SUM(ABS(aloc(1:nloc))) < 1.0e-12_dp) CYCLE
                nexp_ppl = nloc
                CPASSERT(nexp_ppl <= nexp_max)
-               nct_ppl(1:nloc) = nrloc(1:nloc) - 1
+               nct_ppl(1:nloc) = nrloc(1:nloc)
                alpha_ppl(1:nloc) = bloc(1:nloc)
                cval_ppl(1, 1:nloc) = aloc(1:nloc)
             ELSE

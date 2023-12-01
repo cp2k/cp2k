@@ -293,6 +293,7 @@ list(
   kpoint_methods.F
   kpoint_transitional.F
   kpoint_types.F
+  libgrpp_integrals.F
   libint_2c_3c.F
   libint_wrapper.F
   library_tests.F

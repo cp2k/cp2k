@@ -1,0 +1,60 @@
+&GLOBAL
+  PROJECT SbH3_def2_gapw
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME ./ECP_BASIS_POT
+    POTENTIAL_FILE_NAME ./ECP_BASIS_POT
+
+    &QS
+      METHOD GAPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 5
+    &END
+
+    &MGRID
+      CUTOFF 400
+      REL_CUTOFF 40
+      NGRIDS 5
+    &END
+
+    &POISSON
+      PERIODIC NONE
+      PSOLVER WAVELET
+    &END
+
+    &XC
+      &XC_FUNCTIONAL LDA
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC  10.0  10.0  10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Sb        0.0000000000       -0.2357770000       -0.6270200000 
+      H         0.0000000000        1.1518460000        0.3391280000
+      H        -1.2017170000       -0.9295890000        0.3391280000
+      H         0.2017170000       -0.9295890000        0.3391280000
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END
+    &KIND Sb
+      BASIS_SET def2-SVP
+      POTENTIAL ECP def2-SVP_ECP
+    &END KIND
+    &KIND H
+      BASIS_SET def2-SVP
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
