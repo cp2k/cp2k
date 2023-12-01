@@ -83,7 +83,7 @@ function(cp2k_include_dirs _package_name _library_include_file)
   unset(CP2K_${_package_name}_INCLUDE_DIRS_TMP CACHE)
 endfunction()
 
-function(cp2k_compare_src_with_list _list_files _extension)
+function(cp2k_compare_src_with_list _list_files _extension _exclude_list)
   file(
     GLOB_RECURSE _test_list
     RELATIVE "${CMAKE_SOURCE_DIR}/src"
@@ -95,6 +95,9 @@ function(cp2k_compare_src_with_list _list_files _extension)
   # remove all item common to the two lists
   list(REMOVE_ITEM _test_list_1 ${_list_files})
   list(REMOVE_ITEM _list_files ${_test_list})
+
+  # remove files to be excluded from list of files found
+  list(REMOVE_ITEM _test_list_1 ${_exclude_list})
 
   # now _list_files and _test_list_1 should both be empty.
   list(LENGTH _test_list_1 found_list_size_)
