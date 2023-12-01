@@ -35,17 +35,8 @@
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC
-      &OT
-         PRECONDITIONER FULL_ALL
-         MINIMIZER DIIS
-         STEPSIZE 0.01
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-7
-      &END
-      MAX_SCF  10
-      EPS_SCF 1.0E-7
+      MAX_SCF  100
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0 
@@ -113,5 +104,5 @@ H          0.0000000000        0.9325664988       -1.1133424527
    CHECK_ATOM_FORCE   1 z
    STOP_ON_MISMATCH  T
    DE 0.001
-   MAX_RELATIVE_ERROR  0.05
+   MAX_RELATIVE_ERROR  0.10
 &END

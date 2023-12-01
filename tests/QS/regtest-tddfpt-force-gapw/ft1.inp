@@ -21,7 +21,7 @@
     &END
     &MGRID
       CUTOFF 180
-      REL_CUTOFF 40
+      REL_CUTOFF 30
     &END MGRID
     &QS
       METHOD GAPW
@@ -33,17 +33,8 @@
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC
-      &OT
-         PRECONDITIONER FULL_ALL
-         MINIMIZER DIIS
-         STEPSIZE 0.01
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-7
-      &END
-      MAX_SCF  10
-      EPS_SCF 1.0E-7
+      MAX_SCF  100
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0 
@@ -67,7 +58,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.0  5.0  5.0
+      ABC [angstrom]  4.5  4.5  4.5
       PERIODIC NONE
     &END
     &COORD
