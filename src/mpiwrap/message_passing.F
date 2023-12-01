@@ -1164,6 +1164,7 @@ CONTAINS
 !$       END IF
          CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
+
 #endif
          debug_comm_count = 1
          mp_comm = mp_comm_world

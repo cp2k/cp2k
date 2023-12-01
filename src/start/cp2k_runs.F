@@ -430,7 +430,11 @@ CONTAINS
       CALL pw_gpu_finalize()
       CALL pw_fpga_finalize()
 
+<<<<<<< HEAD
 #if defined(__DLAF)
+=======
+#ifdef __DLAF
+>>>>>>> 1fb575934 (DLA-Future Squash (#5))
       CALL cp_dlaf_finalize()
 #endif
       CALL dbcsr_print_statistics()

@@ -257,18 +257,6 @@ GPU-accelerated library that provides tools for the solution of eigenvalue probl
 
 ### 2n. PEXSI (optional, low scaling SCF method)
 
-[DLA-Future](https://github.com/eth-cscs/DLA-Future) is a high-performance, distributed-memory,
-GPU-accelerated library that provides tools for the solution of eigenvalue problems, based on the
-[pika](https://pikacpp.org/) runtime.
-
-- DLA-Future replaces the ScaLAPACK `SYEVD` to improve performance of the diagonalization
-- DLA-Future is available at <https://github.com/eth-cscs/DLA-Future>
-- DLA-Future is available via the [Spack](https://packages.spack.io/package.html?name=dla-future)
-  package manager
-- `-D__DLAF` is defined by CMake when `-DCP2K_USE_DLAF=ON`
-
-### 2n. PEXSI (optional, low scaling SCF method)
-
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library and two
 dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
 
