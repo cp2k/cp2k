@@ -165,7 +165,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nocc
       LOGICAL                                            :: cubes_iao, cubes_ibo, molden_iao, &
                                                             molden_ibo, uniform_occupation
-      REAL(KIND=dp)                                      :: trace, zval, fin, fout, t1, t2
+      REAL(KIND=dp)                                      :: fin, fout, t1, t2, trace, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fdiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
@@ -586,11 +586,11 @@ CONTAINS
                   fout = fout + SUM(fdiag**order)
                END DO
                fout = fout**(1._dp/order)
-               DEALLOCATE(fdiag)
+               DEALLOCATE (fdiag)
                t2 = m_walltime()
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A,F14.8,A,F14.8,A,F8.2)') &
-                        'SCDM pre-localization: fin=', fin, "  fout=", fout, "    Time=",t2-t1
+                     'SCDM pre-localization: fin=', fin, "  fout=", fout, "    Time=", t2 - t1
                END IF
                !
                CALL pm_localization(zij_atom, cloc(ispin), order, 1.E-12_dp, unit_nr)
@@ -1659,21 +1659,21 @@ CONTAINS
       INTEGER                                            :: iatom, istate, jstate, natom, nstate, &
                                                             sweeps
       REAL(KIND=dp)                                      :: aij, bij, ct, ftarget, mii, mij, mjj, &
-                                                            st, theta, tolerance, t1, t2, tt
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: fdiag
+                                                            st, t1, t2, theta, tolerance, tt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fdiag
       TYPE(cp_fm_type)                                   :: rmat
 
       CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix_struct)
       CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
-      ALLOCATE(fdiag(nstate))
+      ALLOCATE (fdiag(nstate))
       tolerance = 1.0e10_dp
       sweeps = 0
       natom = SIZE(zij_fm_set, 1)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(A,T30,A,T45,A,T63,A,T77,A)') &
-               " Jacobi Localization  ", "Sweep", "Functional", "Gradient", "Time"
+            " Jacobi Localization  ", "Sweep", "Functional", "Gradient", "Time"
       END IF
       ! do jacobi sweeps until converged
       DO sweeps = 1, max_sweeps
@@ -1713,9 +1713,9 @@ CONTAINS
             END DO
          END DO
          ftarget = 0.0_dp
-         DO iatom = 1, natom                       
+         DO iatom = 1, natom
             CALL cp_fm_get_diag(zij_fm_set(iatom, 1), fdiag)
-            ftarget = ftarget + SUM(fdiag**order)          
+            ftarget = ftarget + SUM(fdiag**order)
          END DO
          ftarget = ftarget**(1._dp/order)
          tolerance = SQRT(tolerance)
@@ -1726,7 +1726,7 @@ CONTAINS
          END IF
          IF (tolerance < accuracy) EXIT
       END DO
-      DEALLOCATE(fdiag)
+      DEALLOCATE (fdiag)
 
       CALL rotate_orbitals(rmat, vectors)
       CALL cp_fm_release(rmat)
