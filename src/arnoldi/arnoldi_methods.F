@@ -20,14 +20,13 @@ MODULE arnoldi_methods
    USE arnoldi_types, ONLY: &
       arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
       arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
-      get_data_z, has_d_cmplx, has_d_real, has_s_cmplx, has_s_real, m_x_v_vectors_type
+      get_data_z, has_d_cmplx, has_d_real, m_x_v_vectors_type
    USE dbcsr_api, ONLY: &
       dbcsr_add, dbcsr_copy, dbcsr_get_data_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
       dbcsr_p_type, dbcsr_scale, dbcsr_type
    USE dbcsr_vector, ONLY: dbcsr_matrix_colvec_multiply
-   USE kinds, ONLY: real_4, &
-                    real_8
+   USE kinds, ONLY: real_8
    USE message_passing, ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
@@ -41,9 +40,9 @@ MODULE arnoldi_methods
              gev_arnoldi_init, gev_build_subspace, gev_update_data
 
    INTERFACE convert_matrix
-      MODULE PROCEDURE convert_matrix_z_to_d, convert_matrix_s_to_c
-      MODULE PROCEDURE convert_matrix_d_to_z, convert_matrix_c_to_s
-      MODULE PROCEDURE convert_matrix_z_to_z, convert_matrix_c_to_c
+      MODULE PROCEDURE convert_matrix_z_to_d
+      MODULE PROCEDURE convert_matrix_d_to_z
+      MODULE PROCEDURE convert_matrix_z_to_z
    END INTERFACE
 
 CONTAINS
@@ -63,9 +62,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL arnoldi_iram_d(arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL arnoldi_iram_s(arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL arnoldi_iram_z(arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL arnoldi_iram_c(arnoldi_data)
 
       CALL timestop(handle)
 
@@ -86,9 +83,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL compute_evals_d(arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL compute_evals_s(arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL compute_evals_z(arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL compute_evals_c(arnoldi_data)
 
       CALL timestop(handle)
 
@@ -114,9 +109,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL arnoldi_init_d(matrix, vectors, arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL arnoldi_init_s(matrix, vectors, arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL arnoldi_init_z(matrix, vectors, arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL arnoldi_init_c(matrix, vectors, arnoldi_data)
 
       CALL timestop(handle)
 
@@ -142,9 +135,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL gev_arnoldi_init_d(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL gev_arnoldi_init_s(matrix, matrix_arnoldi, vectors, arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL gev_arnoldi_init_z(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL gev_arnoldi_init_c(matrix, matrix_arnoldi, vectors, arnoldi_data)
 
       CALL timestop(handle)
 
@@ -168,9 +159,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL build_subspace_d(matrix, vectors, arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL build_subspace_s(matrix, vectors, arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL build_subspace_z(matrix, vectors, arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL build_subspace_c(matrix, vectors, arnoldi_data)
 
       CALL timestop(handle)
 
@@ -195,9 +184,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL gev_build_subspace_d(matrix, vectors, arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL gev_build_subspace_s(matrix, vectors, arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL gev_build_subspace_z(matrix, vectors, arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL gev_build_subspace_c(matrix, vectors, arnoldi_data)
 
       CALL timestop(handle)
 
@@ -224,9 +211,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_d_real(arnoldi_data)) CALL gev_update_data_d(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      IF (has_s_real(arnoldi_data)) CALL gev_update_data_s(matrix, matrix_arnoldi, vectors, arnoldi_data)
       IF (has_d_cmplx(arnoldi_data)) CALL gev_update_data_z(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      IF (has_s_cmplx(arnoldi_data)) CALL gev_update_data_c(matrix, matrix_arnoldi, vectors, arnoldi_data)
 
       CALL timestop(handle)
 
@@ -249,36 +234,12 @@ CONTAINS
 !> \param m_out ...
 !> \param m_in ...
 ! **************************************************************************************************
-   SUBROUTINE convert_matrix_c_to_s(m_out, m_in)
-      REAL(real_4), DIMENSION(:, :)                      :: m_out
-      COMPLEX(real_4), DIMENSION(:, :)                   :: m_in
-
-      m_out(:, :) = REAL(m_in, KIND=real_4)
-   END SUBROUTINE convert_matrix_c_to_s
-
-! **************************************************************************************************
-!> \brief ...
-!> \param m_out ...
-!> \param m_in ...
-! **************************************************************************************************
    SUBROUTINE convert_matrix_d_to_z(m_out, m_in)
       COMPLEX(real_8), DIMENSION(:, :)                   :: m_out
       REAL(real_8), DIMENSION(:, :)                      :: m_in
 
       m_out(:, :) = CMPLX(m_in, 0.0, KIND=real_8)
    END SUBROUTINE convert_matrix_d_to_z
-
-! **************************************************************************************************
-!> \brief ...
-!> \param m_out ...
-!> \param m_in ...
-! **************************************************************************************************
-   SUBROUTINE convert_matrix_s_to_c(m_out, m_in)
-      COMPLEX(real_4), DIMENSION(:, :)                   :: m_out
-      REAL(real_4), DIMENSION(:, :)                      :: m_in
-
-      m_out(:, :) = CMPLX(m_in, 0.0, KIND=real_4)
-   END SUBROUTINE convert_matrix_s_to_c
 
 ! I kno that one is stupid but like this it simplifies the template
 ! **************************************************************************************************
@@ -291,17 +252,6 @@ CONTAINS
 
       m_out(:, :) = m_in
    END SUBROUTINE convert_matrix_z_to_z
-
-! **************************************************************************************************
-!> \brief ...
-!> \param m_out ...
-!> \param m_in ...
-! **************************************************************************************************
-   SUBROUTINE convert_matrix_c_to_c(m_out, m_in)
-      COMPLEX(real_4), DIMENSION(:, :)                   :: m_out, m_in
-
-      m_out(:, :) = m_in
-   END SUBROUTINE convert_matrix_c_to_c
 
    #:for nametype1, type_prec, type_nametype1, nametype_zero, nametype_one, nametype_negone, czero, cone, ctype, rnorm_to_norm, val_to_type in inst_params_2
 ! **************************************************************************************************

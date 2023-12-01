@@ -20,9 +20,7 @@ MODULE input_cp2k
                                               silent_print_level
    USE dbcsr_api,                       ONLY: dbcsr_test_binary_io,&
                                               dbcsr_test_mm,&
-                                              dbcsr_type_complex_4,&
                                               dbcsr_type_complex_8,&
-                                              dbcsr_type_real_4,&
                                               dbcsr_type_real_8
    USE input_constants,                 ONLY: &
         do_diag_syevd, do_diag_syevx, do_mat_random, do_mat_read, do_pwgrid_ns_fullspace, &
@@ -1110,15 +1108,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DATA_TYPE", &
                           description="Data type of the matrices", &
-                          usage="DATA_TYPE real_4", &
+                          usage="DATA_TYPE real_8", &
                           default_i_val=dbcsr_type_real_8, &
-                          enum_c_vals=s2a("real_4", "real_8", "complex_4", "complex_8"), &
-                          enum_i_vals=(/dbcsr_type_real_4, dbcsr_type_real_8, &
-                                        dbcsr_type_complex_4, dbcsr_type_complex_8/), &
+                          enum_c_vals=s2a("real_8", "complex_8"), &
+                          enum_i_vals=(/dbcsr_type_real_8, dbcsr_type_complex_8/), &
                           enum_desc=s2a( &
-                          "Real (Single Precision)", &
                           "Real (Double Precision)", &
-                          "Complex (Single Precision)", &
                           "Complex (Double Precision)"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

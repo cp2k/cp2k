@@ -30,18 +30,13 @@ MODULE dbcsr_vector
                         dbcsr_set, dbcsr_get_data_p, &
                         dbcsr_type, &
                         dbcsr_type_antisymmetric, &
-                        dbcsr_type_complex_4, &
-                        dbcsr_type_complex_4, &
                         dbcsr_type_complex_8, &
                         dbcsr_type_complex_8, &
                         dbcsr_type_no_symmetry, &
-                        dbcsr_type_real_4, &
-                        dbcsr_type_real_4, &
                         dbcsr_type_real_8, &
                         dbcsr_type_real_8, &
                         dbcsr_type_symmetric
    USE kinds, ONLY: dp, &
-                    real_4, &
                     real_8
    USE message_passing, ONLY: mp_comm_type
 
@@ -77,14 +72,6 @@ MODULE dbcsr_vector
       REAL(real_8), DIMENSION(:, :), POINTER          :: ptr => NULL()
       INTEGER                                         :: assigned_thread = -1
    END TYPE
-   TYPE block_ptr_s
-      REAL(real_4), DIMENSION(:, :), POINTER          :: ptr => NULL()
-      INTEGER                                         :: assigned_thread = -1
-   END TYPE
-   TYPE block_ptr_c
-      COMPLEX(real_4), DIMENSION(:, :), POINTER       :: ptr => NULL()
-      INTEGER                                         :: assigned_thread = -1
-   END TYPE
    TYPE block_ptr_z
       COMPLEX(real_8), DIMENSION(:, :), POINTER       :: ptr => NULL()
       INTEGER                                         :: assigned_thread = -1
@@ -93,8 +80,6 @@ MODULE dbcsr_vector
    TYPE fast_vec_access_type
       TYPE(hash_table_type) :: hash_table = hash_table_type()
       TYPE(block_ptr_d), DIMENSION(:), ALLOCATABLE :: blk_map_d
-      TYPE(block_ptr_s), DIMENSION(:), ALLOCATABLE :: blk_map_s
-      TYPE(block_ptr_c), DIMENSION(:), ALLOCATABLE :: blk_map_c
       TYPE(block_ptr_z), DIMENSION(:), ALLOCATABLE :: blk_map_z
    END TYPE
 
@@ -106,9 +91,7 @@ MODULE dbcsr_vector
 
    INTERFACE dbcsr_matrix_colvec_multiply
       MODULE PROCEDURE dbcsr_matrix_colvec_multiply_d
-      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_s
       MODULE PROCEDURE dbcsr_matrix_colvec_multiply_z
-      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_c
    END INTERFACE
 
 CONTAINS
@@ -303,12 +286,8 @@ CONTAINS
       SELECT CASE (data_type)
       CASE (dbcsr_type_real_8)
          CALL create_fast_col_vec_access_d(vec, fast_vec_access)
-      CASE (dbcsr_type_real_4)
-         CALL create_fast_col_vec_access_s(vec, fast_vec_access)
       CASE (dbcsr_type_complex_8)
          CALL create_fast_col_vec_access_z(vec, fast_vec_access)
-      CASE (dbcsr_type_complex_4)
-         CALL create_fast_col_vec_access_c(vec, fast_vec_access)
       END SELECT
 
       CALL timestop(handle)
@@ -335,11 +314,7 @@ CONTAINS
       SELECT CASE (data_type)
       CASE (dbcsr_type_real_8)
          CALL create_fast_row_vec_access_d(vec, fast_vec_access)
-      CASE (dbcsr_type_real_4)
-         CALL create_fast_row_vec_access_s(vec, fast_vec_access)
       CASE (dbcsr_type_complex_8)
-         CALL create_fast_row_vec_access_c(vec, fast_vec_access)
-      CASE (dbcsr_type_complex_4)
          CALL create_fast_row_vec_access_z(vec, fast_vec_access)
       END SELECT
 
@@ -362,8 +337,6 @@ CONTAINS
 
       CALL hash_table_release(fast_vec_access%hash_table)
       IF (ALLOCATED(fast_vec_access%blk_map_d)) DEALLOCATE (fast_vec_access%blk_map_d)
-      IF (ALLOCATED(fast_vec_access%blk_map_s)) DEALLOCATE (fast_vec_access%blk_map_s)
-      IF (ALLOCATED(fast_vec_access%blk_map_c)) DEALLOCATE (fast_vec_access%blk_map_c)
       IF (ALLOCATED(fast_vec_access%blk_map_z)) DEALLOCATE (fast_vec_access%blk_map_z)
 
       CALL timestop(handle)
@@ -532,9 +505,8 @@ CONTAINS
 ! End of hashtable
 ! --------------------------------------------------------------------------------------------------
 
-   #:set instances = [ ('s', 'REAL(kind=real_4)',    '0.0_real_4'), &
+   #:set instances = [ &
       ('d', 'REAL(kind=real_8)',    '0.0_real_8'), &
-      ('c', 'COMPLEX(kind=real_4)', 'CMPLX(0.0, 0.0, real_4)'), &
       ('z', 'COMPLEX(kind=real_8)', 'CMPLX(0.0, 0.0, real_8)') ]
 
    #:for nametype, type, zero in instances

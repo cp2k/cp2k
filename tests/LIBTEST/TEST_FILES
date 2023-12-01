@@ -21,11 +21,11 @@ dbcsr_blocks_03.inp                                   58    1.0E-14             
 dbcsr_blocks_04.inp                                   58    1.0E-14              21304439095.77774
 dbcsr_blocks_05.inp                                   58    1.0E-14             21455488291.450737
 dbcsr_blocks_06.inp                                   58    1.0E-14             165599.60719889530
-dbcsr_types_01.inp                                    58    1.0E-14             272584373.29241335
-dbcsr_types_02.inp                                    58    1.0E-14             272584373.29241335
-dbcsr_types_03.inp                                    58    1.0E-14             272584373.29241335
-dbcsr_types_04.inp                                    58    1.0E-14             272584373.29241335
-dbcsr_types_05.inp                                    58    1.0E-14             272584373.29241335
+dbcsr_types_01.inp                                    58    1.0E-14             215164151.09111807
+dbcsr_types_02.inp                                    58    1.0E-14             215164151.09111807
+dbcsr_types_03.inp                                    58    1.0E-14             215164151.09111807
+dbcsr_types_04.inp                                    58    1.0E-14             215164151.09111807
+dbcsr_types_05.inp                                    58    1.0E-14             215164151.09111807
 dbcsr_io_1.inp                                         0
 dbcsr_order_N.inp                                     58    1.0E-14             1910924.8949438382
 
