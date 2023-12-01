@@ -1,0 +1,44 @@
+&GLOBAL
+  PROJECT Rn_stuttgart_gapw
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME ./ECP_BASIS_POT
+    POTENTIAL_FILE_NAME ./ECP_BASIS_POT
+
+    &QS
+      METHOD GAPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 5
+    &END
+
+    &MGRID
+      CUTOFF 400
+      REL_CUTOFF 40
+      NGRIDS 5
+    &END
+
+    &XC
+      &XC_FUNCTIONAL LDA
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC  5.0  5.0  10.0
+    &END CELL
+    &COORD
+      Rn  0.00000    0.00000     0.00000
+      Rn  0.00000    0.00000     5.00000
+    &END COORD
+    &KIND Rn
+      BASIS_SET Stuttgart-RLC
+      POTENTIAL ECP Stuttgart_RLC_ECP
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

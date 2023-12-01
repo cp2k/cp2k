@@ -2362,6 +2362,7 @@ CONTAINS
                                      npot=ecppot%npot, nrpot=ecppot%nrpot, apot=ecppot%apot, bpot=ecppot%bpot)
                   ! convert PP
                   IF (.NOT. ecp_semi_local) THEN
+                     CPABORT("ECPs are only well tested in their semi-local form")
                      CALL get_qs_kind(qs_kind, basis_set=orb_basis_set)
                      CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, orb_basis=orb_basis_set, error=error)
                      IF (iounit > 0) THEN

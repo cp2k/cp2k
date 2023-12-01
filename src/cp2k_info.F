@@ -101,6 +101,9 @@ CONTAINS
 #if defined(__LIBXC)
       flags = TRIM(flags)//" libxc"
 #endif
+#if defined(__LIBGRPP)
+      flags = TRIM(flags)//" libgrpp"
+#endif
 #if defined(__LIBPEXSI)
       flags = TRIM(flags)//" pexsi"
 #endif
