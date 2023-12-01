@@ -44,6 +44,7 @@ MODULE iao_analysis
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_diag,&
                                               cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -71,6 +72,7 @@ MODULE iao_analysis
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: invmat_symm,&
                                               jacobi
@@ -158,12 +160,13 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: bname
       INTEGER                                            :: handle, i, iatom, ikind, isgf, ispin, &
                                                             nao, natom, nimages, nkind, no, norb, &
-                                                            nref, ns, nsgf, nspin, nvec, nx
+                                                            nref, ns, nsgf, nspin, nvec, nx, order
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgfat
       INTEGER, DIMENSION(2)                              :: nocc
       LOGICAL                                            :: cubes_iao, cubes_ibo, molden_iao, &
                                                             molden_ibo, uniform_occupation
-      REAL(KIND=dp)                                      :: trace, zval
+      REAL(KIND=dp)                                      :: fin, fout, t1, t2, trace, zval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fdiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
@@ -547,9 +550,7 @@ CONTAINS
          DO ispin = 1, nspin
             nvec = nocc(ispin)
             IF (nvec > 0) THEN
-               ! QR localization
-               CALL scdm_qrfact(cloc(ispin))
-               ALLOCATE (zij_atom(natom, 1))
+               ALLOCATE (zij_atom(natom, 1), fdiag(nvec))
                NULLIFY (fm_struct)
                CALL cp_fm_struct_create(fm_struct, nrow_global=nvec, ncol_global=nvec, &
                                         template_fmstruct=cloc(ispin)%matrix_struct)
@@ -562,7 +563,37 @@ CONTAINS
                END DO
                CALL cp_fm_struct_release(fm_struct)
                !
-               CALL pm_localization(zij_atom, cloc(ispin), 4, 1.E-12_dp, unit_nr)
+               t1 = m_walltime()
+               order = 4
+               fin = 0.0_dp
+               DO iatom = 1, natom
+                  CALL cp_fm_get_diag(zij_atom(iatom, 1), fdiag)
+                  fin = fin + SUM(fdiag**order)
+               END DO
+               fin = fin**(1._dp/order)
+               ! QR localization
+               CALL scdm_qrfact(cloc(ispin))
+               !
+               DO iatom = 1, natom
+                  isgf = first_sgf(iatom)
+                  CALL parallel_gemm('T', 'N', nvec, nvec, nsgfat(iatom), 1.0_dp, cloc(ispin), cloc(ispin), &
+                                     0.0_dp, zij_atom(iatom, 1), &
+                                     a_first_col=1, a_first_row=isgf, b_first_col=1, b_first_row=isgf)
+               END DO
+               fout = 0.0_dp
+               DO iatom = 1, natom
+                  CALL cp_fm_get_diag(zij_atom(iatom, 1), fdiag)
+                  fout = fout + SUM(fdiag**order)
+               END DO
+               fout = fout**(1._dp/order)
+               DEALLOCATE (fdiag)
+               t2 = m_walltime()
+               IF (unit_nr > 0) THEN
+                  WRITE (unit_nr, '(T2,A,F14.8,A,F14.8,A,F8.2)') &
+                     'SCDM pre-localization: fin=', fin, "  fout=", fout, "    Time=", t2 - t1
+               END IF
+               !
+               CALL pm_localization(zij_atom, cloc(ispin), order, 1.E-12_dp, unit_nr)
                !
                CALL cp_fm_release(zij_atom)
                CALL get_mo_set(my_mos(ispin), nao=nao)
@@ -1628,21 +1659,25 @@ CONTAINS
       INTEGER                                            :: iatom, istate, jstate, natom, nstate, &
                                                             sweeps
       REAL(KIND=dp)                                      :: aij, bij, ct, ftarget, mii, mij, mjj, &
-                                                            st, theta, tolerance
+                                                            st, t1, t2, theta, tolerance, tt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fdiag
       TYPE(cp_fm_type)                                   :: rmat
 
       CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix_struct)
       CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
+      ALLOCATE (fdiag(nstate))
       tolerance = 1.0e10_dp
       sweeps = 0
       natom = SIZE(zij_fm_set, 1)
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(A,T35,A,T50,A,T73,A)') " Jacobi Localization  ", "Sweep", "Functional", "Gradient"
+         WRITE (unit_nr, '(A,T30,A,T45,A,T63,A,T77,A)') &
+            " Jacobi Localization  ", "Sweep", "Functional", "Gradient", "Time"
       END IF
       ! do jacobi sweeps until converged
       DO sweeps = 1, max_sweeps
+         t1 = m_walltime()
          tolerance = 0.0_dp
          DO istate = 1, nstate
             DO jstate = istate + 1, nstate
@@ -1678,19 +1713,20 @@ CONTAINS
             END DO
          END DO
          ftarget = 0.0_dp
-         DO istate = 1, nstate
-            DO iatom = 1, natom
-               CALL cp_fm_get_element(zij_fm_set(iatom, 1), istate, istate, mii)
-               ftarget = ftarget + mii**order
-            END DO
+         DO iatom = 1, natom
+            CALL cp_fm_get_diag(zij_fm_set(iatom, 1), fdiag)
+            ftarget = ftarget + SUM(fdiag**order)
          END DO
          ftarget = ftarget**(1._dp/order)
          tolerance = SQRT(tolerance)
+         t2 = m_walltime()
+         tt = t2 - t1
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T36,I4,T44,F16.8,T65,G16.8)') sweeps, ftarget, tolerance
+            WRITE (unit_nr, '(T31,I4,T39,F16.8,T55,G16.8,T71,F10.2)') sweeps, ftarget, tolerance, tt
          END IF
          IF (tolerance < accuracy) EXIT
       END DO
+      DEALLOCATE (fdiag)
 
       CALL rotate_orbitals(rmat, vectors)
       CALL cp_fm_release(rmat)
