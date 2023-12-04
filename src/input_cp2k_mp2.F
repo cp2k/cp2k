@@ -1262,9 +1262,9 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BSE_CUTOFF_HOMO", &
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_CUTOFF_OCC", &
                           description="Truncating occupied orbitals below given cutoff", &
-                          usage="BSE_CUTOFF_HOMO 10.0", unit_str="eV", &
+                          usage="BSE_CUTOFF_OCC 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

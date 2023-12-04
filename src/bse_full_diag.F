@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE bse_full_diag
 
-   USE bse_util,                        ONLY: redist_fm
+   USE bse_util,                        ONLY: redist_fm, &
+                                              truncate_fm
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -35,7 +36,9 @@ MODULE bse_full_diag
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type, &
-                                              cp_fm_to_fm_submat_general
+                                              cp_fm_to_fm_submat_general, &
+                                              cp_fm_write_formatted
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -56,7 +59,7 @@ MODULE bse_full_diag
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Create A Matrix: A_iajb = (E_a-E_i) delta_ij delta_ab + alpha * v_iajb - W_ijab
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
@@ -71,7 +74,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                        fm_mat_A, Eigenval, &
-                       homo, virtual, dimen_RI, bse_spin_config, unit_nr, &
+                       homo, virtual, dimen_RI, bse_spin_config, &
                        para_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
@@ -79,14 +82,13 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, bse_spin_config
-      INTEGER                                            :: unit_nr
       TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
 
       INTEGER                                            :: a_virt_row, handle, i_occ_row, &
                                                             i_row_global, ii, j_col_global, jj, &
-                                                            ncol_local_A, nrow_local_A
+                                                            ncol_local_A, nrow_local_A, unit_nr
       INTEGER, DIMENSION(4)                              :: reordering
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, row_indices_A
       REAL(KIND=dp)                                      :: alpha, eigen_diff
@@ -95,6 +97,8 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_mat_W
 
       CALL timeset(routineN, handle)
+
+      unit_nr = cp_logger_get_default_unit_nr()
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T4,A11)') '|', '-Creating A'
@@ -189,7 +193,7 @@ CONTAINS
    END SUBROUTINE create_A
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Create B matrix for full BSE: B_iajb   =  alpha * v_iajb   -  W_ibaj
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ia_bse ...
 !> \param fm_mat_B ...
@@ -200,22 +204,23 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ia_bse, fm_mat_B, &
-                       homo, virtual, dimen_RI, bse_spin_config, unit_nr)
+                       homo, virtual, dimen_RI, bse_spin_config)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ia_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_B
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, bse_spin_config
-      INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, unit_nr
       INTEGER, DIMENSION(4)                              :: reordering
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
       TYPE(cp_fm_type)                                   :: fm_mat_W
 
       CALL timeset(routineN, handle)
+
+      unit_nr = cp_logger_get_default_unit_nr()
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T4,A11)') '|', '-Creating B'
@@ -232,12 +237,12 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
       CALL cp_fm_create(fm_mat_B, fm_struct_v, name="fm_B_iajb")
-      CALL cp_fm_set_all(fm_mat_B, 0.0_dp)
+      CALL cp_fm_set_all(fm_mat_B, 222.0_dp)
 
       ! CALL cp_fm_struct_create(fm_struct_W, context=blacs_env_BSE, nrow_global=homo*virtual, &
       !                          ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_W, fm_struct_v, name="fm_W_ibaj")
-      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
+      CALL cp_fm_set_all(fm_mat_W, 888.0_dp)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A16)') '|', 'Allocated B_iajb'
@@ -257,14 +262,14 @@ CONTAINS
       reordering = (/1, 4, 3, 2/)
       CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
                      virtual, virtual, unit_nr, reordering)
-
+      !CALL cp_fm_write_formatted(fm_mat_B,unit_nr,"Full B (only V)")
       CALL cp_fm_release(fm_mat_W)
       CALL timestop(handle)
 
    END SUBROUTINE create_B
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Create full ABBA matrix (distributed as fm); mainly for debugging purposes
 !> \param fm_mat_A ...
 !> \param fm_mat_B ...
 !> \param fm_mat_ABBA ...
@@ -275,21 +280,21 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE create_ABBA(fm_mat_A, fm_mat_B, fm_mat_ABBA, para_env, &
-                          blacs_env_BSE, homo, virtual, unit_nr)
+                          blacs_env_BSE, homo, virtual)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_ABBA
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_BSE
-      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_ABBA'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, unit_nr
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_abba
 
       CALL timeset(routineN, handle)
-
+      unit_nr = cp_logger_get_default_unit_nr()
       !Create ABBA
       CALL cp_fm_struct_create(fm_struct_abba, context=blacs_env_BSE, nrow_global=2*homo*virtual, &
                                ncol_global=2*homo*virtual, para_env=para_env)
@@ -318,8 +323,7 @@ CONTAINS
    END SUBROUTINE
 
    ! **************************************************************************************************
-!> \brief Prepare ABBA for Diag. following Penke et al., Parallel Computing 2020
-!> \brief https://doi.org/10.1016/j.parco.2020.102639
+!> \brief Create the hermitian form of the ABBA matrix, i.e. C = (A-B)^-0.5 (A+B) (A-B)^-0.5
 !> \param fm_mat_A ...
 !> \param fm_mat_B ...
 !> \param fm_mat_C ...
@@ -328,20 +332,21 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, &
-                                            homo, virtual, unit_nr)
+                                            homo, virtual)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
-      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
-      INTEGER                                            :: dim_mat, handle, n_dependent
+      INTEGER                                            :: dim_mat, handle, n_dependent, unit_nr
       TYPE(cp_fm_type)                                   :: fm_mat_work_diff, &
                                                             fm_mat_work_diff_eigvec, &
                                                             fm_mat_work_product, fm_mat_work_sum
 
       CALL timeset(routineN, handle)
+      unit_nr = cp_logger_get_default_unit_nr()
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T4,A46)') '|', '-Creating C for hermitian solution of full BSE'
@@ -366,8 +371,9 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_sum, 1.0_dp, fm_mat_B)
       CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_diff, -1.0_dp, fm_mat_B)
 
+      !CALL cp_fm_write_formatted(fm_mat_work_diff,unit_nr,"Full (A-B)")
       !Now raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_power(fm_mat_work_diff, fm_mat_work_diff_eigvec, 0.5_dp, 0.0_dp, n_dependent)
+      CALL cp_fm_power(fm_mat_work_diff, fm_mat_work_diff_eigvec, 0.5_dp, 0.0_dp, n_dependent, .TRUE.)
       !(A-B)**-0.5 is written to the eigvec - work matrix
       CALL cp_fm_release(fm_mat_work_diff_eigvec)
 
@@ -388,26 +394,26 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Diagonalize the hermitian form of the ABBA matrix, i.e. C = (A-B)^-0.5 (A+B) (A-B)^-0.5
 !> \param fm_mat_C ...
 !> \param homo ...
 !> \param virtual ...
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, bse_spin_config, unit_nr)
+   SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, bse_spin_config)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
       INTEGER, INTENT(IN)                                :: homo, virtual, bse_spin_config
-      INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
 
-      INTEGER                                            :: diag_info, handle
+      INTEGER                                            :: diag_info, handle, unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type)                                   :: fm_mat_eigvec
 
       CALL timeset(routineN, handle)
+      unit_nr = cp_logger_get_default_unit_nr()
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A15)') '|', 'Diagonalizing C'
@@ -422,7 +428,7 @@ CONTAINS
       CALL choose_eigv_solver(fm_mat_C, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       Exc_ens = SQRT(Exc_ens)
-      CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual, .FALSE.)
+      CALL success_message(Exc_ens, bse_spin_config, homo*virtual, .FALSE.)
 
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
@@ -542,26 +548,26 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Diagonalizes the A matrix, i.e. TDA of BSE
 !> \param fm_mat_A ...
 !> \param homo ...
 !> \param virtual ...
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, bse_spin_config, unit_nr)
+   SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, bse_spin_config)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
       INTEGER, INTENT(IN)                                :: homo, virtual, bse_spin_config
-      INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
 
-      INTEGER                                            :: diag_info, handle
+      INTEGER                                            :: diag_info, handle, unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type)                                   :: fm_mat_eigvec
 
       CALL timeset(routineN, handle)
+      unit_nr = cp_logger_get_default_unit_nr()
       !Continue with formatting of subroutine create_A
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A15)') '|', 'Diagonalizing A'
@@ -575,7 +581,7 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, bse_spin_config, unit_nr, homo*virtual, .TRUE.)
+      CALL success_message(Exc_ens, bse_spin_config, homo*virtual, .TRUE.)
 
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
@@ -585,26 +591,27 @@ CONTAINS
    END SUBROUTINE diagonalize_A
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Prints the success message (incl. energies) for full diag of BSE (TDA/full ABBA via flag)
 !> \param Exc_ens ...
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 !> \param num_exc_en ...
 !> \param flag_TDA ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, bse_spin_config, unit_nr, num_exc_en, flag_TDA)
+   SUBROUTINE success_message(Exc_ens, bse_spin_config, num_exc_en, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      INTEGER                                            :: bse_spin_config, unit_nr, num_exc_en
+      INTEGER                                            :: bse_spin_config, num_exc_en
       LOGICAL, OPTIONAL                                  :: flag_TDA
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle, i, unit_nr
       REAL(KIND=dp)                                      :: alpha
 
       CALL timeset(routineN, handle)
+      unit_nr = cp_logger_get_default_unit_nr()
 
       !Prepare variables for printing
       IF (bse_spin_config == 0) THEN
@@ -673,13 +680,14 @@ CONTAINS
 
    CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_BSE_matrices'
 
-   INTEGER :: handle, homo_incl, virt_incl, i_homo, j_virt
+   INTEGER :: handle, homo_incl, virt_incl, i_homo, j_virt, unit_nr
    TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ia, fm_struct_ij, fm_struct_ab
    TYPE(mp_para_env_type), POINTER                    :: para_env
    TYPE(cp_blacs_env_type), POINTER                   :: context
 
 
    CALL timeset(routineN, handle)
+   unit_nr = cp_logger_get_default_unit_nr()
 
    ! Determine index in homo and virtual for truncation
    ! Uses indices of outermost orbitals within energy range (-cutoff_homo,cutoff_virt)
@@ -715,13 +723,23 @@ CONTAINS
    CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
    CALL cp_fm_struct_create(fm_struct_ab, para_env, context, dimen_RI, virt_red*virt_red)
 
-   CALL cp_fm_create(fm_mat_S_trunc,fm_struct_ia,"fm_mat_S_trunc")
-   CALL cp_fm_create(fm_mat_S_ij_trunc,fm_struct_ij,"fm_mat_S_ij_trunc")
-   CALL cp_fm_create(fm_mat_S_ab_trunc,fm_struct_ab,"fm_mat_S_ab_trunc")
+   CALL cp_fm_create(fm_mat_S_trunc,fm_struct_ia,"fm_S_trunc")
+   CALL cp_fm_create(fm_mat_S_ij_trunc,fm_struct_ij,"fm_S_ij_trunc")
+   CALL cp_fm_create(fm_mat_S_ab_trunc,fm_struct_ab,"fm_S_ab_trunc")
 
    !Copy parts of original matrices to truncated ones
-   CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
-                                   1, 1, 1, 1, context)
+   ! CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
+   !                                 1, 1, 1, 1, context)
+   ! CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
+   !                                 1, 1, 1, 1, context)
+   ! CALL cp_fm_to_fm_submat_general(fm_mat_S_ab_bse, fm_mat_S_ab_trunc, dimen_RI, virt_red*virt_red, &
+   !                                 1, 1, 1, 1, context)
+   CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
+                     homo_red, virt_red, unit_nr)
+   CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
+                     homo_red, homo_red, unit_nr)
+   CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
+                     virt_red, virt_red, unit_nr)
 
    CALL timestop(handle)
 

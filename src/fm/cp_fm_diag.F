@@ -949,6 +949,9 @@ CONTAINS
       ! Compute the eigenvectors and eigenvalues
 
       CALL choose_eigv_solver(matrix, work, eigenvalues)
+      IF (matrix%matrix_struct%para_env%mepos == 0 ) THEN
+         print *,"MG - A-B Eigvs",eigenvalues
+      END IF
 
       IF (PRESENT(eigvals)) THEN
          eigvals(1) = eigenvalues(1)

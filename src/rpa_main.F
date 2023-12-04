@@ -249,7 +249,6 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
                                                             my_ia_start, virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: idx_array, placeholder
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
@@ -495,9 +494,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL calculate_BIb_C_2D(BIb_C_2D(ispin)%array, BIb_C(ispin)%array, para_env_sub, dimen_ia(ispin), &
                                     homo(ispin), virtual(ispin), gd_B_virtual(ispin), &
-                                    my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size, &
-                                    placeholder) !MG
-            DEALLOCATE (placeholder)
+                                    my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size)
 
             DEALLOCATE (BIb_C(ispin)%array)
             CALL release_group_dist(gd_B_virtual(ispin))
@@ -516,9 +513,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_BIb_C_2D(BIb_C_2D_gw(ispin)%array, BIb_C_gw(ispin)%array, para_env_sub, dimen_nm_gw, &
                                        gw_corr_lev_occ(ispin) + gw_corr_lev_virt(ispin), nmo, gd_B_all, &
-                                       my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size, &
-                                       placeholder) !MG
-               DEALLOCATE (placeholder)
+                                       my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
                DEALLOCATE (BIb_C_gw(ispin)%array)
             END DO
 
@@ -537,9 +532,7 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo(1), homo(1), gd_B_occ_bse, &
-                                 my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size, &
-                                 placeholder) !MG
-         DEALLOCATE (placeholder)
+                                 my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ij)
          CALL release_group_dist(gd_B_occ_bse)
@@ -552,9 +545,7 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual(1), virtual(1), gd_B_virt_bse, &
-                                 my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size, &
-                                 placeholder) !MG
-         DEALLOCATE (placeholder)
+                                 my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ab)
          CALL release_group_dist(gd_B_virt_bse)
@@ -657,8 +648,7 @@ CONTAINS
                        starts_array_mc, ends_array_mc, &
                        starts_array_mc_block, ends_array_mc_block, &
                        matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
-                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces, &
-                       idx_array=idx_array) !MG
+                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces)
 
       CALL release_group_dist(gd_array)
 
@@ -711,8 +701,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
                                  gd_B_virtual, &
-                                 my_ia_size, my_ia_start, my_ia_end, my_group_L_size, &
-                                 idx_array) !MG
+                                 my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: BIb_C_2D
@@ -723,8 +712,6 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_virtual
       INTEGER                                            :: my_ia_size, my_ia_start, my_ia_end, &
                                                             my_group_L_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: idx_array
 
       INTEGER, PARAMETER                                 :: occ_chunk = 128
 
@@ -744,22 +731,15 @@ CONTAINS
 
       ! reorder data
       ALLOCATE (BIb_C_2D(my_group_L_size, my_ia_size))
-      !MG to del
-      ALLOCATE (idx_array(homo, my_B_size))
-      idx_array = 0
 
 !$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
 !$OMP              SHARED(homo,my_B_size,virtual,my_B_virtual_start,my_ia_start,my_ia_end,BIb_C,BIb_C_2D,&
-!$OMP              my_group_L_size, idx_array)
-!MG
+!$OMP              my_group_L_size)
       DO iiB = 1, homo
          DO jjB = 1, my_B_size
             ia_global = (iiB - 1)*virtual + my_B_virtual_start + jjB - 1
             IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
                BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C(1:my_group_L_size, jjB, iiB)
-               !MG to del
-               !print *, "idx_array", jjB,iiB,shape(idx_array)
-               idx_array(iiB, jjB) = ia_global
             END IF
          END DO
       END DO
@@ -1096,8 +1076,7 @@ CONTAINS
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
-                          do_ri_sos_laplace_mp2, calc_forces, &
-                          idx_array) !MG
+                          do_ri_sos_laplace_mp2, calc_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
@@ -1143,7 +1122,6 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, calc_forces
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: idx_array
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
@@ -1805,13 +1783,13 @@ CONTAINS
          END IF
 
          !Reduce matrices in case of given cutoff for BSE matrices
-         IF (mp2_env%ri_g0w0%bse_cutoff_homo > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
             CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                      fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                      Eigenval(:,1,1), Eigenval_reduced, &
                                      homo(1), virtual(1), dimen_RI, &
                                      homo_red, virtual_red, &
-                                     mp2_env%ri_g0w0%bse_cutoff_homo, mp2_env%ri_g0w0%bse_cutoff_homo)
+                                     mp2_env%ri_g0w0%bse_cutoff_occ, mp2_env%ri_g0w0%bse_cutoff_virt)
          ELSE
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No truncation of BSE matrices applied'
@@ -1838,17 +1816,17 @@ CONTAINS
             END IF
             CALL create_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                           fm_mat_A_BSE, Eigenval(:, 1, 1), &
-                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
+                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, &
                           para_env)
             CALL create_B(fm_mat_S(1), fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
-                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config)
             IF (bse_tda) THEN
-               CALL diagonalize_A(fm_mat_A_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+               CALL diagonalize_A(fm_mat_A_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config)
             END IF
             IF (bse_abba) THEN
                CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
-                                                  homo(1), virtual(1), unit_nr)
-               CALL diagonalize_C(fm_mat_C_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+                                                  homo(1), virtual(1))
+               CALL diagonalize_C(fm_mat_C_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config)
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
             CALL cp_fm_release(fm_mat_B_BSE)
