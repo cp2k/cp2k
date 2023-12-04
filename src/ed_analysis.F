@@ -50,6 +50,7 @@ MODULE ed_analysis
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
+   USE mulliken,                        ONLY: mulliken_charges
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -129,9 +130,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: ateps, checksum, e1, e2, e_pot, ecc, &
                                                             egcp, ehfx, ekts, evdw, focc, &
                                                             sum_energy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ate1h, ate1xc, atecc, ateks, atener, &
-                                                            odiag
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atdet, mcharge, mweight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: amval, ate1h, ate1xc, atecc, ateks, &
+                                                            atener, odiag
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atdet, atmul, mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cell_type), POINTER                           :: cell
@@ -143,7 +144,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: exc_mat, ks_mat, vhxc_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_hfx, matrix_ks, &
-                                                            matrix_s, matrix_t
+                                                            matrix_p, matrix_s, matrix_t
       TYPE(dbcsr_type)                                   :: dkmat, dmat
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -159,6 +160,7 @@ CONTAINS
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
       CALL section_vals_get(input_section, explicit=explicit)
@@ -426,8 +428,9 @@ CONTAINS
       ate1xc = 0.0_dp
       ate1h = 0.0_dp
       IF (detailed_ener) THEN
-         ALLOCATE (atdet(natom, 10))
+         ALLOCATE (atdet(natom, 10), atmul(natom, 10), amval(natom))
          atdet = 0.0_dp
+         atmul = 0.0_dp
       END IF
       ! atom dependent density matrix
       CALL dbcsr_create(dkmat, template=smat)
@@ -493,6 +496,7 @@ CONTAINS
                   CALL dbcsr_scale(matrix_hfx(ispin)%matrix, 0.5_dp)
                   CALL dbcsr_dot(dkmat, matrix_hfx(ispin)%matrix, ehfx)
                   atdet(iatom, 5) = atdet(iatom, 5) + ehfx
+                  CALL dbcsr_scale(matrix_hfx(ispin)%matrix, 2.0_dp)
                ELSE
                   ehfx = 0.0_dp
                END IF
@@ -504,6 +508,36 @@ CONTAINS
          END DO
          DEALLOCATE (mweight)
       END DO
+      !
+      IF (detailed_ener) THEN
+         ! Mulliken
+         CALL get_qs_env(qs_env, rho=rho, para_env=para_env)
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+         ! kinetic energy
+         DO ispin = 1, nspin
+            CALL mulliken_charges(matrix_p(ispin)%matrix, matrix_t(1)%matrix, &
+                                  para_env, amval)
+            atmul(1:natom, 1) = atmul(1:natom, 1) + amval(1:natom)
+            CALL mulliken_charges(matrix_p(ispin)%matrix, matrix_h(1)%matrix, &
+                                  para_env, amval)
+            atmul(1:natom, 2) = atmul(1:natom, 2) + amval(1:natom)
+            atmul(1:natom, 3) = atmul(1:natom, 3) - amval(1:natom)
+            CALL mulliken_charges(matrix_p(ispin)%matrix, ks_mat(ispin)%matrix, &
+                                  para_env, amval)
+            atmul(1:natom, 3) = atmul(1:natom, 3) + amval(1:natom)
+            IF (do_hfx) THEN
+               CALL mulliken_charges(matrix_p(ispin)%matrix, matrix_hfx(ispin)%matrix, &
+                                     para_env, amval)
+               atmul(1:natom, 5) = atmul(1:natom, 5) + 0.5_dp*amval(1:natom)
+               atmul(1:natom, 3) = atmul(1:natom, 3) - 0.5_dp*amval(1:natom)
+            END IF
+            CALL mulliken_charges(matrix_p(ispin)%matrix, exc_mat(1)%matrix, &
+                                  para_env, amval)
+            atmul(1:natom, 4) = atmul(1:natom, 4) + amval(1:natom)
+            atmul(1:natom, 3) = atmul(1:natom, 3) - amval(1:natom)
+         END DO
+         atmul(1:natom, 2) = atmul(1:natom, 2) - atmul(1:natom, 1)
+      END IF
       !
       CALL dbcsr_release(dkmat)
       DO ispin = 1, nspin
@@ -579,7 +613,7 @@ CONTAINS
 
       IF (detailed_ener) THEN
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, FMT="(/,T2,A)") "Detailed Atomic Energy Components "
+            WRITE (unit_nr, FMT="(/,T2,A)") "Detailed IAO Atomic Energy Components "
             CALL write_atdet(unit_nr, atdet(:, 1), "Kinetic Energy")
             CALL write_atdet(unit_nr, atdet(:, 2), "Short-Range Core and/or PP Energy")
             CALL write_atdet(unit_nr, atdet(:, 3), "Hartree Energy (long-ranged part)")
@@ -600,6 +634,24 @@ CONTAINS
                atecc(iatom) = SUM(atdet(iatom, 1:10)) - atener(iatom)
             END DO
             CALL write_atdet(unit_nr, atecc(:), "Missing Energy")
+            !
+            WRITE (unit_nr, FMT="(/,T2,A)") "Detailed Mulliken Atomic Energy Components "
+            CALL write_atdet(unit_nr, atmul(:, 1), "Kinetic Energy")
+            CALL write_atdet(unit_nr, atmul(:, 2), "Short-Range Core and/or PP Energy")
+            CALL write_atdet(unit_nr, atmul(:, 3), "Hartree Energy (long-ranged part)")
+            CALL write_atdet(unit_nr, atmul(:, 5), "Exact Exchange Energy")
+            CALL write_atdet(unit_nr, atmul(:, 4), "Exchange-Correlation Energy")
+            CALL write_atdet(unit_nr, atdet(:, 6), "Atomic Core Hartree: Int(nc V(n+nc) dx")
+            CALL write_atdet(unit_nr, atdet(:, 7), "Core Self Energy Corrections")
+            IF (gapw) THEN
+               CALL write_atdet(unit_nr, atdet(:, 9), "GAPW: 1-center Hartree Energy")
+            END IF
+            IF (gapw .OR. gapw_xc) THEN
+               CALL write_atdet(unit_nr, atdet(:, 8), "GAPW: 1-center XC Energy")
+            END IF
+            IF (ABS(evdw) > 1.E-14_dp) THEN
+               CALL write_atdet(unit_nr, atdet(:, 10), "vdW Pairpotential Energy")
+            END IF
          END IF
       END IF
 
@@ -617,7 +669,7 @@ CONTAINS
       END IF
 
       IF (detailed_ener) THEN
-         DEALLOCATE (atdet)
+         DEALLOCATE (atdet, atmul, amval)
       END IF
 
       IF (unit_nr > 0) THEN
@@ -866,7 +918,7 @@ CONTAINS
 
       IF (iounit > 0) THEN
          natom = SIZE(atener)
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") TRIM(label)
+         WRITE (UNIT=iounit, FMT="(T2,A)") TRIM(label)
          WRITE (UNIT=iounit, FMT="(5G16.8)") atener(1:natom)
       END IF
 
