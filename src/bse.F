@@ -19,7 +19,8 @@ MODULE bse
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_to_fm
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
    USE input_constants,                 ONLY: bse_singlet,&
@@ -1644,7 +1645,7 @@ CONTAINS
       CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
 
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_Q_static_bse, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
+                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_S_bar_ij_bse)
       ! MG: Remove dimen_ia and use homo*virtual?
       ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take

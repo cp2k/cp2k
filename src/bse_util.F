@@ -313,23 +313,29 @@ CONTAINS
 !> \brief Logic: Matrices have some dimension dimen_RI x nrow_in*ncol_in  for the incoming (untruncated) matrix
 !>  and dimen_RI x nrow_out*ncol_out for the truncated matrix. The truncation is done by resorting the indices
 !>  via parallel communication.
+!> \param fm_mat_out ...
+!> \param fm_mat_in ...
+!> \param nrow_in ...
+!> \param ncol_in ...
+!> \param nrow_out ...
+!> \param ncol_out ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE truncate_fm(fm_mat_out, fm_mat_in, nrow_in, ncol_in, &
-                        nrow_out, ncol_out, unit_nr)
+                          nrow_out, ncol_out, unit_nr)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_in
-      INTEGER, INTENT(IN)                                :: nrow_in, ncol_in, &
-                                                            nrow_out, ncol_out
+      INTEGER, INTENT(IN)                                :: nrow_in, ncol_in, nrow_out, ncol_out
       INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
 
-      INTEGER :: col_idx_loc, dummy_proc, handle, handle2, i_entry_rec, i_row_global, idx_col_out, &
-         idx_row_out, ii, iproc, j_col_global, jj, ncol_block_in, ncol_block_out, ncol_local_in, &
-         ncol_local_out, npcol, nprocs, nprow, nrow_block_in, nrow_block_out, nrow_local_in, &
-         nrow_local_out, proc_send, row_idx_loc, send_pcol, send_prow, idx_row_first, idx_row_sec, &
-         idx_row_in, idx_col_in
+      INTEGER :: col_idx_loc, dummy_proc, handle, handle2, i_entry_rec, i_row_global, idx_col_in, &
+         idx_col_out, idx_row_first, idx_row_in, idx_row_sec, ii, iproc, j_col_global, jj, &
+         ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, npcol, nprocs, nprow, &
+         nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, row_idx_loc, &
+         send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_in, col_indices_out, &

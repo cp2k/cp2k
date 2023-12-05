@@ -26,7 +26,7 @@ MODULE rpa_main
                                               create_B,&
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
-                                              diagonalize_C, &
+                                              diagonalize_C,&
                                               truncate_BSE_matrices
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -696,7 +696,6 @@ CONTAINS
 !> \param my_ia_start ...
 !> \param my_ia_end ...
 !> \param my_group_L_size ...
-!> \param idx_array ...
 !> \author Jan Wilhelm, 03/2015
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
@@ -1060,7 +1059,6 @@ CONTAINS
 !> \param color_sub ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param calc_forces ...
-!> \param idx_array ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
@@ -1127,10 +1125,10 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
-         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
-         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
-         size_P, homo_red, virtual_red
+      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
+         homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, &
+         nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, &
+         Qspin, size_P, virtual_red
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1143,9 +1141,9 @@ CONTAINS
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
-                                                            trace_Qomega, vec_omega_fit_gw, wj, &
-                                                            wkp_W, Eigenval_reduced
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, Eigenval_reduced, &
+                                                            tau_tj, tau_wj, tj, trace_Qomega, &
+                                                            vec_omega_fit_gw, wj, wkp_W
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
@@ -1153,10 +1151,10 @@ CONTAINS
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, fm_mat_Q_static_bse, &
-         fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_bar_ia_bse, &
-         fm_mat_S_bar_ij_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mat_S_trunc, fm_mat_S_ij_trunc, &
-         fm_mat_S_ab_trunc
+         fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_ab_trunc, fm_mat_S_bar_ia_bse, &
+         fm_mat_S_bar_ij_bse, fm_mat_S_ij_trunc, fm_mat_S_trunc, fm_mat_work, &
+         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1783,29 +1781,24 @@ CONTAINS
          END IF
 
          !Reduce matrices in case of given cutoff for BSE matrices
-         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-            CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                     Eigenval(:,1,1), Eigenval_reduced, &
-                                     homo(1), virtual(1), dimen_RI, &
-                                     homo_red, virtual_red, &
-                                     mp2_env%ri_g0w0%bse_cutoff_occ, mp2_env%ri_g0w0%bse_cutoff_virt)
-         ELSE
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No truncation of BSE matrices applied'
-            END IF
-         END IF
+         !IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+         CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                    fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                    Eigenval(:, 1, 1), Eigenval_reduced, &
+                                    homo(1), virtual(1), dimen_RI, unit_nr, &
+                                    homo_red, virtual_red, &
+                                    mp2_env%ri_g0w0%bse_cutoff_occ, mp2_env%ri_g0w0%bse_cutoff_virt)
 
-         CALL mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), &
+         CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                             fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-                            dimen_RI_red, homo(1), virtual(1), dimen_ia(1))
+                            dimen_RI_red, homo_red, virtual_red, homo_red*virtual_red)
 
          IF (bse_iterat_diag) THEN
-            CALL fill_local_3c_arrays(fm_mat_S_ab_bse, fm_mat_S(1), &
+            CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                                       fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                       B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                      B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), &
+                                      B_iaQ_bse_local, dimen_RI_red, homo_red, virtual_red, &
                                       gd_array, color_sub, para_env)
          END IF
 
@@ -1814,19 +1807,19 @@ CONTAINS
                WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'BSE - Full diagonalization'
                WRITE (unit_nr, '(T3,A1,T8)') '|'
             END IF
-            CALL create_A(fm_mat_S(1), fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
-                          fm_mat_A_BSE, Eigenval(:, 1, 1), &
-                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config, &
+            CALL create_A(fm_mat_S_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
+                          fm_mat_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, &
                           para_env)
-            CALL create_B(fm_mat_S(1), fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
-                          homo(1), virtual(1), dimen_RI, mp2_env%ri_g0w0%bse_spin_config)
+            CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
+                          homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             IF (bse_tda) THEN
-               CALL diagonalize_A(fm_mat_A_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config)
+               CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             END IF
             IF (bse_abba) THEN
                CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
-                                                  homo(1), virtual(1))
-               CALL diagonalize_C(fm_mat_C_BSE, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config)
+                                                  homo_red, virtual_red, unit_nr)
+               CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
             CALL cp_fm_release(fm_mat_B_BSE)
@@ -1835,8 +1828,11 @@ CONTAINS
 
          CALL cp_fm_release(fm_mat_S_bar_ia_bse)
          CALL cp_fm_release(fm_mat_S_bar_ij_bse)
+         CALL cp_fm_release(fm_mat_S_trunc)
+         CALL cp_fm_release(fm_mat_S_ij_trunc)
+         CALL cp_fm_release(fm_mat_S_ab_trunc)
 
-         ! JW@MG: CALL deallocate_matrices_bse(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_Q_static_bse fm_mat_Q_static_bse_gemm)
+         ! JW@MG: CALL deallocate_matrices_bse(fm_mat_S_ij_trunc, fm_mat_S_ab_bse, fm_mat_Q_static_bse fm_mat_Q_static_bse_gemm)
          CALL deallocate_matrices_bse(fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
          IF (bse_iterat_diag) THEN
             CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
