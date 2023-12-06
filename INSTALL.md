@@ -466,8 +466,8 @@ DeePMD-kit - Deep Potential Molecular Dyanmics. Support for DeePMD-kit can be en
 - From exist DeePMD-kit C interface, with `/path/to/libdeepmd_c` (Described
   [here](https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html)
   in detail), by setting `--with-deepmd=/path/to/libdeepmd_c`.
-- From source code and library from Github release, by setting the both flags to
-  `install`. For now, DeePMD-kit v2.2.7 will be installed.
+- From source code and library from Github release, by setting the both flags to `install`. For now,
+  DeePMD-kit v2.2.7 will be installed.
 
 For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
 
