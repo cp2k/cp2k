@@ -1601,6 +1601,8 @@ CONTAINS
 !> \author ybzhuang
 ! **************************************************************************************************
    SUBROUTINE create_DEEPMD_section(section)
+      TYPE(section_type), POINTER                        :: section
+      TYPE(keyword_type), POINTER                        :: keyword
       CALL section_create(section, __LOCATION__, name="DEEPMD", &
                           description="This section specifies the input parameters for Deep Potential type. "// &
                           "Mainly intended for things like neural network to DFT "// &

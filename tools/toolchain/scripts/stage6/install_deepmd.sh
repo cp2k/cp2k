@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-deepmd_ver="2.2.6"
-deepmd_sha256="fd9aa49194e0030b312c4741a3bd26b94d06110abc76ffdef7a6d236286922c2"
+deepmd_ver="2.2.7"
+deepmd_sha256="605bbb0c3bcc847ecbfe7326bac9ff4cac5690accc8083122e3735290bb923ae"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -36,11 +36,14 @@ case "$with_deepmd" in
     if verify_checksums "${install_lock_file}"; then
       echo "libdeepmd_c-${deepmd_ver} is already installed, skipping it."
     else
-      if [ -f deepmd-kit-${deepmd_ver}.tar.gz ]; then
+      if [ -f libdeepmd_c-${deepmd_ver}.tar.gz ]; then
         echo "libdeepmd_c-${deepmd_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} -o libdeepmd_c-${deepmd_ver}.tar.gz ${deepmd_sha256} \
+        #download_pkg ${DOWNLOADER_FLAGS} -o libdeepmd_c-${deepmd_ver}.tar.gz ${deepmd_sha256} \
+          #https://github.com/deepmodeling/deepmd-kit/releases/download/v${deepmd_ver}/libdeepmd_c.tar.gz
+	      wget ${DOWNLOADER_FLAGS} --quiet \
           https://github.com/deepmodeling/deepmd-kit/releases/download/v${deepmd_ver}/libdeepmd_c.tar.gz
+        mv libdeepmd_c.tar.gz libdeepmd_c-${deepmd_ver}.tar.gz
       fi
       [ -d libdeepmd_c ] && rm -rf libdeepmd_c
       echo "Installing from scratch into ${pkg_install_dir}"

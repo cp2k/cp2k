@@ -31,7 +31,7 @@ MODULE deepmd_wrapper
 
 #if(__DEEPMD)
    INTERFACE
-      FUNCTION dp_deep_pot_c(model) BIND(C, name="DP_NewDeepPot")
+      FUNCTION dp_deep_pot_c(c_model) BIND(C, name="DP_NewDeepPot")
          USE ISO_C_BINDING, ONLY: C_PTR,&
                                   C_CHAR,&
                                   C_DOUBLE,&
@@ -40,7 +40,7 @@ MODULE deepmd_wrapper
                                   C_LOC
          IMPLICIT NONE
          TYPE(C_PTR)                    :: dp_deep_pot_c
-         CHARACTER(LEN=1, KIND=C_CHAR)  :: model(*)
+         CHARACTER(LEN=1, KIND=C_CHAR)  :: c_model(*)
       END FUNCTION
 
       SUBROUTINE dp_deep_pot_compute_c(dp, natom, &
@@ -48,22 +48,19 @@ MODULE deepmd_wrapper
                                        energy, force, virial, &
                                        atomic_energy, atomic_virial) BIND(C, name="DP_DeepPotCompute")
          USE ISO_C_BINDING, ONLY: C_PTR,&
-                                  C_CHAR,&
-                                  C_DOUBLE,&
                                   C_INT,&
-                                  C_NULL_CHAR,&
-                                  C_LOC
-         IMPLICIT NONE
-         TYPE(C_PTR), INTENT(IN), VALUE    :: dp
-         INTEGER(C_INT), INTENT(IN), VALUE :: natom
-         TYPE(C_PTR), INTENT(IN), VALUE    :: coord
-         TYPE(C_PTR), INTENT(IN), VALUE    :: atype
-         TYPE(C_PTR), INTENT(IN), VALUE    :: cell
-         TYPE(C_PTR), INTENT(IN), VALUE    :: energy
-         TYPE(C_PTR), INTENT(IN), VALUE    :: force
-         TYPE(C_PTR), INTENT(IN), VALUE    :: virial
-         TYPE(C_PTR), INTENT(IN), VALUE    :: atomic_energy
-         TYPE(C_PTR), INTENT(IN), VALUE    :: atomic_virial
+                                  C_CHAR,&
+                                  C_DOUBLE
+         TYPE(C_PTR), VALUE :: dp
+         INTEGER(C_INT), VALUE :: natom
+         REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(IN) :: coord
+         INTEGER(C_INT), DIMENSION(natom), INTENT(IN) :: atype
+         REAL(C_DOUBLE), DIMENSION(9), INTENT(IN) :: cell
+         REAL(C_DOUBLE), INTENT(OUT) :: energy
+         REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(OUT) :: force
+         REAL(C_DOUBLE), DIMENSION(9), INTENT(OUT) :: virial
+         REAL(C_DOUBLE), DIMENSION(natom), INTENT(OUT) :: atomic_energy
+         REAL(C_DOUBLE), DIMENSION(natom, 9), INTENT(OUT) :: atomic_virial
       END SUBROUTINE
    END INTERFACE
 #endif
@@ -106,22 +103,22 @@ CONTAINS
 !> \param dbox ...
 ! **************************************************************************************************
 
-   SUBROUTINE dp_deep_pot_compute(pot, vecsize, dcoord, datype, dbox, dener, dforce, dvirial, datom_ener, datom_virial)
-      IMPLICIT NONE
-      TYPE(C_PTR) :: pot
-      INTEGER(C_INT) :: vecsize
-      REAL(C_DOUBLE), POINTER :: dcoord(:)
-      INTEGER(C_INT), POINTER :: datype(:)
-      REAL(C_DOUBLE), POINTER :: dbox(:)
-      REAL(C_DOUBLE), POINTER :: dener
-      REAL(C_DOUBLE), POINTER :: dforce(:)
-      REAL(C_DOUBLE), POINTER :: dvirial(:)
-      REAL(C_DOUBLE), POINTER :: datom_ener(:)
-      REAL(C_DOUBLE), POINTER :: datom_virial(:)
+   SUBROUTINE dp_deep_pot_compute(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)
+      USE, INTRINSIC :: ISO_C_BINDING
+      TYPE(C_PTR), VALUE :: dp
+      INTEGER(C_INT), VALUE :: natom
+      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(IN) :: coord
+      INTEGER(C_INT), DIMENSION(natom), INTENT(IN) :: atype
+      REAL(C_DOUBLE), DIMENSION(9), INTENT(IN), OPTIONAL :: cell
+      REAL(C_DOUBLE), INTENT(OUT), OPTIONAL :: energy
+      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(OUT), OPTIONAL :: force
+      REAL(C_DOUBLE), DIMENSION(9), INTENT(OUT), OPTIONAL :: virial
+      REAL(C_DOUBLE), DIMENSION(natom), INTENT(OUT), OPTIONAL :: atomic_energy
+      REAL(C_DOUBLE), DIMENSION(natom, 9), INTENT(OUT), OPTIONAL :: atomic_virial
+
 #if(__DEEPMD)
-      CALL dp_deep_pot_compute_c(pot, vecsize, C_LOC(dcoord(1)), C_LOC(datype(1)), C_LOC(dbox(1)), &
-         C_LOC(dener), C_LOC(dforce(1)), C_LOC(dvirial(1)), &
-         C_LOC(datom_ener(1)), C_LOC(datom_virial(1)))
+      CALL dp_deep_pot_compute_c(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)
 #endif
-   END SUBROUTINE dp_deep_pot_compute
+   END SUBROUTINE
+
 END MODULE deepmd_wrapper

@@ -55,7 +55,7 @@ MODULE pair_potential_types
                                  tab_type = 19, &
                                  deepmd_type = 20
 
-   INTEGER, PUBLIC, PARAMETER, DIMENSION(20) :: list_pot = (/nn_type, &
+   INTEGER, PUBLIC, PARAMETER, DIMENSION(21) :: list_pot = (/nn_type, &
                                                              lj_type, &
                                                              lj_charmm_type, &
                                                              ft_type, &
@@ -1736,9 +1736,6 @@ CONTAINS
    SUBROUTINE pair_potential_deepmd_create(deepmd)
       TYPE(deepmd_pot_type), POINTER                     :: deepmd
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_deepmd_create', &
-         routineP = moduleN//':'//routineN
-
       CPASSERT(.NOT. ASSOCIATED(deepmd))
       ALLOCATE (deepmd)
       deepmd%deepmd_file_name = ""
@@ -1755,9 +1752,6 @@ CONTAINS
    SUBROUTINE pair_potential_deepmd_copy(deepmd_source, deepmd_dest)
       TYPE(deepmd_pot_type), POINTER                     :: deepmd_source, deepmd_dest
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_deepmd_copy', &
-         routineP = moduleN//':'//routineN
-
       IF (.NOT. ASSOCIATED(deepmd_source)) RETURN
       IF (ASSOCIATED(deepmd_dest)) CALL pair_potential_deepmd_release(deepmd_dest)
       CALL pair_potential_deepmd_create(deepmd_dest)
@@ -1773,9 +1767,6 @@ CONTAINS
    SUBROUTINE pair_potential_deepmd_clean(deepmd)
       TYPE(deepmd_pot_type), POINTER                     :: deepmd
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_deepmd_clean', &
-         routineP = moduleN//':'//routineN
-
       IF (.NOT. ASSOCIATED(deepmd)) RETURN
       deepmd%deepmd_file_name = 'NULL'
       deepmd%atom_deepmd_type = 0
@@ -1788,9 +1779,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pair_potential_deepmd_release(deepmd)
       TYPE(deepmd_pot_type), POINTER                     :: deepmd
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_deepmd_release', &
-         routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(deepmd)) THEN
          DEALLOCATE (deepmd)

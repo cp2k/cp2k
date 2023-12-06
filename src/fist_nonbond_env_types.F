@@ -27,6 +27,7 @@ MODULE fist_nonbond_env_types
                                               tersoff_type
    USE torch_api,                       ONLY: torch_model_release,&
                                               torch_model_type
+   USE ISO_C_BINDING,                   ONLY: C_PTR
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -69,9 +70,10 @@ MODULE fist_nonbond_env_types
    END TYPE
 
    TYPE deepmd_data_type
-      INTEGER, POINTER :: use_indices(:)
-      REAL(KIND=dp), POINTER :: force(:, :)
-      REAL(KIND=dp) :: virial(3, 3)
+      INTEGER, POINTER        :: use_indices(:) => NULL()
+      REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
+      REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
+      TYPE(C_PTR)             :: model
    END TYPE
 
 ! **************************************************************************************************
@@ -559,12 +561,12 @@ CONTAINS
       IF (ASSOCIATED(fist_nonbond_env%deepmd_data)) THEN
          IF (ASSOCIATED(fist_nonbond_env%deepmd_data%force)) THEN
             DEALLOCATE (fist_nonbond_env%deepmd_data%force)
-         ENDIF
+         END IF
          IF (ASSOCIATED(fist_nonbond_env%deepmd_data%use_indices)) THEN
             DEALLOCATE (fist_nonbond_env%deepmd_data%use_indices)
-         ENDIF
+         END IF
          DEALLOCATE (fist_nonbond_env%deepmd_data)
-      ENDIF
+      END IF
       IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
          DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc)
       END IF
