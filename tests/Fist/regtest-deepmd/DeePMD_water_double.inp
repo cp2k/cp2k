@@ -1,0 +1,58 @@
+&GLOBAL
+  PROJECT water
+  RUN_TYPE MD
+&END GLOBAL
+&FORCE_EVAL
+  &PRINT
+   &FORCES
+   &END
+  &END
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      IGNORE_MISSING_CRITICAL_PARAMS .TRUE.
+      &NONBONDED
+        &DEEPMD
+           ATOMS O O
+           ATOM_DEEPMD_TYPE 0
+           POT_FILE_NAME DeePMD/H2O-DPLR-model.pb
+        &END DEEPMD
+        &DEEPMD
+           ATOMS H H
+           ATOM_DEEPMD_TYPE 1
+           POT_FILE_NAME DeePMD/H2O-DPLR-model.pb
+        &END DEEPMD
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+#      MULTIPLE_UNIT_CELL 4 4 4
+    &END CELL
+  &TOPOLOGY
+#   MULTIPLE_UNIT_CELL 4 4 4
+#     coordinates must be ordered by atomic number
+      COORD_FILE_NAME ./H2O-32.xyz
+      COORD_FILE_FORMAT XYZ
+  &END
+  &END SUBSYS
+&END FORCE_EVAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 0
+    TIMESTEP 0.5
+    TEMPERATURE 300
+    &THERMOSTAT
+      &CSVR
+        TIMECON 10
+      &END CSVR
+    &END
+  &END MD
+&END MOTION

@@ -12,7 +12,6 @@ MODULE manybody_deepmd
    USE bibliography, ONLY: Deepmd2018, &
                            cite_reference
    USE cell_types, ONLY: cell_type
-   USE message_passing, ONLY: mp_para_env_type
    USE fist_nonbond_env_types, ONLY: fist_nonbond_env_get, &
                                      fist_nonbond_env_set, &
                                      fist_nonbond_env_type, &
@@ -50,35 +49,31 @@ CONTAINS
 !> \param potparm ...
 !> \param fist_nonbond_env ...
 !> \param pot_deepmd ...
-!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE deepmd_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, fist_nonbond_env, &
-                                               pot_deepmd, para_env)
+                                               pot_deepmd)
       TYPE(particle_type), POINTER             :: particle_set(:)
       TYPE(cell_type), POINTER                 :: cell
       TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
       TYPE(pair_potential_pp_type), POINTER    :: potparm
       TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
       REAL(kind=dp)                            :: pot_deepmd
-      TYPE(mp_para_env_type), OPTIONAL, &
-         POINTER                                :: para_env
 
 #ifdef __DEEPMD
       INTEGER                                  :: i, iat, iat_use, ikind, &
                                                   jkind, n_atoms, n_atoms_use, &
                                                   output_unit
-      LOGICAL                                  :: do_parallel
       LOGICAL, ALLOCATABLE                     :: use_atom(:)
       REAL(kind=dp)                            :: lattice(3, 3)
       TYPE(pair_potential_single_type), &
          POINTER                               :: pot
       TYPE(deepmd_data_type), POINTER          :: deepmd_data
       TYPE(deepmd_pot_type), POINTER           :: deepmd
-      REAL(kind=dp), ALLOCATABLE               :: force(:), virial(:), &
-                                                  atomic_energy(:), atomic_virial(:), &
-                                                  cell(:), coord(:)
-      INTEGER, ALLOCATABLE                     :: atype(:), use_atom_type(:)
-      INTEGER                                  :: vecsize
+      REAL(kind=dp), ALLOCATABLE               :: dpmd_force(:), dpmd_virial(:), &
+                                                  dpmd_atomic_energy(:), dpmd_atomic_virial(:), &
+                                                  dpmd_cell(:), dpmd_coord(:)
+      INTEGER, ALLOCATABLE                     :: dpmd_atype(:), use_atom_type(:)
+      INTEGER                                  :: dpmd_natoms
 
 #endif
 #ifndef __DEEPMD
@@ -118,17 +113,17 @@ CONTAINS
       END DO ! ikind
 
       n_atoms_use = COUNT(use_atom)
-      natom = n_atoms_use
-      ALLOCATE (cell(9), atype(natom), coord(natom*3), &
-                force(vecsize*3), virial(9), &
-                atomic_energy(vecsize), atomic_virial(vecsize*9))
+      dpmd_natoms = n_atoms_use
+      ALLOCATE (dpmd_cell(9), dpmd_atype(dpmd_natoms), dpmd_coord(dpmd_natoms*3), &
+                dpmd_force(dpmd_natoms*3), dpmd_virial(9), &
+                dpmd_atomic_energy(dpmd_natoms), dpmd_atomic_virial(dpmd_natoms*9))
 
       iat_use = 0
       DO iat = 1, n_atoms
          IF (.NOT. use_atom(iat)) CYCLE
          iat_use = iat_use + 1
-         coord((iat_use - 1)*3 + 1:(iat_use - 1)*3 + 3) = particle_set(iat)%r*angstrom
-         atype(iat_use) = use_atom_type(iat)
+         dpmd_coord((iat_use - 1)*3 + 1:(iat_use - 1)*3 + 3) = particle_set(iat)%r*angstrom
+         dpmd_atype(iat_use) = use_atom_type(iat)
       END DO
       IF (iat_use > 0) CALL cite_reference(Deepmd2018)
       output_unit = cp_logger_get_default_io_unit()
@@ -136,12 +131,8 @@ CONTAINS
 
       ! change matrix to one d array
       DO i = 1, 3
-         cell((i - 1)*3 + 1:(i - 1)*3 + 3) = lattice(:, i)
+         dpmd_cell((i - 1)*3 + 1:(i - 1)*3 + 3) = lattice(:, i)
       END DO
-      do_parallel = .FALSE.
-      IF (PRESENT(para_env)) THEN
-         do_parallel = para_env%num_pe > 1
-      END IF
 
       ! get deepmd_data to save force, virial info
       CALL fist_nonbond_env_get(fist_nonbond_env, deepmd_data=deepmd_data)
@@ -162,20 +153,20 @@ CONTAINS
       END IF
 
       CALL dp_deep_pot_compute(dp=deepmd_data%model, &
-                               natom=vecsize, &
-                               coord=coord, &
-                               atype=atype, &
-                               cell=cell, &
+                               natom=dpmd_natoms, &
+                               coord=dpmd_coord, &
+                               atype=dpmd_atype, &
+                               cell=dpmd_cell, &
                                energy=pot_deepmd, &
-                               force=force, &
-                               virial=virial, &
-                               atomic_energy=atomic_energy, &
-                               atomic_virial=atomic_virial)
+                               force=dpmd_force, &
+                               virial=dpmd_virial, &
+                               atomic_energy=dpmd_atomic_energy, &
+                               atomic_virial=dpmd_atomic_virial)
 
       ! convert units
       pot_deepmd = pot_deepmd/evolt
-      force = force/(evolt/angstrom)
-      virial = virial/evolt
+      dpmd_force = dpmd_force/(evolt/angstrom)
+      dpmd_virial = dpmd_virial/evolt
 
       ! save force, virial info
       iat_use = 0
@@ -183,15 +174,15 @@ CONTAINS
          IF (use_atom(iat)) THEN
             iat_use = iat_use + 1
             deepmd_data%use_indices(iat_use) = iat
-            deepmd_data%force(1:3, iat_use) = force((iat_use - 1)*3 + 1:(iat_use - 1)*3 + 3)
+            deepmd_data%force(1:3, iat_use) = dpmd_force((iat_use - 1)*3 + 1:(iat_use - 1)*3 + 3)
          END IF
       END DO
       DO i = 1, 3
-         deepmd_data%virial(1:3, i) = virial((i - 1)*3 + 1:(i - 1)*3 + 3)
+         deepmd_data%virial(1:3, i) = dpmd_virial((i - 1)*3 + 1:(i - 1)*3 + 3)
       END DO
-      DEALLOCATE (use_atom, use_atom_type, coord, force, &
-                  virial, atomic_energy, atomic_virial, &
-                  cell, atype)
+      DEALLOCATE (use_atom, use_atom_type, dpmd_coord, dpmd_force, &
+                  dpmd_virial, dpmd_atomic_energy, dpmd_atomic_virial, &
+                  dpmd_cell, dpmd_atype)
 #endif
    END SUBROUTINE deepmd_energy_store_force_virial
 

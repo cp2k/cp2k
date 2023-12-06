@@ -223,7 +223,7 @@ CONTAINS
       ! DEEPMD
       IF (any_deepmd) THEN
          CALL deepmd_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
-                                               fist_nonbond_env, pot_deepmd, para_env)
+                                               fist_nonbond_env, pot_deepmd)
          pot_manybody = pot_manybody + pot_deepmd
       END IF
 
