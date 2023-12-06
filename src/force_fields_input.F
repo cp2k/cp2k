@@ -65,12 +65,12 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, do_potential_single_allocation, &
-        ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, &
-        ip_type, ipbv_pot_type, lj_charmm_type, nequip_pot_type, nequip_type, &
-        no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
-        potential_single_allocation, quip_type, siepmann_type, tab_pot_type, tab_type, &
-        tersoff_type, wl_type
+        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, &
+        do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, &
+        gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
+        nequip_pot_type, nequip_type, no_potential_single_allocation, pair_potential_p_type, &
+        pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
+        tab_pot_type, tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -107,9 +107,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
-      INTEGER :: nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, ngal21, &
-         ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, ntersoff, &
-         ntors, ntot, nubs, nwl
+      INTEGER :: nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, &
+         ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, &
+         ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info

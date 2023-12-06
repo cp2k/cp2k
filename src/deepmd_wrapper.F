@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -16,13 +16,12 @@
 
 MODULE deepmd_wrapper
 
-   USE ISO_C_BINDING, ONLY: C_PTR,&
-                            C_CHAR,&
-                            C_DOUBLE,&
-                            C_INT,&
-                            C_NULL_CHAR,&
-                            C_LOC
-
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_DOUBLE,&
+                                              C_INT,&
+                                              C_LOC,&
+                                              C_NULL_CHAR,&
+                                              C_PTR
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -32,35 +31,36 @@ MODULE deepmd_wrapper
 #if(__DEEPMD)
    INTERFACE
       FUNCTION dp_deep_pot_c(c_model) BIND(C, name="DP_NewDeepPot")
-         USE ISO_C_BINDING, ONLY: C_PTR,&
-                                  C_CHAR,&
-                                  C_DOUBLE,&
-                                  C_INT,&
-                                  C_NULL_CHAR,&
+         USE ISO_C_BINDING, ONLY: C_PTR, &
+                                  C_CHAR, &
+                                  C_DOUBLE, &
+                                  C_INT, &
+                                  C_NULL_CHAR, &
                                   C_LOC
-         IMPLICIT NONE
-         TYPE(C_PTR)                    :: dp_deep_pot_c
-         CHARACTER(LEN=1, KIND=C_CHAR)  :: c_model(*)
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: c_model(*)
+      TYPE(C_PTR)                                        :: dp_deep_pot_c
+
       END FUNCTION
 
       SUBROUTINE dp_deep_pot_compute_c(dp, natom, &
                                        coord, atype, cell, &
                                        energy, force, virial, &
                                        atomic_energy, atomic_virial) BIND(C, name="DP_DeepPotCompute")
-         USE ISO_C_BINDING, ONLY: C_PTR,&
-                                  C_INT,&
-                                  C_CHAR,&
+         USE ISO_C_BINDING, ONLY: C_PTR, &
+                                  C_INT, &
+                                  C_CHAR, &
                                   C_DOUBLE
-         TYPE(C_PTR), VALUE :: dp
-         INTEGER(C_INT), VALUE :: natom
-         REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(IN) :: coord
-         INTEGER(C_INT), DIMENSION(natom), INTENT(IN) :: atype
-         REAL(C_DOUBLE), DIMENSION(9), INTENT(IN) :: cell
-         REAL(C_DOUBLE), INTENT(OUT) :: energy
-         REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(OUT) :: force
-         REAL(C_DOUBLE), DIMENSION(9), INTENT(OUT) :: virial
-         REAL(C_DOUBLE), DIMENSION(natom), INTENT(OUT) :: atomic_energy
-         REAL(C_DOUBLE), DIMENSION(natom, 9), INTENT(OUT) :: atomic_virial
+      TYPE(C_PTR), VALUE                                 :: dp
+      INTEGER(C_INT), VALUE                              :: natom
+      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(IN)    :: coord
+      INTEGER(C_INT), DIMENSION(natom), INTENT(IN)       :: atype
+      REAL(C_DOUBLE), DIMENSION(9), INTENT(IN)           :: cell
+      REAL(C_DOUBLE), INTENT(OUT)                        :: energy
+      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(OUT)   :: force
+      REAL(C_DOUBLE), DIMENSION(9), INTENT(OUT)          :: virial
+      REAL(C_DOUBLE), DIMENSION(natom), INTENT(OUT)      :: atomic_energy
+      REAL(C_DOUBLE), DIMENSION(natom, 9), INTENT(OUT)   :: atomic_virial
+
       END SUBROUTINE
    END INTERFACE
 #endif
@@ -74,16 +74,17 @@ CONTAINS
 ! **************************************************************************************************
 
    FUNCTION dp_deep_pot(model) RESULT(pot)
-      IMPLICIT NONE
-      TYPE(C_PTR) :: pot
-      CHARACTER(len=*), INTENT(IN), TARGET :: model
-      CHARACTER(len=1, kind=C_CHAR) :: c_model(LEN_TRIM(model) + 1)
-      INTEGER :: N,i
+      CHARACTER(len=*), INTENT(IN), TARGET               :: model
+      TYPE(C_PTR)                                        :: pot
+
+      CHARACTER(len=1, kind=C_CHAR)                      :: c_model(LEN_TRIM(model) + 1)
+      INTEGER                                            :: i, N
+
       N = LEN_TRIM(model)
       DO i = 1, N
          c_model(i) = model(i:i)
       END DO
-      c_model(N+1) = C_NULL_CHAR
+      c_model(N + 1) = C_NULL_CHAR
 #if(__DEEPMD)
       pot = dp_deep_pot_c(c_model)
 #endif
@@ -91,16 +92,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param pot ...
-!> \param vecsize ...
-!> \param dener ...
-!> \param dforce ...
-!> \param dvirial ...
-!> \param datom_ener ...
-!> \param datom_virial ...
-!> \param dcoord ...
-!> \param datype ...
-!> \param dbox ...
+!> \param dp ...
+!> \param natom ...
+!> \param coord ...
+!> \param atype ...
+!> \param cell ...
+!> \param energy ...
+!> \param force ...
+!> \param virial ...
+!> \param atomic_energy ...
+!> \param atomic_virial ...
 ! **************************************************************************************************
 
    SUBROUTINE dp_deep_pot_compute(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)

@@ -40,8 +40,8 @@ case "$with_deepmd" in
         echo "libdeepmd_c-${deepmd_ver}.tar.gz is found"
       else
         #download_pkg ${DOWNLOADER_FLAGS} -o libdeepmd_c-${deepmd_ver}.tar.gz ${deepmd_sha256} \
-          #https://github.com/deepmodeling/deepmd-kit/releases/download/v${deepmd_ver}/libdeepmd_c.tar.gz
-	      wget ${DOWNLOADER_FLAGS} --quiet \
+        #https://github.com/deepmodeling/deepmd-kit/releases/download/v${deepmd_ver}/libdeepmd_c.tar.gz
+        wget ${DOWNLOADER_FLAGS} --quiet \
           https://github.com/deepmodeling/deepmd-kit/releases/download/v${deepmd_ver}/libdeepmd_c.tar.gz
         mv libdeepmd_c.tar.gz libdeepmd_c-${deepmd_ver}.tar.gz
       fi
@@ -80,7 +80,7 @@ case "$with_deepmd" in
     elif [ "$DEEPMD_MODE" == "cuda" ]; then
       DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_op -ldeepmd_c -ldeepmd_dyn_cudart -ldeepmd_op_cuda -Wl,-rpath='${pkg_install_dir}/lib'"
     fi
-  ;;
+    ;;
 esac
 
 if [ "$with_deepmd" != "__DONTUSE__" ]; then

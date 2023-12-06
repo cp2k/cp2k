@@ -11,6 +11,7 @@
 !> \author HAF
 ! **************************************************************************************************
 MODULE fist_nonbond_env_types
+   USE ISO_C_BINDING,                   ONLY: C_PTR
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type
@@ -27,7 +28,6 @@ MODULE fist_nonbond_env_types
                                               tersoff_type
    USE torch_api,                       ONLY: torch_model_release,&
                                               torch_model_type
-   USE ISO_C_BINDING,                   ONLY: C_PTR
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

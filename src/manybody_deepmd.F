@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -108,7 +108,7 @@ CONTAINS
                IF (.NOT. ASSOCIATED(deepmd)) deepmd => pot%set(i)%deepmd
                DO iat = 1, n_atoms
                   IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
-                     particle_set(iat)%atomic_kind%kind_number == jkind) THEN
+                      particle_set(iat)%atomic_kind%kind_number == jkind) THEN
                      use_atom(iat) = .TRUE.
                      use_atom_type(iat) = pot%set(i)%deepmd%atom_deepmd_type
                   END IF
@@ -119,9 +119,9 @@ CONTAINS
 
       n_atoms_use = COUNT(use_atom)
       natom = n_atoms_use
-      ALLOCATE(cell(9), atype(natom), coord(natom*3), &
-               force(vecsize*3), virial(9), &
-               atomic_energy(vecsize), atomic_virial(vecsize*9))
+      ALLOCATE (cell(9), atype(natom), coord(natom*3), &
+                force(vecsize*3), virial(9), &
+                atomic_energy(vecsize), atomic_virial(vecsize*9))
 
       iat_use = 0
       DO iat = 1, n_atoms
@@ -168,7 +168,7 @@ CONTAINS
                                cell=cell, &
                                energy=pot_deepmd, &
                                force=force, &
-                               virial=virial, & 
+                               virial=virial, &
                                atomic_energy=atomic_energy, &
                                atomic_virial=atomic_virial)
 
@@ -199,7 +199,7 @@ CONTAINS
 !> \brief ...
 !> \param fist_nonbond_env ...
 !> \param force ...
-!> \param virial ...
+!> \param pv_nonbond ...
 ! **************************************************************************************************
    SUBROUTINE deepmd_add_force_virial(fist_nonbond_env, force, pv_nonbond)
       TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -228,7 +228,7 @@ CONTAINS
          CPASSERT(iat >= 1 .AND. iat <= SIZE(force, 2))
          force(1:3, iat) = force(1:3, iat) + deepmd_data%force(1:3, iat_use)
       END DO
-      
+
       pv_nonbond = pv_nonbond + deepmd_data%virial
 
 #endif

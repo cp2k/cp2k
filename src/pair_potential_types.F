@@ -1109,11 +1109,13 @@ CONTAINS
       TYPE(pair_potential_p_type), POINTER               :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
       LOGICAL, INTENT(IN), OPTIONAL :: lj, lj_charmm, williams, goodwin, eam, quip, nequip, &
-         allegro, bmhft, bmhftd, ipbv, buck4r, buckmo, gp, tersoff, siepmann, gal, gal21, tab, deepmd
+         allegro, bmhft, bmhftd, ipbv, buck4r, buckmo, gp, tersoff, siepmann, gal, gal21, tab, &
+         deepmd
 
       INTEGER                                            :: i, ipot, lb1_old, std_dim, ub1_old
-      LOGICAL :: check, lallegro, lbmhft, lbmhftd, lbuck4r, lbuckmo, ldeepmd, leam, lgal, lgal21, lgoodwin, &
-         lgp, lipbv, llj, llj_charmm, lnequip, lquip, lsiepmann, ltab, ltersoff, lwilliams
+      LOGICAL :: check, lallegro, lbmhft, lbmhftd, lbuck4r, lbuckmo, ldeepmd, leam, lgal, lgal21, &
+         lgoodwin, lgp, lipbv, llj, llj_charmm, lnequip, lquip, lsiepmann, ltab, ltersoff, &
+         lwilliams
       TYPE(pair_potential_p_type), POINTER               :: work
 
       NULLIFY (work)
