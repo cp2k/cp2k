@@ -319,10 +319,15 @@ CONTAINS
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntab, tab=.TRUE.)
             CALL read_tabpot_section(inp_info%nonbonded, tmp_section2, ntot, para_env, mm_section)
          END IF
-         tmp_section2 => section_vals_get_subs_vals(tmp_section, "deepmd")
+
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "DEEPMD")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ndeepmd)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + nsiepmann + nquip
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
+                nquip + nnequip + nallegro + ntab
          IF (explicit) THEN
+            ! avoid repeating the deepmd section for each pair
+            CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
+            ndeepmd = ndeepmd + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ndeepmd, deepmd=.TRUE.)
             CALL read_deepmd_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
@@ -674,24 +679,32 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
 
+      CHARACTER(LEN=default_string_length)               :: deepmd_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
-      INTEGER                                            :: isec, n_items
+      INTEGER                                            :: isec, jsec, n_items
+      INTEGER, DIMENSION(:), POINTER                     :: atm_deepmd_types
 
-      CALL section_vals_get(section, n_repetition=n_items)
-      DO isec = 1, n_items
-         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
+      n_items = 1
+      isec = 1
+      n_items = isec*n_items
+      CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
+      CALL section_vals_val_get(section, "ATOMS_DEEPMD_TYPE", i_rep_section=isec, i_vals=atm_deepmd_types)
+      CALL section_vals_val_get(section, "POT_FILE_NAME", i_rep_section=isec, c_val=deepmd_file_name)
 
-         nonbonded%pot(start + isec)%pot%type = deepmd_type
-         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
-         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
-         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
-         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)
-         CALL section_vals_val_get(section, "POT_FILE_NAME", i_rep_section=isec, &
-                                   c_val=nonbonded%pot(start + isec)%pot%set(1)%deepmd%deepmd_file_name)
-         CALL section_vals_val_get(section, "ATOM_DEEPMD_TYPE", i_rep_section=isec, &
-                                   i_val=nonbonded%pot(start + isec)%pot%set(1)%deepmd%atom_deepmd_type)
-         nonbonded%pot(start + isec)%pot%rcutsq = 0.0_dp
+      DO isec = 1, SIZE(atm_names)
+         DO jsec = 1, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = deepmd_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
+
+            nonbonded%pot(start + n_items)%pot%set(1)%deepmd%deepmd_file_name = discover_file(deepmd_file_name)
+            nonbonded%pot(start + n_items)%pot%set(1)%deepmd%atom_deepmd_type = atm_deepmd_types(isec)
+            nonbonded%pot(start + n_items)%pot%rcutsq = 0.0_dp
+            n_items = n_items + 1
+         END DO
       END DO
    END SUBROUTINE read_deepmd_section
 

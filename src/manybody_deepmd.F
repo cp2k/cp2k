@@ -52,12 +52,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deepmd_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, fist_nonbond_env, &
                                                pot_deepmd)
-      TYPE(particle_type), POINTER             :: particle_set(:)
-      TYPE(cell_type), POINTER                 :: cell
-      TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
-      TYPE(pair_potential_pp_type), POINTER    :: potparm
-      TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-      REAL(kind=dp)                            :: pot_deepmd
+      TYPE(particle_type), POINTER                       :: particle_set(:)
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
+      TYPE(pair_potential_pp_type), POINTER              :: potparm
+      TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
+      REAL(kind=dp)                                      :: pot_deepmd
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_energy_store_force_virial'
 
 #ifdef __DEEPMD
       INTEGER                                  :: i, iat, iat_use, ikind, &
@@ -76,7 +78,12 @@ CONTAINS
       INTEGER                                  :: dpmd_natoms
 
 #endif
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
 #ifndef __DEEPMD
+      CPABORT("In order to use DeePMD-kit you need to download "// &
+              "and install libdeepmd_c (check CP2K manual for details)")
       MARK_USED(particle_set)
       MARK_USED(cell)
       MARK_USED(atomic_kind_set)
@@ -84,20 +91,20 @@ CONTAINS
       MARK_USED(fist_nonbond_env)
       MARK_USED(pot_deepmd)
       MARK_USED(para_env)
-      CALL cp_abort(__LOCATION__, "In order to use DeePMD-kit you need to download "// &
-                    "and install the DeePMD-kit (check CP2K manual for details)")
 #else
       n_atoms = SIZE(particle_set)
       ALLOCATE (use_atom(n_atoms))
       ALLOCATE (use_atom_type(n_atoms))
       use_atom = .FALSE.
-      use_atom_type = 100 ! just initial the array
+      use_atom_type = 0
 
       NULLIFY (deepmd)
 
       DO ikind = 1, SIZE(atomic_kind_set)
          DO jkind = 1, SIZE(atomic_kind_set)
             pot => potparm%pot(ikind, jkind)%pot
+            ! ensure that each atom is only used once
+            IF (ikind /= jkind) CYCLE
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) /= deepmd_type) CYCLE
                IF (.NOT. ASSOCIATED(deepmd)) deepmd => pot%set(i)%deepmd
@@ -140,7 +147,7 @@ CONTAINS
          ALLOCATE (deepmd_data)
          CALL fist_nonbond_env_set(fist_nonbond_env, deepmd_data=deepmd_data)
          NULLIFY (deepmd_data%use_indices, deepmd_data%force)
-         deepmd_data%model = dp_deep_pot(TRIM(deepmd%deepmd_file_name))
+         deepmd_data%model = dp_deep_pot(deepmd%deepmd_file_name)
       END IF
       IF (ASSOCIATED(deepmd_data%force)) THEN
          IF (SIZE(deepmd_data%force, 2) /= n_atoms_use) THEN
@@ -184,6 +191,7 @@ CONTAINS
                   dpmd_virial, dpmd_atomic_energy, dpmd_atomic_virial, &
                   dpmd_cell, dpmd_atype)
 #endif
+      CALL timestop(handle)
    END SUBROUTINE deepmd_energy_store_force_virial
 
 ! **************************************************************************************************
@@ -196,19 +204,22 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
       REAL(KIND=dp)                            :: force(:, :), pv_nonbond(3, 3)
 
-      !CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_add_force_virial'
-      !   routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_add_force_virial'
+      INTEGER                                  :: handle
 
 #ifdef __DEEPMD
       INTEGER                                  :: iat, iat_use
       TYPE(deepmd_data_type), POINTER            :: deepmd_data
 #endif
 
+      CALL timeset(routineN, handle)
+
 #ifndef __DEEPMD
+      CPABORT("In order to use DeePMD-kit you need to download "// &
+              "and install libdeepmd_c (check CP2K manual for details)")
       MARK_USED(fist_nonbond_env)
       MARK_USED(force)
       MARK_USED(pv_nonbond)
-      RETURN
 #else
       CALL fist_nonbond_env_get(fist_nonbond_env, deepmd_data=deepmd_data)
 
@@ -223,6 +234,7 @@ CONTAINS
       pv_nonbond = pv_nonbond + deepmd_data%virial
 
 #endif
+      CALL timestop(handle)
    END SUBROUTINE deepmd_add_force_virial
 
 END MODULE manybody_deepmd

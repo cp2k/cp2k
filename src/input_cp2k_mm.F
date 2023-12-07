@@ -1610,17 +1610,17 @@ CONTAINS
                           description="This section specifies the input parameters for Deep Potential type. "// &
                           "Mainly intended for things like neural network to DFT "// &
                           "to achieve correlated-wavefunction-like accuracy. "// &
-                          "Requires linking with DeePMD-kit library from <a href=""http://www.deepmd.org"" "// &
-                          "target=""_blank"">http://www.deepmd.org</a> .", &
-                          citations=(/Deepmd2018/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          "Requires linking with DeePMD-kit library from "// &
+                          "<a href=""https://docs.deepmodeling.com/projects/deepmd/en/master"" "// &
+                          "target=""_blank"">https://docs.deepmodeling.com/projects/deepmd/en/master</a> .", &
+                          citations=(/Deepmd2018/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the Deep Potential. "// &
-                          "For more than 2 elements, &DEEPMD section must be repeated until each element "// &
-                          "has been mentioned at least once. Set IGNORE_MISSING_CRITICAL_PARAMS to T "// &
-                          "in enclosing &FORCEFIELD section to avoid having to list every pair of elements separately.", &
-                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
-                          n_var=2)
+                          "Provide a list of each element, "// &
+                          "making sure that the mapping from the ATOMS list to DeePMD atom types is correct.", &
+                          usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
+                          n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
@@ -1629,10 +1629,13 @@ CONTAINS
                           usage="POT_FILE_NAME {FILENAME}", default_lc_val="graph.pb")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="ATOM_DEEPMD_TYPE", &
-                          description="Specifies the atomic TYPE for the DeePMD-kit potential.", &
-                          usage="ATOM_DEEPMD_TYPE {TYPE INTEGER}", &
-                          n_var=1, type_of_var=integer_t)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_DEEPMD_TYPE", &
+                          description="Specifies the atomic TYPE for the DeePMD-kit potential. "// &
+                          "Provide a list of index, making sure that the mapping "// &
+                          "from the ATOMS list to DeePMD atom types is correct. ", &
+                          usage="ATOMS_DEEPMD_TYPE {TYPE INTEGER 1} {TYPE INTEGER 2} .. "// &
+                          "{TYPE INTEGER N}", type_of_var=integer_t, &
+                          n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_DEEPMD_section

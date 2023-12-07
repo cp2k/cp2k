@@ -10,19 +10,14 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      IGNORE_MISSING_CRITICAL_PARAMS .TRUE.
       &NONBONDED
         &DEEPMD
-           ATOMS O O
-           ATOM_DEEPMD_TYPE 0
-           POT_FILE_NAME DeePMD/H2O-DPLR-model.pb
-        &END DEEPMD
-        &DEEPMD
-           ATOMS H H
-           ATOM_DEEPMD_TYPE 1
+           ATOMS O H
+           ATOMS_DEEPMD_TYPE 0 1
            POT_FILE_NAME DeePMD/H2O-DPLR-model.pb
         &END DEEPMD
       &END NONBONDED
+      #IGNORE_MISSING_CRITICAL_PARAMS
     &END FORCEFIELD
     &POISSON
       &EWALD

@@ -26,7 +26,7 @@ MODULE deepmd_wrapper
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: dp_deep_pot, dp_deep_pot_compute
+   PUBLIC :: dp_deep_pot, dp_deep_pot_compute, deepmd_model_release
 
 #if(__DEEPMD)
    INTERFACE
@@ -68,40 +68,34 @@ MODULE deepmd_wrapper
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param model ...
-!> \return ...
+!> \brief Load DP from a model file.
+!> \param model Path to the model file.
+!> \return Pointer to the DP model.
 ! **************************************************************************************************
 
    FUNCTION dp_deep_pot(model) RESULT(pot)
-      CHARACTER(len=*), INTENT(IN), TARGET               :: model
+      CHARACTER(len=*), INTENT(INOUT)                    :: model
       TYPE(C_PTR)                                        :: pot
 
-      CHARACTER(len=1, kind=C_CHAR)                      :: c_model(LEN_TRIM(model) + 1)
-      INTEGER                                            :: i, N
-
-      N = LEN_TRIM(model)
-      DO i = 1, N
-         c_model(i) = model(i:i)
-      END DO
-      c_model(N + 1) = C_NULL_CHAR
 #if(__DEEPMD)
-      pot = dp_deep_pot_c(c_model)
+      pot = dp_deep_pot_c(c_model=TRIM(model)//C_NULL_CHAR)
+#else
+      pot = C_NULL_PTR
 #endif
    END FUNCTION dp_deep_pot
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param dp ...
-!> \param natom ...
-!> \param coord ...
-!> \param atype ...
-!> \param cell ...
-!> \param energy ...
-!> \param force ...
-!> \param virial ...
-!> \param atomic_energy ...
-!> \param atomic_virial ...
+!> \brief Compute energy, force and virial from DP.
+!> \param dp Pointer to the DP model.
+!> \param natom Number of atoms.
+!> \param coord Coordinates of the atoms.
+!> \param atype Atom types.
+!> \param cell Cell vectors.
+!> \param energy Potential energy.
+!> \param force Forces.
+!> \param virial Virial tensor.
+!> \param atomic_energy Atomic energies.
+!> \param atomic_virial Atomic virial tensors.
 ! **************************************************************************************************
 
    SUBROUTINE dp_deep_pot_compute(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)
@@ -119,7 +113,31 @@ CONTAINS
 
 #if(__DEEPMD)
       CALL dp_deep_pot_compute_c(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)
+#else
+      CPABORT("CP2K was compiled without libdeepmd_c library.")
+      MARK_USED(dp)
+      MARK_USED(natom)
+      MARK_USED(coord)
+      MARK_USED(atype)
+      MARK_USED(cell)
+      MARK_USED(energy)
+      MARK_USED(force)
+      MARK_USED(virial)
+      MARK_USED(atomic_energy)
+      MARK_USED(atomic_virial)
 #endif
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Releases a deepmd model and all its ressources.
+!> \param model Pointer to the DP model.
+! **************************************************************************************************
+   SUBROUTINE deepmd_model_release(model)
+      USE ISO_C_BINDING, ONLY: C_PTR, &
+                               C_NULL_PTR
+      TYPE(C_PTR), INTENT(INOUT)                         :: model
+
+      model = C_NULL_PTR
+   END SUBROUTINE deepmd_model_release
 
 END MODULE deepmd_wrapper

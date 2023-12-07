@@ -177,8 +177,8 @@ MODULE pair_potential_types
 
 ! **************************************************************************************************
    TYPE deepmd_pot_type
-      CHARACTER(LEN=default_path_length)     :: deepmd_file_name
-      INTEGER                                :: atom_deepmd_type
+      CHARACTER(LEN=default_path_length)     :: deepmd_file_name = 'NULL'
+      INTEGER                                :: atom_deepmd_type = 0
    END TYPE deepmd_pot_type
 
 ! **************************************************************************************************
@@ -1199,8 +1199,9 @@ CONTAINS
       END IF
       IF (ldeepmd) THEN
          ipot = deepmd_type
-         check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lbmhft .OR. lbmhftd .OR. lipbv &
-                        .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff .OR. lsiepmann .OR. lquip .OR. lgal .OR. lgal21)
+         check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
+                        .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp &
+                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab)
          CPASSERT(check)
       END IF
 
@@ -1740,8 +1741,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(deepmd))
       ALLOCATE (deepmd)
-      deepmd%deepmd_file_name = ""
-      deepmd%atom_deepmd_type = 0
       CALL pair_potential_deepmd_clean(deepmd)
    END SUBROUTINE pair_potential_deepmd_create
 
@@ -1755,10 +1754,10 @@ CONTAINS
       TYPE(deepmd_pot_type), POINTER                     :: deepmd_source, deepmd_dest
 
       IF (.NOT. ASSOCIATED(deepmd_source)) RETURN
+      NULLIFY (deepmd_dest)
       IF (ASSOCIATED(deepmd_dest)) CALL pair_potential_deepmd_release(deepmd_dest)
       CALL pair_potential_deepmd_create(deepmd_dest)
-      deepmd_dest%deepmd_file_name = deepmd_source%deepmd_file_name
-      deepmd_dest%atom_deepmd_type = deepmd_source%atom_deepmd_type
+      deepmd_dest = deepmd_source
    END SUBROUTINE pair_potential_deepmd_copy
 
 ! **************************************************************************************************
@@ -1770,8 +1769,7 @@ CONTAINS
       TYPE(deepmd_pot_type), POINTER                     :: deepmd
 
       IF (.NOT. ASSOCIATED(deepmd)) RETURN
-      deepmd%deepmd_file_name = 'NULL'
-      deepmd%atom_deepmd_type = 0
+      deepmd = deepmd_pot_type()
    END SUBROUTINE pair_potential_deepmd_clean
 
 ! **************************************************************************************************

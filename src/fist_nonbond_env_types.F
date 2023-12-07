@@ -15,6 +15,7 @@ MODULE fist_nonbond_env_types
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type
+   USE deepmd_wrapper,                  ONLY: deepmd_model_release
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                               fist_neighbor_type
    USE kinds,                           ONLY: default_string_length,&
@@ -565,6 +566,7 @@ CONTAINS
          IF (ASSOCIATED(fist_nonbond_env%deepmd_data%use_indices)) THEN
             DEALLOCATE (fist_nonbond_env%deepmd_data%use_indices)
          END IF
+         CALL deepmd_model_release(fist_nonbond_env%deepmd_data%model)
          DEALLOCATE (fist_nonbond_env%deepmd_data)
       END IF
       IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN

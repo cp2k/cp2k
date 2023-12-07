@@ -456,20 +456,14 @@ Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 - See <https://brehm-research.de> for more information.
 -->
 
-### 2v. DeePMD-kit (optional, wider range of interaction potentials)
+### 2y. DeePMD-kit (optional, wider range of interaction potentials)
 
 DeePMD-kit - Deep Potential Molecular Dyanmics. Support for DeePMD-kit can be enabled via the flag
 `-D__DEEPMD`.
 
-- Please set `--deepmd-mode` to `gpu` if GPU support is needed, and load CUDA environment before
-  installing.
-- From exist DeePMD-kit C interface, with `/path/to/libdeepmd_c` (Described
-  [here](https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html)
-  in detail), by setting `--with-deepmd=/path/to/libdeepmd_c`.
-- From source code and library from Github release, by setting the both flags to `install`. For now,
-  DeePMD-kit v2.2.7 will be installed.
-
-For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
+- DeePMD-kit C interface can be downloaded from
+  <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
+- For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
 
 ## 3. Compile
 
