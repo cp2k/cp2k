@@ -17,6 +17,7 @@ MODULE manybody_deepmd
                                      fist_nonbond_env_type, &
                                      deepmd_data_type
    USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_para_env_type
    USE pair_potential_types, ONLY: pair_potential_pp_type, &
                                    pair_potential_single_type, &
                                    deepmd_pot_type, &
@@ -49,15 +50,17 @@ CONTAINS
 !> \param potparm ...
 !> \param fist_nonbond_env ...
 !> \param pot_deepmd ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE deepmd_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, fist_nonbond_env, &
-                                               pot_deepmd)
+                                               pot_deepmd, para_env)
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       REAL(kind=dp)                                      :: pot_deepmd
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_energy_store_force_virial'
 
@@ -173,6 +176,13 @@ CONTAINS
       pot_deepmd = pot_deepmd/evolt
       dpmd_force = dpmd_force/(evolt/angstrom)
       dpmd_virial = dpmd_virial/evolt
+
+      ! account for double counting from multiple MPI processes
+      IF (PRESENT(para_env)) THEN
+         pot_deepmd = pot_deepmd/REAL(para_env%num_pe, dp)
+         dpmd_force = dpmd_force/REAL(para_env%num_pe, dp)
+         dpmd_virial = dpmd_virial/REAL(para_env%num_pe, dp)
+      END IF
 
       ! save force, virial info
       iat_use = 0
