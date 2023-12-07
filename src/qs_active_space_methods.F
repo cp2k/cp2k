@@ -996,7 +996,6 @@ CONTAINS
 
       ! compute alpha-beta overlap matrix in case of spin-polarized calculation
       CALL calculate_spin_pol_overlap(active_space_env%mos_active, qs_env, active_space_env)
-      CALL cp_fm_write_formatted(active_space_env%sab_sub(1), iw)
 
       ! transform KS/Fock, Vxc and Hcore to AS MO basis
       CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
