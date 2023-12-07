@@ -31,6 +31,7 @@ MODULE rt_propagation
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
@@ -40,7 +41,9 @@ MODULE rt_propagation
    USE input_constants,                 ONLY: real_time_propagation,&
                                               use_restart_wfn,&
                                               use_rt_restart,&
-                                              use_scf_wfn
+                                              use_scf_wfn,&
+                                              rtp_method_tddft,&
+                                              rtp_method_gw
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -88,6 +91,7 @@ MODULE rt_propagation
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -185,7 +189,14 @@ CONTAINS
       END IF
       CALL init_propagators(qs_env)
       IF (rtp_control%fixed_ions) THEN
-         CALL run_propagation(qs_env, force_env, globenv)
+         SELECT CASE (rtp_control%rtp_method)
+            ! Marek : TD-aGW method uses different propagation structure - density matrix is not updated self-consistenly, but
+            ! rather derived from the Green's function, which is being evolved.
+            CASE (rtp_method_gw)
+               CALL run_propagation_gw(qs_env)
+            CASE default
+               CALL run_propagation(qs_env, force_env, globenv)
+         END SELECT
       ELSE
          rtp_control%initial_step = .TRUE.
          CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
@@ -568,4 +579,39 @@ CONTAINS
 
    END SUBROUTINE rt_init_complex_quantities
 
+! **************************************************************************************************
+!> \brief Runs the electron-only real time adiabatic GW (TD Bethe-Salpeter) propagation
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE run_propagation_gw(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+
+   ! Marek : Start by getting the DFT results - density matrix
+   !         This matrix is identical with the equilibrium time-diagonal lesser Green's function in G0W0
+   ! TODO : Some qs_env_get calls
+   ! Marek : Now, get the G0W0 results - Hamiltonian + screened interaction matrices
+   ! TODO : Hamiltonian is kept in the post_scf_bandstructure_type struct(fm_h_G0W0_Gamma), need to check basis and form of W
+   ! storage (available in imaginary time and frequency as fm_W_MIC_freq and fm_W_MIC_time_tensor, respectively)
+   ! Marek : Setup the time loop
+   ! DO i = rtp%istart, rtp%nsteps
+      ! Marek : In each timestep of the loop
+      !          - update the field
+      !             - Probably need to do directly via the build_local_moments, as efield_utils length_gauge function directly
+      !               changes the matrix_h - we need to add the electric field to original matrix_ks
+      !          - update the self-energy
+      !          - propagate G< via matrix exponential
+      !          - if it is required, print out G< or its part
+   ! END DO
+
+   CPABORT("Succesfully reached the TD-aGW start point")
+
+   PRINT *, qs_env%sim_time
+
+   ! PRINT *, 'G0W0 matrix'
+   ! PRINT *, bs_env%fm_h_G0W0_Gamma%local_data(:,:)
+
+
+
+   END SUBROUTINE run_propagation_gw
 END MODULE rt_propagation

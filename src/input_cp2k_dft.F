@@ -50,7 +50,8 @@ MODULE input_cp2k_dft
         sic_mauri_us, sic_none, slater, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, &
         tddfpt_singlet, tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, &
         use_mom_ref_zero, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, &
-        weight_type_unit
+        weight_type_unit, &
+        rtp_method_tddft, rtp_method_gw
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -1665,6 +1666,20 @@ CONTAINS
                           "is an upper bound for the needed one.", &
                           usage="EXP_ACCURACY 1.0E-6", &
                           default_r_val=1.0E-9_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Marek : Controlling flow to TD-aGW
+      CALL keyword_create(keyword, __LOCATION__, name="RTP_METHOD", &
+                          description="Which method is used for the time propagation of electronic structure. "// &
+                          "By default, use the TDDFT method. Can also choose TD-aGW method, which propagates the lesser "// &
+                          "Green's function instead of density matrix/molecular orbitals.", &
+                          usage="RTP_METHOD TDAGW", &
+                          default_i_val=rtp_method_tddft,&
+                          enum_c_vals=s2a("TDDFT", "TDAGW"),&
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_gw/),&
+                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.",&
+                                        "Use TD-aGW for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
