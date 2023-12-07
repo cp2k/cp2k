@@ -580,4 +580,39 @@ CONTAINS
 
    END SUBROUTINE rt_init_complex_quantities
 
+! **************************************************************************************************
+!> \brief Runs the electron-only real time adiabatic GW (TD Bethe-Salpeter) propagation
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE run_propagation_gw(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+
+   ! Marek : Start by getting the DFT results - density matrix
+   !         This matrix is identical with the equilibrium time-diagonal lesser Green's function in G0W0
+   ! TODO : Some qs_env_get calls
+   ! Marek : Now, get the G0W0 results - Hamiltonian + screened interaction matrices
+   ! TODO : Hamiltonian is kept in the post_scf_bandstructure_type struct(fm_h_G0W0_Gamma), need to check basis and form of W
+   ! storage (available in imaginary time and frequency as fm_W_MIC_freq and fm_W_MIC_time_tensor, respectively)
+   ! Marek : Setup the time loop
+   ! DO i = rtp%istart, rtp%nsteps
+      ! Marek : In each timestep of the loop
+      !          - update the field
+      !             - Probably need to do directly via the build_local_moments, as efield_utils length_gauge function directly
+      !               changes the matrix_h - we need to add the electric field to original matrix_ks
+      !          - update the self-energy
+      !          - propagate G< via matrix exponential
+      !          - if it is required, print out G< or its part
+   ! END DO
+
+   CPABORT("Succesfully reached the TD-aGW start point")
+
+   PRINT *, qs_env%sim_time
+
+   ! PRINT *, 'G0W0 matrix'
+   ! PRINT *, bs_env%fm_h_G0W0_Gamma%local_data(:,:)
+
+
+
+   END SUBROUTINE run_propagation_gw
 END MODULE rt_propagation
