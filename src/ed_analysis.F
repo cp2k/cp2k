@@ -19,6 +19,7 @@ MODULE ed_analysis
    USE bibliography,                    ONLY: Eriksen2020,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
+   USE core_ae,                         ONLY: build_erfc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
@@ -48,6 +49,7 @@ MODULE ed_analysis
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE mulliken,                        ONLY: mulliken_charges
@@ -58,12 +60,19 @@ MODULE ed_analysis
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_scale
+                                              pw_scale,&
+                                              pw_transfer
+   USE pw_poisson_methods,              ONLY: pw_poisson_solve
+   USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              REALDATA3D,&
                                               REALSPACE,&
+                                              RECIPROCALSPACE,&
                                               pw_type
-   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+   USE qs_collocate_density,            ONLY: calculate_rho_core
+   USE qs_core_energies,                ONLY: calculate_ecore_alpha,&
+                                              calculate_ecore_overlap,&
                                               calculate_ecore_self
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -73,6 +82,7 @@ MODULE ed_analysis
    USE qs_gcp_method,                   ONLY: calculate_gcp_pairpot
    USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+                                              integrate_v_gaussian_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -84,6 +94,7 @@ MODULE ed_analysis
                                               duplicate_mo_set,&
                                               get_mo_set,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_atom_types,               ONLY: rho_atom_type,&
                                               zero_rho_atom_integrals
@@ -124,14 +135,13 @@ CONTAINS
                                                             nref, nspin
       INTEGER, DIMENSION(2)                              :: nocc
       INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
-      LOGICAL                                            :: detailed_ener, do_hfx, explicit, gapw, &
-                                                            gapw_xc, ref_orb_canonical, &
-                                                            skip_localize, uniform_occupation, uocc
-      REAL(KIND=dp)                                      :: ateps, checksum, e1, e2, e_pot, ecc, &
-                                                            egcp, ehfx, ekts, evdw, focc, &
+      LOGICAL :: detailed_ener, do_hfx, ewald_correction, explicit, gapw, gapw_xc, &
+         ref_orb_canonical, skip_localize, uniform_occupation, uocc
+      REAL(KIND=dp)                                      :: ateps, checksum, e1, e2, e_pot, ealpha, &
+                                                            ecc, egcp, ehfx, ekts, evdw, focc, &
                                                             sum_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: amval, ate1h, ate1xc, atecc, ateks, &
-                                                            atener, odiag
+                                                            atener, atewald, odiag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atdet, atmul, mcharge, mweight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: bcenter
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
@@ -142,6 +152,7 @@ CONTAINS
                                                             rotmat
       TYPE(cp_fm_type), POINTER                          :: cloc, moref
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
+      TYPE(dbcsr_p_type)                                 :: dve_mat
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: exc_mat, ks_mat, vhxc_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_hfx, matrix_ks, &
                                                             matrix_p, matrix_s, matrix_t
@@ -181,6 +192,8 @@ CONTAINS
       CALL section_vals_val_get(input_section, "REFERENCE_ORB_CANONICAL", l_val=ref_orb_canonical)
       CALL section_vals_val_get(input_section, "DETAILED_ENERGY", l_val=detailed_ener)
       CALL section_vals_val_get(input_section, "SKIP_LOCALIZATION", l_val=skip_localize)
+      CALL section_vals_val_get(input_section, "EWALD_ALPHA_PARAMETER", r_val=ealpha)
+      ewald_correction = (ealpha /= 0.0_dp)
       ! k-points?
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nimages = dft_control%nimages
@@ -192,6 +205,12 @@ CONTAINS
       END IF
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      IF (ewald_correction) THEN
+         IF (gapw .OR. gapw_xc) THEN
+            CALL cp_warn(__LOCATION__, "Ewald Correction for GAPW and GAPW_XC not available.")
+            CPABORT("Ewald Correction")
+         END IF
+      END IF
       CALL get_qs_env(qs_env, input=input)
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
@@ -421,12 +440,13 @@ CONTAINS
 
       ! energy arrays
       ALLOCATE (atener(natom), ateks(natom), atecc(natom))
-      ALLOCATE (ate1xc(natom), ate1h(natom))
+      ALLOCATE (ate1xc(natom), ate1h(natom), atewald(natom))
       atener = 0.0_dp
       ateks = 0.0_dp
       atecc = 0.0_dp
       ate1xc = 0.0_dp
       ate1h = 0.0_dp
+      atewald = 0.0_dp
       IF (detailed_ener) THEN
          ALLOCATE (atdet(natom, 10), atmul(natom, 10), amval(natom))
          atdet = 0.0_dp
@@ -457,6 +477,14 @@ CONTAINS
       CALL dbcsr_set(exc_mat(1)%matrix, 0.0_dp)
       !
       CALL vhxc_correction(qs_env, vhxc_mat, exc_mat, atecc, ate1xc, ate1h)
+      !
+      IF (ewald_correction) THEN
+         ALLOCATE (dve_mat%matrix)
+         CALL dbcsr_create(dve_mat%matrix, template=matrix_h(1)%matrix)
+         CALL dbcsr_copy(dve_mat%matrix, matrix_h(1)%matrix)
+         CALL dbcsr_set(dve_mat%matrix, 0.0_dp)
+         CALL vh_ewald_correction(qs_env, ealpha, dve_mat, atewald)
+      END IF
       !
       DO ispin = 1, nspin
          CALL dbcsr_add(ks_mat(ispin)%matrix, vhxc_mat(ispin)%matrix, 1.0_dp, 1.0_dp)
@@ -503,6 +531,10 @@ CONTAINS
                CALL dbcsr_dot(dkmat, exc_mat(1)%matrix, e1)
                atdet(iatom, 3) = atdet(iatom, 3) + ecc - e2 - e1 - ehfx
                atdet(iatom, 4) = atdet(iatom, 4) + e1
+            END IF
+            IF (ewald_correction) THEN
+               CALL dbcsr_dot(dkmat, dve_mat%matrix, ecc)
+               atewald(iatom) = atewald(iatom) + ecc
             END IF
             !
          END DO
@@ -559,6 +591,9 @@ CONTAINS
          END DO
          DEALLOCATE (matrix_hfx)
       END IF
+      IF (ewald_correction) THEN
+         CALL dbcsr_release(dve_mat%matrix)
+      END IF
       CALL cp_fm_release(orb_weight)
       CALL cp_fm_release(ciao)
       CALL cp_fm_release(rotmat)
@@ -589,11 +624,19 @@ CONTAINS
       CALL group%sum(atecc)
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
       IF (detailed_ener) atdet(1:natom, 7) = atdet(1:natom, 7) + atecc(1:natom)
+      IF (ewald_correction) THEN
+         atewald(1:natom) = atewald(1:natom) - atecc(1:natom)
+      END IF
+      ! e self
       atecc(1:natom) = 0.0_dp
       CALL calculate_ecore_self(qs_env, atecc=atecc)
       CALL group%sum(atecc)
       atener(1:natom) = atener(1:natom) + atecc(1:natom)
       IF (detailed_ener) atdet(1:natom, 7) = atdet(1:natom, 7) + atecc(1:natom)
+      IF (ewald_correction) THEN
+         atewald(1:natom) = atewald(1:natom) - atecc(1:natom)
+         CALL calculate_ecore_alpha(qs_env, ealpha, atewald)
+      END IF
       ! vdW pair-potentials
       atecc(1:natom) = 0.0_dp
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
@@ -661,11 +704,19 @@ CONTAINS
          CALL write_atener(unit_nr, particle_set, atener, "Atomic Energy Decomposition")
          sum_energy = SUM(atener(:))
          checksum = ABS(e_pot - sum_energy)
-         WRITE (UNIT=unit_nr, FMT="(/,(T2,A,T56,F25.13))") &
+         WRITE (UNIT=unit_nr, FMT="((T2,A,T56,F25.13))") &
             "Potential energy (Atomic):", sum_energy, &
             "Potential energy (Total) :", e_pot, &
             "Difference               :", checksum
          CPASSERT((checksum < ateps*ABS(e_pot)))
+         !
+         IF (ewald_correction) THEN
+            WRITE (UNIT=unit_nr, FMT="(/,(T2,A,F10.3,A))") "Universal Ewald Parameter: ", ealpha, " [Angstrom]"
+            CALL write_atener(unit_nr, particle_set, atewald, "Change in Atomic Energy Decomposition")
+            sum_energy = SUM(atewald(:))
+            WRITE (UNIT=unit_nr, FMT="((T2,A,T56,F25.13))") &
+               "Total Change in Potential energy:", sum_energy
+         END IF
       END IF
 
       IF (detailed_ener) THEN
@@ -677,7 +728,7 @@ CONTAINS
             "!--------------------------- END OF ED ANALYSIS ------------------------------!"
       END IF
       DEALLOCATE (bcenter)
-      DEALLOCATE (atener, ateks, atecc, ate1xc, ate1h)
+      DEALLOCATE (atener, ateks, atecc, ate1xc, ate1h, atewald)
 
       CALL timestop(handle)
 
@@ -840,6 +891,119 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE vhxc_correction
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ealpha ...
+!> \param vh_mat ...
+!> \param atewd ...
+! **************************************************************************************************
+   SUBROUTINE vh_ewald_correction(qs_env, ealpha, vh_mat, atewd)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), INTENT(IN)                          :: ealpha
+      TYPE(dbcsr_p_type)                                 :: vh_mat
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: atewd
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'vh_ewald_correction'
+
+      INTEGER                                            :: handle, ikind, ispin, natom, nkind
+      REAL(KIND=dp)                                      :: eps_core_charge, rhotot, zeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, atecc, ccore
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb, sac_ae
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_tot_ewd_g, rho_tot_ewd_r, &
+                                                            v_hewd_gspace, v_hewd_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+
+      natom = SIZE(atewd)
+      ALLOCATE (atecc(natom))
+      CALL get_qs_env(qs_env=qs_env, nkind=nkind, qs_kind_set=qs_kind_set, &
+                      dft_control=dft_control)
+      ALLOCATE (alpha(nkind), ccore(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         alpha(ikind) = ealpha
+         ccore(ikind) = zeff*(ealpha/pi)**1.5_dp
+      END DO
+      !
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                      poisson_env=poisson_env)
+      !
+      CALL auxbas_pw_pool%create_pw(v_hewd_gspace, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hewd_rspace, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_tot_ewd_g, &
+                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_tot_ewd_r, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+      rhotot = 0.0_dp
+      CALL calculate_rho_core(rho_tot_ewd_r, rhotot, qs_env, calpha=alpha, ccore=ccore)
+      ! Get the total density in g-space [ions + electrons]
+      CALL get_qs_env(qs_env=qs_env, rho=rho)
+      CALL qs_rho_get(rho, rho_r=rho_r)
+      DO ispin = 1, dft_control%nspins
+         CALL pw_axpy(rho_r(ispin), rho_tot_ewd_r)
+      END DO
+      CALL pw_transfer(rho_tot_ewd_r, rho_tot_ewd_g)
+      !
+      CALL pw_poisson_solve(poisson_env, density=rho_tot_ewd_g, vhartree=v_hewd_gspace)
+      CALL pw_transfer(v_hewd_gspace, v_hewd_rspace)
+      CALL pw_scale(v_hewd_rspace, v_hewd_rspace%pw_grid%dvol)
+      atecc = 0.0_dp
+      CALL integrate_v_gaussian_rspace(v_hewd_rspace, qs_env, alpha, ccore, atecc)
+      atewd(1:natom) = atewd(1:natom) + atecc(1:natom)
+      !
+      atecc = 0.0_dp
+      CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
+      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env, atecc=atecc)
+      atewd(1:natom) = atewd(1:natom) - atecc(1:natom)
+      !
+      CALL pw_axpy(v_hartree_rspace, v_hewd_rspace, -1.0_dp)
+      CALL dbcsr_set(vh_mat%matrix, 0.0_dp)
+      CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hewd_rspace, hmat=vh_mat, &
+                              calculate_forces=.FALSE.)
+      !
+      CALL dbcsr_scale(vh_mat%matrix, 0.5_dp)
+      !
+      ! delta erfc
+      eps_core_charge = dft_control%qs_control%eps_core_charge
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+                      particle_set=particle_set, sab_orb=sab_orb, sac_ppl=sac_ae)
+      CALL build_erfc(vh_mat, qs_kind_set, atomic_kind_set, particle_set, &
+                      alpha, ccore, eps_core_charge, sab_orb, sac_ae)
+      CALL dbcsr_scale(vh_mat%matrix, -1.0_dp)
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), alpha_core_charge=alpha(ikind), &
+                          ccore_charge=ccore(ikind))
+      END DO
+      CALL build_erfc(vh_mat, qs_kind_set, atomic_kind_set, particle_set, &
+                      alpha, ccore, eps_core_charge, sab_orb, sac_ae)
+      CALL dbcsr_scale(vh_mat%matrix, -1.0_dp)
+      !
+      CALL auxbas_pw_pool%give_back_pw(v_hewd_gspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hewd_rspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_ewd_g)
+      CALL auxbas_pw_pool%give_back_pw(rho_tot_ewd_r)
+      DEALLOCATE (atecc)
+      DEALLOCATE (alpha, ccore)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE vh_ewald_correction
 
 ! **************************************************************************************************
 !> \brief ...

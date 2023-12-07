@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE core_ae
    USE ai_verfc,                        ONLY: verfc
+   USE ao_util,                         ONLY: exp_radius
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -57,7 +58,7 @@ MODULE core_ae
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ae'
 
-   PUBLIC :: build_core_ae
+   PUBLIC :: build_core_ae, build_erfc
 
 CONTAINS
 
@@ -567,6 +568,278 @@ CONTAINS
       END DO ! ipgfa
 
    END SUBROUTINE verfc_force
+
+! **************************************************************************************************
+!> \brief Integrals = -Z*erfc(a*r)/r
+!> \param matrix_h ...
+!> \param qs_kind_set ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param calpha ...
+!> \param ccore ...
+!> \param eps_core_charge ...
+!> \param sab_orb ...
+!> \param sac_ae ...
+! **************************************************************************************************
+   SUBROUTINE build_erfc(matrix_h, qs_kind_set, atomic_kind_set, particle_set, &
+                         calpha, ccore, eps_core_charge, sab_orb, sac_ae)
+
+      TYPE(dbcsr_p_type)                                 :: matrix_h
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: calpha, ccore
+      REAL(KIND=dp), INTENT(IN)                          :: eps_core_charge
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb, sac_ae
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_erfc'
+
+      INTEGER :: handle, iatom, icol, ikind, img, irow, iset, jatom, jkind, jset, katom, kkind, &
+         ldai, ldsab, maxco, maxl, maxnset, maxsgf, mepos, na_plus, natom, nb_plus, ncoa, ncob, &
+         nij, nkind, nseta, nsetb, nthread, sgfa, sgfb, slot
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: dokp, found
+      REAL(KIND=dp)                                      :: alpha_c, core_charge, core_radius, dab, &
+                                                            dac, dbc, f0, rab2, rac2, rbc2, zeta_c
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: habd, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab, pab, verf, vnuc
+      REAL(KIND=dp), DIMENSION(3)                        :: rab, rac, rbc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, rpgfa, rpgfb, sphi_a, &
+                                                            sphi_b, zeta, zetb
+      TYPE(all_potential_type), POINTER                  :: all_potential
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: ap_iterator
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+!$    INTEGER(kind=omp_lock_kind), &
+!$       ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER                                            :: lock_num, hash, hash1, hash2
+!$    INTEGER(KIND=int_8)                                :: iatom8
+!$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      MARK_USED(int_8)
+
+      CALL timeset(routineN, handle)
+
+      nkind = SIZE(atomic_kind_set)
+      natom = SIZE(particle_set)
+
+      ALLOCATE (basis_set_list(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set_a)
+         IF (ASSOCIATED(basis_set_a)) THEN
+            basis_set_list(ikind)%gto_basis_set => basis_set_a
+         ELSE
+            NULLIFY (basis_set_list(ikind)%gto_basis_set)
+         END IF
+      END DO
+
+      CALL get_qs_kind_set(qs_kind_set, &
+                           maxco=maxco, maxlgto=maxl, maxsgf=maxsgf, maxnset=maxnset)
+      CALL init_orbital_pointers(maxl + 1)
+      ldsab = MAX(maxco, maxsgf)
+      ldai = ncoset(maxl + 1)
+
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+
+      ! iterator for basis/potential list
+      CALL neighbor_list_iterator_create(ap_iterator, sac_ae, search=.TRUE., nthread=nthread)
+
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED  (ap_iterator, basis_set_list, &
+!$OMP          matrix_h, atomic_kind_set, qs_kind_set, particle_set, &
+!$OMP          sab_orb, sac_ae, nthread, ncoset, nkind, calpha, ccore, eps_core_charge, &
+!$OMP          slot, ldsab,  maxnset, ldai, maxl, maxco, dokp, locks, natom) &
+!$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
+!$OMP          zetb, zeta_c, alpha_c, core_charge, dab, irow, icol, h_block, found, iset, ncoa, &
+!$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
+!$OMP          rac, dac, rbc, rab2, rac2, rbc2, dbc, na_plus, nb_plus, verf, vnuc, &
+!$OMP          set_radius_a,  core_radius, rpgfa, mepos, &
+!$OMP          habd, f0, katom, cellind, img, nij, ff, &
+!$OMP          sgp_potential, all_potential, hash, hash1, hash2, iatom8)
+
+!$OMP SINGLE
+!$    ALLOCATE (locks(nlock))
+!$OMP END SINGLE
+
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       call omp_init_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
+      ALLOCATE (hab(ldsab, ldsab, maxnset*maxnset), work(ldsab, ldsab))
+      ALLOCATE (verf(ldai, ldai, 2*maxl + 1), vnuc(ldai, ldai, 2*maxl + 1), ff(0:2*maxl))
+
+!$OMP DO SCHEDULE(GUIDED)
+      DO slot = 1, sab_orb(1)%nl_size
+
+         ikind = sab_orb(1)%nlist_task(slot)%ikind
+         jkind = sab_orb(1)%nlist_task(slot)%jkind
+         iatom = sab_orb(1)%nlist_task(slot)%iatom
+         jatom = sab_orb(1)%nlist_task(slot)%jatom
+         cellind(:) = sab_orb(1)%nlist_task(slot)%cell(:)
+         rab(1:3) = sab_orb(1)%nlist_task(slot)%r(1:3)
+
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+!$       iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
+!$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         sphi_a => basis_set_a%sphi
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         sphi_b => basis_set_b%sphi
+         zetb => basis_set_b%zet
+
+         dab = SQRT(SUM(rab*rab))
+         img = 1
+
+         ! *** Use the symmetry of the first derivatives ***
+         IF (iatom == jatom) THEN
+            f0 = 1.0_dp
+         ELSE
+            f0 = 2.0_dp
+         END IF
+
+         ! *** Create matrix blocks for a new matrix block column ***
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+         ELSE
+            irow = jatom
+            icol = iatom
+         END IF
+         NULLIFY (h_block)
+         CALL dbcsr_get_block_p(matrix=matrix_h%matrix, &
+                                row=irow, col=icol, BLOCK=h_block, found=found)
+
+         ! loop over all kinds of atoms
+         hab = 0._dp
+         DO kkind = 1, nkind
+            alpha_c = calpha(kkind)
+            core_charge = ccore(kkind)
+            core_radius = exp_radius(0, alpha_c, eps_core_charge, core_charge)
+            core_radius = MAX(core_radius, 10.0_dp)
+
+            CALL nl_set_sub_iterator(ap_iterator, ikind, kkind, iatom, mepos=mepos)
+
+            DO WHILE (nl_sub_iterate(ap_iterator, mepos=mepos) == 0)
+               CALL get_iterator_info(ap_iterator, jatom=katom, r=rac, mepos=mepos)
+
+               dac = SQRT(SUM(rac*rac))
+               rbc(:) = rac(:) - rab(:)
+               dbc = SQRT(SUM(rbc*rbc))
+               IF ((MAXVAL(set_radius_a(:)) + core_radius < dac) .OR. &
+                   (MAXVAL(set_radius_b(:)) + core_radius < dbc)) THEN
+                  CYCLE
+               END IF
+
+               DO iset = 1, nseta
+                  IF (set_radius_a(iset) + core_radius < dac) CYCLE
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1, iset)
+                  DO jset = 1, nsetb
+                     IF (set_radius_b(jset) + core_radius < dbc) CYCLE
+                     ncob = npgfb(jset)*ncoset(lb_max(jset))
+                     sgfb = first_sgfb(1, jset)
+                     IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+                     rab2 = dab*dab
+                     rac2 = dac*dac
+                     rbc2 = dbc*dbc
+                     nij = jset + (iset - 1)*maxnset
+                     !
+                     CALL verfc( &
+                        la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                        lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
+                        alpha_c, core_radius, zeta_c, core_charge, &
+                        rab, rab2, rac, rac2, rbc2, hab(:, :, nij), verf, vnuc, ff(0:))
+                  END DO
+               END DO
+            END DO
+         END DO
+         ! *** Contract nuclear attraction integrals
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+            DO jset = 1, nsetb
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               sgfb = first_sgfb(1, jset)
+               nij = jset + (iset - 1)*maxnset
+!$             hash2 = MOD((iset - 1)*nsetb + jset, nlock) + 1
+!$             hash = MOD(hash1 + hash2, nlock) + 1
+               work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob, nij), &
+                                                    sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1))
+!$             CALL omp_set_lock(locks(hash))
+               IF (iatom <= jatom) THEN
+                  h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) = &
+                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + &
+                     MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
+               ELSE
+                  h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) = &
+                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + &
+                     MATMUL(TRANSPOSE(work(1:ncoa, 1:nsgfb(jset))), sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1))
+               END IF
+!$             CALL omp_unset_lock(locks(hash))
+            END DO
+         END DO
+
+      END DO
+
+      DEALLOCATE (hab, work, verf, vnuc, ff)
+
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       call omp_destroy_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+!$OMP SINGLE
+!$    DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
+
+!$OMP END PARALLEL
+
+      CALL neighbor_list_iterator_release(ap_iterator)
+
+      DEALLOCATE (basis_set_list)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_erfc
 
 ! **************************************************************************************************
 
