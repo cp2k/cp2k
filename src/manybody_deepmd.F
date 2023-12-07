@@ -9,7 +9,8 @@ MODULE manybody_deepmd
 
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
    USE atomic_kind_types, ONLY: atomic_kind_type
-   USE bibliography, ONLY: Deepmd2018, &
+   USE bibliography, ONLY: Han2018, &
+                           Zeng2023, &
                            cite_reference
    USE cell_types, ONLY: cell_type
    USE fist_nonbond_env_types, ONLY: fist_nonbond_env_get, &
@@ -134,7 +135,10 @@ CONTAINS
          dpmd_coord((iat_use - 1)*3 + 1:(iat_use - 1)*3 + 3) = particle_set(iat)%r*angstrom
          dpmd_atype(iat_use) = use_atom_type(iat)
       END DO
-      IF (iat_use > 0) CALL cite_reference(Deepmd2018)
+      IF (iat_use > 0) THEN
+         CALL cite_reference(Han2018)
+         CALL cite_reference(Zeng2023)
+      END IF
       output_unit = cp_logger_get_default_io_unit()
       lattice = cell%hmat*angstrom
 

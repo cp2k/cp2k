@@ -90,7 +90,7 @@ MODULE bibliography
                             cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, Graml2023, Bussy2023, Deepmd2018
+                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, Graml2023, Bussy2023, Han2018, Zeng2023
 
 CONTAINS
 
@@ -4903,7 +4903,8 @@ CONTAINS
                          "AR 2306.16066", &
                          "ER"), &
                          DOI="10.48550/arXiv.2306.16066")
-      CALL add_reference(key=Deepmd2018, ISI_record=s2a( &
+
+      CALL add_reference(key=Han2018, ISI_record=s2a( &
                          "TY JOUR", &
                          "PT J", &
                          "AU Wang, Han", &
@@ -4922,6 +4923,66 @@ CONTAINS
                          "DI 10.1016/j.cpc.2018.03.016", &
                          "ER"), &
                          DOI="10.1016/j.cpc.2018.03.016")
+
+      CALL add_reference(key=Zeng2023, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Zeng, Jinzhe", &
+                         "   Zhang, Duo", &
+                         "   Lu, Denghui", &
+                         "   Mo, Pinghui", &
+                         "   Li, Zeyu", &
+                         "   Chen, Yixiao", &
+                         "   Rynik, Marián", &
+                         "   Huang, Li’ang", &
+                         "   Li, Ziyao", &
+                         "   Shi, Shaochen", &
+                         "   Wang, Yingze", &
+                         "   Ye, Haotian", &
+                         "   Tuo, Ping", &
+                         "   Yang, Jiabin", &
+                         "   Ding, Ye", &
+                         "   Li, Yifan", &
+                         "   Tisi, Davide", &
+                         "   Zeng, Qiyu", &
+                         "   Bao, Han", &
+                         "   Xia, Yu", &
+                         "   Huang, Jiameng", &
+                         "   Muraoka, Koki", &
+                         "   Wang, Yibo", &
+                         "   Chang, Junhan", &
+                         "   Yuan, Fengbo", &
+                         "   Bore, Sigbjørn Løland", &
+                         "   Cai, Chun", &
+                         "   Lin, Yinnian", &
+                         "   Wang, Bo", &
+                         "   Xu, Jiayan", &
+                         "   Zhu, Jia-Xin", &
+                         "   Luo, Chenxing", &
+                         "   Zhang, Yuzhi", &
+                         "   Goodall, Rhys E. A.", &
+                         "   Liang, Wenshuo", &
+                         "   Singh, Anurag Kumar", &
+                         "   Yao, Sikai", &
+                         "   Zhang, Jingchao", &
+                         "   Wentzcovitch, Renata", &
+                         "   Han, Jiequn", &
+                         "   Liu, Jie", &
+                         "   Jia, Weile", &
+                         "   York, Darrin M.", &
+                         "   E, Weinan", &
+                         "   Car, Roberto", &
+                         "   Zhang, Linfeng", &
+                         "   Wang, Han", &
+                         "TI DeePMD-kit v2: A software package for deep potential models", &
+                         "SO The Journal of Chemical Physics", &
+                         "JF The Journal of Chemical Physics", &
+                         "JO The Journal of Chemical Physics", &
+                         "PY 2023", &
+                         "VL 159", &
+                         "DI 10.1063/5.0155600", &
+                         "ER"), &
+                         DOI="10.1063/5.0155600")
 
    END SUBROUTINE add_all_references
 
