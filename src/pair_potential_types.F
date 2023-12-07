@@ -1741,7 +1741,6 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(deepmd))
       ALLOCATE (deepmd)
-      CALL pair_potential_deepmd_clean(deepmd)
    END SUBROUTINE pair_potential_deepmd_create
 
 ! **************************************************************************************************

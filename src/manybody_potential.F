@@ -650,7 +650,7 @@ CONTAINS
       END DO
       ! DEEPMD
       IF (any_deepmd) &
-         CALL deepmd_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond)
+         CALL deepmd_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
 
       ! QUIP
       IF (use_virial) &

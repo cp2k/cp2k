@@ -1,4 +1,2 @@
 # Test of DeePMD using libdeepmd_c https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html
-DeePMD_water.inp                                        11    1.0E-6          0.577565081409347
-DeePMD_water_single.inp                                 11    1.0E-6          0.09784660378
-DeePMD_water_double.inp                                 11    1.0E-12        15.132614927231691
+DeePMD_W.inp                                        11    1.0E-6        -17.163002987921661

@@ -107,7 +107,6 @@ CONTAINS
             IF (ikind /= jkind) CYCLE
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) /= deepmd_type) CYCLE
-               IF (.NOT. ASSOCIATED(deepmd)) deepmd => pot%set(i)%deepmd
                DO iat = 1, n_atoms
                   IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
                       particle_set(iat)%atomic_kind%kind_number == jkind) THEN
@@ -147,7 +146,7 @@ CONTAINS
          ALLOCATE (deepmd_data)
          CALL fist_nonbond_env_set(fist_nonbond_env, deepmd_data=deepmd_data)
          NULLIFY (deepmd_data%use_indices, deepmd_data%force)
-         deepmd_data%model = dp_deep_pot(deepmd%deepmd_file_name)
+         deepmd_data%model = dp_deep_pot(pot%set(1)%deepmd%deepmd_file_name)
       END IF
       IF (ASSOCIATED(deepmd_data%force)) THEN
          IF (SIZE(deepmd_data%force, 2) /= n_atoms_use) THEN
@@ -199,17 +198,19 @@ CONTAINS
 !> \param fist_nonbond_env ...
 !> \param force ...
 !> \param pv_nonbond ...
+!> \param use_virial ...
 ! **************************************************************************************************
-   SUBROUTINE deepmd_add_force_virial(fist_nonbond_env, force, pv_nonbond)
+   SUBROUTINE deepmd_add_force_virial(fist_nonbond_env, force, pv_nonbond, use_virial)
       TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
       REAL(KIND=dp)                            :: force(:, :), pv_nonbond(3, 3)
+      LOGICAL, OPTIONAL                        :: use_virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_add_force_virial'
       INTEGER                                  :: handle
 
 #ifdef __DEEPMD
       INTEGER                                  :: iat, iat_use
-      TYPE(deepmd_data_type), POINTER            :: deepmd_data
+      TYPE(deepmd_data_type), POINTER          :: deepmd_data
 #endif
 
       CALL timeset(routineN, handle)
@@ -231,7 +232,9 @@ CONTAINS
          force(1:3, iat) = force(1:3, iat) + deepmd_data%force(1:3, iat_use)
       END DO
 
-      pv_nonbond = pv_nonbond + deepmd_data%virial
+      IF (use_virial) THEN
+         pv_nonbond = pv_nonbond + deepmd_data%virial
+      END IF
 
 #endif
       CALL timestop(handle)
