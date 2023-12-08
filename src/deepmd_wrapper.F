@@ -21,8 +21,8 @@ MODULE deepmd_wrapper
                                               C_INT,&
                                               C_LOC,&
                                               C_NULL_CHAR,&
-                                              C_PTR,&
-                                              C_NULL_PTR
+                                              C_NULL_PTR,&
+                                              C_PTR
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
