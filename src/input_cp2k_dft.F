@@ -1828,6 +1828,13 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EWALD_ALPHA_PARAMETER", &
+                          description="Calculate Energy Decomposition for a specific alpha value. "// &
+                          "alpha = 1/(2*rc**2), see GTH pseudopotentials.", &
+                          usage="EWALD_ALPHA_PARAMETER alpha", repeats=.FALSE., n_var=1, &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)

@@ -17,6 +17,8 @@ MODULE qs_core_energies
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE dbcsr_api,                       ONLY: dbcsr_dot,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -53,7 +55,7 @@ MODULE qs_core_energies
 
    PUBLIC :: calculate_ptrace, &
              calculate_ecore_overlap, &
-             calculate_ecore_self
+             calculate_ecore_self, calculate_ecore_alpha
 
    INTERFACE calculate_ptrace
       MODULE PROCEDURE calculate_ptrace_1, calculate_ptrace_gamma, calculate_ptrace_kp
@@ -427,5 +429,72 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_ecore_self
+
+! **************************************************************************************************
+!> \brief Calculate the overlap and self energy of the core charge distribution for a given alpha
+!>        Use a minimum image convention and double loop over all atoms
+!> \param qs_env ...
+!> \param alpha ...
+!> \param atecc ...
+!> \author  JGH
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE calculate_ecore_alpha(qs_env, alpha, atecc)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      REAL(KIND=dp), DIMENSION(:)                        :: atecc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_alpha'
+
+      INTEGER                                            :: handle, iatom, ikind, jatom, jkind, &
+                                                            natom, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp)                                      :: dab, eab, fab, rootaab, zab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zeff
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      cell=cell, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+      !
+      nkind = SIZE(atomic_kind_set)
+      natom = SIZE(particle_set)
+      ALLOCATE (zeff(nkind))
+      zeff(:) = 0.0_dp
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff(ikind))
+      END DO
+
+      rootaab = SQRT(0.5_dp*alpha)
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         atecc(iatom) = atecc(iatom) - zeff(ikind)**2*SQRT(alpha/twopi)
+         DO jatom = iatom + 1, natom
+            jkind = kind_of(jatom)
+            zab = zeff(ikind)*zeff(jkind)
+            fab = 2.0_dp*oorootpi*zab*rootaab
+            rab = particle_set(iatom)%r - particle_set(jatom)%r
+            rab = pbc(rab, cell)
+            dab = SQRT(SUM(rab(:)**2))
+            eab = zab*erfc(rootaab*dab)/dab
+            atecc(iatom) = atecc(iatom) + 0.5_dp*eab
+            atecc(jatom) = atecc(jatom) + 0.5_dp*eab
+         END DO
+      END DO
+
+      DEALLOCATE (zeff)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_ecore_alpha
 
 END MODULE qs_core_energies

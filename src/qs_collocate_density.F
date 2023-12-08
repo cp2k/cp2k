@@ -782,13 +782,16 @@ CONTAINS
 !> \param rho_core ...
 !> \param total_rho ...
 !> \param qs_env ...
+!> \param calpha ...
+!> \param ccore ...
 !> \param only_nopaw ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_rho_core(rho_core, total_rho, qs_env, only_nopaw)
+   SUBROUTINE calculate_rho_core(rho_core, total_rho, qs_env, calpha, ccore, only_nopaw)
 
       TYPE(pw_type), INTENT(INOUT)                       :: rho_core
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: calpha, ccore
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_nopaw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core'
@@ -818,6 +821,9 @@ CONTAINS
 
       my_only_nopaw = .FALSE.
       IF (PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
+      IF (PRESENT(calpha)) THEN
+         CPASSERT(PRESENT(ccore))
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -835,8 +841,13 @@ CONTAINS
 
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-         CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
-                          alpha_core_charge=alpha, ccore_charge=pab(1, 1))
+         IF (PRESENT(calpha)) THEN
+            alpha = calpha(ikind)
+            pab(1, 1) = ccore(ikind)
+         ELSE
+            CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
+                             alpha_core_charge=alpha, ccore_charge=pab(1, 1))
+         END IF
 
          IF (my_only_nopaw .AND. paw_atom) CYCLE
          IF (alpha == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE

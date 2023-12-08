@@ -83,6 +83,7 @@ MODULE qs_integrate_potential_single
    PUBLIC :: integrate_v_rspace_one_center, &
              integrate_v_rspace_diagonal, &
              integrate_v_core_rspace, &
+             integrate_v_gaussian_rspace, &
              integrate_ppl_rspace, &
              integrate_rho_nlcc
 
@@ -632,6 +633,120 @@ CONTAINS
 
    END SUBROUTINE integrate_v_core_rspace
 
+! **************************************************************************************************
+!> \brief computes the overlap of a set of Gaussians with a potential on grid
+!> \param v_rspace ...
+!> \param qs_env ...
+!> \param alpha ...
+!> \param ccore ...
+!> \param atecc ...
+! **************************************************************************************************
+   SUBROUTINE integrate_v_gaussian_rspace(v_rspace, qs_env, alpha, ccore, atecc)
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha, ccore
+      REAL(KIND=dp), DIMENSION(:)                        :: atecc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_gaussian_rspace'
+
+      INTEGER                                            :: atom_a, handle, iatom, ikind, j, natom, &
+                                                            natom_of_kind, npme
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
+      REAL(KIND=dp)                                      :: alpha_core_charge, eps_rho_rspace, radius
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, pab
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(realspace_grid_type), POINTER                 :: rs_v
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+
+      !If gapw, check for gpw kinds
+      CPASSERT(.NOT. dft_control%qs_control%gapw)
+
+      NULLIFY (pw_env)
+      ALLOCATE (cores(1))
+      ALLOCATE (hab(1, 1))
+      ALLOCATE (pab(1, 1))
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
+
+      CALL transfer_pw2rs(rs_v, v_rspace)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      particle_set=particle_set, &
+                      pw_env=pw_env)
+
+      ! atomic energy contributions
+      natom = SIZE(particle_set)
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+      DO ikind = 1, SIZE(atomic_kind_set)
+
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
+         pab(1, 1) = -ccore(ikind)
+         alpha_core_charge = alpha(ikind)
+         IF (alpha_core_charge == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
+
+         CALL reallocate(cores, 1, natom_of_kind)
+         npme = 0
+         cores = 0
+
+         DO iatom = 1, natom_of_kind
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r, cell)
+            IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
+               ! replicated realspace grid, split the atoms up between procs
+               IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
+                  npme = npme + 1
+                  cores(npme) = iatom
+               END IF
+            ELSE
+               npme = npme + 1
+               cores(npme) = iatom
+            END IF
+         END DO
+
+         DO j = 1, npme
+
+            iatom = cores(j)
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r, cell)
+            hab(1, 1) = 0.0_dp
+
+            radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                              ra=ra, rb=ra, rp=ra, &
+                                              zetp=alpha_core_charge, eps=eps_rho_rspace, &
+                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                              prefactor=1.0_dp, cutoff=1.0_dp)
+
+            CALL integrate_pgf_product(0, alpha_core_charge, 0, &
+                                       0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                       rs_v, hab, pab=pab, o1=0, o2=0, &
+                                       radius=radius, calculate_forces=.FALSE., &
+                                       use_subpatch=.TRUE., subpatch_pattern=0)
+            atecc(atom_a) = atecc(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
+
+         END DO
+
+      END DO
+
+      DEALLOCATE (hab, pab, cores)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE integrate_v_gaussian_rspace
 ! **************************************************************************************************
 !> \brief computes integrals of product of v_rspace times a one-center function
 !>        required for LRIGPW
