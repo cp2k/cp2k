@@ -750,6 +750,7 @@ CONTAINS
          ! loop over all kinds of atoms
          hab = 0._dp
          DO kkind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(kkind), zeff=zeta_c)
             alpha_c = calpha(kkind)
             core_charge = ccore(kkind)
             core_radius = exp_radius(0, alpha_c, eps_core_charge, core_charge)

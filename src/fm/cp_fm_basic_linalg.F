@@ -2304,11 +2304,11 @@ CONTAINS
       CALL pdorgqr(nrow, nrow, nrow, a, first_row, first_col, descc, tau, work, lwork, info)
 #else
       CPASSERT(first_row == 1 .AND. first_col == 1)
+      lda = SIZE(a, 1)
       CALL dorgqr(nrow, nrow, nrow, a, lda, tau, work, lwork, info)
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
-      lda = SIZE(a, 1)
       CALL dorgqr(nrow, nrow, nrow, a, lda, tau, work, lwork, info)
 #endif
       CPASSERT(INFO == 0)

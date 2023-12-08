@@ -593,6 +593,7 @@ CONTAINS
       END IF
       IF (ewald_correction) THEN
          CALL dbcsr_release(dve_mat%matrix)
+         DEALLOCATE (dve_mat%matrix)
       END IF
       CALL cp_fm_release(orb_weight)
       CALL cp_fm_release(ciao)

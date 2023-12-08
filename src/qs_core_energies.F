@@ -479,6 +479,7 @@ CONTAINS
          ikind = kind_of(iatom)
          atecc(iatom) = atecc(iatom) - zeff(ikind)**2*SQRT(alpha/twopi)
          DO jatom = iatom + 1, natom
+            jkind = kind_of(jatom)
             zab = zeff(ikind)*zeff(jkind)
             fab = 2.0_dp*oorootpi*zab*rootaab
             rab = particle_set(iatom)%r - particle_set(jatom)%r
