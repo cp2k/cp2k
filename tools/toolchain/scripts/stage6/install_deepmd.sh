@@ -67,20 +67,12 @@ case "$with_deepmd" in
     check_dir "${pkg_install_dir}/lib"
     DEEPMD_DFLAGS="-D__DEEPMD"
     DEEPMD_CFLAGS="-I'${pkg_install_dir}/include'"
-    if [ "$DEEPMD_MODE" == "cpu" ]; then
-      DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_op -ldeepmd_c -Wl,-rpath='${pkg_install_dir}/lib'"
-    elif [ "$DEEPMD_MODE" == "cuda" ]; then
-      DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_op -ldeepmd_c -ldeepmd_dyn_cudart -ldeepmd_op_cuda -Wl,-rpath='${pkg_install_dir}/lib'"
-    fi
+    DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_c -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
 
 if [ "$with_deepmd" != "__DONTUSE__" ]; then
-  if [ "$DEEPMD_MODE" == "cpu" ]; then
-    DEEPMD_LIBS='-ldeepmd_op -ldeepmd_op -ldeepmd_c -lstdc++'
-  elif [ "$DEEPMD_MODE" == "cuda" ]; then
-    DEEPMD_LIBS='-ldeepmd_op -ldeepmd_op -ldeepmd_c -ldeepmd_dyn_cudart -ldeepmd_op_cuda -lstdc++'
-  fi
+  DEEPMD_LIBS='-ldeepmd_c -lstdc++'
   if [ "$with_deepmd" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_deepmd"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
