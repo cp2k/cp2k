@@ -9,7 +9,7 @@ MODULE manybody_deepmd
 
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
    USE atomic_kind_types, ONLY: atomic_kind_type
-   USE bibliography, ONLY: Han2018, &
+   USE bibliography, ONLY: Wang2018, &
                            Zeng2023, &
                            cite_reference
    USE cell_types, ONLY: cell_type
@@ -86,8 +86,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 #ifndef __DEEPMD
-      CPABORT("In order to use DeePMD-kit you need to download "// &
-              "and install libdeepmd_c (check CP2K manual for details)")
+      CPABORT("In order to use DeePMD-kit you need to download and install libdeepmd_c")
       MARK_USED(particle_set)
       MARK_USED(cell)
       MARK_USED(atomic_kind_set)
@@ -136,7 +135,7 @@ CONTAINS
          dpmd_atype(iat_use) = use_atom_type(iat)
       END DO
       IF (iat_use > 0) THEN
-         CALL cite_reference(Han2018)
+         CALL cite_reference(Wang2018)
          CALL cite_reference(Zeng2023)
       END IF
       output_unit = cp_logger_get_default_io_unit()
@@ -230,8 +229,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 #ifndef __DEEPMD
-      CPABORT("In order to use DeePMD-kit you need to download "// &
-              "and install libdeepmd_c (check CP2K manual for details)")
+      CPABORT("In order to use DeePMD-kit you need to download and install libdeepmd_c")
       MARK_USED(fist_nonbond_env)
       MARK_USED(force)
       MARK_USED(pv_nonbond)

@@ -15,8 +15,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Batzner2022, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Han2018, &
-        Mitchell1993, Musaelian2023, QUIP_ref, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, &
+        Batzner2022, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, &
+        Musaelian2023, QUIP_ref, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, &
         Yamada2000, Zeng2023
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
@@ -1613,7 +1613,7 @@ CONTAINS
                           "Requires linking with DeePMD-kit library from "// &
                           "<a href=""https://docs.deepmodeling.com/projects/deepmd/en/master"" "// &
                           "target=""_blank"">https://docs.deepmodeling.com/projects/deepmd/en/master</a> .", &
-                          citations=(/Han2018, Zeng2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          citations=(/Wang2018, Zeng2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the Deep Potential. "// &

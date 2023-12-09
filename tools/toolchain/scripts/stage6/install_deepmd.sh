@@ -20,7 +20,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 DEEPMD_LDFLAGS=''
 DEEPMD_LIBS=''
-DEEPMD_CXXFLAGS='-std=gnu++11 '
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
@@ -51,18 +50,13 @@ case "$with_deepmd" in
     fi
     DEEPMD_DFLAGS="-D__DEEPMD"
     DEEPMD_CFLAGS="-I'${pkg_install_dir}/include'"
-    if [ "$DEEPMD_MODE" == "cpu" ]; then
-      DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_op -ldeepmd_c -Wl,-rpath='${pkg_install_dir}/lib'"
-    elif [ "$DEEPMD_MODE" == "cuda" ]; then
-      DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_op -ldeepmd_c -ldeepmd_dyn_cudart -ldeepmd_op_cuda -Wl,-rpath='${pkg_install_dir}/lib'"
-    fi
+    DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_c -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding DeePMD from system paths ===================="
     check_lib -ldeepmd "DEEPMD"
     add_lib_from_paths DEEPMD_LDFLAGS "libdeepmd*" $LIB_PATHS
     add_include_from_paths DEEPMD_CFLAGS "deepmd" $INCLUDE_PATHS
-    add_include_from_paths DEEPMD_CXXFLAGS "deepmd" $INCLUDE_PATHS
     DEEPMD_DFLAGS="-D__DEEPMD"
     ;;
   __DONTUSE__) ;;
