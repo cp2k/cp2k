@@ -5,7 +5,7 @@
 titlesonly:
 maxdepth: 1
 ---
-Molecular Dynamics <https://www.cp2k.org/howto:md>
+molecular_dynamics
 metadynamics
 path_integrals
 Surface Hopping with NEWTON-X <https://www.cp2k.org/howto:newtonx>
