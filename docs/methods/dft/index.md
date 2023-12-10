@@ -8,9 +8,9 @@ maxdepth: 1
 gpw
 gapw
 hfx
-lrigpw
-cdft
-ls-dft
+lri-gpw
+constrained_dft
+linear_scaling
 basis_sets
 pseudopotentials
 ```
