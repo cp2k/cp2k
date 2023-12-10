@@ -39,7 +39,7 @@ def main() -> None:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
     with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
-        f.write(toolchain_full() + regtest_cmake())
+        f.write(spack_env_toolchain() + regtest_cmake())
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -158,11 +158,6 @@ RUN /bin/bash -o pipefail -c " \
 def regtest_cmake(testopts: str = "") -> str:
     return (
         rf"""
-# Install DBCSR.
-WORKDIR /opt/dbcsr
-COPY ./tools/docker/scripts/install_dbcsr.sh .
-RUN ./install_dbcsr.sh
-
 # Install CP2K sources.
 WORKDIR /opt/cp2k
 COPY ./src ./src
@@ -753,6 +748,67 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 """.lstrip()
 
 
+# ======================================================================================
+def spack_env_toolchain() -> str:
+    return rf"""
+FROM ubuntu:22.04
+
+# Install common dependencies as pre-built Ubuntu packages.
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    autoconf \
+    autogen \
+    automake \
+    autotools-dev \
+    bzip2 \
+    ca-certificates \
+    g++ \
+    gcc \
+    gfortran \
+    git \
+    less \
+    libtool \
+    libtool-bin \
+    make \
+    nano \
+    ninja-build \
+    patch \
+    pkgconf \
+    python3 \
+    unzip \
+    wget \
+    xxd \
+    zlib1g-dev \
+    cmake \
+    gnupg \
+    m4 \
+    xz-utils \
+    libssl-dev \
+    libssh-dev \
+    mpich \
+    libmpich-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Install a recent developer version of Spack.
+WORKDIR /opt/spack
+RUN git init --quiet && \
+    git remote add origin https://github.com/spack/spack.git && \
+    git fetch --quiet --depth 1 origin 8bcb1f8766ffbf097ec685bdafad53bc8b6e9e30 && \
+    git checkout --quiet FETCH_HEAD
+ENV PATH="/opt/spack/bin:${{PATH}}"
+
+# Find all external packages and compilers.
+RUN spack external find --all --not-buildable
+RUN spack compiler find
+
+# Install CP2K's dependencies via Spack.
+WORKDIR /
+COPY ./tools/spack/cp2k-dependencies.yaml .
+RUN spack env create myenv ./cp2k-dependencies.yaml
+RUN spack --env=myenv install
+"""
+
+
+# ======================================================================================
 def spack_toolchain(distro: str, spec: str) -> str:
     return rf"""
 FROM {distro} as builder
