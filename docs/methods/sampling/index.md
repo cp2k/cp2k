@@ -10,7 +10,7 @@ metadynamics
 path_integrals
 newton-x
 i-pi
-Gibbs Ensemble Monte Carlo <https://www.cp2k.org/howto:gemc>
+gemc
 Langevin Dynamics <https://www.cp2k.org/howto:langevin_regions>
 ehrenfest
 ```
