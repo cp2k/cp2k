@@ -9,6 +9,5 @@ builtin
 gromacs
 polarizable_ff
 implicit_solvation
-Image charges <https://www.cp2k.org/howto:ic-qmmm>
-
+image_charges
 ```
