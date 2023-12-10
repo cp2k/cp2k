@@ -1,0 +1,4554 @@
+TACC: Starting up job 5479462
+TACC: Starting parallel tasks...
+ DBCSR| Multiplication driver                                                SMM
+ DBCSR| Multrec recursion limit                                              512
+ DBCSR| Multiplication stack size                                           1000
+ DBCSR| Multiplication size stacks                                             3
+ DBCSR| Use subcommunicators                                                   T
+ DBCSR| Use MPI combined types                                                 F
+ DBCSR| Use MPI memory allocation                                              T
+ DBCSR| Use Communication thread                                               T
+ DBCSR| Communication thread load                                             87
+
+
+  **** **** ******  **  PROGRAM STARTED AT               2015-07-06 15:45:39.591
+ ***** ** ***  *** **   PROGRAM STARTED ON        c467-503.stampede.tacc.utexas.
+ **    ****   ******    PROGRAM STARTED BY                                  root
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 84522
+  **** **  *******  **  PROGRAM STARTED IN /work/02994/hgchem/Kcompile/cp2k-2.5.
+                                           1/tests/MC/regtest/newregtest/GEMC_NV
+                                           T
+
+ CP2K| version string:                                        CP2K version 2.5.1
+ CP2K| source code revision number:                                    svn:13632
+ CP2K| is freely available from                             http://www.cp2k.org/
+ CP2K| Program compiled at                          Wed Mar 11 15:11:01 CDT 2015
+ CP2K| Program compiled on                       login1.stampede.tacc.utexas.edu
+ CP2K| Program compiled for                                   Linux-x86-64-intel
+ CP2K| Input file name                                         GEMC_NVT_box1.inp
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                      GTH_BASIS_SETS
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                                     H2O_MC
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                             MC
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              28113964      28113964      28555464      28440374
+ MEMORY| Buffers                  5344          2516          5344          3303
+ MEMORY| Cached                 402012         48176        402012        139575
+ MEMORY| Slab                   594708        506092        594708        535596
+ MEMORY| SReclaimable            14880         11252         14880         12379
+ MEMORY| MemLikelyFree        28536200      28536200      28626316      28595631
+
+
+ *******************************************************************************
+ *******************************************************************************
+ **                                                                           **
+ **     #####                         ##              ##                      **
+ **    ##   ##            ##          ##              ##                      **
+ **   ##     ##                       ##            ######                    **
+ **   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####    **
+ **   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##   **
+ **   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######    **
+ **    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##        **
+ **     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##        **
+ **           ##                                                    ##        **
+ **                                                                           **
+ **                                                ... make the atoms dance   **
+ **                                                                           **
+ **            Copyright (C) by CP2K Developers Group (2000 - 2014)           **
+ **                                                                           **
+ *******************************************************************************
+
+
+ SCF PARAMETERS         Density guess:                                    ATOMIC
+                        --------------------------------------------------------
+                        max_scf:                                              50
+                        max_scf_history:                                       0
+                        max_diis:                                              4
+                        --------------------------------------------------------
+                        eps_scf:                                        1.00E-05
+                        eps_scf_history:                                0.00E+00
+                        eps_diis:                                       1.00E-01
+                        eps_eigval:                                     1.00E-05
+                        --------------------------------------------------------
+                        level_shift [a.u.]:                                 0.00
+                        --------------------------------------------------------
+                        Mixing method:                           DIRECT_P_MIXING
+                        --------------------------------------------------------
+                        No outer SCF
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                      GTH_BASIS_SETS
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                                     H2O_MC
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                             MC
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              27702292      27702292      28138916      28024704
+ MEMORY| Buffers                  5352          2516          5352          3305
+ MEMORY| Cached                 407840         57372        407840        146525
+ MEMORY| Slab                   595824        508324        595824        536961
+ MEMORY| SReclaimable            15448         11252         15448         12693
+ MEMORY| MemLikelyFree        28130932      28130932      28216560      28187227
+
+
+ *******************************************************************************
+ *******************************************************************************
+ **                                                                           **
+ **     #####                         ##              ##                      **
+ **    ##   ##            ##          ##              ##                      **
+ **   ##     ##                       ##            ######                    **
+ **   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####    **
+ **   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##   **
+ **   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######    **
+ **    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##        **
+ **     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##        **
+ **           ##                                                    ##        **
+ **                                                                           **
+ **                                                ... make the atoms dance   **
+ **                                                                           **
+ **            Copyright (C) by CP2K Developers Group (2000 - 2014)           **
+ **                                                                           **
+ *******************************************************************************
+
+
+ SCF PARAMETERS         Density guess:                                    ATOMIC
+                        --------------------------------------------------------
+                        max_scf:                                              50
+                        max_scf_history:                                       0
+                        max_diis:                                              4
+                        --------------------------------------------------------
+                        eps_scf:                                        1.00E-05
+                        eps_scf_history:                                0.00E+00
+                        eps_diis:                                       1.00E-01
+                        eps_eigval:                                     1.00E-05
+                        --------------------------------------------------------
+                        level_shift [a.u.]:                                 0.00
+                        --------------------------------------------------------
+                        Mixing method:                           DIRECT_P_MIXING
+                        --------------------------------------------------------
+                        No outer SCF
+ 
+ 
+******************************** Begin BOX  1  *******************************
+ 
+ MC| Monte Carlo Protocol 
+ MC| total number of steps                                                     5
+ MC| pmvolume                                                              0.050
+ MC| pmvol_box                                                             1.000
+ MC| pmhmc                                                                 0.000
+ MC| pmhmc_box                                                             1.000
+ MC| pmswap                                                                0.200
+ MC| pmavbmc                                                               0.000
+ MC| pmtraion                                                              0.300
+ MC| pmtrans                                                               0.600
+ MC| iupvolume                                                               100
+ MC| nvirial                                                                1000
+ MC| iuptrans                                                                100
+ MC| iprint                                                                    1
+ MC| ensemble                                                           GEMC_NVT
+ MC| pmswap_mol                                                           1.0000
+ MC| pmavbmc_mol                                                          1.0000
+ MC| pbias                                                                0.5000
+ MC| pmtraion_mol                                                         1.0000
+ MC| pmtrans_mol                                                          1.0000
+ MC| pmrot_mol                                                            1.0000
+ MC| eta [K]                                                              0.0000
+ MC| rmbond [angstroms]                                                   0.0740
+ MC| rmangle [degrees]                                                    3.0000
+ MC| rmdihedral [degrees]                                                 3.0000
+ MC| rmtrans [angstroms]                                                  0.3800
+ MC| rmrot [degrees]                                                     26.0000
+ MC| AVBMC target atom                                                  1
+ MC| AVBMC inner cutoff [ang]                                             1.0000
+ MC| AVBMC outer cutoff [ang]                                             5.0000
+ MC| Name of restart file:                               mc_restart_1
+ MC| Name of output coordinate file:       GEMC_NVT_box1.inp.coordinates
+ MC| Name of output data file:             GEMC_NVT_box1.inp.data
+ MC| Name of output molecules file:        GEMC_NVT_box1.inp.molecules
+ MC| Name of output moves file:            GEMC_NVT_box1.inp.moves
+ MC| Name of output energy file:           GEMC_NVT_box1.inp.energy
+ MC| Name of output cell file:             GEMC_NVT_box1.inp.cell
+ MC| Name of output displacement file:     GEMC_NVT_box1.inp.max_displacements
+ MC| rmvolume [cubic angstroms]                                          100.500
+ MC| Temperature [K]                                                      398.00
+ MC| Pressure [bar]                                                      1.01300
+ MC| The moves will be biased.
+ MC|    8 moves will be attempted before a Quickstep energy calculation
+ MC|      takes place.
+ MC|  640 swap insertions will be attempted per molecular swap move
+ 
+ 
+******************************** Begin BOX  2  *******************************
+ 
+ MC| Monte Carlo Protocol 
+ MC| total number of steps                                                     5
+ MC| pmvolume                                                              0.050
+ MC| pmvol_box                                                             1.000
+ MC| pmhmc                                                                 0.000
+ MC| pmhmc_box                                                             1.000
+ MC| pmswap                                                                0.200
+ MC| pmavbmc                                                               0.000
+ MC| pmtraion                                                              0.300
+ MC| pmtrans                                                               0.600
+ MC| iupvolume                                                               100
+ MC| nvirial                                                                1000
+ MC| iuptrans                                                                100
+ MC| iprint                                                                    1
+ MC| ensemble                                                           GEMC_NVT
+ MC| pmswap_mol                                                           1.0000
+ MC| pmavbmc_mol                                                          1.0000
+ MC| pbias                                                                0.5000
+ MC| pmtraion_mol                                                         1.0000
+ MC| pmtrans_mol                                                          1.0000
+ MC| pmrot_mol                                                            1.0000
+ MC| eta [K]                                                              0.0000
+ MC| rmbond [angstroms]                                                   0.0740
+ MC| rmangle [degrees]                                                    3.0000
+ MC| rmdihedral [degrees]                                                 3.0000
+ MC| rmtrans [angstroms]                                                  0.3800
+ MC| rmrot [degrees]                                                     26.0000
+ MC| AVBMC target atom                                                  1
+ MC| AVBMC inner cutoff [ang]                                             1.0000
+ MC| AVBMC outer cutoff [ang]                                             5.0000
+ MC| Name of restart file:                               mc_restart_2
+ MC| Name of output coordinate file:       GEMC_NVT_box2.inp.coordinates
+ MC| Name of output data file:             GEMC_NVT_box2.inp.data
+ MC| Name of output molecules file:        GEMC_NVT_box2.inp.molecules
+ MC| Name of output moves file:            GEMC_NVT_box2.inp.moves
+ MC| Name of output energy file:           GEMC_NVT_box2.inp.energy
+ MC| Name of output cell file:             GEMC_NVT_box2.inp.cell
+ MC| Name of output displacement file:     GEMC_NVT_box2.inp.max_displacements
+ MC| rmvolume [cubic angstroms]                                          100.500
+ MC| Temperature [K]                                                      398.00
+ MC| Pressure [bar]                                                      1.01300
+ MC| The moves will be biased.
+ MC|    8 moves will be attempted before a Quickstep energy calculation
+ MC|      takes place.
+ MC|  640 swap insertions will be attempted per molecular swap move
+Ignoring some input for box 2, and using the values for box 1 for the following variables:
+nstep,iupvolume,iuptrans,nmoves,nswapmoves,iprint,lbias,lstop,temperature,pressure
+pmvolume,pmtraion,pmtrans,BETA,rcut,lrestart
+pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,avbmc_atom
+avbmc_rmin,avmbc_rmax,pmavbmc_mol,pbias,pmswap
+ 
+ 
+ Beginning the Monte Carlo calculation.
+ 
+ 
+
+ Number of electrons:                                                        504
+ Number of occupied orbitals:                                                252
+ Number of molecular orbitals:                                               252
+
+ Number of orbital functions:                                               2520
+ Number of independent orbital functions:                                   2520
+
+ Extrapolation method: initial_guess
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.4     1.22552352     -1075.9078206827 -1.08E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.70031091     -1079.4871683247 -3.58E+00
+     3 P_Mix/Diag. 0.40E+00    1.4     0.42564408     -1081.7204553192 -2.23E+00
+     4 P_Mix/Diag. 0.40E+00    1.4     0.25346718     -1083.0523734204 -1.33E+00
+     5 P_Mix/Diag. 0.40E+00    1.4     0.15168134     -1083.8488411238 -7.96E-01
+     6 P_Mix/Diag. 0.40E+00    1.4     0.09065274     -1084.3260845200 -4.77E-01
+     7 DIIS/Diag.  0.86E-03    1.4     0.05399064     -1084.6123164557 -2.86E-01
+     8 DIIS/Diag.  0.24E-03    1.4     0.00002063     -1085.0417217674 -4.29E-01
+     9 DIIS/Diag.  0.23E-03    1.4     0.00054446     -1085.0417218883 -1.21E-07
+    10 DIIS/Diag.  0.56E-03    1.4     0.00042214     -1085.0417225983 -7.10E-07
+    11 DIIS/Diag.  0.11E-03    1.4     0.00007769     -1085.0417235458 -9.47E-07
+    12 DIIS/Diag.  0.41E-04    1.4     0.00005134     -1085.0417236129 -6.72E-08
+    13 DIIS/Diag.  0.35E-04    1.4     0.00002572     -1085.0417236160 -3.12E-09
+    14 DIIS/Diag.  0.35E-05    1.4     0.00000602     -1085.0417236190 -2.98E-09
+
+  *** SCF run converged in    14 steps ***
+
+
+  Electronic density on regular grids:       -503.9999990777        0.0000009223
+  Core density on regular grids:              503.9999999832       -0.0000000168
+  Total charge density on r-space grids:        0.0000009054
+  Total charge density g-space grids:           0.0000009054
+
+  Overlap energy of the core charge distribution:               0.00000185629188
+  Self energy of the core charge distribution:              -2806.05882150010393
+  Core Hamiltonian energy:                                    817.04935979941035
+  Hartree energy:                                            1169.49223347086286
+  Exchange-correlation energy:                               -265.25015072805672
+  Dispersion energy:                                           -0.27434651742161
+
+  Total energy:                                             -1085.04172361901715
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1085.041723619017148
+
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                           BASIS_SET
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                              bias_template
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                   ENERGY_FORCE
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              26226608      26226608      26711184      26565394
+ MEMORY| Buffers                  5352          2540          5352          3325
+ MEMORY| Cached                 471772        112952        471772        209550
+ MEMORY| Slab                   598420        511292        598420        539675
+ MEMORY| SReclaimable            15620         11600         15620         12958
+ MEMORY| MemLikelyFree        26719352      26719352      26838552      26791227
+
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+
+ EWALD| Summation is done by:                                              EWALD
+ EWALD| Alpha parameter [       ANGSTROM^-1]                              0.2500
+ EWALD| Real Space Cutoff [          ANGSTROM]                           13.4957
+ EWALD| G-space max. Miller index                         25        25        25
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ *** 15:46:06 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( O ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+
+ *** 15:46:06 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( H ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED14 interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            1
+
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            2
+
+ SPLINE_INFO| Done
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952371460656463
+
+
+ Number of electrons:                                                          8
+ Number of occupied orbitals:                                                  4
+ Number of molecular orbitals:                                                 4
+
+ Number of orbital functions:                                                 40
+ Number of independent orbital functions:                                     40
+
+ Extrapolation method: initial_guess
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    0.1     1.25376103       -17.0480174813 -1.70E+01
+     2 P_Mix/Diag. 0.40E+00    0.1     0.69034958       -17.1097168582 -6.17E-02
+     3 P_Mix/Diag. 0.40E+00    0.1     0.42276281       -17.1479143418 -3.82E-02
+     4 P_Mix/Diag. 0.40E+00    0.1     0.25051657       -17.1704557238 -2.25E-02
+     5 P_Mix/Diag. 0.40E+00    0.1     0.14967696       -17.1838468597 -1.34E-02
+     6 P_Mix/Diag. 0.40E+00    0.1     0.08916125       -17.1918405168 -7.99E-03
+     7 DIIS/Diag.  0.69E-03    0.1     0.05268422       -17.1966244239 -4.78E-03
+     8 DIIS/Diag.  0.49E-04    0.2     0.00009846       -17.2037875294 -7.16E-03
+     9 DIIS/Diag.  0.26E-04    0.1     0.00007084       -17.2037875310 -1.66E-09
+    10 DIIS/Diag.  0.27E-04    0.1     0.00004450       -17.2037875310  5.20E-11
+    11 DIIS/Diag.  0.31E-05    0.1     0.00000414       -17.2037875316 -6.55E-10
+
+  *** SCF run converged in    11 steps ***
+
+
+  Electronic density on regular grids:         -8.0000001773       -0.0000001773
+  Core density on regular grids:                7.9999999998       -0.0000000002
+  Total charge density on r-space grids:       -0.0000001775
+  Total charge density g-space grids:          -0.0000001775
+
+  Overlap energy of the core charge distribution:               0.00000019606246
+  Self energy of the core charge distribution:                -44.54061621428736
+  Core Hamiltonian energy:                                     13.05349187694914
+  Hartree energy:                                              18.51588909908360
+  Exchange-correlation energy:                                 -4.23252405905367
+  Dispersion energy:                                           -0.00002843036934
+
+  Total energy:                                               -17.20378753161517
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):              -17.203787531615170
+
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                           BASIS_SET
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                              bias_template
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                   ENERGY_FORCE
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              25744868      25744868      26230792      26085135
+ MEMORY| Buffers                  5352          2540          5352          3325
+ MEMORY| Cached                 474112        117572        474112        212522
+ MEMORY| Slab                   598904        512280        598904        540257
+ MEMORY| SReclaimable            15676         11644         15676         12988
+ MEMORY| MemLikelyFree        26240008      26240008      26362824      26313970
+
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+
+ EWALD| Summation is done by:                                              EWALD
+ EWALD| Alpha parameter [       ANGSTROM^-1]                              0.2500
+ EWALD| Real Space Cutoff [          ANGSTROM]                           13.4957
+ EWALD| G-space max. Miller index                         25        25        25
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ *** 15:46:08 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( O ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+
+ *** 15:46:08 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( H ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED14 interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            1
+
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            2
+
+ SPLINE_INFO| Done
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000117452999278
+
+ 
+ ------- On Monte Carlo Step            1
+ Attempting a swap move
+ 
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                           BASIS_SET
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                              bias_template
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                   ENERGY_FORCE
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              25552544      25552544      26036236      25892067
+ MEMORY| Buffers                  5352          2540          5352          3325
+ MEMORY| Cached                 474112        117572        474112        212522
+ MEMORY| Slab                   598904        512280        598904        540257
+ MEMORY| SReclaimable            15676         11644         15676         12988
+ MEMORY| MemLikelyFree        26047684      26047684      26168268      26120902
+
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+
+ EWALD| Summation is done by:                                              EWALD
+ EWALD| Alpha parameter [       ANGSTROM^-1]                              0.2500
+ EWALD| Real Space Cutoff [          ANGSTROM]                           13.4957
+ EWALD| G-space max. Miller index                         25        25        25
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ *** 15:46:08 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( O ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+
+ *** 15:46:08 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( H ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED14 interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            1
+
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            2
+
+ SPLINE_INFO| Done
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                           BASIS_SET
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                              bias_template
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                   ENERGY_FORCE
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              25291028      25291028      25776580      25631202
+ MEMORY| Buffers                  5352          2540          5352          3325
+ MEMORY| Cached                 474112        117572        474112        212522
+ MEMORY| Slab                   598904        512280        598904        540257
+ MEMORY| SReclaimable            15676         11644         15676         12988
+ MEMORY| MemLikelyFree        25786168      25786168      25908612      25860037
+
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+
+ EWALD| Summation is done by:                                              EWALD
+ EWALD| Alpha parameter [       ANGSTROM^-1]                              0.2500
+ EWALD| Real Space Cutoff [          ANGSTROM]                           13.4957
+ EWALD| G-space max. Miller index                         25        25        25
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ *** 15:46:08 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( O ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+
+ *** 15:46:08 WARNING in force_fields_all:force_field_pack_charge ::     ***
+ *** Multiple Charge declarations: ( H ) overwriting! force_fields_all.F ***
+ *** line 3392                                                           ***
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+ 
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+ 
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED14 interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            1
+
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 3 splines for the NONBONDED interactions due to 2 different atomic kinds
+ ...1
+ ...2
+ ...3
+
+ SPLINE_INFO| Number of unique splines computed:            2
+
+ SPLINE_INFO| Done
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000462367768983
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000394479914272
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000643257409047
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003608176931866
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000504756038522
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000370275758658
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000534465115888
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000523254708570
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000362799988809
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003186431452963
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000505587823679
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001024961249029
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000915193884268
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000353562126880
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000732702730167
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000028819056715
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000213394872870
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001115098396123
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.003658110198093
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000815307166542
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000043019286876
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001220682405690
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000166489648291
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000613231556883
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001067074493330
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000534169718047
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000134370180383
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000127828813326
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000622553444018
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000235838843141
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000498421131212
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000540381530919
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000049642468960
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000930859285501
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000183548863427
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.003394941481756
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.016328870491171
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000475372574178
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.047869805249948
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000487991354693
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000193056768130
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000076387432702
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000375630874546
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000854525159839
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000757755153244
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000709190083087
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000850487134710
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000490427860584
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000497569842923
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000111821739987
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000390885439405
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000174444425030
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000416686698582
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000301096656803
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002363475107484
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000256684224226
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001031862064879
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000031968129693
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000030647209478
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003787066515548
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000768987514106
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001517922224365
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000377497572155
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000565805790611
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001289977738405
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000289261886059
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000128695189653
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000165953601859
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000198858959443
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000341079593820
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000098870637851
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000161670540769
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000042310070029
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000056882873757
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000410936697785
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000385488389601
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000420774372745
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000205668044546
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000480797995488
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000010112551771
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000542152610436
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000211087415021
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000460866451498
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000977200386339
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000051082193650
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000343897933938
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000124625286704
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000287102728982
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000258582303539
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000516574925181
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.004026001885097
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000448175419668
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000442052556180
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000425380918775
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000176730785428
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000338161000354
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000069617388756
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000553857084268
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002259761558302
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000014919593466
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000321844227878
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001832338125943
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000774640950513
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000003570525964
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000408389689190
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001016059595664
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000405174126404
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000138913036825
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000785449599799
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000404068548608
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000206889305079
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001408535219449
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000002233440473
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000417887941528
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000672950556556
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001219278805127
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001824289257222
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001500960990717
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000313846426669
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000348562515935
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000379540426261
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000350291865196
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000545705083973
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000084334465509
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000407349415506
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000088481344284
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000454617488900
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001853530953147
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000191216740061
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002579168275030
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000522469264277
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000462845620298
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000192958749461
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001082692978427
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000251199675293
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000904892907693
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000368863200705
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000710384476998
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000116050460868
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000540134661678
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000024587629141
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002311177150004
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.012821443643881
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000312842365093
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000324751093945
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000211527794295
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001336668571220
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000260615093351
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000560954570182
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000087008879734
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000105877007792
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.006209211242702
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000265825230047
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000063067189930
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000466735179959
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000560479035120
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000802011353900
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000697668160989
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000033989281999
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000685414107684
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000220296109738
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.006472118998434
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000222962740110
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001050134296654
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000097462323699
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000317325544528
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.005960270249034
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001662739789246
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000682094295477
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.006136827442286
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000425892530410
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000522363309624
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000311678206338
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000412211093955
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000003647649425
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000315783359723
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000144868139226
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001336451233586
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000094252065374
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000651909063750
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000186251559355
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001535273976097
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000864212837897
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001015796438764
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000372741800214
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000587039285597
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000004594769804
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000960448589074
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000599401344757
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000029369542186
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000349650765910
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003962122371272
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000675471309296
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000623068955828
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000862513003268
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000776016882728
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000191828779447
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000136572102410
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000017624656064
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000288661800670
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001260380950377
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000344477569773
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000090732710973
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000724005503234
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000403481196531
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000088638261149
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000190117342081
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000507432478812
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000107496867687
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000388299656638
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000634100623615
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000298344889032
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000089077632911
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000329373725436
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001546155531569
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001055112182491
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000653704980297
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000659288135761
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000042795660723
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000649920467021
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000401124104718
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000136634636268
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000661300577217
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000255388631393
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000690804206815
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000085689896511
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000540926581330
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000048215251081
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000978315275800
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000030795952337
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.007620017802112
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000409660787915
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000266876826739
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000103805881071
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000417934906021
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000100247988998
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000268072932230
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000513348824491
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000397812859104
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000140125833112
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000763691222980
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000498404297916
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000136220538430
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000486172582192
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000683165944413
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000142643270029
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001131170219196
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000165836592432
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002769053949920
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000614193560625
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001836991963890
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000311839716129
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000030012190746
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000336449366842
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000538614094829
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000887044170161
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000566967469802
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000076779891229
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000067171827416
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001833909266950
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.007041695902433
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000508445516325
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000188106869158
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000185190113997
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000048968411261
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000236941452381
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000348746557875
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000022617835828
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000057995972829
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000231804274804
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000303003363527
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000571065929876
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000477697700515
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000521943428618
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000467394390297
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.005257400388885
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002443076417402
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.008107133300226
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000083976370637
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000818623938861
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000443287270085
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003946001826907
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000251835491641
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000494238649003
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000883620687627
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000555355860310
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000515223095759
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000243986851115
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000315087269345
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000951652614314
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000689224104502
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000158878706045
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000538549216808
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000493226847571
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.006375611091952
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001514259007760
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000367423678355
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000343264755623
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000797301923092
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000518692782214
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000150647581128
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000504252845824
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000311670704597
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000119832850484
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000299754373195
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000474696720462
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000400474267847
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000745701474010
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000150194962791
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000229315253725
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000920644327942
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000403023721939
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000570410861495
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000480849113347
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000084548474047
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000786568340261
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000622456482101
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002278562728506
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001440001793001
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000529355213539
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.004118670678924
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000534963227377
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000159895057162
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000516257071432
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002047088163286
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000027249286073
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000466787071446
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000558634291077
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000324501939689
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000194655036603
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000300206249329
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000450591284079
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.045022916220670
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000455163503079
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000004562255932
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000485313058071
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002069652887527
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000241312530474
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000518938447918
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000640037756502
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000363614622722
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.006415690019281
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000528542725523
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000361441044920
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000637797099992
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000471845654357
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000064683213560
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000023160852622
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000327047426075
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000902853182659
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000598954962358
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000298623884712
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000046362651214
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000522618820378
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000189712345659
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000557351349794
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000280204853880
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000171302425671
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.006067510584854
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000503425185038
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000170579870365
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001378231809921
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001030743723162
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000852443380622
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000093130991650
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001615207840817
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000364898806575
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000730757920043
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000499976326921
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000172716321580
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.003171537129008
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000289589673085
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000067841919477
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000165906393212
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001569772931783
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000083723811536
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000035159833319
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.004409924710527
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000754749541829
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001632445569672
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000388659099375
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000459632687785
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000524246466764
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.021407627507646
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000010237013529
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000266954210433
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002241294132365
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000282470181359
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000091287805483
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000259035962889
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002913651344626
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000575114104896
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000392645541060
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000485393852303
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000284488259826
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000033637471311
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000430441439561
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000771243330267
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001086081071727
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000004379159099
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000198192551396
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000039391105412
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002123431963263
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000190917049627
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000337877896502
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000239749920962
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000581701913856
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000853469750535
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002315831603070
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000541852361046
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000555608205693
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002090885106765
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000680428069105
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000355369839179
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000454610247024
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000916199887719
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000791975059644
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000513847374209
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001564903092199
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000304061473980
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001011216324548
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001435374908619
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002476320341312
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000676561731076
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000146796219485
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000403349087852
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000190358795331
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.004615163013510
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000797508713909
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000586536514835
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000269760958132
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000021631364043
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000092324299539
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.110662777972426
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000642331811760
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.006542558295532
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000479666448861
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000078418899322
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000186315400882
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000970117091945
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000567739844111
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000297381957261
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000624099058005
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000206501592938
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000251272604495
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002190011454621
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000333370120219
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000382434876746
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000453366528285
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000294090744399
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000087244359842
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000470669531077
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000430512332317
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000077261465915
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000210910719218
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000863062439188
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001724617729879
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000560200340368
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001872827553700
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000384204245221
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000690917694744
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000236897684006
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002666987866300
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000470280722199
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000083925076194
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000176563640618
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000499493877421
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001091847184750
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000547187762566
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000701132167181
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000202337252982
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000554974798829
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000870565753566
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000292353141838
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000448053483461
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000180544800722
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.001376104775143
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000881067756305
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000473021879881
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000636906324416
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000163317767869
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000424165303178
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000035564900852
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000296730891811
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000131706317445
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000180310227736
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001093334773883
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000211161151334
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000800641671155
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000313035061953
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000036837025918
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000131060541393
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001453662019649
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000460827824833
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000597327122485
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000047421568116
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000037179227622
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000237226864654
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000684172577969
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000106919153952
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000180934578271
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003007977930810
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000235997259523
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000049356420476
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000499571033334
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000605466825975
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000878604892291
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000282260416929
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000356871867899
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.004693613000252
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002422356097419
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000568405246384
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000886401479550
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000487758325341
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000198612223074
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001343581988353
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001070239183274
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000536291580529
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000267199602803
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001686916011664
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000443093510204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002802401943136
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001284691147954
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000490756834870
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000385565625895
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000470172855140
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000179963215587
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002910779404022
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000493867054395
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000421920779309
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.005412904695453
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000138745979479
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000245682199294
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000387051468309
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000408935055753
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000237825588658
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000527599840994
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.003183660046936
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000599111566770
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000476065383660
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000286154735471
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000485712128120
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000073624882463
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000076312947311
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000488760664229
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001665402965366
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000730183482264
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000231782124005
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001495815107969
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000482145130057
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              5.215775457768425
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000485220417633
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000116142076853
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002753814830171
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000472874740663
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000083763176545
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000586744952720
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000490289668969
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.013185575314037
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000200478824802
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000451655384500
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000064330930473
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000065040459503
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000041862057026
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000538478756336
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000189077225908
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000114152315733
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000174924356204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000637069637634
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000588339657313
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000406185595172
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000491436284722
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001320358998818
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000961171406779
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000880569461110
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000051869928315
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000301802903375
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000407002267297
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000481738620561
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000160586656086
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000452884878356
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000950693526056
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.002084212988611
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000253434826169
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000900512752561
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001235252747155
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000695274515088
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000776619911392
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000425824837816
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000530933870730
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001268326826654
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000693181556650
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000163453457132
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000867819121386
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000285135650572
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000132365694101
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000254731355690
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000166670737258
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000047116118870
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000000930172687
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000004843859646
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000618126653648
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000412730331323
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000581871657601
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000004000519078
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000505041890544
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001977142796074
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.004303648228327
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.002989228384958
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.007420925836204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000125014240328
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000964770463655
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000958267798646
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001570891788051
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000470758612804
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000056013083555
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001304812156863
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000180470223015
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000353293719925
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000601503465883
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000207128285737
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000619914683109
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000152078968268
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000759671417962
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000071017488603
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000246319405842
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000084288762932
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000811148892319
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000073366544548
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.001150943330427
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000683461971274
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.000761534835898
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000029447676588
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.000106814731870
+
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                      GTH_BASIS_SETS
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                                     H2O_MC
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                   ENERGY_FORCE
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              25027156      25027156      25511964      25367076
+ MEMORY| Buffers                  5352          2540          5352          3325
+ MEMORY| Cached                 474296        117648        474296        212923
+ MEMORY| Slab                   599016        512280        599016        540291
+ MEMORY| SReclaimable            15680         11652         15680         12993
+ MEMORY| MemLikelyFree        25522484      25522484      25644080      25596317
+
+
+ *******************************************************************************
+ *******************************************************************************
+ **                                                                           **
+ **     #####                         ##              ##                      **
+ **    ##   ##            ##          ##              ##                      **
+ **   ##     ##                       ##            ######                    **
+ **   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####    **
+ **   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##   **
+ **   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######    **
+ **    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##        **
+ **     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##        **
+ **           ##                                                    ##        **
+ **                                                                           **
+ **                                                ... make the atoms dance   **
+ **                                                                           **
+ **            Copyright (C) by CP2K Developers Group (2000 - 2014)           **
+ **                                                                           **
+ *******************************************************************************
+
+
+ SCF PARAMETERS         Density guess:                                    ATOMIC
+                        --------------------------------------------------------
+                        max_scf:                                              50
+                        max_scf_history:                                       0
+                        max_diis:                                              4
+                        --------------------------------------------------------
+                        eps_scf:                                        1.00E-05
+                        eps_scf_history:                                0.00E+00
+                        eps_diis:                                       1.00E-01
+                        eps_eigval:                                     1.00E-05
+                        --------------------------------------------------------
+                        level_shift [a.u.]:                                 0.00
+                        --------------------------------------------------------
+                        Mixing method:                           DIRECT_P_MIXING
+                        --------------------------------------------------------
+                        No outer SCF
+
+ Number of electrons:                                                         16
+ Number of occupied orbitals:                                                  8
+ Number of molecular orbitals:                                                 8
+
+ Number of orbital functions:                                                 80
+ Number of independent orbital functions:                                     80
+
+ Extrapolation method: initial_guess
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    0.1     1.25376093       -34.0604942675 -3.41E+01
+     2 P_Mix/Diag. 0.40E+00    0.2     0.69033073       -34.1938000324 -1.33E-01
+     3 P_Mix/Diag. 0.40E+00    0.1     0.42267081       -34.2777468086 -8.39E-02
+     4 P_Mix/Diag. 0.40E+00    0.2     0.25048957       -34.3276312397 -4.99E-02
+     5 P_Mix/Diag. 0.40E+00    0.1     0.14965899       -34.3573360092 -2.97E-02
+     6 P_Mix/Diag. 0.40E+00    0.2     0.08915853       -34.3750862951 -1.78E-02
+     7 DIIS/Diag.  0.89E-03    0.2     0.05275679       -34.3857147415 -1.06E-02
+     8 DIIS/Diag.  0.17E-03    0.2     0.00010918       -34.4016354903 -1.59E-02
+     9 DIIS/Diag.  0.10E-03    0.2     0.00020897       -34.4016355198 -2.95E-08
+    10 DIIS/Diag.  0.14E-03    0.2     0.00010583       -34.4016355233 -3.51E-09
+    11 DIIS/Diag.  0.19E-04    0.2     0.00002494       -34.4016355346 -1.14E-08
+    12 DIIS/Diag.  0.18E-04    0.1     0.00001535       -34.4016355351 -4.77E-10
+    13 DIIS/Diag.  0.54E-05    0.2     0.00000403       -34.4016355352 -1.26E-10
+
+  *** SCF run converged in    13 steps ***
+
+
+  Electronic density on regular grids:        -16.0000003745       -0.0000003745
+  Core density on regular grids:               15.9999999997       -0.0000000003
+  Total charge density on r-space grids:       -0.0000003749
+  Total charge density g-space grids:          -0.0000003749
+
+  Overlap energy of the core charge distribution:               0.00000020043274
+  Self energy of the core charge distribution:                -89.08123242857472
+  Core Hamiltonian energy:                                     25.80360754776396
+  Hartree energy:                                              37.25016351035373
+  Exchange-correlation energy:                                 -8.37399630572862
+  Dispersion energy:                                           -0.00017805949467
+
+  Total energy:                                               -34.40163553524759
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):              -34.401635535247586
+
+ 
+ GLOBAL| Force Environment number                                              1
+ GLOBAL| Basis set file name                                      GTH_BASIS_SETS
+ GLOBAL| Geminal file name                                         BASIS_GEMINAL
+ GLOBAL| Potential file name                                           POTENTIAL
+ GLOBAL| MM Potential file name                                     MM_POTENTIAL
+ GLOBAL| Coordinate file name                                      __STD_INPUT__
+ GLOBAL| Method name                                                        CP2K
+ GLOBAL| Project name                                                     H2O_MC
+ GLOBAL| Preferred FFT library                                             FFTW3
+ GLOBAL| Preferred diagonalization lib.                                       SL
+ GLOBAL| Run type                                                   ENERGY_FORCE
+ GLOBAL| All-to-all communication in single precision                          F
+ GLOBAL| FFTs using library dependent lengths                                  F
+ GLOBAL| Global print level                                                  LOW
+ GLOBAL| Total number of message passing processes                            64
+ GLOBAL| Number of threads for this process                                    1
+ GLOBAL| This output is from process                                           0
+
+ MEMORY| system memory details [Kb]
+ MEMORY|                        rank 0           min           max       average
+ MEMORY| MemTotal             32815324      32815324      32815324      32815324
+ MEMORY| MemFree              24402732      24402732      24888752      24745162
+ MEMORY| Buffers                  5352          2540          5352          3327
+ MEMORY| Cached                 477128        120508        477128        214440
+ MEMORY| Slab                   598976        512072        598976        540187
+ MEMORY| SReclaimable            15696         11668         15696         13001
+ MEMORY| MemLikelyFree        24900908      24900908      25023752      24975930
+
+
+ *******************************************************************************
+ *******************************************************************************
+ **                                                                           **
+ **     #####                         ##              ##                      **
+ **    ##   ##            ##          ##              ##                      **
+ **   ##     ##                       ##            ######                    **
+ **   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####    **
+ **   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##   **
+ **   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######    **
+ **    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##        **
+ **     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##        **
+ **           ##                                                    ##        **
+ **                                                                           **
+ **                                                ... make the atoms dance   **
+ **                                                                           **
+ **            Copyright (C) by CP2K Developers Group (2000 - 2014)           **
+ **                                                                           **
+ *******************************************************************************
+
+
+ SCF PARAMETERS         Density guess:                                    ATOMIC
+                        --------------------------------------------------------
+                        max_scf:                                              50
+                        max_scf_history:                                       0
+                        max_diis:                                              4
+                        --------------------------------------------------------
+                        eps_scf:                                        1.00E-05
+                        eps_scf_history:                                0.00E+00
+                        eps_diis:                                       1.00E-01
+                        eps_eigval:                                     1.00E-05
+                        --------------------------------------------------------
+                        level_shift [a.u.]:                                 0.00
+                        --------------------------------------------------------
+                        Mixing method:                           DIRECT_P_MIXING
+                        --------------------------------------------------------
+                        No outer SCF
+
+ Number of electrons:                                                        496
+ Number of occupied orbitals:                                                248
+ Number of molecular orbitals:                                               248
+
+ Number of orbital functions:                                               2480
+ Number of independent orbital functions:                                   2480
+
+ Extrapolation method: initial_guess
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.3     1.22552355     -1058.8189388557 -1.06E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.70038204     -1062.3418958462 -3.52E+00
+     3 P_Mix/Diag. 0.40E+00    1.4     0.42569511     -1064.5391730953 -2.20E+00
+     4 P_Mix/Diag. 0.40E+00    1.4     0.25348256     -1065.8493054024 -1.31E+00
+     5 P_Mix/Diag. 0.40E+00    1.4     0.15167877     -1066.6326507604 -7.83E-01
+     6 P_Mix/Diag. 0.40E+00    1.4     0.09064510     -1067.1020014818 -4.69E-01
+     7 DIIS/Diag.  0.86E-03    1.4     0.05397960     -1067.3834901051 -2.81E-01
+     8 DIIS/Diag.  0.23E-03    1.4     0.00000666     -1067.8057676828 -4.22E-01
+
+  *** SCF run converged in     8 steps ***
+
+
+  Electronic density on regular grids:       -495.9999990167        0.0000009833
+  Core density on regular grids:              495.9999999835       -0.0000000165
+  Total charge density on r-space grids:        0.0000009668
+  Total charge density g-space grids:           0.0000009668
+
+  Overlap energy of the core charge distribution:               0.00000185192160
+  Self energy of the core charge distribution:              -2761.51820528581720
+  Core Hamiltonian energy:                                    804.18442626134561
+  Hartree energy:                                            1150.86537396901372
+  Exchange-correlation energy:                               -261.07089150839090
+  Dispersion energy:                                           -0.26647297092027
+
+  Total energy:                                             -1067.80576768284732
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1067.805767682847318
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.919923123931320
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952371460656463
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.641490091292860
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.848960406544133
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              3.154154198646204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             74.368424055085939
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.347954998768556
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              4.292154492223530
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.846775866616698
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            251.540338130719590
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.147067846494222
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             13.840944067025488
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.840600123345271
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.855565846882474
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.809744806771293
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.867564826861832
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.915077126032679
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.854740130807551
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.626083682752806
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.888348513319327
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.923381837808674
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.861617095780159
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             66.376848188675325
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.338315105200833
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.854653534709866
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             13.123032467679577
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.893463721773523
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.164459020801240
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.816924234196422
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.540050326054758
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.918648586537594
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.922163034818455
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              3.537062909262333
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.912431501552691
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.441289831052907
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.265894137704119
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.792944058898833
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.927379452289721
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.930817977937356
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.899873995999817
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              2.942139967451709
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.876559978459108
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.806947883005836
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.902638554591892
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.915664245271079
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.923625029138488
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.884639283077757
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.475587214355213
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.604312238871098
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.786720158685133
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.007599642840034
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              6.046978672103894
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.116069399709063
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.621247604859784
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.890483738255315
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.699209986076233
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.902547516990300
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.889034879545155
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.904513495012422
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.881036695630817
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.717247877580496
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926786112580600
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.719511081131910
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.282662893730897
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.483505151461388
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              7.245938884072302
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             39.457440261453542
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.900831782859091
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             10.537760643230246
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.843217433274365
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.745789583771106
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.834434462076262
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.868196278421666
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             47.730044692385825
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.721515572116062
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.204605807816246
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.842310180268523
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             28.128436852637904
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             53.103185860426393
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.303173526613710
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.885887253632171
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.784076699593607
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.439268139354415
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.903293164017407
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.534572566089548
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.817054262609166
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.756870137023568
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.812641679013779
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.481347528539256
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              6.479698454506146
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926749420214748
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             21.860228320995724
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.594282898334568
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.863913665241005
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.580540491968891
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.554844453092219
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.696722303968293
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              2.721817404622593
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              6.194086635812405
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.512882230565204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              8.821358236013509
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             14.899502114112819
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.620913764418635
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.755603138733409
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.485607383881309
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.910046277725361
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.450304112692761
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.146521288298811
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.711941789370496
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.564145689829970
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.827717821412615
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.741191321343467
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.734672586442829
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.917204659004529
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.906287822863834
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.269715902331082
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.117663583371081
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              9.817176690339153
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.737683789782917
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.747992077165462
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.149600708690309
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.639804097738280
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.905951732908474
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.779506364843284
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.247984924700003
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.714193585375875
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            147.286652453402752
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.868962458648960
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.914042645957166
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.685079177773478
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.741911687070671
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             18.671673355977930
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.759609699879599
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.903476101780652
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.913597631160741
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.885773348145183
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.755067357554915
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             28.738865467985676
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.072097348349789
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.821420762533083
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.732320289766346
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.196388835215465
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.748344535659110
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.301748124296844
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.913426410431100
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.767881255257414
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.652816815919562
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.698316965110434
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              7.679301903364657
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.854190982705555
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.743773614313975
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            100.733497156844891
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.893781198782032
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.912471749195618
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.478526489075029
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.827382114932225
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             11.953974005715871
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.881858402019105
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.874276593412079
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.890988875542805
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.895627993171255
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.884493670811471
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            300.327177867612477
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.841883226309115
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.564680234972297
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.853277481631423
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.161594305895733
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.731702721896790
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.894561741720177
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.919225075487369
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.911082283248302
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.884527752672945
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.641541151834104
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.936457659515241
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.888321239681167
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.665244342079839
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.745585777621217
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.821091330030091
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.801032536325902
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.802806213114850
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.675340401168690
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              3.111019208244870
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.925256437254731
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              5.306875268909866
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              2.052598685027875
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.818643774526774
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.861336028247090
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.074857422226035
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.712481347766195
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.715583555367705
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.796230363604739
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.732695869270017
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.563883832205376
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.768438716971694
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.922915460790679
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.689868367693955
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.840179989728079
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              3.061989016794795
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.669720402575160
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.913415557431947
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.570879938325217
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.266095237792486
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.762531402095463
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.213247009852915
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.889873898508554
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.814092693141514
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.739180539999141
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             15.131616080923918
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.821523319824158
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.913107055618204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.806766380156075
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              6.740782094098565
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.904174759602287
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.530725075556716
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             37.131882765987221
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.864651728645726
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.633045296008589
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.814570814103242
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.675102144971828
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              2.981033328232837
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              7.908063938630176
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.661862535104421
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            129.612850617552283
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.922523686608903
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              9.211020061371221
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926306867038747
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.881886809769325
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.033675158670307
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.580738225159641
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926209366215091
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.751015804898442
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.336550649010204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.916017522556155
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.494067851464843
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             26.081846042114773
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.803029489126703
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            309.914122023320033
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.921072545653000
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.969932457350176
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.925844431302570
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.791667076581420
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            110.119606861132354
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.881064045984685
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.755470543525250
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.864202387875861
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926394036356109
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.341733196828145
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.873772605518288
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.384439099124016
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              5.815188114135638
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.822413618513165
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.784353106705880
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.924493889036572
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.576386415890287
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.752341504323915
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.754654853173262
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             55.748720823041168
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.589686280224204
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.860584547335225
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.379529418320422
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.105372300227351
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.250265195274825
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.913092890698395
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.885010007776889
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              4.035021765127140
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.768196001867473
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.889078100316589
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.858527860812979
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.812165720854549
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.883567924274373
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.049462000815345
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.729234958857153
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.742904922385854
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.900856802507829
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.888062566893406
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              8.011411633293879
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.902671826677816
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.075229060333517
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              2.661362136262595
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926126823783858
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.846254994628861
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.788626008914413
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.914844016135561
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.750100958677395
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.870173977531251
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              4.169380663750029
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.930630581957042
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.906357713412846
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.895175288764418
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.909148032976353
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.922125793785921
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.466618680745864
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.813783629387658
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.111187276228955
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             15.089694507233245
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.412236360222361
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.925028487822488
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.918889129730130
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.752219780932905
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.710650070831109
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.908316645373269
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              4.278536719492153
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):            265.966779062963894
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.892194546732463
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.865009320078651
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.736340026505170
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.913464827062447
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              1.871599209360754
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.187611639763546
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.767691922220785
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.646111729399879
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.911665739451938
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.809547980512552
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.057759536509216
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.902878948644292
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             83.556101457930481
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.926210423880699
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.769093926111638
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              4.871327680961624
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.513939367014847
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.276197046462568
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.915378182642428
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.893804139166038
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.898313662224930
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.231223964851792
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.927064647874589
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.139975853992611
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.527671341681399
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.379458988760332
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.491777832382808
+
+ 
+ ------- On Monte Carlo Step            2
+ Attempting an inner move
+ 
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952626414730084
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.951757911184054
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953065024989687
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953125134607264
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952424160622274
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.951925521215399
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.947907797966444
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953440318755705
+
+
+ Number of electrons:                                                        504
+ Number of occupied orbitals:                                                252
+ Number of molecular orbitals:                                               252
+
+ Number of orbital functions:                                               2520
+ Number of independent orbital functions:                                   2520
+
+  Parameters for the always stable predictor-corrector (ASPC) method:
+
+  ASPC order: 0
+
+  B(1) =   1.000000
+
+ Extrapolation method: ASPC
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.3     0.25863235     -1085.0361844957 -1.09E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.15446810     -1085.0386608713 -2.48E-03
+     3 P_Mix/Diag. 0.40E+00    1.4     0.09231375     -1085.0401418795 -1.48E-03
+     4 DIIS/Diag.  0.50E-03    1.4     0.05509931     -1085.0410290767 -8.87E-04
+     5 DIIS/Diag.  0.34E-03    1.4     0.00039738     -1085.0423590265 -1.33E-03
+     6 DIIS/Diag.  0.14E-03    1.4     0.00022575     -1085.0423591348 -1.08E-07
+     7 DIIS/Diag.  0.13E-03    1.4     0.00010245     -1085.0423591078  2.70E-08
+     8 DIIS/Diag.  0.21E-04    1.4     0.00002717     -1085.0423591523 -4.46E-08
+     9 DIIS/Diag.  0.17E-04    1.4     0.00001947     -1085.0423591533 -1.04E-09
+    10 DIIS/Diag.  0.11E-04    1.4     0.00000835     -1085.0423591535 -2.03E-10
+
+  *** SCF run converged in    10 steps ***
+
+
+  Electronic density on regular grids:       -503.9999992140        0.0000007860
+  Core density on regular grids:              503.9999999832       -0.0000000168
+  Total charge density on r-space grids:        0.0000007692
+  Total charge density g-space grids:           0.0000007692
+
+  Overlap energy of the core charge distribution:               0.00000179292074
+  Self energy of the core charge distribution:              -2806.05882150010393
+  Core Hamiltonian energy:                                    816.97980697734010
+  Hartree energy:                                            1169.54154977085864
+  Exchange-correlation energy:                               -265.23053216484749
+  Dispersion energy:                                           -0.27436402971290
+
+  Total energy:                                             -1085.04235915354502
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1085.042359153545021
+
+ 
+ ------- On Monte Carlo Step            3
+ Attempting an inner move
+ 
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953693075219262
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953709777599586
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.955415889874708
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.955566290550670
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952477099398835
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.956402727186360
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.955920367976634
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.955822353919205
+
+
+ Number of electrons:                                                        504
+ Number of occupied orbitals:                                                252
+ Number of molecular orbitals:                                               252
+
+ Number of orbital functions:                                               2520
+ Number of independent orbital functions:                                   2520
+
+  Parameters for the always stable predictor-corrector (ASPC) method:
+
+  ASPC order: 0
+
+  B(1) =   2.000000
+  B(2) =  -1.000000
+
+ Extrapolation method: ASPC
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.3     0.26336352     -1085.0234270107 -1.09E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.15705221     -1085.0309995550 -7.57E-03
+     3 P_Mix/Diag. 0.40E+00    1.4     0.09343795     -1085.0355389519 -4.54E-03
+     4 DIIS/Diag.  0.76E-03    1.4     0.05557784     -1085.0382572708 -2.72E-03
+     5 DIIS/Diag.  0.55E-03    1.4     0.00031771     -1085.0423305712 -4.07E-03
+     6 DIIS/Diag.  0.21E-03    1.4     0.00023837     -1085.0423308850 -3.14E-07
+     7 DIIS/Diag.  0.25E-03    1.4     0.00017474     -1085.0423307735  1.11E-07
+     8 DIIS/Diag.  0.44E-04    1.4     0.00005460     -1085.0423309409 -1.67E-07
+     9 DIIS/Diag.  0.19E-04    1.4     0.00002307     -1085.0423309443 -3.39E-09
+    10 DIIS/Diag.  0.15E-04    1.4     0.00000995     -1085.0423309446 -2.35E-10
+
+  *** SCF run converged in    10 steps ***
+
+
+  Electronic density on regular grids:       -503.9999991711        0.0000008289
+  Core density on regular grids:              503.9999999835       -0.0000000165
+  Total charge density on r-space grids:        0.0000008124
+  Total charge density g-space grids:           0.0000008124
+
+  Overlap energy of the core charge distribution:               0.00000186108189
+  Self energy of the core charge distribution:              -2806.05882150010393
+  Core Hamiltonian energy:                                    817.06150908328948
+  Hartree energy:                                            1169.48487645606747
+  Exchange-correlation energy:                               -265.25549996013666
+  Dispersion energy:                                           -0.27439688475146
+
+  Total energy:                                             -1085.04233094455344
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1085.042330944553441
+
+ 
+ ------- On Monte Carlo Step            4
+ Attempting an inner move
+ 
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953462496342224
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953272568452417
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952443708129922
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.948819621034325
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.925265230984782
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952474625228185
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.949318065697224
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953639928432953
+
+
+ Number of electrons:                                                        504
+ Number of occupied orbitals:                                                252
+ Number of molecular orbitals:                                               252
+
+ Number of orbital functions:                                               2520
+ Number of independent orbital functions:                                   2520
+
+  Parameters for the always stable predictor-corrector (ASPC) method:
+
+  ASPC order: 1
+
+  B(1) =   2.500000
+  B(2) =  -2.000000
+  B(3) =   0.500000
+
+ Extrapolation method: ASPC
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.3     0.64581316     -1084.9588504993 -1.08E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.38674241     -1084.9919880016 -3.31E-02
+     3 P_Mix/Diag. 0.40E+00    1.4     0.23008625     -1085.0119395857 -2.00E-02
+     4 P_Mix/Diag. 0.40E+00    1.4     0.13736712     -1085.0238986613 -1.20E-02
+     5 P_Mix/Diag. 0.40E+00    1.4     0.08197703     -1085.0310705252 -7.17E-03
+     6 DIIS/Diag.  0.50E-03    1.4     0.04874102     -1085.0353731095 -4.30E-03
+     7 DIIS/Diag.  0.17E-03    1.4     0.00011379     -1085.0418275297 -6.45E-03
+     8 DIIS/Diag.  0.59E-04    1.4     0.00011176     -1085.0418275545 -2.48E-08
+     9 DIIS/Diag.  0.80E-04    1.4     0.00006426     -1085.0418275487  5.80E-09
+    10 DIIS/Diag.  0.16E-04    1.4     0.00001594     -1085.0418275672 -1.85E-08
+    11 DIIS/Diag.  0.76E-05    1.4     0.00000925     -1085.0418275676 -3.47E-10
+
+  *** SCF run converged in    11 steps ***
+
+
+  Electronic density on regular grids:       -503.9999992682        0.0000007318
+  Core density on regular grids:              503.9999999833       -0.0000000167
+  Total charge density on r-space grids:        0.0000007151
+  Total charge density g-space grids:           0.0000007151
+
+  Overlap energy of the core charge distribution:               0.00000179292074
+  Self energy of the core charge distribution:              -2806.05882150010393
+  Core Hamiltonian energy:                                    816.99678893651458
+  Hartree energy:                                            1169.52892091953754
+  Exchange-correlation energy:                               -265.23471928501283
+  Dispersion energy:                                           -0.27399843143224
+
+  Total energy:                                             -1085.04182756757632
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1085.041827567576320
+
+ 
+ ------- On Monte Carlo Step            5
+ Attempting an inner move
+ 
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.954186471081024
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.952036426183256
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.953849529625531
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.957070323129883
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.957911920105612
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.960532938763571
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.959986103355321
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):             -0.960318277847676
+
+
+ Number of electrons:                                                        504
+ Number of occupied orbitals:                                                252
+ Number of molecular orbitals:                                               252
+
+ Number of orbital functions:                                               2520
+ Number of independent orbital functions:                                   2520
+
+  Parameters for the always stable predictor-corrector (ASPC) method:
+
+  ASPC order: 2
+
+  B(1) =   2.800000
+  B(2) =  -2.800000
+  B(3) =   1.200000
+  B(4) =  -0.200000
+
+ Extrapolation method: ASPC
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.3     0.73502663     -1084.9219328536 -1.08E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.43640877     -1084.9679324783 -4.60E-02
+     3 P_Mix/Diag. 0.40E+00    1.4     0.26178005     -1084.9957680756 -2.78E-02
+     4 P_Mix/Diag. 0.40E+00    1.4     0.15626983     -1085.0124559450 -1.67E-02
+     5 P_Mix/Diag. 0.40E+00    1.4     0.09341089     -1085.0224624078 -1.00E-02
+     6 DIIS/Diag.  0.54E-03    1.4     0.05561707     -1085.0284649946 -6.00E-03
+     7 DIIS/Diag.  0.29E-03    1.4     0.00008381     -1085.0374689592 -9.00E-03
+     8 DIIS/Diag.  0.14E-03    1.4     0.00013421     -1085.0374690275 -6.83E-08
+     9 DIIS/Diag.  0.12E-03    1.4     0.00008929     -1085.0374690237  3.90E-09
+    10 DIIS/Diag.  0.15E-04    1.4     0.00001599     -1085.0374690529 -2.92E-08
+    11 DIIS/Diag.  0.69E-05    1.4     0.00000838     -1085.0374690533 -3.70E-10
+
+  *** SCF run converged in    11 steps ***
+
+
+  Electronic density on regular grids:       -503.9999994794        0.0000005206
+  Core density on regular grids:              503.9999999832       -0.0000000168
+  Total charge density on r-space grids:        0.0000005039
+  Total charge density g-space grids:           0.0000005039
+
+  Overlap energy of the core charge distribution:               0.00000178850883
+  Self energy of the core charge distribution:              -2806.05882150010393
+  Core Hamiltonian energy:                                    816.92898759358343
+  Hartree energy:                                            1169.58132539277221
+  Exchange-correlation energy:                               -265.21472231341522
+  Dispersion energy:                                           -0.27424001461107
+
+  Total energy:                                             -1085.03746905326557
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1085.037469053265568
+
+
+ Number of electrons:                                                        504
+ Number of occupied orbitals:                                                252
+ Number of molecular orbitals:                                               252
+
+ Number of orbital functions:                                               2520
+ Number of independent orbital functions:                                   2520
+
+  Parameters for the always stable predictor-corrector (ASPC) method:
+
+  ASPC order: 3
+
+  B(1) =   3.000000
+  B(2) =  -3.428571
+  B(3) =   1.928571
+  B(4) =  -0.571429
+  B(5) =   0.071429
+
+ Extrapolation method: ASPC
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    1.3     0.59683924     -1084.9047467535 -1.08E+03
+     2 P_Mix/Diag. 0.40E+00    1.4     0.35804466     -1084.9593237244 -5.46E-02
+     3 P_Mix/Diag. 0.40E+00    1.4     0.21284295     -1084.9925206706 -3.32E-02
+     4 P_Mix/Diag. 0.40E+00    1.4     0.12705399     -1085.0124568568 -1.99E-02
+     5 P_Mix/Diag. 0.40E+00    1.4     0.07575003     -1085.0244172819 -1.20E-02
+     6 DIIS/Diag.  0.39E-03    1.5     0.04500307     -1085.0315933931 -7.18E-03
+     7 DIIS/Diag.  0.24E-03    1.4     0.00008325     -1085.0423590456 -1.08E-02
+     8 DIIS/Diag.  0.14E-03    1.4     0.00012385     -1085.0423591199 -7.43E-08
+     9 DIIS/Diag.  0.13E-03    1.4     0.00009209     -1085.0423590992  2.07E-08
+    10 DIIS/Diag.  0.14E-04    1.4     0.00001805     -1085.0423591530 -5.38E-08
+    11 DIIS/Diag.  0.11E-04    1.4     0.00001215     -1085.0423591534 -4.53E-10
+    12 DIIS/Diag.  0.64E-05    1.4     0.00000444     -1085.0423591536 -1.51E-10
+
+  *** SCF run converged in    12 steps ***
+
+
+  Electronic density on regular grids:       -503.9999992140        0.0000007860
+  Core density on regular grids:              503.9999999832       -0.0000000168
+  Total charge density on r-space grids:        0.0000007692
+  Total charge density g-space grids:           0.0000007692
+
+  Overlap energy of the core charge distribution:               0.00000179292074
+  Self energy of the core charge distribution:              -2806.05882150010393
+  Core Hamiltonian energy:                                    816.97982642639386
+  Hartree energy:                                            1169.54153391262071
+  Exchange-correlation energy:                               -265.23053575571748
+  Dispersion energy:                                           -0.27436402971290
+
+  Total energy:                                             -1085.04235915359914
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):            -1085.042359153599136
+
+
+ Number of electrons:                                                          8
+ Number of occupied orbitals:                                                  4
+ Number of molecular orbitals:                                                 4
+
+ Number of orbital functions:                                                 40
+ Number of independent orbital functions:                                     40
+
+  Parameters for the always stable predictor-corrector (ASPC) method:
+
+  ASPC order: 0
+
+  B(1) =   1.000000
+
+ Extrapolation method: ASPC
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+  Step     Update method      Time    Convergence         Total energy    Change
+  ------------------------------------------------------------------------------
+     1 P_Mix/Diag. 0.40E+00    0.1     0.00000037       -17.2037875316 -1.72E+01
+
+  *** SCF run converged in     1 steps ***
+
+
+  Electronic density on regular grids:         -8.0000001773       -0.0000001773
+  Core density on regular grids:                7.9999999998       -0.0000000002
+  Total charge density on r-space grids:       -0.0000001775
+  Total charge density g-space grids:          -0.0000001775
+
+  Overlap energy of the core charge distribution:               0.00000019606246
+  Self energy of the core charge distribution:                -44.54061621428736
+  Core Hamiltonian energy:                                     13.05349674827913
+  Hartree energy:                                              18.51588613127152
+  Exchange-correlation energy:                                 -4.23252596258032
+  Dispersion energy:                                           -0.00002843036934
+
+  Total energy:                                               -17.20378753162391
+
+ ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):              -17.203787531623910
+
+------------------------------------------------
+|                   BOX 1                      |
+------------------------------------------------
+ 
+********************************************************************************
+Average Energy [Hartrees]:                                        -1085.04223205
+Average number of molecules:                                         63.00000000
+Average Volume [angstroms**3]:                                       2579.876452
+ 
+--------------------------------------------------------------------------------
+Quickstep Moves                           Attempted       Accepted       Percent
+                                                  4              1        25.000
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Move Data for Molecule Type     1
+--------------------------------------------------------------------------------
+Conformational Moves                      Attempted       Accepted       Percent
+                                                  9              2        22.222
+Bond Changes                              Attempted       Accepted       Percent
+                                                  5              2        40.000
+--------------------------------------------------------------------------------
+Angle Changes                             Attempted       Accepted       Percent
+                                                  4              0         0.000
+--------------------------------------------------------------------------------
+Conformational Moves Rejected BecauseBox Was Empty:     0
+-------------------------------------------------------------------------------
+Translation Moves                         Attempted       Accepted       Percent
+                                                 12              1         8.333
+--------------------------------------------------------------------------------
+Rotation Moves                            Attempted       Accepted       Percent
+                                                 11              1         9.091
+--------------------------------------------------------------------------------
+Biased Move Data
+--------------------------------------------------------------------------------
+Bond Changes                              Attempted       Accepted       Percent
+                                                  5              5       100.000
+--------------------------------------------------------------------------------
+Angle Changes                             Attempted       Accepted       Percent
+                                                  4              4       100.000
+--------------------------------------------------------------------------------
+Translation Moves                         Attempted       Accepted       Percent
+                                                 12              8        66.667
+--------------------------------------------------------------------------------
+Rotation Moves                            Attempted       Accepted       Percent
+                                                 11              5        45.455
+--------------------------------------------------------------------------------
+********************************************************************************
+ 
+------------------------------------------------
+|                   BOX 2                      |
+------------------------------------------------
+ 
+********************************************************************************
+Average Energy [Hartrees]:                                          -17.20378753
+Average number of molecules:                                          1.00000000
+Average Volume [angstroms**3]:                                       2579.876452
+ 
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Move Data for Molecule Type     1
+--------------------------------------------------------------------------------
+Swap Moves into this box                  Attempted       Empty          Percent
+                                                  1              0         0.000
+                  Growths                 Attempted       Sucessful      Percent
+                                                  1              1       100.000
+                    Total                 Attempted       Accepted       Percent
+                                                  1              0         0.000
+-------------------------------------------------------------------------------
+Biased Move Data
+--------------------------------------------------------------------------------
+********************************************************************************
+ 
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                DBCSR STATISTICS                             -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ COUNTER                                      CPU                  GPU      GPU%
+ number of processed stacks                189279                    0       0.0
+ matmuls inhomo. stacks                         0                    0       0.0
+ matmuls total                           15340831                    0       0.0
+ flops   9 x    9 x    4                    25272                    0       0.0
+ flops   9 x    9 x    8                   168480                    0       0.0
+ flops   9 x   22 x    4                    20592                    0       0.0
+ flops  22 x    9 x    4                    20592                    0       0.0
+ flops   9 x   12 x    9                261996768                    0       0.0
+ flops   9 x   16 x    9               5239935360                    0       0.0
+ flops   9 x   22 x    8                   164736                    0       0.0
+ flops  22 x    9 x    8                   164736                    0       0.0
+ flops  22 x   22 x    4                    50336                    0       0.0
+ flops   9 x    9 x   24                204882048                    0       0.0
+ flops   9 x    9 x   28               2252341728                    0       0.0
+ flops  22 x   12 x    9                342334080                    0       0.0
+ flops   9 x   12 x   22                342334080                    0       0.0
+ flops   9 x    9 x   32              19930966272                    0       0.0
+ flops  22 x   16 x    9               6846681600                    0       0.0
+ flops   9 x   16 x   22               6846681600                    0       0.0
+ flops  22 x   22 x    8                   302016                    0       0.0
+ flops  22 x    9 x   24                266492160                    0       0.0
+ flops   9 x   22 x   24                263831040                    0       0.0
+ flops  22 x    9 x   28               2920934016                    0       0.0
+ flops   9 x   22 x   28               2910267360                    0       0.0
+ flops  22 x   12 x   22                435507072                    0       0.0
+ flops  22 x    9 x   32              25854732288                    0       0.0
+ flops   9 x   22 x   32              25744561920                    0       0.0
+ flops  22 x   16 x   22               8710141440                    0       0.0
+ flops  22 x   22 x   24                343276032                    0       0.0
+ flops  22 x   22 x   28               3771521600                    0       0.0
+ flops  22 x   22 x   32              33376082432                    0       0.0
+ flops total                         146866417656                    0       0.0
+ marketing flops                     290056217600
+ -------------------------------------------------------------------------------
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                         MESSAGE PASSING PERFORMANCE                         -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+
+ ROUTINE             CALLS  TOT TIME [s]  AVE VOLUME [Bytes]  PERFORMANCE [MB/s]
+ MP_Group               20         0.000
+ MP_Bcast             3701         0.062             236629.            14079.81
+ MP_Allreduce         9903         1.162               6075.               51.78
+ MP_Gather              40         0.004               1792.               19.91
+ MP_Sync               117         0.021
+ MP_Alltoall          2575         5.902            1861415.              812.09
+ MP_ISendRecv        26712         0.046               8640.             5006.33
+ MP_Wait             37996         1.833
+ MP_comm_split         101         0.050
+ MP_ISend             9548         0.140             128972.             8808.47
+ MP_IRecv             9548         0.015             128771.            80888.73
+ MP_Recv                62         0.005             506560.             5816.06
+ -------------------------------------------------------------------------------
+
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                           R E F E R E N C E S                               -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ 
+ CP2K version 2.5.1, the CP2K developers group (2014).
+ CP2K is freely available from http://www.cp2k.org/ .
+
+ Hutter, J; Iannuzzi, M; Schiffmann, F; VandeVondele, J. 
+ WILEY INTERDISCIPLINARY REVIEWS-COMPUTATIONAL MOLECULAR SCIENCE, 4 (1), 15-25 (2014). 
+ CP2K: atomistic simulations of condensed matter systems.
+ http://dx.doi.org/10.1002/wcms.1159
+
+
+ Grimme, S. 
+ JOURNAL OF COMPUTATIONAL CHEMISTRY, 27 (15), 1787-1799 (2006). 
+ Semiempirical GGA-type density functional constructed with a long-range
+ dispersion correction.
+ http://dx.doi.org/10.1002/jcc.20495
+
+
+ Krack, M. 
+ THEORETICAL CHEMISTRY ACCOUNTS, 114 (1-3), 145-152 (2005). 
+ Pseudopotentials for H to Kr optimized for gradient-corrected
+ exchange-correlation functionals.
+ http://dx.doi.org/10.1007/s00214-005-0655-y
+
+
+ VandeVondele, J; Krack, M; Mohamed, F; Parrinello, M; Chassaing, T;
+ Hutter, J. COMPUTER PHYSICS COMMUNICATIONS, 167 (2), 103-128 (2005). 
+ QUICKSTEP: Fast and accurate density functional calculations using a
+ mixed Gaussian and plane waves approach.
+ http://dx.doi.org/10.1016/j.cpc.2004.12.014
+
+
+ Frigo, M; Johnson, SG. 
+ PROCEEDINGS OF THE IEEE, 93 (2), 216-231 (2005). 
+ The design and implementation of FFTW3.
+ http://dx.doi.org/10.1109/JPROC.2004.840301
+
+
+ Kolafa, J. 
+ JOURNAL OF COMPUTATIONAL CHEMISTRY, 25 (3), 335-342 (2004). 
+ Time-reversible always stable predictor-corrector method for molecular dynamics of polarizable molecules.
+ http://dx.doi.org/10.1002/jcc.10385
+
+
+ Hartwigsen, C; Goedecker, S; Hutter, J. 
+ PHYSICAL REVIEW B, 58 (7), 3641-3662 (1998). 
+ Relativistic separable dual-space Gaussian pseudopotentials from H to Rn.
+ http://dx.doi.org/10.1103/PhysRevB.58.3641
+
+
+ Lippert, G; Hutter, J; Parrinello, M. 
+ MOLECULAR PHYSICS, 92 (3), 477-487 (1997). 
+ A hybrid Gaussian and plane wave density functional scheme.
+ http://dx.doi.org/10.1080/002689797170220
+
+
+ Goedecker, S; Teter, M; Hutter, J. 
+ PHYSICAL REVIEW B, 54 (3), 1703-1710 (1996). 
+ Separable dual-space Gaussian pseudopotentials.
+ http://dx.doi.org/10.1103/PhysRevB.54.1703
+
+
+ BECKE, AD. PHYSICAL REVIEW A, 38 (6), 3098-3100 (1988). 
+ DENSITY-FUNCTIONAL EXCHANGE-ENERGY APPROXIMATION WITH CORRECT
+ ASYMPTOTIC-BEHAVIOR.
+ http://dx.doi.org/10.1103/PhysRevA.38.3098
+
+
+ LEE, CT; YANG, WT; PARR, RG. 
+ PHYSICAL REVIEW B, 37 (2), 785-789 (1988). 
+ DEVELOPMENT OF THE COLLE-SALVETTI CORRELATION-ENERGY FORMULA INTO A
+ FUNCTIONAL OF THE ELECTRON-DENSITY.
+ http://dx.doi.org/10.1103/PhysRevB.37.785
+
+
+ Ewald, PP. ANNALEN DER PHYSIK, 369 (3), 253-287 (1921). 
+ Die Berechnung optischer und elektrostatischer Gitterpotentiale.
+ http://dx.doi.org/10.1002/andp.19213690304
+
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                T I M I N G                                  -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ SUBROUTINE                       CALLS  ASD         SELF TIME        TOTAL TIME
+                                MAXIMUM       AVERAGE  MAXIMUM  AVERAGE  MAXIMUM
+ CP2K                                 1  1.0    0.090    0.101  118.581  118.592
+ mc_run_ensemble                      1  2.0    0.053    0.061  117.644  117.664
+ qs_energies_scf                     10  3.6    0.009    0.011  114.092  114.198
+ scf_env_do_scf                      10  4.6    0.002    0.003  111.102  111.214
+ scf_env_do_scf_inner_loop          101  5.6    0.009    0.013  111.098  111.210
+ eigensolver                        101  6.6    0.002    0.004   84.876   84.882
+ cp_fm_syevd                        101  7.6   25.913   79.723   79.670   79.723
+ cp_fm_syevd_base                   101  8.7   53.723   78.568   53.723   78.568
+ mc_Quickstep_move                    4  3.0    0.022    0.023   60.762   60.762
+ mc_ge_swap_move                      1  3.0    0.073    0.096   15.991   15.992
+ qs_ks_update_qs_env                101  6.6    0.001    0.002   14.453   14.505
+ qs_ks_build_kohn_sham_matrix       101  7.6    0.021    0.023   14.404   14.456
+ fft_wrap_pw1pw2                   1777 10.6    0.017    0.020    8.345    8.413
+ qs_rho_update_rho                  111  6.7    0.001    0.002    8.007    8.028
+ calculate_rho_elec                 111  7.7    3.500    3.733    8.006    8.027
+ fft_wrap_pw1pw2_140               1141 11.6    0.438    0.482    7.753    7.813
+ fft3d_ps                          1777 12.6    2.024    2.485    7.239    7.337
+ sum_up_and_integrate               101  8.6    0.044    0.051    7.269    7.323
+ integrate_v_rspace                 101  9.6    3.479    3.690    7.225    7.277
+ qs_vxc_create                      101  8.6    0.004    0.005    6.222    6.258
+ xc_vxc_pw_create                   101  9.6    0.177    0.195    6.219    6.254
+ cp_fm_cholesky_restore             303  7.6    4.944    5.109    4.944    5.109
+ rs_pw_transfer                     858 10.6    0.010    0.012    4.074    4.282
+ density_rs2pw                      111  8.7    0.004    0.006    3.661    3.849
+ xc_rho_set_and_dset_create         101 10.6    0.130    0.162    2.961    3.136
+ qs_diis_b_step                      91  6.6    0.014    0.016    3.098    3.112
+ potential_pw2rs                    101 10.6    0.008    0.012    2.975    2.980
+ yz_to_x                            636 13.4    2.603    2.787    2.603    2.787
+ x_to_yz                            717 13.8    2.429    2.491    2.429    2.491
+ -------------------------------------------------------------------------------
+
+  **** **** ******  **  PROGRAM ENDED AT                 2015-07-06 15:47:43.205
+ ***** ** ***  *** **   PROGRAM RAN ON            c467-503.stampede.tacc.utexas.
+ **    ****   ******    PROGRAM RAN BY                                      root
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 84522
+  **** **  *******  **  PROGRAM STOPPED IN /work/02994/hgchem/Kcompile/cp2k-2.5.
+                                           1/tests/MC/regtest/newregtest/GEMC_NV
+                                           T
+ 
+TACC: Shutdown complete. Exiting.
