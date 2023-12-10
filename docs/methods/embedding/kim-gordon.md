@@ -85,9 +85,9 @@ it is important to specify which is the 'minimum unit', that can be defined in t
 This strategy is based on the fourth column in the COORD section. At this point the code is able to
 find the best combination of 'minimum units' through the
 [COLORING_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.KG_METHOD.COLORING_METHOD) in order to simplify the
-calculation. Another suggestion is to run KG calculations using [linear scaling DFT](./ls-dft),
-replacing the [SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF) section with the
-[LS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.LS_SCF) section:
+calculation. Another suggestion is to run KG calculations using
+[linear scaling DFT](../dft/linear_scaling), replacing the [SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF)
+section with the [LS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.LS_SCF) section:
 
 ```none
 &LS_SCF

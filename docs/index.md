@@ -25,16 +25,15 @@ caption: Methods
 titlesonly:
 maxdepth: 1
 ---
-methods/dft
-methods/post_hartree_fock
-methods/semiempiricals
-methods/machine_learning
-methods/embedding
-methods/qm_mm
-methods/sampling
-methods/optimization
-methods/spectroscopy
-methods/other_properties
+methods/dft/index
+methods/post_hartree_fock/index
+methods/semiempiricals/index
+methods/machine_learning/index
+methods/embedding/index
+methods/qm_mm/index
+methods/sampling/index
+methods/optimization/index
+methods/properties/index
 ```
 
 % TODO: `{toctree} % :caption: How-to guides % % dummy % `

@@ -78,7 +78,7 @@ electronic structure. In practice, three SCF loops are needed to integrate CDFT 
 which uses its own outer loop to reset the OT preconditioner. This process has been schematically
 illustrated in Figure 1.
 
-![Schematic of the CDFT SCF procedure](images/cdftscf.png){align=center}
+![Schematic of the CDFT SCF procedure](cdftscf.png){align=center}
 
 **Figure 1.** Schematic of the CDFT SCF procedure. The constraint Lagrangians $\vec\lambda$ are
 first optimized in the outer CDFT loop, their values are subsequently fixed, and the electron
@@ -223,7 +223,7 @@ possible to use fragment based constraints
 case the constraint target value is calculated from the superposition of isolated fragment densities
 according to the scheme in Figure 2.
 
-![](images/cdft-fragment-constraint.png){align=center width=350px}
+![](cdft-fragment-constraint.png){align=center width=350px}
 
 **Figure 2.** Using a fragment based CDFT constraint. The system is first divided into two fragments
 with atomic positions fixed in the same configuration as in the full system. The electron and spin
@@ -277,9 +277,9 @@ three or more atoms. The Becke cell function $P_i$ is overlayed on top of the Vo
 decays smoothly from 1 to 0 across the Voronoi polyhedron boundary. Using a smooth density
 partitioning function improves numerical stability in simulations.
 
-![](images/cdft-becke-atomicsize.png){align=center width=400px}
+![](cdft-becke-atomicsize.png){align=center width=400px}
 
-![](images/cdft-becke.png){align=center width=400px}
+![](cdft-becke.png){align=center width=400px}
 
 **Figure 3.** Comparison of the Voronoi (lines) and Becke partitioning (contours) schemes. At left,
 the Becke partitioning is performed without atomic size information. At right, the size of the red
@@ -798,7 +798,7 @@ $\mathrm{H}_2^+ \rightarrow \mathrm{H}^+ + \mathrm{H}$.
 Even though this system contains only 1 electron, the dissociation profile obtained with PBE notably
 deviates from the exact Hartree-Fock profile as shown in Figure 4 below.
 
-![](images/cdftci-h2-dissociation.png){align=center width=450px}
+![](cdftci-h2-dissociation.png){align=center width=450px}
 
 **Figure 4.** Illustration of DFT self-interaction error for the reaction
 $\mathrm{H}_2^+ \rightarrow \mathrm{H}^+ + \mathrm{H}$. PBE notably deviates from the exact
