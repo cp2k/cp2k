@@ -6,6 +6,6 @@ titlesonly:
 maxdepth: 1
 ---
 allegro
-Neural Network Potentials <https://www.cp2k.org/tools:aml>
+nnp
 pao-ml
 ```
