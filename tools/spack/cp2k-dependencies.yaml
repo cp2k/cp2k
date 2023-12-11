@@ -2,8 +2,6 @@
 
 spack:
   specs:
-   - "cmake @3.22:"  # external
-   - "mpi @4"  # external
    - "openblas @0.3.24 +fortran threads=openmp"
    - "dbcsr@2.6.0 +openmp +mpi"
    - "netlib-scalapack @2.2.0"
