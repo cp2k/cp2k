@@ -9787,5 +9787,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="FILENAME", &
+                          description="The name of the file containing all informations for hubbard U and U+V " // &
+                          "contributions. The format should follow QE input input style", &
+                          usage="FILE_NAME hubbard.dat", &
+                          default_c_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_dft_plus_u_section
 END MODULE input_cp2k_dft
