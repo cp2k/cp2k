@@ -21,7 +21,6 @@ spack:
         - netlib-scalapack
     fftw-api:
       require:
-        - "@3"
         - fftw
     # Package requirements
     openblas:
