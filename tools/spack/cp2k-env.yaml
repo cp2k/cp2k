@@ -1,7 +1,7 @@
 # This is a Spack Environment file for developing CP2K
 spack:
   specs:
-    - cp2k@master +libxc +spglib build_system=cmake
+    - cp2k@master +libxc +spglib ~libint build_system=cmake
   packages:
     all:
       require:
