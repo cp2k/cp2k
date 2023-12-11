@@ -21,7 +21,8 @@ MODULE rt_propagation
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_type,&
+                                              cp_fm_write_formatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -585,13 +586,31 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE run_propagation_gw(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft
+      ! TYPE(cp_fm_type), POINTER                          :: ham_g0w0
 
    ! Marek : Start by getting the DFT results - density matrix
    !         This matrix is identical with the equilibrium time-diagonal lesser Green's function in G0W0
    ! TODO : Some qs_env_get calls
+   CALL get_qs_env(qs_env,&
+                   rtp=rtp,&
+                   bs_env=bs_env,&
+                   mos=start_mos)
+   CALL rt_initialize_rho_from_mos(rtp, start_mos)
+   CALL get_rtp(rtp, rho_new=rho_dft)
+   PRINT *, "Detected size of the rho matrix array : ", SIZE(rho_dft)
+
+   CALL dbcsr_print(rho_dft(1)%matrix)
+
    ! Marek : Now, get the G0W0 results - Hamiltonian + screened interaction matrices
+
+   PRINT *, "Writing the full ao G0W0 Hamiltonian"
+   CALL cp_fm_write_formatted(bs_env%fm_h_G0W0_Gamma, 6)
    ! TODO : Hamiltonian is kept in the post_scf_bandstructure_type struct(fm_h_G0W0_Gamma), need to check basis and form of W
    ! storage (available in imaginary time and frequency as fm_W_MIC_freq and fm_W_MIC_time_tensor, respectively)
    ! Marek : Setup the time loop
