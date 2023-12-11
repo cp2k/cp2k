@@ -807,7 +807,7 @@ RUN git init --quiet && \
 ENV PATH="/opt/spack/bin:${{PATH}}"
 
 # Find all external packages and compilers.
-RUN spack external find --all --not-buildable
+RUN spack external find --all --not-buildable --exclude hwloc
 RUN spack compiler find
 
 # Install CP2K's dependencies via Spack.
