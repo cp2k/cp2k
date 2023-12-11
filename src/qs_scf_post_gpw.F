@@ -2160,8 +2160,12 @@ CONTAINS
             rho_total = rho_hard + rho_soft
             CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw_grid, &
                                   vol=volume)
+            ! rhotot pw coefficients are by default scaled by grid volume
+            ! need to undo this to get proper charge from printed cube
+            CALL pw_scale(rho_elec_gspace, 1.0_dp/volume)
+
             CALL pw_transfer(rho_elec_gspace, rho_elec_rspace, debug=.FALSE.)
-            rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)/volume
+            rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
             filename = "TOTAL_ELECTRON_DENSITY"
             mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
@@ -2201,8 +2205,13 @@ CONTAINS
                                                  rho_soft=rho_soft, &
                                                  fsign=-1.0_dp)
                rho_total = rho_hard + rho_soft
+
+               ! rhotot pw coefficients are by default scaled by grid volume
+               ! need to undo this to get proper charge from printed cube
+               CALL pw_scale(rho_elec_gspace, 1.0_dp/volume)
+
                CALL pw_transfer(rho_elec_gspace, rho_elec_rspace, debug=.FALSE.)
-               rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)/volume
+               rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
                filename = "TOTAL_SPIN_DENSITY"
                mpi_io = .TRUE.
                unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
