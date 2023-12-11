@@ -1,4 +1,5 @@
-! Test PRINT WANNIER_CENTERS, the program should rotate only double occupied orbital, and print centers for all orbitals, including SOMO-1
+! Test PRINT WANNIER_CENTERS, the program should rotate only double occupied
+! orbital, and print centers for all orbitals, including SOMO-1
 &GLOBAL
   PROJECT O2
   RUN_TYPE ENERGY
@@ -31,9 +32,10 @@
     &QS
     &END QS
     &SCF
-       SCF_GUESS ATOMIC
        EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
        MAX_SCF 3
+      SCF_GUESS ATOMIC
        &OT
          ROTATION
        &END

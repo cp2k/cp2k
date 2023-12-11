@@ -17,11 +17,10 @@
     &QS
       METHOD GAPW
     &END QS
-
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
     &END SCF
-
     &XC
       &XC_FUNCTIONAL LDA
       &END XC_FUNCTIONAL

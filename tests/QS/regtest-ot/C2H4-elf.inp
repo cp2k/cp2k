@@ -13,6 +13,7 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 7
       &OT OFF
       &END OT

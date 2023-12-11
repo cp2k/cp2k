@@ -24,8 +24,9 @@
    &END XC_FUNCTIONAL
   &END XC
   &SCF
-   MAX_SCF      2
    EPS_SCF      1.e-1
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF      2
   &END SCF
   &PRINT
   &END PRINT

@@ -20,8 +20,9 @@
       EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
-      MAX_SCF 2
       EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 2
       SCF_GUESS ATOMIC
       &OUTER_SCF
         EPS_SCF 1.0E-6

@@ -15,6 +15,7 @@
     &QS
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
       SCF_GUESS ATOMIC
       &PRINT

@@ -20,8 +20,9 @@
             REL_CUTOFF 30
         &END MGRID
         &SCF
-            SCF_GUESS ATOMIC
+      IGNORE_CONVERGENCE_FAILURE
             MAX_SCF 2
+      SCF_GUESS ATOMIC
         &END SCF
         &XC
             &XC_FUNCTIONAL

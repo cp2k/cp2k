@@ -11,10 +11,11 @@
       METHOD GPW
     &END QS
     &SCF
+      EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      SCF_GUESS ATOMIC
       &OT on
       &END
-      EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL

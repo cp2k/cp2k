@@ -131,7 +131,8 @@ MODULE scf_control_types
       INTEGER                               :: max_scf, max_scf_hist, &
                                                maxl, nkind
       LOGICAL                               :: do_diag_sub, &
-                                               use_cholesky, use_ot, use_diag, do_outer_scf_reortho, stop_higher_iter_level
+                                               use_cholesky, use_ot, use_diag, do_outer_scf_reortho, &
+                                               ignore_convergence_failure
       INTEGER, DIMENSION(2)                 :: added_mos
       INTEGER                               :: roks_scheme
       REAL(KIND=dp)                         :: roks_f
@@ -175,7 +176,7 @@ CONTAINS
       scf_control%use_diag = .TRUE.
       scf_control%do_diag_sub = .FALSE.
       scf_control%use_ot = .FALSE.
-      scf_control%stop_higher_iter_level = .FALSE.
+      scf_control%ignore_convergence_failure = .FALSE.
       scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
@@ -334,7 +335,7 @@ CONTAINS
       IF (cholesky_flag > 0) THEN
          scf_control%use_cholesky = .TRUE.
       END IF
-      CALL section_vals_val_get(scf_section, "NOTCONV_STOPALL", l_val=scf_control%stop_higher_iter_level)
+      CALL section_vals_val_get(scf_section, "IGNORE_CONVERGENCE_FAILURE", l_val=scf_control%ignore_convergence_failure)
       CALL section_vals_val_get(scf_section, "eps_scf", r_val=scf_control%eps_scf)
       CALL section_vals_val_get(scf_section, "level_shift", r_val=scf_control%level_shift)
       CALL section_vals_val_get(scf_section, "max_diis", i_val=scf_control%max_diis)

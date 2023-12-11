@@ -16,6 +16,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-2
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 2
       &OT
         MINIMIZER DIIS

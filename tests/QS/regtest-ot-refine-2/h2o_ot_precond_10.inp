@@ -9,6 +9,7 @@
     &QS
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 3
       SCF_GUESS ATOMIC
       &OT

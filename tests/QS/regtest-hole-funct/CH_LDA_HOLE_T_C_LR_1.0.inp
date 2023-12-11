@@ -12,10 +12,11 @@
       METHOD GPW
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 15
       SCF_GUESS ATOMIC
       &OT on
       &END
-      MAX_SCF 15
     &END SCF
     &XC
        &XC_FUNCTIONAL

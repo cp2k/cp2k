@@ -9,8 +9,9 @@
       METHOD xTB
     &END QS
     &SCF
-      SCF_GUESS MOPAC
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF  1
+      SCF_GUESS MOPAC
     &END SCF
   &END DFT
   &SUBSYS

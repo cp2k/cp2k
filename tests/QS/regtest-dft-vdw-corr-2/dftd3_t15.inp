@@ -23,9 +23,10 @@
       METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF 1
       EPS_SCF 1.0e-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 1
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

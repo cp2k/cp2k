@@ -23,20 +23,21 @@
       EXTRAPOLATION_ORDER 2
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF   5
+      ADDED_MOS   20 20
       EPS_SCF 1.0e-7
-      &SMEAR
-        METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE   300.
-      &END
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF   5
+      SCF_GUESS ATOMIC
       &MIXING
           METHOD BROYDEN_MIXING
           ALPHA   0.2
           BETA   1.5
           NBROYDEN 8
       &END
-      ADDED_MOS   20 20
+      &SMEAR
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE   300.
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

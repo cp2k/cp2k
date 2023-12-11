@@ -37,9 +37,10 @@
       &END
     &END QS
     &SCF
-      SCF_GUESS MOPAC
-      MAX_SCF 5
       EPS_SCF 1.0E-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 5
+      SCF_GUESS MOPAC
       &OT
         PRECONDITIONER NONE
         MINIMIZER CG

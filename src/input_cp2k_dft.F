@@ -5210,9 +5210,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NOTCONV_STOPALL", &
-                          description="If true, it stops higher level of iteration when SCF does not converge", &
-                          usage="NOTCONV_STOPALL logical_value", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="IGNORE_CONVERGENCE_FAILURE", &
+                          description="If true, only a warning is issued if an SCF "// &
+                          "iteration has not converged. By default, a run is aborted "// &
+                          "if the required convergence criteria have not been achieved.", &
+                          usage="IGNORE_CONVERGENCE_FAILURE logical_value", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

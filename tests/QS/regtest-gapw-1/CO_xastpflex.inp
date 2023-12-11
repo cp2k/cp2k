@@ -35,12 +35,12 @@
       NGRIDS        1
     &END
     &SCF
-      SCF_GUESS RESTART
-      EPS_SCF 5.E-7
-      EPS_DIIS 0.4
-      MAX_SCF 1
-
       ADDED_MOS  1 1
+      EPS_DIIS 0.4
+      EPS_SCF 5.E-7
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 1
+      SCF_GUESS RESTART
       &OT OFF
         PRECONDITIONER FULL_ALL
       &END OT
@@ -83,10 +83,9 @@
          &XES_SPECTRUM
            FILENAME ./co_tphh
          &END
-
       &END
     &END
-  &END SECTION DFT
+  &END DFT
   &SUBSYS
     &CELL
        ABC    3.0    3.0     3.0

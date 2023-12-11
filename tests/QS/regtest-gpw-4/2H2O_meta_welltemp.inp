@@ -53,6 +53,7 @@
     &END QS
     &SCF
       EPS_SCF 5.0E-3
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 4
     &END SCF
     &XC

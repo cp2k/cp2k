@@ -21,9 +21,10 @@
       METHOD GAPW_XC
     &END QS
     &SCF
-      SCF_GUESS atomic
-      MAX_SCF 2
       EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 2
+      SCF_GUESS atomic
       &OT
         MINIMIZER DIIS
         N_DIIS 7

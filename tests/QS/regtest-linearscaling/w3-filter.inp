@@ -10,6 +10,7 @@
        EPS_FILTER_MATRIX 1E-100
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 5
       &OT
         ALGORITHM IRAC

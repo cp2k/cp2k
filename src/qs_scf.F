@@ -598,11 +598,12 @@ CONTAINS
          dft_control%qs_control%cdft_control%total_steps = &
          dft_control%qs_control%cdft_control%total_steps + total_steps
 
-      IF (.NOT. converged) CPWARN("SCF run NOT converged")
-
-      IF (.NOT. converged .AND. scf_control%stop_higher_iter_level) THEN
-         logger%iter_info%last_iter(logger%iter_info%n_rlevel - 1) = .TRUE.
-         CPWARN("MD iteration also stops")
+      IF (.NOT. converged) THEN
+         IF (scf_control%ignore_convergence_failure) THEN
+            CPWARN("SCF run did NOT converge")
+         ELSE
+            CPABORT("SCF run did NOT converge")
+         END IF
       END IF
 
       ! Skip Harris functional calculation if ground-state is NOT converged

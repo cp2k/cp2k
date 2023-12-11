@@ -7,5 +7,6 @@
  @INCLUDE  blank.inc
 @inCLude inc_inc.inc
 
+      IGNORE_CONVERGENCE_FAILURE
       SCF_GUESS atomic
     &END SCF

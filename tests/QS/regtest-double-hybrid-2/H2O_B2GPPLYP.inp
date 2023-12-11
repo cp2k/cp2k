@@ -25,10 +25,11 @@
       EPS_PGF_ORB 1.0E-30
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-4
-      MAX_SCF 100
       ADDED_MOS 15000 15000
+      EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
     &END SCF
 ! Parameters for the B2GPPLYP double hybrid functional (ax=0.65  ac=0.36)
     &XC

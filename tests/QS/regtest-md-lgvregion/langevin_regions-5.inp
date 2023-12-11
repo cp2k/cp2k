@@ -51,12 +51,13 @@
       EXTRAPOLATION_ORDER 0
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 8
+      MAX_SCF_HIST 1
       SCF_GUESS ATOMIC
       &OT
         MINIMIZER DIIS
       &END
-      MAX_SCF 8
-      MAX_SCF_HIST 1
       &PRINT
         &RESTART OFF
         &END RESTART

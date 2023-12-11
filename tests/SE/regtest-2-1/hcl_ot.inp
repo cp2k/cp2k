@@ -8,6 +8,7 @@
       &END
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       SCF_GUESS MOPAC
       &OT
         PRECONDITIONER NONE

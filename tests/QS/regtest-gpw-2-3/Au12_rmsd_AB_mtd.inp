@@ -1,10 +1,5 @@
-! **** Generic parameters
-! *** Project name
 @SET PNAME Au12-rmsd
-!
-! dinamica di una particella di Au 13
-!
-! **** Global settings
+
 &GLOBAL
   PROJECT Au12_rmsd_AB_mtd
  IOLEVEL      MEDIUM
@@ -16,7 +11,6 @@
 &FORCE_EVAL
   METHOD      Quickstep
   &DFT
-    ! ** PATH for potentials
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     !UKS
@@ -24,9 +18,10 @@
     !MULTIPLICITY 2
     ! CHOLESKY OFF
     &SCF
-      SCF_GUESS    ATOMIC
       EPS_SCF      1.0E-3
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF      3
+      SCF_GUESS    ATOMIC
       &OUTER_SCF OFF
         EPS_SCF    1.0E-5
         MAX_SCF    50

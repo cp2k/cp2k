@@ -12,9 +12,10 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
-      SCF_GUESS RESTART
       EPS_SCF 1.0E-3
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 10
+      SCF_GUESS RESTART
       &OT
       &END
     &END SCF

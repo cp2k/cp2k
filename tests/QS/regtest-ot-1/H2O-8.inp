@@ -15,6 +15,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 20
       SCF_GUESS RESTART
       &OT ON

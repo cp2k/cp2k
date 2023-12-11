@@ -13,8 +13,9 @@
             METHOD GAPW
         &END QS
         &SCF
-            SCF_GUESS ATOMIC
+      IGNORE_CONVERGENCE_FAILURE
             MAX_SCF 5
+      SCF_GUESS ATOMIC
             &OT
                 PRECONDITIONER FULL_ALL
             &END
