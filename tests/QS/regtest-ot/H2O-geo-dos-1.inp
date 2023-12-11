@@ -20,10 +20,11 @@
       EXTRAPOLATION_ORDER 2
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC
-      MAX_SCF 10
       ADDED_MOS 100
+      EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 10
+      SCF_GUESS ATOMIC
       &OT OFF
       &END
     &END SCF

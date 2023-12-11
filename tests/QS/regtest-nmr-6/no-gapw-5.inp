@@ -19,6 +19,7 @@
       METHOD GAPW
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 3
     &END SCF
     &XC

@@ -41,10 +41,11 @@
       EXTRAPOLATION_ORDER 2
     &END QS
      &SCF
-      SCF_GUESS RESTART
-      MAX_SCF   4
       EPS_SCF 1.0e-7
       EPS_DIIS 1.0e-7
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 4
+      SCF_GUESS RESTART
       &OUTER_SCF OFF
         EPS_SCF 1.0E-6
         MAX_SCF 1

@@ -26,8 +26,9 @@
       &END DFTB
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF  20
+      SCF_GUESS ATOMIC
       &OT ON
         PRECONDITIONER NONE
       &END OT

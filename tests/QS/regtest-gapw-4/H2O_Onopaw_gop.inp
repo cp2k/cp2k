@@ -20,6 +20,10 @@
       METHOD GAPW
     &END QS
     &SCF
+      EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 10
+      SCF_GUESS atomic
       &PRINT
         &RESTART
            &EACH
@@ -29,9 +33,6 @@
            ADD_LAST NUMERIC
         &END
       &END
-      SCF_GUESS atomic
-      MAX_SCF 10
-      EPS_SCF 1.0E-4
       &OT
         MINIMIZER DIIS
         N_DIIS 7

@@ -42,6 +42,7 @@ int main() {
   fprintf(f, "    &SCF\n");
   fprintf(f, "      EPS_DIIS 0.1\n");
   fprintf(f, "      EPS_SCF 1.0E-4\n");
+  fprintf(f, "      IGNORE_CONVERGENCE_FAILURE\n");
   fprintf(f, "      MAX_DIIS 4\n");
   fprintf(f, "      MAX_SCF 3\n");
   fprintf(f, "      SCF_GUESS atomic\n");

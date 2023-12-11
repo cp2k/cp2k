@@ -16,9 +16,10 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
-      MAX_SCF 3
       ADDED_MOS 20 20
+      EPS_SCF 1.0E-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
     &END SCF
     &XC
       &XC_FUNCTIONAL

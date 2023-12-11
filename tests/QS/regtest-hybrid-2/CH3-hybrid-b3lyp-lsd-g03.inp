@@ -17,13 +17,15 @@
     &END
     &SCF
       EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 2
       SCF_GUESS ATOMIC
       &OT off
        PRECONDITIONER FULL_ALL
       &END OT
-      MAX_SCF 2
     &END SCF
-#These are the coefficients used for B3LYP using VWN3, this is the default Gaussian definition, but not recommended
+    # These are the coefficients used for B3LYP using VWN3,
+    # this is the default Gaussian definition, but not recommended
     &XC
       &XC_FUNCTIONAL
        &LYP

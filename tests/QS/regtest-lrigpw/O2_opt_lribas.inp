@@ -31,8 +31,9 @@
       &END
     &END QS
     &SCF
-      SCF_GUESS atomic
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 2
+      SCF_GUESS atomic
       &DIAGONALIZATION
       &END
     &END SCF

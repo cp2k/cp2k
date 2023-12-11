@@ -25,10 +25,11 @@
       EPS_PGF_ORB 1.0E-30
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
+      ADDED_MOS -1 -1
       EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 100
-      ADDED_MOS 15000 15000
+      SCF_GUESS ATOMIC
     &END SCF
 ! Parameters for the DSD-BLYP double hybrid functional (ax=0.69  ac=0.54  cOS=0.46  cSS=0.37)
     &XC

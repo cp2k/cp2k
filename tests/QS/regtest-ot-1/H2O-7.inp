@@ -15,6 +15,7 @@
     &SCF
       ADDED_MOS 0 1
       EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 3
       SCF_GUESS ATOMIC
     &END SCF

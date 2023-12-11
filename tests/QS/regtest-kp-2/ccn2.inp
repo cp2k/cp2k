@@ -15,6 +15,7 @@
   &SCF
    EPS_EIGVAL 1.0E-5
    EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
    MAX_SCF  1
    SCF_GUESS ATOMIC
    &MIXING
@@ -64,7 +65,7 @@
    C     0.250000    0.250000    0.250000
    C     0.250000    0.750000    0.750000
    C     0.750000    0.250000    0.750000
-   C     0.750000    0.750000    0.250000
+      C          3/4         3/4         1/4
   &END COORD
   &KIND C
    BASIS_SET TZV2P-GTH

@@ -23,10 +23,11 @@
       EXTRAPOLATION_ORDER 2
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF   5
-      EPS_SCF 1.0e-7
       EPS_DIIS 1.0e-8
+      EPS_SCF 1.0e-7
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF   5
+      SCF_GUESS ATOMIC
       &OUTER_SCF OFF
         EPS_SCF 1.0E-6
         MAX_SCF 1

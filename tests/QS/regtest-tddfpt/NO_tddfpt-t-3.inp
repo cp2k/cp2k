@@ -34,6 +34,7 @@
     &QS
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 15
       SCF_GUESS atomic
     &END SCF

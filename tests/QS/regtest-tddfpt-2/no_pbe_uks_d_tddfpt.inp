@@ -28,13 +28,12 @@
     &QS
       METHOD gpw
     &END QS
-
     &SCF
+      EPS_SCF 1.0E-7
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF   30
-      EPS_SCF   1e-7
       SCF_GUESS atomic
     &END SCF
-
     &POISSON
        PERIODIC none
        POISSON_SOLVER wavelet

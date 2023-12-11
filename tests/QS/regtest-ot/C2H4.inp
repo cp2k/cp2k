@@ -20,6 +20,7 @@
       &END
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 4
       SCF_GUESS RESTART
       &OT ON

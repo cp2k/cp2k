@@ -82,16 +82,17 @@
       PURIFICATION_METHOD   TRS4
     &END LS_SCF
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF   1
       EPS_SCF   1.0E-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF   1
+      SCF_GUESS ATOMIC
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
       &OUTER_SCF
-        MAX_SCF 1
         EPS_SCF 1.0E-5
+        MAX_SCF 1
       &END OUTER_SCF
       &PRINT
         &RESTART off

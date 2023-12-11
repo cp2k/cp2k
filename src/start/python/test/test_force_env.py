@@ -24,6 +24,7 @@ TEST_FILE_CONTENT = """
     &SCF
       EPS_DIIS 0.1
       EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
       MAX_DIIS 4
       MAX_SCF 3
       SCF_GUESS atomic

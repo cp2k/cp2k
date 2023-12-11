@@ -35,12 +35,12 @@
       NGRIDS        1
     &END
     &SCF
-      SCF_GUESS RESTART
+      ADDED_MOS  1 1
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
-
-      ADDED_MOS  1 1
+      SCF_GUESS RESTART
       &OT OFF
         PRECONDITIONER FULL_ALL
       &END OT
@@ -64,6 +64,7 @@
     &XAS
       &SCF
         EPS_SCF 0.000001
+        IGNORE_CONVERGENCE_FAILURE
         MAX_SCF 10
         EPS_DIIS   0.4
       &END

@@ -17,8 +17,9 @@
         &END
         &SCF
             EPS_SCF 1.0E-7
-            SCF_GUESS ATOMIC
+      IGNORE_CONVERGENCE_FAILURE
             MAX_SCF 50
+      SCF_GUESS ATOMIC
             &OT
                 PRECONDITIONER FULL_ALL
             &END

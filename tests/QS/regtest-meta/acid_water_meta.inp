@@ -12,6 +12,7 @@
       METHOD GPW
     &END QS
     &SCF
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 4
       SCF_GUESS ATOMIC
       &OT
@@ -102,7 +103,6 @@
        &END CSVR
    &END
   &END MD
-  #############
  &FREE_ENERGY
    &METADYN
      DO_HILLS T

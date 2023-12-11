@@ -19,6 +19,7 @@
     &SCF
       EPS_DIIS 0.4
       EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
       &MIXING
         METHOD DIRECT_P_MIXING

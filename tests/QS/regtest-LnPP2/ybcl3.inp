@@ -12,6 +12,7 @@
      CHARGE  0
      MULTIPLICITY 1
      &SCF
+      IGNORE_CONVERGENCE_FAILURE
        MAX_SCF  10
        &OT  T
          MINIMIZER  CG

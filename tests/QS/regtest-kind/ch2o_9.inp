@@ -17,13 +17,12 @@
     &QS
       METHOD GAPW
     &END QS
-
     &SCF
-      MAX_SCF   1
       EPS_SCF   1e-7
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF   1
       SCF_GUESS atomic
     &END SCF
-
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
