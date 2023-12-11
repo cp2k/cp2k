@@ -1,14 +1,13 @@
 #CPQA DEPENDS CO.inp
 
 &GLOBAL
- PROJECT      CO_xastpfh_gsot
- IOLEVEL      MEDIUM
- RUN_TYPE     ENERGY
+  PROJECT      CO_xastpfh_gsot
+  IOLEVEL      MEDIUM
+  RUN_TYPE     ENERGY
 &END
 
 &FORCE_EVAL
   METHOD Quickstep
-
   &DFT
     LSD
     BASIS_SET_FILE_NAME ALL_BASIS_SETS
@@ -29,18 +28,18 @@
       LMAXN0       2
       LMAXN1       6
       ALPHA0_H     10
-     &END
+    &END
     &MGRID
       CUTOFF       50
       NGRIDS        1
     &END
     &SCF
-      SCF_GUESS RESTART
-      EPS_SCF 5.E-7
       EPS_DIIS 0.4
+      EPS_SCF 5.E-7
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
-
-#      ADDED_MOS  1 1
+      SCF_GUESS RESTART
+      #      ADDED_MOS  1 1
       &OT # OFF
         PRECONDITIONER FULL_ALL
       &END OT
@@ -48,19 +47,18 @@
         &TOTAL_DENSITIES MEDIUM
         &END
         &RESTART
-           FILENAME =RESTART
+          FILENAME =RESTART
         &END
       &END
     &END SCF
-   &POISSON
-     POISSON_SOLVER MT
-     &MT
-      ALPHA 7.0
-      REL_CUTOFF 1.2
-     &END
-     PERIODIC NONE
+    &POISSON
+      POISSON_SOLVER MT
+      &MT
+        ALPHA 7.0
+        REL_CUTOFF 1.2
+      &END
+      PERIODIC NONE
     &END POISSON
-
     &XAS
       &SCF
         EPS_SCF 0.000001
@@ -77,47 +75,43 @@
       &LOCALIZE
       &END
       &PRINT
-         &PROGRAM_RUN_INFO
-         &END
-         &RESTART
-             &EACH
-               XAS_SCF 1
-             &END
-         &END
-         &XES_SPECTRUM
-         &END
-         &XAS_SPECTRUM
-         &END
+        &PROGRAM_RUN_INFO
+        &END
+        &RESTART
+          &EACH
+            XAS_SCF 1
+          &END
+        &END
+        &XES_SPECTRUM
+        &END
+        &XAS_SPECTRUM
+        &END
       &END
-
     &END
-##    &PRINT
-##      &MO
-##        EIGENVALUES
-##        OCCUPATION_NUMBERS
-##      &END
-##    &END
+    ##    &PRINT
+    ##      &MO
+    ##        EIGENVALUES
+    ##        OCCUPATION_NUMBERS
+    ##      &END
+    ##    &END
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC    6.0    6.0     6.0
-       PERIODIC NONE
+      ABC    6.0    6.0     6.0
+      PERIODIC NONE
     &END CELL
-
     &KIND O
       BASIS_SET  6-31G*
       POTENTIAL ALL
       LEBEDEV_GRID 50
       RADIAL_GRID 100
     &END
-
     &KIND  C
       BASIS_SET  6-31G*
       POTENTIAL  ALL
       LEBEDEV_GRID 50
       RADIAL_GRID 100
     &END
-
     &COORD
       C         0.000000    0.000000   -0.004108
       O        0.000000    0.000000    1.132332
