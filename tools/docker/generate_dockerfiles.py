@@ -804,11 +804,11 @@ RUN spack compiler find
 # Add CP2K repo
 WORKDIR /
 COPY ./tools/spack/cp2k-repo .
-RUN spack repo add ./cp2k-repo && spack repo list
+RUN spack repo add ./cp2k-repo/ && spack repo list
 
 # Install CP2K's dependencies via Spack.
 WORKDIR /
-COPY ./tools/spack/cp2k-env.yaml .
+COPY ./tools/spack/cp2k-env.yaml ./
 RUN spack env create myenv ./cp2k-env.yaml
 RUN spack --env=myenv spec -lI
 RUN spack --env=myenv install --only=dependencies
