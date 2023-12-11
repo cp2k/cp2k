@@ -187,7 +187,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_dlaf_base'
       CHARACTER(LEN=100)                                 :: message
-      INTEGER                                            :: dlaf_handle, handle, n, nmo
+      INTEGER                                            :: dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, z
