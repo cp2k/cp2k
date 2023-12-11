@@ -18,6 +18,7 @@
 #include <cuda_runtime.h>
 #elif defined(__OFFLOAD_HIP)
 #include <hip/hip_runtime.h>
+#include <hip/hip_version.h>
 #endif
 
 #ifdef __cplusplus
