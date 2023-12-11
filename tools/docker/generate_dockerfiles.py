@@ -804,7 +804,7 @@ RUN spack compiler find
 # Add CP2K repo
 WORKDIR /
 COPY ./tools/spack/cp2k-repo .
-RUN spack repo add ./tools/spack/cp2k-repo/ && spack repo list
+RUN spack repo add ./cp2k-repo/ && spack repo list
 
 # Install CP2K's dependencies via Spack.
 WORKDIR /
