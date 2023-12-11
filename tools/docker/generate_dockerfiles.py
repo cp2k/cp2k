@@ -749,6 +749,7 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 
 # ======================================================================================
+# TODO: Add environment as argument when adding other environments (i.e. CUDA/ROCm)
 def spack_env_toolchain() -> str:
     return rf"""
 FROM ubuntu:22.04
@@ -800,11 +801,17 @@ ENV PATH="/opt/spack/bin:${{PATH}}"
 RUN spack external find --all --not-buildable
 RUN spack compiler find
 
+# Add CP2K repo
+WORKDIR /
+COPY ./tools/spack/cp2k-repo .
+RUN spack repo add ./tools/spack/cp2k-repo/ && spack repo list
+
 # Install CP2K's dependencies via Spack.
 WORKDIR /
-COPY ./tools/spack/cp2k-dependencies.yaml .
-RUN spack env create myenv ./cp2k-dependencies.yaml
-RUN spack --env=myenv install
+COPY ./tools/spack/cp2k-env.yaml .
+RUN spack env create myenv ./cp2k-env.yaml
+RUN spack --env=myenv spec -lI
+RUN spack --env=myenv install --only=dependencies
 """
 
 
