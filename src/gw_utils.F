@@ -222,7 +222,8 @@ CONTAINS
       ! Recommendation in case of memory issues: first perform GW calculation without calculating
       !                                          LDOS (to safe memor). Then, use GW restart files
       !                                          in a subsequent calculation to calculate the LDOS
-      IF (.NOT. bs_env%do_ldos) THEN
+      ! Marek : TODO - boolean that does not interfere with RTP init but sets this to correct value
+      IF (.NOT. bs_env%do_ldos .AND. .FALSE.) THEN
          CALL qs_env_part_release(qs_env)
       END IF
 

@@ -161,7 +161,9 @@ MODULE post_scf_bandstructure_types
                                                       fm_chi_Gamma_freq, &
                                                       fm_W_MIC_freq, &
                                                       fm_W_MIC_freq_1_extra, &
-                                                      fm_W_MIC_freq_1_no_extra
+                                                      fm_W_MIC_freq_1_no_extra, &
+                                                      fm_W_MIC_freq_zero, &
+                                                      fm_h_G0W0_Gamma
       TYPE(cp_cfm_type)                            :: cfm_work_mo, &
                                                       cfm_work_mo_2
 
