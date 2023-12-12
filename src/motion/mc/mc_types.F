@@ -156,7 +156,8 @@ MODULE mc_types
 ! contains all the text of the input file
       PRIVATE
       INTEGER :: run_type_row = 0, run_type_column = 0, coord_row_start = 0, coord_row_end = 0, &
-                 cell_row = 0, cell_column = 0, global_row_end = 0, in_use = 0, nunits_empty = 0, &
+                 cell_row = 0, cell_column = 0, force_eval_row_start = 0, force_eval_row_end = 0, &
+                 global_row_start = 0, global_row_end = 0, in_use = 0, nunits_empty = 0, &
                  motion_row_end = 0, motion_row_start = 0
       INTEGER, DIMENSION(:), POINTER :: mol_set_nmol_row => NULL(), mol_set_nmol_column => NULL()
       CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: text => NULL()
@@ -255,6 +256,9 @@ CONTAINS
 !> \param coord_row_end ...
 !> \param cell_row ...
 !> \param cell_column ...
+!> \param force_eval_row_start ...
+!> \param force_eval_row_end ...
+!> \param global_row_start ...
 !> \param global_row_end ...
 !> \param mol_set_nmol_row ...
 !> \param mol_set_nmol_column ...
@@ -268,14 +272,15 @@ CONTAINS
 !> \author MJM
 ! **************************************************************************************************
    SUBROUTINE get_mc_input_file(mc_input_file, run_type_row, run_type_column, &
-                                coord_row_start, coord_row_end, cell_row, cell_column, global_row_end, &
+                                coord_row_start, coord_row_end, cell_row, cell_column, &
+                                force_eval_row_start, force_eval_row_end, global_row_start, global_row_end, &
                                 mol_set_nmol_row, mol_set_nmol_column, in_use, text, atom_names_empty, &
                                 nunits_empty, coordinates_empty, motion_row_end, motion_row_start)
 
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
-      INTEGER, INTENT(OUT), OPTIONAL                     :: run_type_row, run_type_column, &
-                                                            coord_row_start, coord_row_end, &
-                                                            cell_row, cell_column, global_row_end
+      INTEGER, INTENT(OUT), OPTIONAL :: run_type_row, run_type_column, coord_row_start, &
+         coord_row_end, cell_row, cell_column, force_eval_row_start, force_eval_row_end, &
+         global_row_start, global_row_end
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: mol_set_nmol_row, mol_set_nmol_column
       INTEGER, INTENT(OUT), OPTIONAL                     :: in_use
       CHARACTER(LEN=default_string_length), &
@@ -291,6 +296,9 @@ CONTAINS
       IF (PRESENT(coord_row_end)) coord_row_end = mc_input_file%coord_row_end
       IF (PRESENT(cell_row)) cell_row = mc_input_file%cell_row
       IF (PRESENT(cell_column)) cell_column = mc_input_file%cell_column
+      IF (PRESENT(force_eval_row_start)) force_eval_row_start = mc_input_file%force_eval_row_start
+      IF (PRESENT(force_eval_row_end)) force_eval_row_end = mc_input_file%force_eval_row_end
+      IF (PRESENT(global_row_start)) global_row_start = mc_input_file%global_row_start
       IF (PRESENT(global_row_end)) global_row_end = mc_input_file%global_row_end
       IF (PRESENT(nunits_empty)) nunits_empty = mc_input_file%nunits_empty
       IF (PRESENT(motion_row_start)) motion_row_start = mc_input_file%motion_row_start
@@ -978,7 +986,7 @@ CONTAINS
 ! now we need to find the row and column numbers of a variety of things
 ! first, Let's find the first END after GLOBAL
       CALL mc_parse_text(mc_input_file%text, 1, nlines, "&GLOBAL", .TRUE., &
-                         mc_input_file%global_row_end, idum)
+                         mc_input_file%global_row_end, idum, start_row_number=mc_input_file%global_row_start)
       IF (mc_input_file%global_row_end == 0) THEN
          IF (iw > 0) THEN
             WRITE (iw, *)
@@ -1001,6 +1009,10 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        'Could not find &END after &MOTION (make sure & is in the same column) and last line is blank')
       END IF
+
+! find &FORCE_EVAL sections
+      CALL mc_parse_text(mc_input_file%text, 1, nlines, "&FORCE_EVAL", .TRUE., &
+                         mc_input_file%force_eval_row_end, idum, start_row_number=mc_input_file%force_eval_row_start)
 
 ! first, let's find the first END after &COORD, and the line of &COORD
       CALL mc_parse_text(mc_input_file%text, 1, nlines, "&COORD", .TRUE., &
