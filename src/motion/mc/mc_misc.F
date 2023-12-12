@@ -471,9 +471,9 @@ CONTAINS
       CHARACTER(default_string_length)                   :: line_text
       CHARACTER(default_string_length), DIMENSION(:), &
          POINTER                                         :: atom_names_empty, text
-      INTEGER :: cell_column, cell_row, coord_row_end, coord_row_start, global_row_end, iline, &
-         in_use, itype, iunit, motion_row_end, motion_row_start, nmol_types, nunits_empty, &
-         run_type_row, start_line, unit
+      INTEGER :: cell_column, cell_row, coord_row_end, coord_row_start, force_eval_row_end, &
+         force_eval_row_start, global_row_end, global_row_start, iline, in_use, itype, iunit, &
+         motion_row_end, motion_row_start, nmol_types, nunits_empty, run_type_row, start_line, unit
       INTEGER, DIMENSION(:), POINTER                     :: mol_set_nmol_column, mol_set_nmol_row
       REAL(dp), DIMENSION(:, :), POINTER                 :: coordinates_empty
 
@@ -486,7 +486,9 @@ CONTAINS
       CALL get_mc_input_file(mc_input_file, text=text, cell_row=cell_row, &
                              cell_column=cell_column, coord_row_start=coord_row_start, &
                              coord_row_end=coord_row_end, mol_set_nmol_row=mol_set_nmol_row, &
-                             mol_set_nmol_column=mol_set_nmol_column, global_row_end=global_row_end, &
+                             mol_set_nmol_column=mol_set_nmol_column, &
+                             force_eval_row_start=force_eval_row_start, force_eval_row_end=force_eval_row_end, &
+                             global_row_start=global_row_start, global_row_end=global_row_end, &
                              run_type_row=run_type_row, in_use=in_use, atom_names_empty=atom_names_empty, &
                              nunits_empty=nunits_empty, coordinates_empty=coordinates_empty, &
                              motion_row_start=motion_row_start, motion_row_end=motion_row_end)
@@ -494,10 +496,45 @@ CONTAINS
 ! how many molecule types?
       nmol_types = SIZE(nchains)
 
-! first, write all the information up to the cell lengths
-      DO iline = 1, cell_row - 1
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!                                                                                              !!!
+!!!   WARNING: This code assumes that some sections of the input file are in a certain order.    !!!
+!!!                                                                                              !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      CPASSERT(force_eval_row_start < cell_row)
+      CPASSERT(cell_row < coord_row_start)
+      CPASSERT(coord_row_start < coord_row_end)
+      CPASSERT(coord_row_end < mol_set_nmol_row(1))
+      DO itype = 1, nmol_types - 1
+         CPASSERT(mol_set_nmol_row(itype) < mol_set_nmol_row(itype + 1))
+      END DO
+      CPASSERT(mol_set_nmol_row(nmol_types) < force_eval_row_end)
+
+! write the global section, but replace the RUN_TYPE
+      DO iline = global_row_start, run_type_row - 1
          WRITE (unit, '(A)') TRIM(text(iline))
       END DO
+      SELECT CASE (in_use)
+      CASE (use_fist_force)
+         WRITE (unit, '(A)') '  RUN_TYPE     ENERGY_FORCE'
+      CASE (use_qs_force)
+         WRITE (unit, '(A)') '  RUN_TYPE     ENERGY_FORCE'
+      END SELECT
+      DO iline = run_type_row + 1, global_row_end
+         WRITE (unit, '(A)') TRIM(text(iline))
+      END DO
+
+! write the motion section without modifications
+      DO iline = motion_row_start, motion_row_end
+         WRITE (unit, '(A)') TRIM(text(iline))
+      END DO
+
+! write force_eval section up to the cell lengths
+      DO iline = force_eval_row_start, cell_row - 1
+         WRITE (unit, '(A)') TRIM(text(iline))
+      END DO
+
 ! substitute in the current cell lengths
       WRITE (cell_string, '(3(F13.8,2X))') box_length(1:3)*angstrom
       line_text = text(cell_row)
@@ -545,21 +582,8 @@ CONTAINS
          start_line = mol_set_nmol_row(itype) + 1
       END DO
 
-! write up to the RUN_TYPE...tailor this for the type of environment, so
-! that we can easily do ./cp2k.sdbg input.dat and have it run
-      DO iline = mol_set_nmol_row(nmol_types) + 1, run_type_row - 1
-         WRITE (unit, '(A)') TRIM(text(iline))
-      END DO
-      SELECT CASE (in_use)
-      CASE (use_fist_force)
-         WRITE (unit, '(A)') '  RUN_TYPE     ENERGY_FORCE'
-      CASE (use_qs_force)
-         WRITE (unit, '(A)') '  RUN_TYPE     ENERGY_FORCE'
-      END SELECT
-      DO iline = run_type_row + 1, global_row_end
-         WRITE (unit, '(A)') TRIM(text(iline))
-      END DO
-      DO iline = motion_row_start, motion_row_end
+! write remainder of force_eval section
+      DO iline = start_line, force_eval_row_end
          WRITE (unit, '(A)') TRIM(text(iline))
       END DO
 
