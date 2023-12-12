@@ -5,14 +5,15 @@
 # Tested with: Intel 22.2 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2023.05.001,
 #              PLUMED 2.9.0, SPGLIB 1.16.2, LIBVORI 220621,
-#              GSL 2.7, COSMA 2.6.6, HDF5 1.14.2
+#              GSL 2.7, COSMA 2.6.6, HDF5 1.14.2,
+#              LIBGRPP 20231206
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 04.10.2023
+# Last update: 12.12.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -55,6 +56,7 @@ TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
 USE_HDF5       := 1.14.2
+USE_LIBGRPP    := 20231206
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 #USE_LIBTORCH   := 1.12.1
@@ -181,6 +183,15 @@ ifneq ($(USE_LIBXC),)
       LIBS           += $(LIBXC_LIB)/libxcf03.a
       LIBS           += $(LIBXC_LIB)/libxc.a
    endif
+endif
+
+ifneq ($(USE_LIBGRPP),)
+   USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
+   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
+   CFLAGS         += -I$(LIBGRPP_INC)
+   DFLAGS         += -D__LIBGRPP
+   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)
