@@ -39,7 +39,7 @@ def main() -> None:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
     with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
-        f.write(spack_env_toolchain() + regtest_cmake())
+        f.write(spack_env_toolchain() + regtest_cmake(testopts="--mpiexec mpiexec pika-bind --"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -794,8 +794,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     xz-utils \
     libssl-dev \
     libssh-dev \
-    mpich \
-    libmpich-dev \
+    hwloc \
+    libhwloc-dev \
    && rm -rf /var/lib/apt/lists/*
 
 # Install a recent developer version of Spack.
@@ -807,7 +807,7 @@ RUN git init --quiet && \
 ENV PATH="/opt/spack/bin:${{PATH}}"
 
 # Find all external packages and compilers.
-RUN spack external find --all --not-buildable --exclude hwloc
+RUN spack external find --all --not-buildable 
 RUN spack compiler find
 
 # Install CP2K's dependencies via Spack.
