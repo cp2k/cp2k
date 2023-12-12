@@ -940,8 +940,6 @@ CONTAINS
                                 basis_type="RI_AUX")
                IF (.NOT. (ASSOCIATED(ri_aux_basis_set))) THEN
                   ! RI_AUX basis set is not yet loaded
-                  CALL cp_warn(__LOCATION__, "Automatic Generation of RI_AUX basis. "// &
-                               "This is experimental code.")
                   ! Generate a default basis
                   CALL create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, dft_control%auto_basis_ri_aux, basis_sort=sort_basis)
                   CALL add_basis_set_to_container(qs_kind%basis_sets, ri_aux_basis_set, "RI_AUX")
@@ -959,8 +957,6 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             CALL get_qs_kind(qs_kind, basis_Set=ri_xas_basis, basis_type="RI_XAS")
             IF (.NOT. ASSOCIATED(ri_xas_basis)) THEN
-               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_XAS basis. "// &
-                            "This is experimental code.")
                ! Generate a default basis
                CALL create_ri_aux_basis_set(ri_xas_basis, qs_kind, dft_control%auto_basis_ri_xas)
                CALL add_basis_set_to_container(qs_kind%basis_sets, ri_xas_basis, "RI_XAS")

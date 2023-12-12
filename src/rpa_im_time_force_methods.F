@@ -18,6 +18,8 @@ MODULE rpa_im_time_force_methods
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Bussy2023,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE core_ae,                         ONLY: build_core_ae
@@ -240,6 +242,8 @@ CONTAINS
 
       NULLIFY (dft_control, para_env, particle_set, qs_kind_set, dist_2d, nl_2c, blacs_env, matrix_s, &
                rho, rho_ao, cell, qs_section, orb_basis, ri_basis, virial)
+
+      CALL cite_reference(Bussy2023)
 
       CALL timeset(routineN, handle)
 
