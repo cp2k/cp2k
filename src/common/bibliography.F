@@ -90,7 +90,7 @@ MODULE bibliography
                             cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, Graml2023
+                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, Graml2023, Bussy2023
 
 CONTAINS
 
@@ -4700,6 +4700,24 @@ CONTAINS
                          "DI 10.1063/5.0058124 ", &
                          "ER"), &
                          DOI="10.1063/5.0058124")
+
+      CALL add_reference(key=Bussy2023, ISI_record=s2a( &
+                         "TI Sparse tensor based nuclear gradients for periodic Hartree-Fock ", &
+                         "   and low-scaling correlated wave function methods in the CP2K software ", &
+                         "   package: A massively parallel and GPU accelerated implementation.", &
+                         "AU Bussy, Augustin", &
+                         "   Schuett, Ole", &
+                         "   Hutter, Juerg", &
+                         "PY 2023", &
+                         "SP 164109", &
+                         "JF The Journal of Chemical Physics", &
+                         "SO J. Chem. Phys.", &
+                         "VL 158", &
+                         "IS 16", &
+                         "PB American Institute of Physics", &
+                         "DI 10.1063/5.0144493 ", &
+                         "ER"), &
+                         DOI="10.1063/5.0144493")
 
       CALL add_reference(key=Heinecke2016, ISI_record=s2a( &
                          "PT S", &

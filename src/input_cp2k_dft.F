@@ -309,7 +309,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="AUTO_BASIS", &
-                          description="Specify size of automatically generated auxiliary basis sets: "// &
+                          description="Specify size of automatically generated auxiliary (RI) basis sets: "// &
                           "Options={small,medium,large,huge}", &
                           usage="AUTO_BASIS {basis_type} {basis_size}", &
                           type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"X", "X"/))
