@@ -3,6 +3,7 @@
 spack:
   specs:
     #    - mpich@4.1.2 device=ch3 netmod=tcp
+    - mpich@4.1.2
     - "openblas @0.3.24 +fortran threads=openmp"
     - "dbcsr@2.6.0 +openmp +mpi"
     - "netlib-scalapack @2.2.0"
