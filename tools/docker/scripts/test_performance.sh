@@ -40,6 +40,7 @@ if make -j ARCH="${ARCH}" VERSION="psmp" &> make.out; then
 else
   echo -e "failed.\n\n"
   tail -n 100 make.out
+  cp make.out /workspace/artifacts/
   echo -e "\nSummary: Compilation failed."
   echo -e "Status: FAILED\n"
   exit 0
