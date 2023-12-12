@@ -46,6 +46,7 @@ RUN ./install_cp2k_toolchain.sh \
     --with-openblas=system \
     --with-gsl=system \
     --with-hdf5=system \
+    --with-libgrpp=no \
     --with-libint=install \
     --with-libxc=install \
     --with-libxsmm=install \

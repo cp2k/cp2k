@@ -51,8 +51,16 @@ def main() -> None:
 
     for gcc_version in 8, 9, 10, 11, 12:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
-            img = "ubuntu:22.04" if gcc_version > 8 else "ubuntu:20.04"
-            f.write(toolchain_ubuntu_nompi(base_image=img, gcc_version=gcc_version))
+            if gcc_version > 8:
+                f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version))
+            else:
+                f.write(
+                    toolchain_ubuntu_nompi(
+                        base_image="ubuntu:20.04",
+                        gcc_version=gcc_version,
+                        libgrpp=False,
+                    )
+                )
             # Skip some tests because of bug in LDA_C_PMGB06 functional in libxc <5.2.0.
             f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
@@ -412,6 +420,7 @@ def toolchain_full(
 def toolchain_ubuntu_nompi(
     base_image: str = "ubuntu:22.04",
     gcc_version: int = 12,
+    libgrpp: bool = True,
     libvori: bool = True,
 ) -> str:
     output = rf"""
@@ -450,6 +459,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_openblas="system",
         with_gsl="system",
         with_hdf5="system",
+        with_libgrpp=("install" if libgrpp else "no"),
         with_libint=("system" if gcc_version > 8 else "install"),
         with_libxc=("system" if gcc_version > 8 else "install"),
         with_libxsmm="install",
