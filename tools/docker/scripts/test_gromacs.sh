@@ -7,11 +7,13 @@ source /opt/cp2k-toolchain/install/setup
 
 cd /opt/cp2k
 echo -n "Compiling libcp2k... "
-if make -j VERSION=sdbg libcp2k &> make.out; then
+if make -j VERSION=sdbg libcp2k &> cp2k_make.out; then
   echo "done."
 else
   echo -e "failed.\n\n"
-  tail -n 100 make.out
+  tail -n 100 cp2k_make.out
+  mkdir -p /workspace/artifacts/
+  cp cp2k_make.out /workspace/artifacts/
   echo -e "\nSummary: Compiling libcp2k failed."
   echo -e "Status: FAILED\n"
   exit 0
@@ -34,23 +36,27 @@ if cmake .. \
   -DGMXAPI=OFF \
   -DGMX_CP2K=ON \
   -DCP2K_DIR="/opt/cp2k/lib/local/sdbg/" \
-  &> cmake.out; then
+  &> gromacs_cmake.out; then
   echo "done."
 else
   echo -e "failed.\n\n"
-  tail -n 100 cmake.out
+  tail -n 100 gromacs_cmake.out
+  mkdir -p /workspace/artifacts/
+  cp gromacs_cmake.out /workspace/artifacts/
   echo -e "\nSummary: Configuring Gromacs failed."
   echo -e "Status: FAILED\n"
   exit 0
 fi
 
 echo -n "Compiling Gromacs... "
-if make -j 32 all qmmm_applied_forces-test &> make.out; then
+if make -j 32 all qmmm_applied_forces-test &> gromacs_make.out; then
   echo -e "done.\n\n"
   ./bin/gmx --version
 else
   echo -e "failed.\n\n"
-  tail -n 100 make.out
+  tail -n 100 gromacs_make.out
+  mkdir -p /workspace/artifacts/
+  cp gromacs_make.out /workspace/artifacts/
   echo -e "\nSummary: Compiling Gromacs failed."
   echo -e "Status: FAILED\n"
   exit 0

@@ -10,6 +10,8 @@ function run_test {
   else
     echo -e "failed.\n\n"
     tail -n 100 test.out
+    mkdir -p /workspace/artifacts/
+    cp test.out /workspace/artifacts/
     echo -e "\nSummary: Test \"${TEST_COMMAND[*]}\" failed."
     echo -e "Status: FAILED\n"
     exit 0

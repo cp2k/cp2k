@@ -25,6 +25,8 @@ if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> make.out; then
 else
   echo -e "failed.\n\n"
   tail -n 100 make.out
+  mkdir -p /workspace/artifacts/
+  cp make.out /workspace/artifacts/
   echo -e "\nSummary: Compilation failed."
   echo -e "Status: FAILED\n"
   exit 0
