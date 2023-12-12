@@ -9789,7 +9789,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="FILENAME", &
-                          description="The name of the file containing all informations for hubbard U and U+V " // &
+                          description="The name of the file containing all informations for hubbard U and U+V "// &
                           "contributions. The format should follow QE input input style", &
                           usage="FILE_NAME hubbard.dat", &
                           default_c_val="")

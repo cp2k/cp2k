@@ -79,7 +79,8 @@ MODULE sirius_interface
         sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
         sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_hubbard, &
         sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, &
-        sirius_set_parameters, sirius_update_ground_state, sirius_parse_hubbard_file
+        sirius_set_parameters, sirius_update_ground_state
+!   , sirius_parse_hubbard_file
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -133,7 +134,7 @@ CONTAINS
 
       CHARACTER(len=2)                                   :: element_symbol
       CHARACTER(len=default_string_length)               :: label
-      CHARACTER, POINTER                                  :: hubbard_filename
+!      CHARACTER, POINTER                                  :: hubbard_filename
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
                                                             num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu, subspace_method
@@ -259,10 +260,8 @@ CONTAINS
       !
 
       !     import nlcg section
-      !      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "nlcg")
-      !      IF (ASSOCIATED(pwdft_sub_section)) THEN
-      !         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "nlcg")
-      !      ENDIF
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "nlcg")
+      CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "nlcg")
 
       !CALL sirius_dump_runtime_setup(sctx, "runtime.json")
       CALL sirius_import_parameters(sctx, '{}')
@@ -503,11 +502,11 @@ CONTAINS
          END IF
       END IF
 
-      CALL section_vals_val_get(dft_plus_u_section, keyword_name="hubbard_file", c_val=hubbard_filename)
-      IF (ASSOCIATED(hubbard_filename)) then
-         hubbard_filename = TRIM(ADJUSTL(hubbard_filename))
-         CALL sirius_parse_hubbard_file(sctx, file_name = hubbard_filename)
-      ENDIF
+!      CALL section_vals_val_get(dft_plus_u_section, keyword_name="FILENAME", c_val=hubbard_filename)
+!      IF (ASSOCIATED(hubbard_filename)) then
+!         hubbard_filename = TRIM(ADJUSTL(hubbard_filename))
+!         CALL sirius_parse_hubbard_file(sctx, file_name = hubbard_filename)
+!      ENDIF
 
 ! add atoms to the unit cell
 ! WARNING: sirius accepts only fractional coordinates;
@@ -899,7 +898,6 @@ CONTAINS
          DEALLOCATE (hist, occval, ehist)
       END IF
    END SUBROUTINE cp_sirius_print_results
-
 END MODULE sirius_interface
 
 #else
@@ -968,10 +966,5 @@ CONTAINS
       MARK_USED(pwdft_env)
       CPABORT("Sirius library is missing")
    END SUBROUTINE cp_sirius_update_context
-
-   SUBROUTINE CALL parser_create(parser, topology%coord_file_name, para_env=para_env, &
-        parse_white_lines=.TRUE.)
-
 END MODULE sirius_interface
-
 #endif
