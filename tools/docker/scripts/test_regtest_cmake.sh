@@ -14,8 +14,9 @@ fi
 eval "$(spack env activate myenv --sh)"
 
 # pika-bind
-PIKA_LOCATION=$(spack location -i pika)
-export PATH=$PIKA_LOCATION/bin:$PATH
+PIKA_LOCATION=$(spack --env=myenv location -i pika)
+echo "pika: ${PIKA_LOCATION}"
+export PATH=${PIKA_LOCATION}/bin:$PATH
 
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
