@@ -9,14 +9,15 @@
 #              LIBINT 2.6.0, LIBXC 6.2.2,
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
 #              LIBVORI 220621, GSL 2.7.1,
-#              COSMA 2.6.6, SIRIUS 7.4.3
-# on an Apple M1 (macOS 14.1 Sonoma))
+#              COSMA 2.6.6, SIRIUS 7.4.3,
+#              LIBGRPP 20231206
+# on an Apple M1 (macOS 14.2 Sonoma))
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /usr/local/bin to the lastest gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 07.11.2023
+# Last update: 12.12.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -71,6 +72,7 @@
 DO_CHECKS      := no
 TARGET_CPU     := native
 USE_COSMA      := 2.6.6
+USE_LIBGRPP    := 20231206
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_PLUMED     := 2.9.0
@@ -143,6 +145,15 @@ LIBXC_HOME     := $(shell brew --prefix libxc)
 CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
 LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
+
+ifneq ($(USE_LIBGRPP),)
+   USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
+   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
+   CFLAGS         += -I$(LIBGRPP_INC)
+   DFLAGS         += -D__LIBGRPP
+   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
+endif
 
 ifneq ($(USE_LIBINT),)
    USE_LIBINT     := $(strip $(USE_LIBINT))
