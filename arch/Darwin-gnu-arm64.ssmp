@@ -4,13 +4,14 @@
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
 # Tested with: GNU 13.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
-#              LIBXC 6.2.2, OpenBLAS 0.3.24, SPGLIB 1.16.2
-# on an Apple M1 (macOS Sonoma 14.0)
+#              LIBXC 6.2.2, OpenBLAS 0.3.24, SPGLIB 1.16.2,
+#              LIBGRPP 20231206
+# on an Apple M1 (macOS Sonoma 14.2)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /usr/local/bin to the lastest gcc version.
 #
-# Last update: 06.10.2023
+# Last update: 12.12.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -58,6 +59,7 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
+USE_LIBGRPP    := 20231206
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
@@ -118,6 +120,15 @@ LIBXC_HOME     := $(shell brew --prefix libxc)
 CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
 LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
+
+ifneq ($(USE_LIBGRPP),)
+   USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
+   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
+   CFLAGS         += -I$(LIBGRPP_INC)
+   DFLAGS         += -D__LIBGRPP
+   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
+endif
 
 ifneq ($(USE_LIBINT),)
    USE_LIBINT     := $(strip $(USE_LIBINT))
