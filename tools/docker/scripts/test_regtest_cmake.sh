@@ -38,7 +38,7 @@ if ! cmake \
   -DCP2K_USE_LIBXC=ON \
   -DCP2K_USE_LIBTORCH=OFF \
   -DCP2K_USE_MPI=ON \
-  -DCP2K_USE_MPI_F08=ON \
+  -DCP2K_USE_MPI_F08=OFF \
   -DCP2K_ENABLE_REGTESTS=ON \
   .. |& tee ./cmake.log; then
   echo -e "\nSummary: CMake failed."
