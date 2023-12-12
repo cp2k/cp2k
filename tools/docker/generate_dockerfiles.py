@@ -39,7 +39,7 @@ def main() -> None:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
     with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
-        f.write(spack_env_toolchain() + regtest_cmake(testopts="--mpiexec 'mpiexec pika-bind --'"))
+        f.write(spack_env_toolchain() + regtest_cmake(testopts="--mpiexec mpiexec pika-bind --"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
