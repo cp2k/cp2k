@@ -68,7 +68,7 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
 # Build CP2K with CMake and run regression tests.
-ARG TESTOPTS="--mpiexec mpiexec pika-bind --"
+ARG TESTOPTS="--mpiexec 'mpiexec pika-bind --'"
 COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
