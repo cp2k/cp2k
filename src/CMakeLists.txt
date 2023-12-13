@@ -978,7 +978,7 @@ list(
 list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c)
 
 list(APPEND CP2K_DLAF_SRCS_C fm/cp_dlaf_utils.c)
-list(APPEND CP2K_DLAF_SRCS_F fm/cp_dlaf_utils.F fm/cp_fm_dlaf_api.F)
+list(APPEND CP2K_DLAF_SRCS_F fm/cp_dlaf_utils_api.F fm/cp_fm_dlaf_api.F)
 if(CP2K_USE_DLAF)
   list(APPEND CP2K_SRCS_F ${CP2K_DLAF_SRCS_F})
   list(APPEND CP2K_SRCS_C ${CP2K_DLAF_SRCS_C})

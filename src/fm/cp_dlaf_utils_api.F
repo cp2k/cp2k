@@ -5,7 +5,7 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
-MODULE cp_dlaf_utils
+MODULE cp_dlaf_utils_api
    USE ISO_C_BINDING,                   ONLY: C_INT
 #include "../base/base_uses.f90"
 
@@ -13,7 +13,7 @@ MODULE cp_dlaf_utils
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dlaf_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dlaf_utils_api'
 
    PUBLIC :: cp_dlaf_initialize, cp_dlaf_finalize
    PUBLIC :: cp_dlaf_create_grid, cp_dlaf_free_grid
@@ -140,4 +140,4 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE cp_dlaf_free_grid
 
-END MODULE cp_dlaf_utils
+END MODULE cp_dlaf_utils_api

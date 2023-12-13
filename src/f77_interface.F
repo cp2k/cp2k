@@ -140,8 +140,8 @@ MODULE f77_interface
    USE timings_types, ONLY: timer_env_type
    USE virial_types, ONLY: virial_type
 #if defined(__DLAF)
-   USE cp_dlaf_utils, ONLY: cp_dlaf_finalize, &
-                            cp_dlaf_initialize
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_finalize, &
+                                cp_dlaf_initialize
 #endif
 #include "./base/base_uses.f90"
 

@@ -20,8 +20,8 @@ MODULE cp2k_runs
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_config
 #if defined(__DLAF)
-   USE cp_dlaf_utils, ONLY: cp_dlaf_finalize, &
-                            cp_dlaf_initialize
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_finalize, &
+                                cp_dlaf_initialize
 #endif
    USE cp_files, ONLY: close_file, &
                        open_file
