@@ -326,7 +326,10 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
                         const int rows[], const int cols[]) {
   assert(omp_get_num_threads() == omp_get_max_threads() &&
          "Please call dbm_reserve_blocks within an OpenMP parallel region.");
+#ifndef NDEBUG
   const int my_rank = matrix->dist->my_rank;
+#endif
+  
   for (int i = 0; i < nblocks; i++) {
     const int ishard = dbm_get_shard_index(matrix, rows[i], cols[i]);
     dbm_shard_t *shard = &matrix->shards[ishard];

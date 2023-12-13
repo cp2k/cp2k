@@ -193,9 +193,12 @@ static void fill_send_buffers(
     {
       icumsum(nranks, blks_send_count, blks_send_displ);
       icumsum(nranks, data_send_count, data_send_displ);
+
+#ifndef NDEBUG
       const int m = nranks - 1;
       assert(nblks_send == blks_send_displ[m] + blks_send_count[m]);
       assert(ndata_send == data_send_displ[m] + data_send_count[m]);
+#endif
     }
 #pragma omp barrier
 

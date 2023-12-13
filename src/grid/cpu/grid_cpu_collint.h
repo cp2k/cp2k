@@ -398,8 +398,10 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
       const int offset =
           modulo(cubecenter[i] + lb_cube[i] - shift_local[i], npts_global[i]) -
           lb_cube[i];
-      assert(offset + ub_cube[i] < npts_local[i]);
-      assert(offset + lb_cube[i] >= 0);
+      if (offset + ub_cube[i] >= npts_local[i])
+        abort();
+      if (offset + lb_cube[i] < 0)
+        abort();
     }
   }
 

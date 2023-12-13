@@ -172,8 +172,10 @@ static void multiply_packs(const bool transa, const bool transb,
 
   const int *sum_index_sizes_a =
       (transa) ? matrix_a->row_sizes : matrix_a->col_sizes;
+#ifndef NDEBUG
   const int *sum_index_sizes_b =
       (transb) ? matrix_b->col_sizes : matrix_b->row_sizes;
+#endif
   const int *free_index_sizes_a =
       (transa) ? matrix_a->col_sizes : matrix_a->row_sizes;
   const int *free_index_sizes_b =
@@ -304,6 +306,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
 
   assert(omp_get_num_threads() == 1);
 
+#ifndef NDEBUG
   // Throughout the matrix multiplication code the "sum_index" and "free_index"
   // denote the summation (aka dummy) and free index from the Einstein notation.
   const int num_sum_index_a = (transa) ? matrix_a->nrows : matrix_a->ncols;
@@ -315,6 +318,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   assert(num_sum_index_a == num_sum_index_b);
   assert(num_free_index_a == matrix_c->nrows);
   assert(num_free_index_b == matrix_c->ncols);
+#endif
 
   // Prepare matrix_c.
   dbm_scale(matrix_c, beta);
