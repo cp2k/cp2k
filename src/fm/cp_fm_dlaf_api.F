@@ -243,7 +243,6 @@ CONTAINS
       MARK_USED(eigenvectors)
       MARK_USED(eigenvalues)
       MARK_USED(n)
-      MARK_USED(nmo)
       MARK_USED(info)
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
