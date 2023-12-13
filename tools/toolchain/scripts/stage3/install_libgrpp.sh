@@ -8,6 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 libgrpp_ver="20231206"
 libgrpp_sha="85c8caeca62589ca4e23709f467fd65e49079c0720f4db78f4382ce91cc3cebc"
+libgrpp_pkg="libgrpp-main-${libgrpp_ver}.zip"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -22,26 +24,24 @@ LIBGRPP_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_libgrpp" in
+case "${with_libgrpp}" in
   __INSTALL__)
-    echo "==================== Installing libgrpp ===================="
+    echo "==================== Installing LIBGRPP ===================="
     pkg_install_dir="${INSTALLDIR}/libgrpp-main-${libgrpp_ver}"
-    echo "pkg_install_dir:"
-    echo ${pkg_install_dir}
     install_lock_file="$pkg_install_dir/install_successful"
+
     if verify_checksums "${install_lock_file}"; then
       echo "libgrpp-main-${libgrpp_ver} is already installed, skipping it."
     else
-      if [ -f libgrpp-${libgrpp_ver}.zip ]; then
-        echo "libgrpp-main-${libgrpp_ver}.zip is found"
+      if [ -f ${libgrpp_pkg} ]; then
+        echo "${libgrpp_pkg} is found"
       else
-        download_pkg_from_cp2k_org "${libgrpp_sha}" "libgrpp-main-${libgrpp_ver}.zip"
+        download_pkg_from_cp2k_org "${libgrpp_sha}" "${libgrpp_pkg}"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d libgrpp-main-${libgrpp_ver} ] && rm -rf libgrpp-main-${libgrpp_ver}
-      unzip -qq libgrpp-main-${libgrpp_ver}.zip
+      [ -d libgrpp-main ] && rm -rf libgrpp-main
+      unzip -qq ${libgrpp_pkg}
       cd libgrpp-main
-
       mkdir build
       cd build
       CC=${CC} FC=${FC} cmake .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
