@@ -80,12 +80,22 @@ syn match cp2kBegSection '^\s*&amp;\w\+' contains=cp2kSection
 syn match cp2kEndSection '^\s*&amp;END\s*\w\+' contains=cp2kSection
 
 "----------------------------------------------------------------/
-" CP2K keywords
+" CP2K default keyword names
 "----------------------------------------------------------------/
 <xsl:for-each-group select="//KEYWORD" group-by="NAME[@type='default']">
 <xsl:sort select="NAME[@type='default']"/>
 <xsl:if test="NAME[@type='default']!=''">
-syn keyword cp2kKeyword <xsl:value-of select="NAME"/>
+syn keyword cp2kKeyword <xsl:value-of select="NAME[@type='default']"/>
+</xsl:if>
+</xsl:for-each-group>
+
+"----------------------------------------------------------------/
+" CP2K alias keyword names
+"----------------------------------------------------------------/
+<xsl:for-each-group select="//KEYWORD" group-by="NAME[@type='alias'][1]">
+<xsl:sort select="NAME[@type='alias'][1]"/>
+<xsl:if test="NAME[@type='alias']!=''">
+syn keyword cp2kKeyword <xsl:value-of select="NAME[@type='alias']"/>
 </xsl:if>
 </xsl:for-each-group>
 
