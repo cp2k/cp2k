@@ -10,10 +10,13 @@
 ! **************************************************************************************************
 
 MODULE libgrpp_integrals
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
-   USE orbital_pointers,                ONLY: nco,&
-                                              ncoset
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: pi
+   USE orbital_pointers, ONLY: nco, &
+                               ncoset
+#if defined(__LIBGRPP)
+   USE libgrpp, ONLY: libgrpp_type1_integrals, libgrpp_type2_integrals
+#endif
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -113,7 +116,7 @@ CONTAINS
                   !the 1/norm coefficients for PGFi and PGFj
                   CALL libgrpp_type1_integrals(ra, li, 1, [normi], [zeti], &
                                                rb, lj, 1, [normj], [zetj], &
-                                               rc, npot_ecp, nrpot_ecp, &
+                                               rc, [npot_ecp], nrpot_ecp, &
                                                coeffs_ecp, alpha_ecp, tmp)
 
                   !note: tmp array is in C row-major ordering
@@ -250,7 +253,7 @@ CONTAINS
                      !the 1/norm coefficients for PGFi and PGFj
                      CALL libgrpp_type2_integrals(ra, li, 1, [normi], [zeti], &
                                                   rb, lj, 1, [normj], [zetj], &
-                                                  rc, lk, npot_ecp(lk), nrpot_ecp(:, lk), &
+                                                  rc, lk, [npot_ecp(lk)], nrpot_ecp(:, lk), &
                                                   coeffs_ecp(:, lk), alpha_ecp(:, lk), tmp)
 
                      !note: tmp array is in C row-major ordering
