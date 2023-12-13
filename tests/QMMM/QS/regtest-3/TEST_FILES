@@ -9,9 +9,9 @@ C4H10-qmmm-gauss-1.inp                                 1      5e-14            -
 C4H10-qmmm-gauss-2.inp                                 7    1.0E-14            -14.5644203760
 C4H10-qmmm-gauss-3.inp                                 1      2e-13            -16.28646466174783
 C4H10-qmmm-gauss-4.inp                                 1      2e-13            -14.20640099562936
-C4H10-qmmm-gauss-5.inp                                 1      2e-13            -14.20640099562948
-C4H10-qmmm-gauss-6.inp                                 1      2E-13            -14.20640099562919
-C4H10-qmmm-gauss-7.inp                                 1      2e-13            -14.93841856836989
+C4H10-qmmm-gauss-5.inp                                 1      2e-13            -14.28544754084353
+C4H10-qmmm-gauss-6.inp                                 1      2E-13            -14.31222248410887
+C4H10-qmmm-gauss-7.inp                                 1      2e-13            -14.81644226181260
 C4H10-qmmm-gauss-9.inp                                 7    1.0E-14            -14.5593809076
 C4H10-qmmm-gauss-10.inp                                7      2e-12            -58.7819435511
 C4H10-qmmm-gauss-11.inp                                7    1.0E-14            -69.4186451942
@@ -21,7 +21,7 @@ sio2-qmmm-gauss-2.inp                                  1      3e-13           -4
 sio2-qmmm-gauss-3.inp                                  1      2e-13           -488.02714102063817
 constr.inp                                             7      7e-12            -28.231415141199999
 # different parallel scheme
-C4H10-qmmm-gauss-12.inp                                1      2E-13            -14.20640099562919
+C4H10-qmmm-gauss-12.inp                                1      2E-13            -14.31222248410887
 # hbonds selective constraints on QM and MM subsystems
 constr_hb_mm.inp                                       1      2e-13            -30.72831524249530
 constr_hb_qm.inp                                       1      2e-13            -30.55019251858206
