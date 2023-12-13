@@ -51,7 +51,7 @@ case "$with_libgrpp" in
       install -d "${pkg_install_dir}/lib" >> install.log 2>&1
       install -d "${pkg_install_dir}/include" >> install.log 2>&1
       install -m 644 build/libgrpp/liblibgrpp.a "${pkg_install_dir}/lib" >> install.log 2>&1
-      install -m 644 libgrpp/* "${pkg_install_dir}/include" >> install.log 2>&1
+      install -m 644 build/libgrpp.mod "${pkg_install_dir}/include" >> install.log 2>&1
 
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
