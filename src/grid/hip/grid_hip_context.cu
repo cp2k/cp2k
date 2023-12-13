@@ -323,12 +323,10 @@ extern "C" void grid_hip_create_task_list(
     assert(num_tasks == num_tasks_per_block[i]);
 
     // check that all tasks point to the same block
-#ifndef NDEBUG
     for (int tk = 0; tk < num_tasks; tk++)
       assert(
           tasks_host[sorted_blocks[tk + sorted_blocks_offset[i]]].block_num ==
           i);
-#endif
   }
   for (auto &block : task_sorted_by_block)
     block.clear();

@@ -1578,7 +1578,6 @@ target_compile_definitions(
     __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
     __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
     __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
-    $<$<CONFIG:Release>:NDEBUG>
     $<$<CONFIG:COVERAGE>:__NO_ABORT>
     $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
     $<$<CONFIG:DEBUG>:__CHECK_DIAG>
@@ -1690,9 +1689,8 @@ endforeach()
 add_executable(dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C}
                            ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
 target_compile_definitions(
-  dbm_miniapp
-  PRIVATE $<$<CONFIG:Release>:NDEBUG> $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-          $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
+  dbm_miniapp PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+                      $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
 
 if(CP2K_DISABLE_DBM_GPU)
   target_compile_definitions(dbm_miniapp PRIVATE __NO_OFFLOAD_DBM)
@@ -1709,10 +1707,8 @@ foreach(__app grid_miniapp grid_unittest)
     $<$<BOOL:${CP2K_USE_HIP}>:${CP2K_GRID_SRCS_HIP}>
     ${CP2K_OFFLOAD_SRCS_C})
   target_compile_definitions(
-    ${__app}
-    PRIVATE $<$<CONFIG:Release>:NDEBUG>
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-            $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
+    ${__app} PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+                     $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
 
   if(CP2K_DISABLE_GRID_GPU)
     target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_GRID)

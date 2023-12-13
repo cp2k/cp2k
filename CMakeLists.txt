@@ -58,6 +58,12 @@ endif()
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 11)
 
+# remove NDEBUG flag
+string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
+string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
+string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_RELEASE
+               ${CMAKE_Fortran_FLAGS_RELEASE})
+
 find_package(PkgConfig)
 
 # ##############################################################################
@@ -549,11 +555,11 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
   if(NOT CMAKE_BUILD_TYPE)
-    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
+    set(HIP_RELEASE_OPTIONS "-O3 --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
     set(HIP_RELEASE_OPTIONS "-O2 -g --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
+    set(HIP_RELEASE_OPTIONS "-O3 --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(HIP_RELEASE_OPTIONS "-O0 -g --std=c++11")
   endif()
