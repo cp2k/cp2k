@@ -239,6 +239,10 @@ CONTAINS
          CPABORT(TRIM(message))
       END IF
 #else
+      MARK_USED(a)
+      MARK_USED(z)
+      MARK_USED(desca)
+      MARK_USED(descz)
       MARK_USED(matrix)
       MARK_USED(eigenvectors)
       MARK_USED(eigenvalues)
