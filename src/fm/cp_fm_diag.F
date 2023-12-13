@@ -175,7 +175,7 @@ CONTAINS
 #if defined(__DLAF)
       dlaf_neigvec_min = dlaf_neigvec_min_input
 #else
-      MARK_UNUSED(dlaf_neigvec_min_input)
+      MARK_USED(dlaf_neigvec_min_input)
 #endif
       eps_check_diag = eps_check_diag_input
 
