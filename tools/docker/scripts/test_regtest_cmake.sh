@@ -54,7 +54,7 @@ else
   echo -e "failed.\n\n"
   tail -n 100 ninja.log
   mkdir -p /workspace/artifacts/
-  cp ninja.out /workspace/artifacts/
+  cp ninja.log /workspace/artifacts/
   echo -e "\nSummary: Compilation failed."
   echo -e "Status: FAILED\n"
   exit 0

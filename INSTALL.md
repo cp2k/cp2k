@@ -454,10 +454,6 @@ architectures can be found in [arch folder](./arch/). The names of these files m
 Alternatively, <https://dashboard.cp2k.org> provides sample arch files as part of the testing
 reports (click on the status field, search for 'ARCH-file').
 
-- With -DNDEBUG assertions may be stripped ("compiled out").
-- NDEBUG is the ANSI-conforming symbol name (not \_\_NDEBUG).
-- Regular release builds may carry assertions for safety.
-
 Conventionally, there are six versions:
 
 | Acronym | Meaning                          |

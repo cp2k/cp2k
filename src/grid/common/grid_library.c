@@ -37,6 +37,11 @@ static grid_library_config config = {
 #error "OpenMP is required. Please add -fopenmp to your C compiler flags."
 #endif
 
+#if defined(NDEBUG)
+#error                                                                         \
+    "Please do not build CP2K with NDEBUG. There is no performance advantage and asserts will save your neck."
+#endif
+
 /*******************************************************************************
  * \brief Initializes the grid library.
  * \author Ole Schuett

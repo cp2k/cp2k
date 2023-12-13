@@ -226,9 +226,14 @@ CONTAINS
                    " and is therefore no longer supported.")
 
 #if !defined(__FORCE_USE_FAST_MATH)
-#error -ffast-math (GCC) or -hfpN (N>0, Cray) can lead to wrong results and numerical instabilities and are therefore no longer supported
+#error "-ffast-math (GCC) or -hfpN (N>0, Cray) can lead to wrong results and numerical instabilities and are therefore no longer supported"
 #endif
 #endif
+
+#if defined(NDEBUG)
+#error "Please do not build CP2K with NDEBUG. There is no performance advantage and asserts will save your neck."
+#endif
+
    END SUBROUTINE cp2k_init
 
 ! **************************************************************************************************
