@@ -26,19 +26,27 @@ MODULE rt_tdagw
                                               cp_fm_create,&
                                               cp_fm_set_all,&
                                               cp_fm_release,&
+                                              cp_fm_get_element,&
                                               cp_fm_write_formatted
    USE kinds,                           ONLY: dp
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type,&
                                               dbcsr_print,&
                                               dbcsr_create,&
                                               dbcsr_copy,&
                                               dbcsr_set
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
+                                              dbcsr_deallocate_matrix_set,&
+                                              cp_dbcsr_sm_fm_multiply
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+                                              cp_fm_scale_and_add,&
+                                              cp_fm_gemm
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE efield_utils,                    ONLY: make_field
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
+   USE rt_propagation_methods,          ONLY: s_matrices_create
+   USE matrix_exp,                      ONLY: taylor_only_imaginary
 
 #include "../base/base_uses.f90"
 
@@ -66,6 +74,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
                                                             matrix_s
+      TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: moments_full
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: ham_effective,&
@@ -73,7 +82,7 @@ CONTAINS
                                                             rho_full,&
                                                             rho_work
       REAL(kind=dp)                                      :: field(3)
-      INTEGER                                            :: i,nspin,re,im
+      INTEGER                                            :: i,j,k,nspin,re,im
 
       ! Marek : Start by getting the DFT results - density matrix
       !         This matrix is identical with the equilibrium time-diagonal lesser Green's function in G0W0
@@ -86,7 +95,9 @@ CONTAINS
       ! TODO : Ask Jan whether there is already an identifier present in some of the environments
       nspin = SIZE(start_mos)
       CALL rt_initialize_rho_from_mos(rtp, start_mos)
-      CALL get_rtp(rtp, rho_new=rho_dft)
+      ! Create the inverse overlap matrix
+      CALL s_matrices_create(matrix_s, rtp)
+      CALL get_rtp(rtp, rho_new=rho_dft, S_inv=S_inv)
       ! Rho matrix from rtp has 2*nspin dimensions in the following order
       !  - real of spin1, imag of spin1(, real of spin2, imag of spin2)
       !  - for restricted calculation, second spins are not present
@@ -95,19 +106,21 @@ CONTAINS
 
       ! Convert the density matrix into full matrix TODO : Spin coupling?
       ALLOCATE(rho_full(2*nspin))
-      ALLOCATE(rho_work(2*nspin))
+      ALLOCATE(rho_work(3))
+      CALL cp_fm_create(rho_work(1), bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_create(rho_work(2), bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_create(rho_work(3), bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(rho_work(1), 0.0_dp)
+      CALL cp_fm_set_all(rho_work(2), 0.0_dp)
+      CALL cp_fm_set_all(rho_work(3), 0.0_dp)
       DO i=1,2*nspin
          CALL cp_fm_create(rho_full(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(rho_work(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
       END DO
       DO i=1,nspin
          re = 2*i - 1
          im = 2*i
          CALL copy_dbcsr_to_fm(rho_dft(re)%matrix, rho_full(re))
          CALL cp_fm_set_all(rho_full(im), 0.0_dp)
-         ! TODO : Initialisation of rho_work might not be necessary
-         CALL cp_fm_set_all(rho_work(re), 0.0_dp)
-         CALL cp_fm_set_all(rho_work(im), 0.0_dp)
       END DO
 
       ! Marek : Now, get the G0W0 results - Hamiltonian + screened interaction matrices
@@ -146,11 +159,6 @@ CONTAINS
       ! Once this is done, sparse moment matrices are no longer required
       ! Deallocate dbcsr moments
       CALL dbcsr_deallocate_matrix_set(moments)
-      ! Get the field vector
-      CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-      ! Print the field
-      PRINT *, "Field : ", field(1), field(2), field(3)
-      ! Add the field to the effective Hamiltonian
       ! Now the full matrices are populated, try to print some
       CALL cp_fm_write_formatted(moments_full(1), 6)
       CALL cp_fm_write_formatted(moments_full(2), 6)
@@ -164,36 +172,122 @@ CONTAINS
          CALL cp_fm_create(ham_effective(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
          CALL cp_fm_create(ham_exp(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
       END DO
-      ! Marek : Setup the time loop
-      ! DO i = rtp%i_start, rtp%nsteps
-      !    ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0
-      !    cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_effective)
-      !    ! Update the field
-      !    qs_env%sim_time = REAL(i, dp)*rtp%dt
-      !    qs_env%sim_step = i
-      !    CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-      !    ! TODO : Add the field to the Hamiltonian via the constant moments matrix - might not be constant in bulk
-      !    DO j=1,3
-      !       CALL cp_fm_scale_and_add(1.0_dp, ham_effective, field(j), moments_full(j))
-      !    END DO
-      !    ! TODO : Create the matrix exponential (matrix_exponential.F:taylor_only_imaginary, but might need complex because of
-      !    ! complex W and hence complex self-energy?)
-      !    ! TODO : Understand which input options set the orders
-      !    ! TODO : Scale the Hamiltonian so that the timestep dt is present in the exponent (with the correct sign)
-      !    ! TODO : Set up the ham_exp properly - two components - real and imaginary
-      !    CALL taylor_only_imaginary(ham_exp, ham_effective, rtp%orders(1,1), rtp%orders(2,1))
-      !    ! TODO : Multiply the density matrix by the propagator from both sides - look at rt_propagation_step for details
-      !    ! Use : cp_fm_gemm
-      !    CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp, rho_full, 0.0_dp, rho_work)
-      !    CALL cp_fm_gemm("N", "H", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_work, ham_exp, 0.0_dp, rho_full)
-      !    ! Now, rho_full should contain density matrix at time t+dt
-      !    ! TODO : Print the density matrix
-      !    ! Marek : In each timestep of the loop
-      !    !          - update the field
-      !    !          - update the self-energy
-      !    !          - propagate G< via matrix exponential
-      !    !          - if it is required, print out G< or its part
-      ! END DO
+      ! ********************** Start the time loop **********************
+      DO i = rtp%i_start, rtp%nsteps
+         ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0
+         ! TODO : Spin dependence in the KS + G0W0 Hamiltonian
+         DO j=1,nspin
+            re = 2*j - 1
+            im = 2*j
+            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_effective(re))
+            ! Imaginary part of KS + G0W0 is zero
+            CALL cp_fm_set_all(ham_effective(im), 0.0_dp)
+         END DO
+         ! Update the field
+         qs_env%sim_time = REAL(i, dp)*rtp%dt
+         ! TODO : Understand and implement rtp%istep - that should mainly be used for restart calculations?
+         qs_env%sim_step = i
+         CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+         PRINT *, "Field : ", field(1), field(2), field(3)
+         ! TODO : Add the field to the Hamiltonian via the constant moments matrix - might not be constant in 2D bulk via k-points?
+         ! The field is added to the real part of both spins
+         ! TODO : Preprocessor macro that sets up the spin loop
+         DO j=1,nspin
+            re = 2*j - 1
+            im = 2*j
+            DO k=1,3
+               CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), field(k), moments_full(k))
+            END DO
+            ! In order to produce correct result, need to remultiply by inverse overlap matrix
+            ! TODO : Using rho_work(1) - maybe rename?
+            CALL cp_dbcsr_sm_fm_multiply(S_inv, ham_effective(re), rho_work(1), bs_env%n_ao)
+            CALL cp_dbcsr_sm_fm_multiply(S_inv, ham_effective(im), rho_work(2), bs_env%n_ao)
+            CALL cp_fm_to_fm(rho_work(1),ham_effective(re))
+            CALL cp_fm_to_fm(rho_work(2),ham_effective(im))
+         END DO
+         ! TODO : Create the matrix exponential (matrix_exponential.F:taylor_only_imaginary, but might need complex because of
+         ! complex W and hence complex self-energy? Furthermore, is the self-energy in COHSEX Hermitian or not?)
+         ! TODO : Understand which input options set the orders
+         DO j=1,nspin
+            re = 2*j - 1
+            im = 2*j
+            ! The evolution of density matrix is in the opposite way to the evolution of operators, i.e. multiply by -dt
+            ! TODO : Maybe better to do opposite exponentiation
+            CALL cp_fm_scale(-rtp%dt, ham_effective(re))
+            ! Also scale by -1 as we are also multiplying by imaginary unit - this is convention used by exponential routines
+            ! TODO : Note that so far, this is only multiplying a zero matrix
+            CALL cp_fm_scale(rtp%dt, ham_effective(im))
+         END DO
+         DO j=1,nspin
+            re = 2*j - 1
+            im = 2*j
+            CALL taylor_only_imaginary(ham_exp(re:im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
+         END DO
+         ! TODO : Consult/think about using complex routines and types
+         ! (ham_exp(re) + i * ham_exp(im)) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re)^T - i * ham_exp(im)^T) = 
+         ! + ham_exp(re) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
+         ! + ham_exp(im) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
+         ! + i * ham_exp(im) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
+         ! - i * ham_exp(re) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
+         DO j=1,nspin
+            re = 2*j - 1
+            im = 2*j
+            ! Real part
+            ! Term 1 - right multiplication first
+            CALL cp_fm_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_full(re), ham_exp(re), 0.0_dp, rho_work(1))
+            CALL cp_fm_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_full(im), ham_exp(im), 1.0_dp, rho_work(1))
+            ! Now term 1 left multiplication real part
+            CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp(re), rho_work(1), 0.0_dp, rho_work(2))
+            ! Now term 1 left multiplication imag part
+            CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp(im), rho_work(1), 0.0_dp, rho_work(3))
+            ! Repeat the same procedure for the second term
+            ! Term 2 - right multiplication first
+            CALL cp_fm_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_full(re), ham_exp(im), 0.0_dp, rho_work(1))
+            CALL cp_fm_gemm("N","T",bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, -1.0_dp, rho_full(im), ham_exp(re), 1.0_dp, rho_work(1))
+            ! Now term 2 left multiplication real part
+            CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp(im), rho_work(1), 1.0_dp, rho_work(2))
+            ! Now term 2 left multiplication imag part
+            CALL cp_fm_gemm("N","N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, -1.0_dp, ham_exp(re), rho_work(1), 1.0_dp, rho_work(3))
+            ! Finally, copy the results to rho_full - not used anymore TODO : Unless there is spin coupling
+            CALL cp_fm_to_fm(rho_work(2), rho_full(re))
+            CALL cp_fm_to_fm(rho_work(3), rho_full(im))
+            ! Transform the density matrix into molecular orbitals basis and print it out
+            ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
+            !  - Store results in rho_work for now, maybe MO x MO matrix for results is not too expensive?
+            ! S * rho
+            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp, bs_env%fm_s_Gamma, rho_full(re), 0.0_dp, rho_work(1))
+            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp, bs_env%fm_s_Gamma, rho_full(im), 0.0_dp, rho_work(2))
+            ! C^T * S * rho
+            CALL cp_fm_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp,bs_env%fm_mo_coeff_Gamma(j),rho_work(1),0.0_dp,rho_work(3))
+            CALL cp_fm_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp,bs_env%fm_mo_coeff_Gamma(j),rho_work(2),0.0_dp,rho_work(1))
+            ! C^T * S * rho * S
+            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp, rho_work(3),bs_env%fm_s_Gamma, 0.0_dp, rho_work(2))
+            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp, rho_work(1),bs_env%fm_s_Gamma, 0.0_dp, rho_work(3))
+            ! C^T * S * rho * S * C
+            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp,rho_work(2),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(1))
+            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+                            1.0_dp,rho_work(3),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(2))
+            ! TODO : Save these as separate files
+            PRINT *, "Iter : ", i, "Real"
+            CALL cp_fm_write_formatted(rho_work(1), 6)
+            PRINT *, "Iter : ", i, "imag"
+            CALL cp_fm_write_formatted(rho_work(2), 6)
+         END DO
+         ! Now, rho_full should contain density matrix at time t+dt
+         ! TODO : Print the density matrix
+         ! Marek : In each timestep of the loop
+         !          - update the self-energy
+         !          - propagate G< via matrix exponential
+         !          - if it is required, print out G< or its part
+      END DO
+      ! ********************** End the time loop **********************
       ! Deallocate fm moments
       DO i=1,3
          CALL cp_fm_release(moments_full(i))
@@ -206,9 +300,11 @@ CONTAINS
          CALL cp_fm_release(ham_effective(i))
          ! Deallocate the propagated density matrix
          CALL cp_fm_release(rho_full(i))
-         ! Deallocate the workspace density matrix
-         CALL cp_fm_release(rho_work(i))
       END DO
+      ! Deallocate the workspace density matrix
+      CALL cp_fm_release(rho_work(1))
+      CALL cp_fm_release(rho_work(2))
+      CALL cp_fm_release(rho_work(3))
       DEALLOCATE(ham_exp)
       DEALLOCATE(ham_effective)
       DEALLOCATE(rho_full)
