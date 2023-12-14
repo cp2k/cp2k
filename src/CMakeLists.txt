@@ -1569,7 +1569,6 @@ string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 target_compile_definitions(
   cp2k
-  <<<<<<< HEAD
   PUBLIC
     $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
     $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
@@ -1602,7 +1601,6 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
     $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
     $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
@@ -1610,7 +1608,7 @@ target_compile_definitions(
     $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
     $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
     __OFFLOAD_HIP>
-    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:CP2K_USE_UNIFIED_MEMORY>
+    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
     $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
     __OFFLOAD_HIP>)
 
