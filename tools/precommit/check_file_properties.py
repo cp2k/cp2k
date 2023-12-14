@@ -60,7 +60,6 @@ FLAG_EXCEPTIONS = (
     r"__T_C_G0",
     r"__YUKAWA",
     r"__cplusplus",
-    r"CP2K_USE_UNIFIED_MEMORY",
     r"HIP_VERSION",
     r"LIBXSMM_GEMM_PREFETCH_NONE",
     r"LIBXSMM_VERSION_NUMBER",
