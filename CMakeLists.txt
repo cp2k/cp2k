@@ -562,7 +562,7 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set(CP2K_USE_HIP ON)
 
   # use hardware atomic operations on Mi250X.
-  if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a")
+  if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a|gfx1103")
     set(HIP_RELEASE_OPTIONS "-munsafe-fp-atomics")
   endif()
 
