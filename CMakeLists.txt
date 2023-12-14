@@ -113,6 +113,7 @@ option(CP2K_USE_SPLA
 option(CP2K_USE_METIS "enable metis library support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
+# option(CP2K_USE_LIBGRPP "Use libgrpp" OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
@@ -186,6 +187,7 @@ if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_QUIP ON)
   set(CP2K_USE_PEXSI ON)
   set(CP2K_USE_SUPERLU ON)
+  set(CP@K_USE_LIBGRPP ON)
 endif()
 
 if(${cp2k_build_options_up} STREQUAL "SERIAL")
@@ -547,9 +549,9 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
   if(NOT CMAKE_BUILD_TYPE)
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
+    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
+    set(HIP_RELEASE_OPTIONS "-O2 -g --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
     set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
@@ -565,10 +567,15 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   endif()
 
   # add the Mi300A parameters when available
-  if(CP2K_USE_UNIFIED_MEMORY AND CMAKE_HIP_ARCHITECTURES MATCHES "gfx90a")
-    set(CMAKE_HIP_ARCHITECTURES "gfx90a:xnack+")
-  endif()
+  if(CP2K_USE_UNIFIED_MEMORY)
+    if(CMAKE_HIP_ARCHITECTURES MATCHES "gfx90a")
+      set(CMAKE_HIP_ARCHITECTURES "gfx90a:xnack+")
+    endif()
 
+    if(CMAKE_HIP_ARCHITECTURES MATCHES "gfx1103")
+      set(CMAKE_HIP_ARCHITECTURES "gfx1103:xnack+")
+    endif()
+  endif()
 endif()
 
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
@@ -584,6 +591,11 @@ endif()
 if(CP2K_USE_LIBXC)
   find_package(LibXC 6 REQUIRED EXACT)
 endif()
+
+# uncomment this when libgrpp cmake support is complete
+
+# if (CP2K_USE_LIBGRPP)
+# find_package(libgrpp REQUIRED) endif()
 
 if(CP2K_USE_COSMA)
   find_package(cosma REQUIRED)

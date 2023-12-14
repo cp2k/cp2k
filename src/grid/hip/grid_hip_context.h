@@ -49,7 +49,7 @@ public:
     }
     current_size_ = size__;
 
-#ifndef CP2K_USE_UNIFIED_MEMORY
+#ifndef __USE_UNIFIED_MEMORY
     offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
 #else
     hipMallocManaged((void **)&device_ptr_, sizeof(T) * allocated_size_);

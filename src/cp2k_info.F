@@ -257,6 +257,10 @@ CONTAINS
       flags = TRIM(flags)//" hdf5"
 #endif
 
+#if defined(__USE_UNIFIED_MEMORY)
+      flags = TRIM(flags)//" use_unified_memory"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************
