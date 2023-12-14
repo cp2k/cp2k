@@ -352,7 +352,7 @@ box on Nvidia hardware as well.
 - Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
-- Add '-D\_\_USE_UNIFIED_MEMORY' to enable unified memory support (experimental and only supports
+- Add `-D__OFFLOAD_UNIFIED_MEMORY` to enable unified memory support (experimental and only supports
   Mi250X and above)
 - Add `GPUVER=Mi50, Mi60, Mi100, Mi250`
 - Add `OFFLOAD_CC = hipcc`

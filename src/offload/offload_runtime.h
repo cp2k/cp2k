@@ -111,7 +111,7 @@ static inline void offloadMemcpyAsyncHtoD(void *const ptr1, const void *ptr2,
       cudaMemcpyAsync(ptr1, ptr2, size, cudaMemcpyHostToDevice, stream));
 #elif defined(__OFFLOAD_HIP)
 
-#ifdef __USE_UNIFIED_MEMORY
+#ifdef __OFFLOAD_UNIFIED_MEMORY
   if (ptr1 == ptr2)
     return;
 #endif
@@ -132,7 +132,7 @@ static inline void offloadMemcpyAsyncDtoH(void *const ptr1, const void *ptr2,
       cudaMemcpyAsync(ptr1, ptr2, size, cudaMemcpyDeviceToHost, stream));
 #elif defined(__OFFLOAD_HIP)
 
-#ifdef __USE_UNIFIED_MEMORY
+#ifdef __OFFLOAD_UNIFIED_MEMORY
   if (ptr1 == ptr2)
     return;
 #endif
@@ -166,7 +166,7 @@ static inline void offloadMemcpyHtoD(void *ptr_device, const void *ptr_host,
   OFFLOAD_CHECK(cudaMemcpy(ptr_device, ptr_host, size, cudaMemcpyHostToDevice));
 #elif defined(__OFFLOAD_HIP)
 
-#ifdef __USE_UNIFIED_MEMORY
+#ifdef __OFFLOAD_UNIFIED_MEMORY
   if (ptr_device == ptr_host)
     return;
 #endif
@@ -184,7 +184,7 @@ static inline void offloadMemcpyDtoH(void *ptr_device, const void *ptr_host,
   OFFLOAD_CHECK(cudaMemcpy(ptr_device, ptr_host, size, cudaMemcpyDeviceToHost));
 #elif defined(__OFFLOAD_HIP)
 
-#ifdef __USE_UNIFIED_MEMORY
+#ifdef __OFFLOAD_UNIFIED_MEMORY
   if (ptr_device == ptr_host)
     return;
 #endif

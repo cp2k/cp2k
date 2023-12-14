@@ -187,7 +187,7 @@ if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_QUIP ON)
   set(CP2K_USE_PEXSI ON)
   set(CP2K_USE_SUPERLU ON)
-  set(CP@K_USE_LIBGRPP ON)
+  # set(CP@K_USE_LIBGRPP ON)
 endif()
 
 if(${cp2k_build_options_up} STREQUAL "SERIAL")
@@ -594,8 +594,7 @@ endif()
 
 # uncomment this when libgrpp cmake support is complete
 
-# if (CP2K_USE_LIBGRPP)
-# find_package(libgrpp REQUIRED) endif()
+# if (CP2K_USE_LIBGRPP) find_package(libgrpp REQUIRED) endif()
 
 if(CP2K_USE_COSMA)
   find_package(cosma REQUIRED)
