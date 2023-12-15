@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libgrpp_ver="20231206"
-libgrpp_sha="85c8caeca62589ca4e23709f467fd65e49079c0720f4db78f4382ce91cc3cebc"
+libgrpp_ver="20231215"
+libgrpp_sha="3b0f55795a0c2699b81f403b1c81c56e26332f780a87655410745a0ccb51ef2f"
 libgrpp_pkg="libgrpp-main-${libgrpp_ver}.zip"
 
 source "${SCRIPT_DIR}"/common_vars.sh
