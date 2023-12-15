@@ -47,6 +47,12 @@ MODULE rt_tdagw
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE matrix_exp,                      ONLY: taylor_only_imaginary
+   USE cp_log_handling,                 ONLY: cp_logger_type,&
+                                              cp_get_default_logger,&
+                                              cp_logger_get_unit_nr
+   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
 
 #include "../base/base_uses.f90"
 
@@ -71,6 +77,8 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
                                                             matrix_s
@@ -83,6 +91,7 @@ CONTAINS
                                                             rho_work
       REAL(kind=dp)                                      :: field(3)
       INTEGER                                            :: i,j,k,nspin,re,im
+      INTEGER                                            :: rho_unit
 
       ! Marek : Start by getting the DFT results - density matrix
       !         This matrix is identical with the equilibrium time-diagonal lesser Green's function in G0W0
@@ -91,6 +100,7 @@ CONTAINS
                       bs_env=bs_env,&
                       mos=start_mos,&
                       dft_control=dft_control,&
+                      input=input,&
                       matrix_s=matrix_s)
       ! TODO : Ask Jan whether there is already an identifier present in some of the environments
       nspin = SIZE(start_mos)
@@ -172,6 +182,10 @@ CONTAINS
          CALL cp_fm_create(ham_effective(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
          CALL cp_fm_create(ham_exp(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
       END DO
+      ! Setup the files
+      logger => cp_get_default_logger()
+      rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      rho_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=".dat")
       ! ********************** Start the time loop **********************
       DO i = rtp%i_start, rtp%nsteps
          ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0
@@ -275,10 +289,10 @@ CONTAINS
             CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp,rho_work(3),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(2))
             ! TODO : Save these as separate files
-            PRINT *, "Iter : ", i, "Real"
-            CALL cp_fm_write_formatted(rho_work(1), 6)
-            PRINT *, "Iter : ", i, "imag"
-            CALL cp_fm_write_formatted(rho_work(2), 6)
+            WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Real"
+            CALL cp_fm_write_formatted(rho_work(1), rho_unit)
+            WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Imag"
+            CALL cp_fm_write_formatted(rho_work(2), rho_unit)
          END DO
          ! Now, rho_full should contain density matrix at time t+dt
          ! TODO : Print the density matrix
