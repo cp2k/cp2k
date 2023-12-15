@@ -2427,6 +2427,8 @@ CONTAINS
                                 r_val=dft_control%rtp_control%eps_exp)
       CALL section_vals_val_get(rtp_section, "RTP_METHOD", &
                                 i_val=dft_control%rtp_control%rtp_method)
+      CALL section_vals_val_get(rtp_section, "TDAGW_HAMILTONIAN", &
+                                i_val=dft_control%rtp_control%tdagw_ham)
       CALL section_vals_val_get(rtp_section, "PROPAGATOR", &
                                 i_val=dft_control%rtp_control%propagator)
       CALL section_vals_val_get(rtp_section, "EPS_ITER", &

@@ -40,8 +40,8 @@ MODULE rt_tdagw
                                               dbcsr_deallocate_matrix_set,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_gemm
+                                              cp_fm_scale_and_add
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE efield_utils,                    ONLY: make_field
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
@@ -53,6 +53,8 @@ MODULE rt_tdagw
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
+   USE input_constants,                 ONLY: rtp_tdagw_ham_ks,&
+                                              rtp_tdagw_ham_g0w0
 
 #include "../base/base_uses.f90"
 
@@ -81,12 +83,14 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
-                                                            matrix_s
+                                                            matrix_s,&
+                                                            matrix_ks
       TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: moments_full
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: ham_effective,&
                                                             ham_exp,&
+                                                            ham_single_particle,&
                                                             rho_full,&
                                                             rho_work
       REAL(kind=dp)                                      :: field(3)
@@ -101,7 +105,8 @@ CONTAINS
                       mos=start_mos,&
                       dft_control=dft_control,&
                       input=input,&
-                      matrix_s=matrix_s)
+                      matrix_s=matrix_s,&
+                      matrix_ks=matrix_ks)
       ! TODO : Ask Jan whether there is already an identifier present in some of the environments
       nspin = SIZE(start_mos)
       CALL rt_initialize_rho_from_mos(rtp, start_mos)
@@ -112,8 +117,21 @@ CONTAINS
       !  - real of spin1, imag of spin1(, real of spin2, imag of spin2)
       !  - for restricted calculation, second spins are not present
 
-      ! CALL dbcsr_print(rho_dft(1)%matrix)
-
+      ! Marek : Set up the single particle Hamiltonian - can be either KS or G0W0 Hamiltonian
+      ! TODO : Always uses bs_env - truly only for debug or redo with possibility to refer to qs_env?
+      ALLOCATE(ham_single_particle(nspin))
+      DO i=1,nspin
+         CALL cp_fm_create(ham_single_particle(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         IF (dft_control%rtp_control%tdagw_ham == rtp_tdagw_ham_ks) THEN
+            ! Setup the KS Hamiltonian in MO basis
+            CALL copy_dbcsr_to_fm(matrix_ks(i)%matrix, ham_single_particle(i))
+         ELSE
+            ! Setup the G0W0 Hamiltonian in MO basis
+            ! TODO : Redo via pointers, no need to copy this?
+            ! TODO : Spins ...
+            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_single_particle(i))
+         END IF
+      END DO
       ! Convert the density matrix into full matrix TODO : Spin coupling?
       ALLOCATE(rho_full(2*nspin))
       ALLOCATE(rho_work(3))
@@ -170,6 +188,7 @@ CONTAINS
       ! Deallocate dbcsr moments
       CALL dbcsr_deallocate_matrix_set(moments)
       ! Now the full matrices are populated, try to print some
+      PRINT *, "Writing the moments matrices"
       CALL cp_fm_write_formatted(moments_full(1), 6)
       CALL cp_fm_write_formatted(moments_full(2), 6)
       CALL cp_fm_write_formatted(moments_full(3), 6)
@@ -193,7 +212,7 @@ CONTAINS
          DO j=1,nspin
             re = 2*j - 1
             im = 2*j
-            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_effective(re))
+            CALL cp_fm_to_fm(ham_single_particle(j), ham_effective(re))
             ! Imaginary part of KS + G0W0 is zero
             CALL cp_fm_set_all(ham_effective(im), 0.0_dp)
          END DO
@@ -248,20 +267,28 @@ CONTAINS
             im = 2*j
             ! Real part
             ! Term 1 - right multiplication first
-            CALL cp_fm_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_full(re), ham_exp(re), 0.0_dp, rho_work(1))
-            CALL cp_fm_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_full(im), ham_exp(im), 1.0_dp, rho_work(1))
+            CALL parallel_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               1.0_dp, rho_full(re), ham_exp(re), 0.0_dp, rho_work(1))
+            CALL parallel_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               1.0_dp, rho_full(im), ham_exp(im), 1.0_dp, rho_work(1))
             ! Now term 1 left multiplication real part
-            CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp(re), rho_work(1), 0.0_dp, rho_work(2))
+            CALL parallel_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               1.0_dp, ham_exp(re), rho_work(1), 0.0_dp, rho_work(2))
             ! Now term 1 left multiplication imag part
-            CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp(im), rho_work(1), 0.0_dp, rho_work(3))
+            CALL parallel_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               1.0_dp, ham_exp(im), rho_work(1), 0.0_dp, rho_work(3))
             ! Repeat the same procedure for the second term
             ! Term 2 - right multiplication first
-            CALL cp_fm_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, rho_full(re), ham_exp(im), 0.0_dp, rho_work(1))
-            CALL cp_fm_gemm("N","T",bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, -1.0_dp, rho_full(im), ham_exp(re), 1.0_dp, rho_work(1))
+            CALL parallel_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               1.0_dp, rho_full(re), ham_exp(im), 0.0_dp, rho_work(1))
+            CALL parallel_gemm("N","T",bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               -1.0_dp, rho_full(im), ham_exp(re), 1.0_dp, rho_work(1))
             ! Now term 2 left multiplication real part
-            CALL cp_fm_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, 1.0_dp, ham_exp(im), rho_work(1), 1.0_dp, rho_work(2))
+            CALL parallel_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               1.0_dp, ham_exp(im), rho_work(1), 1.0_dp, rho_work(2))
             ! Now term 2 left multiplication imag part
-            CALL cp_fm_gemm("N","N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao, -1.0_dp, ham_exp(re), rho_work(1), 1.0_dp, rho_work(3))
+            CALL parallel_gemm("N","N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
+                               -1.0_dp, ham_exp(re), rho_work(1), 1.0_dp, rho_work(3))
             ! Finally, copy the results to rho_full - not used anymore TODO : Unless there is spin coupling
             CALL cp_fm_to_fm(rho_work(2), rho_full(re))
             CALL cp_fm_to_fm(rho_work(3), rho_full(im))
@@ -269,24 +296,24 @@ CONTAINS
             ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
             !  - Store results in rho_work for now, maybe MO x MO matrix for results is not too expensive?
             ! S * rho
-            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp, bs_env%fm_s_Gamma, rho_full(re), 0.0_dp, rho_work(1))
-            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp, bs_env%fm_s_Gamma, rho_full(im), 0.0_dp, rho_work(2))
             ! C^T * S * rho
-            CALL cp_fm_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp,bs_env%fm_mo_coeff_Gamma(j),rho_work(1),0.0_dp,rho_work(3))
-            CALL cp_fm_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp,bs_env%fm_mo_coeff_Gamma(j),rho_work(2),0.0_dp,rho_work(1))
             ! C^T * S * rho * S
-            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp, rho_work(3),bs_env%fm_s_Gamma, 0.0_dp, rho_work(2))
-            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp, rho_work(1),bs_env%fm_s_Gamma, 0.0_dp, rho_work(3))
             ! C^T * S * rho * S * C
-            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp,rho_work(2),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(1))
-            CALL cp_fm_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
+            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
                             1.0_dp,rho_work(3),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(2))
             ! TODO : Save these as separate files
             WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Real"
@@ -315,12 +342,16 @@ CONTAINS
          ! Deallocate the propagated density matrix
          CALL cp_fm_release(rho_full(i))
       END DO
+      DO i=1,nspin
+         CALL cp_fm_release(ham_single_particle(i))
+      END DO
       ! Deallocate the workspace density matrix
       CALL cp_fm_release(rho_work(1))
       CALL cp_fm_release(rho_work(2))
       CALL cp_fm_release(rho_work(3))
       DEALLOCATE(ham_exp)
       DEALLOCATE(ham_effective)
+      DEALLOCATE(ham_single_particle)
       DEALLOCATE(rho_full)
       DEALLOCATE(rho_work)
    END SUBROUTINE run_propagation_gw

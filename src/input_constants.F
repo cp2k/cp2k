@@ -938,6 +938,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: rtp_method_tddft = 1, &
                                                rtp_method_gw = 2
 
+   INTEGER, PARAMETER, PUBLIC               :: rtp_tdagw_ham_ks = 1, &
+                                               rtp_tdagw_ham_g0w0 = 2
+
    ! type of reference for RTP%PRINT%PROJECTION_MO
    INTEGER, PARAMETER, PUBLIC               :: proj_mo_ref_scf = 1, &
                                                proj_mo_ref_xas_tdp = 2
