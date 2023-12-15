@@ -527,6 +527,7 @@ CONTAINS
 
                         ELSE
                            !If the local part of the potential is more complex, we need libgrpp
+!$OMP CRITICAL(type1)
                            CALL libgrpp_local_integral(la_max(iset), la_min(iset), npgfa(iset), &
                                                        rpgfa(:, iset), zeta(:, iset), &
                                                        lb_max(jset), lb_min(jset), npgfb(jset), &
@@ -534,10 +535,12 @@ CONTAINS
                                                        nexp_ppl, alpha_ppl, cval_ppl(1, :), nct_ppl, &
                                                        ppl_radius, rab, dab, rac, dac, dbc, &
                                                        hab(:, :, iset, jset))
+!$OMP END CRITICAL(type1)
                         END IF
 
                         IF (ecp_semi_local) THEN
                            ! semi local ECP part
+!$OMP CRITICAL(type2)
                            CALL libgrpp_semilocal_integral(la_max(iset), la_min(iset), npgfa(iset), &
                                                            rpgfa(:, iset), zeta(:, iset), &
                                                            lb_max(jset), lb_min(jset), npgfb(jset), &
@@ -545,6 +548,7 @@ CONTAINS
                                                            slmax, npot, bpot, apot, nrpot, &
                                                            ppl_radius, rab, dab, rac, dac, dbc, &
                                                            hab(:, :, iset, jset))
+!$OMP END CRITICAL(type2)
                         END IF
                      END IF
                   END DO
