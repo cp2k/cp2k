@@ -28,7 +28,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: redist_fm, truncate_fm
+   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh
 
 CONTAINS
 
@@ -322,17 +322,18 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE truncate_fm(fm_mat_out, fm_mat_in, nrow_in, ncol_in, &
-                          nrow_out, ncol_out, unit_nr)
+                          nrow_out, ncol_out, unit_nr, nrow_offset, ncol_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_in
-      INTEGER, INTENT(IN)                                :: nrow_in, ncol_in, nrow_out, ncol_out
+      INTEGER                                            :: nrow_in, ncol_in, nrow_out, ncol_out
       INTEGER                                            :: unit_nr
+      INTEGER, OPTIONAL, INTENT(IN)                      :: nrow_offset, ncol_offset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
 
       INTEGER :: col_idx_loc, dummy_proc, handle, handle2, i_entry_rec, i_row_global, idx_col_in, &
-         idx_col_out, idx_row_first, idx_row_in, idx_row_sec, ii, iproc, j_col_global, jj, &
+         idx_col_out, idx_col_first, idx_row_in, idx_col_sec, ii, iproc, j_col_global, jj, &
          ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, npcol, nprocs, nprow, &
          nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, row_idx_loc, &
          send_pcol, send_prow
@@ -340,6 +341,7 @@ CONTAINS
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_in, col_indices_out, &
                                                             row_indices_in, row_indices_out
+      LOGICAL                                            :: correct_nrow, correct_ncol
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env_out
@@ -347,6 +349,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL timeset(routineN//"_1_setup", handle2)
+
+      correct_nrow = .FALSE.
+      correct_ncol = .FALSE.
+      !In case of truncation in the occupied space, we need to correct the interval of indices
+      IF (PRESENT(nrow_offset)) THEN
+         correct_nrow = .TRUE.
+      END IF
+      IF (PRESENT(ncol_offset)) THEN
+         correct_ncol = .TRUE.
+      END IF
 
       para_env_out => fm_mat_out%matrix_struct%para_env
       ! A_iajb
@@ -402,12 +414,24 @@ CONTAINS
          DO col_idx_loc = 1, ncol_local_in
             idx_col_in = col_indices_in(col_idx_loc)
 
-            idx_row_first = (idx_col_in - 1)/ncol_in + 1
-            idx_row_sec = MOD(idx_col_in - 1, ncol_in) + 1
-            !Logic: If first index exceeds truncation, all following indices are also too large
-            IF (idx_row_first > nrow_out) EXIT
-            IF (idx_row_sec > ncol_out) CYCLE
-            idx_col_out = idx_row_sec + (idx_row_first - 1)*ncol_out
+            idx_col_first = (idx_col_in - 1)/ncol_in + 1
+            idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
+            ! If occupied orbitals are included, these have to be handled differently
+            ! due to their reversed indexing
+            IF (correct_nrow) THEN
+               idx_col_first = idx_col_first - nrow_offset + 1
+               IF(idx_col_first .LE. 0) CYCLE
+            ELSE
+               IF (idx_col_first > nrow_out) EXIT
+            END IF
+            IF (correct_ncol) THEN
+               idx_col_sec = idx_col_sec - ncol_offset + 1
+               IF(idx_col_sec .LE. 0) CYCLE
+            ELSE
+               IF (idx_col_sec > ncol_out) CYCLE
+            END IF
+
+            idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
 
             send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy_proc, &
                                       fm_mat_out%matrix_struct%first_p_pos(1), nprow)
@@ -487,12 +511,24 @@ CONTAINS
          DO col_idx_loc = 1, ncol_local_in
             idx_col_in = col_indices_in(col_idx_loc)
 
-            idx_row_first = (idx_col_in - 1)/ncol_in + 1
-            idx_row_sec = MOD(idx_col_in - 1, ncol_in) + 1
-            !Logic: If first index exceeds truncation, all following indices are also too large
-            IF (idx_row_first > nrow_out) EXIT
-            IF (idx_row_sec > ncol_out) CYCLE
-            idx_col_out = idx_row_sec + (idx_row_first - 1)*ncol_out
+            idx_col_first = (idx_col_in - 1)/ncol_in + 1
+            idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
+            ! If occupied orbitals are included, these have to be handled differently
+            ! due to their reversed indexing
+            IF (correct_nrow) THEN
+               idx_col_first = idx_col_first - nrow_offset + 1
+               IF(idx_col_first .LE. 0) CYCLE
+            ELSE
+               IF (idx_col_first > nrow_out) EXIT
+            END IF
+            IF (correct_ncol) THEN
+               idx_col_sec = idx_col_sec - ncol_offset + 1
+               IF(idx_col_sec .LE. 0) CYCLE
+            ELSE
+               IF (idx_col_sec > ncol_out) CYCLE
+            END IF
+
+            idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
 
             send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy_proc, &
                                       fm_mat_out%matrix_struct%first_p_pos(1), nprow)
@@ -585,5 +621,67 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE truncate_fm
+
+   SUBROUTINE fm_write_thresh(fm_mat, thresh, header, unit_nr, abs_vals)
+      
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      REAL(KIND=dp), INTENT(IN)                          :: thresh
+      CHARACTER(LEN=*), INTENT(IN)                       :: header
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, OPTIONAL                                  :: abs_vals
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_write_thresh', &
+                                                            my_footer = " | ENDING WRITING OF MATRIX"
+
+      INTEGER                                            :: handle, i, j, &
+                                                            nrow_local, ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_abs_vals
+
+      CALL timeset(routineN, handle)
+
+      IF (PRESENT(abs_vals)) THEN
+         my_abs_vals = abs_vals
+      ELSE
+         my_abs_vals = .FALSE.
+      END IF
+
+
+      CALL cp_fm_get_info(matrix=fm_mat, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+      !MG to debug
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr,*) header
+      END IF
+      IF (my_abs_vals) THEN
+         DO i=1,nrow_local
+            DO j=1,ncol_local
+               IF (ABS(fm_mat%local_data(i,j)) > thresh) THEN
+                  WRITE (*, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), & 
+                                    ABS(fm_mat%local_data(i,j))
+               END IF
+            END DO 
+         END DO
+      ELSE
+         DO i=1,nrow_local
+            DO j=1,ncol_local
+               IF (ABS(fm_mat%local_data(i,j)) > thresh) THEN
+                  WRITE (*, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), & 
+                                       fm_mat%local_data(i,j)
+               END IF
+            END DO 
+         END DO
+      END IF
+      CALL fm_mat%matrix_struct%para_env%sync()
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr,*) my_footer
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 END MODULE

@@ -28,6 +28,7 @@ MODULE rpa_main
                                               diagonalize_A,&
                                               diagonalize_C,&
                                               truncate_BSE_matrices
+   USE bse_util,                        ONLY: fm_write_thresh
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -40,7 +41,8 @@ MODULE rpa_main
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_write_formatted
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
@@ -1779,7 +1781,12 @@ CONTAINS
                                               Eigenval_scf(:, 1, ispin), homo(ispin), omega)
             END DO
          END IF
-
+         !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"Full uS")
+         CALL fm_mat_S(1)%matrix_struct%para_env%sync()
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ij_bse, thresh=1e-5_dp, header="MG_uSij", unit_nr=unit_nr,abs_vals=.TRUE.)
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ab_bse, thresh=1e-5_dp, header="MG_uSab", unit_nr=unit_nr,abs_vals=.TRUE.)
+         !CALL fm_write_thresh(fm_mat=fm_mat_S(1), thresh=1e-5_dp, header="MG___uS", unit_nr=unit_nr,abs_vals=.TRUE.)
+         
          !Reduce matrices in case of given cutoff for BSE matrices
          !IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
          CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
@@ -1787,13 +1794,19 @@ CONTAINS
                                     Eigenval(:, 1, 1), Eigenval_reduced, &
                                     homo(1), virtual(1), dimen_RI, unit_nr, &
                                     homo_red, virtual_red, &
-                                    mp2_env%ri_g0w0%bse_cutoff_occ, mp2_env%ri_g0w0%bse_cutoff_virt)
+                                    mp2_env%ri_g0w0%bse_cutoff_occ, mp2_env%ri_g0w0%bse_cutoff_virt, &
+                                    mp2_env%ri_g0w0%corr_mos_occ, mp2_env%ri_g0w0%corr_mos_virt)
 
          CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                             fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                             dimen_RI_red, homo_red, virtual_red, homo_red*virtual_red)
 
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ij_trunc, thresh=1e-5_dp, header="MG__Sij", unit_nr=unit_nr,abs_vals=.TRUE.)
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ab_trunc, thresh=1e-5_dp, header="MG__Sab", unit_nr=unit_nr,abs_vals=.TRUE.)
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_trunc, thresh=1e-5_dp, header="MG____S", unit_nr=unit_nr,abs_vals=.TRUE.)
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_bar_ia_bse, thresh=1e-5_dp, header="MG_Sbia", unit_nr=unit_nr,abs_vals=.TRUE.)
+         ! CALL fm_write_thresh(fm_mat=fm_mat_S_bar_ij_bse, thresh=1e-5_dp, header="MG_Sbij", unit_nr=unit_nr,abs_vals=.TRUE.)
          IF (bse_iterat_diag) THEN
             CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                                       fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
@@ -1811,18 +1824,21 @@ CONTAINS
                           fm_mat_A_BSE, Eigenval_reduced, unit_nr, &
                           homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, &
                           para_env)
-            CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
-                          homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
-            IF (bse_tda) THEN
-               CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
-            END IF
             IF (bse_abba) THEN
+               CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
+                             homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
                CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
                                                   homo_red, virtual_red, unit_nr)
-               CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+            END IF
+            CALL cp_fm_release(fm_mat_B_BSE)
+            IF (bse_tda) THEN
+               CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+               !Instantly release to avoid faulty use of changed A matrix
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
-            CALL cp_fm_release(fm_mat_B_BSE)
+            IF (bse_abba) THEN
+               CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+            END IF
             CALL cp_fm_release(fm_mat_C_BSE)
          END IF
 

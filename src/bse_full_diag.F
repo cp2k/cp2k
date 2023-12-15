@@ -14,7 +14,8 @@
 MODULE bse_full_diag
 
    USE bse_util,                        ONLY: redist_fm,&
-                                              truncate_fm
+                                              truncate_fm, &
+                                              fm_write_thresh
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -36,7 +37,8 @@ MODULE bse_full_diag
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_to_fm_submat_general,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_write_formatted
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -185,6 +187,7 @@ CONTAINS
          END DO
       END DO
 
+      !CALL fm_write_thresh(fm_mat=fm_mat_A, thresh=1e-5_dp, header="MG___1A", unit_nr=unit_nr,abs_vals=.TRUE.)
       CALL timestop(handle)
 
    END SUBROUTINE create_A
@@ -210,8 +213,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i, j, row_idx, col_idx, &
+                                                            nrow_local, ncol_local
       INTEGER, DIMENSION(4)                              :: reordering
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
       TYPE(cp_fm_type)                                   :: fm_mat_W
@@ -233,12 +238,12 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
       CALL cp_fm_create(fm_mat_B, fm_struct_v, name="fm_B_iajb")
-      CALL cp_fm_set_all(fm_mat_B, 222.0_dp)
+      CALL cp_fm_set_all(fm_mat_B, 0.0_dp)
 
       ! CALL cp_fm_struct_create(fm_struct_W, context=blacs_env_BSE, nrow_global=homo*virtual, &
       !                          ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_W, fm_struct_v, name="fm_W_ibaj")
-      CALL cp_fm_set_all(fm_mat_W, 888.0_dp)
+      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A16)') '|', 'Allocated B_iajb'
@@ -253,12 +258,14 @@ CONTAINS
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
-
       !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
       reordering = (/1, 4, 3, 2/)
       CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
                     virtual, virtual, unit_nr, reordering)
-      !CALL cp_fm_write_formatted(fm_mat_B,unit_nr,"Full B (only V)")
+      !CALL cp_fm_write_formatted(fm_mat_B,unit_nr,"Full B")
+      
+      !CALL fm_write_thresh(fm_mat=fm_mat_B, thresh=1e-5_dp, header="MG___1B", unit_nr=unit_nr,abs_vals=.TRUE.)
+
       CALL cp_fm_release(fm_mat_W)
       CALL timestop(handle)
 
@@ -362,15 +369,20 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A19)') '|', 'Created work arrays'
       END IF
+      
+      !CALL fm_write_thresh(fm_mat=fm_mat_A, thresh=1e-5_dp, header="MG___2A", unit_nr=unit_nr,abs_vals=.TRUE.)
+      !CALL fm_write_thresh(fm_mat=fm_mat_B, thresh=1e-5_dp, header="MG___2B", unit_nr=unit_nr,abs_vals=.TRUE.)
       !Add/Substract B
       CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_sum, 1.0_dp, fm_mat_B)
       CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_diff, -1.0_dp, fm_mat_B)
-
+      !CALL fm_write_thresh(fm_mat=fm_mat_work_sum, thresh=1e-5_dp, header="MG__A+B", unit_nr=unit_nr,abs_vals=.TRUE.)
+      !CALL fm_write_thresh(fm_mat=fm_mat_work_diff, thresh=1e-5_dp, header="MG__A-B", unit_nr=unit_nr,abs_vals=.TRUE.)
       !CALL cp_fm_write_formatted(fm_mat_work_diff,unit_nr,"Full (A-B)")
       !Now raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_power(fm_mat_work_diff, fm_mat_work_diff_eigvec, 0.5_dp, 0.0_dp, n_dependent, .TRUE.)
+      CALL cp_fm_power(fm_mat_work_diff, fm_mat_work_diff_eigvec, 0.5_dp, 0.0_dp, n_dependent)
       !(A-B)**-0.5 is written to the eigvec - work matrix
       CALL cp_fm_release(fm_mat_work_diff_eigvec)
+      !CALL fm_write_thresh(fm_mat=fm_mat_work_diff, thresh=1e-5_dp, header="MG05A-B", unit_nr=unit_nr,abs_vals=.TRUE.)
 
       !Create C = (A-B)^0.5 (A+B) (A-B)^0.5
       dim_mat = homo*virtual
@@ -679,7 +691,8 @@ CONTAINS
                                     Eigenval, Eigenval_reduced, &
                                     homo, virtual, dimen_RI, unit_nr, &
                                     homo_red, virt_red, &
-                                    cutoff_homo, cutoff_virt)
+                                    cutoff_homo, cutoff_virt, &
+                                    corr_mos_occ, corr_mos_virt)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -687,7 +700,8 @@ CONTAINS
                                                             fm_mat_S_ab_trunc
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
-      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, &
+                                                            corr_mos_occ, corr_mos_virt
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
       REAL(KIND=dp)                                      :: cutoff_homo, cutoff_virt
 
@@ -704,7 +718,7 @@ CONTAINS
       ! Determine index in homo and virtual for truncation
       ! Uses indices of outermost orbitals within energy range (-cutoff_homo,cutoff_virt)
       IF (cutoff_homo > 0 .OR. cutoff_virt > 0) THEN
-         IF (-cutoff_homo .LT. Eigenval(1)) THEN
+         IF (-cutoff_homo .LT. Eigenval(1) .OR. cutoff_homo < 0) THEN
             homo_red = homo
             homo_incl = 1
          ELSE
@@ -718,7 +732,7 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (cutoff_virt .GT. Eigenval(homo + virtual)) THEN
+         IF (cutoff_virt .GT. Eigenval(homo + virtual) .OR. cutoff_virt < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
@@ -734,8 +748,38 @@ CONTAINS
       ELSE
          homo_red = homo
          virt_red = virtual
+         homo_incl = 1
+         virt_incl = virtual
       END IF
-
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A1,T8,A30)') '|', 'Truncating 3c matrices for BSE'
+         WRITE (unit_nr, '(T3,A1)') '|'
+         IF (cutoff_homo > 0) THEN
+            WRITE (unit_nr, '(T3,A1,T8,A29,T59,F9.3)') '|', 'Cutoff occupied orbitals [eV]', cutoff_homo*evolt
+         ELSE 
+            WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No cutoff given for occupied orbitals'
+         END IF
+         IF (cutoff_virt > 0) THEN
+            WRITE (unit_nr, '(T3,A1,T8,A28,T59,F9.3)') '|', 'Cutoff virtual orbitals [eV]', cutoff_virt*evolt
+         ELSE 
+            WRITE (unit_nr, '(T3,A1,T8,A36)') '|', 'No cutoff given for virtual orbitals'
+         END IF
+         WRITE (unit_nr, '(T3,A1,T8,A20,T59,I9)') '|', 'First occupied index', homo_incl
+         WRITE (unit_nr, '(T3,A1,T8,A18,T59,I9)') '|', 'Last virtual index', virt_incl
+         WRITE (unit_nr, '(T3,A1,T8,A26,T59,F9.3)') '|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
+         WRITE (unit_nr, '(T3,A1,T8,A24,T59,F9.3)') '|', 'Last virtual energy [eV]', Eigenval(homo+virt_incl)*evolt
+         WRITE (unit_nr, '(T3,A1,T8,A35,T59,I9)') '|', 'Number of GW-corrected occupied MOs', corr_mos_occ
+         WRITE (unit_nr, '(T3,A1,T8,A34,T59,I9)') '|', 'Number of GW-corrected virtual MOs', corr_mos_virt
+         WRITE (unit_nr, '(T3,A1)') '|'
+      END IF
+      IF (unit_nr > 0) THEN
+         IF (homo-homo_incl+1 > corr_mos_occ) THEN
+            CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
+         END IF
+         IF (virt_incl > corr_mos_virt) THEN
+            CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
+         END IF
+      END IF
       !Truncate full fm_S matrices
       !Allocate new truncated matrices of proper size
       para_env => fm_mat_S%matrix_struct%para_env
@@ -756,15 +800,16 @@ CONTAINS
          Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
 
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
-                          homo_red, virt_red, unit_nr)
+                          homo_red, virt_red, unit_nr, nrow_offset=homo_incl)
          CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
-                          homo_red, homo_red, unit_nr)
+                          homo_red, homo_red, unit_nr,homo_incl,homo_incl)
          CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
                           virt_red, virt_red, unit_nr)
 
       ELSE
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No truncation of BSE matrices applied'
+            WRITE (unit_nr, '(T3,A1)') '|'
          END IF
          Eigenval_reduced = Eigenval
          CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
