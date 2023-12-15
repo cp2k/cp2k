@@ -10,14 +10,14 @@
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
 #              LIBVORI 220621, GSL 2.7.1,
 #              COSMA 2.6.6, SIRIUS 7.4.3,
-#              LIBGRPP 20231206
+#              LIBGRPP 20231215
 # on an Apple M1 (macOS 14.2 Sonoma))
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /usr/local/bin to the lastest gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 12.12.2023
+# Last update: 15.12.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -72,7 +72,7 @@
 DO_CHECKS      := no
 TARGET_CPU     := native
 USE_COSMA      := 2.6.6
-USE_LIBGRPP    := 20231206
+USE_LIBGRPP    := 20231215
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_PLUMED     := 2.9.0
