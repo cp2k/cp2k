@@ -31,8 +31,10 @@ MODULE core_ppl
                                               sgp_potential_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libgrpp_integrals,               ONLY: libgrpp_local_integral,&
-                                              libgrpp_semilocal_integral
+   USE libgrpp_integrals,               ONLY: libgrpp_local_forces_ref,&
+                                              libgrpp_local_integrals,&
+                                              libgrpp_semilocal_forces_ref,&
+                                              libgrpp_semilocal_integrals
    USE lri_environment_types,           ONLY: lri_kind_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
@@ -475,12 +477,31 @@ CONTAINS
                               hab(:, :, iset, jset), ppl_work, pab(:, :, iset, jset), &
                               force_a, force_b, ppl_fwork)
                         ELSE
-                           CPABORT("ECP gradients NYI")
+
+!$OMP CRITICAL(type1)
+                           CALL libgrpp_local_forces_ref(la_max(iset), la_min(iset), npgfa(iset), &
+                                                         rpgfa(:, iset), zeta(:, iset), &
+                                                         lb_max(jset), lb_min(jset), npgfb(jset), &
+                                                         rpgfb(:, jset), zetb(:, jset), &
+                                                         nexp_ppl, alpha_ppl, cval_ppl(1, :), nct_ppl, &
+                                                         ppl_radius, rab, dab, rac, dac, dbc, &
+                                                         hab(:, :, iset, jset), pab(:, :, iset, jset), &
+                                                         force_a, force_b)
+!$OMP END CRITICAL(type1)
                         END IF
 
                         IF (ecp_semi_local) THEN
-                           ! semi local ECP part -- forces
-                           CPABORT("ECP gradients NYI")
+
+!$OMP CRITICAL(type2)
+                           CALL libgrpp_semilocal_forces_ref(la_max(iset), la_min(iset), npgfa(iset), &
+                                                             rpgfa(:, iset), zeta(:, iset), &
+                                                             lb_max(jset), lb_min(jset), npgfb(jset), &
+                                                             rpgfb(:, jset), zetb(:, jset), &
+                                                             slmax, npot, bpot, apot, nrpot, &
+                                                             ppl_radius, rab, dab, rac, dac, dbc, &
+                                                             hab(:, :, iset, jset), pab(:, :, iset, jset), &
+                                                             force_a, force_b)
+!$OMP END CRITICAL(type2)
                         END IF
                         ! *** The derivatives w.r.t. atomic center c are    ***
                         ! *** calculated using the translational invariance ***
@@ -535,26 +556,26 @@ CONTAINS
                         ELSE
                            !If the local part of the potential is more complex, we need libgrpp
 !$OMP CRITICAL(type1)
-                           CALL libgrpp_local_integral(la_max(iset), la_min(iset), npgfa(iset), &
-                                                       rpgfa(:, iset), zeta(:, iset), &
-                                                       lb_max(jset), lb_min(jset), npgfb(jset), &
-                                                       rpgfb(:, jset), zetb(:, jset), &
-                                                       nexp_ppl, alpha_ppl, cval_ppl(1, :), nct_ppl, &
-                                                       ppl_radius, rab, dab, rac, dac, dbc, &
-                                                       hab(:, :, iset, jset))
+                           CALL libgrpp_local_integrals(la_max(iset), la_min(iset), npgfa(iset), &
+                                                        rpgfa(:, iset), zeta(:, iset), &
+                                                        lb_max(jset), lb_min(jset), npgfb(jset), &
+                                                        rpgfb(:, jset), zetb(:, jset), &
+                                                        nexp_ppl, alpha_ppl, cval_ppl(1, :), nct_ppl, &
+                                                        ppl_radius, rab, dab, rac, dac, dbc, &
+                                                        hab(:, :, iset, jset))
 !$OMP END CRITICAL(type1)
                         END IF
 
                         IF (ecp_semi_local) THEN
                            ! semi local ECP part
 !$OMP CRITICAL(type2)
-                           CALL libgrpp_semilocal_integral(la_max(iset), la_min(iset), npgfa(iset), &
-                                                           rpgfa(:, iset), zeta(:, iset), &
-                                                           lb_max(jset), lb_min(jset), npgfb(jset), &
-                                                           rpgfb(:, jset), zetb(:, jset), &
-                                                           slmax, npot, bpot, apot, nrpot, &
-                                                           ppl_radius, rab, dab, rac, dac, dbc, &
-                                                           hab(:, :, iset, jset))
+                           CALL libgrpp_semilocal_integrals(la_max(iset), la_min(iset), npgfa(iset), &
+                                                            rpgfa(:, iset), zeta(:, iset), &
+                                                            lb_max(jset), lb_min(jset), npgfb(jset), &
+                                                            rpgfb(:, jset), zetb(:, jset), &
+                                                            slmax, npot, bpot, apot, nrpot, &
+                                                            ppl_radius, rab, dab, rac, dac, dbc, &
+                                                            hab(:, :, iset, jset))
 !$OMP END CRITICAL(type2)
                         END IF
                      END IF
