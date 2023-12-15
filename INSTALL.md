@@ -352,18 +352,20 @@ box on Nvidia hardware as well.
 - Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
+- Add `-D__OFFLOAD_UNIFIED_MEMORY` to enable unified memory support (experimental and only supports
+  Mi250X and above)
 - Add `GPUVER=Mi50, Mi60, Mi100, Mi250`
 - Add `OFFLOAD_CC = hipcc`
 - Add `-lamdhip64` to the `LIBS` variable
 - Add
-  `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2 --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'`
-  where `ROCM_PATH` is the path where the rocm sdk resides. Architectures Mi250 (gfx90a), Mi100
-  (gfx908), Mi50 (gfx906) the hip backend for the grid library supports nvidia hardware as well. It
-  uses the same code and can be used to validate the backend in case of access to Nvidia hardware
-  only. To get the compilation working, follow the steps above and set the `OFFLOAD_FLAGS` with
-  right `nvcc` parameters (see the cuda section of this document). The environment variable
-  `HIP_PLATFORM` should be set to `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc
-  compiler instead.
+  `OFFLOAD_FLAGS = '-munsafe-fp-atomics -fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2 --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'`
+  where `ROCM_PATH` is the path where the rocm sdk resides. Architectures Mi300(A,X) (gfx1103),
+  Mi250 (gfx90a), Mi100 (gfx908), Mi50 (gfx906) the hip backend for the grid library supports nvidia
+  hardware as well. It uses the same code and can be used to validate the backend in case of access
+  to Nvidia hardware only. To get the compilation working, follow the steps above and set the
+  `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section of this document). The
+  environment variable `HIP_PLATFORM` should be set to `HIP_PLATFORM=nvidia` to indicate to hipcc to
+  use the nvcc compiler instead.
 - Specify the C++ compiler (e.g., `CXX = g++`). Remember to set the CXXFLAGS flags to support C++11
   standard and OpenMP.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add `-D__HIP_PLATFORM_AMD__`

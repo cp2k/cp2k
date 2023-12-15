@@ -30,21 +30,26 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
 
   (*buffer) = malloc(sizeof(offload_buffer));
   (*buffer)->size = requested_size;
+  (*buffer)->host_buffer = NULL;
+  (*buffer)->device_buffer = NULL;
+  offload_activate_chosen_device();
 
 #if defined(__OFFLOAD_CUDA)
   // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
-  (*buffer)->host_buffer = NULL;
-  offload_activate_chosen_device();
   OFFLOAD_CHECK(
       cudaMallocHost((void **)&(*buffer)->host_buffer, requested_size));
   OFFLOAD_CHECK(cudaMalloc((void **)&(*buffer)->device_buffer, requested_size));
 #elif defined(__OFFLOAD_HIP)
   // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
-  (*buffer)->host_buffer = NULL;
-  offload_activate_chosen_device();
+#ifndef __OFFLOAD_UNIFIED_MEMORY
   OFFLOAD_CHECK(hipHostMalloc((void **)&(*buffer)->host_buffer, requested_size,
                               hipHostMallocDefault));
   OFFLOAD_CHECK(hipMalloc((void **)&(*buffer)->device_buffer, requested_size));
+#else
+  OFFLOAD_CHECK(hipMalloc((void **)&(*buffer)->host_buffer, requested_size));
+  (*buffer)->device_buffer = (*buffer)->host_buffer;
+#endif
+
 #else
   (*buffer)->host_buffer = malloc(requested_size);
   (*buffer)->device_buffer = NULL;
@@ -65,8 +70,10 @@ void offload_free_buffer(offload_buffer *buffer) {
   OFFLOAD_CHECK(cudaFreeHost(buffer->host_buffer));
   OFFLOAD_CHECK(cudaFree(buffer->device_buffer));
 #elif defined(__OFFLOAD_HIP)
-  OFFLOAD_CHECK(hipHostFree(buffer->host_buffer));
   OFFLOAD_CHECK(hipFree(buffer->device_buffer));
+#ifndef __OFFLOAD_UNIFIED_MEMORY
+  OFFLOAD_CHECK(hipHostFree(buffer->host_buffer));
+#endif
 #else
   free(buffer->host_buffer);
 #endif

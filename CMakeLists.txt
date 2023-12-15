@@ -113,6 +113,7 @@ option(CP2K_USE_SPLA
 option(CP2K_USE_METIS "enable metis library support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
+# option(CP2K_USE_LIBGRPP "Use libgrpp" OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
@@ -186,6 +187,7 @@ if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_QUIP ON)
   set(CP2K_USE_PEXSI ON)
   set(CP2K_USE_SUPERLU ON)
+  # set(CP@K_USE_LIBGRPP ON)
 endif()
 
 if(${cp2k_build_options_up} STREQUAL "SERIAL")
@@ -228,6 +230,7 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     Mi100
     Mi210
     Mi250
+    Mi300
     K20X
     K40
     K80
@@ -287,6 +290,12 @@ cmake_dependent_option(
 cmake_dependent_option(
   CP2K_DBCSR_CPU_ONLY "Use DBCSR compiled without GPU support." OFF
   "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_DEBUG_MODE)" OFF)
+
+cmake_dependent_option(
+  CP2K_USE_UNIFIED_MEMORY "Use CPU/GPU unified memory.
+  requires Mi250x or future AMD architectures to be fully functional" OFF
+  "CP2K_USE_ACCEL MATCHES \"HIP\"" OFF)
+
 cmake_dependent_option(DBCSR_USE_OPENMP "Enable openmp support in DBCSR" ON
                        "CP2K_BUILD_DBCSR" OFF)
 # ##############################################################################
@@ -481,6 +490,7 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_Mi100 gfx908)
   set(CP2K_GPU_ARCH_NUMBER_Mi200 gfx90a)
   set(CP2K_GPU_ARCH_NUMBER_Mi250 gfx90a)
+  set(CP2K_GPU_ARCH_NUMBER_Mi300 gfx1103)
 endif()
 
 set(CP2K_USE_HIP OFF)
@@ -539,9 +549,9 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
   if(NOT CMAKE_BUILD_TYPE)
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
+    set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-    set(HIP_RELEASE_OPTIONS "-O3 -g -DNDEBUG --std=c++11")
+    set(HIP_RELEASE_OPTIONS "-O2 -g --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
     set(HIP_RELEASE_OPTIONS "-O3 -DNDEBUG --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
@@ -550,6 +560,22 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
 
   set(CMAKE_HIP_ARCGITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
   set(CP2K_USE_HIP ON)
+
+  # use hardware atomic operations on Mi250X.
+  if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a|gfx1103")
+    set(HIP_RELEASE_OPTIONS "-munsafe-fp-atomics")
+  endif()
+
+  # add the Mi300A parameters when available
+  if(CP2K_USE_UNIFIED_MEMORY)
+    if(CMAKE_HIP_ARCHITECTURES MATCHES "gfx90a")
+      set(CMAKE_HIP_ARCHITECTURES "gfx90a:xnack+")
+    endif()
+
+    if(CMAKE_HIP_ARCHITECTURES MATCHES "gfx1103")
+      set(CMAKE_HIP_ARCHITECTURES "gfx1103:xnack+")
+    endif()
+  endif()
 endif()
 
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
@@ -565,6 +591,10 @@ endif()
 if(CP2K_USE_LIBXC)
   find_package(LibXC 6 REQUIRED EXACT)
 endif()
+
+# uncomment this when libgrpp cmake support is complete
+
+# if (CP2K_USE_LIBGRPP) find_package(libgrpp REQUIRED) endif()
 
 if(CP2K_USE_COSMA)
   find_package(cosma REQUIRED)

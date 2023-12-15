@@ -18,7 +18,11 @@
 #if defined(__OFFLOAD_CUDA)
 #include <cufft.h>
 #elif defined(__OFFLOAD_HIP)
+#if (HIP_VERSION < 50600000)
 #include <hipfft.h>
+#else
+#include <hipfft/hipfft.h>
+#endif
 #endif
 
 #if defined(__OFFLOAD_CUDA)
