@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-ecp                                              libgrpp
+QS/regtest-ecp-2                                            libgrpp
 QS/regtest-as-3                                             libint mpiranks%2==0
 QS/regtest-as-2                                             libint
 QS/regtest-wfn-restart
