@@ -28,7 +28,6 @@ MODULE rpa_main
                                               diagonalize_A,&
                                               diagonalize_C,&
                                               truncate_BSE_matrices
-   USE bse_util,                        ONLY: fm_write_thresh
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -41,8 +40,7 @@ MODULE rpa_main
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type, &
-                                              cp_fm_write_formatted
+                                              cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
@@ -1786,7 +1784,7 @@ CONTAINS
          ! CALL fm_write_thresh(fm_mat=fm_mat_S_ij_bse, thresh=1e-5_dp, header="MG_uSij", unit_nr=unit_nr,abs_vals=.TRUE.)
          ! CALL fm_write_thresh(fm_mat=fm_mat_S_ab_bse, thresh=1e-5_dp, header="MG_uSab", unit_nr=unit_nr,abs_vals=.TRUE.)
          !CALL fm_write_thresh(fm_mat=fm_mat_S(1), thresh=1e-5_dp, header="MG___uS", unit_nr=unit_nr,abs_vals=.TRUE.)
-         
+
          !Reduce matrices in case of given cutoff for BSE matrices
          !IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
          CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &

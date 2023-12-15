@@ -14,8 +14,7 @@
 MODULE bse_full_diag
 
    USE bse_util,                        ONLY: redist_fm,&
-                                              truncate_fm, &
-                                              fm_write_thresh
+                                              truncate_fm
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -37,8 +36,7 @@ MODULE bse_full_diag
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_to_fm_submat_general,&
-                                              cp_fm_type, &
-                                              cp_fm_write_formatted
+                                              cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -213,10 +211,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
-      INTEGER                                            :: handle, i, j, row_idx, col_idx, &
-                                                            nrow_local, ncol_local
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(4)                              :: reordering
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
       TYPE(cp_fm_type)                                   :: fm_mat_W
@@ -261,9 +257,9 @@ CONTAINS
       !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
       reordering = (/1, 4, 3, 2/)
       CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
-                    virtual, virtual, unit_nr, reordering)
+                     virtual, virtual, unit_nr, reordering)
       !CALL cp_fm_write_formatted(fm_mat_B,unit_nr,"Full B")
-      
+
       !CALL fm_write_thresh(fm_mat=fm_mat_B, thresh=1e-5_dp, header="MG___1B", unit_nr=unit_nr,abs_vals=.TRUE.)
 
       CALL cp_fm_release(fm_mat_W)
@@ -369,7 +365,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A1,T8,A19)') '|', 'Created work arrays'
       END IF
-      
+
       !CALL fm_write_thresh(fm_mat=fm_mat_A, thresh=1e-5_dp, header="MG___2A", unit_nr=unit_nr,abs_vals=.TRUE.)
       !CALL fm_write_thresh(fm_mat=fm_mat_B, thresh=1e-5_dp, header="MG___2B", unit_nr=unit_nr,abs_vals=.TRUE.)
       !Add/Substract B
@@ -685,6 +681,8 @@ CONTAINS
 !> \param virt_red ...
 !> \param cutoff_homo ...
 !> \param cutoff_virt ...
+!> \param corr_mos_occ ...
+!> \param corr_mos_virt ...
 ! **************************************************************************************************
    SUBROUTINE truncate_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
@@ -700,10 +698,10 @@ CONTAINS
                                                             fm_mat_S_ab_trunc
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
-      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, &
-                                                            corr_mos_occ, corr_mos_virt
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
       REAL(KIND=dp)                                      :: cutoff_homo, cutoff_virt
+      INTEGER, INTENT(IN)                                :: corr_mos_occ, corr_mos_virt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
 
@@ -756,24 +754,24 @@ CONTAINS
          WRITE (unit_nr, '(T3,A1)') '|'
          IF (cutoff_homo > 0) THEN
             WRITE (unit_nr, '(T3,A1,T8,A29,T59,F9.3)') '|', 'Cutoff occupied orbitals [eV]', cutoff_homo*evolt
-         ELSE 
+         ELSE
             WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No cutoff given for occupied orbitals'
          END IF
          IF (cutoff_virt > 0) THEN
             WRITE (unit_nr, '(T3,A1,T8,A28,T59,F9.3)') '|', 'Cutoff virtual orbitals [eV]', cutoff_virt*evolt
-         ELSE 
+         ELSE
             WRITE (unit_nr, '(T3,A1,T8,A36)') '|', 'No cutoff given for virtual orbitals'
          END IF
          WRITE (unit_nr, '(T3,A1,T8,A20,T59,I9)') '|', 'First occupied index', homo_incl
          WRITE (unit_nr, '(T3,A1,T8,A18,T59,I9)') '|', 'Last virtual index', virt_incl
          WRITE (unit_nr, '(T3,A1,T8,A26,T59,F9.3)') '|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
-         WRITE (unit_nr, '(T3,A1,T8,A24,T59,F9.3)') '|', 'Last virtual energy [eV]', Eigenval(homo+virt_incl)*evolt
+         WRITE (unit_nr, '(T3,A1,T8,A24,T59,F9.3)') '|', 'Last virtual energy [eV]', Eigenval(homo + virt_incl)*evolt
          WRITE (unit_nr, '(T3,A1,T8,A35,T59,I9)') '|', 'Number of GW-corrected occupied MOs', corr_mos_occ
          WRITE (unit_nr, '(T3,A1,T8,A34,T59,I9)') '|', 'Number of GW-corrected virtual MOs', corr_mos_virt
          WRITE (unit_nr, '(T3,A1)') '|'
       END IF
       IF (unit_nr > 0) THEN
-         IF (homo-homo_incl+1 > corr_mos_occ) THEN
+         IF (homo - homo_incl + 1 > corr_mos_occ) THEN
             CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
          END IF
          IF (virt_incl > corr_mos_virt) THEN
@@ -802,7 +800,7 @@ CONTAINS
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
                           homo_red, virt_red, unit_nr, nrow_offset=homo_incl)
          CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
-                          homo_red, homo_red, unit_nr,homo_incl,homo_incl)
+                          homo_red, homo_red, unit_nr, homo_incl, homo_incl)
          CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
                           virt_red, virt_red, unit_nr)
 

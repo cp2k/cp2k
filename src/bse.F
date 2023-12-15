@@ -19,8 +19,7 @@ MODULE bse
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_type, &
-                                              cp_fm_to_fm
+                                              cp_fm_type
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
    USE input_constants,                 ONLY: bse_singlet,&
