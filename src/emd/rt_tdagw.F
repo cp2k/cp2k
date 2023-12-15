@@ -22,6 +22,7 @@ MODULE rt_tdagw
                                               rt_prop_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE cp_fm_types,                     ONLY: cp_fm_type,&
+                                              cp_fm_p_type,&
                                               cp_fm_to_fm,&
                                               cp_fm_create,&
                                               cp_fm_set_all,&
@@ -73,7 +74,6 @@ CONTAINS
 !> \param qs_env Quickstep environment data, entry point of the calculation
 ! **************************************************************************************************
    SUBROUTINE run_propagation_gw(qs_env)
-      ! TODO : Move to separate file
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -81,134 +81,86 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input, rtp_section
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
-                                                            matrix_s,&
-                                                            matrix_ks
       TYPE(dbcsr_type), POINTER                          :: S_inv
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
-      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: moments_full
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
+      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE, TARGET:: moments_full,&
+                                                            ham_single_particle,&
+                                                            rho_full
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moments_full_p,&
+                                                            ham_single_particle_p,&
+                                                            rho_full_p
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: ham_effective,&
                                                             ham_exp,&
-                                                            ham_single_particle,&
-                                                            rho_full,&
                                                             rho_work
       REAL(kind=dp)                                      :: field(3)
       INTEGER                                            :: i,j,k,nspin,re,im
       INTEGER                                            :: rho_unit
 
-      ! Marek : Start by getting the DFT results - density matrix
-      !         This matrix is identical with the equilibrium time-diagonal lesser Green's function in G0W0
-      CALL get_qs_env(qs_env,&
-                      rtp=rtp,&
-                      bs_env=bs_env,&
-                      mos=start_mos,&
-                      dft_control=dft_control,&
-                      input=input,&
-                      matrix_s=matrix_s,&
-                      matrix_ks=matrix_ks)
       ! TODO : Ask Jan whether there is already an identifier present in some of the environments
+      CALL get_qs_env(qs_env, mos=start_mos, bs_env=bs_env)
       nspin = SIZE(start_mos)
-      CALL rt_initialize_rho_from_mos(rtp, start_mos)
-      ! Create the inverse overlap matrix
-      CALL s_matrices_create(matrix_s, rtp)
-      CALL get_rtp(rtp, rho_new=rho_dft, S_inv=S_inv)
-      ! Rho matrix from rtp has 2*nspin dimensions in the following order
-      !  - real of spin1, imag of spin1(, real of spin2, imag of spin2)
-      !  - for restricted calculation, second spins are not present
+      ! ********************** ALLOCATIONS **********************
 
-      ! Marek : Set up the single particle Hamiltonian - can be either KS or G0W0 Hamiltonian
-      ! TODO : Always uses bs_env - truly only for debug or redo with possibility to refer to qs_env?
+      ! Allocate the single particle Hamiltonian - can be either KS or G0W0 Hamiltonian
+      ! Marek TODO : Always uses bs_env - truly only for debug or redo with possibility to refer to qs_env?
       ALLOCATE(ham_single_particle(nspin))
       DO i=1,nspin
          CALL cp_fm_create(ham_single_particle(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         IF (dft_control%rtp_control%tdagw_ham == rtp_tdagw_ham_ks) THEN
-            ! Setup the KS Hamiltonian in MO basis
-            CALL copy_dbcsr_to_fm(matrix_ks(i)%matrix, ham_single_particle(i))
-         ELSE
-            ! Setup the G0W0 Hamiltonian in MO basis
-            ! TODO : Redo via pointers, no need to copy this?
-            ! TODO : Spins ...
-            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_single_particle(i))
-         END IF
       END DO
-      ! Convert the density matrix into full matrix TODO : Spin coupling?
+      ham_single_particle_p => ham_single_particle
+
+      ! Allocate the moments matrices
+      ALLOCATE(moments_full(3))
+      ! Now, for each index, create the matrix
+      DO i=1,3
+         ! Use cp_fm_struct from Kohn-Sham matrix TODO : Differentiate by spin/kp? - not necessary for moments 
+         CALL cp_fm_create(moments_full(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+      END DO
+      moments_full_p => moments_full
+
+      ! Allocate the storage for effective Hamiltonian, density and propagator matrix - Hamiltonian exponential
+      ALLOCATE(ham_effective(2*nspin))
       ALLOCATE(rho_full(2*nspin))
-      ALLOCATE(rho_work(3))
-      CALL cp_fm_create(rho_work(1), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_create(rho_work(2), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_create(rho_work(3), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(rho_work(1), 0.0_dp)
-      CALL cp_fm_set_all(rho_work(2), 0.0_dp)
-      CALL cp_fm_set_all(rho_work(3), 0.0_dp)
+      ALLOCATE(ham_exp(2*nspin))
       DO i=1,2*nspin
+         CALL cp_fm_create(ham_effective(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
          CALL cp_fm_create(rho_full(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(ham_exp(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
       END DO
-      DO i=1,nspin
-         re = 2*i - 1
-         im = 2*i
-         CALL copy_dbcsr_to_fm(rho_dft(re)%matrix, rho_full(re))
-         CALL cp_fm_set_all(rho_full(im), 0.0_dp)
+      rho_full_p => rho_full
+
+      ! Allocate and initialise workspace for density propagation
+      ALLOCATE(rho_work(3))
+      DO i=1,3
+         CALL cp_fm_create(rho_work(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_set_all(rho_work(i), 0.0_dp)
       END DO
 
-      ! Marek : Now, get the G0W0 results - Hamiltonian + screened interaction matrices
-      ! TODO : Ask Jan about correct logger and access to verbosity levels?
-      PRINT *, "Writing the full ao G0W0 Hamiltonian"
-      CALL cp_fm_write_formatted(bs_env%fm_h_G0W0_Gamma, 6)
+      ! ********************** EXTRACT PREVIOUS DATA **********************
+      ! Prepare the relevant matrices
+      CALL tdagw_prepare(qs_env, ham_single_particle_p, moments_full_p, rho_full_p)
+
+      ! Get data from QS and RTP
+      CALL get_qs_env(qs_env,&
+                      rtp=rtp,&
+                      bs_env=bs_env,&
+                      dft_control=dft_control,&
+                      input=input)
+      CALL get_rtp(rtp, S_inv=S_inv)
+
       ! Marek : After getting the G0W0 Hamiltonian, first check the no-self-energy time propagation
       ! In order to do that, need to be able to add the electric field to the Hamiltonian at every simulation step
       ! Electric field is added to the core hamiltonian in efield_potential_length_gauge
       ! Here, we reimplement it in order to add it directly to the effective Hamiltonian at each timestep
-      ! TODO : Set the moments matrix in the create_and_init_bs_env (post_scf_bandstructure_utils.F) 
-      NULLIFY(moments)
-      CALL dbcsr_allocate_matrix_set(moments, 3)
-      ! Initialize individual matrices
-      DO i=1,3
-         ! Allocate the memory for the moments matrix
-         ALLOCATE(moments(i)%matrix)
-         ! Create by template
-         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments matrix")
-         ! TODO : Ideally should create by dbcsr_create, but some properties are not copied - but likely this will not be
-         ! a performance bottleneck
-         ! Fill by zeros - TODO : is this necessary?
-         CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
-      END DO
-      ! Create the actual moments
-      CALL build_local_moment_matrix(qs_env, moments, 1)
-      ! Transform the moments into full matrices
-      ! Start by allocating the array
-      ALLOCATE(moments_full(3))
-      ! Now, for each index, create the matrix and fill it with dbcsr values
-      DO i=1,3
-         ! Use cp_fm_struct from Kohn-Sham matrix TODO : Differentiate by spin? - not necessary for moments 
-         CALL cp_fm_create(moments_full(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL copy_dbcsr_to_fm(moments(i)%matrix, moments_full(i))
-      END DO
-      ! Once this is done, sparse moment matrices are no longer required
-      ! Deallocate dbcsr moments
-      CALL dbcsr_deallocate_matrix_set(moments)
-      ! Now the full matrices are populated, try to print some
-      PRINT *, "Writing the moments matrices"
-      CALL cp_fm_write_formatted(moments_full(1), 6)
-      CALL cp_fm_write_formatted(moments_full(2), 6)
-      CALL cp_fm_write_formatted(moments_full(3), 6)
-      ! storage (available in imaginary time and frequency as fm_W_MIC_freq and fm_W_MIC_time_tensor, respectively)
-      ! Create the storage for effective Hamiltonian
-      ! Create storage for the propagator matrix - Hamiltonian exponential
-      ALLOCATE(ham_effective(2*nspin))
-      ALLOCATE(ham_exp(2*nspin))
-      DO i=1,2*nspin
-         CALL cp_fm_create(ham_effective(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(ham_exp(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      END DO
+      ! Convert the density matrix into full matrix TODO : Spin coupling?
       ! Setup the files
       logger => cp_get_default_logger()
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       rho_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=".dat")
       ! ********************** Start the time loop **********************
       DO i = rtp%i_start, rtp%nsteps
+
          ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0
-         ! TODO : Spin dependence in the KS + G0W0 Hamiltonian
          DO j=1,nspin
             re = 2*j - 1
             im = 2*j
@@ -216,21 +168,23 @@ CONTAINS
             ! Imaginary part of KS + G0W0 is zero
             CALL cp_fm_set_all(ham_effective(im), 0.0_dp)
          END DO
+
          ! Update the field
          qs_env%sim_time = REAL(i, dp)*rtp%dt
          ! TODO : Understand and implement rtp%istep - that should mainly be used for restart calculations?
          qs_env%sim_step = i
          CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
          PRINT *, "Field : ", field(1), field(2), field(3)
-         ! TODO : Add the field to the Hamiltonian via the constant moments matrix - might not be constant in 2D bulk via k-points?
          ! The field is added to the real part of both spins
          ! TODO : Preprocessor macro that sets up the spin loop
          DO j=1,nspin
             re = 2*j - 1
             im = 2*j
+            ! Add electric field
             DO k=1,3
                CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), field(k), moments_full(k))
             END DO
+
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
             ! TODO : Using rho_work(1) - maybe rename?
             CALL cp_dbcsr_sm_fm_multiply(S_inv, ham_effective(re), rho_work(1), bs_env%n_ao)
@@ -238,6 +192,7 @@ CONTAINS
             CALL cp_fm_to_fm(rho_work(1),ham_effective(re))
             CALL cp_fm_to_fm(rho_work(2),ham_effective(im))
          END DO
+
          ! TODO : Create the matrix exponential (matrix_exponential.F:taylor_only_imaginary, but might need complex because of
          ! complex W and hence complex self-energy? Furthermore, is the self-energy in COHSEX Hermitian or not?)
          ! TODO : Understand which input options set the orders
@@ -256,6 +211,7 @@ CONTAINS
             im = 2*j
             CALL taylor_only_imaginary(ham_exp(re:im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
          END DO
+
          ! TODO : Consult/think about using complex routines and types
          ! (ham_exp(re) + i * ham_exp(im)) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re)^T - i * ham_exp(im)^T) = 
          ! + ham_exp(re) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
@@ -321,15 +277,10 @@ CONTAINS
             WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Imag"
             CALL cp_fm_write_formatted(rho_work(2), rho_unit)
          END DO
-         ! Now, rho_full should contain density matrix at time t+dt
-         ! TODO : Print the density matrix
-         ! Marek : In each timestep of the loop
-         !          - update the self-energy
-         !          - propagate G< via matrix exponential
-         !          - if it is required, print out G< or its part
       END DO
       ! ********************** End the time loop **********************
-      ! Deallocate fm moments
+
+      ! ********************** DEALLOCATIONS **********************
       DO i=1,3
          CALL cp_fm_release(moments_full(i))
       END DO
@@ -355,4 +306,99 @@ CONTAINS
       DEALLOCATE(rho_full)
       DEALLOCATE(rho_work)
    END SUBROUTINE run_propagation_gw
+
+! **************************************************************************************************
+!> \brief Extracts the relevant information from previous run
+!> \note Specifically, extracts the single particle Hamiltonian, sets up inverse overlap matrix,
+!>       extracts/calculates the screening potential.
+!>       So far, does not allocate any memory - forces allocation and deallocation to be done
+!>       in the same place - safety feature, but maybe not necessary. 
+!> \param qs_env Quickstep environment data, entry point of the calculation
+!> \param ham_single_particle Pointer to array of cp_fm_type, where the single particle H will be
+!> \param moments Pointer to array of dbcsr_type, where the moments are stored
+! **************************************************************************************************
+   SUBROUTINE tdagw_prepare(qs_env, ham_single_particle, moments_full, rho_full)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
+                                                            matrix_s,&
+                                                            matrix_ks,&
+                                                            moments
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ham_single_particle,&
+                                                            moments_full,&
+                                                            rho_full
+      INTEGER                                            :: nspin,i,re,im
+
+      ! Get values from QS environment
+      CALL get_qs_env(qs_env,&
+                 bs_env=bs_env,&
+                 rtp=rtp,&
+                 dft_control=dft_control,&
+                 mos=start_mos,&
+                 matrix_s=matrix_s,&
+                 matrix_ks=matrix_ks)
+      ! Get the number of spins
+      nspin = SIZE(start_mos)
+
+      ! Initialize single particle Hamiltonian
+      DO i=1,nspin
+         IF (dft_control%rtp_control%tdagw_ham == rtp_tdagw_ham_ks) THEN
+            ! Setup the KS Hamiltonian in MO basis
+            CALL copy_dbcsr_to_fm(matrix_ks(i)%matrix, ham_single_particle(i))
+         ELSE
+            ! Setup the G0W0 Hamiltonian in MO basis
+            ! TODO : Spins ...
+            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_single_particle(i))
+            ! TODO : Redo via pointers? But fm in KS does not exist ...
+            ! ham_single_particle(i)%matrix => bs_env%fm_h_G0W0_Gamma
+         END IF
+      END DO
+
+      ! Initialise the moments matrix
+      ! TODO : Set the moments matrix in the create_and_init_bs_env (post_scf_bandstructure_utils.F) 
+      NULLIFY(moments)
+      CALL dbcsr_allocate_matrix_set(moments, 3)
+      ! Initialize individual matrices
+      DO i=1,3
+         ! Allocate the memory for the moments matrix
+         ALLOCATE(moments(i)%matrix)
+      END DO
+      ! Initialize moments
+      DO i=1,3
+         ! TODO : Ideally should create by dbcsr_create, but some properties are not copied - but likely this will not be
+         ! a performance bottleneck
+         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments matrix")
+      END DO
+      ! Create the actual moments
+      CALL build_local_moment_matrix(qs_env, moments, 1)
+      DO i=1,3
+         CALL copy_dbcsr_to_fm(moments(i)%matrix, moments_full(i))
+      END DO
+      ! Once this is done, sparse moment matrices are no longer required
+      ! Deallocate dbcsr moments
+      CALL dbcsr_deallocate_matrix_set(moments)
+
+      ! Initialize density matrix from mos
+      CALL rt_initialize_rho_from_mos(rtp, start_mos)
+      ! Create the inverse overlap matrix
+      CALL s_matrices_create(matrix_s, rtp)
+
+      ! Get the density matrix created from DFT mos
+      ! Rho matrix from rtp has 2*nspin dimensions in the following order
+      !  - real of spin1, imag of spin1(, real of spin2, imag of spin2)
+      !  - for restricted calculation, second spins are not present
+      CALL get_rtp(rtp, rho_new=rho_dft)
+      ! Initialise the density matrix
+      DO i=1,nspin
+         re = 2*i - 1
+         im = 2*i
+         CALL copy_dbcsr_to_fm(rho_dft(re)%matrix, rho_full(re))
+         CALL cp_fm_set_all(rho_full(im), 0.0_dp)
+      END DO
+
+   END SUBROUTINE tdagw_prepare
 END MODULE rt_tdagw
