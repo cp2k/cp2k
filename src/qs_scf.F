@@ -599,7 +599,7 @@ CONTAINS
          dft_control%qs_control%cdft_control%total_steps + total_steps
 
       IF (.NOT. converged) THEN
-         IF (scf_control%ignore_convergence_failure) THEN
+         IF (scf_control%ignore_convergence_failure .OR. should_stop) THEN
             CPWARN("SCF run did NOT converge")
          ELSE
             CPABORT("SCF run did NOT converge")
