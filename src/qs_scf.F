@@ -600,9 +600,11 @@ CONTAINS
 
       IF (.NOT. converged) THEN
          IF (scf_control%ignore_convergence_failure .OR. should_stop) THEN
-            CPWARN("SCF run did NOT converge")
+            CALL cp_warn(__LOCATION__, "SCF run NOT converged")
          ELSE
-            CPABORT("SCF run did NOT converge")
+            CALL cp_abort(__LOCATION__, &
+                          "SCF run NOT converged. To continue the calculation "// &
+                          "regardless, please set the keyword IGNORE_CONVERGENCE_FAILURE.")
          END IF
       END IF
 
