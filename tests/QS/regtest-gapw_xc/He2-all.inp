@@ -1,23 +1,29 @@
+&GLOBAL
+  PREFERRED_DIAG_LIBRARY SL
+  PRINT_LEVEL LOW
+  PROJECT gapw_all_pade
+  RUN_TYPE ENERGY
+&END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
     CHARGE +1
     LSD
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      NGRIDS 1
       CUTOFF 150
+      NGRIDS 1
     &END MGRID
     &QS
       ALPHA0_HARD 10
-      EPS_GVG 1.0E-6
-      EPS_PGF_ORB 1.0E-6
       EPSFIT 1.E-4
       EPSISO 1.0E-12
-      EPSSVD 0.0
       EPSRHO0 1.E-8
+      EPSSVD 0.0
+      EPS_GVG 1.0E-6
+      EPS_PGF_ORB 1.0E-6
       LMAXN0 2
       LMAXN1 6
       METHOD GAPW_XC
@@ -33,9 +39,9 @@
       &END OT
       &PRINT
         &RESTART
-           FILENAME =RESTART
-        &END
-      &END
+          FILENAME =RESTART
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL
@@ -49,8 +55,8 @@
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    He 0.0 0.0 0.0
-    He 2.0 0.0 0.0
+      He 0.0 0.0 0.0
+      He 2.0 0.0 0.0
     &END COORD
     &KIND He
       BASIS_SET DZVP-ALL-PADE
@@ -60,10 +66,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-
-&GLOBAL
-  PROJECT gapw_all_pade
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-  PREFERRED_DIAG_LIBRARY SL
-&END GLOBAL

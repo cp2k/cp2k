@@ -1,86 +1,88 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT lamol
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 20
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 200.
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &CELL
+      &EACH
+        MD 10
+      &END EACH
+    &END CELL
+    &RESTART
+      &EACH
+        MD 100
+      &END EACH
+    &END RESTART
+    &TRAJECTORY
+      &EACH
+        MD 10
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      VDW_SCALE14 0.5
-      EI_SCALE14  0.8333333
-      SHIFT_CUTOFF .FALSE.
-      PARM_FILE_NAME ../sample_top/lamol.top
+      EI_SCALE14 0.8333333
       PARMTYPE AMBER
+      PARM_FILE_NAME ../sample_top/lamol.top
+      SHIFT_CUTOFF .FALSE.
+      VDW_SCALE14 0.5
       &SPLINE
         EMAX_SPLINE 1.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA .36
+        EWALD_TYPE SPME
         GMAX 64
       &END EWALD
     &END POISSON
     &PRINT
       &FF_INFO OFF
-      &END
-    &END
+      &END FF_INFO
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
       ABC [angstrom] 70. 70. 70.
     &END CELL
     &TOPOLOGY
+      CONNECTIVITY MOL_SET
       COORDINATE XYZ
       COORD_FILE_NAME ../sample_xyz/4mol.xyz
-      CONNECTIVITY MOL_SET
+      &DUMP_PDB
+      &END DUMP_PDB
+      &DUMP_PSF
+      &END DUMP_PSF
       &MOL_SET
         &MOLECULE
-          NMOL 4
           CONNECTIVITY AMBER
           CONN_FILE_NAME ../sample_top/lamol.top
-        &END
-      &END
-      &DUMP_PSF
-      &END
-      &DUMP_PDB
-      &END
-    &END
+          NMOL 4
+        &END MOLECULE
+      &END MOL_SET
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT lamol
-  RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 20
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 200.
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-  &PRINT
-    &RESTART
-       &EACH
-         MD 100
-       &END
-    &END
-    &TRAJECTORY
-       &EACH
-         MD 10
-       &END
-    &END
-    &CELL
-       &EACH
-         MD 10
-       &END
-    &END
-  &END
-&END MOTION

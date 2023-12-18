@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT IAO
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -7,59 +13,55 @@
     &MGRID
       CUTOFF 200
     &END MGRID
+    &PRINT
+      &IAO_ANALYSIS
+        ATOMIC_CHARGES
+        EPS_OCC 0.0
+        EPS_SVD 0.0
+        &BOND_ORBITALS
+          &CHARGE_CENTER
+            POSITION_OPERATOR_BERRY F
+          &END CHARGE_CENTER
+          &IBO_CUBES
+            STATE_LIST 1
+            STRIDE 3 3 3
+          &END IBO_CUBES
+          &IBO_MOLDEN
+          &END IBO_MOLDEN
+        &END BOND_ORBITALS
+        &IAO_CUBES ON
+          ATOM_LIST 2 3
+          STRIDE 3 3 3
+        &END IAO_CUBES
+        &IAO_MOLDEN ON
+        &END IAO_MOLDEN
+        &ONE_CENTER_EXPANSION
+          LMAX 5
+        &END ONE_CENTER_EXPANSION
+      &END IAO_ANALYSIS
+    &END PRINT
     &QS
       EPS_DEFAULT 1.E-12
     &END QS
     &SCF
       EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC
-    &END
+    &END SCF
     &XC
-       &XC_FUNCTIONAL PADE
-       &END
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-       &IAO_ANALYSIS
-           EPS_SVD 0.0
-           EPS_OCC 0.0
-           ATOMIC_CHARGES
-           &IAO_MOLDEN ON
-           &END IAO_MOLDEN
-           &IAO_CUBES ON
-              STRIDE 3 3 3
-              ATOM_LIST 2 3
-           &END IAO_CUBES 
-           &ONE_CENTER_EXPANSION
-              LMAX 5
-           &END ONE_CENTER_EXPANSION
-           &BOND_ORBITALS
-               &CHARGE_CENTER
-                  POSITION_OPERATOR_BERRY  F
-               &END CHARGE_CENTER
-               &IBO_MOLDEN
-               &END IBO_MOLDEN
-               &IBO_CUBES
-                   STRIDE 3 3 3
-                   STATE_LIST 1
-               &END IBO_CUBES
-            &END BOND_ORBITALS
-       &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-  O         0.094933   -0.000368    0.895642
-  C        -0.031077   -0.000121   -0.307326
-  H        -0.090437    0.947608   -0.895642
-  H        -0.094933   -0.947608   -0.895562
+      O         0.094933   -0.000368    0.895642
+      C        -0.031077   -0.000121   -0.307326
+      H        -0.090437    0.947608   -0.895642
+      H        -0.094933   -0.947608   -0.895562
     &END COORD
-    &TOPOLOGY
-     &CENTER_COORDINATES
-     &END
-    &END
     &KIND H
       BASIS_SET DZVP-GTH-PADE
       BASIS_SET MIN min-pbe
@@ -74,10 +76,9 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT IAO
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

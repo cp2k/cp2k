@@ -1,22 +1,36 @@
+&GLOBAL
+  PROJECT extern_pot-test-03
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 85.0
+    TIMESTEP 1.
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &EXTERNAL_POTENTIAL
     FUNCTION sin(0.5*X)+cos(2.0*Y)-0.03*Z
-  &END
+  &END EXTERNAL_POTENTIAL
   &MM
     &FORCEFIELD
-      &NONBONDED
-        &LENNARD-JONES
-          atoms Ar Ar
-          EPSILON 119.8
-          SIGMA 3.405
-          RCUT 8.4
-        &END LENNARD-JONES
-      &END NONBONDED
       &CHARGE
         ATOM Ar
         CHARGE 0.0
       &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 8.4
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -29,23 +43,11 @@
       ABC 10.0 10.0 10.0
     &END CELL
     &COORD
-   Ar 2.5 2.5 2.0
-   Ar 5.0 5.0 5.0
-   Ar 4.0 2.0 8.0
+      Ar 2.5 2.5 2.0
+      Ar 5.0 5.0 5.0
+      Ar 4.0 2.0 8.0
     &END COORD
     &TOPOLOGY
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT extern_pot-test-03
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 1.
-    TEMPERATURE 85.0
-  &END MD
-&END MOTION

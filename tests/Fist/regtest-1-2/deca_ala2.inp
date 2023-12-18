@@ -1,15 +1,34 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT deca_ala2
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME =deca_ala2.xyz
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
 
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/deca_ala.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/deca_ala.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
@@ -20,29 +39,10 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      CONN_FILE_NAME ../sample_psf/deca_ala2.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
+      CONN_FILE_NAME ../sample_psf/deca_ala2.psf
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-
-  PROJECT deca_ala2
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-  &PRINT
-    &TRAJECTORY
-      FILENAME =deca_ala2.xyz
-    &END
-  &END
-&END MOTION

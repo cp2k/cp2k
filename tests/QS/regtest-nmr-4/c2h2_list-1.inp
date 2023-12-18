@@ -1,8 +1,9 @@
 &GLOBAL
-  PROJECT c2h2_list-1
   PRINT_LEVEL LOW
+  PROJECT c2h2_list-1
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
@@ -24,27 +25,33 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       &LOCALIZE
-         MAX_ITER 10
-       &END
-       PRECONDITIONER FULL_ALL
-       MAX_ITER 5
-       &CURRENT
-          GAUGE R_AND_STEP_FUNCTION
-       &END CURRENT
-       &NMR
-          &PRINT
-            &SHIELDING_TENSOR
-              ATOMS_LIST 1 4
-            &END SHIELDING_TENSOR
-          &END PRINT
-       &END
-    &END
-  &END
+      MAX_ITER 5
+      PRECONDITIONER FULL_ALL
+      &CURRENT
+        GAUGE R_AND_STEP_FUNCTION
+      &END CURRENT
+      &LOCALIZE
+        MAX_ITER 10
+      &END LOCALIZE
+      &NMR
+        &PRINT
+          &SHIELDING_TENSOR
+            ATOMS_LIST 1 4
+          &END SHIELDING_TENSOR
+        &END PRINT
+      &END NMR
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
+    &COORD
+      C   0.000000    0.000000   -0.602850
+      C   0.000000    0.000000    0.602865
+      H   0.000000    0.000000    1.669814
+      H   0.000000    0.000000   -1.669906
+    &END COORD
     &KIND H
       BASIS_SET 6-31G*
       POTENTIAL ALL
@@ -53,11 +60,5 @@
       BASIS_SET 6-31G*
       POTENTIAL ALL
     &END KIND
-    &COORD
- C   0.000000    0.000000   -0.602850
- C   0.000000    0.000000    0.602865
- H   0.000000    0.000000    1.669814
- H   0.000000    0.000000   -1.669906
-    &END COORD
   &END SUBSYS
 &END FORCE_EVAL

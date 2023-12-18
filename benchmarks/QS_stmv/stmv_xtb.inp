@@ -1,95 +1,97 @@
+&GLOBAL
+  CALLGRAPH MASTER
+  EXTENDED_FFT_LENGTHS
+  PRINT_LEVEL MEDIUM
+  PROJECT STMV
+  RUN_TYPE GEO_OPT
+  SAVE_MEM
+  #  TRACE
+  #  TRACE_MASTER
+  #  TRACE_MAX 2000
+  &TIMINGS
+    TIME_MPI
+  &END TIMINGS
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    ! use more iterations for added realism.
+    MAX_ITER 1
+    OPTIMIZER LBFGS
+    &LBFGS
+      TRUST_RADIUS 0.05
+    &END LBFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    &LS_SCF
+      EPS_FILTER 1E-7
+      EPS_SCF 1E-7
+      EXTRAPOLATION_ORDER 1
+      MATRIX_CLUSTER_TYPE MOLECULAR
+      MAX_ITER_LANCZOS 128
+      MAX_SCF 30
+      MIXING_FRACTION 0.10
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES .FALSE.
+      S_PRECONDITIONER NONE
+      &CURVY_STEPS
+      &END CURVY_STEPS
+    &END LS_SCF
+    &POISSON
+      &EWALD
+        ALPHA 0.35
+        EWALD_TYPE SPME
+        O_SPLINE 5
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &MULLIKEN ON
+        FILENAME mulliken
+      &END MULLIKEN
+    &END PRINT
     &QS
       LS_SCF
       METHOD xTB
-      &xTB
-        DO_EWALD           T
-      &END xTB
       &DISTRIBUTION
         BASIC_OPTIMIZATION .FALSE.
         BASIC_SPATIAL_OPTIMIZATION .TRUE.
-      &END
+      &END DISTRIBUTION
+      &XTB
+        DO_EWALD T
+      &END XTB
     &END QS
-    &PRINT
-      &MULLIKEN ON
-         FILENAME mulliken
-      &END
-    &END
-    &POISSON
-      &EWALD
-       EWALD_TYPE SPME
-       ALPHA 0.35
-       O_SPLINE 5
-      &END EWALD
-    &END POISSON
-    &LS_SCF
-      EPS_SCF  1E-7
-      EPS_FILTER 1E-7
-      MAX_SCF 30
-      PURIFICATION_METHOD TRS4
-      MIXING_FRACTION 0.10
-      REPORT_ALL_SPARSITIES .FALSE.
-      MAX_ITER_LANCZOS 128
-      EXTRAPOLATION_ORDER 1
-      MATRIX_CLUSTER_TYPE MOLECULAR
-      &CURVY_STEPS
-      &END
-      S_PRECONDITIONER NONE
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 216.832 216.832 216.832
     &END CELL
-!
-! coord_mol is directly derived from online available stmv.psf/stmv.pdb
-! it declares each water molecule a molecule, whereas each atom of the virus is an atom as well.
-!
+    !
+    ! coord_mol is directly derived from online available stmv.psf/stmv.pdb
+    ! it declares each water molecule a molecule, whereas each atom of the virus is an atom as well.
+    !
     &COORD
 @INCLUDE 'coord_mol'
     &END COORD
+    ! &TOPOLOGY
+    !   CONN_FILE ./stmv.psf
+    !   CONNECTIVITY PSF
+    !   COORD_FILE_NAME ./stmv.pdb
+    !   COORDINATE PDB
+    !   PARA_RES .FALSE.
+    ! &END TOPOLOGY
+    &PRINT
+      &ATOMIC_COORDINATES OFF
+      &END ATOMIC_COORDINATES
+      &MOLECULES OFF
+      &END MOLECULES
+    &END PRINT
     &TOPOLOGY
       CONNECTIVITY USER
       PARA_RES .FALSE.
     &END TOPOLOGY
-   ! &TOPOLOGY
-   !   CONN_FILE ./stmv.psf
-   !   CONNECTIVITY PSF
-   !   COORD_FILE_NAME ./stmv.pdb
-   !   COORDINATE PDB
-   !   PARA_RES .FALSE.
-   ! &END TOPOLOGY
-    &PRINT
-      &ATOMIC_COORDINATES OFF
-      &END
-      &MOLECULES OFF
-      &END
-    &END
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT STMV
-  RUN_TYPE GEO_OPT
-  PRINT_LEVEL MEDIUM
-  EXTENDED_FFT_LENGTHS
-  SAVE_MEM
-#  TRACE
-#  TRACE_MASTER
-#  TRACE_MAX 2000
-  &TIMINGS
-    TIME_MPI
-  &END
-  CALLGRAPH MASTER
-&END GLOBAL
-&MOTION
-   &GEO_OPT
-      &LBFGS
-        TRUST_RADIUS 0.05
-      &END
-      OPTIMIZER LBFGS
-      ! use more iterations for added realism.
-      MAX_ITER  1
-   &END
-&END

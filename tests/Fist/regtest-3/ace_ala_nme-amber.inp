@@ -1,62 +1,64 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ace_ala_nme-amber
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1
+  &END GEO_OPT
+  &PRINT
+    &RESTART OFF
+    &END RESTART
+    &TRAJECTORY
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_top/ace_ala_nme.top
-      parmtype AMBER
+      PARMTYPE AMBER
+      PARM_FILE_NAME ../sample_top/ace_ala_nme.top
       &SPLINE
         EMAX_SPLINE 1.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
     &PRINT
       &FF_INFO
-      &END
+      &END FF_INFO
       &FF_PARAMETER_FILE
-      &END
-    &END
+      &END FF_PARAMETER_FILE
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
       ABC 50.0 50.0 50.0
     &END CELL
-    &TOPOLOGY
-      CHARGE_BETA
-      CONN_FILE_NAME ../sample_top/ace_ala_nme.top
-      CONNECTIVITY AMBER
-      COORD_FILE_NAME ../sample_crd/ace_ala_nme.crd
-      COORDINATE CRD
-      &DUMP_PDB
-      &END
-      &DUMP_PSF
-      &END
-    &END TOPOLOGY
     &PRINT
       &TOPOLOGY_INFO
         AMBER_INFO
-      &END
-    &END
+      &END TOPOLOGY_INFO
+    &END PRINT
+    &TOPOLOGY
+      CHARGE_BETA
+      CONNECTIVITY AMBER
+      CONN_FILE_NAME ../sample_top/ace_ala_nme.top
+      COORDINATE CRD
+      COORD_FILE_NAME ../sample_crd/ace_ala_nme.crd
+      &DUMP_PDB
+      &END DUMP_PDB
+      &DUMP_PSF
+      &END DUMP_PSF
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ace_ala_nme-amber
-  PRINT_LEVEL LOW
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER 1
-  &END
-  &PRINT
-    &TRAJECTORY
-    &END
-    &RESTART OFF
-    &END
-  &END
-&END MOTION

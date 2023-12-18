@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT s2
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
 #CPQA INCLUDE DFTB/nonscc/nonscc_parameter
 #CPQA INCLUDE uff_table
 #CPQA INCLUDE DFTB/nonscc/ss
@@ -6,21 +12,21 @@
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    F
-        ORTHOGONAL_BASIS   F
-        DO_EWALD           F
+        DO_EWALD F
+        ORTHOGONAL_BASIS F
+        SELF_CONSISTENT F
         &PARAMETER
-          PARAM_FILE_PATH  DFTB/nonscc
-          SK_FILE   S S   ss
+          PARAM_FILE_PATH DFTB/nonscc
+          SK_FILE S S ss
         &END PARAMETER
       &END DFTB
     &END QS
     &SCF
       SCF_GUESS NONE
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   1.
-      &END
+        ALPHA 1.
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
   &END DFT
   &SUBSYS
@@ -29,13 +35,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     S     0.000000    0.000000    0.000000
-     S     1.200000    0.000000    0.000000
+      S     0.000000    0.000000    0.000000
+      S     1.200000    0.000000    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT s2
-  RUN_TYPE GEO_OPT
-  PRINT_LEVEL HIGH
-&END GLOBAL

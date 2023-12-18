@@ -1,58 +1,60 @@
+&GLOBAL
+  PROJECT H2-0
+  RUN_TYPE DEBUG
+  #  RUN_TYPE ENERGY
+&END GLOBAL
+
+&DEBUG
+&END DEBUG
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     CHARGE 0
+    &POISSON
+      &EWALD
+        ALPHA .5
+        EWALD_TYPE ewald
+        GMAX 21
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END MULTIPOLES
+      &END EWALD
+    &END POISSON
     &QS
       METHOD MNDO
       &SE
         PERIODIC EWALD
         &COULOMB
-          CUTOFF   [angstrom] 15.0
-          RC_RANGE             0.001
-        &END
+          CUTOFF [angstrom] 15.0
+          RC_RANGE 0.001
+        &END COULOMB
         &EXCHANGE
+          RC_RANGE 0.001
           RC_TAPER [angstrom] 15.0
-          RC_RANGE             0.001
-        &END
+        &END EXCHANGE
         &PRINT
           &EWALD_INFO
-          &END
-        &END
-      &END
+          &END EWALD_INFO
+        &END PRINT
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC
       &PRINT
-         &RESTART OFF
-         &END
-      &END
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
-    &POISSON
-      &EWALD
-        &MULTIPOLES
-          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
-        &END
-        EWALD_TYPE ewald
-        ALPHA  .5
-        GMAX   21
-      &END EWALD
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 15.0 15.0 15.0
     &END CELL
     &COORD
-    H   0.000000   0.000000   0.000000
-    H   0.000000   0.000000   1.000000
+      H   0.000000   0.000000   0.000000
+      H   0.000000   0.000000   1.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2-0
-  RUN_TYPE DEBUG
-#  RUN_TYPE ENERGY
-&END GLOBAL
-&DEBUG
-&END

@@ -1,10 +1,35 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
+  WALLTIME 10
+  #TRACE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &SPLINE
-        EMAX_SPLINE 1000000.0
-      &END
+      &BEND
+        ATOMS H O H
+        K 0.05
+        THETA0 1.82422
+      &END BEND
+      &BEND
+        ATOMS H N H
+        K 0.05
+        THETA0 1.82422
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.05
+        R0 0.97572
+      &END BOND
+      &BOND
+        ATOMS N H
+        K 0.05
+        R0 0.97572
+      &END BOND
       &CHARGE
         ATOM O
         CHARGE -0.8476
@@ -17,70 +42,53 @@
         ATOM N
         CHARGE -1.0
       &END CHARGE
-      &BOND
-        ATOMS O  H
-        K  0.05
-        R0 0.97572
-      &END BOND
-      &BEND
-        ATOMS H  O  H
-        K  0.05
-        THETA0 1.82422
-      &END BEND
-      &BOND
-        ATOMS N  H
-        K  0.05
-        R0 0.97572
-      &END BOND
-      &BEND
-        ATOMS H  N  H
-        K  0.05
-        THETA0 1.82422
-      &END BEND
       &NONBONDED
         &LENNARD-JONES
-      ATOMS O O
+          ATOMS O O
           EPSILON 78.19580
-          SIGMA 3.1655
           RCUT 5.0
+          SIGMA 3.1655
         &END LENNARD-JONES
         &LENNARD-JONES
-      ATOMS O H
+          ATOMS O H
           EPSILON 0.0
-          SIGMA 3.1655
           RCUT 5.0
+          SIGMA 3.1655
         &END LENNARD-JONES
         &LENNARD-JONES
-      ATOMS H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.1655
           RCUT 5.0
+          SIGMA 3.1655
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS N N
           EPSILON 78.19580
-          SIGMA 3.1655
           RCUT 5.0
+          SIGMA 3.1655
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS N H
           EPSILON 0.0
-          SIGMA 3.1655
           RCUT 5.0
+          SIGMA 3.1655
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS O N
           EPSILON 0.0
-          SIGMA 3.1655
           RCUT 5.0
+          SIGMA 3.1655
         &END LENNARD-JONES
       &END NONBONDED
+      &SPLINE
+        EMAX_SPLINE 1000000.0
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .40
         EWALD_ACCURACY 1.0E-2
+        EWALD_TYPE ewald
         GMAX 11
       &END EWALD
     &END POISSON
@@ -90,35 +98,28 @@
       ABC 13.5 13.5 13.5
     &END CELL
     &COORD
- O           2.00000000          0.00001933         -0.11169231 H2O
- H           2.00000000         -0.74776929          0.49834558 H2O
- H           2.00000000          0.74773778          0.49844487 H2O
- O          -0.00000000          0.00001933         -0.11169231 H2O
- H          -0.00000000         -0.74776929          0.49834558 H2O
- H          -0.00000000          0.74773778          0.49844487 H2O
- N           0.00000000          0.02581810          4.91169188 NH4
- H           0.00000000          1.02507555          5.02787619 NH4
- H           0.86459891         -0.47494074          5.02716690 NH4
- H          -0.86459891         -0.47494074          5.02716690 NH4
- O          -2.00000000          0.00001933         -0.11169231 H2O
- H          -2.00000000         -0.74776929          0.49834558 H2O
- H          -2.00000000          0.74773778          0.49844487 H2O
+      O           2.00000000          0.00001933         -0.11169231 H2O
+      H           2.00000000         -0.74776929          0.49834558 H2O
+      H           2.00000000          0.74773778          0.49844487 H2O
+      O          -0.00000000          0.00001933         -0.11169231 H2O
+      H          -0.00000000         -0.74776929          0.49834558 H2O
+      H          -0.00000000          0.74773778          0.49844487 H2O
+      N           0.00000000          0.02581810          4.91169188 NH4
+      H           0.00000000          1.02507555          5.02787619 NH4
+      H           0.86459891         -0.47494074          5.02716690 NH4
+      H          -0.86459891         -0.47494074          5.02716690 NH4
+      O          -2.00000000          0.00001933         -0.11169231 H2O
+      H          -2.00000000         -0.74776929          0.49834558 H2O
+      H          -2.00000000          0.74773778          0.49844487 H2O
     &END COORD
-#    &TOPOLOGY
-#      CONNECTIVITY MOL_SET
-#      &MOL_SET
-#        &MOLECULE
-#          NMOL 7
-#          CONN_FILE_NAME topology_fist_WAT.psf
-#        &END
-#      &END
-#    &END
+    #    &TOPOLOGY
+    #      CONNECTIVITY MOL_SET
+    #      &MOL_SET
+    #        &MOLECULE
+    #          NMOL 7
+    #          CONN_FILE_NAME topology_fist_WAT.psf
+    #        &END
+    #      &END
+    #    &END
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_TMC
-  RUN_TYPE TMC
-  PRINT_LEVEL MEDIUM
-  WALLTIME 10
-  #TRACE
-&END GLOBAL

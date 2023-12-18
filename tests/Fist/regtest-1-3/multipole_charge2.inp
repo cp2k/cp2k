@@ -1,3 +1,8 @@
+&GLOBAL
+  PROJECT multipole_charge2
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 # Reference:
 # *******************************************************************************
 # INITIAL GSPACE ENERGY[hartree]   =                        0.380599574901700E-01
@@ -41,55 +46,51 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms O O
+          ATOMS O O
           EPSILON 0.0
+          RCUT 11.4
           SIGMA 3.166
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms O H
+          ATOMS O H
           EPSILON 0.0
+          RCUT 11.4
           SIGMA 3.6705
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.30523
           RCUT 11.4
+          SIGMA 3.30523
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
+        ALPHA .5
+        EWALD_TYPE ewald
+        GMAX 21
         &MULTIPOLES
           MAX_MULTIPOLE_EXPANSION QUADRUPOLE
-        &END
-        EWALD_TYPE ewald
-        ALPHA .5
-        GMAX 21
+        &END MULTIPOLES
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
     &END CELL
     &COORD
-    O                  -4.583   5.333   1.560   H2O
-    H                  -3.777   5.331   0.943   H2O
-    H                  -5.081   4.589   1.176   H2O
+      O                  -4.583   5.333   1.560   H2O
+      H                  -3.777   5.331   0.943   H2O
+      H                  -5.081   4.589   1.176   H2O
     &END COORD
     &TOPOLOGY
       CONNECTIVITY OFF
-    &END
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES
-    &END
-  &END
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT multipole_charge2
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

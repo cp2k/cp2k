@@ -1,65 +1,67 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    &DFT
-        BASIS_SET_FILE_NAME EMSL_BASIS_SETS
-        POTENTIAL_FILE_NAME POTENTIAL
-        AUTO_BASIS RI_HFX SMALL
-        SORT_BASIS EXP
-        &MGRID
-            CUTOFF 300
-            REL_CUTOFF 50
-        &END MGRID
-        &QS
-            METHOD GAPW
-        &END QS
-        &SCF
-            EPS_SCF 1.0E-7
-      IGNORE_CONVERGENCE_FAILURE
-            MAX_SCF 5 
-      SCF_GUESS ATOMIC
-            &OT ON
-                PRECONDITIONER FULL_ALL
-            &END
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL NONE
-            &END XC_FUNCTIONAL
-            &HF
-                &RI
-                   RI_FLAVOR RHO
-                   RI_METRIC IDENTITY
-                &END
-                &INTERACTION_POTENTIAL
-                    POTENTIAL_TYPE TRUNCATED
-                    CUTOFF_RADIUS 2.0
-                &END
-            &END
-        &END XC
-    &END DFT
-    &SUBSYS
-        &CELL
-            ABC 5.0 5.0 10.0
-        &END CELL
-        &COORD
-            Ne   0.000000    0.000000    0.000000
-            Ne   0.000000    0.000000    2.800000
-            Ne   0.000000    0.000000    4.000000
-            Ne   0.000000    0.000000    6.100000
-            Ne   0.000000    0.000000    8.900000
-        &END COORD
-        &KIND Ne
-            BASIS_SET 3-21Gx
-            POTENTIAL ALL
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT Ne-hfx-pbc-metric-rho
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+  PROJECT Ne-hfx-pbc-metric-rho
+  RUN_TYPE MD
 &END GLOBAL
+
 &MOTION
-    &MD
-      MAX_STEPS 1
-    &END
+  &MD
+    MAX_STEPS 1
+  &END MD
 &END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    AUTO_BASIS RI_HFX SMALL
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    SORT_BASIS EXP
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-7
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 5
+      SCF_GUESS ATOMIC
+      &OT ON
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+    &XC
+      &HF
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 2.0
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
+        &RI
+          RI_FLAVOR RHO
+          RI_METRIC IDENTITY
+        &END RI
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 10.0
+    &END CELL
+    &COORD
+      Ne   0.000000    0.000000    0.000000
+      Ne   0.000000    0.000000    2.800000
+      Ne   0.000000    0.000000    4.000000
+      Ne   0.000000    0.000000    6.100000
+      Ne   0.000000    0.000000    8.900000
+    &END COORD
+    &KIND Ne
+      BASIS_SET 3-21Gx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

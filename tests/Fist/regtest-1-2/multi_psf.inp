@@ -1,14 +1,28 @@
+&GLOBAL
+  PROJECT multi_psf
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/full_system.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/full_system.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 36
         O_SPLINE 6
       &END EWALD
@@ -16,39 +30,27 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC 34.2920000  34.0500000  34.4732000
+      ABC 34.2920000 34.0500000 34.4732000
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/full_system.pdb
-      COORDINATE pdb
-      CONNECTIVITY MOL_SET
-      &MOL_SET
-        &MOLECULE
-          NMOL 1
-          CONN_FILE_NAME ../sample_psf/solute1.psf
-        &END
-        &MOLECULE
-          NMOL 145
-          CONN_FILE_NAME ../sample_psf/solvent.psf
-        &END
-      &END
-    &END TOPOLOGY
     &PRINT
       &TOPOLOGY_INFO
-         PSF_INFO
-      &END
-    &END
+        PSF_INFO
+      &END TOPOLOGY_INFO
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY MOL_SET
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/full_system.pdb
+      &MOL_SET
+        &MOLECULE
+          CONN_FILE_NAME ../sample_psf/solute1.psf
+          NMOL 1
+        &END MOLECULE
+        &MOLECULE
+          CONN_FILE_NAME ../sample_psf/solvent.psf
+          NMOL 145
+        &END MOLECULE
+      &END MOL_SET
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT multi_psf
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

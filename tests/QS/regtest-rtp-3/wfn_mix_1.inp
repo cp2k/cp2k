@@ -1,5 +1,10 @@
-#CPQA DEPENDS wfn_mix_0.inp
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_wfn_mix0
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
 
+#CPQA DEPENDS wfn_mix_0.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -8,6 +13,33 @@
     &MGRID
       CUTOFF 280
     &END MGRID
+    &PRINT
+      &MO_CUBES
+        NHOMO 4
+        NLUMO 4
+        WRITE_CUBE .FALSE.
+      &END MO_CUBES
+      &WFN_MIX
+        &UPDATE
+          ORIG_MO_INDEX 1
+          ORIG_SCALE .70710678118654752440
+          ORIG_SPIN_INDEX ALPHA
+          ORIG_TYPE VIRTUAL
+          RESULT_MO_INDEX 1
+          RESULT_SCALE 0.0
+          RESULT_SPIN_INDEX ALPHA
+        &END UPDATE
+        &UPDATE
+          ORIG_MO_INDEX 2
+          ORIG_SCALE .70710678118654752440
+          ORIG_SPIN_INDEX ALPHA
+          ORIG_TYPE VIRTUAL
+          RESULT_MO_INDEX 1
+          RESULT_SCALE 1.0
+          RESULT_SPIN_INDEX ALPHA
+        &END UPDATE
+      &END WFN_MIX
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
     &END QS
@@ -17,53 +49,22 @@
       MAX_SCF 1
       SCF_GUESS RESTART
       &DIAGONALIZATION
-         ALGORITHM STANDARD
+        ALGORITHM STANDARD
       &END DIAGONALIZATION
     &END SCF
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO_CUBES
-          NHOMO 4
-          NLUMO 4
-          WRITE_CUBE .FALSE.
-      &END
-      &WFN_MIX
-       &UPDATE
-           RESULT_MO_INDEX 1
-           RESULT_SPIN_INDEX ALPHA
-           RESULT_SCALE 0.0
-
-           ORIG_MO_INDEX 1
-           ORIG_SPIN_INDEX ALPHA
-           ORIG_SCALE .70710678118654752440
-           
-           ORIG_TYPE VIRTUAL
-       &END
-       &UPDATE
-           RESULT_MO_INDEX 1
-           RESULT_SPIN_INDEX ALPHA
-           RESULT_SCALE 1.0
-
-           ORIG_MO_INDEX 2
-           ORIG_SPIN_INDEX ALPHA
-           ORIG_SCALE .70710678118654752440
-
-           ORIG_TYPE VIRTUAL
-       &END
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-BLYP
@@ -75,8 +76,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_wfn_mix0
-  RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

@@ -1,22 +1,38 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT arginine0
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TEMP_TOL 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/arginine.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/arginine.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
     &PRINT
       &FF_INFO
         SPLINE_INFO
-      &END
-    &END
+      &END FF_INFO
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
@@ -24,26 +40,12 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME ../sample_pdb/arginine.pdb
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/arginine.pdb
       &DUMP_PDB
-      &END
+      &END DUMP_PDB
       &DUMP_PSF
-      &END
+      &END DUMP_PSF
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT arginine0
-  PRINT_LEVEL LOW
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-    TEMP_TOL 298
-  &END MD
-&END MOTION

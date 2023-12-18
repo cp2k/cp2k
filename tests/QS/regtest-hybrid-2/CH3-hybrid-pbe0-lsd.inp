@@ -1,20 +1,26 @@
+&GLOBAL
+  #  TRACE
+  PRINT_LEVEL MEDIUM
+  PROJECT CH3-hybrid-pbe0-lsd
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 250
       REL_CUTOFF 50
     &END MGRID
-    &QS
-      METHOD GAPW
-    &END QS
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
     &SCF
       EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
@@ -22,21 +28,21 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-       &PBE
-         SCALE_X 0.75
-         SCALE_C 1.0
-       &END PBE
-      &END XC_FUNCTIONAL
       &HF
+        FRACTION 0.25
+        &MEMORY
+          MAX_MEMORY 10
+        &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-16
-        &END
-        &MEMORY
-          MAX_MEMORY  10
-        &END
-        FRACTION 0.25
-      &END
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_C 1.0
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
@@ -45,10 +51,10 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    C   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
-    H   0.757136    0.520545    0.000000
+      C   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+      H   0.757136    0.520545    0.000000
     &END COORD
     &KIND H
       BASIS_SET 6-31Gxx
@@ -60,8 +66,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT CH3-hybrid-pbe0-lsd
-#  TRACE
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

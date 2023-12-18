@@ -1,71 +1,65 @@
 &GLOBAL
+  PREFERRED_DIAG_LIBRARY SCALAPACK
+  PRINT_LEVEL MEDIUM
   PROJECT RI-HFX_H2O-32
   RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL MEDIUM
-  PREFERRED_DIAG_LIBRARY SCALAPACK
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
+    AUTO_BASIS RI_HFX SMALL
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
-    AUTO_BASIS RI_HFX SMALL
     SORT_BASIS EXP  !sorts the basis element by exponent for maximum sparsity (probably negligible in such small systems)
-
+    &MGRID
+      CUTOFF 400
+      NGRIDS 5
+      REL_CUTOFF 50
+    &END MGRID
     &QS
       METHOD GAPW
     &END QS
-
-    &MGRID
-      CUTOFF 400
-      REL_CUTOFF 50
-      NGRIDS 5
-    &END MGRID
-
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-6
-      MAX_SCF 3 !16
-
+      MAX_SCF 3  !16
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
       &OUTER_SCF
         EPS_SCF 1.0E-6
-        MAX_SCF 1 !5
+        MAX_SCF 1  !5
       &END OUTER_SCF
-
-      &OT
-         MINIMIZER DIIS
-         PRECONDITIONER FULL_ALL
-      &END OT
-
       &PRINT
         &RESTART OFF
         &END RESTART
       &END PRINT
     &END SCF
-
     &XC
+      &HF
+        FRACTION 0.25
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 4.5
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
+        &RI
+          MEMORY_CUT 3  !Memory cut: controls the batching of tensor contractions. With this default,
+          MIN_BLOCK_SIZE 4  !This is the default block size. Smaller blocks help with sparsity.
+          RI_FLAVOR RHO  !Using the RHO flavor, which involve more sparse contractions than the MO flavor
+          RI_METRIC IDENTITY  !Use the overlap as RI metric for maximum sparsity
+        &END RI
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ_FORCES 1.0E-7
+        &END SCREENING
+      &END HF
       &XC_FUNCTIONAL PBE
         &PBE
           SCALE_X 0.75
         &END PBE
       &END XC_FUNCTIONAL
-      &HF
-        FRACTION 0.25
-        &SCREENING
-          EPS_SCHWARZ 1.0E-10
-          EPS_SCHWARZ_FORCES 1.0E-7
-        &END SCREENING
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 4.5
-        &END INTERACTION_POTENTIAL
-        &RI
-          RI_FLAVOR RHO         !Using the RHO flavor, which involve more sparse contractions than the MO flavor
-          RI_METRIC IDENTITY    !Use the overlap as RI metric for maximum sparsity
-          MIN_BLOCK_SIZE 4      !This is the default block size. Smaller blocks help with sparsity.
-          MEMORY_CUT 3          !Memory cut: controls the batching of tensor contractions. With this default,
-        &END RI                 !at most 1/9 of the sparser tensors are sent to the GPU at a given time, 
-      &END HF                   !and 1/27 of the desner tensors.
     &END XC
   &END DFT
   &SUBSYS

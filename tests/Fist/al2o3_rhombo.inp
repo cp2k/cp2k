@@ -1,3 +1,20 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT al2o3_rhombo
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+&END DEBUG
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2000
+    TEMPERATURE 298.0
+    TIMESTEP 3.
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD FIST
@@ -13,22 +30,22 @@
       &END CHARGE
       &NONBONDED
         &WILLIAMS
-          atoms AL AL
           A 2.518e14
+          ATOMS AL AL
           B 10.925
           C 20.13e5
           RCUT 4.0
         &END WILLIAMS
         &WILLIAMS
-          atoms AL O
           A 128.7e8
+          ATOMS AL O
           B 8.35
           C .005e6
           RCUT 4.0
         &END WILLIAMS
         &WILLIAMS
-          atoms O O
           A 1.136e7
+          ATOMS O O
           B 2.76
           C 2.023e6
           RCUT 4.0
@@ -37,8 +54,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .368
+        EWALD_TYPE ewald
         GMAX 21
       &END EWALD
     &END POISSON
@@ -50,32 +67,16 @@
       C 2.92661 1.53001 3.92306
     &END CELL
     &COORD
-   AL   3.865389   2.020786   1.380917
-   AL  12.606441   6.590518   4.503673
-   AL   7.115831   3.720083   2.542143
-   AL   9.355999   4.891220   3.342447
-    O   6.345540   4.357553   0.980765
-    O   5.671915   3.785567   3.703369
-    O   7.199680   1.903400   2.181221
-    O   7.562290   5.594175   2.942295
-    O   8.235915   3.485312   4.142751
-    O   8.909540   3.837469   1.741839
+      AL   3.865389   2.020786   1.380917
+      AL  12.606441   6.590518   4.503673
+      AL   7.115831   3.720083   2.542143
+      AL   9.355999   4.891220   3.342447
+      O   6.345540   4.357553   0.980765
+      O   5.671915   3.785567   3.703369
+      O   7.199680   1.903400   2.181221
+      O   7.562290   5.594175   2.942295
+      O   8.235915   3.485312   4.142751
+      O   8.909540   3.837469   1.741839
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL MEDIUM
-
-  PROJECT al2o3_rhombo
-  RUN_TYPE DEBUG
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 2000
-    TIMESTEP 3.
-    TEMPERATURE 298.0
-  &END MD
-&END MOTION
-&DEBUG
-&END

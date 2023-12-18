@@ -1,13 +1,14 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT H2O_lda_libxc_tddfpt-t_uks
   RUN_TYPE ELECTRONIC_SPECTRA
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    EXCITATIONS tddfpt
     BASIS_SET_FILE_NAME BASIS_SET
+    EXCITATIONS tddfpt
     POTENTIAL_FILE_NAME POTENTIAL
     UKS
     &MGRID
@@ -25,26 +26,26 @@
       METHOD DAVIDSON
       NEV 3
       REORTHO 2
-      RES_ETYPE TRIPLETS
       RESTARTS 2
+      RES_ETYPE TRIPLETS
       &XC
         &XC_FUNCTIONAL
-          &LDA_X
-          &END LDA_X
           &LDA_C_VWN
           &END LDA_C_VWN
+          &LDA_X
+          &END LDA_X
         &END XC_FUNCTIONAL
         &XC_GRID
-         XC_DERIV SPLINE2_SMOOTH
+          XC_DERIV SPLINE2_SMOOTH
         &END XC_GRID
       &END XC
     &END TDDFPT
     &XC
       &XC_FUNCTIONAL
-        &LDA_X
-        &END LDA_X
         &LDA_C_VWN
         &END LDA_C_VWN
+        &LDA_X
+        &END LDA_X
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -53,9 +54,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE

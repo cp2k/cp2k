@@ -1,12 +1,65 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT nh3_dist
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      MOLECULE 1
+      TARGET 1.9275
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 2
+      MOLECULE 1
+      TARGET 1.9275
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 3
+      MOLECULE 1
+      TARGET 1.9275
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 4
+      MOLECULE 1
+      TARGET 3.1483
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 5
+      MOLECULE 1
+      TARGET 3.1483
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 6
+      MOLECULE 1
+      TARGET 3.1483
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVT
+    STEPS 5
+    TEMPERATURE 298
+    TIMESTEP 2.5
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 1
+        MTS 2
+        TIMECON 500
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &spline
-       rcut_nb 6.9
-      &end
-      parm_file_name ../sample_pot/charmm.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/charmm.pot
       &CHARGE
         ATOM NH3
         CHARGE -1.14
@@ -15,11 +68,14 @@
         ATOM HC
         CHARGE 0.38
       &END CHARGE
+      &SPLINE
+        RCUT_NB 6.9
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .5
+        EWALD_TYPE ewald
         GMAX 21
       &END EWALD
     &END POISSON
@@ -59,62 +115,8 @@
       &END DISTANCE
     &END COLVAR
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/NH3.pdb
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/NH3.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT nh3_dist
-  PRINT_LEVEL LOW
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET 1.9275
-      MOLECULE 1
-      COLVAR 1
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 1.9275
-      MOLECULE 1
-      COLVAR 2
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 1.9275
-      MOLECULE 1
-      COLVAR 3
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 3.1483
-      MOLECULE 1
-      COLVAR 4
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 3.1483
-      MOLECULE 1
-      COLVAR 5
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 3.1483
-      MOLECULE 1
-      COLVAR 6
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVT
-    STEPS 5
-    TIMESTEP 2.5
-    TEMPERATURE 298
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 1
-        YOSHIDA 3
-        TIMECON 500
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-&END MOTION

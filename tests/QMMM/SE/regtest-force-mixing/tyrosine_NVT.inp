@@ -4,10 +4,8 @@
 # @SET QS_METHOD DFT
 # USER set the DFT functional, e.g. BLYP or PBE
 @SET DFT_FUNCTIONAL BLYP
-
 &FORCE_EVAL
   METHOD QMMM
-
 @IF ${QS_METHOD} == SE
   &DFT
     CHARGE -1
@@ -17,22 +15,21 @@
       &END SE
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
+      SCF_GUESS ATOMIC
       &PRINT
-       &RESTART off
-       &END RESTART
+        &RESTART off
+        &END RESTART
       &END PRINT
     &END SCF
   &END DFT
 @ENDIF
-
 @IF ${QS_METHOD} == DFT
   &DFT
-    WFN_RESTART_FILE_NAME wfn.restart.protonated
-    CHARGE -1
     BASIS_SET_FILE_NAME BASIS_SET
+    CHARGE -1
     POTENTIAL_FILE_NAME POTENTIAL
+    WFN_RESTART_FILE_NAME wfn.restart.protonated
     &MGRID
       COMMENSURATE
       CUTOFF 280.0
@@ -43,38 +40,31 @@
       PERIODIC XYZ
       POISSON_SOLVER PERIODIC
       &EWALD
-        EWALD_TYPE EWALD
-        EWALD_ACCURACY 1.E-6
         ALPHA 0.35
+        EWALD_ACCURACY 1.E-6
+        EWALD_TYPE EWALD
         GMAX 53 61 67
       &END EWALD
     &END POISSON
     &QS
+      EPS_DEFAULT 1.0E-12
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 1
-      EPS_DEFAULT 1.0E-12
     &END QS
     &SCF
-      SCF_GUESS restart
       EPS_SCF 1.0E-6
       MAX_SCF 20
-      &OUTER_SCF
-         EPS_SCF 1.0E-6
-         MAX_SCF 100
-      &END
+      SCF_GUESS restart
       &OT
-         MINIMIZER CG
-         PRECONDITIONER FULL_ALL
+        MINIMIZER CG
+        PRECONDITIONER FULL_ALL
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 100
+      &END OUTER_SCF
     &END SCF
     &XC
-      &XC_FUNCTIONAL ${DFT_FUNCTIONAL}
-      &END XC_FUNCTIONAL
-      &XC_GRID
-        # USE_FINER_GRID
-        XC_DERIV NN10_SMOOTH
-        XC_SMOOTH_RHO NN10
-      &END XC_GRID
       &VDW_POTENTIAL
         POTENTIAL_TYPE PAIR_POTENTIAL
         &PAIR_POTENTIAL
@@ -82,16 +72,22 @@
           TYPE DFTD2
         &END PAIR_POTENTIAL
       &END VDW_POTENTIAL
+      &XC_FUNCTIONAL ${DFT_FUNCTIONAL}
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        # USE_FINER_GRID
+        XC_DERIV NN10_SMOOTH
+        XC_SMOOTH_RHO NN10
+      &END XC_GRID
     &END XC
-#    &PRINT
-#      &MULLIKEN
-#   FILENAME qmcharges
-#   COMMON_ITERATION_LEVELS 0
-#      &END MULLIKEN
-#    &END PRINT
+    #    &PRINT
+    #      &MULLIKEN
+    #   FILENAME qmcharges
+    #   COMMON_ITERATION_LEVELS 0
+    #      &END MULLIKEN
+    #    &END PRINT
   &END DFT
 @ENDIF
-
   &MM
     &FORCEFIELD
       # for LM AMBER params
@@ -105,108 +101,86 @@
       POISSON_SOLVER PERIODIC
 @ENDIF
       &EWALD
-        EWALD_TYPE SPME
-        EWALD_ACCURACY 1.E-6
         ALPHA 0.35
-  GMAX 53 61 67
+        EWALD_ACCURACY 1.E-6
+        EWALD_TYPE SPME
+        GMAX 53 61 67
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
-
-  &QM_KIND O
-   MM_INDEX 4
-   MM_INDEX 23
-  &END QM_KIND
-
-  &QM_KIND C
-   MM_INDEX 3
-  &END QM_KIND
-
-  &LINK
-   QM_INDEX 3
-   MM_INDEX 2
-  &END LINK
-
-  &FORCE_MIXING
-
-   MAX_N_QM 300
-
-   R_CORE 1.3 1.5
-   R_QM 3.0 3.5
-   R_BUF 3.0 3.5
-   QM_KIND_ELEMENT_MAPPING H H
-   QM_KIND_ELEMENT_MAPPING O O
-   QM_KIND_ELEMENT_MAPPING N N
-   QM_KIND_ELEMENT_MAPPING C C
-
-   EXTENDED_DELTA_CHARGE 0
-
-   ADAPTIVE_EXCLUDE_MOLECULES M1
-
-   &QM_NON_ADAPTIVE
-
-      &QM_KIND N
-         MM_INDEX 1
-      &END QM_KIND
-
-      &QM_KIND C
-         MM_INDEX 2
-      &END QM_KIND
-
-      &QM_KIND H
-         MM_INDEX 13
-         MM_INDEX 14
-         MM_INDEX 21
-      &END QM_KIND
-
-   &END QM_NON_ADAPTIVE
-
-   &BUFFER_NON_ADAPTIVE
-
-      &QM_KIND C
-         MM_INDEX 5
-
-         MM_INDEX 6
-         MM_INDEX 7
-         MM_INDEX 8
-         MM_INDEX 9
-         MM_INDEX 10
-         MM_INDEX 11
-      &END QM_KIND
-
-      &QM_KIND H
-         MM_INDEX 15
-         MM_INDEX 16
-
-         MM_INDEX 17
-         MM_INDEX 18
-         MM_INDEX 19
-         MM_INDEX 20
-      &END QM_KIND
-
-      &LINK
-         QM_INDEX 11
-         MM_INDEX 12
-      &END LINK
-
-   &END BUFFER_NON_ADAPTIVE
-
-     &END FORCE_MIXING
-
-     &CELL
-  # big enough for QM region atoms plus a bit
-        ABC 18.0 18.0 18.0
+    &QM_KIND O
+      MM_INDEX 4
+      MM_INDEX 23
+    &END QM_KIND
+    &QM_KIND C
+      MM_INDEX 3
+    &END QM_KIND
+    &LINK
+      MM_INDEX 2
+      QM_INDEX 3
+    &END LINK
+    &FORCE_MIXING
+      ADAPTIVE_EXCLUDE_MOLECULES M1
+      EXTENDED_DELTA_CHARGE 0
+      MAX_N_QM 300
+      QM_KIND_ELEMENT_MAPPING H H
+      QM_KIND_ELEMENT_MAPPING O O
+      QM_KIND_ELEMENT_MAPPING N N
+      QM_KIND_ELEMENT_MAPPING C C
+      R_BUF 3.0 3.5
+      R_CORE 1.3 1.5
+      R_QM 3.0 3.5
+      &BUFFER_NON_ADAPTIVE
+        &LINK
+          MM_INDEX 12
+          QM_INDEX 11
+        &END LINK
+        &QM_KIND C
+          MM_INDEX 5
+          MM_INDEX 6
+          MM_INDEX 7
+          MM_INDEX 8
+          MM_INDEX 9
+          MM_INDEX 10
+          MM_INDEX 11
+        &END QM_KIND
+        &QM_KIND H
+          MM_INDEX 15
+          MM_INDEX 16
+          MM_INDEX 17
+          MM_INDEX 18
+          MM_INDEX 19
+          MM_INDEX 20
+        &END QM_KIND
+      &END BUFFER_NON_ADAPTIVE
+      &QM_NON_ADAPTIVE
+        &QM_KIND N
+          MM_INDEX 1
+        &END QM_KIND
+        &QM_KIND C
+          MM_INDEX 2
+        &END QM_KIND
+        &QM_KIND H
+          MM_INDEX 13
+          MM_INDEX 14
+          MM_INDEX 21
+        &END QM_KIND
+      &END QM_NON_ADAPTIVE
+    &END FORCE_MIXING
+    &CELL
+      # big enough for QM region atoms plus a bit
+      ABC 18.0 18.0 18.0
 @IF ${QS_METHOD} == DFT
-  PERIODIC XYZ
+      PERIODIC XYZ
 @ENDIF
-     &END CELL
+    &END CELL
 @IF ${QS_METHOD} == SE
-# SE only supports COULOMB
+    # SE only supports COULOMB
     ECOUPL COULOMB
 @ENDIF
 @IF ${QS_METHOD} == DFT
-#GAUSS is from Laino 2005 using Blochl 1995, Gaussian expansion of the electrostatic potential
+    #GAUSS is from Laino 2005 using Blochl 1995, Gaussian expansion of the electrostatic potential
     ECOUPL GAUSS
 @ENDIF
     USE_GEEP_LIB 10
@@ -224,17 +198,9 @@
 @ENDIF
       ABC [angstrom] 32.82913000 32.82913000 32.82913000
     &END CELL
-    &TOPOLOGY
-      COORDINATE PDB
-      COORD_FILE_NAME ../sample_pdb/tyrosine_NVT.pdb
-      CONNECTIVITY PSF
-      CONN_FILE_NAME ../sample_psf/tyrosine_NVT.psf
-      &DUMP_PDB off
-      &END DUMP_PDB
-    &END TOPOLOGY
-#USER: BASIS_SET - double zeta in valence + polarization (DZVP)
-#USER: try to use basis functions consistent with POTENTIAL (e.g. GTH) and XC_FUNCTIONAL (e.g. BLYP)
-# for all
+    #USER: BASIS_SET - double zeta in valence + polarization (DZVP)
+    #USER: try to use basis functions consistent with POTENTIAL (e.g. GTH) and XC_FUNCTIONAL (e.g. BLYP)
+    # for all
     &KIND H
       BASIS_SET DZVP-GTH-${DFT_FUNCTIONAL}
       POTENTIAL GTH-${DFT_FUNCTIONAL}-q1
@@ -259,14 +225,20 @@
       BASIS_SET DZVP-GTH-${DFT_FUNCTIONAL}
       POTENTIAL GTH-${DFT_FUNCTIONAL}-q6
     &END KIND
-
     &KIND OX
       ELEMENT O
     &END KIND
     &KIND HX
       ELEMENT H
     &END KIND
-
+    &TOPOLOGY
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ../sample_psf/tyrosine_NVT.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/tyrosine_NVT.pdb
+      &DUMP_PDB off
+      &END DUMP_PDB
+    &END TOPOLOGY
     &VELOCITY
       0.0 0.0 0.0
       0.0 0.0 0.0
@@ -3934,59 +3906,16 @@
       0.0 0.0 0.0
       0.0 0.0 0.0
     &END VELOCITY
-
   &END SUBSYS
 &END FORCE_EVAL
 
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT tyrosine_NVT
   RUN_TYPE MD
-  PRINT_LEVEL LOW
 &END GLOBAL
 
 &MOTION
-  &PRINT
-    &FORCES off
-      FORMAT XYZ
-      &EACH
-        MD 1
-      &END EACH
-      COMMON_ITERATION_LEVELS 0
-    &END FORCES
-    &FORCE_MIXING_LABELS off
-      FORMAT XYZ
-      &EACH
-        MD 1
-      &END EACH
-      COMMON_ITERATION_LEVELS 0
-    &END FORCE_MIXING_LABELS
-    &RESTART off
-    &END RESTART
-    &TRAJECTORY off
-      FORMAT XYZ
-      PRINT_ATOM_KIND .TRUE.
-      &EACH
-        MD 1
-      &END EACH
-      COMMON_ITERATION_LEVELS 0
-    &END TRAJECTORY
-  &END PRINT
-
-  &MD
-    ENSEMBLE NVT
-    STEPS 2
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      REGION MASSIVE
-      TYPE AD_LANGEVIN
-      &AD_LANGEVIN
-        TIMECON_NH       74.0
-        TIMECON_LANGEVIN 370.0
-      &END AD_LANGEVIN
-    &END THERMOSTAT
-  &END MD
-
   # not active in this regtest, just to show how it to make it work for force mixing
   &GEO_OPT
     OPTIMIZER CG
@@ -3999,5 +3928,44 @@
       &END LINE_SEARCH
     &END CG
   &END GEO_OPT
-
- &END MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 2
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &THERMOSTAT
+      REGION MASSIVE
+      TYPE AD_LANGEVIN
+      &AD_LANGEVIN
+        TIMECON_LANGEVIN 370.0
+        TIMECON_NH 74.0
+      &END AD_LANGEVIN
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &FORCES off
+      COMMON_ITERATION_LEVELS 0
+      FORMAT XYZ
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+    &FORCE_MIXING_LABELS off
+      COMMON_ITERATION_LEVELS 0
+      FORMAT XYZ
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCE_MIXING_LABELS
+    &RESTART off
+    &END RESTART
+    &TRAJECTORY off
+      COMMON_ITERATION_LEVELS 0
+      FORMAT XYZ
+      PRINT_ATOM_KIND .TRUE.
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION

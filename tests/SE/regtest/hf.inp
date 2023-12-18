@@ -1,11 +1,22 @@
+&GLOBAL
+  PROJECT hf
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 20
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     &QS
       METHOD AM1
       &SE
-       ANALYTICAL_GRADIENTS F
-      &END
+        ANALYTICAL_GRADIENTS F
+      &END SE
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -17,17 +28,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-        F                   .00000000     .00000000     .00000000
-        H                   .40673664    -.11133319    -.90673603
+      F                   .00000000     .00000000     .00000000
+      H                   .40673664    -.11133319    -.90673603
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT hf
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER 20
-  &END GEO_OPT
-&END MOTION

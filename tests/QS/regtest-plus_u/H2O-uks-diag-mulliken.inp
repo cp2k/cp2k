@@ -1,24 +1,24 @@
 &GLOBAL
-  PROJECT H2O-uks-diag
   PRINT_LEVEL low
+  PROJECT H2O-uks-diag
   RUN_TYPE GEO_OPT
 &END GLOBAL
 
 &MOTION
   &GEO_OPT
+    MAX_ITER 2
     OPTIMIZER BFGS
-    MAX_ITER  2
   &END GEO_OPT
 &END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
     LSD
     MULTIPLICITY 1
-    BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     PLUS_U_METHOD mulliken
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -26,17 +26,17 @@
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
       &MO
-        RANGE 2 12
         EIGENVALUES
         NDIGITS 12
+        RANGE 2 12
         &EACH
           QS_SCF 5
         &END EACH
       &END MO
       &PLUS_U
-       &EACH
-        QS_SCF 1
-       &END EACH
+        &EACH
+          QS_SCF 1
+        &END EACH
       &END PLUS_U
     &END PRINT
     &QS
@@ -56,13 +56,13 @@
       &END OUTER_SCF
       &PRINT
         &RESTART
-          &EACH
-             GEO_OPT 1
-             QS_SCF 30
-          &END
           ADD_LAST NUMERIC
-          FILENAME =RESTART-uks-diag-mulliken
           BACKUP_COPIES 0
+          FILENAME =RESTART-uks-diag-mulliken
+          &EACH
+            GEO_OPT 1
+            QS_SCF 30
+          &END EACH
         &END RESTART
       &END PRINT
     &END SCF

@@ -1,23 +1,32 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT small
+  ! TRACE_MASTER FALSE
+  ! TRACE
+  RUN_TYPE ENERGY
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    &QS
-      METHOD PM6
-      LS_SCF
-      &SE
-      &END
-    &END QS
     &LS_SCF
-      MAX_SCF    50
       EPS_FILTER 1.0E-7
-      EPS_SCF    1.0E-7
-      MU         0.1
-      MIXING_FRACTION 0.35
-      S_PRECONDITIONER ATOMIC
-      REPORT_ALL_SPARSITIES ON
+      EPS_SCF 1.0E-7
       MATRIX_CLUSTER_TYPE ATOMIC
+      MAX_SCF 50
+      MIXING_FRACTION 0.35
+      MU 0.1
       PERFORM_MU_SCAN OFF
-    &END
+      REPORT_ALL_SPARSITIES ON
+      S_PRECONDITIONER ATOMIC
+    &END LS_SCF
+    &QS
+      LS_SCF
+      METHOD PM6
+      &SE
+      &END SE
+    &END QS
   &END DFT
   &SUBSYS
     &CELL
@@ -25,18 +34,10 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      CONN_FILE_NAME ../../Fist/sample_psf/ace_ala_nme.psf
       CONNECTIVITY PSF
-      COORD_FILE_NAME ../../Fist/sample_crd/ace_ala_nme.crd
+      CONN_FILE_NAME ../../Fist/sample_psf/ace_ala_nme.psf
       COORDINATE CRD
+      COORD_FILE_NAME ../../Fist/sample_crd/ace_ala_nme.crd
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT small
-! TRACE_MASTER FALSE
-! TRACE
-  RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
-&END GLOBAL

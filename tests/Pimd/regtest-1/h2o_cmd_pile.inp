@@ -1,25 +1,25 @@
 &GLOBAL
-  PROJECT_NAME               h2o_cmd_pile
-  RUN_TYPE                   PINT
-  PRINT_LEVEL                LOW
+  PRINT_LEVEL LOW
+  PROJECT_NAME h2o_cmd_pile
+  RUN_TYPE PINT
 &END GLOBAL
 
 &MOTION
   &PINT
-    P                        10 
-    PROC_PER_REPLICA         1
-    NUM_STEPS                40
-    DT                       0.5
-    NRESPA                   2
-    TEMP                    50.0
-    TRANSFORMATION           NORMAL
-    PROPAGATOR               CMD
+    DT 0.5
+    NRESPA 2
+    NUM_STEPS 40
+    P 10
+    PROC_PER_REPLICA 1
+    PROPAGATOR CMD
+    TEMP 50.0
+    TRANSFORMATION NORMAL
     &NORMALMODE
-       GAMMA                    8
+      GAMMA 8
     &END NORMALMODE
     &PILE
-      TAU                      1000
-      LAMBDA                   0.5
+      LAMBDA 0.5
+      TAU 1000
     &END PILE
   &END PINT
 &END MOTION
@@ -28,8 +28,8 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME  ../../Fist/sample_pot/water.pot
-      PARMTYPE        CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../Fist/sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -41,8 +41,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA 0.44
+        EWALD_TYPE SPME
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -53,8 +53,8 @@
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../../Fist/sample_pdb/water_1.pdb
       COORD_FILE_FORMAT PDB
+      COORD_FILE_NAME ../../Fist/sample_pdb/water_1.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

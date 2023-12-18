@@ -1,20 +1,21 @@
 &GLOBAL
-  PROJECT o2-gapw-uks-3
   PRINT_LEVEL LOW
+  PROJECT o2-gapw-uks-3
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
-    UNRESTRICTED_KOHN_SHAM T
-    MULTIPLICITY 3
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    MULTIPLICITY 3
     POTENTIAL_FILE_NAME POTENTIAL
-    &QS
-      METHOD GAPW
-    &END QS
+    UNRESTRICTED_KOHN_SHAM T
     &MGRID
       CUTOFF 150
     &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
     &SCF
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 5
@@ -27,29 +28,29 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       PRECONDITIONER FULL_ALL
-       MAX_ITER 10
-       &CURRENT
-          GAUGE R
-       &END CURRENT
-       &NMR
-          &PRINT
-            &CHI_TENSOR
-            &END CHI_TENSOR
-          &END PRINT
-       &END
-       &LOCALIZE
-         MAX_ITER 10
-       &END LOCALIZE
-    &END
-  &END
+      MAX_ITER 10
+      PRECONDITIONER FULL_ALL
+      &CURRENT
+        GAUGE R
+      &END CURRENT
+      &LOCALIZE
+        MAX_ITER 10
+      &END LOCALIZE
+      &NMR
+        &PRINT
+          &CHI_TENSOR
+          &END CHI_TENSOR
+        &END PRINT
+      &END NMR
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
- O   0.000000    0.000000    0.615571
- O   0.000000    0.000000   -0.615571
+      O   0.000000    0.000000    0.615571
+      O   0.000000    0.000000   -0.615571
     &END COORD
     &KIND O
       BASIS_SET 6-31G**

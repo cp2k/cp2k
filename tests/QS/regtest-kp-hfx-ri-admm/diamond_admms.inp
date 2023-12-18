@@ -1,75 +1,76 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    &DFT
-        BASIS_SET_FILE_NAME BASIS_pob
-        POTENTIAL_FILE_NAME POTENTIAL
-        SORT_BASIS EXP
-        AUTO_BASIS RI_HFX SMALL
-        &AUXILIARY_DENSITY_MATRIX_METHOD
-          ADMM_PURIFICATION_METHOD NONE
-          EXCH_CORRECTION_FUNC PBEX
-          METHOD CHARGE_CONSTRAINED_PROJECTION
-          EXCH_SCALING_MODEL MERLOT
-        &END
-        LSD
-        &QS
-           PW_GRID_BLOCKED FALSE
-           METHOD GAPW
-        &END
-        &MGRID
-            CUTOFF 200
-            REL_CUTOFF 30
-        &END MGRID
-        &SCF
-      IGNORE_CONVERGENCE_FAILURE
-            MAX_SCF 3
-      SCF_GUESS ATOMIC
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL NONE
-            &END XC_FUNCTIONAL
-            &HF
-                FRACTION 1.0
-                &RI
-                   RI_METRIC IDENTITY
-                   NGROUPS 2
-                   MEMORY_CUT 2
-                &END
-                &INTERACTION_POTENTIAL
-                    !this is too small for a real calculation. The only requirement is that it is
-                    !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
-                    !on efficiency, as it greatly increses the number of periodic images to consider
-                    POTENTIAL_TYPE IDENTITY
-                &END
-            &END
-        &END XC
-       &KPOINTS
-          SCHEME  MONKHORST-PACK  3 3 3
-       &END KPOINTS
-    &END DFT
-    &SUBSYS
-      &CELL
-            !this is not a realistic cell, but denser systems would be too expensive for a test
-            ABC 6.0 6.0 6.0
-            ALPHA_BETA_GAMMA 60.0 60.0 60.0
-            SYMMETRY RHOMBOHEDRAL
-        &END CELL
-        &TOPOLOGY
-        &END
-        &COORD
-           SCALED
-           C   0.00000000  0.00000000  0.00000000
-           C   0.25000000  0.25000000  0.25000000
-        &END COORD
-        &KIND C
-            BASIS_SET pob-TZVP
-            BASIS_SET AUX_FIT pob-DZVP
-            POTENTIAL ALL
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT diamond
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+  PROJECT diamond
+  RUN_TYPE ENERGY
 &END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    AUTO_BASIS RI_HFX SMALL
+    BASIS_SET_FILE_NAME BASIS_pob
+    LSD
+    POTENTIAL_FILE_NAME POTENTIAL
+    SORT_BASIS EXP
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC PBEX
+      EXCH_SCALING_MODEL MERLOT
+      METHOD CHARGE_CONSTRAINED_PROJECTION
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &KPOINTS
+      SCHEME MONKHORST-PACK 3 3 3
+    &END KPOINTS
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD GAPW
+      PW_GRID_BLOCKED FALSE
+    &END QS
+    &SCF
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &HF
+        FRACTION 1.0
+        &INTERACTION_POTENTIAL
+          !this is too small for a real calculation. The only requirement is that it is
+          !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
+          !on efficiency, as it greatly increses the number of periodic images to consider
+          POTENTIAL_TYPE IDENTITY
+        &END INTERACTION_POTENTIAL
+        &RI
+          MEMORY_CUT 2
+          NGROUPS 2
+          RI_METRIC IDENTITY
+        &END RI
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      !this is not a realistic cell, but denser systems would be too expensive for a test
+      ABC 6.0 6.0 6.0
+      ALPHA_BETA_GAMMA 60.0 60.0 60.0
+      SYMMETRY RHOMBOHEDRAL
+    &END CELL
+    &COORD
+      SCALED
+      C   0.00000000  0.00000000  0.00000000
+      C   0.25000000  0.25000000  0.25000000
+    &END COORD
+    &KIND C
+      BASIS_SET pob-TZVP
+      BASIS_SET AUX_FIT pob-DZVP
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

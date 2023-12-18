@@ -1,103 +1,106 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT SiO2_lr_quad
+  #RUN_TYPE DEBUG
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&DEBUG
+  DX 0.01
+&END DEBUG
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1000
+    MINIMIZER BFGS
+    &BFGS
+    &END BFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    &POISSON
+      &EWALD
+        ALPHA .5
+        EWALD_TYPE ewald
+        GMAX 21
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END MULTIPOLES
+      &END EWALD
+    &END POISSON
     &QS
       METHOD MNDO
       &SE
         INTEGRAL_SCREENING KDSO-D
         PERIODIC EWALD
         &COULOMB
-          CUTOFF   [angstrom]     8.0
-          RC_RANGE [angstrom]     0.1
-        &END
-        &SCREENING
-          RC_TAPER [angstrom]     6.0
-          RC_RANGE [angstrom]     0.1
-        &END
+          CUTOFF [angstrom] 8.0
+          RC_RANGE [angstrom] 0.1
+        &END COULOMB
         &LR_CORRECTION
-          CUTOFF   [angstrom]     5.0
-          RC_RANGE [angstrom]     0.1
-        &END
+          CUTOFF [angstrom] 5.0
+          RC_RANGE [angstrom] 0.1
+        &END LR_CORRECTION
         &PRINT
           &EWALD_INFO
-          &END
-        &END
-      &END
+          &END EWALD_INFO
+        &END PRINT
+        &SCREENING
+          RC_RANGE [angstrom] 0.1
+          RC_TAPER [angstrom] 6.0
+        &END SCREENING
+      &END SE
     &END QS
     &SCF
-      MAX_SCF 30
       EPS_SCF 1.0E-6
+      MAX_SCF 30
       SCF_GUESS ATOMIC
       &OT
         MINIMIZER CG
         PRECONDITIONER FULL_ALL
-      &END
+      &END OT
       &OUTER_SCF
-        MAX_SCF 6
         EPS_SCF 1.0E-6
-      &END
+        MAX_SCF 6
+      &END OUTER_SCF
       &PRINT
-         &RESTART OFF
-         &END
-      &END
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
-    &POISSON
-      &EWALD
-        &MULTIPOLES
-          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
-        &END
-        EWALD_TYPE ewald
-        ALPHA  .5
-        GMAX   21
-      &END EWALD
-    &END
   &END DFT
-  &SUBSYS
-    &CELL
-      ABC [angstrom]  4.91300    4.91300    5.40520
-      ALPHA_BETA_GAMMA [deg]  90.00000   90.00000  120.00000
-    &END CELL
-    &COORD
-SCALED
- SI1    0.47010   -0.00000    0.33333
- OX1    0.41360    0.26760    0.21410
- SI1    0.00000    0.47010    0.66667
- OX1    0.73240    0.14600    0.54743
- SI1    0.52990    0.52990    0.00000
- OX1    0.85400    0.58640    0.88077
- OX1    0.26760    0.41360    0.78590
- OX1    0.14600    0.73240    0.45257
- OX1    0.58640    0.85400    0.11923
-    &END
-    &TOPOLOGY
-      CONNECTIVITY OFF
-    &END
-    &KIND OX1
-      ELEMENT O
-    &END
-    &KIND SI1
-      ELEMENT Si
-    &END
-  &END SUBSYS
   &PRINT
     &FORCES
-    &END
-  &END
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 4.91300 4.91300 5.40520
+      ALPHA_BETA_GAMMA [deg] 90.00000 90.00000 120.00000
+    &END CELL
+    &COORD
+      SCALED
+      SI1    0.47010   -0.00000    0.33333
+      OX1    0.41360    0.26760    0.21410
+      SI1    0.00000    0.47010    0.66667
+      OX1    0.73240    0.14600    0.54743
+      SI1    0.52990    0.52990    0.00000
+      OX1    0.85400    0.58640    0.88077
+      OX1    0.26760    0.41360    0.78590
+      OX1    0.14600    0.73240    0.45257
+      OX1    0.58640    0.85400    0.11923
+    &END COORD
+    &KIND OX1
+      ELEMENT O
+    &END KIND
+    &KIND SI1
+      ELEMENT Si
+    &END KIND
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT SiO2_lr_quad
-  PRINT_LEVEL LOW
-  #RUN_TYPE DEBUG
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MINIMIZER BFGS
-    MAX_ITER 1000
-    &BFGS
-    &END
-  &END
-&END
-&DEBUG
-  DX 0.01
-&END

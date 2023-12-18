@@ -24,22 +24,12 @@
 @SET RHOVH3   1.077390
 @SET RHOVH4   1.129700
 @SET RCUTOFF  9.00000
-
 &FORCE_EVAL
   METHOD Fist
   &MM
     &FORCEFIELD
       DO_NONBONDED
       EI_SCALE14 1.
-      &SPLINE
-        #EMAX_ACCURACY 100
-        EMAX_SPLINE 100
-        EPS_SPLINE 1.E-2 ! for regtesting only
-        #NPOINTS 100000
-        R0_NB [angstrom] 0.05
-        RCUT_NB [angstrom] ${RCUTOFF}
-        #UNIQUE_SPLINE .FALSE.
-      &END SPLINE
       &CHARGE
         ATOM O
         #CHARGE ${QO}
@@ -57,59 +47,68 @@
       &END CHARGE
       &NONBONDED
         &GENPOT
-          atoms O O
-          FUNCTION  "qO^2 / x - kappaOO / ( 1 + tauOO *  ( x / rhoOO )^3 + ( x / rhoOO )^6 )"  # Function O O
-          PARAMETERS qO  kappaOO tauOO rhoOO
-          VALUES    "${QO}" ${KAPPAOO} ${TAUOO} "${RHOOO}" # Quotation test
+          ATOMS O O
+          FUNCTION "qO^2 / x - kappaOO / ( 1 + tauOO * ( x / rhoOO )^3 + ( x / rhoOO )^6 )"  # Function O O
+          PARAMETERS qO kappaOO tauOO rhoOO
+          VALUES "${QO}" ${KAPPAOO} ${TAUOO} "${RHOOO}"  # Quotation test
           VARIABLES "x"
           "RCUT"    [angstrom] ${RCUTOFF}
         &END GENPOT
         &GENPOT
-          atoms O H
-          FUNCTION " qO*qH / x - kappaOH / ( 1 + tauOH *  ( x / rhoOH )^3 + ( x / rhoOH )^6 ) " # Function O H
+          ATOMS O H
+          FUNCTION " qO*qH / x - kappaOH / ( 1 + tauOH * ( x / rhoOH )^3 + ( x / rhoOH )^6 ) "  # Function O H
           PARAMETERS qO qH kappaOH tauOH rhoOH
-          VALUES   ${QO} ${QH} ${KAPPAOH} ${TAUOH} ${RHOOH}
+          RCUT [angstrom] ${RCUTOFF}
+          VALUES ${QO} ${QH} ${KAPPAOH} ${TAUOH} ${RHOOH}
           VARIABLES x
-          RCUT  [angstrom] ${RCUTOFF}
         &END GENPOT
         &GENPOT
-          atoms H H
+          ATOMS H H
           FUNCTION qH^2 / x
           PARAMETERS qH
-          VALUES  ${QH}
+          RCUT [angstrom] ${RCUTOFF}
+          VALUES ${QH}
           VARIABLES x
-          RCUT    [angstrom] ${RCUTOFF}
         &END GENPOT
         &GENPOT
-          atoms E E
-          FUNCTION   "        qV^2 / ( ( x^8 + rhoVV1^4 * x^4 + rhoVV2^8 )^(1./8.) ) + kappaVV / ( 1 + ( x / rhoVV3 )^6 )             " # Quotation test
+          ATOMS E E
+          FUNCTION " qV^2 / ( ( x^8 + rhoVV1^4 * x^4 + rhoVV2^8 )^(1./8.) ) + kappaVV / ( 1 + ( x / rhoVV3 )^6 ) "  # Quotation test
           PARAMETERS qV rhoVV1 rhoVV2 kappaVV rhoVV3
+          RCUT [angstrom] ${RCUTOFF}
           VALUES ${QV} ${RHOVV1} ${RHOVV2} ${KAPPAVV} ${RHOVV3}
           VARIABLES x
-          RCUT [angstrom] ${RCUTOFF}
         &END GENPOT
         &GENPOT
-          atoms O E
+          ATOMS O E
           FUNCTION qV * qO / ( ( x^8 + rhoVO1^4 * x^4 + rhoVO2^6 * x^2 + rhoVO3^8 )^(1./8.) ) + ( rhoVO4 / x )^6
           PARAMETERS qV qO rhoVO1 rhoVO2 rhoVO3 rhoVO4
+          RCUT [angstrom] ${RCUTOFF}
           VALUES ${QV} ${QO} ${RHOVO1} ${RHOVO2} ${RHOVO3} ${RHOVO4}
           VARIABLES x
-          RCUT [angstrom] ${RCUTOFF}
         &END GENPOT
         &GENPOT
-          atoms H E
+          ATOMS H E
           FUNCTION qV * qH / ( ( x^8 + rhoVH1^2 * x^6 + rhoVH2^4 * x^4 + rhoVH3^6 * x^2 + rhoVH4^8 )^(1./8.) )
           PARAMETERS qV qH rhoVH1 rhoVH2 rhoVH3 rhoVH4
+          RCUT [angstrom] ${RCUTOFF}
           VALUES ${QV} ${QH} ${RHOVH1} ${RHOVH2} ${RHOVH3} ${RHOVH4}
           VARIABLES x
-          RCUT [angstrom] ${RCUTOFF}
         &END GENPOT
       &END NONBONDED
+      &SPLINE
+        #EMAX_ACCURACY 100
+        EMAX_SPLINE 100
+        EPS_SPLINE 1.E-2  ! for regtesting only
+        #NPOINTS 100000
+        R0_NB [angstrom] 0.05
+        RCUT_NB [angstrom] ${RCUTOFF}
+        #UNIQUE_SPLINE .FALSE.
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE NONE
         ALPHA .5
+        EWALD_TYPE NONE
         GMAX 49
         O_SPLINE 6
       &END EWALD
@@ -122,33 +121,35 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC [angstrom] 24.7000   24.7000   24.7000
+      ABC [angstrom] 24.7000 24.7000 24.7000
       PERIODIC NONE
     &END CELL
     &COORD
-        O       0.01485812      -0.00987320      -0.07956417
-        H       0.57485812       0.42012680       0.57043583
-        H      -0.72514188      -0.33987320       0.43043383
-        E      -0.14514188       0.31012680      -0.34956517
-        E       0.23485812      -0.35987320      -0.23956617
-        E      -0.44514188      -0.20987320       0.25043583
-        E       0.35485812       0.26012680       0.34043383
+      O       0.01485812      -0.00987320      -0.07956417
+      H       0.57485812       0.42012680       0.57043583
+      H      -0.72514188      -0.33987320       0.43043383
+      E      -0.14514188       0.31012680      -0.34956517
+      E       0.23485812      -0.35987320      -0.23956617
+      E      -0.44514188      -0.20987320       0.25043583
+      E       0.35485812       0.26012680       0.34043383
     &END COORD
-    &TOPOLOGY
-        CONN_FILE_FORMAT OFF
-        &DUMP_PDB
-        &END DUMP_PDB
-    &END TOPOLOGY
     &KIND E
-        ELEMENT F
-        MASS 1
+      ELEMENT F
+      MASS 1
     &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+      &DUMP_PDB
+      &END DUMP_PDB
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
+
 &GLOBAL
   PROJECT LEWIS-H2O
   RUN_TYPE GEO_OPT
 &END GLOBAL
+
 &MOTION
   &GEO_OPT
     OPTIMIZER BFGS
@@ -161,23 +162,23 @@
     &END CG
   &END GEO_OPT
   &MD
+    ANGVEL_TOL 1.E-6
+    ANGVEL_ZERO
+    COMVEL_TOL 1.E-6
     ENSEMBLE NVT
     STEPS 40000
-    TIMESTEP 0.25
     TEMPERATURE 300
-    ANGVEL_ZERO
-    ANGVEL_TOL 1.E-6
-    COMVEL_TOL 1.E-6
+    TIMESTEP 0.25
     &THERMOSTAT
-        REGION MASSIVE
-        TYPE NOSE
-        &NOSE
-            TIMECON [fs] 3000
-        &END NOSE
-        #TYPE CSVR
-        #&CSVR
-        #    TIMECON [fs] 3000
-        #&END CSVR
+      REGION MASSIVE
+      TYPE NOSE
+      &NOSE
+        TIMECON [fs] 3000
+      &END NOSE
+      #TYPE CSVR
+      #&CSVR
+      #    TIMECON [fs] 3000
+      #&END CSVR
     &END THERMOSTAT
   &END MD
   &PRINT

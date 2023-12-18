@@ -1,112 +1,107 @@
 @SET INDEX 20
 &GLOBAL
-  PROJECT c60_meta_lagr
   PRINT_LEVEL LOW
+  PROJECT c60_meta_lagr
   RUN_TYPE md
 &END GLOBAL
+
 &MOTION
-  &MD
-    ENSEMBLE NVT
-    &THERMOSTAT
-      TYPE CSVR
-      &CSVR
-        TIMECON 20.
-      &END
-    &END
-    STEPS 100
-    TIMESTEP 1.0
-    TEMPERATURE 300.0
-    &PRINT
-      &PROGRAM_RUN_INFO
-        &EACH
-          MD ${INDEX}
-        &END
-      &END
-      &ENERGY
-        &EACH
-          MD ${INDEX}
-        &END
-      &END ENERGY
-    &END PRINT
-  &END MD
-  &PRINT
-    &TRAJECTORY
-      &EACH
-        MD ${INDEX}
-      &END
-    &END TRAJECTORY
-    &VELOCITIES OFF
-    &END VELOCITIES
-    &RESTART OFF
-    &END RESTART
-    &RESTART_HISTORY OFF
-    &END RESTART_HISTORY
-  &END PRINT
   &FREE_ENERGY
     &METADYN
       DO_HILLS
-      LANGEVIN
-      TEMPERATURE 10000.
       LAGRANGE
+      LANGEVIN
       NT_HILLS 10
+      TEMPERATURE 10000.
       WW 1.0e-2
       &METAVAR
-        LAMBDA 0.1
-        MASS 10.0
-        SCALE 0.1
         COLVAR 1
         GAMMA 0.004
-      &END METAVAR
-      &METAVAR
         LAMBDA 0.1
         MASS 10.0
         SCALE 0.1
+      &END METAVAR
+      &METAVAR
         COLVAR 2
         GAMMA 0.004
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.1
       &END METAVAR
       &PRINT
         &COLVAR
           COMMON_ITERATION_LEVELS 10
-        &END
+        &END COLVAR
         &HILLS
           COMMON_ITERATION_LEVELS 10
-        &END
-      &END
+        &END HILLS
+      &END PRINT
     &END METADYN
-  &END
-&END MOTION
-&FORCE_EVAL
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVT
+    STEPS 100
+    TEMPERATURE 300.0
+    TIMESTEP 1.0
+    &PRINT
+      &ENERGY
+        &EACH
+          MD ${INDEX}
+        &END EACH
+      &END ENERGY
+      &PROGRAM_RUN_INFO
+        &EACH
+          MD ${INDEX}
+        &END EACH
+      &END PROGRAM_RUN_INFO
+    &END PRINT
+    &THERMOSTAT
+      TYPE CSVR
+      &CSVR
+        TIMECON 20.
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
   &PRINT
-    &PROGRAM_RUN_INFO
+    &RESTART OFF
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY
       &EACH
         MD ${INDEX}
-      &END
-    &END
-  &END
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &SPLINE
-       EPS_SPLINE 1.E-6
-      &END
       &NONBONDED
         &TERSOFF
-          ATOMS C  C
-          A        1.3936E3
-          B        3.467E2
-          lambda1  3.4879
-          lambda2  2.2119
-          alpha    0.00
-          beta     1.5724E-7
-          n        7.2751E-1
-          c        3.8049E4
-          d        4.384
-          h       -5.7058E-1
-          lambda3  0.0000
-          bigR     1.95
-          bigD     0.15
+          A 1.3936E3
+          ALPHA 0.00
+          ATOMS C C
+          B 3.467E2
+          BETA 1.5724E-7
+          BIGD 0.15
+          BIGR 1.95
+          C 3.8049E4
+          D 4.384
+          H -5.7058E-1
+          LAMBDA1 3.4879
+          LAMBDA2 2.2119
+          LAMBDA3 0.0000
+          N 7.2751E-1
         &END TERSOFF
       &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.E-6
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -114,25 +109,32 @@
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &PROGRAM_RUN_INFO
+      &EACH
+        MD ${INDEX}
+      &END EACH
+    &END PROGRAM_RUN_INFO
+  &END PRINT
   &SUBSYS
     &CELL
-      ABC  30. 30. 30.
+      ABC 30. 30. 30.
     &END CELL
-    &TOPOLOGY
-       COORDINATE XYZ
-       COORD_FILE_NAME ../sample_xyz/c60.xyz
-       CONNECTIVITY OFF
-    &END TOPOLOGY
     # COLVARS
     &COLVAR
       &DISTANCE
         ATOMS 45 30
-      &END
-    &END
+      &END DISTANCE
+    &END COLVAR
     &COLVAR
       &DISTANCE
-        ATOMS 31  2
-      &END
-    &END
+        ATOMS 31 2
+      &END DISTANCE
+    &END COLVAR
+    &TOPOLOGY
+      CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/c60.xyz
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

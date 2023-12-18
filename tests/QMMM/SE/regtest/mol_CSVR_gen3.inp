@@ -1,3 +1,42 @@
+&GLOBAL
+  PROJECT mol_CSVR_gen3
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &G3X3
+      ATOMS 1 2 3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLNAME MOL02
+    &END G3X3
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TEMPERATURE 300.0
+    TIMESTEP 1.0
+    &THERMOSTAT
+      REGION DEFINED
+      TYPE CSVR
+      &CSVR
+        TIMECON 100.
+      &END CSVR
+      &DEFINE_REGION
+        MM_SUBSYS MOLECULAR
+      &END DEFINE_REGION
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &RESTART
+    &END RESTART
+    &TRAJECTORY OFF
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -12,32 +51,26 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/mol.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/mol.pot
       &SPLINE
         EMAX_SPLINE 100.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
+        ALPHA .44
         EWALD_TYPE spme
         GMAX 25 25 25
-        ALPHA .44
         NS_MAX 50
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL NONE
     &CELL
       ABC 10.0 10.0 10.0
     &END CELL
-    ECOUPL NONE
-    &QM_KIND C
-      MM_INDEX 33 31 29 27 25 24
-    &END QM_KIND
-    &QM_KIND H
-      MM_INDEX 34 32 30 28 26
-    &END QM_KIND
     &LINK
       ALPHA 1.50
       FIST_SCALE_FACTOR 0.0
@@ -45,53 +78,22 @@
       MM_INDEX 21
       QM_INDEX 24
     &END LINK
-  &END
+    &QM_KIND C
+      MM_INDEX 33 31 29 27 25 24
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 34 32 30 28 26
+    &END QM_KIND
+  &END QMMM
   &SUBSYS
     &CELL
-      ABC 44.6753930  50.3729150  41.3744810
+      ABC 44.6753930 50.3729150 41.3744810
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/mol.pdb
-      COORDINATE pdb
       CONNECTIVITY PSF
       CONN_FILE_NAME ../sample_psf/mol.psf
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/mol.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT mol_CSVR_gen3
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &G3X3
-      DISTANCES 1.8897268 1.8897268 3.0859239
-      MOLNAME MOL02
-      ATOMS 1 2 3
-    &END G3X3
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVT
-    STEPS 10
-    TIMESTEP 1.0
-    TEMPERATURE 300.0
-    &THERMOSTAT
-       REGION DEFINED
-       TYPE CSVR
-       &CSVR
-         TIMECON 100.
-       &END
-      &DEFINE_REGION
-         MM_SUBSYS MOLECULAR
-      &END
-    &END
-  &END MD
-  &PRINT
-    &RESTART
-    &END
-    &TRAJECTORY OFF
-    &END
-    &VELOCITIES OFF
-    &END
-  &END
-&END MOTION

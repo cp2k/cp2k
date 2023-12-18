@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ch2o-1
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
 #CPQA INCLUDE DFTB/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
 #CPQA INCLUDE DFTB/scc/oo.spl
@@ -11,29 +17,29 @@
 #CPQA INCLUDE DFTB/scc/hh.spl
 &FORCE_EVAL
   &DFT
+    &PRINT
+      &KS_CSR_WRITE
+      &END KS_CSR_WRITE
+      &S_CSR_WRITE
+      &END S_CSR_WRITE
+    &END PRINT
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    T
-        DISPERSION         F
-        ORTHOGONAL_BASIS   F
-        DO_EWALD           F
+        DISPERSION F
+        DO_EWALD F
+        ORTHOGONAL_BASIS F
+        SELF_CONSISTENT T
         &PARAMETER
-          PARAM_FILE_PATH  DFTB/scc
-          PARAM_FILE_NAME  scc_parameter
+          PARAM_FILE_NAME scc_parameter
+          PARAM_FILE_PATH DFTB/scc
         &END PARAMETER
       &END DFTB
     &END QS
     &SCF
+      MAX_SCF 20
       SCF_GUESS CORE
-      MAX_SCF  20
     &END SCF
-    &PRINT
-      &KS_CSR_WRITE
-      &END
-      &S_CSR_WRITE
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
@@ -41,15 +47,10 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     O     0.051368    0.000000    0.000000
-     C     1.278612    0.000000    0.000000
-     H     1.870460    0.939607    0.000000
-     H     1.870460   -0.939607    0.000000
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ch2o-1
-  RUN_TYPE GEO_OPT
-  PRINT_LEVEL LOW
-&END GLOBAL

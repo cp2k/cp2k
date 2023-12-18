@@ -1,9 +1,35 @@
+&GLOBAL
+  PROJECT ethene_colv1_g
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      MOLECULE 1
+      TARGET 2.09433
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 2
+      MOLECULE 1
+      TARGET 2.09433
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TEMPERATURE 500
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/charmm.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/charmm.pot
       &CHARGE
         ATOM CE2
         CHARGE -0.42
@@ -15,8 +41,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -26,67 +52,43 @@
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/ethene.pdb
-      COORDINATE pdb
-    &END TOPOLOGY
     &COLVAR
       &ANGLE
+        ATOMS 1 2 3
         &POINT
-          TYPE GEO_CENTER
           ATOMS 6
-        &END
-        &POINT
           TYPE GEO_CENTER
+        &END POINT
+        &POINT
           ATOMS 2
-        &END
-        &POINT
           TYPE GEO_CENTER
+        &END POINT
+        &POINT
           ATOMS 4
-        &END
-        ATOMS 1 2 3
-      &END
-    &END
+          TYPE GEO_CENTER
+        &END POINT
+      &END ANGLE
+    &END COLVAR
     &COLVAR
       &ANGLE
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 5
-        &END
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 1
-        &END
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 3
-        &END
         ATOMS 1 2 3
-      &END
-    &END
+        &POINT
+          ATOMS 5
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 1
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 3
+          TYPE GEO_CENTER
+        &END POINT
+      &END ANGLE
+    &END COLVAR
+    &TOPOLOGY
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/ethene.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ethene_colv1_g
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET 2.09433
-      MOLECULE 1
-      COLVAR 1
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 2.09433
-      MOLECULE 1
-      COLVAR 2
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 50
-    TIMESTEP 0.5
-    TEMPERATURE 500
-  &END MD
-&END MOTION

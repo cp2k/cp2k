@@ -1,3 +1,17 @@
+&GLOBAL
+  PROJECT water3
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TEMPERATURE 300
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -39,38 +53,38 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms O O
+          ATOMS O O
           EPSILON 78.198
+          RCUT 11.4
           SIGMA 3.166
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms O H
+          ATOMS O H
           EPSILON 0.0
+          RCUT 11.4
           SIGMA 3.6705
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.30523
           RCUT 11.4
+          SIGMA 3.30523
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .44
+        EWALD_TYPE ewald
         GMAX 21
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL GAUSS
     &CELL
       ABC 8.0 8.0 8.0
     &END CELL
-    ECOUPL GAUSS
     &MM_KIND H
       RADIUS 0.44
     &END MM_KIND
@@ -83,28 +97,28 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  #
-  # QM_KINDS
-  #
-  #
-  # MM_KINDS
-  #
-  #
+    #
+    # QM_KINDS
+    #
+    #
+    # MM_KINDS
+    #
+    #
   &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
     &COORD
-   O     0.000000     0.000000     0.000000    H2O
-   H     0.000000     0.000000     1.000000    H2O
-   H     0.942809     0.000000    -0.333333    H2O
-   O    -1.617979    -0.948062    -2.341650    H2O
-   H    -2.529195    -1.296822    -2.122437    H2O
-   H    -1.534288    -0.833088    -3.331486    H2O
-   O    -1.447990     2.117783     1.555094    H2O
-   H    -1.501128     2.645178     2.403050    H2O
-   H    -2.090603     1.352766     1.597519    H2O
+      O     0.000000     0.000000     0.000000    H2O
+      H     0.000000     0.000000     1.000000    H2O
+      H     0.942809     0.000000    -0.333333    H2O
+      O    -1.617979    -0.948062    -2.341650    H2O
+      H    -2.529195    -1.296822    -2.122437    H2O
+      H    -1.534288    -0.833088    -3.331486    H2O
+      O    -1.447990     2.117783     1.555094    H2O
+      H    -1.501128     2.645178     2.403050    H2O
+      H    -2.090603     1.352766     1.597519    H2O
     &END COORD
     &KIND H
       BASIS_SET SZV-GTH
@@ -118,16 +132,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PROJECT water3
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 100
-    TIMESTEP 1.0
-    TEMPERATURE 300
-  &END MD
-&END MOTION

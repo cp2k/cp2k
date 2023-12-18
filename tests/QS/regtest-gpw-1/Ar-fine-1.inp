@@ -1,3 +1,8 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT Ar-fine-1
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -10,7 +15,7 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
-        MAX_SCF 10
+      MAX_SCF 10
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -25,7 +30,7 @@
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    Ar     0.000000  0.000000  0.000000
+      Ar     0.000000  0.000000  0.000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-GTH-PADE
@@ -33,7 +38,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT Ar-fine-1
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

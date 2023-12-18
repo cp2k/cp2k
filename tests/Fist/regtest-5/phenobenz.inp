@@ -1,59 +1,84 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT phenobenz
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &RESTART OFF
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY OFF
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/par_all27_prot_lipid.pot
-      parmtype CHM
-      &spline
-       rcut_nb 9.0
-      &end
-      &bond
-        atoms C H
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/par_all27_prot_lipid.pot
+      &BEND
+        ATOMS C C H
+        K 0.01
+        THETA0 [deg] 120.0
+      &END BEND
+      &BEND
+        ATOMS C C C
+        K 0.01
+        THETA0 [deg] 120.0
+      &END BEND
+      &BEND
+        ATOMS C C O
+        K 0.01
+        THETA0 [deg] 120.0
+      &END BEND
+      &BEND
+        ATOMS H O C
+        K 0.01
+        THETA0 [deg] 120.0
+      &END BEND
+      &BOND
+        ATOMS C H
         K 0.1
         R0 [angstrom] 1.1
-      &end
-      &bond
-        atoms O H
+      &END BOND
+      &BOND
+        ATOMS O H
         K 0.1
         R0 [angstrom] 1.0
-      &end
-      &bend
-        atoms C C H
-        K 0.01
-        THETA0 [deg] 120.0
-      &end
-      &bend
-        atoms C C C
-        K 0.01
-        THETA0 [deg] 120.0
-      &end
-      &bend
-        atoms C C O
-        K 0.01
-        THETA0 [deg] 120.0
-      &end
-      &bend
-        atoms H O C
-        K 0.01
-        THETA0 [deg] 120.0
-      &end
-      &charge
-        atom h
-        charge 0.0
-      &end
-      &charge
-        atom o
-        charge 0.0
-      &end
-      &charge
-        atom c
-        charge 0.0
-      &end
+      &END BOND
+      &CHARGE
+        ATOM h
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM o
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM c
+        CHARGE 0.0
+      &END CHARGE
+      &SPLINE
+        RCUT_NB 9.0
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .4
+        EWALD_TYPE spme
         GMAX 27
         O_SPLINE 4
       &END EWALD
@@ -64,89 +89,66 @@
       ABC 20.0 20.0 20.0
     &END CELL
     &COORD
-     H  0.000 -2.462  4.000     X
-     C  1.200  0.693  0.000     X
-     H  2.132  1.231  4.000     X
-     C  0.000  1.386  0.000     X
-     H  2.124  0.813 10.000     X
-     H -2.111 -1.690 10.000     X
-     C  1.200 -0.693  0.000     X
-     C  0.000  0.934 10.000     X
-     H  2.132 -1.231  4.000     X
-     C -1.200  0.693  4.000     X
-     H  2.132  1.231  0.000     X
-     C  0.000 -1.386  0.000     X
-     H -2.132  1.231  0.000     X
-     C  0.000 -1.386  4.000     X
-     H  0.000 -2.462  0.000     X
-     O  0.049  2.286 10.000     X
-     H -2.132 -1.231  4.000     X
-     C  0.000  0.934 14.000     X
-     C -1.200 -0.693  0.000     X
-     H  2.149 -1.656 14.000     X
-     O  0.049  2.286 14.000     X
-     H  0.000  2.462  0.000     X
-     H  0.028 -2.919 14.000     X
-     C  0.019 -1.844 14.000     X
-     H -0.825  2.652 10.000     X
-     C  1.200 -0.693  4.000     X
-     C  1.210 -1.131 10.000     X
-     H  2.132 -1.231  0.000     X
-     H -2.132  1.231  4.000     X
-     C  0.019 -1.844 10.000     X
-     C  0.000  1.386  4.000     X
-     C -1.195  0.234 10.000     X
-     H  0.028 -2.919 10.000     X
-     C  1.210 -1.131 14.000     X
-     C -1.179 -1.153 14.000     X
-     H -2.133  0.765 10.000     X
-     H -2.132 -1.231  0.000     X
-     H  2.124  0.813 14.000     X
-     H  2.149 -1.656 10.000     X
-     C -1.179 -1.153 10.000     X
-     H -2.111 -1.690 14.000     X
-     C -1.200  0.693  0.000     X
-     H  0.000  2.462  4.000     X
-     C  1.209  0.251 10.000     X
-     C -1.200 -0.693  4.000     X
-     C  1.209  0.251 14.000     X
-     C  1.200  0.693  4.000     X
-     C -1.195  0.234 14.000     X
-     H -2.133  0.765 14.000     X
-     H -0.825  2.652 14.000     X
+      H  0.000 -2.462  4.000     X
+      C  1.200  0.693  0.000     X
+      H  2.132  1.231  4.000     X
+      C  0.000  1.386  0.000     X
+      H  2.124  0.813 10.000     X
+      H -2.111 -1.690 10.000     X
+      C  1.200 -0.693  0.000     X
+      C  0.000  0.934 10.000     X
+      H  2.132 -1.231  4.000     X
+      C -1.200  0.693  4.000     X
+      H  2.132  1.231  0.000     X
+      C  0.000 -1.386  0.000     X
+      H -2.132  1.231  0.000     X
+      C  0.000 -1.386  4.000     X
+      H  0.000 -2.462  0.000     X
+      O  0.049  2.286 10.000     X
+      H -2.132 -1.231  4.000     X
+      C  0.000  0.934 14.000     X
+      C -1.200 -0.693  0.000     X
+      H  2.149 -1.656 14.000     X
+      O  0.049  2.286 14.000     X
+      H  0.000  2.462  0.000     X
+      H  0.028 -2.919 14.000     X
+      C  0.019 -1.844 14.000     X
+      H -0.825  2.652 10.000     X
+      C  1.200 -0.693  4.000     X
+      C  1.210 -1.131 10.000     X
+      H  2.132 -1.231  0.000     X
+      H -2.132  1.231  4.000     X
+      C  0.019 -1.844 10.000     X
+      C  0.000  1.386  4.000     X
+      C -1.195  0.234 10.000     X
+      H  0.028 -2.919 10.000     X
+      C  1.210 -1.131 14.000     X
+      C -1.179 -1.153 14.000     X
+      H -2.133  0.765 10.000     X
+      H -2.132 -1.231  0.000     X
+      H  2.124  0.813 14.000     X
+      H  2.149 -1.656 10.000     X
+      C -1.179 -1.153 10.000     X
+      H -2.111 -1.690 14.000     X
+      C -1.200  0.693  0.000     X
+      H  0.000  2.462  4.000     X
+      C  1.209  0.251 10.000     X
+      C -1.200 -0.693  4.000     X
+      C  1.209  0.251 14.000     X
+      C  1.200  0.693  4.000     X
+      C -1.195  0.234 14.000     X
+      H -2.133  0.765 14.000     X
+      H -0.825  2.652 14.000     X
     &END COORD
     &TOPOLOGY
       &DUMP_PDB
-      &END
+      &END DUMP_PDB
       &DUMP_PSF
-      &END
+      &END DUMP_PSF
       &GENERATE
         CREATE_MOLECULES
         REORDER
-      &END
+      &END GENERATE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT phenobenz
-  PRINT_LEVEL LOW
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-  &PRINT
-    &RESTART OFF
-    &END
-    &RESTART_HISTORY OFF
-    &END
-    &TRAJECTORY OFF
-    &END
-    &VELOCITIES OFF
-    &END
-  &END
-&END MOTION

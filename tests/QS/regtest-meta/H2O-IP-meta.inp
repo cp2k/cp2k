@@ -1,15 +1,15 @@
 #CPQA INCLUDE ../BASIS_SET
 #CPQA INCLUDE ../POTENTIAL
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT H2O-IP-meta
   RUN_TYPE MD
-  PRINT_LEVEL LOW
 &END GLOBAL
 
 &MULTIPLE_FORCE_EVALS
   FORCE_EVAL_ORDER 1 2
   MULTIPLE_SUBSYS F
-&END
+&END MULTIPLE_FORCE_EVALS
 
 @SET CHARGE  0
 @SET LSD 0
@@ -17,24 +17,31 @@
 @SET CHARGE -1
 @SET LSD 1
 @include dft_force_env.inc
-
 &FORCE_EVAL
   METHOD MIXED
   &MIXED
     MIXING_TYPE GENMIX
-    NGROUPS  2
+    NGROUPS 2
     &GENERIC
       MIXING_FUNCTION E1+k*E2
-      VARIABLES E1 E2
-# Propagate the Equation of Motion according to the neutral state Hamiltonian
+      # Propagate the Equation of Motion according to the neutral state Hamiltonian
       PARAMETERS k
       VALUES 0.
-    &END
-  &END
+      VARIABLES E1 E2
+    &END GENERIC
+  &END MIXED
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
+    &COLVAR
+      &U
+        &MIXED
+          ENERGY_FUNCTION E2-E1
+          VARIABLES E1 E2
+        &END MIXED
+      &END U
+    &END COLVAR
     &COORD
       O   0.000000    0.000000   -0.065587
       H   0.000000   -0.757136    0.520545
@@ -48,49 +55,41 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
-    &COLVAR
-       &U
-         &MIXED
-           ENERGY_FUNCTION E2-E1
-           VARIABLES E1 E2
-         &END
-       &END
-    &END COLVAR
   &END SUBSYS
 &END FORCE_EVAL
 
 &MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 9
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 100.0
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
   &FREE_ENERGY
     &METADYN
       DO_HILLS
       NT_HILLS 3
       WW 1.0e-3
       &METAVAR
-        SCALE [kcalmol] 0.5
         COLVAR 1
+        SCALE [kcalmol] 0.5
       &END METAVAR
       &PRINT
         &COLVAR
           COMMON_ITERATION_LEVELS 3
-        &END
+        &END COLVAR
         &HILLS
           COMMON_ITERATION_LEVELS 3
-        &END
-      &END
+        &END HILLS
+      &END PRINT
     &END METADYN
-  &END
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVT
+    STEPS 9
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 100.0
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
 &END MOTION

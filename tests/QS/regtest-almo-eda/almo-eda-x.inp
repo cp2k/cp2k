@@ -1,56 +1,53 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT hex-ice
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    &QS
-      ALMO_SCF T
-      EPS_DEFAULT 1.0E-8 ! 1.0E-12
-    &END QS
-
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &ALMO_SCF
-
+      ALMO_ALGORITHM DIAG
+      ALMO_SCF_GUESS MOLECULAR
+      DELOCALIZE_METHOD XALMO_X
+      EPS_FILTER 1.0E-8
+      XALMO_R_CUTOFF_FACTOR 1.4
+      &ALMO_OPTIMIZER_DIIS
+        EPS_ERROR 5.0E-4
+        MAX_ITER 10
+        N_DIIS 5
+      &END ALMO_OPTIMIZER_DIIS
       &ANALYSIS T
-        FROZEN_MO_ENERGY_TERM    SUBLATTICE
+        FROZEN_MO_ENERGY_TERM SUBLATTICE
         &PRINT
-          &ALMO_EDA_CT
-            FILENAME ct_energy_terms
-          &END ALMO_EDA_CT
           &ALMO_CTA
             FILENAME charge_terms
           &END ALMO_CTA
+          &ALMO_EDA_CT
+            FILENAME ct_energy_terms
+          &END ALMO_EDA_CT
         &END PRINT
       &END ANALYSIS
-
-      EPS_FILTER                 1.0E-8
-      ALMO_ALGORITHM             DIAG
-      ALMO_SCF_GUESS             MOLECULAR
-
-      &ALMO_OPTIMIZER_DIIS
-        MAX_ITER                 10
-        EPS_ERROR                5.0E-4
-        N_DIIS                   5
-      &END ALMO_OPTIMIZER_DIIS
-
-      DELOCALIZE_METHOD          XALMO_X
-      XALMO_R_CUTOFF_FACTOR      1.4
-
       &XALMO_OPTIMIZER_PCG
-        MAX_ITER                 100
-        EPS_ERROR                5.0E-4
-        CONJUGATOR               DAI_YUAN
-        LIN_SEARCH_EPS_ERROR     0.1
+        CONJUGATOR DAI_YUAN
+        EPS_ERROR 5.0E-4
+        LIN_SEARCH_EPS_ERROR 0.1
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
-        MAX_ITER_OUTER_LOOP      0
+        MAX_ITER 100
+        MAX_ITER_OUTER_LOOP 0
       &END XALMO_OPTIMIZER_PCG
-
     &END ALMO_SCF
-
+    &MGRID
+      CUTOFF 200  ! 320
+      NGRIDS 4
+    &END MGRID
+    &QS
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-8  ! 1.0E-12
+    &END QS
     ! The SCF section controls calculations
     ! on single molecules.
     ! IMPORTANT: converge simgle-molecule calculations
@@ -60,13 +57,8 @@
       SCF_GUESS ATOMIC
       &OT
         PRECONDITIONER FULL_ALL
-      &END
+      &END OT
     &END SCF
-
-    &MGRID
-      CUTOFF 200 ! 320
-      NGRIDS 4
-    &END MGRID
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
@@ -77,9 +69,6 @@
 @INCLUDE '../regtest-almo-1/ice.cell'
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
-    &TOPOLOGY
-      MULTIPLE_UNIT_CELL 1 1 1
-    &END
     &COORD
 @INCLUDE '../regtest-almo-1/ice-cut.xyz'
     &END COORD
@@ -91,6 +80,8 @@
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q6
     &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

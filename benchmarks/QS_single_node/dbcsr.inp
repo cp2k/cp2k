@@ -1,49 +1,50 @@
 &GLOBAL
-  PRINT_LEVEL  MEDIUM
+  PRINT_LEVEL MEDIUM
   PROGRAM_NAME TEST
   RUN_TYPE NONE
 &END GLOBAL
+
 &TEST
   &CP_DBCSR
-     K 13800
-     M 13800
-     N 13800
-     TRANSA FALSE
-     TRANSB TRUE
-     N_LOOP 3
-     ASPARSITY 0.70
-     BSPARSITY 0.70
-     CSPARSITY 0.70
-     bs_m 1 23
-     bs_k 1 23
-     bs_n 1 23
-  &END
+    ASPARSITY 0.70
+    BSPARSITY 0.70
+    BS_K 1 23
+    BS_M 1 23
+    BS_N 1 23
+    CSPARSITY 0.70
+    K 13800
+    M 13800
+    N 13800
+    N_LOOP 3
+    TRANSA FALSE
+    TRANSB TRUE
+  &END CP_DBCSR
   &CP_DBCSR
-     K 12800
-     M 12800
-     N 12800
-     TRANSA FALSE
-     TRANSB TRUE
-     N_LOOP 3
-     ASPARSITY 0.70
-     BSPARSITY 0.70
-     CSPARSITY 0.70
-     bs_m 1 32
-     bs_k 1 32
-     bs_n 1 32
-  &END
+    ASPARSITY 0.70
+    BSPARSITY 0.70
+    BS_K 1 32
+    BS_M 1 32
+    BS_N 1 32
+    CSPARSITY 0.70
+    K 12800
+    M 12800
+    N 12800
+    N_LOOP 3
+    TRANSA FALSE
+    TRANSB TRUE
+  &END CP_DBCSR
   &CP_DBCSR
-     K 13800
-     M 13800
-     N 13800
-     TRANSA FALSE
-     TRANSB TRUE
-     N_LOOP 3
-     ASPARSITY 0.70
-     BSPARSITY 0.70
-     CSPARSITY 0.70
-     bs_m 1 13 2 5
-     bs_k 1 13 2 5
-     bs_n 1 13 2 5
-  &END
+    ASPARSITY 0.70
+    BSPARSITY 0.70
+    BS_K 1 13 2 5
+    BS_M 1 13 2 5
+    BS_N 1 13 2 5
+    CSPARSITY 0.70
+    K 13800
+    M 13800
+    N 13800
+    N_LOOP 3
+    TRANSA FALSE
+    TRANSB TRUE
+  &END CP_DBCSR
 &END TEST

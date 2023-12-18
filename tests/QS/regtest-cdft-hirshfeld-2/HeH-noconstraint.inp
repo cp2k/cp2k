@@ -6,18 +6,16 @@
 @SET WRITE_CUBE           FALSE
 @SET CENTER_SYS               ON
 @SET XYZFILE              HeH.xyz
-
 @SET HIRSHFELD_ACTIVE         FALSE
-
 &GLOBAL
+  PREFERRED_DIAG_LIBRARY SL
+  PRINT_LEVEL MEDIUM
   PROJECT ${PROJECT_NAME}
   RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
-  PREFERRED_DIAG_LIBRARY SL
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
-  @include dft-common-params.inc
-  @include subsys.inc
+@include dft-common-params.inc
+@include subsys.inc
 &END FORCE_EVAL

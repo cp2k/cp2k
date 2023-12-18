@@ -1,3 +1,8 @@
+&GLOBAL
+  PROJECT b2h6_pm6
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -5,7 +10,7 @@
       METHOD PM6
       &SE
         ANALYTICAL_GRADIENTS T
-      &END
+      &END SE
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -17,18 +22,14 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     B   0.8831   0.0000   0.0000
-     B  -0.8831   0.0000   0.0000
-     H   0.0000   0.0000   0.9869
-     H   0.0000   0.0000  -0.9869
-     H   1.4655   1.0504   0.0000
-     H   1.4655  -1.0504   0.0000
-     H  -1.4655   1.0504   0.0000
-     H  -1.4655  -1.0504   0.0000
+      B   0.8831   0.0000   0.0000
+      B  -0.8831   0.0000   0.0000
+      H   0.0000   0.0000   0.9869
+      H   0.0000   0.0000  -0.9869
+      H   1.4655   1.0504   0.0000
+      H   1.4655  -1.0504   0.0000
+      H  -1.4655   1.0504   0.0000
+      H  -1.4655  -1.0504   0.0000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT b2h6_pm6
-  RUN_TYPE GEO_OPT
-&END GLOBAL

@@ -1,28 +1,34 @@
+&GLOBAL
+  PRINT_LEVEL DEBUG
+  PROJECT H2O-MNDO-2
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     &MGRID
       CUTOFF 200
-    &END
+    &END MGRID
+    &PRINT
+      &MO_CUBES
+        NHOMO 2
+        NLUMO 2
+        STRIDE 1 1 1
+        WRITE_CUBE
+      &END MO_CUBES
+    &END PRINT
     &QS
       METHOD MNDO
       &SE
-       ANALYTICAL_GRADIENTS T
-       STO_NG 6
-      &END
+        ANALYTICAL_GRADIENTS T
+        STO_NG 6
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC
     &END SCF
-    &PRINT
-      &MO_CUBES
-        WRITE_CUBE
-        NLUMO 2
-        NHOMO 2
-        STRIDE 1 1 1
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
@@ -30,14 +36,9 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    O   5.000000    5.000000    4.945587
-    H   5.000000    4.253136    5.520545
-    H   5.000000    5.757136    5.520545
+      O   5.000000    5.000000    4.945587
+      H   5.000000    4.253136    5.520545
+      H   5.000000    5.757136    5.520545
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-MNDO-2
-  PRINT_LEVEL DEBUG
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

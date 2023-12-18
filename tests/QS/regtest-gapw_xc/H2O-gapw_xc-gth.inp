@@ -1,3 +1,8 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-gapw_xc-gth
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -8,10 +13,10 @@
       NGRIDS 1
     &END MGRID
     &QS
-      EPS_GVG 1.0E-6
-      EPS_PGF_ORB 1.0E-6
       EPSFIT 1.E-4
       EPSISO 1.0E-12
+      EPS_GVG 1.0E-6
+      EPS_PGF_ORB 1.0E-6
       LMAXN0 2
       LMAXN1 6
       METHOD GAPW_XC
@@ -31,9 +36,9 @@
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -49,7 +54,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-gapw_xc-gth
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

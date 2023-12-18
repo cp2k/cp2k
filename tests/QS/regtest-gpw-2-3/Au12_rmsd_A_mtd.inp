@@ -1,153 +1,154 @@
 @SET PNAME Au12-rmsd
-
 &GLOBAL
+  FLUSH_SHOULD_FLUSH T
+  IOLEVEL MEDIUM
+  PREFERRED_FFT_LIBRARY FFTW
   PROJECT Au12_rmsd_A_mtd
- IOLEVEL      MEDIUM
- PREFERRED_FFT_LIBRARY FFTW
- RUN_TYPE     MD
- WALLTIME     10500
- FLUSH_SHOULD_FLUSH T
-&END
+  RUN_TYPE MD
+  WALLTIME 10500
+&END GLOBAL
+
 &FORCE_EVAL
-  METHOD      Quickstep
+  METHOD Quickstep
   &DFT
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     !UKS
     CHARGE 0
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 40
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EXTRAPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+      METHOD GPW
+    &END QS
     !MULTIPLICITY 2
     ! CHOLESKY OFF
     &SCF
-      EPS_SCF      1.0E-3
+      EPS_SCF 1.0E-3
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF      3
-      SCF_GUESS    ATOMIC
-      &OUTER_SCF OFF
-        EPS_SCF    1.0E-5
-        MAX_SCF    50
-      &END
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
       &OT
-         MINIMIZER CG
-!        MINIMIZER DIIS
+        ENERGY_GAP 0.040
+        MINIMIZER CG
+        !        MINIMIZER DIIS
         N_DIIS 7
         ! SAFE_DIIS FALSE
         PRECONDITIONER FULL_SINGLE_INVERSE
-        ENERGY_GAP 0.040
       &END OT
-    &END
+      &OUTER_SCF OFF
+        EPS_SCF 1.0E-5
+        MAX_SCF 50
+      &END OUTER_SCF
+    &END SCF
     &XC
       &XC_FUNCTIONAL PBE
-      &END
-    &END
-    &QS
-      METHOD       GPW
-      EPS_DEFAULT  1.0E-12
-      EXTRAPOLATION ASPC
-      EXTRAPOLATION_ORDER 3
-    &END
-    &MGRID
-      &RS_GRID
-        DISTRIBUTION_TYPE DISTRIBUTED
-      &END
-      CUTOFF       40
-      NGRIDS        4
-    &END
-  &END SECTION DFT
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &SUBSYS
     &CELL
-       ABC  8 8 8
-       PERIODIC NONE
+      ABC 8 8 8
+      PERIODIC NONE
     &END CELL
-    &KIND  Au
+    &COLVAR
+      &RMSD
+        ATOMS 1 3 5 6 8 9
+        SUBSET_TYPE LIST
+        &FRAME
+          COORD_FILE_NAME ../sample_xyz/Au12.xyz
+        &END FRAME
+      &END RMSD
+    &END COLVAR
+    &KIND Au
+      BASIS_SET DZVP-MOLOPT-SR-GTH
       ELEMENT Au
       POTENTIAL GTH-PBE-q11
-      BASIS_SET DZVP-MOLOPT-SR-GTH
-    &END
+    &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/Au12.xyz
-      COORDINATE XYZ
       CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/Au12.xyz
     &END TOPOLOGY
-   &COLVAR
-     &RMSD
-       &FRAME
-         COORD_FILE_NAME ../sample_xyz/Au12.xyz
-       &END
-       SUBSET_TYPE LIST
-       ATOMS 1 3 5 6 8 9
-     &END
-   &END
-!   &COLVAR
-!     &COORDINATION
-!       KINDS_FROM  Au
-!       KINDS_TO  Au
-!        R0 3
-!        NN 8
-!        ND 12
-!     &END
-!   &END
+    !   &COLVAR
+    !     &COORDINATION
+    !       KINDS_FROM  Au
+    !       KINDS_TO  Au
+    !        R0 3
+    !        NN 8
+    !        ND 12
+    !     &END
+    !   &END
   &END SUBSYS
 &END FORCE_EVAL
+
 &MOTION
- &FREE_ENERGY
-   &METADYN
-     DO_HILLS T
-     NT_HILLS 2
-     WW 1.0e-3
-     &METAVAR
-       COLVAR 1
-       SCALE  0.05
-     &END
-     &PRINT
-       &COLVAR
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS T
+      NT_HILLS 2
+      WW 1.0e-3
+      &METAVAR
+        COLVAR 1
+        SCALE 0.05
+      &END METAVAR
+      &PRINT
+        &COLVAR
           COMMON_ITERATION_LEVELS 3
-         &EACH
-           MD 1
-         &END
-       &END
-       &HILLS
-         COMMON_ITERATION_LEVELS 3
           &EACH
             MD 1
-          &END
-        &END
-     &END
-   &END METADYN
- &END FREE_ENERGY
+          &END EACH
+        &END COLVAR
+        &HILLS
+          COMMON_ITERATION_LEVELS 3
+          &EACH
+            MD 1
+          &END EACH
+        &END HILLS
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
   &MD
     ENSEMBLE NVT
-    STEPS  5
-    TIMESTEP 1.0
+    STEPS 5
     TEMPERATURE 300.0
-!    TEMP_TOL 150
+    TIMESTEP 1.0
+    &PRINT
+      &ENERGY
+        ADD_LAST NUMERIC
+        &EACH
+          MD 10
+        &END EACH
+      &END ENERGY
+    &END PRINT
+    !    TEMP_TOL 150
     &THERMOSTAT
       TYPE NOSE
       &NOSE
         LENGTH 6
-        YOSHIDA 3
-        TIMECON 1.0
         MTS 2
+        TIMECON 1.0
+        YOSHIDA 3
       &END NOSE
     &END THERMOSTAT
-    &PRINT
-      &ENERGY
-        &EACH
-          MD 10
-        &END
-        ADD_LAST NUMERIC
-      &END
-    &END PRINT
   &END MD
   &PRINT
-    &TRAJECTORY
-      &EACH
-        MD      10
-      &END
-    &END
     &RESTART
       &EACH
-        MD      10
-      &END
-    &END
-  &END
+        MD 10
+      &END EACH
+    &END RESTART
+    &TRAJECTORY
+      &EACH
+        MD 10
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
 &END MOTION

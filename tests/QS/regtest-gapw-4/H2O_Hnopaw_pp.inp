@@ -1,21 +1,22 @@
 &GLOBAL
+  PRINT_LEVEL MEDIUM
   PROJECT H2O_Hnopaw_pp
   RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      NGRIDS 1
       CUTOFF 100
+      NGRIDS 1
     &END MGRID
     &POISSON
-       PERIODIC NONE
-       POISSON_SOLVER MT
-    &END
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
     &QS
       EPS_DEFAULT 1.0E-5
       METHOD GAPW
@@ -25,25 +26,25 @@
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 2
       SCF_GUESS atomic
-      &PRINT
-        &RESTART
-           &EACH
-             MD 1
-             QS_SCF 0
-           &END
-           ADD_LAST NUMERIC
-        &END
-        &DETAILED_ENERGY
-           &EACH
-             QS_SCF  1
-           &END
-        &END
-      &END
       &OT
         MINIMIZER DIIS
         N_DIIS 7
         PRECONDITIONER FULL_ALL
-      &END
+      &END OT
+      &PRINT
+        &DETAILED_ENERGY
+          &EACH
+            QS_SCF 1
+          &END EACH
+        &END DETAILED_ENERGY
+        &RESTART
+          ADD_LAST NUMERIC
+          &EACH
+            MD 1
+            QS_SCF 0
+          &END EACH
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -56,19 +57,19 @@
       PERIODIC NONE
     &END CELL
     &COORD
-O  0.000000    0.000000    0.117226
-H  0.000000    0.757136   -0.468906
-H  0.000000   -0.757136   -0.468906
+      O  0.000000    0.000000    0.117226
+      H  0.000000    0.757136   -0.468906
+      H  0.000000   -0.757136   -0.468906
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-BLYP-q1
       GPW_TYPE
+      POTENTIAL GTH-BLYP-q1
     &END KIND
     &KIND O
       BASIS_SET DZVP-MOLOPT-GTH
       POTENTIAL GTH-BLYP-q6
-##      GPW_TYPE
+      ##      GPW_TYPE
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

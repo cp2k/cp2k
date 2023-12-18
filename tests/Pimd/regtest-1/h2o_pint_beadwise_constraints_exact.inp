@@ -1,20 +1,10 @@
 &GLOBAL
-  PROJECT_NAME               h2o_pint_constraints_exact
-  RUN_TYPE                   PINT
-  PRINT_LEVEL                LOW
+  PRINT_LEVEL LOW
+  PROJECT_NAME h2o_pint_constraints_exact
+  RUN_TYPE PINT
 &END GLOBAL
 
 &MOTION
-  &PINT
-    P                        4
-    PROC_PER_REPLICA         1
-    NUM_STEPS                4
-    DT                       0.5
-    NRESPA                   2    #produces an intended warning.
-    TEMP                    50.0
-    TRANSFORMATION           NORMAL
-    HARM_INT                 EXACT
-  &END PINT
   &CONSTRAINT
     PIMD_BEADWISE_CONSTRAINT
     &COLLECTIVE
@@ -23,16 +13,26 @@
     &END COLLECTIVE
     &LAGRANGE_MULTIPLIERS
       COMMON_ITERATION_LEVELS 1
-    &END
+    &END LAGRANGE_MULTIPLIERS
   &END CONSTRAINT
+  &PINT
+    DT 0.5
+    HARM_INT EXACT
+    NRESPA 2  #produces an intended warning.
+    NUM_STEPS 4
+    P 4
+    PROC_PER_REPLICA 1
+    TEMP 50.0
+    TRANSFORMATION NORMAL
+  &END PINT
 &END MOTION
 
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME  ../../Fist/sample_pot/water.pot
-      PARMTYPE        CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../Fist/sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -44,8 +44,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA 0.44
+        EWALD_TYPE SPME
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -55,14 +55,14 @@
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../../Fist/sample_pdb/water_1.pdb
-      COORD_FILE_FORMAT PDB
-    &END TOPOLOGY
     &COLVAR
       &DISTANCE
         ATOMS 1 2
       &END DISTANCE
     &END COLVAR
+    &TOPOLOGY
+      COORD_FILE_FORMAT PDB
+      COORD_FILE_NAME ../../Fist/sample_pdb/water_1.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

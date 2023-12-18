@@ -1,11 +1,48 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT hcn_md
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TEMPERATURE 50.0
+    TEMP_TOL 100
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 100.0
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-      BASIS_SET_FILE_NAME GTH_BASIS_SETS
-      POTENTIAL_FILE_NAME GTH_POTENTIALS
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 50
     &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+      &MT
+      &END MT
+    &END POISSON
     &QS
       EXTRAPOLATION_ORDER 3
     &END QS
@@ -15,89 +52,46 @@
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT
-        PRECONDITIONER FULL_SINGLE_INVERSE
         MINIMIZER DIIS
         N_DIIS 7
+        PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
-
       &OUTER_SCF
-        MAX_SCF 1
         EPS_SCF 1.0E-06
+        MAX_SCF 1
       &END OUTER_SCF
       &PRINT
         &RESTART
           LOG_PRINT_KEY
-        &END
-      &END
-     &END SCF
-     &XC
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
-     &END XC
-     &POISSON
-       POISSON_SOLVER MT
-       PERIODIC NONE
-       &MT
-       &END
-     &END
+    &END XC
   &END DFT
-
   &SUBSYS
     &CELL
       ABC 8.00 8.00 8.00
       PERIODIC NONE
     &END CELL
-
     &COORD
-  N         0.0593260455        0.0917881713       -0.0937926383
-  C         1.2130060606        0.0157919530       -0.0162458915
-  H         2.2699315443       -0.0784274375        0.0784786970
+      N         0.0593260455        0.0917881713       -0.0937926383
+      C         1.2130060606        0.0157919530       -0.0162458915
+      H         2.2699315443       -0.0784274375        0.0784786970
     &END COORD
-
     &KIND N
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q5
     &END KIND
-
     &KIND C
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q4
     &END KIND
-
     &KIND H
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q1
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-
-&GLOBAL
-  PROJECT hcn_md
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 10
-    TIMESTEP 0.5
-    TEMPERATURE 50.0
-    TEMP_TOL 100
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 100.0
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-  &PRINT
-    &RESTART
-       &EACH
-         MD     1
-       &END
-    &END
-  &END
-&END MOTION

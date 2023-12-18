@@ -1,8 +1,8 @@
 # implicit Poisson solver with spatially density dependent dielectric constant
 &GLOBAL
-  PROJECT     H2O_spatial_rho_dep_dielec
-  RUN_TYPE    ENERGY
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_spatial_rho_dep_dielec
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
@@ -10,30 +10,48 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &LS_SCF
+      EPS_FILTER 1.0E-7
+      EPS_SCF 1.0E-7
+      MAX_SCF 3
+      MIXING_FRACTION 0.45
+      MU -0.20
+      PERFORM_MU_SCAN off
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES off
+      S_PRECONDITIONER NONE
+    &END LS_SCF
+    &MGRID
+      CUTOFF 180
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
     &POISSON
       POISSON_SOLVER IMPLICIT
       &IMPLICIT
         BOUNDARY_CONDITIONS PERIODIC
-        MAX_ITER     300
-        TOL          1.0E-5
+        MAX_ITER 300
         OR_PARAMETER 1.0E-00
+        TOL 1.0E-5
         &DIELECTRIC
-          DIELECTRIC_FUNCTION_TYPE  spatially_rho_dependent
-          DIELECTRIC_CONSTANT  5.0
-          RHO_MIN    1.0E-4
-          RHO_MAX    1.0E-3
           DERIVATIVE_METHOD cd5
+          DIELECTRIC_CONSTANT 5.0
+          DIELECTRIC_FUNCTION_TYPE spatially_rho_dependent
+          RHO_MAX 1.0E-3
+          RHO_MIN 1.0E-4
           &DIELEC_XAA_ANNULAR
-            epsilon     8.0
-            X_xtnt      0.5 7.5
-            base_center 4.0 4.0
-            base_radii  1.5 2.0
-            smoothing_width 0.5
+            BASE_CENTER 4.0 4.0
+            BASE_RADII 1.5 2.0
+            EPSILON 8.0
+            SMOOTHING_WIDTH 0.5
+            X_XTNT 0.5 7.5
           &END DIELEC_XAA_ANNULAR
         &END DIELECTRIC
       &END IMPLICIT
-   &END POISSON
-   &PRINT
+    &END POISSON
+    &PRINT
       &IMPLICIT_PSOLVER
         &DIELECTRIC_CUBE off
           STRIDE 1 1 1
@@ -42,46 +60,28 @@
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
-   &END PRINT
-    &MGRID
-      CUTOFF 180
-      NGRIDS 4
-      &RS_GRID
-        DISTRIBUTION_TYPE DISTRIBUTED
-      &END RS_GRID
-    &END MGRID
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-10
-      EPS_FILTER_MATRIX  0.1
+      EPS_FILTER_MATRIX 0.1
       LS_SCF off
       &DISTRIBUTION
         BASIC_OPTIMIZATION .FALSE.
         BASIC_SPATIAL_OPTIMIZATION .TRUE.
       &END DISTRIBUTION
     &END QS
-    &LS_SCF
-      MAX_SCF    3
-      EPS_FILTER 1.0E-7
-      EPS_SCF    1.0E-7
-      MU        -0.20
-      MIXING_FRACTION 0.45
-      S_PRECONDITIONER      NONE
-      REPORT_ALL_SPARSITIES off
-      PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4
-    &END LS_SCF
     &SCF
-      EPS_SCF   1.0E-4
+      EPS_SCF 1.0E-4
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF   3
+      MAX_SCF 3
       SCF_GUESS ATOMIC
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
       &OUTER_SCF
-        MAX_SCF 3
         EPS_SCF 1.0E-4
+        MAX_SCF 3
       &END OUTER_SCF
       &PRINT
         &RESTART off
@@ -103,9 +103,9 @@
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
-     O         4.9999870401        4.5606769781        4.5606769833
-     H         5.0000000491        4.4536015938        5.5327585878
-     H         5.0000000214        5.5327585972        4.4536017371
+      O         4.9999870401        4.5606769781        4.5606769833
+      H         5.0000000491        4.4536015938        5.5327585878
+      H         5.0000000214        5.5327585972        4.4536017371
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH

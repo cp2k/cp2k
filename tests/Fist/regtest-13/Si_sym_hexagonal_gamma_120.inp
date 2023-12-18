@@ -1,104 +1,105 @@
 @SET Sqrt3 1.7320508075688772
-
 &FORCE_EVAL
- METHOD FIST
- &MM
-  &FORCEFIELD
-   &SPLINE
-    EPS_SPLINE 1.0E-8
-   &END
-   &NONBONDED
-    &TERSOFF
-     ATOMS Si Si
-     A        1.8308E3
-     B        4.7118E2
-     lambda1  2.4799
-     lambda2  1.7322
-     alpha    0.00
-     beta     1.0999E-6
-     n        7.8734E-1
-     c        1.0039E5
-     d        1.6218E1
-     h       -5.9826E-1
-     lambda3  1.7322
-     bigR     2.85
-     bigD     0.15
-     RCUT    10.0
-    &END TERSOFF
-   &END NONBONDED
-  &END FORCEFIELD
-  &POISSON
-   &EWALD
-    EWALD_TYPE none
-   &END EWALD
-  &END POISSON
- &END MM
- &SUBSYS
-  &CELL
-   A  3.850/2 -3.850*${Sqrt3}/2      0
-   B  3.850/2  3.850*${Sqrt3}/2      0
-   C        0                 0  6.366
-   MULTIPLE_UNIT_CELL 3 3 3
-   PERIODIC XYZ
-   SYMMETRY hexagonal_gamma_120
-  &END CELL
-  &TOPOLOGY
-   MULTIPLE_UNIT_CELL 3 3 3
-   CONNECTIVITY OFF
-  &END TOPOLOGY
-  &COORD
-   SCALED
-   Si   1/3  2/3  0.063
-   Si   1/3  2/3  0.437
-   Si   2/3  1/3  0.563
-   Si   2/3  1/3  0.937
-  &END COORD
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &TERSOFF
+          A 1.8308E3
+          ALPHA 0.00
+          ATOMS Si Si
+          B 4.7118E2
+          BETA 1.0999E-6
+          BIGD 0.15
+          BIGR 2.85
+          C 1.0039E5
+          D 1.6218E1
+          H -5.9826E-1
+          LAMBDA1 2.4799
+          LAMBDA2 1.7322
+          LAMBDA3 1.7322
+          N 7.8734E-1
+          RCUT 10.0
+        &END TERSOFF
+      &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.0E-8
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
   &PRINT
-   &ATOMIC_COORDINATES
-   &END
-   &CELL
-   &END
-  &END
- &END SUBSYS
- STRESS_TENSOR ANALYTICAL
- &PRINT
-  &STRESS_TENSOR
-  &END STRESS_TENSOR
- &END PRINT
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      A 3.850/2 -3.850*${Sqrt3}/2 0
+      B 3.850/2 3.850*${Sqrt3}/2 0
+      C 0 0 6.366
+      MULTIPLE_UNIT_CELL 3 3 3
+      PERIODIC XYZ
+      SYMMETRY hexagonal_gamma_120
+    &END CELL
+    &COORD
+      SCALED
+      Si   1/3  2/3  0.063
+      Si   1/3  2/3  0.437
+      Si   2/3  1/3  0.563
+      Si   2/3  1/3  0.937
+    &END COORD
+    &PRINT
+      &ATOMIC_COORDINATES
+      &END ATOMIC_COORDINATES
+      &CELL
+      &END CELL
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY OFF
+      MULTIPLE_UNIT_CELL 3 3 3
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
+
 &GLOBAL
- PREFERRED_DIAG_LIBRARY ScaLAPACK
- PRINT_LEVEL medium
- PROJECT Si_direct_cell_opt
- RUN_TYPE CELL_OPT
+  PREFERRED_DIAG_LIBRARY ScaLAPACK
+  PRINT_LEVEL medium
+  PROJECT Si_direct_cell_opt
+  RUN_TYPE CELL_OPT
 &END GLOBAL
+
 &MOTION
- &CELL_OPT
-  EXTERNAL_PRESSURE [bar] 1.0
-  CONSTRAINT none
-  KEEP_ANGLES no
-  KEEP_SYMMETRY no
-  MAX_DR    0.00001
-  MAX_FORCE 0.000001
-  MAX_ITER  400
-  OPTIMIZER BFGS
-  PRESSURE_TOLERANCE [bar] 10.0
-  RMS_DR    0.000003
-  RMS_FORCE 0.0000003
-  TYPE direct_cell_opt
-  &BFGS
-   TRUST_RADIUS 0.1
-   USE_MODEL_HESSIAN no
-   USE_RAT_FUN_OPT on
-  &END BFGS
- &END CELL_OPT
- &PRINT
-  &CELL on
-  &END CELL
-  &RESTART on
-   BACKUP_COPIES 0
-  &END RESTART
-  &RESTART_HISTORY off
-  &END RESTART_HISTORY
- &END PRINT
+  &CELL_OPT
+    CONSTRAINT none
+    EXTERNAL_PRESSURE [bar] 1.0
+    KEEP_ANGLES no
+    KEEP_SYMMETRY no
+    MAX_DR 0.00001
+    MAX_FORCE 0.000001
+    MAX_ITER 400
+    OPTIMIZER BFGS
+    PRESSURE_TOLERANCE [bar] 10.0
+    RMS_DR 0.000003
+    RMS_FORCE 0.0000003
+    TYPE direct_cell_opt
+    &BFGS
+      TRUST_RADIUS 0.1
+      USE_MODEL_HESSIAN no
+      USE_RAT_FUN_OPT on
+    &END BFGS
+  &END CELL_OPT
+  &PRINT
+    &CELL on
+    &END CELL
+    &RESTART on
+      BACKUP_COPIES 0
+    &END RESTART
+    &RESTART_HISTORY off
+    &END RESTART_HISTORY
+  &END PRINT
 &END MOTION

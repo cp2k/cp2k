@@ -1,9 +1,30 @@
+&GLOBAL
+  PROJECT water_3_ddist_g
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+      TARGET -3.78
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -14,12 +35,12 @@
       &END CHARGE
       &SPLINE
         EMAX_SPLINE 1.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE pme
         ALPHA .44
+        EWALD_TYPE pme
         NS_MAX 25
       &END EWALD
     &END POISSON
@@ -30,54 +51,35 @@
     &END CELL
     &COLVAR
       &DISTANCE_FUNCTION
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 4
-        &END
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 6
-        &END
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 6
-        &END
-        &POINT
-          TYPE GEO_CENTER
-          ATOMS 1
-        &END
         ATOMS 1 2 3 4
         # distance 1 = ( 4 - 6 )
         # distance 2 = ( 6 - 1 )
         COEFFICIENT -1.0000
+        &POINT
+          ATOMS 4
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 6
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 6
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 1
+          TYPE GEO_CENTER
+        &END POINT
       &END DISTANCE_FUNCTION
     &END COLVAR
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/water_2.xyz
       COORDINATE xyz
+      COORD_FILE_NAME ../sample_xyz/water_2.xyz
       &GENERATE
-        REORDER
         CREATE_MOLECULES
-      &END
+        REORDER
+      &END GENERATE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_ddist_g
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET -3.78
-      INTERMOLECULAR
-      COLVAR 1
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

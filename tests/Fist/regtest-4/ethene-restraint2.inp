@@ -1,9 +1,57 @@
+&GLOBAL
+  PROJECT ethene-restraint2
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      MOLECULE 1
+      TARGET [deg] 0.0
+      &RESTRAINT
+        K [kcalmol] 4.90
+      &END RESTRAINT
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 2
+      MOLECULE 1
+      TARGET [deg] 180.0
+      &RESTRAINT
+        K [kcalmol] 4.90
+      &END RESTRAINT
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 3
+      MOLECULE 1
+      TARGET [deg] -180.0
+      &RESTRAINT
+        K [kcalmol] 4.90
+      &END RESTRAINT
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 4
+      MOLECULE 1
+      TARGET [deg] 0.0
+      &RESTRAINT
+        K [kcalmol] 4.90
+      &END RESTRAINT
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/ethene_fake.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/ethene_fake.pot
       &CHARGE
         ATOM CE2
         CHARGE -0.42
@@ -15,8 +63,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -26,75 +74,29 @@
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/ethene.pdb
-      COORDINATE pdb
-    &END TOPOLOGY
     &COLVAR
       &TORSION
-        ATOMS   3 1 2 4
-      &END
-    &END
-    &COLVAR
-      &TORSION
-        ATOMS   3 1 2 6
-      &END
-    &END
-    &COLVAR
-      &TORSION
-        ATOMS   5 1 2 4
-      &END
-    &END
-    &COLVAR
-      &TORSION
-        ATOMS   5 1 2 6
+        ATOMS 3 1 2 4
       &END TORSION
-    &END
+    &END COLVAR
+    &COLVAR
+      &TORSION
+        ATOMS 3 1 2 6
+      &END TORSION
+    &END COLVAR
+    &COLVAR
+      &TORSION
+        ATOMS 5 1 2 4
+      &END TORSION
+    &END COLVAR
+    &COLVAR
+      &TORSION
+        ATOMS 5 1 2 6
+      &END TORSION
+    &END COLVAR
+    &TOPOLOGY
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/ethene.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ethene-restraint2
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 2
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET [deg] 0.0
-      MOLECULE 1
-      COLVAR 1
-      &RESTRAINT
-          K   [kcalmol] 4.90
-      &END
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET [deg] 180.0
-      MOLECULE 1
-      COLVAR 2
-      &RESTRAINT
-          K   [kcalmol] 4.90
-      &END
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET [deg] -180.0
-      MOLECULE 1
-      COLVAR 3
-      &RESTRAINT
-          K   [kcalmol] 4.90
-      &END
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET [deg] 0.0
-      MOLECULE 1
-      COLVAR 4
-      &RESTRAINT
-          K   [kcalmol] 4.90
-      &END
-    &END COLLECTIVE
-  &END CONSTRAINT
-&END MOTION

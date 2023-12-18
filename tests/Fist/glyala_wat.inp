@@ -1,15 +1,32 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT glyala_wat
+  RUN_TYPE debug
+&END GLOBAL
+
+&DEBUG
+&END DEBUG
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name sample_pot/charmm.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME sample_pot/charmm.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
@@ -20,24 +37,8 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME sample_pdb/glyala_wat.pdb
       COORDINATE PDB
+      COORD_FILE_NAME sample_pdb/glyala_wat.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-
-  PROJECT glyala_wat
-  RUN_TYPE debug
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION
-&DEBUG
-&END

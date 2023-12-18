@@ -1,112 +1,114 @@
-&FORCE_EVAL
-  METHOD Fist
-  &MM
-@include pmeis_forcefield.inc
-    &POISSON
-      &EWALD
-        EWALD_TYPE spme
-        ALPHA .44
-        GMAX  64
-      &END EWALD
-    &END POISSON
-  &END MM
-  &SUBSYS
-    &CELL
-      ABC  10.936 10.936 10.936
-    &END CELL
-    &TOPOLOGY
-      CONN_FILE ../sample_psf/uo2_2x2x2.psf
-      CONNECTIVITY UPSF
-      COORD_FILE ../sample_xyz/uo2_displ.xyz
-      COORDINATE XYZ
-    &END TOPOLOGY
-    &KIND U
-      MASS 238.03000
-    &END
-    &KIND O
-      MASS 16.000
-    &END
-  &END SUBSYS
-  STRESS_TENSOR ANALYTICAL
-&END FORCE_EVAL
 &GLOBAL
-  PROJECT uo2_shell_npt_dsc
   PRINT_LEVEL LOW
+  PROJECT uo2_shell_npt_dsc
   RUN_TYPE MD
 &END GLOBAL
+
 &MOTION
   &MD
     ENSEMBLE NPT_F
-    STEPS  10
-    TIMESTEP 1.5
+    STEPS 10
     TEMPERATURE 2000.0
+    TIMESTEP 1.5
     &BAROSTAT
       PRESSURE 0.
       TIMECON 1000
     &END BAROSTAT
+    &PRINT
+      &ENERGY
+      &END ENERGY
+      &SHELL_ENERGY LOW
+      &END SHELL_ENERGY
+    &END PRINT
+    &SHELL
+      TEMPERATURE 1.0
+      ##      TEMP_TOL 25.0
+      &THERMOSTAT
+        REGION GLOBAL
+        TYPE NOSE
+        &NOSE
+          LENGTH 6
+          MTS 2
+          TIMECON 1000
+          YOSHIDA 3
+        &END NOSE
+      &END THERMOSTAT
+    &END SHELL
     &THERMOSTAT
       REGION MOLECULE
       &NOSE
         LENGTH 6
-        YOSHIDA 3
-        TIMECON 1000
         MTS 2
+        TIMECON 1000
+        YOSHIDA 3
       &END NOSE
-    &END
-    &SHELL
-      TEMPERATURE 1.0
-##      TEMP_TOL 25.0
-      &THERMOSTAT
-        TYPE NOSE
-        REGION GLOBAL
-        &NOSE
-          LENGTH 6
-          YOSHIDA 3
-          TIMECON 1000
-          MTS 2
-        &END
-      &END
-    &END
-    &PRINT
-      &ENERGY
-      &END
-      &SHELL_ENERGY LOW
-      &END
-    &END PRINT
+    &END THERMOSTAT
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 5
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY
+      &EACH
+        MD 1000
+      &END EACH
+    &END RESTART_HISTORY
+    &STRESS
+    &END STRESS
+    &TRAJECTORY
+    &END TRAJECTORY
+    &VELOCITIES
+      &EACH
+        MD 1000
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
   &SHELL_OPT
-    OPTIMIZER CG
     MAX_DR 0.02
-    RMS_DR 0.01
     MAX_FORCE 0.0002
+    OPTIMIZER CG
+    RMS_DR 0.01
     RMS_FORCE 0.0001
     &CG
       &LINE_SEARCH
         TYPE 2PNT
         &2PNT
-        &END
-      &END
-    &END
-  &END
-  &PRINT
-    &TRAJECTORY
-    &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
-    &END
-    &STRESS
-    &END
-    &RESTART
-      &EACH
-        MD 5
-      &END
-    &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
-    &END
-  &END
+        &END 2PNT
+      &END LINE_SEARCH
+    &END CG
+  &END SHELL_OPT
 &END MOTION
+
+&FORCE_EVAL
+  METHOD Fist
+  STRESS_TENSOR ANALYTICAL
+  &MM
+@include pmeis_forcefield.inc
+    &POISSON
+      &EWALD
+        ALPHA .44
+        EWALD_TYPE spme
+        GMAX 64
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.936 10.936 10.936
+    &END CELL
+    &KIND U
+      MASS 238.03000
+    &END KIND
+    &KIND O
+      MASS 16.000
+    &END KIND
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE ../sample_psf/uo2_2x2x2.psf
+      COORDINATE XYZ
+      COORD_FILE ../sample_xyz/uo2_displ.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -1,178 +1,180 @@
- &GLOBAL
+&GLOBAL
+  BLACS_GRID SQUARE
+  PREFERRED_FFT_LIBRARY FFTW
+  PRINT_LEVEL LOW
+  PROGRAM_NAME CP2K
   PROJECT flibe
-   BLACS_GRID  SQUARE
-   PREFERRED_FFT_LIBRARY  FFTW
-   PRINT_LEVEL  LOW
-   PROGRAM_NAME  CP2K
-   RUN_TYPE  MD
- &END GLOBAL
- &MOTION
-   &MD
-     ENSEMBLE  NVE
-     STEPS        10
-     TIMESTEP     0.5
-     TEMPERATURE     1200.0
-     TEMP_TOL 100
-   &END MD
-   &PRINT
-      &TRAJECTORY LOW
-         &EACH
-           MD 1
-         &END EACH
-      &END TRAJECTORY
-      &VELOCITIES LOW
-        &EACH
-          MD 1
-        &END EACH
-      &END VELOCITIES
-      &FORCES
-        &EACH
-          MD   1
-        &END EACH
-      &END FORCES
-   &END PRINT
- &END MOTION
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 1200.0
+    TEMP_TOL 100
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &FORCES
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+    &TRAJECTORY LOW
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES LOW
+      &EACH
+        MD 1
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
- METHOD FIST
- &MM
-   &FORCEFIELD
-     &SPLINE
-       R0_NB 0.1
-       EMAX_SPLINE 20.0
-     &END SPLINE
-     &NONBONDED
-        &BMHFTD
-          atoms F F
-          A 181.8373
-          B 4.2833
-          C 0.329381
-          D 0.922357
-          BD 3.59048
-          RCUT 9.36643
-        &END BMHFTD
-        &BMHFTD
-          atoms Be F
-          A 41.71686
-          B 4.25909
-          C 0.0
-          D 0.0
-          BD 0.0
-          RCUT 9.36643
-        &END BMHFTD
-        &BMHFTD
-          atoms Li F
-          A 20.4158478
-          B 3.87854
-          C 0.0
-          D 0.0
-          BD 0.0
-          RCUT 9.36643
-        &END BMHFTD
-        &BMHFTD
-          atoms Be Be
-          A 106.163668
-          B 7.452
-          C 0.0
-          D 0.0
-          BD 0.0
-          RCUT 9.36643
-        &END BMHFTD
-        &BMHFTD
-          atoms Be Li
-          A 0.0
-          B 1.0
-          C 0.0
-          D 0.0
-          BD 0.0
-          RCUT 9.36643
-        &END BMHFTD
-        &BMHFTD
-          atoms Li Li
-          A 195.910854
-          B 8.03542
-          C 0.0
-          D 0.0
-          BD 0.0
-          RCUT 9.36643
-        &END BMHFTD
-     &END NONBONDED
-     &CHARGE
-       atom F
-       CHARGE -1.0000
-     &END CHARGE
-     &CHARGE
-       atom Be
-       CHARGE 2.000
-     &END CHARGE
-     &CHARGE
-       atom Li
-       CHARGE 1.000
-     &END CHARGE
-     &DIPOLE
-       atom F
-       APOL 1.05043
-       &DAMPING
-          TYPE Tang-Toennies
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM F
+        CHARGE -1.0000
+      &END CHARGE
+      &CHARGE
+        ATOM Be
+        CHARGE 2.000
+      &END CHARGE
+      &CHARGE
+        ATOM Li
+        CHARGE 1.000
+      &END CHARGE
+      &DIPOLE
+        APOL 1.05043
+        ATOM F
+        &DAMPING
           ATOM Be
           BIJ 3.370974464
-          ORDER 4
           CIJ 0.991725167
-       &END DAMPING
-       &DAMPING
+          ORDER 4
           TYPE Tang-Toennies
+        &END DAMPING
+        &DAMPING
           ATOM Li
           BIJ 3.412667396
-          ORDER 4
           CIJ 1.397150266
-       &END DAMPING
-     &END DIPOLE
-   &END FORCEFIELD
-   &POISSON
-     &EWALD
-       EWALD_TYPE EWALD
-       ALPHA 0.316
-       GMAX 7
-       O_SPLINE 6
-       &MULTIPOLES T
-         MAX_MULTIPOLE_EXPANSION DIPOLE
-         POL_SCF CONJUGATE_GRADIENT
-         EPS_POL 1.0e-6
-         MAX_IPOL_ITER 100
-       &END MULTIPOLES
-     &END EWALD
+          ORDER 4
+          TYPE Tang-Toennies
+        &END DAMPING
+      &END DIPOLE
+      &NONBONDED
+        &BMHFTD
+          A 181.8373
+          ATOMS F F
+          B 4.2833
+          BD 3.59048
+          C 0.329381
+          D 0.922357
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          A 41.71686
+          ATOMS Be F
+          B 4.25909
+          BD 0.0
+          C 0.0
+          D 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          A 20.4158478
+          ATOMS Li F
+          B 3.87854
+          BD 0.0
+          C 0.0
+          D 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          A 106.163668
+          ATOMS Be Be
+          B 7.452
+          BD 0.0
+          C 0.0
+          D 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          A 0.0
+          ATOMS Be Li
+          B 1.0
+          BD 0.0
+          C 0.0
+          D 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          A 195.910854
+          ATOMS Li Li
+          B 8.03542
+          BD 0.0
+          C 0.0
+          D 0.0
+          RCUT 9.36643
+        &END BMHFTD
+      &END NONBONDED
+      &SPLINE
+        EMAX_SPLINE 20.0
+        R0_NB 0.1
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA 0.316
+        EWALD_TYPE EWALD
+        GMAX 7
+        O_SPLINE 6
+        &MULTIPOLES T
+          EPS_POL 1.0e-6
+          MAX_IPOL_ITER 100
+          MAX_MULTIPOLE_EXPANSION DIPOLE
+          POL_SCF CONJUGATE_GRADIENT
+        &END MULTIPOLES
+      &END EWALD
     &END POISSON
     &PRINT
       &ITER_INFO LOW
       &END ITER_INFO
-    &END
+    &END PRINT
   &END MM
-   &SUBSYS
+  &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-          F         0.1070207770        4.7805803378        4.2319187284
-          F        -0.4452193764        9.2664540536       -4.8366328290
-          F         7.3827842755       -0.7244458144        7.8413127339
-          F        -3.1470062918        0.6662785537       -0.8553166496
-          F         8.6031113587        2.2277338600        2.5593342094
-          F         5.8243778395       -4.2288145862       -2.1365686153
-         Be         4.2898323382       13.3460656398        6.7977248002
-         Be         4.4133437935       -0.3198192029       -3.3756731913
-         Li        10.2291563003        6.4894116478       13.1249780628
-         Li       -14.1619614361       -7.0206696349       13.2855175234
+      F         0.1070207770        4.7805803378        4.2319187284
+      F        -0.4452193764        9.2664540536       -4.8366328290
+      F         7.3827842755       -0.7244458144        7.8413127339
+      F        -3.1470062918        0.6662785537       -0.8553166496
+      F         8.6031113587        2.2277338600        2.5593342094
+      F         5.8243778395       -4.2288145862       -2.1365686153
+      Be         4.2898323382       13.3460656398        6.7977248002
+      Be         4.4133437935       -0.3198192029       -3.3756731913
+      Li        10.2291563003        6.4894116478       13.1249780628
+      Li       -14.1619614361       -7.0206696349       13.2855175234
     &END COORD
     &KIND F
       ELEMENT F
-      MASS    18.99840
+      MASS 18.99840
     &END KIND
     &KIND Be
       ELEMENT Be
-      MASS    9.01218
+      MASS 9.01218
     &END KIND
     &KIND Li
       ELEMENT Li
-      MASS    6.941
+      MASS 6.941
     &END KIND
-   &END SUBSYS
- &END FORCE_EVAL
+  &END SUBSYS
+&END FORCE_EVAL

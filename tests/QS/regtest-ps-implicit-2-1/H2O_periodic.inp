@@ -4,11 +4,10 @@
 @SET OT   1
 @SET LS   off
 @SET RST  off
-
 &GLOBAL
-  PROJECT     H2O_periodic
-  RUN_TYPE    ENERGY
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_periodic
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
@@ -16,18 +15,36 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &LS_SCF
+      EPS_FILTER 1.0E-7
+      EPS_SCF 1.0E-7
+      MAX_SCF 3
+      MIXING_FRACTION 0.45
+      MU -0.20
+      PERFORM_MU_SCAN off
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES off
+      S_PRECONDITIONER NONE
+    &END LS_SCF
+    &MGRID
+      CUTOFF 180
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
     &POISSON
       POISSON_SOLVER ${PS}
       &IMPLICIT
         BOUNDARY_CONDITIONS ${BC}
-        MAX_ITER     300
-        TOL          1.0E-4
+        MAX_ITER 300
         OR_PARAMETER 1.0E-01
+        TOL 1.0E-4
         &DIELECTRIC
-          DIELECTRIC_CONSTANT 78.36
-          RHO_MIN    1.0E-4
-          RHO_MAX    1.0E-3
           DERIVATIVE_METHOD cd5
+          DIELECTRIC_CONSTANT 78.36
+          RHO_MAX 1.0E-3
+          RHO_MIN 1.0E-4
         &END DIELECTRIC
       &END IMPLICIT
     &END POISSON
@@ -41,13 +58,6 @@
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
     &END PRINT
-    &MGRID
-      CUTOFF 180
-      NGRIDS 4
-      &RS_GRID
-        DISTRIBUTION_TYPE DISTRIBUTED
-      &END RS_GRID
-    &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
       LS_SCF ${LS}
@@ -56,41 +66,30 @@
         BASIC_SPATIAL_OPTIMIZATION .TRUE.
       &END DISTRIBUTION
     &END QS
-    &LS_SCF
-      MAX_SCF         3
-      EPS_FILTER      1.0E-7
-      EPS_SCF         1.0E-7
-      MU             -0.20
-      MIXING_FRACTION 0.45
-      S_PRECONDITIONER      NONE
-      REPORT_ALL_SPARSITIES off
-      PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4
-    &END LS_SCF
     &SCF
-      @IF ${Diag}
-        EPS_SCF   1.0E-5
-        IGNORE_CONVERGENCE_FAILURE
-        MAX_SCF   3
-        SCF_GUESS ATOMIC
-        &MIXING
-          ALPHA 0.2
-        &END MIXING
-      @ENDIF
-      @IF ${OT}
-        EPS_SCF   1.0E-4
-        IGNORE_CONVERGENCE_FAILURE
-        MAX_SCF   3
-        SCF_GUESS ATOMIC
-        &OT
-          MINIMIZER DIIS
-          PRECONDITIONER FULL_SINGLE_INVERSE
-        &END OT
-        &OUTER_SCF
-          MAX_SCF 3
-          EPS_SCF 1.0E-4
-        &END OUTER_SCF
-      @ENDIF
+@IF ${Diag}
+      EPS_SCF 1.0E-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.2
+      &END MIXING
+@ENDIF
+@IF ${OT}
+      EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-4
+        MAX_SCF 3
+      &END OUTER_SCF
+@ENDIF
       &PRINT
         &RESTART ${RST}
           BACKUP_COPIES 0
@@ -110,9 +109,9 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     O         4.9999870401        4.5606769781        4.5606769833
-     H         5.0000000491        4.4536015938        5.5327585878
-     H         5.0000000214        5.5327585972        4.4536017371
+      O         4.9999870401        4.5606769781        4.5606769833
+      H         5.0000000491        4.4536015938        5.5327585878
+      H         5.0000000214        5.5327585972        4.4536017371
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH

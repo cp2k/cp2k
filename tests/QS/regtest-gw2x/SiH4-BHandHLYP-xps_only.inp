@@ -1,68 +1,54 @@
 &GLOBAL
-  PROJECT SiH4-BHandHLYP-xps_only
   PRINT_LEVEL LOW
+  PROJECT SiH4-BHandHLYP-xps_only
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
-    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME  POTENTIAL
-    AUTO_BASIS RI_XAS    MEDIUM
-
+    AUTO_BASIS RI_XAS MEDIUM
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &POISSON
       PERIODIC NONE
       PSOLVER MT
     &END POISSON
-
     &QS
       METHOD GAPW
     &END QS
-
-    &XC
-      &XC_FUNCTIONAL
-         &HYB_GGA_XC_BHandHLYP
-         &END HYB_GGA_XC_BHandHLYP
-      &END XC_FUNCTIONAL
-      &HF
-         FRACTION 0.5
-      &END HF
-    &END XC
-
     &XAS_TDP
       &DONOR_STATES
-         DEFINE_EXCITED BY_KIND
-         KIND_LIST Si
-         STATE_TYPES 1s
-         STATE_TYPES 2s
-         STATE_TYPES 2p
-         N_SEARCH 5
-         LOCALIZE
+        DEFINE_EXCITED BY_KIND
+        KIND_LIST Si
+        LOCALIZE
+        N_SEARCH 5
+        STATE_TYPES 1s
+        STATE_TYPES 2s
+        STATE_TYPES 2p
       &END DONOR_STATES
-
       &GW2X
-         XPS_ONLY
+        XPS_ONLY
       &END GW2X
-
       &KERNEL
-         ! No need for xc kernel as we only care about XPS
-         &XC_FUNCTIONAL NONE
-         &END XC_FUNCTIONAL
-         &EXACT_EXCHANGE
-            FRACTION 1.0
-         &END EXACT_EXCHANGE
+        &EXACT_EXCHANGE
+          FRACTION 1.0
+        &END EXACT_EXCHANGE
+        ! No need for xc kernel as we only care about XPS
+        &XC_FUNCTIONAL NONE
+        &END XC_FUNCTIONAL
       &END KERNEL
     &END XAS_TDP
-
+    &XC
+      &HF
+        FRACTION 0.5
+      &END HF
+      &XC_FUNCTIONAL
+        &HYB_GGA_XC_BHANDHLYP
+        &END HYB_GGA_XC_BHANDHLYP
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &SUBSYS
-    &KIND Si
-      BASIS_SET Ahlrichs-def2-TZVP
-      POTENTIAL ALL
-    &END KIND
-    &KIND H
-      BASIS_SET Ahlrichs-def2-TZVP
-      POTENTIAL GTH-PBE
-    &END KIND
     &CELL
       ABC 5.0 5.0 5.0
       PERIODIC NONE
@@ -74,6 +60,14 @@
       H   -0.853686    0.853686   -0.853686
       H    0.853686   -0.853686   -0.853686
     &END COORD
+    &KIND Si
+      BASIS_SET Ahlrichs-def2-TZVP
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET Ahlrichs-def2-TZVP
+      POTENTIAL GTH-PBE
+    &END KIND
     &TOPOLOGY
       &CENTER_COORDINATES
       &END CENTER_COORDINATES

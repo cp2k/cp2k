@@ -1,46 +1,45 @@
 &GLOBAL
-  PROJECT G0W0_H2O_PBE0_ADMM
   PRINT_LEVEL MEDIUM
+  PROJECT G0W0_H2O_PBE0_ADMM
   RUN_TYPE ENERGY
   &TIMINGS
-     THRESHOLD 0.01
-  &END
+    THRESHOLD 0.01
+  &END TIMINGS
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME HFX_BASIS
     BASIS_SET_FILE_NAME BASIS_ADMM
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      METHOD BASIS_PROJECTION
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF 100
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
       MAX_SCF 100
+      SCF_GUESS ATOMIC
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-        &PBE
-          SCALE_X 0.7500000
-          SCALE_C 1.0000000
-        &END
-      &END XC_FUNCTIONAL
       &HF
         FRACTION 0.2500000
         &SCREENING
@@ -49,14 +48,28 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        MEMORY 200.
+        NUMBER_PROC 1
         &INTEGRALS
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END WFC_GPW
+          &WFC_GPW
+            CUTOFF 100
+            REL_CUTOFF 20
+          &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
           ADMM
+          RPA_NUM_QUAD_POINTS 10
+          &GW
+            ANALYTIC_CONTINUATION TWO_POLE
+            CORR_MOS_OCC 10
+            CORR_MOS_VIRT 10
+            CROSSING_SEARCH Z_SHOT
+            EV_GW_ITER 1
+            FERMI_LEVEL_OFFSET 2.0E-2
+            NUMB_POLES 2
+            RI_SIGMA_X FALSE
+            UPDATE_XC_ENERGY
+          &END GW
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -64,31 +77,19 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          RPA_NUM_QUAD_POINTS 10
-          &GW
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
-            ANALYTIC_CONTINUATION TWO_POLE
-            NUMB_POLES            2
-            CROSSING_SEARCH       Z_SHOT
-            FERMI_LEVEL_OFFSET    2.0E-2
-            EV_GW_ITER            1
-            UPDATE_XC_ENERGY
-            RI_SIGMA_X FALSE
-          &END GW
         &END RI_RPA
-        MEMORY  200.
-        NUMBER_PROC  1
-      &END
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_C 1.0000000
+          SCALE_X 0.7500000
+        &END PBE
+      &END XC_FUNCTIONAL
     &END XC
-    &AUXILIARY_DENSITY_MATRIX_METHOD
-      METHOD BASIS_PROJECTION
-      ADMM_PURIFICATION_METHOD NONE
-    &END AUXILIARY_DENSITY_MATRIX_METHOD
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  6.000   6.000  6.000
+      ABC [angstrom] 6.000 6.000 6.000
       PERIODIC NONE
     &END CELL
     &KIND H
@@ -104,10 +105,10 @@
       POTENTIAL GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME H2O_gas.xyz
       COORD_FILE_FORMAT xyz
+      COORD_FILE_NAME H2O_gas.xyz
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

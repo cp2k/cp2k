@@ -1,8 +1,17 @@
 &GLOBAL
-  PROJECT Al_fermi
   PRINT_LEVEL LOW
+  PROJECT Al_fermi
   RUN_TYPE MD
 &END GLOBAL
+
+&MOTION
+  &MD
+    STEPS 3
+    TEMPERATURE 500
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -32,13 +41,13 @@
       MAX_SCF 5
       SCF_GUESS ATOMIC
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   0.3
-      &END
+        ALPHA 0.3
+        METHOD DIRECT_P_MIXING
+      &END MIXING
       &SMEAR
-        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE 3000
-      &END
+        METHOD FERMI_DIRAC
+      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -50,10 +59,10 @@
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
- Al        -0.4201082476       -0.4201082770       -0.4201082658
- Al         2.1120503717        0.1540265147        0.1540265525
- Al         0.1540266214        2.1120506065        0.1540265605
- Al         0.1540266183        0.1540265196        2.1120505165
+      Al        -0.4201082476       -0.4201082770       -0.4201082658
+      Al         2.1120503717        0.1540265147        0.1540265525
+      Al         0.1540266214        2.1120506065        0.1540265605
+      Al         0.1540266183        0.1540265196        2.1120505165
     &END COORD
     &KIND Al
       BASIS_SET DZVP-GTH-PADE-CONFINED
@@ -61,10 +70,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&MOTION
- &MD
-   TIMESTEP    0.5
-   STEPS       3
-   TEMPERATURE 500
- &END
-&END

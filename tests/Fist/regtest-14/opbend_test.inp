@@ -1,22 +1,18 @@
+&GLOBAL
+  PRINT_LEVEL DEBUG
+  PROJECT opbend_test
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DEBUG_STRESS_TENSOR F
+  DX 0.001
+&END DEBUG
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &BOND
-        ATOMS C H
-        K [au_e*au_l^-2] 0.0
-        R0 [au_l] 1.91807202593
-      &END BOND
-      &BOND
-        ATOMS C Cl
-        K [au_e*au_l^-2] 0.0
-        R0 [au_l] 1.91807202593
-      &END BOND
-      &BOND
-        ATOMS C Br
-        K [au_e*au_l^-2] 0.0
-        R0 [au_l] 1.91807202593
-      &END BOND
       &BEND
         ATOMS Br C H
         K [au_e*rad^-2] 0.0
@@ -32,116 +28,131 @@
         K [au_e*rad^-2] 0.0
         THETA0 [rad] 0.0
       &END BEND
-      &OPBEND
-        KIND MM3
-        ATOMS Br H Cl C
-        K [au_e*rad^-2] 2.0
-        PHI0 [rad] 1.1123
-      &END OPBEND
+      &BOND
+        ATOMS C H
+        K [au_e*au_l^-2] 0.0
+        R0 [au_l] 1.91807202593
+      &END BOND
+      &BOND
+        ATOMS C Cl
+        K [au_e*au_l^-2] 0.0
+        R0 [au_l] 1.91807202593
+      &END BOND
+      &BOND
+        ATOMS C Br
+        K [au_e*au_l^-2] 0.0
+        R0 [au_l] 1.91807202593
+      &END BOND
       &NONBONDED
         &LENNARD-JONES
           ATOMS C C
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS C H
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS C Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS C Br
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS H H
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS H Br
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS H Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS Br Br
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS Br Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS Cl Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
       &END NONBONDED
       &NONBONDED14
         &LENNARD-JONES
           ATOMS C C
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS C H
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS C Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS C Br
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS H H
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS H Br
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS H Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS Br Br
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS Br Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
           ATOMS Cl Cl
-          SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
+          SIGMA [au_l] 1.0
         &END LENNARD-JONES
       &END NONBONDED14
+      &OPBEND
+        ATOMS Br H Cl C
+        K [au_e*rad^-2] 2.0
+        KIND MM3
+        PHI0 [rad] 1.1123
+      &END OPBEND
     &END FORCEFIELD
     &POISSON
       PERIODIC none
@@ -167,12 +178,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT opbend_test
-  RUN_TYPE DEBUG
-  PRINT_LEVEL DEBUG
-&END GLOBAL
-&DEBUG
-  DX 0.001
-  DEBUG_STRESS_TENSOR F
-&END

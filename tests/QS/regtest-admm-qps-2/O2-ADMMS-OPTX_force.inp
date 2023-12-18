@@ -1,74 +1,76 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    &DFT
-        BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
-        BASIS_SET_FILE_NAME BASIS_ADMM_UZH
-        POTENTIAL_FILE_NAME POTENTIAL_UZH
-        &MGRID
-            CUTOFF 240
-            REL_CUTOFF 40
-        &END MGRID
-        &AUXILIARY_DENSITY_MATRIX_METHOD
-            ADMM_PURIFICATION_METHOD NONE
-            METHOD CHARGE_CONSTRAINED_PROJECTION
-            EXCH_SCALING_MODEL MERLOT
-            EXCH_CORRECTION_FUNC OPTX
-        &END
-        &POISSON
-            POISSON_SOLVER MT
-            PERIODIC NONE
-        &END
-        LSD
-        MULTIPLICITY 3
-        &QS
-            EPS_DEFAULT 1.0E-12
-            METHOD GPW
-        &END
-        &SCF
-            SCF_GUESS ATOMIC
-            MAX_SCF 50
-            EPS_SCF 1.0E-6
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL NONE
-            &END XC_FUNCTIONAL
-            &HF
-                FRACTION 1.0
-                &SCREENING
-                   EPS_SCHWARZ 1.0E-10
-                   EPS_SCHWARZ_FORCES 1.0E-10
-                &END
-            &END
-        &END XC
-    &END DFT
-    &SUBSYS
-        &CELL
-            ABC 3.0 3.0 6.0
-            PERIODIC NONE
-        &END CELL
-        &TOPOLOGY
-        &END
-        &COORD
-            O   0.000000    0.000000    0.000000
-            O   0.000000    0.000000    1.160000
-        &END COORD
-        &KIND H
-            BASIS_SET ccGRB-D-q1
-            BASIS_SET AUX_FIT admm-dz-q1
-            POTENTIAL GTH-HYB-q1
-        &END KIND
-        &KIND O
-            BASIS_SET ccGRB-D-q6
-            BASIS_SET AUX_FIT admm-dz-q6
-            POTENTIAL GTH-HYB-q6
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT O2-ADMMS-OPTX_force
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE DEBUG
+  PRINT_LEVEL MEDIUM
+  PROJECT O2-ADMMS-OPTX_force
+  RUN_TYPE DEBUG
 &END GLOBAL
+
 &DEBUG
-   CHECK_ATOM_FORCE 1 Z
-&END
+  CHECK_ATOM_FORCE 1 Z
+&END DEBUG
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+    BASIS_SET_FILE_NAME BASIS_ADMM_UZH
+    LSD
+    MULTIPLICITY 3
+    POTENTIAL_FILE_NAME POTENTIAL_UZH
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC OPTX
+      EXCH_SCALING_MODEL MERLOT
+      METHOD CHARGE_CONSTRAINED_PROJECTION
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &MGRID
+      CUTOFF 240
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &HF
+        FRACTION 1.0
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ_FORCES 1.0E-10
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 3.0 3.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O   0.000000    0.000000    0.000000
+      O   0.000000    0.000000    1.160000
+    &END COORD
+    &KIND H
+      BASIS_SET ccGRB-D-q1
+      BASIS_SET AUX_FIT admm-dz-q1
+      POTENTIAL GTH-HYB-q1
+    &END KIND
+    &KIND O
+      BASIS_SET ccGRB-D-q6
+      BASIS_SET AUX_FIT admm-dz-q6
+      POTENTIAL GTH-HYB-q6
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

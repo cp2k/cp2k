@@ -1,140 +1,141 @@
 &GLOBAL
-  PROJECT cu2cl6_m1_clp6cud9
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
   FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL MEDIUM
+  PROJECT cu2cl6_m1_clp6cud9
+  RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
-  &PRINT
-    &FORCES ON
-    &END
-  &END
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     CHARGE -2
     LSD
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      NGRIDS 4
       CUTOFF 100
+      NGRIDS 4
     &END MGRID
     &QS
-      METHOD GPW
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
+      METHOD GPW
     &END QS
     &SCF
       EPS_SCF 1.0e-3
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF  5
+      MAX_SCF 5
       SCF_GUESS ATOMIC
+      &OT
+        ENERGY_GAP 0.001
+        PRECONDITIONER FULL_ALL
+      &END OT
       &OUTER_SCF
         EPS_SCF 1.0E-3
         MAX_SCF 1
-      &END
-      &OT
-        PRECONDITIONER FULL_ALL
-        ENERGY_GAP 0.001
-      &END OT
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
   &SUBSYS
-    &KIND  Cu1
-      ELEMENT Cu
-      BASIS_SET  DZVP-MOLOPT-SR-GTH
-      POTENTIAL  GTH-BLYP-q11
-      &BS
-        &ALPHA
-          NEL -1   0
-          L    0   2
-          N    4   3
-        &END
-        &BETA
-          NEL -1  -2
-          L    0   2
-          N    4   3
-        &END
-      &END
-    &END
-    &KIND  Cu2
-      ELEMENT Cu
-      BASIS_SET  DZVP-MOLOPT-SR-GTH
-      POTENTIAL  GTH-BLYP-q11
-      &BS
-        &ALPHA
-          NEL -1  -2
-          L    0   2
-          N    4   3
-        &END
-        &BETA
-          NEL -1   0
-          L    0   2
-          N    4   3
-        &END
-      &END
-    &END
-    &KIND  Cl
-      BASIS_SET  DZVP-MOLOPT-GTH
-      POTENTIAL  GTH-BLYP-q7
-      &BS
-        &ALPHA
-          NEL 2
-          L   1
-          N   3
-        &END
-        &BETA
-          NEL 2
-          L   1
-          N   3
-        &END
-      &END
-    &END
-    &KIND  Cl1
-      ELEMENT Cl
-      BASIS_SET  DZVP-MOLOPT-GTH
-      POTENTIAL  GTH-BLYP-q7
-      &BS
-        &ALPHA
-          NEL 2
-          L   1
-          N   3
-        &END
-        &BETA
-          NEL 0
-          L   1
-          N   3
-        &END
-      &END
-    &END
-    &KIND  Cl2
-      ELEMENT Cl
-      BASIS_SET  DZVP-MOLOPT-GTH
-      POTENTIAL  GTH-BLYP-q7
-      &BS
-        &ALPHA
-          NEL 0
-          L   1
-          N   3
-        &END
-        &BETA
-          NEL 2
-          L   1
-          N   3
-        &END
-      &END
-    &END
     &CELL
       ABC 8 8 8
     &END CELL
+    &KIND Cu1
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      ELEMENT Cu
+      POTENTIAL GTH-BLYP-q11
+      &BS
+        &ALPHA
+          L 0 2
+          N 4 3
+          NEL -1 0
+        &END ALPHA
+        &BETA
+          L 0 2
+          N 4 3
+          NEL -1 -2
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND Cu2
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      ELEMENT Cu
+      POTENTIAL GTH-BLYP-q11
+      &BS
+        &ALPHA
+          L 0 2
+          N 4 3
+          NEL -1 -2
+        &END ALPHA
+        &BETA
+          L 0 2
+          N 4 3
+          NEL -1 0
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND Cl
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q7
+      &BS
+        &ALPHA
+          L 1
+          N 3
+          NEL 2
+        &END ALPHA
+        &BETA
+          L 1
+          N 3
+          NEL 2
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND Cl1
+      BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT Cl
+      POTENTIAL GTH-BLYP-q7
+      &BS
+        &ALPHA
+          L 1
+          N 3
+          NEL 2
+        &END ALPHA
+        &BETA
+          L 1
+          N 3
+          NEL 0
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND Cl2
+      BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT Cl
+      POTENTIAL GTH-BLYP-q7
+      &BS
+        &ALPHA
+          L 1
+          N 3
+          NEL 0
+        &END ALPHA
+        &BETA
+          L 1
+          N 3
+          NEL 2
+        &END BETA
+      &END BS
+    &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/Cu2Cl6_45_b.xyz
-      COORDINATE XYZ
       CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/Cu2Cl6_45_b.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

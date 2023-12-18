@@ -1,91 +1,113 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2-rtp-efield-vg
+  RUN_TYPE RT_PROPAGATION
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 300.0
+    TIMESTEP [au_t] 0.25
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD QUICKSTEP
   &DFT
-    &REAL_TIME_PROPAGATION
-       MAX_ITER 25
-       MAT_EXP TAYLOR
-       EPS_ITER 1.0E-9
-       INITIAL_WFN SCF_WFN
-       VELOCITY_GAUGE .TRUE. 
-       VG_COM_NL .TRUE.
-       &PRINT
-          &FIELD
-             FILENAME =applied_field
-          &END
-          &CURRENT
-             &EACH
-                 MD 4
-             &END
-          &END CURRENT 
-       &END
-    &END
-    &EFIELD
-       INTENSITY 5E15
-       POLARISATION 0 1 0
-       WAVELENGTH 210
-       ENVELOP CONSTANT
-       &CONSTANT_ENV
-         START_STEP 1
-         END_STEP 2
-       &END
-    &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
+    &EFIELD
+      ENVELOP CONSTANT
+      INTENSITY 5E15
+      POLARISATION 0 1 0
+      WAVELENGTH 210
+      &CONSTANT_ENV
+        END_STEP 2
+        START_STEP 1
+      &END CONSTANT_ENV
+    &END EFIELD
     &MGRID
       CUTOFF 100
     &END MGRID
+    &PRINT
+      &HIRSHFELD OFF
+      &END HIRSHFELD
+      &MOMENTS
+        COMMON_ITERATION_LEVELS 100000
+        COM_NL .TRUE.
+        FILENAME =dipole
+        MAX_MOMENT 2
+        PERIODIC .FALSE.
+        VEL_REPRS .TRUE.
+        &EACH
+          MD 1
+        &END EACH
+      &END MOMENTS
+      &MULLIKEN OFF
+      &END MULLIKEN
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-10
     &END QS
+    &REAL_TIME_PROPAGATION
+      EPS_ITER 1.0E-9
+      INITIAL_WFN SCF_WFN
+      MAT_EXP TAYLOR
+      MAX_ITER 25
+      VELOCITY_GAUGE .TRUE.
+      VG_COM_NL .TRUE.
+      &PRINT
+        &CURRENT
+          &EACH
+            MD 4
+          &END EACH
+        &END CURRENT
+        &FIELD
+          FILENAME =applied_field
+        &END FIELD
+      &END PRINT
+    &END REAL_TIME_PROPAGATION
     &SCF
+      EPS_SCF 1.0E-3
       MAX_SCF 60
-      EPS_SCF 1.0E-3
       SCF_GUESS ATOMIC
-      &OUTER_SCF
-      EPS_SCF 1.0E-3
-      &END
       &OT ON
         ROTATION
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-3
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-       &MULLIKEN OFF
-       &END MULLIKEN
-       &HIRSHFELD OFF
-       &END HIRSHFELD
-       &MOMENTS
-         PERIODIC .FALSE.
-         FILENAME =dipole
-         COMMON_ITERATION_LEVELS 100000
-         MAX_MOMENT 2 
-         COM_NL .TRUE. 
-         VEL_REPRS .TRUE.
-         &EACH
-            MD 1
-         &END EACH
-      &END MOMENTS
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-   H  6.000000   4.5000000   6.000000
-   H  6.000000   1.5000000    6.000000
+      H  6.000000   4.5000000   6.000000
+      H  6.000000   1.5000000    6.000000
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PBE
       POTENTIAL GTH-PBE-q1
     &END KIND
     &KIND HX
+      BASIS_SET DZVP-GTH-PBE
       ELEMENT H
       GHOST T
-      BASIS_SET DZVP-GTH-PBE
       POTENTIAL GTH-PBE-q1
     &END KIND
     &KIND O
@@ -94,23 +116,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2-rtp-efield-vg
- RUN_TYPE RT_PROPAGATION
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 5
-    TIMESTEP [au_t] 0.25
-    TEMPERATURE 300.0
-  &END MD
-    &PRINT
-       &TRAJECTORY
-          &EACH
-             MD 1
-          &END
-       &END
-    &END
-&END MOTION

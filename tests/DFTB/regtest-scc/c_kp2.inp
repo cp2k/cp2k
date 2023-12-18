@@ -1,76 +1,78 @@
 @SET NREP 1
 &FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
   &DFT
-    &QS
-      METHOD DFTB
-      &DFTB
-        SELF_CONSISTENT    T
-        DO_EWALD           T
-        DISPERSION         T
-        DIAGONAL_DFTB3     T
-        HB_SR_GAMMA        T
-        &PARAMETER
-          PARAM_FILE_PATH  ./DFTB/scc
-          SK_FILE  C C      cc.spl
-          UFF_FORCE_FIELD  ../uff_table
-        &END PARAMETER
-      &END DFTB
-      EXTRAPOLATION USE_GUESS
-    &END QS
+    &KPOINTS
+      EPS_GEO 1.e-8
+      FULL_GRID ON
+      SCHEME MONKHORST-PACK 2 2 2
+      SYMMETRY ON
+      VERBOSE F
+    &END KPOINTS
     &POISSON
       &EWALD
-       EWALD_TYPE SPME
-       ALPHA 0.35
-       GMAX 25
+        ALPHA 0.35
+        EWALD_TYPE SPME
+        GMAX 25
       &END EWALD
     &END POISSON
+    &QS
+      EXTRAPOLATION USE_GUESS
+      METHOD DFTB
+      &DFTB
+        DIAGONAL_DFTB3 T
+        DISPERSION T
+        DO_EWALD T
+        HB_SR_GAMMA T
+        SELF_CONSISTENT T
+        &PARAMETER
+          PARAM_FILE_PATH ./DFTB/scc
+          SK_FILE C C cc.spl
+          UFF_FORCE_FIELD ../uff_table
+        &END PARAMETER
+      &END DFTB
+    &END QS
     &SCF
+      EPS_DIIS 0.1e0
+      EPS_SCF 1.0e-8
       SCF_GUESS ATOMIC
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   0.50
-      &END
-      EPS_DIIS  0.1e0
-      EPS_SCF 1.0e-8
+        ALPHA 0.50
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
-    &KPOINTS
-       SCHEME  MONKHORST-PACK  2 2 2
-       SYMMETRY ON
-       EPS_GEO 1.e-8
-       FULL_GRID ON
-       VERBOSE F
-    &END KPOINTS
   &END DFT
   &SUBSYS
-    &TOPOLOGY
-      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
-    &END
     &CELL
       ABC 3.56683 3.56683 3.56683
       MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
     &END CELL
     &COORD
-     SCALED
-     C     0.000000    0.000000    0.000000
-     C     0.502000    0.502000    0.002000
-     C     0.500000    0.000000    0.500000
-     C     0.000000    0.500000    0.500000
-     C     0.250000    0.250000    0.250000
-     C     0.250000    0.750000    0.750000
-     C     0.750000    0.250000    0.750000
-     C     0.750000    0.750000    0.250000
+      SCALED
+      C     0.000000    0.000000    0.000000
+      C     0.502000    0.502000    0.002000
+      C     0.500000    0.000000    0.500000
+      C     0.000000    0.500000    0.500000
+      C     0.250000    0.250000    0.250000
+      C     0.250000    0.750000    0.750000
+      C     0.750000    0.250000    0.750000
+      C     0.750000    0.750000    0.250000
     &END COORD
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END TOPOLOGY
   &END SUBSYS
-  STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
+
 &GLOBAL
-  PROJECT C
   PRINT_LEVEL LOW
+  PROJECT C
   RUN_TYPE GEO_OPT
 &END GLOBAL
+
 &DEBUG
-   DEBUG_FORCES          T
-   DEBUG_STRESS_TENSOR   F
-   STOP_ON_MISMATCH      T
-   DX                1.0e-3
+  DEBUG_FORCES T
+  DEBUG_STRESS_TENSOR F
+  DX 1.0e-3
+  STOP_ON_MISMATCH T
 &END DEBUG

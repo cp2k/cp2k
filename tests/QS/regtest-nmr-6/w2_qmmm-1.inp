@@ -22,20 +22,6 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
-  &PROPERTIES
-    &LINRES
-       &LOCALIZE
-         MAX_ITER 5
-       &END
-       PRECONDITIONER FULL_ALL
-       MAX_ITER 5
-       &CURRENT
-         ORBITAL_CENTER WANNIER
-       &END CURRENT
-       &NMR
-       &END
-    &END
-  &END
   &MM
     &FORCEFIELD
       &BEND
@@ -58,59 +44,73 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms O O
+          ATOMS O O
           EPSILON 78.198
+          RCUT 11.4
           SIGMA 3.166
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms O H
+          ATOMS O H
           EPSILON 0.0
+          RCUT 11.4
           SIGMA 3.6705
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.30523
           RCUT 11.4
+          SIGMA 3.30523
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 100
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
+  &PROPERTIES
+    &LINRES
+      MAX_ITER 5
+      PRECONDITIONER FULL_ALL
+      &CURRENT
+        ORBITAL_CENTER WANNIER
+      &END CURRENT
+      &LOCALIZE
+        MAX_ITER 5
+      &END LOCALIZE
+      &NMR
+      &END NMR
+    &END LINRES
+  &END PROPERTIES
   &QMMM
+    CENTER EVERY_STEP
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 12
     &CELL
       ABC 5 5 5
     &END CELL
-    ECOUPL GAUSS
-    CENTER EVERY_STEP
-    NOCOMPATIBILITY
-    USE_GEEP_LIB 12
+    &PERIODIC
+      GMAX 0.1
+      &MULTIPOLE
+        EWALD_PRECISION 0.000001
+        RCUT 15.0
+      &END MULTIPOLE
+    &END PERIODIC
+    &PRINT
+      &PERIODIC_INFO
+      &END PERIODIC_INFO
+    &END PRINT
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
     &QM_KIND H
       MM_INDEX 2 3
     &END QM_KIND
-    &PERIODIC
-      GMAX 0.1
-      &MULTIPOLE
-        RCUT 15.0
-        EWALD_PRECISION 0.000001
-      &END
-    &END
-    &PRINT
-      &PERIODIC_INFO
-      &END
-    &END
   &END QMMM
   &SUBSYS
     &CELL
@@ -125,15 +125,16 @@
       POTENTIAL ALL
     &END KIND
     &TOPOLOGY
-      CONN_FILE ./w2.psf
       CONNECTIVITY PSF
-      COORD_FILE_NAME ./w2.pdb
+      CONN_FILE ./w2.psf
       COORDINATE PDB
+      COORD_FILE_NAME ./w2.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
+
 &GLOBAL
-  PROJECT w2_qmmm-1
   PRINT_LEVEL LOW
+  PROJECT w2_qmmm-1
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL

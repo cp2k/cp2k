@@ -1,18 +1,19 @@
 &GLOBAL
-  PROJECT h2o_polar
   PRINT_LEVEL LOW
+  PROJECT h2o_polar
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
-     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-     POTENTIAL_FILE_NAME POTENTIAL
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 80
     &END MGRID
-#    &QS
-#      METHOD GAPW
-#    &END QS
+    #    &QS
+    #      METHOD GAPW
+    #    &END QS
     &SCF
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 4
@@ -22,39 +23,39 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &XC_GRID
-         XC_DERIV NN50_SMOOTH
-      &END
+        XC_DERIV NN50_SMOOTH
+      &END XC_GRID
     &END XC
   &END DFT
   &PROPERTIES
     &LINRES
-       MAX_ITER 2000
-       PRECONDITIONER FULL_ALL
-       EPS 1E-3
-       &POLAR
-          DO_RAMAN T
-          &PRINT
-            &POLAR_MATRIX
-              ADD_LAST SYMBOLIC
-              COMMON_ITERATION_LEVELS 2
-              LOG_PRINT_KEY T
-               FILENAME ./polar.out
-             &END
-          &END
-       &END
-    &END
-  &END
+      EPS 1E-3
+      MAX_ITER 2000
+      PRECONDITIONER FULL_ALL
+      &POLAR
+        DO_RAMAN T
+        &PRINT
+          &POLAR_MATRIX
+            ADD_LAST SYMBOLIC
+            COMMON_ITERATION_LEVELS 2
+            FILENAME ./polar.out
+            LOG_PRINT_KEY T
+          &END POLAR_MATRIX
+        &END PRINT
+      &END POLAR
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
-      A [bohr]     4.5727     0.0000     0.0000
-      B [bohr]    -2.2864     3.9601     0.0000
-      C [bohr]     0.0000     0.0000     7.2607
+      A [bohr] 4.5727 0.0000 0.0000
+      B [bohr] -2.2864 3.9601 0.0000
+      C [bohr] 0.0000 0.0000 7.2607
     &END CELL
     &COORD
       UNIT bohr
-        O           0.000000       0.000000       0.224953
-        H           0.000000       1.451310      -0.899812
-        H           0.000000      -1.451310      -0.899812
+      O           0.000000       0.000000       0.224953
+      H           0.000000       1.451310      -0.899812
+      H           0.000000      -1.451310      -0.899812
     &END COORD
     &KIND H
       BASIS_SET SZV-GTH

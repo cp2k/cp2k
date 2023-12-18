@@ -1,3 +1,22 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT res_silica
+  RUN_TYPE MD
+&END GLOBAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME res_silica-1.restart
+&END EXT_RESTART
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 #CPQA DEPENDS silicon_cluster_5.inp
 #
 # this one depends on the previous geo_opt runs that are not checked for correctness
@@ -9,43 +28,43 @@
     &FORCEFIELD
       &NONBONDED
         &WILLIAMS
-          atoms SI O
           A 208920748.3395
+          ATOMS SI O
           B 4.87318
           C 1549614.30961
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atoms SI H
           A 0.0
+          ATOMS SI H
           B 0.0
           C 0.0
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atoms SI SI
           A 0.0
+          ATOMS SI SI
           B 0.0
           C 0.0
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atoms O H
           A 1350000.7166855
+          ATOMS O H
           B 3.24430
           C 1450.53575
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atoms O O
           A 16115719.1363
+          ATOMS O O
           B 2.76000
           C 2030750.05696
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atoms H H
           A 0.0
+          ATOMS H H
           B 0.0
           C 0.0
           RCUT 36.0
@@ -54,8 +73,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .44
+        EWALD_TYPE ewald
         GMAX 21
       &END EWALD
     &END POISSON
@@ -65,27 +84,10 @@
       ABC 11.24 10.80 8.40
     &END CELL
     &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/silicon_cluster.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/silicon_cluster.pdb
+      CONN_FILE_NAME ../sample_psf/silicon_cluster.psf
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/silicon_cluster.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL MEDIUM
-
-  PROJECT res_silica
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 5
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION
-&EXT_RESTART
- RESTART_FILE_NAME res_silica-1.restart
-&END

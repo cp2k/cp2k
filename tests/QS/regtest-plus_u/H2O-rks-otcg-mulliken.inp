@@ -1,15 +1,14 @@
 #CPQA DEPENDS H2O-rks-diag-mulliken.inp
-
 &GLOBAL
-  PROJECT H2O-rks-otcg
   PRINT_LEVEL low
+  PROJECT H2O-rks-otcg
   RUN_TYPE GEO_OPT
 &END GLOBAL
 
 &MOTION
   &GEO_OPT
+    MAX_ITER 2
     OPTIMIZER BFGS
-    MAX_ITER  2
   &END GEO_OPT
 &END MOTION
 
@@ -17,9 +16,9 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
-    RESTART_FILE_NAME   RESTART-rks-diag-mulliken
     PLUS_U_METHOD mulliken
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    RESTART_FILE_NAME RESTART-rks-diag-mulliken
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -27,8 +26,8 @@
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
       &MO
-        MO_RANGE 1 12
         EIGENVALUES
+        MO_RANGE 1 12
         &EACH
           QS_SCF 0
         &END EACH
@@ -42,6 +41,7 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
+      SCF_GUESS restart
       &OT on
         MINIMIZER CG
       &END OT
@@ -51,16 +51,15 @@
       &END OUTER_SCF
       &PRINT
         &RESTART
+          ADD_LAST NUMERIC
+          BACKUP_COPIES 0
+          FILENAME =RESTART
           &EACH
             MD 1
             QS_SCF 30
-          &END
-          ADD_LAST NUMERIC
-          FILENAME =RESTART
-          BACKUP_COPIES 0
+          &END EACH
         &END RESTART
       &END PRINT
-      SCF_GUESS restart
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

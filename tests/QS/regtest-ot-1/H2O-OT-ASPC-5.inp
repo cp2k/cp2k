@@ -1,5 +1,30 @@
-#CPQA DEPENDS H2O-OT-ASPC-4.inp
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O_OT_ASPC
+  RUN_TYPE MD
+&END GLOBAL
 
+&MOTION
+  &MD
+    ENSEMBLE LANGEVIN
+    STEPS 5
+    TEMPERATURE 300.0
+    TIMESTEP 0.1
+    &LANGEVIN
+      GAMMA 0.0001
+      SHADOW_GAMMA 0.01
+    &END LANGEVIN
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+
+#CPQA DEPENDS H2O-OT-ASPC-4.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -22,21 +47,21 @@
       &END OT
       &PRINT
         &RESTART
-           FILENAME =SCF_RESTART
-           BACKUP_COPIES 0
-        &END
+          BACKUP_COPIES 0
+          FILENAME =SCF_RESTART
+        &END RESTART
         &RESTART_HISTORY
-           &EACH
-             __ROOT__ 1
-             MD       1
-             QS_SCF   0
-           &END
-           LOG_PRINT_KEY
-           ADD_LAST NUMERIC
-           FILENAME =RESTART
-           BACKUP_COPIES 4
-        &END
-      &END
+          ADD_LAST NUMERIC
+          BACKUP_COPIES 4
+          FILENAME =RESTART
+          LOG_PRINT_KEY
+          &EACH
+            __ROOT__ 1
+            MD 1
+            QS_SCF 0
+          &END EACH
+        &END RESTART_HISTORY
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -48,9 +73,9 @@
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -62,27 +87,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_OT_ASPC
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE LANGEVIN
-    STEPS 5
-    TIMESTEP 0.1
-    TEMPERATURE 300.0
-    &LANGEVIN
-      GAMMA 0.0001
-      SHADOW_GAMMA 0.01
-    &END
-  &END MD
-  &PRINT
-    &RESTART
-      &EACH
-        MD 1
-      &END
-    &END
-  &END
-&END MOTION

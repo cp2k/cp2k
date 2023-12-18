@@ -1,8 +1,9 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT h2o
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
@@ -10,63 +11,63 @@
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 200
-      REL_CUTOFF  30
+      REL_CUTOFF 30
     &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
     &QS
       METHOD GAPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF 1
       EPS_SCF 1.0e-6
+      MAX_SCF 1
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-      &END XC_FUNCTIONAL
+      &GCP_POTENTIAL
+        DELTA_ENERGY H 0.04240
+        DELTA_ENERGY O 0.47901
+        GLOBAL_PARAMETERS 0.1290 1.1549 1.1763 1.1526
+        VERBOSE T
+        #        elem   emiss   nbas    elem   emiss   nbas    elem   emiss   nbas
+        #          h    0.04240    1      he   0.02832    1      li   0.17787    5
+        #          be   0.17160    5      b    0.22424    5      c    0.27995    5
+        #          n    0.35791    5      o    0.47901    5      f    0.63852    5
+        #          ne   0.83235    5      na   1.11411    9      mg   1.27115    9
+        #          al   1.44695   14      si   1.61098   14      p    1.76661   14
+        #          s    1.98823   14      cl   2.22845   14      ar   2.48796   14
+        #          k    0.37425   11      ca   0.46097   11      sc   0.44489   21
+        #          ti   0.40499   21      v    0.37841   21      cr   0.37344   21
+        #          mn   0.36125   21      fe   0.36001   21      co   0.36293   21
+        #          ni   0.24380   21      cu   0.40530   21      zn   0.39651   21
+        #          ga   0.35002   32      ge   0.34578   32      as   0.34953   32
+        #          se   0.36731   32      br   0.38201   32      kr   0.39971   32
+      &END GCP_POTENTIAL
       &HF
+        &MEMORY
+          MAX_MEMORY 10
+        &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-10
-        &END
-        &MEMORY
-          MAX_MEMORY  10
-        &END
-      &END
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
-         &PAIR_POTENTIAL
-            TYPE DFTD3(BJ)
-            D3BJ_SCALING 1.0000 0.4171 0.8777 2.9149
-            PARAMETER_FILE_NAME dftd3.dat
-            SHORT_RANGE_CORRECTION TRUE
-            SHORT_RANGE_CORRECTION_PARAMETERS 0.03 0.70 1.50 0.75
-            &PRINT_DFTD
-            &END
-         &END PAIR_POTENTIAL
-      &END vdW_POTENTIAL
-      &gcp_potential
-         GLOBAL_PARAMETERS  0.1290 1.1549 1.1763 1.1526
-         DELTA_ENERGY   H    0.04240
-         DELTA_ENERGY   O    0.47901
-         VERBOSE T
-#        elem   emiss   nbas    elem   emiss   nbas    elem   emiss   nbas
-#          h    0.04240    1      he   0.02832    1      li   0.17787    5
-#          be   0.17160    5      b    0.22424    5      c    0.27995    5
-#          n    0.35791    5      o    0.47901    5      f    0.63852    5
-#          ne   0.83235    5      na   1.11411    9      mg   1.27115    9
-#          al   1.44695   14      si   1.61098   14      p    1.76661   14
-#          s    1.98823   14      cl   2.22845   14      ar   2.48796   14
-#          k    0.37425   11      ca   0.46097   11      sc   0.44489   21
-#          ti   0.40499   21      v    0.37841   21      cr   0.37344   21
-#          mn   0.36125   21      fe   0.36001   21      co   0.36293   21
-#          ni   0.24380   21      cu   0.40530   21      zn   0.39651   21
-#          ga   0.35002   32      ge   0.34578   32      as   0.34953   32
-#          se   0.36731   32      br   0.38201   32      kr   0.39971   32
-      &END GCP_POTENTIAL
+        &END SCREENING
+      &END HF
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+        &PAIR_POTENTIAL
+          D3BJ_SCALING 1.0000 0.4171 0.8777 2.9149
+          PARAMETER_FILE_NAME dftd3.dat
+          SHORT_RANGE_CORRECTION TRUE
+          SHORT_RANGE_CORRECTION_PARAMETERS 0.03 0.70 1.50 0.75
+          TYPE DFTD3(BJ)
+          &PRINT_DFTD
+          &END PRINT_DFTD
+        &END PAIR_POTENTIAL
+      &END VDW_POTENTIAL
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
-    &POISSON
-      PERIODIC NONE
-      PSOLVER MT
-    &END
   &END DFT
   &SUBSYS
     &CELL
@@ -74,17 +75,17 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET minix
       POTENTIAL ALL
-    &END
+    &END KIND
     &KIND O
       BASIS_SET minix
       POTENTIAL ALL
-    &END
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -1,26 +1,32 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT CH2O
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &PRINT
+      &EFIELD_CUBE
+      &END EFIELD_CUBE
+      &MO_MOLDEN
+      &END MO_MOLDEN
+      &TOT_DENSITY_CUBE
+      &END TOT_DENSITY_CUBE
+      &V_HARTREE_CUBE
+      &END V_HARTREE_CUBE
+    &END PRINT
     &QS
       METHOD xTB
     &END QS
-    &MGRID
-      CUTOFF  200
-    &END
     &SCF
-      SCF_GUESS MOPAC
-      MAX_SCF  100
       EPS_SCF 1.e-8
+      MAX_SCF 100
+      SCF_GUESS MOPAC
     &END SCF
-    &PRINT
-       &V_HARTREE_CUBE
-       &END
-       &TOT_DENSITY_CUBE
-       &END
-       &EFIELD_CUBE
-       &END
-       &MO_MOLDEN
-       &END
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
@@ -28,15 +34,10 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     O     0.051368    0.000000    0.000000
-     C     1.278612    0.000000    0.000000
-     H     1.870460    0.939607    0.000000
-     H     1.870460   -0.939607    0.000000
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT CH2O
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

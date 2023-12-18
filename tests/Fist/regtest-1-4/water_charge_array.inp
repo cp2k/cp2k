@@ -1,22 +1,42 @@
+&GLOBAL
+  PROJECT water_charge_no_array
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+
 #CPQA DEPENDS water_charge_no_array.inp
 #CPQA TEST COMPARE-SCALAR water_charge_no_array "POTENTIAL ENERGY" 3
-
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGES
         -0.8476
-         0.4238
-         0.4238
+        0.4238
+        0.4238
       &END CHARGES
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -27,27 +47,8 @@
       ABC 5. 5. 5.
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_1.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_charge_no_array
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 100
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-  &PRINT
-    &RESTART
-      &EACH
-        MD 1
-      &END
-    &END
-  &END
-&END MOTION

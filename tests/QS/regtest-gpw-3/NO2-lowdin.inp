@@ -4,11 +4,12 @@
   PROJECT NO2-lowdin
   RUN_TYPE energy
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
     BASIS_SET_FILE_NAME BASIS_SET
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 280
@@ -27,11 +28,11 @@
       EPS_DIIS 0.4
       EPS_SCF 1.0E-4
       MAX_SCF 15
-      &MIXING
-        METHOD DIRECT_P_MIXING
-        ALPHA 0.4
-      &END
       SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.4
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -43,9 +44,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-   O  3.71590        2.5        2.5
-   O  1.65536    3.37465        2.5
-   N  2.5 2.5 2.5
+      O  3.71590        2.5        2.5
+      O  1.65536    3.37465        2.5
+      N  2.5 2.5 2.5
     &END COORD
     &KIND O
       BASIS_SET DZVP-GTH-PADE

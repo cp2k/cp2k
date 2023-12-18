@@ -1,18 +1,19 @@
 &GLOBAL
-  PROJECT  H2O_allelec
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_allelec
   RUN_TYPE ENERGY
   &TIMINGS
-     THRESHOLD 0.01
-  &END
+    THRESHOLD 0.01
+  &END TIMINGS
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME  POTENTIAL
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF  100
+      CUTOFF 100
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -20,9 +21,9 @@
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      METHOD GAPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GAPW
     &END QS
     &SCF
       ADDED_MOS -1 -1
@@ -31,38 +32,38 @@
       MAX_SCF 100
       SCF_GUESS ATOMIC
     &END SCF
-! Parameters for the DSD-BLYP double hybrid functional (ax=0.69  ac=0.54  cOS=0.46  cSS=0.37)
+    ! Parameters for the DSD-BLYP double hybrid functional (ax=0.69  ac=0.54  cOS=0.46  cSS=0.37)
     &XC
-      &XC_FUNCTIONAL
-       &LYP
-         SCALE_C  0.69
-       &END
-       &BECKE88
-         SCALE_X   0.31
-       &END
-      &END XC_FUNCTIONAL
       &HF
-        FRACTION   0.69
+        FRACTION 0.69
         &SCREENING
           EPS_SCHWARZ 1.0E-8
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        MEMORY 1500.
+        NUMBER_PROC 1
+        SCALE_S 0.46
+        SCALE_T 0.37
         &MP2
-          METHOD DIRECT_CANONICAL
           BIG_SEND
-        &END
-        SCALE_T  0.37
-        SCALE_S  0.46
-        MEMORY  1500.
-        NUMBER_PROC  1
-      &END
+          METHOD DIRECT_CANONICAL
+        &END MP2
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL
+        &BECKE88
+          SCALE_X 0.31
+        &END BECKE88
+        &LYP
+          SCALE_C 0.69
+        &END LYP
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  6.000   6.000   6.000
+      ABC [angstrom] 6.000 6.000 6.000
       PERIODIC NONE
     &END CELL
     &KIND H
@@ -74,11 +75,10 @@
       POTENTIAL ALL
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  H2O_gas.xyz
       COORD_FILE_FORMAT xyz
+      COORD_FILE_NAME H2O_gas.xyz
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

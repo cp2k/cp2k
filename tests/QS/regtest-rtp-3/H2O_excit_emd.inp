@@ -1,85 +1,97 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_excit_emd
+  RUN_TYPE EHRENFEST_DYN
+&END GLOBAL
+
+&MOTION
+  &MD
+    STEPS 2
+    TIMESTEP [au_t] 0.1
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
     BASIS_SET_FILE_NAME BASIS_SET
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
+    &LOCALIZE
+      EPS_LOCALIZATION 1.0E-10
+      LIST_UNOCCUPIED 1..12
+      METHOD CRAZY
+      STATES UNOCCUPIED
+      &PRINT
+        &MOLECULAR_STATES
+          MARK_STATES 1 2
+          &CUBES
+          &END CUBES
+        &END MOLECULAR_STATES
+        &WANNIER_CENTERS
+        &END WANNIER_CENTERS
+      &END PRINT
+    &END LOCALIZE
     &MGRID
       CUTOFF 150
     &END MGRID
+    &PRINT
+      &E_DENSITY_CUBE
+        &EACH
+          MD 2
+        &END EACH
+      &END E_DENSITY_CUBE
+      &MO_CUBES
+        NHOMO 4
+        NLUMO 4
+        WRITE_CUBE .FALSE.
+      &END MO_CUBES
+      &WFN_MIX
+        ! replace HOMO with an orthonormal linear combination of lumo and lumo+1
+        OVERWRITE_MOS
+        &UPDATE
+          ORIG_MARKED_STATE 1
+          ORIG_SCALE 1.000000000000000000000
+          ORIG_SPIN_INDEX ALPHA
+          ORIG_TYPE VIRTUAL
+          RESULT_MO_INDEX 1
+          RESULT_SCALE 0.0
+          RESULT_SPIN_INDEX ALPHA
+        &END UPDATE
+      &END WFN_MIX
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
     &END QS
+    &REAL_TIME_PROPAGATION
+      EPS_ITER 1.0E-9
+      EXP_ACCURACY 1.0E-9
+      INITIAL_WFN SCF_WFN
+      MAT_EXP PADE
+      MAX_ITER 8
+      PROPAGATOR ETRS
+    &END REAL_TIME_PROPAGATION
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 3.0E-7
       MAX_SCF 50
+      SCF_GUESS ATOMIC
       &DIAGONALIZATION
-         ALGORITHM STANDARD
+        ALGORITHM STANDARD
       &END DIAGONALIZATION
     &END SCF
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-    &LOCALIZE
-      METHOD CRAZY
-      EPS_LOCALIZATION 1.0E-10
-      STATES UNOCCUPIED
-      LIST_UNOCCUPIED 1..12
-      &PRINT
-        &WANNIER_CENTERS
-        &END
-        &MOLECULAR_STATES
-           MARK_STATES 1 2
-           &CUBES
-           &END
-        &END
-      &END
-    &END
-    &REAL_TIME_PROPAGATION
-       MAX_ITER 8
-       MAT_EXP PADE
-       EXP_ACCURACY 1.0E-9
-       EPS_ITER 1.0E-9
-       PROPAGATOR ETRS
-       INITIAL_WFN SCF_WFN
-    &END
-    &PRINT
-      &E_DENSITY_CUBE
-        &EACH
-          MD 2
-        &END
-      &END
-
-      &MO_CUBES
-          NHOMO 4
-          NLUMO 4
-          WRITE_CUBE .FALSE.
-      &END
-      &WFN_MIX
-       ! replace HOMO with an orthonormal linear combination of lumo and lumo+1
-       OVERWRITE_MOS
-       &UPDATE
-           RESULT_MO_INDEX 1
-           RESULT_SPIN_INDEX ALPHA
-           RESULT_SCALE 0.0
-           ORIG_MARKED_STATE 1
-           ORIG_SPIN_INDEX ALPHA
-           ORIG_SCALE 1.000000000000000000000
-           ORIG_TYPE VIRTUAL
-       &END
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-BLYP
@@ -91,14 +103,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_excit_emd
-  RUN_TYPE EHRENFEST_DYN
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&MOTION
-   &MD
-      STEPS 2
-      TIMESTEP [au_t] 0.1
-   &END
-&END

@@ -1,3 +1,17 @@
+&GLOBAL
+  PROJECT water_3_walls
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TEMPERATURE 3000
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -12,8 +26,8 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../../../Fist/sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../../Fist/sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -25,19 +39,19 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 30
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    CENTER SETUP_ONLY
+    ECOUPL COULOMB
     &CELL
       ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
-    CENTER SETUP_ONLY
-    ECOUPL COULOMB
     &QM_KIND H
       MM_INDEX 2 3
     &END QM_KIND
@@ -46,35 +60,23 @@
     &END QM_KIND
     &WALLS
       WALL_SKIN [angstrom] 1.5 1.5 1.5
-    &END
-  &END
+    &END WALLS
+  &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
     &COORD
- OT     2.5823489343        3.3608067323        2.0248141522   MOL1
- HT     1.7737219427        3.8256086976        1.7969317355   MOL1
- HT     2.7086102587        3.5728574276        2.8965659855   MOL1
- OT     3.4241197154        2.5562705389       -0.0309841525   MOL2
- HT     3.1983961473        2.6494193607        0.8741420330   MOL2
- HT     3.9300560476        3.2683381184       -0.0758230077   MOL2
-    &END
+      OT     2.5823489343        3.3608067323        2.0248141522   MOL1
+      HT     1.7737219427        3.8256086976        1.7969317355   MOL1
+      HT     2.7086102587        3.5728574276        2.8965659855   MOL1
+      OT     3.4241197154        2.5562705389       -0.0309841525   MOL2
+      HT     3.1983961473        2.6494193607        0.8741420330   MOL2
+      HT     3.9300560476        3.2683381184       -0.0758230077   MOL2
+    &END COORD
     &TOPOLOGY
-      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_walls
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 100
-    TIMESTEP 1.0
-    TEMPERATURE 3000
-  &END MD
-&END MOTION

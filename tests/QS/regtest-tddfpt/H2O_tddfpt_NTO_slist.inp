@@ -1,40 +1,15 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT test
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PROPERTIES
-    &TDDFPT
-       NSTATES      3
-       MAX_ITER    10
-       MAX_KV      10
-       CONVERGENCE 1.0e-5
-       &XC
-         &XC_FUNCTIONAL PBE
-         &END XC_FUNCTIONAL
-         &XC_GRID
-            XC_DERIV SPLINE2_SMOOTH
-         &END XC_GRID
-       &END XC
-       &PRINT
-          &NTO_ANALYSIS
-             CUBE_FILES
-             THRESHOLD  0.99
-             INTENSITY_THRESHOLD 0.02
-             STATE_LIST 1 3
-          &END
-          &MOS_MOLDEN
-          &END
-       &END
-    &END TDDFPT
-  &END PROPERTIES
-
   &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
     CHARGE 1
     LSD
-    BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 100
@@ -51,14 +26,39 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE 1.0e-5
+      MAX_ITER 10
+      MAX_KV 10
+      NSTATES 3
+      &PRINT
+        &MOS_MOLDEN
+        &END MOS_MOLDEN
+        &NTO_ANALYSIS
+          CUBE_FILES
+          INTENSITY_THRESHOLD 0.02
+          STATE_LIST 1 3
+          THRESHOLD 0.99
+        &END NTO_ANALYSIS
+      &END PRINT
+      &XC
+        &XC_FUNCTIONAL PBE
+        &END XC_FUNCTIONAL
+        &XC_GRID
+          XC_DERIV SPLINE2_SMOOTH
+        &END XC_GRID
+      &END XC
+    &END TDDFPT
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE

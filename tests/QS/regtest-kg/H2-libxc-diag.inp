@@ -1,46 +1,53 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2-LIBXC
+  RUN_TYPE ENERGY
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    &MGRID
-      CUTOFF 100
-      &RS_GRID
-         MAX_DISTRIBUTED_LEVEL 5
-      &END
-      SKIP_LOAD_BALANCE_DISTRIBUTED
-    &END MGRID
-    &QS
-      EPS_DEFAULT 1.0E-06
-    ! LS_SCF
-      KG_METHOD
-    &END QS
-    &LS_SCF
-      MAX_SCF     1
-      EPS_FILTER  1.0E-5
-      EPS_SCF     1.0E-6
-      MU         -0.1
-      PURIFICATION_METHOD TRS4
-    &END
     &KG_METHOD
       &XC
         &XC_FUNCTIONAL
           &GGA_K_LLP
-          &END
-        &END
+          &END GGA_K_LLP
+        &END XC_FUNCTIONAL
         &XC_GRID
           XC_DERIV SPLINE2
-        &END
+        &END XC_GRID
       &END XC
     &END KG_METHOD
+    &LS_SCF
+      EPS_FILTER 1.0E-5
+      EPS_SCF 1.0E-6
+      MAX_SCF 1
+      MU -0.1
+      PURIFICATION_METHOD TRS4
+    &END LS_SCF
+    &MGRID
+      CUTOFF 100
+      SKIP_LOAD_BALANCE_DISTRIBUTED
+      &RS_GRID
+        MAX_DISTRIBUTED_LEVEL 5
+      &END RS_GRID
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-06
+      ! LS_SCF
+      KG_METHOD
+    &END QS
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-      &END
+        &END PADE
+      &END XC_FUNCTIONAL
       &XC_GRID
         XC_DERIV SPLINE2
-      &END
+      &END XC_GRID
     &END XC
   &END DFT
   &SUBSYS
@@ -61,9 +68,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2-LIBXC
-  RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
-&END GLOBAL

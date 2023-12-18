@@ -1,53 +1,104 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT force-opt-qmmm
   RUN_TYPE MD
-  PRINT_LEVEL LOW
 &END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 300
+    TIMESTEP 1
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD QMMM
-
   &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
     CHARGE 1
     MULTIPLICITY 1
-    BASIS_SET_FILE_NAME  BASIS_MOLOPT
-    POTENTIAL_FILE_NAME  POTENTIAL
-
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF 400
       COMMENSURATE
+      CUTOFF 400
     &END MGRID
-    &SCF                        ! Parameters controlling the convergence of the scf. This section should not be changed.
-      SCF_GUESS RESTART
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GPW
+    &END QS
+    &SCF  ! Parameters controlling the convergence of the scf. This section should not be changed.
       EPS_SCF 1.0E-6
       MAX_SCF 300
-      &OT  T
-        MINIMIZER  DIIS
-        STEPSIZE     1.4999999999999999E-01
-        PRECONDITIONER  FULL_ALL
+      SCF_GUESS RESTART
+      &OT T
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+        STEPSIZE 1.4999999999999999E-01
       &END OT
     &END SCF
-    &XC                        ! Parameters needed to compute the electronic exchange potential
+    &XC  ! Parameters needed to compute the electronic exchange potential
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
-    &QS
-     METHOD GPW
-     EPS_DEFAULT 1.0E-12
-    &END QS
   &END DFT
-
-  &QMMM        ! This defines the QS cell in the QMMM calc
+  &MM
+    &FORCEFIELD
+      DO_NONBONDED .TRUE.
+      EI_SCALE14 1.0
+      PARMTYPE AMBER
+      PARM_FILE_NAME CBD_PHY.prmtop
+      VDW_SCALE14 1.0
+      &SPLINE
+        EMAX_SPLINE 1.0E14
+        RCUT_NB [angstrom] 12
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .40
+        EWALD_TYPE SPME
+        GMAX 80
+      &END EWALD
+    &END POISSON
+    &PRINT
+      #      &FF_INFO OFF
+      #      &END FF_INFO
+    &END PRINT
+  &END MM
+  &QMMM  ! This defines the QS cell in the QMMM calc
+    ECOUPL GAUSS
+    USE_GEEP_LIB 15
     &CELL
       ABC 25 25 25
       PERIODIC XYZ
     &END CELL
-    ECOUPL GAUSS
-    USE_GEEP_LIB 15
-    &PERIODIC # apply periodic potential
+    &LINK  ! !Separate link for each cut atom bond
+      LINK_TYPE IMOMM
+      MM_INDEX 550
+      QMMM_SCALE_FACTOR 0
+      QM_INDEX 7953
+      QM_KIND H
+    &END LINK
+    &LINK
+      LINK_TYPE IMOMM
+      MM_INDEX 7978
+      QMMM_SCALE_FACTOR 0
+      QM_INDEX 7984
+      QM_KIND H
+    &END LINK
+    &LINK
+      LINK_TYPE IMOMM
+      MM_INDEX 7972
+      QMMM_SCALE_FACTOR 0
+      QM_INDEX 7987
+      QM_KIND H
+    &END LINK
+    &PERIODIC  # apply periodic potential
       #turn on/off coupling/recoupling of the QM multipole
       &MULTIPOLE ON
-      &END
+      &END MULTIPOLE
     &END PERIODIC
     &QM_KIND O
       MM_INDEX 7922 7947
@@ -61,99 +112,41 @@
     &QM_KIND H
       MM_INDEX 7914 7917 7921 7924 7927 7932 7935 7940 7943 7949 7951 7952 7954 7955 7957 7958 7959 7961 7962 7963 7965 7966 7967 7969 7970 7971 7985 7986 7988 7989
     &END QM_KIND
-    &LINK                               ! !Separate link for each cut atom bond
-    QM_KIND H
-    MM_INDEX 550
-    QM_INDEX 7953
-    LINK_TYPE IMOMM
-    QMMM_SCALE_FACTOR 0
-    &END LINK
-    &LINK
-    QM_KIND H
-    MM_INDEX 7978
-    QM_INDEX 7984
-    LINK_TYPE IMOMM
-    QMMM_SCALE_FACTOR 0
-    &END LINK
-   &LINK
-    QM_KIND H
-    MM_INDEX 7972
-    QM_INDEX 7987
-    LINK_TYPE IMOMM
-    QMMM_SCALE_FACTOR 0
-    &END LINK
   &END QMMM
-
-  &MM
-    &FORCEFIELD
-      PARMTYPE AMBER
-      DO_NONBONDED .TRUE.
-      PARM_FILE_NAME CBD_PHY.prmtop
-      EI_SCALE14 1.0
-      VDW_SCALE14 1.0
-      &SPLINE
-        EMAX_SPLINE 1.0E14
-        RCUT_NB [angstrom] 12
-      &END SPLINE
-    &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE SPME
-        ALPHA .40
-        GMAX 80
-      &END EWALD
-    &END POISSON
-    &PRINT
-#      &FF_INFO OFF
-#      &END FF_INFO
-    &END PRINT
-  &END MM
-
-
   &SUBSYS
     &CELL
-      ABC 119.004  119.004  119.004
-#      PERIODIC XYZ
+      ABC 119.004 119.004 119.004
+      #      PERIODIC XYZ
       ALPHA_BETA_GAMMA 90 90 90
     &END CELL
-    &TOPOLOGY                    ! Section used to center the atomic coordinates in the given box. Useful for big molecules
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT H
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT C
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT N
+      POTENTIAL GTH-PBE-q5
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT O
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &TOPOLOGY  ! Section used to center the atomic coordinates in the given box. Useful for big molecules
       CONN_FILE_FORMAT AMBER
       CONN_FILE_NAME CBD_PHY.prmtop
       COORD_FILE_FORMAT PDB
       COORD_FILE_NAME CBD_PHY.pdb
       &CENTER_COORDINATES
-        CENTER_POINT  9.5 11.7 15.3
+        CENTER_POINT 9.5 11.7 15.3
       &END CENTER_COORDINATES
     &END TOPOLOGY
-    &KIND H
-      ELEMENT H
-      BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-PBE-q1
-    &END KIND
-    &KIND C
-      ELEMENT C
-      BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-PBE-q4
-    &END KIND
-    &KIND N
-      ELEMENT N
-      BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-PBE-q5
-    &END KIND
-    &KIND O
-      ELEMENT O
-      BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-PBE-q6
-    &END KIND
   &END SUBSYS
-
 &END FORCE_EVAL
-
-&MOTION
-   &MD
-      ENSEMBLE NVE
-      STEPS 5
-      TEMPERATURE 300
-      TIMESTEP 1
-   &END MD
-&END MOTION

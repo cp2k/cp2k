@@ -1,10 +1,15 @@
+&GLOBAL
+  PROJECT c_17_BCT5Si
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     &QS
       METHOD PM6
       &SE
-      &END
+      &END SE
     &END QS
     &SCF
       MAX_SCF 0
@@ -12,27 +17,23 @@
   &END DFT
   &SUBSYS
     &CELL
-#Five-fold coordinated body-centered tetragonal lattice (tI4) I4/mmm (#139)
-     A   3.31264958   .00000000   .00000000
-     B    .00000000  3.31264958   .00000000
-     C   1.65632479  1.65632479  2.97926791
+      #Five-fold coordinated body-centered tetragonal lattice (tI4) I4/mmm (#139)
+      A 3.31264958 .00000000 .00000000
+      B .00000000 3.31264958 .00000000
+      C 1.65632479 1.65632479 2.97926791
     &END CELL
     &COORD
- SCALED
-Si   .19400000   .19400000  -.38800000      .00000000   .00000000 -1.15595595
-Si  -.19400000  -.19400000   .38800000      .00000000   .00000000  1.15595595
+      SCALED
+      Si   .19400000   .19400000  -.38800000      .00000000   .00000000 -1.15595595
+      Si  -.19400000  -.19400000   .38800000      .00000000   .00000000  1.15595595
     &END COORD
     &PRINT
       &SYMMETRY
-       CHECK_SYMMETRY 4/mmm
-      &END
-    &END
+        CHECK_SYMMETRY 4/mmm
+      &END SYMMETRY
+    &END PRINT
     &TOPOLOGY
       CONNECTIVITY OFF
-    &END
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT c_17_BCT5Si
-  RUN_TYPE ENERGY
-&END GLOBAL

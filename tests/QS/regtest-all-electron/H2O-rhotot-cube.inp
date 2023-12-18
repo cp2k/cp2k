@@ -1,8 +1,9 @@
 &GLOBAL
-  PROJECT H2O-rhotot-cube
   PRINT_LEVEL low
+  PROJECT H2O-rhotot-cube
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -22,10 +23,10 @@
     &END PRINT
     &QS
       ALPHA0_H 10.0
-      EPS_DEFAULT 1.0E-8
       EPSFIT 1.0E-4
       EPSISO 1.0E-12
       EPSRHO0 1.0E-6
+      EPS_DEFAULT 1.0E-8
       EXTRAPOLATION USE_PREV_P
       LMAXN0 2
       LMAXN1 6
@@ -33,7 +34,6 @@
       QUADRATURE GC_LOG
     &END QS
     &SCF
-
       SCF_GUESS atomic
     &END SCF
     &XC
@@ -63,14 +63,14 @@
       &ATOMIC_COORDINATES
       &END ATOMIC_COORDINATES
       &STRUCTURE_DATA
+        ANGLE 2 1 3
         DISTANCE 1 2
         DISTANCE 1 3
-        ANGLE 2 1 3
       &END STRUCTURE_DATA
     &END PRINT
     &TOPOLOGY
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

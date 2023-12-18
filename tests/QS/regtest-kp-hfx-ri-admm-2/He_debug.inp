@@ -1,71 +1,73 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    &DFT
-        BASIS_SET_FILE_NAME EMSL_BASIS_SETS
-        POTENTIAL_FILE_NAME POTENTIAL
-        SORT_BASIS EXP
-        AUTO_BASIS RI_HFX SMALL
-        &QS
-           METHOD GAPW
-           PW_GRID_BLOCKED FALSE
-        &END
-        &AUXILIARY_DENSITY_MATRIX_METHOD
-          ADMM_PURIFICATION_METHOD NONE
-          EXCH_CORRECTION_FUNC PBEX
-          METHOD CHARGE_CONSTRAINED_PROJECTION
-          EXCH_SCALING_MODEL MERLOT
-        &END        
-        &MGRID
-            CUTOFF 300
-            REL_CUTOFF 40
-        &END MGRID
-        &SCF
-            SCF_GUESS RESTART !ATOMIC
-            MAX_SCF 30
-            EPS_SCF 1.0E-6
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL NONE
-            &END XC_FUNCTIONAL
-            &HF
-                &RI
-                   RI_METRIC IDENTITY
-                   NGROUPS 2
-                   EPS_FILTER 1.0E-10
-                   MEMORY_CUT 2
-                &END
-                &INTERACTION_POTENTIAL
-                    POTENTIAL_TYPE TRUNCATED 
-                    CUTOFF_RADIUS 1.0
-                &END
-            &END
-        &END XC 
-       &KPOINTS
-          SCHEME  MONKHORST-PACK  12 4 4
-       &END KPOINTS
-    &END DFT
-    &SUBSYS
-        &CELL
-            ABC 4.0 3.0 3.0
-        &END CELL
-        &TOPOLOGY
-        &END
-        &COORD
-            He 0.0 0.0 0.0
-            He 2.4 0.0 0.0
-        &END COORD
-        &KIND He
-            BASIS_SET 6-31Gx
-            BASIS_SET AUX_FIT 3-21Gx
-            POTENTIAL ALL
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT He_debug
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE DEBUG
+  PRINT_LEVEL MEDIUM
+  PROJECT He_debug
+  RUN_TYPE DEBUG
 &END GLOBAL
+
 &DEBUG
-   CHECK_ATOM_FORCE 1 X
-&END
+  CHECK_ATOM_FORCE 1 X
+&END DEBUG
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    AUTO_BASIS RI_HFX SMALL
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    SORT_BASIS EXP
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC PBEX
+      EXCH_SCALING_MODEL MERLOT
+      METHOD CHARGE_CONSTRAINED_PROJECTION
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &KPOINTS
+      SCHEME MONKHORST-PACK 12 4 4
+    &END KPOINTS
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 40
+    &END MGRID
+    &QS
+      METHOD GAPW
+      PW_GRID_BLOCKED FALSE
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 30
+      SCF_GUESS RESTART  !ATOMIC
+    &END SCF
+    &XC
+      &HF
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 1.0
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
+        &RI
+          EPS_FILTER 1.0E-10
+          MEMORY_CUT 2
+          NGROUPS 2
+          RI_METRIC IDENTITY
+        &END RI
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 3.0 3.0
+    &END CELL
+    &COORD
+      He 0.0 0.0 0.0
+      He 2.4 0.0 0.0
+    &END COORD
+    &KIND He
+      BASIS_SET 6-31Gx
+      BASIS_SET AUX_FIT 3-21Gx
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

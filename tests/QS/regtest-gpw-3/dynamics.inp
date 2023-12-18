@@ -1,69 +1,71 @@
 &GLOBAL
+  ECHO_INPUT yes
+  PRINT_LEVEL MEDIUM
   PROJECT dynamics
- PRINT_LEVEL    MEDIUM
- RUN_TYPE       md
- ECHO_INPUT     yes
+  RUN_TYPE md
 &END GLOBAL
+
 &MOTION
- &MD
-  ENSEMBLE  nve
-  STEPS    2
-  TIMESTEP  1.0 ! fs
- &END MD
+  &MD
+    ENSEMBLE nve
+    STEPS 2
+    TIMESTEP 1.0  ! fs
+  &END MD
 &END MOTION
+
 &FORCE_EVAL
- METHOD         qs
- &DFT
+  METHOD qs
+  &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
-  &MGRID
-   CUTOFF 50
-  &END
-  &XC
-   &XC_FUNCTIONAL blyp
-   &END XC_FUNCTIONAL
-  &END XC
-  &SCF
-   EPS_SCF      1.e-1
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &PRINT
+    &END PRINT
+    &SCF
+      EPS_SCF 1.e-1
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF      2
-  &END SCF
+      MAX_SCF 2
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL blyp
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &PRINT
+    &FORCES LOW
+    &END FORCES
   &END PRINT
- &END DFT
- &SUBSYS
-  &CELL
-   ABC [angstrom] 6.0 6.0 6.0
-  &END CELL
-  &COORD
-    UNIT angstrom
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
-    He   6.929   6.929   6.929
-  &END COORD
-  &KIND O
-   BASIS_SET    DZVP-GTH-BLYP
-   MASS         18.0855
-   POTENTIAL    GTH-BLYP-q6
-  &END KIND
-  &KIND H
-   BASIS_SET    DZVP-GTH-BLYP
-   MASS         2.
-   POTENTIAL    GTH-BLYP-q1
-  &END KIND
-  &KIND He
-   BASIS_SET  DZVP-GTH-BLYP
-   GHOST  t
-   MASS 7
-  &END KIND
-  &PRINT
-    &ATOMIC_COORDINATES
-    &END
-  &END
- &END SUBSYS
- &PRINT
-  &FORCES LOW
-  &END
- &END
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      UNIT angstrom
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+      He   6.929   6.929   6.929
+    &END COORD
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      MASS 18.0855
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      MASS 2.
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND He
+      BASIS_SET DZVP-GTH-BLYP
+      GHOST t
+      MASS 7
+    &END KIND
+    &PRINT
+      &ATOMIC_COORDINATES
+      &END ATOMIC_COORDINATES
+    &END PRINT
+  &END SUBSYS
 &END FORCE_EVAL

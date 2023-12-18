@@ -16,38 +16,38 @@
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
       &MO
+        EIGENVALUES TRUE
+        EIGENVECTORS TRUE
+        FILENAME __STD_OUT__
+        NDIGITS 12
+        OCCUPATION_NUMBERS TRUE
         &EACH
           QS_SCF 0
         &END EACH
-        EIGENVALUES TRUE
-        EIGENVECTORS TRUE
-        OCCUPATION_NUMBERS TRUE
-        NDIGITS 12
-        FILENAME __STD_OUT__
       &END MO
     &END PRINT
     &QS
     &END QS
     &SCF
       ADDED_MOS 10
-      EPS_SCF 1.0e-10
       EPS_DIIS 1.E-6
+      EPS_SCF 1.0e-10
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
       SCF_GUESS RESTART
       &PRINT
         &RESTART OFF
+          BACKUP_COPIES 0
           &EACH
             QS_SCF -1
-          &END
-          BACKUP_COPIES 0
-        &END
+          &END EACH
+        &END RESTART
         &RESTART_HISTORY OFF
+          BACKUP_COPIES 0
           &EACH
             QS_SCF -1
-          &END
-          BACKUP_COPIES 0
-        &END
+          &END EACH
+        &END RESTART_HISTORY
       &END PRINT
     &END SCF
     &XC
@@ -64,8 +64,8 @@
     &END CELL
     &COORD
       UNIT bohr
-Li 0.0 0.0 -2.67732437187761072041
-Li 0.0 0.0  2.67732437187761072041
+      Li 0.0 0.0 -2.67732437187761072041
+      Li 0.0 0.0  2.67732437187761072041
     &END COORD
     &KIND Li
       BASIS_SET DZVP-GTH-PADE

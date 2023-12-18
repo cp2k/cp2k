@@ -1,74 +1,73 @@
 &GLOBAL
-  PROJECT si8_pmix
   PRINT_LEVEL LOW
+  PROJECT si8_pmix
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
-  &PROPERTIES
-    &ATOMIC
-      ENERGY T
-    &END
-  &END PROPERTIES
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 120
     &END MGRID
+    &PRINT
+      &MO
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+        &EACH
+          QS_SCF 100
+        &END EACH
+      &END MO
+    &END PRINT
     &QS
       METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF   50
-      EPS_SCF 1.0e-8
+      ADDED_MOS 20 20
       EPS_DIIS 1.0e-2
-      &SMEAR
-        METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE   5000.
-      &END
+      EPS_SCF 1.0e-8
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
       &MIXING
-          METHOD BROYDEN_MIXING
-          ALPHA   0.6
-          BETA   1.0
-          NBROYDEN 15
-      &END
-      ADDED_MOS   20 20
+        ALPHA 0.6
+        BETA 1.0
+        METHOD BROYDEN_MIXING
+        NBROYDEN 15
+      &END MIXING
+      &SMEAR
+        ELECTRONIC_TEMPERATURE 5000.
+        METHOD FERMI_DIRAC
+      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO
-        &EACH
-          QS_SCF 100
-        &END
-        EIGENVALUES
-        OCCUPATION_NUMBERS
-      &END
-    &END
   &END DFT
+  &PROPERTIES
+    &ATOMIC
+      ENERGY T
+    &END ATOMIC
+  &END PROPERTIES
   &SUBSYS
     &CELL
-       ABC   5.42858871335 5.42858871335 5.42858871335
+      ABC 5.42858871335 5.42858871335 5.42858871335
     &END CELL
-    &KIND  Si
-      BASIS_SET  DZVP-GTH
-      POTENTIAL  GTH-PBE-q4
-    &END
     &COORD
-        Si       0.00000       0.00000       0.00000
-        Si       1.35715       1.35715       1.35715
-        Si       0.00000       2.71429       2.71429
-        Si       1.35715       4.07144       4.07144
-        Si       2.71429       0.00000       2.71429
-        Si       4.07144       1.35715       4.07144
-        Si       2.71429       2.71429       0.00000
-        Si       4.07144       4.07144       1.35715
+      Si       0.00000       0.00000       0.00000
+      Si       1.35715       1.35715       1.35715
+      Si       0.00000       2.71429       2.71429
+      Si       1.35715       4.07144       4.07144
+      Si       2.71429       0.00000       2.71429
+      Si       4.07144       1.35715       4.07144
+      Si       2.71429       2.71429       0.00000
+      Si       4.07144       4.07144       1.35715
     &END COORD
+    &KIND Si
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-

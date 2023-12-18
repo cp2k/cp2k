@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT n2
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
 #CPQA INCLUDE DFTB/nonscc/nonscc_parameter
 #CPQA INCLUDE uff_table
 #CPQA INCLUDE DFTB/nonscc/nn
@@ -6,11 +12,11 @@
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    F
-        ORTHOGONAL_BASIS   F
+        ORTHOGONAL_BASIS F
+        SELF_CONSISTENT F
         &PARAMETER
-          PARAM_FILE_PATH  DFTB/nonscc
-          SK_FILE   N N   nn
+          PARAM_FILE_PATH DFTB/nonscc
+          SK_FILE N N nn
         &END PARAMETER
       &END DFTB
     &END QS
@@ -27,13 +33,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     N     0.000000    0.000000    0.000000
-     N     1.100000    0.000000    0.000000
+      N     0.000000    0.000000    0.000000
+      N     1.100000    0.000000    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT n2
-  RUN_TYPE GEO_OPT
-  PRINT_LEVEL HIGH
-&END GLOBAL

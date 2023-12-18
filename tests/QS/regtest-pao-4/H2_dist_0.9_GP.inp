@@ -1,35 +1,32 @@
+&GLOBAL
+  PROJECT H2_dist_0.9_GP
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    &QS
-      LS_SCF
-    &END QS
-    &POISSON
-      PERIODIC NONE
-      PSOLVER  MT
-    &END POISSON
     &LS_SCF
-      MAX_SCF     25
-      EPS_SCF     1.0E-8
-      S_PRECONDITIONER  NONE
-      REPORT_ALL_SPARSITIES OFF
+      EPS_SCF 1.0E-8
+      EXTRAPOLATION_ORDER 1
+      MAX_SCF 25
       PURIFICATION_METHOD TRS4
-      EXTRAPOLATION_ORDER  1
+      REPORT_ALL_SPARSITIES OFF
+      S_PRECONDITIONER NONE
       &PAO
         MAX_PAO 0
         PARAMETERIZATION ROTINV
         &MACHINE_LEARNING
-          METHOD GAUSSIAN_PROCESS
           DESCRIPTOR R12
+          GP_NOISE_VAR 0.1
+          GP_SCALE 5.0
+          METHOD GAUSSIAN_PROCESS
+          TOLERANCE 0.01
           &TRAINING_SET
             H2_dist_0.7_pao-1_0.pao
             H2_dist_1.2_pao-1_0.pao
           &END TRAINING_SET
-          GP_SCALE 5.0
-          GP_NOISE_VAR 0.1
-          TOLERANCE 0.01
         &END MACHINE_LEARNING
         &PRINT
           &ML_TRAINING_DATA
@@ -38,7 +35,14 @@
           &END ML_VARIANCE
         &END PRINT
       &END PAO
-    &END
+    &END LS_SCF
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &QS
+      LS_SCF
+    &END QS
     &XC
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
@@ -53,20 +57,17 @@
       H       0.9   0.0   0.0
       H       0.0   0.0   0.0
     &END COORD
-    &TOPOLOGY
-       &CENTER_COORDINATES
-       &END
-    &END
     &KIND H
       BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-PBE
       PAO_BASIS_SIZE 1
+      POTENTIAL GTH-PBE
       &PAO_POTENTIAL
         MAXL 0
       &END PAO_POTENTIAL
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2_dist_0.9_GP
-&END GLOBAL

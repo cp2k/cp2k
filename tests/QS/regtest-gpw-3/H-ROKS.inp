@@ -1,35 +1,36 @@
 &GLOBAL
-  PROJECT H-ROKS
   PRINT_LEVEL LOW
+  PROJECT H-ROKS
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    ROKS
-    MULTIPLICITY 2
     BASIS_SET_FILE_NAME BASIS_SET
+    MULTIPLICITY 2
     POTENTIAL_FILE_NAME POTENTIAL
+    ROKS
     &MGRID
       CUTOFF 200
     &END MGRID
-    &PRINT
-      &AO_MATRICES
-#       CORE_HAMILTONIAN
-#       DENSITY
-#       KOHN_SHAM_MATRIX
-#       ORTHO
-#       OVERLAP
-      &END AO_MATRICES
-      &MO
-#       EIGENVALUES
-#       EIGENVECTORS
-#       OCCUPATION_NUMBERS
-      &END MO
-    &END
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
     &END POISSON
+    &PRINT
+      &AO_MATRICES
+        #       CORE_HAMILTONIAN
+        #       DENSITY
+        #       KOHN_SHAM_MATRIX
+        #       ORTHO
+        #       OVERLAP
+      &END AO_MATRICES
+      &MO
+        #       EIGENVALUES
+        #       EIGENVECTORS
+        #       OCCUPATION_NUMBERS
+      &END MO
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS

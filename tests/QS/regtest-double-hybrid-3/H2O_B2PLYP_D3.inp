@@ -1,18 +1,19 @@
 &GLOBAL
-  PROJECT  H2O_allelec
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_allelec
   RUN_TYPE ENERGY
   &TIMINGS
-     THRESHOLD 0.01
-  &END
+    THRESHOLD 0.01
+  &END TIMINGS
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME  POTENTIAL
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF  100
+      CUTOFF 100
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -20,57 +21,57 @@
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      METHOD GAPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GAPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
+      ADDED_MOS 15000 15000
       EPS_SCF 1.0E-4
       MAX_SCF 100
-      ADDED_MOS 15000 15000
+      SCF_GUESS ATOMIC
     &END SCF
-! Parameters for the B2PLYP-D3 double hybrid functional (ax=0.53  ac=0.27)
+    ! Parameters for the B2PLYP-D3 double hybrid functional (ax=0.53  ac=0.27)
     &XC
-      &XC_FUNCTIONAL
-       &LYP
-         SCALE_C  0.73
-       &END
-       &BECKE88
-         SCALE_X   0.47
-       &END
-      &END XC_FUNCTIONAL
       &HF
-        FRACTION   0.53
+        FRACTION 0.53
         &SCREENING
           EPS_SCHWARZ 1.0E-8
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
-      &WF_CORRELATION
-        &MP2
-          METHOD DIRECT_CANONICAL
-          BIG_SEND
-        &END
-        SCALE_T  0.27
-        SCALE_S  0.27
-        MEMORY  1500.
-        NUMBER_PROC  1
-      &END
-!Dispersion correction D3
-     &vdW_POTENTIAL
+      !Dispersion correction D3
+      &VDW_POTENTIAL
         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
         &PAIR_POTENTIAL
-           TYPE DFTD3
-           PARAMETER_FILE_NAME  dftd3.dat
-           REFERENCE_FUNCTIONAL B2PLYP
+          PARAMETER_FILE_NAME dftd3.dat
+          REFERENCE_FUNCTIONAL B2PLYP
+          TYPE DFTD3
         &END PAIR_POTENTIAL
-     &END vdW_POTENTIAL
+      &END VDW_POTENTIAL
+      &WF_CORRELATION
+        MEMORY 1500.
+        NUMBER_PROC 1
+        SCALE_S 0.27
+        SCALE_T 0.27
+        &MP2
+          BIG_SEND
+          METHOD DIRECT_CANONICAL
+        &END MP2
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL
+        &BECKE88
+          SCALE_X 0.47
+        &END BECKE88
+        &LYP
+          SCALE_C 0.73
+        &END LYP
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  6.000   6.000   6.000
+      ABC [angstrom] 6.000 6.000 6.000
       PERIODIC NONE
     &END CELL
     &KIND H
@@ -82,11 +83,10 @@
       POTENTIAL ALL
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  H2O_gas.xyz
       COORD_FILE_FORMAT xyz
+      COORD_FILE_NAME H2O_gas.xyz
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

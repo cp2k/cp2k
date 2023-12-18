@@ -1,83 +1,94 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT mix_loc_rtp
+  RUN_TYPE RT_PROPAGATION
+&END GLOBAL
+
+&MOTION
+  &MD
+    STEPS 3
+    TIMESTEP [au_t] 0.2
+  &END MD
+&END MOTION
+
 #CPQA DEPENDS wfn_mix_loc-0.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
     BASIS_SET_FILE_NAME BASIS_SET
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
     RESTART_FILE_NAME mix_loc-RESTART.wfn
-    &REAL_TIME_PROPAGATION
-       MAX_ITER 6
-       MAT_EXP ARNOLDI
-       EXP_ACCURACY 1.0E-9
-       EPS_ITER 1.0E-9
-       PROPAGATOR ETRS
-       INITIAL_WFN RESTART_WFN
-       APPLY_WFN_MIX_INIT_RESTART .TRUE. 
-    &END
+    &LOCALIZE
+      EPS_LOCALIZATION 1.0E-10
+      LIST_UNOCCUPIED 1..4
+      METHOD CRAZY
+      STATES UNOCCUPIED
+      &PRINT
+        &MOLECULAR_STATES
+        &END MOLECULAR_STATES
+        &WANNIER_CENTERS
+        &END WANNIER_CENTERS
+      &END PRINT
+    &END LOCALIZE
     &MGRID
       CUTOFF 150
     &END MGRID
+    &PRINT
+      &E_DENSITY_CUBE
+      &END E_DENSITY_CUBE
+      &MO_CUBES
+        NHOMO 4
+        NLUMO 4
+        WRITE_CUBE .FALSE.
+      &END MO_CUBES
+      &WFN_MIX
+        ! replace HOMO with an orthonormal linear combination of homo and homo-1
+        &UPDATE
+          ORIG_EXT_FILE_NAME mix_loc-RESTART.wfn
+          ORIG_MO_INDEX 2
+          ORIG_SCALE 0.7071067
+          ORIG_SPIN_INDEX ALPHA
+          ORIG_TYPE EXTERNAL
+          RESULT_MO_INDEX 1
+          RESULT_SCALE 0.7071067
+          RESULT_SPIN_INDEX ALPHA
+        &END UPDATE
+      &END WFN_MIX
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
     &END QS
+    &REAL_TIME_PROPAGATION
+      APPLY_WFN_MIX_INIT_RESTART .TRUE.
+      EPS_ITER 1.0E-9
+      EXP_ACCURACY 1.0E-9
+      INITIAL_WFN RESTART_WFN
+      MAT_EXP ARNOLDI
+      MAX_ITER 6
+      PROPAGATOR ETRS
+    &END REAL_TIME_PROPAGATION
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 3.0E-7
       MAX_SCF 50
+      SCF_GUESS ATOMIC
       &DIAGONALIZATION
-         ALGORITHM STANDARD
+        ALGORITHM STANDARD
       &END DIAGONALIZATION
     &END SCF
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-    &LOCALIZE
-      METHOD CRAZY
-      EPS_LOCALIZATION 1.0E-10
-      STATES UNOCCUPIED
-      LIST_UNOCCUPIED 1..4
-      &PRINT
-        &WANNIER_CENTERS
-        &END
-        &MOLECULAR_STATES
-        &END
-      &END
-    &END
-    &PRINT
-      &E_DENSITY_CUBE
-      &END
-      &MO_CUBES
-          NHOMO 4
-          NLUMO 4
-          WRITE_CUBE .FALSE.
-      &END
-      &WFN_MIX
-       ! replace HOMO with an orthonormal linear combination of homo and homo-1
-       &UPDATE
-           RESULT_MO_INDEX 1
-           RESULT_SPIN_INDEX ALPHA
-           RESULT_SCALE 0.7071067
-
-           ORIG_MO_INDEX 2
-           ORIG_SPIN_INDEX ALPHA
-           ORIG_SCALE 0.7071067
-           
-           ORIG_TYPE EXTERNAL
-           ORIG_EXT_FILE_NAME mix_loc-RESTART.wfn
-       &END
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-BLYP
@@ -89,14 +100,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT mix_loc_rtp
-  RUN_TYPE RT_PROPAGATION
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&MOTION
-   &MD
-     STEPS 3
-     TIMESTEP [au_t] 0.2
-   &END
-&END

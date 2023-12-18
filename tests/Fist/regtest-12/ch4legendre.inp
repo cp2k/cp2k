@@ -1,8 +1,9 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT CH4_Legendre
   RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -48,10 +49,10 @@
     &END FORCEFIELD
     &POISSON
       PERIODIC NONE
+      POISSON_SOLVER PERIODIC
       &EWALD
         EWALD_TYPE NONE
       &END EWALD
-      POISSON_SOLVER PERIODIC
     &END POISSON
     &PRINT
       &FF_INFO ON
@@ -62,56 +63,56 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC                   16.D0    16.D0    16.D0
-      PERIODIC              NONE
+      ABC 16.D0 16.D0 16.D0
+      PERIODIC NONE
     &END CELL
     &COORD
-  C         0.0000000000        0.0000000000        0.0000000000
-  H         1.0908182134        0.0000000000        0.0000000000
-  H        -0.3633843227        1.0285781897        0.0000000000
-  H        -0.3633992182       -0.5139858842       -0.8907249051
-  H        -0.3628369795       -0.5145055868        0.8907994993
+      C         0.0000000000        0.0000000000        0.0000000000
+      H         1.0908182134        0.0000000000        0.0000000000
+      H        -0.3633843227        1.0285781897        0.0000000000
+      H        -0.3633992182       -0.5139858842       -0.8907249051
+      H        -0.3628369795       -0.5145055868        0.8907994993
     &END COORD
-    &VELOCITY
-            0.0000000000        0.0000000000        0.0000000000
-            0.0000000000        0.0000000000        0.0000000000
-            0.0000000000        0.0000000000        0.0000000000
-            0.0000000000        0.0000000000        0.0001000000
-            0.0000000000        0.0000000000       -0.0001000000
-    &END VELOCITY
     &TOPOLOGY
       &GENERATE
-        &BOND               ADD
-          ATOMS             1  2
+        &ANGLE ADD
+          ATOMS 2 1 3
+        &END ANGLE
+        &ANGLE ADD
+          ATOMS 2 1 4
+        &END ANGLE
+        &ANGLE ADD
+          ATOMS 2 1 5
+        &END ANGLE
+        &ANGLE ADD
+          ATOMS 3 1 4
+        &END ANGLE
+        &ANGLE ADD
+          ATOMS 3 1 5
+        &END ANGLE
+        &ANGLE ADD
+          ATOMS 4 1 5
+        &END ANGLE
+        &BOND ADD
+          ATOMS 1 2
         &END BOND
-        &BOND               ADD
-          ATOMS             1  3
+        &BOND ADD
+          ATOMS 1 3
         &END BOND
-        &BOND               ADD
-          ATOMS             1  4
+        &BOND ADD
+          ATOMS 1 4
         &END BOND
-        &BOND               ADD
-          ATOMS             1  5
+        &BOND ADD
+          ATOMS 1 5
         &END BOND
-        &ANGLE              ADD
-          ATOMS             2  1  3
-        &END ANGLE
-        &ANGLE              ADD
-          ATOMS             2  1  4
-        &END ANGLE
-        &ANGLE              ADD
-          ATOMS             2  1  5
-        &END ANGLE
-        &ANGLE              ADD
-          ATOMS             3  1  4
-        &END ANGLE
-        &ANGLE              ADD
-          ATOMS             3  1  5
-        &END ANGLE
-        &ANGLE              ADD
-          ATOMS             4  1  5
-        &END ANGLE
       &END GENERATE
     &END TOPOLOGY
+    &VELOCITY
+      0.0000000000        0.0000000000        0.0000000000
+      0.0000000000        0.0000000000        0.0000000000
+      0.0000000000        0.0000000000        0.0000000000
+      0.0000000000        0.0000000000        0.0001000000
+      0.0000000000        0.0000000000       -0.0001000000
+    &END VELOCITY
   &END SUBSYS
 &END FORCE_EVAL

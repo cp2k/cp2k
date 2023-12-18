@@ -1,9 +1,24 @@
+&GLOBAL
+  PROJECT water_intern
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      DO_NONBONDED F
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -12,7 +27,6 @@
         ATOM HT
         CHARGE 0.4238
       &END CHARGE
-      DO_NONBONDED F
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -21,28 +35,16 @@
     &END POISSON
     &PRINT
       &DERIVATIVES
-      &END
-    &END
+      &END DERIVATIVES
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_1.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_intern
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 3
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

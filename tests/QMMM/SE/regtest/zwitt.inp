@@ -1,45 +1,67 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT zwitt
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 300
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      ADD_LAST NO
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
     &QS
+      EXTRAPOLATION USE_PREV_WF
       METHOD AM1
       &SE
       &END SE
-      EXTRAPOLATION USE_PREV_WF
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF 50
       EPS_SCF 1.0E-6
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
       &OT
-        PRECONDITIONER NONE
         MINIMIZER CG
-      &END
+        PRECONDITIONER NONE
+      &END OT
       &OUTER_SCF
-        MAX_SCF 5
         EPS_SCF 1.0E-6
-      &END
+        MAX_SCF 5
+      &END OUTER_SCF
     &END SCF
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/zwitt.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/zwitt.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .4
+        EWALD_TYPE spme
         GMAX 60
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    CENTER SETUP_ONLY
+    ECOUPL COULOMB
     &CELL
       ABC 15.0 15.0 15.0
     &END CELL
-    ECOUPL COULOMB
-    CENTER SETUP_ONLY
     &MM_KIND H1
       RADIUS 0.44
     &END MM_KIND
@@ -67,30 +89,10 @@
       ABC 50.0 50.0 50.0
     &END CELL
     &TOPOLOGY
-      CONN_FILE ../sample_psf/zwitt.psf
       CONNECTIVITY PSF
-      COORD_FILE_NAME ../sample_pdb/zwitt.pdb
+      CONN_FILE ../sample_psf/zwitt.psf
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/zwitt.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT zwitt
-  PRINT_LEVEL LOW
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 5
-    TIMESTEP 0.5
-    TEMPERATURE 300
-  &END MD
-  &PRINT
-    &TRAJECTORY
-      ADD_LAST NO
-    &END
-    &VELOCITIES OFF
-    &END
-  &END
-&END MOTION

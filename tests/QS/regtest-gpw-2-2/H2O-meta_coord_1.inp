@@ -1,6 +1,54 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT HALF_1
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      NT_HILLS 2
+      WW 1.0e-3
+      &METAVAR
+        COLVAR 1
+        SCALE 0.02
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          COMMON_ITERATION_LEVELS 3
+        &END COLVAR
+        &HILLS
+          COMMON_ITERATION_LEVELS 3
+        &END HILLS
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVT
+    STEPS 5
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 100.0
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
-
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
@@ -17,15 +65,21 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
-
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
+    &COLVAR
+      &COORDINATION
+        ATOMS_FROM 1
+        ATOMS_TO 2 3
+        R_0 2.3
+      &END COORDINATION
+    &END COLVAR
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -35,62 +89,5 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
-    &COLVAR
-       &COORDINATION
-          ATOMS_FROM 1
-          ATOMS_TO 2 3
-          R_0 2.3
-       &END COORDINATION
-    &END COLVAR
   &END SUBSYS
-
 &END FORCE_EVAL
-
-&GLOBAL
-  PROJECT HALF_1
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 5
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 100.0
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-  &FREE_ENERGY
-    &METADYN
-      DO_HILLS
-      NT_HILLS 2
-      WW 1.0e-3
-      &METAVAR
-        SCALE 0.02
-        COLVAR 1
-      &END METAVAR
-      &PRINT
-        &COLVAR
-           COMMON_ITERATION_LEVELS 3
-        &END
-        &HILLS
-           COMMON_ITERATION_LEVELS 3
-        &END
-      &END
-    &END METADYN
-  &END
-  &PRINT
-    &RESTART
-       &EACH
-         MD     1
-       &END
-    &END
-  &END
-&END MOTION

@@ -1,3 +1,18 @@
+&GLOBAL
+  PROJECT water_3_full_num
+  #RUN_TYPE MD
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2000
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -8,8 +23,8 @@
       &END SE
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
+      SCF_GUESS ATOMIC
     &END SCF
     #&PRINT
     #  &AO_MATRICES
@@ -19,8 +34,8 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../../../Fist/sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../../Fist/sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -32,19 +47,19 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 30
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    CENTER SETUP_ONLY
+    ECOUPL COULOMB
+    USE_GEEP_LIB 12
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
-    CENTER SETUP_ONLY
-    USE_GEEP_LIB 12
-    ECOUPL COULOMB
     &QM_KIND H
       MM_INDEX 2 3
     &END QM_KIND
@@ -55,39 +70,26 @@
     # &QMMM_MATRIX
     # &END
     #&END
-  &END
+  &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
-      COORDINATE pdb
-      &DUMP_PSF
-      &END
-      &DUMP_PDB
-      &END
-    &END TOPOLOGY
     &COORD
- OT     3.000000     0.8     4.357097  MOL1
- HT     2.255192     0.8     4.925644  MOL1
- HT     3.808208     0.8     4.875930  MOL1
- OT     3.000000     0.8     0.909036  MOL2
- HT     3.000000     0.8     1.858503  MOL2
- HT     3.783202     0.8     0.562903  MOL2
-    &END
+      OT     3.000000     0.8     4.357097  MOL1
+      HT     2.255192     0.8     4.925644  MOL1
+      HT     3.808208     0.8     4.875930  MOL1
+      OT     3.000000     0.8     0.909036  MOL2
+      HT     3.000000     0.8     1.858503  MOL2
+      HT     3.783202     0.8     0.562903  MOL2
+    &END COORD
+    &TOPOLOGY
+      COORDINATE pdb
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
+      &DUMP_PDB
+      &END DUMP_PDB
+      &DUMP_PSF
+      &END DUMP_PSF
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_full_num
-  #RUN_TYPE MD
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 2000
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

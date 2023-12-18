@@ -1,13 +1,39 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ethene-vib-mode-sel-int
+  RUN_TYPE NORMAL_MODES
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
+&VIBRATIONAL_ANALYSIS
+  DX 0.01
+  INTENSITIES
+  NPROC_REP 4
+  &MODE_SELECTIVE
+    FREQUENCY 3000
+    !    ATOMS 2 3
+    !     INITIAL_GUESS BFGS_HESS
+  &END MODE_SELECTIVE
+  &PRINT
+    &PROGRAM_RUN_INFO ON
+    &END PROGRAM_RUN_INFO
+  &END PRINT
+&END VIBRATIONAL_ANALYSIS
+
 &FORCE_EVAL
   METHOD FIST
   &MM
-    &PRINT
-      &DIPOLE
-      &END
-    &END
     &FORCEFIELD
-      parm_file_name ../sample_pot/charmm.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/charmm.pot
       &CHARGE
         ATOM CE2
         CHARGE -0.42
@@ -19,46 +45,23 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .44
+        EWALD_TYPE ewald
         GMAX 23
       &END EWALD
     &END POISSON
+    &PRINT
+      &DIPOLE
+      &END DIPOLE
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/ethene.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/ethene.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ethene-vib-mode-sel-int
-  PRINT_LEVEL LOW
-  RUN_TYPE NORMAL_MODES
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 100
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION
-&VIBRATIONAL_ANALYSIS
-   NPROC_REP 4
-   DX 0.01
-   INTENSITIES
-   &PRINT
-     &PROGRAM_RUN_INFO ON
-     &END
-   &END
-   &MODE_SELECTIVE
-      FREQUENCY 3000
-!    ATOMS 2 3
-!     INITIAL_GUESS BFGS_HESS
-   &END
-&END

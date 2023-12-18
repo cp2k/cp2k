@@ -1,16 +1,17 @@
 &GLOBAL
+  PRINT_LEVEL low
   PROJECT LiH
   RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL low
   WALLTIME 600
 &END GLOBAL
+
 &MOTION
   &GEO_OPT
-    OPTIMIZER BFGS
-    MAX_ITER  2
-    MAX_DR    0.001
-    RMS_DR    0.0005
+    MAX_DR 0.001
     MAX_FORCE 0.00015
+    MAX_ITER 2
+    OPTIMIZER BFGS
+    RMS_DR 0.0005
     RMS_FORCE 0.0001
   &END GEO_OPT
   &PRINT
@@ -21,20 +22,31 @@
     &END STRUCTURE_DATA
   &END PRINT
 &END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR analytical
-#  STRESS_TENSOR numerical
+  #  STRESS_TENSOR numerical
   &DFT
+    &POISSON
+      &EWALD
+        ALPHA 0.5
+        EWALD_TYPE EWALD
+        GMAX 41 41 41
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END MULTIPOLES
+      &END EWALD
+    &END POISSON
     &QS
       METHOD PM6
       &SE
-        PERIODIC EWALD
         INTEGRAL_SCREENING KDSO-D
+        PERIODIC EWALD
         &COULOMB
-           CUTOFF   12.0
-        &END
-      &END
+          CUTOFF 12.0
+        &END COULOMB
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-5
@@ -42,21 +54,11 @@
       MAX_SCF 5
       SCF_GUESS MOPAC
       &OT
-        PRECONDITIONER NONE
-        MINIMIZER CG
         LINESEARCH 3PNT
-      &END
+        MINIMIZER CG
+        PRECONDITIONER NONE
+      &END OT
     &END SCF
-    &POISSON
-      &EWALD
-        EWALD_TYPE EWALD
-        ALPHA  0.5
-        GMAX 41 41 41
-        &MULTIPOLES
-           MAX_MULTIPOLE_EXPANSION QUADRUPOLE
-        &END
-      &END EWALD
-    &END POISSON
   &END DFT
   &PRINT
     &STRESS_TENSOR
@@ -67,15 +69,15 @@
       ABC 4.796302 4.796302 4.796302
     &END CELL
     &COORD
- SCALED
-Li  0.000 0.000 0.000
-Li  0.500 0.500 0.000
-Li  0.500 0.000 0.500
-Li  0.000 0.500 0.500
-H   0.000 0.500 0.000
-H   0.000 0.000 0.500
-H   0.500 0.000 0.000
-H   0.500 0.500 0.500
+      SCALED
+      Li  0.000 0.000 0.000
+      Li  0.500 0.500 0.000
+      Li  0.500 0.000 0.500
+      Li  0.000 0.500 0.500
+      H   0.000 0.500 0.000
+      H   0.000 0.000 0.500
+      H   0.500 0.000 0.000
+      H   0.500 0.500 0.500
     &END COORD
     &PRINT
       &CELL

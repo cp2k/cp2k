@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT h2-1
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 #CPQA INCLUDE DFTB/nonscc/nonscc_parameter
 #CPQA INCLUDE uff_table
 #CPQA INCLUDE DFTB/nonscc/hh
@@ -6,19 +12,19 @@
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    F
+        SELF_CONSISTENT F
         &PARAMETER
-          PARAM_FILE_PATH  DFTB/nonscc
-          SK_FILE   H H   hh
+          PARAM_FILE_PATH DFTB/nonscc
+          SK_FILE H H hh
         &END PARAMETER
       &END DFTB
     &END QS
     &SCF
       SCF_GUESS NONE
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   1.
-      &END
+        ALPHA 1.
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
   &END DFT
   &SUBSYS
@@ -27,13 +33,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     H     0.000000    0.000000    0.000000
-     H     0.000000    0.700000    0.000000
+      H     0.000000    0.000000    0.000000
+      H     0.000000    0.700000    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT h2-1
-  RUN_TYPE ENERGY
-  PRINT_LEVEL HIGH
-&END GLOBAL

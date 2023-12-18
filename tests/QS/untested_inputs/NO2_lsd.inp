@@ -1,3 +1,6 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -15,11 +18,11 @@
       EPS_DIIS 0.4
       EPS_SCF 3.0E-6
       MAX_SCF 150
-      &MIXING
-        METHOD DIRECT_P_MIXING
-        ALPHA 0.4
-      &END
       SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.4
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -31,9 +34,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-   O  3.71590        2.5        2.5
-   O  1.65536    3.37465        2.5
-   N  2.5 2.5 2.5
+      O  3.71590        2.5        2.5
+      O  1.65536    3.37465        2.5
+      N  2.5 2.5 2.5
     &END COORD
     &KIND O
       BASIS_SET DZVP-GTH-PADE
@@ -45,7 +48,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

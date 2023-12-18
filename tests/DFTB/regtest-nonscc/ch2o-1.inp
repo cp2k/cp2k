@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ch2o-1
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 #CPQA INCLUDE DFTB/nonscc/nonscc_parameter
 #CPQA INCLUDE uff_table
 #CPQA INCLUDE DFTB/nonscc/oo
@@ -12,28 +18,28 @@
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    F
-        DISPERSION         F
-        ORTHOGONAL_BASIS   F
+        DISPERSION F
+        ORTHOGONAL_BASIS F
+        SELF_CONSISTENT F
         &PARAMETER
-          PARAM_FILE_PATH  DFTB/nonscc
-          PARAM_FILE_NAME  nonscc_parameter
-          UFF_FORCE_FIELD  uff_table
+          PARAM_FILE_NAME nonscc_parameter
+          PARAM_FILE_PATH DFTB/nonscc
+          UFF_FORCE_FIELD uff_table
         &END PARAMETER
       &END DFTB
     &END QS
     &SCF
+      MAX_SCF 2
       SCF_GUESS NONE
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   1.
-      &END
-      MAX_SCF  2
+        ALPHA 1.
+        METHOD DIRECT_P_MIXING
+      &END MIXING
       &PRINT
         &RESTART
           FILENAME =RESTART
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
   &END DFT
   &SUBSYS
@@ -42,15 +48,10 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     O     0.051368    0.000000    0.000000
-     C     1.278612    0.000000    0.000000
-     H     1.870460    0.939607    0.000000
-     H     1.870460   -0.939607    0.000000
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ch2o-1
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

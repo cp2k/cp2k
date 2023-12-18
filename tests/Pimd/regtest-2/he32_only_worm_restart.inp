@@ -1,81 +1,80 @@
 #CPQA DEPENDS he32_only.inp
-
 &GLOBAL
-  PROJECT_NAME               he32_only_worm_restart
-  RUN_TYPE                   PINT
-  PRINT_LEVEL                low
+  PRINT_LEVEL low
+  PROJECT_NAME he32_only_worm_restart
+  RUN_TYPE PINT
 &END GLOBAL
+
+&EXT_RESTART
+  RESTART_COUNTERS
+  RESTART_DEFAULT F
+  RESTART_FILE_NAME he32_only_worm-1.restart
+  RESTART_HELIUM_PERMUTATION
+  RESTART_HELIUM_POS
+  RESTART_HELIUM_RNG
+&END EXT_RESTART
 
 &MOTION
   &PINT
-    NUM_STEPS                1
+    NUM_STEPS 1
     &HELIUM
+      CELL_SHAPE OCTAHEDRON
       HELIUM_ONLY
-      POTENTIAL_FILE_NAME    lj-test-pot.dat
-      NATOMS                32
-      NBEADS                25
-      NUM_ENV                2
-      INOROT                40
-      IROT                  20
-      PERIODIC               T
-      CELL_SHAPE             OCTAHEDRON
-      SAMPLING_METHOD        WORM
+      INOROT 40
+      IROT 20
+      NATOMS 32
+      NBEADS 25
+      NUM_ENV 2
+      PERIODIC T
+      POTENTIAL_FILE_NAME lj-test-pot.dat
+      SAMPLING_METHOD WORM
       &WORM
-         CENTROID_DRMAX       0.2
-         STAGING_L            5
-         ALLOW_OPEN           T
-         OPEN_CLOSE_SCALE     10.0
-         SHOW_STATISTICS      T
-         CENTROID_WEIGHT      5
-         STAGING_WEIGHT       10
-         OPEN_CLOSE_WEIGHT    20
-         HEAD_TAIL_WEIGHT     10
-         CRAWL_WEIGHT         10
-         CRAWL_REPETITION     2
-         SWAP_WEIGHT          100
-       &END WORM
+        ALLOW_OPEN T
+        CENTROID_DRMAX 0.2
+        CENTROID_WEIGHT 5
+        CRAWL_REPETITION 2
+        CRAWL_WEIGHT 10
+        HEAD_TAIL_WEIGHT 10
+        OPEN_CLOSE_SCALE 10.0
+        OPEN_CLOSE_WEIGHT 20
+        SHOW_STATISTICS T
+        STAGING_L 5
+        STAGING_WEIGHT 10
+        SWAP_WEIGHT 100
+      &END WORM
     &END HELIUM
   &END PINT
 &END MOTION
 
 &FORCE_EVAL
-  METHOD  FIST
+  METHOD FIST
   &MM
+    &FORCEFIELD
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../Fist/sample_pot/water.pot
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
     &POISSON
       &EWALD
         GMAX 25
       &END EWALD
     &END POISSON
-    &FORCEFIELD
-      PARM_FILE_NAME         ../../Fist/sample_pot/water.pot
-      PARMTYPE               CHM
-      &CHARGE
-        ATOM    OT
-        CHARGE -0.8476
-      &END CHARGE
-      &CHARGE
-        ATOM    HT
-        CHARGE  0.4238
-      &END CHARGE
-    &END FORCEFIELD
   &END MM
   &SUBSYS
     &CELL
-      ABC  8.0 8.0 8.0
-      PERIODIC  NONE
+      ABC 8.0 8.0 8.0
+      PERIODIC NONE
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME        ../../Fist/sample_pdb/water_1.pdb
-      COORD_FILE_FORMAT      PDB
+      COORD_FILE_FORMAT PDB
+      COORD_FILE_NAME ../../Fist/sample_pdb/water_1.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-
-&EXT_RESTART
-  RESTART_FILE_NAME         he32_only_worm-1.restart
-  RESTART_DEFAULT           F
-  RESTART_COUNTERS
-  RESTART_HELIUM_POS
-  RESTART_HELIUM_PERMUTATION
-  RESTART_HELIUM_RNG
-&END EXT_RESTART

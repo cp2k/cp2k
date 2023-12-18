@@ -1,5 +1,23 @@
-#CPQA DEPENDS basis_none_1.inp
+&GLOBAL
+  PRINT_LEVEL medium
+  PROJECT H2O-NONE
+  RUN_TYPE MD
+&END GLOBAL
 
+&EXT_RESTART
+  RESTART_FILE_NAME H2O-NONE-1.restart
+&END EXT_RESTART
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
+#CPQA DEPENDS basis_none_1.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -17,7 +35,7 @@
       MAX_SCF 10
       SCF_GUESS RESTART
       &OT
-      &END
+      &END OT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -29,14 +47,14 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
-    Ne  2.0         2.0         2.0
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+      Ne  2.0         2.0         2.0
     &END COORD
     &KIND Ne
-      GHOST
       BASIS_SET NONE
+      GHOST
     &END KIND
     &KIND H
       BASIS_SET DZVP-GTH-BLYP
@@ -48,19 +66,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-NONE
-  RUN_TYPE MD
-  PRINT_LEVEL medium
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 3
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-  &END MD
-&END MOTION
-&EXT_RESTART
- RESTART_FILE_NAME H2O-NONE-1.restart
-&END

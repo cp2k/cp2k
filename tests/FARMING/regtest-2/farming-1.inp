@@ -1,10 +1,11 @@
 #CPQA INCLUDE dir-1/water1.inp
 #CPQA INCLUDE dir-1/water2.inp
 &GLOBAL
-  PROJECT farming-1
   PROGRAM FARMING
+  PROJECT farming-1
   RUN_TYPE NONE
 &END GLOBAL
+
 &FARMING
   &JOB
     DIRECTORY dir-1

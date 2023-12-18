@@ -1,3 +1,57 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT uo2_buckmorse_nve
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 1
+        &END EACH
+      &END ENERGY
+      &SHELL_ENERGY LOW
+        &EACH
+          MD 1
+        &END EACH
+      &END SHELL_ENERGY
+    &END PRINT
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 5
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY
+      &EACH
+        MD 1000
+      &END EACH
+    &END RESTART_HISTORY
+    &STRESS
+      &EACH
+        MD 1
+      &END EACH
+    &END STRESS
+    &TRAJECTORY
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES
+      &EACH
+        MD 1000
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -5,128 +59,76 @@
       &CHARGE
         ATOM U
         CHARGE 2.4
-      &END
+      &END CHARGE
       &CHARGE
         ATOM O
         CHARGE -1.2
-      &END
+      &END CHARGE
       &NONBONDED
         &BUCKMORSE
-          atoms U  O
-          F0 [eV*angstrom^-1] 0.04222
           A1 [angstrom] 1.63
           A2 [angstrom] 1.91
+          ATOMS U O
           B1 [angstrom] 0.163511
           B2 [angstrom] 0.163511
-          C  0.0
-          D  [eV]   0.57745
-          R0 [angstrom]  2.369
           BETA [angstrom^-1] 1.65
+          C 0.0
+          D [eV] 0.57745
+          F0 [eV*angstrom^-1] 0.04222
+          R0 [angstrom] 2.369
           RCUT 10.4
         &END BUCKMORSE
         &BUCKMORSE
-          atoms O O
-          F0 [eV*angstrom^-1] 0.04222
           A1 [angstrom] 1.91
           A2 [angstrom] 1.91
+          ATOMS O O
           B1 [angstrom] 0.163511
           B2 [angstrom] 0.163511
-          C  [eV*angstrom^6]  3.9506332644
-          D  [eV] 0.0
-          R0 [angstrom]  1.0
           BETA [angstrom^-1] 1.0
+          C [eV*angstrom^6] 3.9506332644
+          D [eV] 0.0
+          F0 [eV*angstrom^-1] 0.04222
+          R0 [angstrom] 1.0
           RCUT 10.4
         &END BUCKMORSE
         &BUCKMORSE
-          atoms U U
-          F0 [eV*angstrom^-1] 0.04222
           A1 [angstrom] 1.63
           A2 [angstrom] 1.63
+          ATOMS U U
           B1 [angstrom] 0.163511
           B2 [angstrom] 0.163511
-          C  0.0
-          D  [eV]  0.0
-          R0 [angstrom]  1.0
           BETA [angstrom^-1] 1.0
+          C 0.0
+          D [eV] 0.0
+          F0 [eV*angstrom^-1] 0.04222
+          R0 [angstrom] 1.0
           RCUT 10.4
         &END BUCKMORSE
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
-        GMAX  64
+        EWALD_TYPE spme
+        GMAX 64
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
     &CELL
-      ABC  10.936 10.936 10.936
+      ABC 10.936 10.936 10.936
     &END CELL
-    &TOPOLOGY
-      CONN_FILE ../sample_psf/uo2_2x2x2.psf
-      CONNECTIVITY UPSF
-      COORD_FILE ../sample_xyz/uo2_displ.xyz
-      COORDINATE XYZ
-    &END TOPOLOGY
     &KIND U
       MASS 238.03000
-    &END
+    &END KIND
     &KIND O
       MASS 16.000
-    &END
+    &END KIND
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE ../sample_psf/uo2_2x2x2.psf
+      COORDINATE XYZ
+      COORD_FILE ../sample_xyz/uo2_displ.xyz
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT uo2_buckmorse_nve
-  PRINT_LEVEL LOW
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS  20
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &PRINT
-      &ENERGY
-        &EACH
-          MD 1
-        &END
-      &END
-      &SHELL_ENERGY LOW
-        &EACH
-          MD 1
-        &END
-      &END
-    &END PRINT
-  &END MD
-  &PRINT
-    &TRAJECTORY
-      &EACH
-        MD 1
-      &END
-    &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
-    &END
-    &STRESS
-      &EACH
-        MD 1
-      &END
-    &END
-    &RESTART
-      &EACH
-        MD 5
-      &END
-    &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
-    &END
-  &END
-&END MOTION

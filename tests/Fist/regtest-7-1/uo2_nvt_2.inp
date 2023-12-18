@@ -1,3 +1,51 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT uo2_nvt_2
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    COMVEL_TOL 1.0E-7
+    ENSEMBLE nve
+    STEPS 10
+    TEMPERATURE 300.0
+    TIMESTEP 1.0
+    &PRINT
+      &ENERGY
+      &END ENERGY
+      &SHELL_ENERGY LOW
+      &END SHELL_ENERGY
+    &END PRINT
+    &SHELL
+      TEMPERATURE 25.0
+      TEMP_TOL 25.0
+    &END SHELL
+  &END MD
+  &PRINT
+    &CORE_FORCES OFF
+    &END CORE_FORCES
+    &CORE_TRAJECTORY
+    &END CORE_TRAJECTORY
+    &CORE_VELOCITIES OFF
+    &END CORE_VELOCITIES
+    &RESTART OFF
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &SHELL_FORCES OFF
+    &END SHELL_FORCES
+    &SHELL_TRAJECTORY
+    &END SHELL_TRAJECTORY
+    &SHELL_VELOCITIES OFF
+    &END SHELL_VELOCITIES
+    &TRAJECTORY
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -5,137 +53,89 @@
       DO_NONBONDED F
       &CHARGE
         ATOM U
-        CHARGE  0.0
-      &END
+        CHARGE 0.0
+      &END CHARGE
       &CHARGE
         ATOM O
-        CHARGE  0.0
-      &END
-      &SHELL U
-        CORE_CHARGE  6.840000
-        SHELL_CHARGE -2.840000
-        MASS_FRACTION  0.1
-        SPRING  [eV*angstrom^-2] 171.556
-
-      &END SHELL
-      &SHELL O
-        CORE_CHARGE 1.186267
-        SHELL_CHARGE -3.186267
-        MASS_FRACTION 0.2
-        SPRING [eV*angstrom^-2] 70.824
-
-      &END SHELL
+        CHARGE 0.0
+      &END CHARGE
       &NONBONDED
+        &BUCK4RANGES
+          A [eV] 20908.03
+          ATOMS O O
+          B [angstrom^-1] 7.71604938272
+          C [eV*angstrom^6] 229.04
+          POLY1 [eV] 4204.472427467161 -7959.112702279119 6021.074988330987 -2270.766871550818 426.319753380798 -31.850801875744
+          POLY2 [eV] 6.734634669569 -6.692698089020 1.656245757939 -0.122636741736
+          R1 1.17
+          R2 1.62
+          R3 2.84
+          RCUT [angstrom] 20.0
+        &END BUCK4RANGES
         &WILLIAMS
-          atoms U  O
           A [eV] 844.41
+          ATOMS U O
           B [angstrom^-1] 2.35159661652
           C [eV*angstrom^6] 0.0
           RCUT [angstrom] 20.0
         &END WILLIAMS
-        &BUCK4RANGES
-          atoms O O
-          A [eV] 20908.03
-          B [angstrom^-1] 7.71604938272
-          C [eV*angstrom^6] 229.04
-          R1 1.17
-          R2 1.62
-          R3 2.84
-          POLY1 [eV] 4204.472427467161  -7959.112702279119   6021.074988330987  -2270.766871550818 426.319753380798 -31.850801875744
-          POLY2 [eV] 6.734634669569  -6.692698089020 1.656245757939  -0.122636741736
-          RCUT [angstrom] 20.0
-        &END BUCK4RANGES
         &WILLIAMS
-          atoms U U
           A [eV] 0.0
+          ATOMS U U
           B [angstrom^-1] 0.0
           C [eV*angstrom^6] 0.0
           RCUT [angstrom] 20.0
         &END WILLIAMS
       &END NONBONDED
+      &SHELL U
+        CORE_CHARGE 6.840000
+        MASS_FRACTION 0.1
+        SHELL_CHARGE -2.840000
+        SPRING [eV*angstrom^-2] 171.556
+      &END SHELL
+      &SHELL O
+        CORE_CHARGE 1.186267
+        MASS_FRACTION 0.2
+        SHELL_CHARGE -3.186267
+        SPRING [eV*angstrom^-2] 70.824
+      &END SHELL
       &SPLINE
         EMAX_SPLINE 100.00
         R0_NB 0.1
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
-        GMAX  64
+        EWALD_TYPE spme
+        GMAX 64
       &END EWALD
     &END POISSON
     &PRINT
       &FF_INFO MEDIUM
         SPLINE_INFO
-      &END
-    &END
+      &END FF_INFO
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
-      ABC  30.0 30.0 30.0
+      ABC 30.0 30.0 30.0
     &END CELL
     &COORD
-     O   0.0 0.0 0.0
-     U   5.0 0.0 0.0
-    &END
-    &TOPOLOGY
-    &END TOPOLOGY
+      O   0.0 0.0 0.0
+      U   5.0 0.0 0.0
+    &END COORD
     &KIND U
       MASS 238.03000
-    &END
+    &END KIND
     &KIND O
       MASS 16.000
-    &END
+    &END KIND
     &PRINT
       &ATOMIC_COORDINATES MEDIUM
-      &END
-    &END
+      &END ATOMIC_COORDINATES
+    &END PRINT
+    &TOPOLOGY
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT uo2_nvt_2
-  PRINT_LEVEL LOW
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE nve
-    STEPS  10
-    TIMESTEP 1.0
-    TEMPERATURE 300.0
-    COMVEL_TOL  1.0E-7
-    &SHELL
-      TEMPERATURE 25.0
-      TEMP_TOL 25.0
-    &END
-    &PRINT
-      &ENERGY
-      &END
-      &SHELL_ENERGY LOW
-      &END
-    &END PRINT
-  &END MD
-  &PRINT
-    &TRAJECTORY
-    &END
-    &VELOCITIES OFF
-    &END
-    &SHELL_TRAJECTORY
-    &END
-    &SHELL_VELOCITIES OFF
-    &END
-    &SHELL_FORCES OFF
-    &END
-    &CORE_TRAJECTORY
-    &END
-    &CORE_VELOCITIES OFF
-    &END
-    &CORE_FORCES OFF
-    &END
-    &RESTART OFF
-    &END
-    &RESTART_HISTORY OFF
-    &END
-  &END
-&END MOTION

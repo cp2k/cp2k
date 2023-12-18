@@ -1,9 +1,29 @@
+&GLOBAL
+  PROJECT water_3_dist_centers3
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,8 +35,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE pme
         ALPHA .44
+        EWALD_TYPE pme
         NS_MAX 25
       &END EWALD
     &END POISSON
@@ -27,38 +47,20 @@
     &END CELL
     &COLVAR
       &DISTANCE
+        POINTS 1 2
         &POINT
           ATOMS 1 2 3
           WEIGHTS 1.0 0.0 0.0
-        &END
+        &END POINT
         &POINT
           ATOMS 4 5 6
           WEIGHTS 1.0 0.0 0.0
-        &END
-        POINTS 1 2
+        &END POINT
       &END DISTANCE
     &END COLVAR
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_2.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_2.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_dist_centers3
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      COLVAR 1
-      INTERMOLECULAR
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

@@ -1,3 +1,7 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT molecular_states
+&END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -9,11 +13,11 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-5
-      &MIXING
-        METHOD DIRECT_P_MIXING
-        ALPHA 0.4
-      &END
       SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.4
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -34,13 +38,8 @@
     &END KIND
     &TOPOLOGY
       CONNECTIVITY generate
-      COORD_FILE_NAME sample_pdb/water_32.pdb
       COORDINATE pdb
+      COORD_FILE_NAME sample_pdb/water_32.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PROJECT molecular_states
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

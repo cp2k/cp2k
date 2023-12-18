@@ -1,7 +1,29 @@
+&GLOBAL
+  PREFERRED_FFT_LIBRARY FFTW3
+  PRINT_LEVEL LOW
+  PROJECT water_mm3
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K [au_e*rad^-2] 0.4
+        KBS12 [au_e*au_l^-1*rad^-1] 0.3
+        KBS32 [au_e*au_l^-1*rad^-1] 0.3
+        KIND MM3
+        R012 [au_l] 1.81111424
+        R032 [au_l] 1.81111424
+        THETA0 [rad] 1.82299609
+      &END BEND
+      &BOND
+        ATOMS H O
+        K [au_e*au_l^-2] 0
+        R0 [au_l] 1.81111424
+      &END BOND
       &CHARGE
         ATOM H
         CHARGE 0.0
@@ -10,36 +32,21 @@
         ATOM O
         CHARGE 0.0
       &END CHARGE
-      &BOND
-        ATOMS H O
-        K [au_e*au_l^-2] 0
-        R0 [au_l] 1.81111424
-      &END BOND
-      &BEND
-        KIND MM3
-        ATOMS H O H
-        K [au_e*rad^-2] 0.4
-        THETA0 [rad] 1.82299609
-        R012 [au_l] 1.81111424
-        R032 [au_l] 1.81111424
-        KBS12 [au_e*au_l^-1*rad^-1] 0.3
-        KBS32 [au_e*au_l^-1*rad^-1] 0.3
-      &END BEND
       &NONBONDED
         &LENNARD-JONES
-            ATOMS O H
-            SIGMA [au_l] 1
-            EPSILON [au_e] 0
+          ATOMS O H
+          EPSILON [au_e] 0
+          SIGMA [au_l] 1
         &END LENNARD-JONES
         &LENNARD-JONES
-            ATOMS H H
-            SIGMA [au_l] 1
-            EPSILON [au_e] 0
+          ATOMS H H
+          EPSILON [au_e] 0
+          SIGMA [au_l] 1
         &END LENNARD-JONES
         &LENNARD-JONES
-            ATOMS O O
-            SIGMA [au_l] 1
-            EPSILON [au_e] 0
+          ATOMS O O
+          EPSILON [au_e] 0
+          SIGMA [au_l] 1
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
@@ -60,15 +67,9 @@
       H     -0.807541     0.587080     0.000000
     &END COORD
     &TOPOLOGY
-     &GENERATE
-       CREATE_MOLECULES
-     &END GENERATE
+      &GENERATE
+        CREATE_MOLECULES
+      &END GENERATE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_mm3
-  PREFERRED_FFT_LIBRARY FFTW3
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

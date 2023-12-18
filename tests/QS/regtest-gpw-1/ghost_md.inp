@@ -1,16 +1,16 @@
 # test MD of nothing (that is ghost atom only)
 &GLOBAL
-  PROJECT     test
-  RUN_TYPE    MD
   PRINT_LEVEL MEDIUM
+  PROJECT test
+  RUN_TYPE MD
 &END GLOBAL
 
 &MOTION
   &MD
-    TIMESTEP 0.5
     STEPS 3
-  &END
-&END
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -18,11 +18,11 @@
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &SCF
-        SCF_GUESS ATOMIC
-        MAX_SCF   31
-        EPS_SCF   1.0E-6
-        &OT
-        &END OT
+      EPS_SCF 1.0E-6
+      MAX_SCF 31
+      SCF_GUESS ATOMIC
+      &OT
+      &END OT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -34,12 +34,12 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     H         4.0 4.0 4.0
+      H         4.0 4.0 4.0
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH
-      POTENTIAL GTH-PBE-q1
       GHOST
+      POTENTIAL GTH-PBE-q1
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

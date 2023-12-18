@@ -1,25 +1,44 @@
+&GLOBAL
+  PROJECT water_3_fdbg
+  #RUN_TYPE MD
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DX .0001
+&END DEBUG
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
+    &PRINT
+      &AO_MATRICES
+        DENSITY
+      &END AO_MATRICES
+    &END PRINT
     &QS
       METHOD AM1
       &SE
       &END SE
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
+      SCF_GUESS ATOMIC
     &END SCF
-    &PRINT
-      &AO_MATRICES
-         DENSITY
-      &END
-    &END
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../../../Fist/sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../../Fist/sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -31,53 +50,37 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 42
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    CENTER SETUP_ONLY
+    ECOUPL COULOMB
+    USE_GEEP_LIB 12
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
-    CENTER SETUP_ONLY
-    USE_GEEP_LIB 12
-    ECOUPL COULOMB
+    &PRINT
+      &QMMM_MATRIX
+      &END QMMM_MATRIX
+    &END PRINT
     &QM_KIND H
       MM_INDEX 2 3
     &END QM_KIND
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-    &PRINT
-     &QMMM_MATRIX
-     &END
-    &END
-  &END
+  &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_fdbg
-  #RUN_TYPE MD
-  RUN_TYPE DEBUG
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION
-&DEBUG
- DX .0001
-&END

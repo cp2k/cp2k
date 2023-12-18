@@ -1,8 +1,9 @@
 &GLOBAL
+  PRINT_LEVEL MEDIUM
   PROJECT diamond_br89_libxc
   RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -12,6 +13,11 @@
       CUTOFF 500
       REL_CUTOFF 30
     &END MGRID
+    &PRINT
+      &MO
+        EIGENVALUES .TRUE.
+      &END MO
+    &END PRINT
     &QS
       METHOD GPW
     &END QS
@@ -27,17 +33,12 @@
         &END MGGA_X_BR89
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO
-        EIGENVALUES .TRUE.
-      &END MO
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
-      A 0.0000  1.7835  1.7835
-      B 1.7835  0.0000  1.7835
-      C 1.7835  1.7835  0.0000
+      A 0.0000 1.7835 1.7835
+      B 1.7835 0.0000 1.7835
+      C 1.7835 1.7835 0.0000
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD

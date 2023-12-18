@@ -1,51 +1,52 @@
 &GLOBAL
-  PROJECT test_cp_fm_gemm_01
   PRINT_LEVEL MEDIUM
   PROGRAM_NAME TEST
+  PROJECT test_cp_fm_gemm_01
   RUN_TYPE NONE
   &TIMINGS
-     THRESHOLD 0.00000000001
-  &END
+    THRESHOLD 0.00000000001
+  &END TIMINGS
 &END GLOBAL
+
 &TEST
   &CP_FM_GEMM
-     K 128
-     M 256
-     N 256
-     TRANSA FALSE
-     TRANSB FALSE
-     N_LOOP 10
-  &END
+    K 128
+    M 256
+    N 256
+    N_LOOP 10
+    TRANSA FALSE
+    TRANSB FALSE
+  &END CP_FM_GEMM
   &CP_FM_GEMM
-     K 128
-     M 1024
-     N 256
-     TRANSA FALSE
-     TRANSB FALSE
-     N_LOOP 10
-  &END
+    K 128
+    M 1024
+    N 256
+    N_LOOP 10
+    TRANSA FALSE
+    TRANSB FALSE
+  &END CP_FM_GEMM
   &CP_FM_GEMM
-     K 128
-     M 512
-     N 256
-     TRANSA TRUE
-     TRANSB FALSE
-     N_LOOP 10
-  &END
+    K 128
+    M 512
+    N 256
+    N_LOOP 10
+    TRANSA TRUE
+    TRANSB FALSE
+  &END CP_FM_GEMM
   &CP_FM_GEMM
-     K 128
-     M 512
-     N 256
-     TRANSA FALSE
-     TRANSB TRUE
-     N_LOOP 10
-  &END
+    K 128
+    M 512
+    N 256
+    N_LOOP 10
+    TRANSA FALSE
+    TRANSB TRUE
+  &END CP_FM_GEMM
   &CP_FM_GEMM
-     K 128
-     M 512
-     N 256
-     TRANSA TRUE
-     TRANSB TRUE
-     N_LOOP 10
-  &END
-&END
+    K 128
+    M 512
+    N 256
+    N_LOOP 10
+    TRANSA TRUE
+    TRANSB TRUE
+  &END CP_FM_GEMM
+&END TEST

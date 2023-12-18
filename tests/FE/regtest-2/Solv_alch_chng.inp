@@ -1,202 +1,207 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Solv_alch_chng
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    METHOD AC
+    &ALCHEMICAL_CHANGE
+      PARAMETER k
+    &END ALCHEMICAL_CHANGE
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 10
+    TEMPERATURE 200.0
+    TIMESTEP 0.5
+    &BAROSTAT
+    &END BAROSTAT
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 1
+        &END EACH
+      &END ENERGY
+    &END PRINT
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 300
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &FORCES OFF
+    &END FORCES
+    &RESTART
+      &EACH
+        MD 10
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY
+      &EACH
+        MD 100
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 # This input file produces exactly the same numerical results as
 # a single run of ../regtest-1/ala.with same MOTION setup..
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3
-   MULTIPLE_SUBSYS T
-&END
+  FORCE_EVAL_ORDER 2 3
+  MULTIPLE_SUBSYS T
+&END MULTIPLE_FORCE_EVALS
+
 &FORCE_EVAL
-  STRESS_TENSOR ANALYTICAL
   METHOD MIXED
+  STRESS_TENSOR ANALYTICAL
   &MIXED
     MIXING_TYPE GENMIX
     &GENERIC
       # X: Energy force_eval 2
       # Y: Energy force_eval 3
       MIXING_FUNCTION k*X+(1.0-k)*Y
-      VARIABLES X Y
       PARAMETERS k
       VALUES 0.5
-    &END
+      VARIABLES X Y
+    &END GENERIC
     &MAPPING
-      &FORCE_EVAL_MIXED
-        &FRAGMENT 1
-          1 6
-        &END
-        &FRAGMENT 2
-          7 16
-        &END
-        &FRAGMENT 3
-          17 22
-        &END
-        &FRAGMENT 4
-          23 1840
-        &END
-      &END
       &FORCE_EVAL 1
         &FRAGMENT 1
           1 6
           MAP 1
-        &END
+        &END FRAGMENT
         &FRAGMENT 2
           7 16
           MAP 2
-        &END
+        &END FRAGMENT
         &FRAGMENT 3
           17 22
           MAP 3
-        &END
+        &END FRAGMENT
         &FRAGMENT 4
           23 1840
           MAP 4
-        &END
-      &END
+        &END FRAGMENT
+      &END FORCE_EVAL
       &FORCE_EVAL 2
         &FRAGMENT 1
           1 6
           MAP 1
-        &END
+        &END FRAGMENT
         &FRAGMENT 2
           7 16
           MAP 2
-        &END
+        &END FRAGMENT
         &FRAGMENT 3
           17 22
           MAP 3
-        &END
+        &END FRAGMENT
         &FRAGMENT 4
           23 1840
           MAP 4
-        &END
-      &END
-    &END
-  &END
+        &END FRAGMENT
+      &END FORCE_EVAL
+      &FORCE_EVAL_MIXED
+        &FRAGMENT 1
+          1 6
+        &END FRAGMENT
+        &FRAGMENT 2
+          7 16
+        &END FRAGMENT
+        &FRAGMENT 3
+          17 22
+        &END FRAGMENT
+        &FRAGMENT 4
+          23 1840
+        &END FRAGMENT
+      &END FORCE_EVAL_MIXED
+    &END MAPPING
+  &END MIXED
   &SUBSYS
+    &CELL
+      ABC 30.9751780 30.8599250 30.7278700
+    &END CELL
     &TOPOLOGY
       CONNECTIVITY PSF
       CONN_FILE_NAME ../regtest-1/ala.psf
       COORDINATE PDB
       COORD_FILE_NAME ../regtest-1/ala.pdb
     &END TOPOLOGY
-    &CELL
-      ABC  30.9751780  30.8599250  30.7278700
-    &END CELL
   &END SUBSYS
 &END FORCE_EVAL
+
 &FORCE_EVAL
-  STRESS_TENSOR ANALYTICAL
   METHOD FIST
+  STRESS_TENSOR ANALYTICAL
   &MM
     &FORCEFIELD
+      PARMTYPE CHM
       PARM_FILE_NAME ../regtest-1/ala.pot
-      parmtype CHM
       &SPLINE
         EMAX_SPLINE 100000000.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .5
+        EWALD_TYPE spme
         GMAX 36
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
+    &CELL
+      ABC 30.9751780 30.8599250 30.7278700
+    &END CELL
     &TOPOLOGY
       CONNECTIVITY PSF
       CONN_FILE_NAME ../regtest-1/ala.psf
       COORDINATE PDB
       COORD_FILE_NAME ../regtest-1/ala.pdb
     &END TOPOLOGY
-    &CELL
-      ABC 30.9751780  30.8599250  30.7278700
-    &END CELL
   &END SUBSYS
 &END FORCE_EVAL
+
 &FORCE_EVAL
-  STRESS_TENSOR ANALYTICAL
   METHOD FIST
+  STRESS_TENSOR ANALYTICAL
   &MM
     &FORCEFIELD
+      PARMTYPE CHM
       PARM_FILE_NAME ../regtest-1/ala.pot
-      parmtype CHM
       &SPLINE
         EMAX_SPLINE 100000000.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .5
+        EWALD_TYPE spme
         GMAX 36
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
+    &CELL
+      ABC 30.9751780 30.8599250 30.7278700
+    &END CELL
     &TOPOLOGY
       CONNECTIVITY PSF
       CONN_FILE_NAME ../regtest-1/ala.psf
       COORDINATE PDB
       COORD_FILE_NAME ../regtest-1/ala.pdb
     &END TOPOLOGY
-    &CELL
-      ABC  30.9751780  30.8599250  30.7278700
-    &END CELL
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT Solv_alch_chng
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NPT_I
-    STEPS 10
-    TIMESTEP 0.5
-    TEMPERATURE 200.0
-    &BAROSTAT
-    &END
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 300
-        MTS 2
-      &END NOSE
-    &END
-    &PRINT
-     &ENERGY
-      &EACH
-       MD 1
-      &END
-     &END
-    &END
-  &END MD
-  &PRINT
-   &TRAJECTORY
-    &EACH
-     MD 100
-    &END
-   &END
-   &VELOCITIES OFF
-   &END
-   &FORCES OFF
-   &END
-   &RESTART_HISTORY OFF
-   &END
-   &RESTART
-    &EACH
-     MD 10
-    &END
-   &END
-  &END
-  &FREE_ENERGY
-    METHOD AC
-    &ALCHEMICAL_CHANGE
-      PARAMETER k
-    &END
-  &END
-&END MOTION

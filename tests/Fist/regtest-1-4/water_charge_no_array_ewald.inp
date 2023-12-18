@@ -1,9 +1,30 @@
+&GLOBAL
+  PROJECT water_charge_no_array_ewald
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,8 +36,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
@@ -26,27 +47,8 @@
       ABC 5. 5. 5.
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_1.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_charge_no_array_ewald
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 100
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-  &PRINT
-    &RESTART
-      &EACH
-        MD 1
-      &END
-    &END
-  &END
-&END MOTION

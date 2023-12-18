@@ -1,27 +1,31 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT test_pair
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      &BEND
+        ATOMS H O O
+        K 0.0
+        KIND HARMONIC
+        THETA0 0.0
+      &END BEND
       &BOND
         ATOMS O H
-        KIND HARMONIC
         K 0.0
+        KIND HARMONIC
         R0 1.0
       &END BOND
       &BOND
         ATOMS O O
-        KIND HARMONIC
         K 0.0
+        KIND HARMONIC
         R0 1.0
       &END BOND
-
-      &BEND
-        ATOMS H O O
-        KIND HARMONIC
-        K 0.0
-        THETA0 0.0
-      &END BEND
-
       &CHARGE
         ATOM O
         CHARGE 0.0
@@ -30,45 +34,45 @@
         ATOM H
         CHARGE 0.0
       &END CHARGE
-      &SPLINE
-        RCUT_NB 10.0
-        EMAX_SPLINE 0.5
-        EMAX_ACCURACY 0.5
-      &END SPLINE
       &NONBONDED
         &GENPOT
-          atoms H H
+          ATOMS H H
           FUNCTION 0.0/r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O H
+          ATOMS O H
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O O
+          ATOMS O O
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
       &END NONBONDED
       &NONBONDED14
         &GENPOT
-          atoms H H
+          ATOMS H H
           FUNCTION -1/r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O H
+          ATOMS O H
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O O
+          ATOMS O O
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
       &END NONBONDED14
+      &SPLINE
+        EMAX_ACCURACY 0.5
+        EMAX_SPLINE 0.5
+        RCUT_NB 10.0
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -77,37 +81,32 @@
     &END POISSON
     &PRINT
       &FF_INFO
-      &END
-    &END
+      &END FF_INFO
+    &END PRINT
   &END MM
+  &PRINT
+    &FORCES
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
       PERIODIC NONE
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/H2O2.xyz
-      COORDINATE XYZ
-      &GENERATE
-        CREATE_MOLECULES T
-      &END GENERATE
-    &END TOPOLOGY
     &PRINT
       &TOPOLOGY_INFO
         XYZ_INFO T
       &END TOPOLOGY_INFO
     &END PRINT
+    &TOPOLOGY
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/H2O2.xyz
+      &GENERATE
+        CREATE_MOLECULES T
+      &END GENERATE
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES
-      &EACH
-        MD 1
-      &END
-    &END FORCES
-  &END PRINT
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT test_pair
-  RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

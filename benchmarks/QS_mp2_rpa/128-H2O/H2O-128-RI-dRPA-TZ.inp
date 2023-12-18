@@ -1,91 +1,91 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-128-RI-dRPA-TZ
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME    ./BASIS_H2O
-    POTENTIAL_FILE_NAME    ./POTENTIAL_H2O
-    WFN_RESTART_FILE_NAME  ./H2O-128-PBE-TZ-RESTART.wfn
+    BASIS_SET_FILE_NAME ./BASIS_H2O
+    POTENTIAL_FILE_NAME ./POTENTIAL_H2O
+    WFN_RESTART_FILE_NAME ./H2O-128-PBE-TZ-RESTART.wfn
     &MGRID
-     CUTOFF      800
-     REL_CUTOFF   50
+      CUTOFF 800
+      REL_CUTOFF 50
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-12
     &END QS
     &SCF
-      SCF_GUESS  RESTART
-      EPS_SCF    1.0E-6
-      MAX_SCF    30
+      EPS_SCF 1.0E-6
+      MAX_SCF 30
+      SCF_GUESS RESTART
       &OT
-        MINIMIZER       CG
-        PRECONDITIONER  FULL_ALL
-      &END
+        MINIMIZER CG
+        PRECONDITIONER FULL_ALL
+      &END OT
       &OUTER_SCF
-        EPS_SCF  1.0E-6
-        MAX_SCF  20
-      &END
+        EPS_SCF 1.0E-6
+        MAX_SCF 20
+      &END OUTER_SCF
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-      &END XC_FUNCTIONAL
       &WF_CORRELATION
-        &RI_RPA
-          RPA_NUM_QUAD_POINTS    40
-          &HF
-            FRACTION  1.0
-            &SCREENING
-              EPS_SCHWARZ          1.0E-8
-              SCREEN_ON_INITIAL_P  TRUE
-            &END SCREENING
-            &INTERACTION_POTENTIAL
-              POTENTIAL_TYPE TRUNCATED
-              CUTOFF_RADIUS  6.0
-              T_C_G_DATA  ./t_c_g.dat
-            &END
-            &MEMORY
-              MAX_MEMORY 0
-            &END
-          &END HF
-        &END
+        MEMORY 1200
+        NUMBER_PROC 1
         &INTEGRALS
           &WFC_GPW
-            CUTOFF      300
-            REL_CUTOFF  50
-            EPS_FILTER  1.0E-12
-            EPS_GRID    1.0E-8
-          &END
+            CUTOFF 300
+            EPS_FILTER 1.0E-12
+            EPS_GRID 1.0E-8
+            REL_CUTOFF 50
+          &END WFC_GPW
         &END INTEGRALS
-        MEMORY    1200
-        NUMBER_PROC  1
-      &END
+        &RI_RPA
+          RPA_NUM_QUAD_POINTS 40
+          &HF
+            FRACTION 1.0
+            &INTERACTION_POTENTIAL
+              CUTOFF_RADIUS 6.0
+              POTENTIAL_TYPE TRUNCATED
+              T_C_G_DATA ./t_c_g.dat
+            &END INTERACTION_POTENTIAL
+            &MEMORY
+              MAX_MEMORY 0
+            &END MEMORY
+            &SCREENING
+              EPS_SCHWARZ 1.0E-8
+              SCREEN_ON_INITIAL_P TRUE
+            &END SCREENING
+          &END HF
+        &END RI_RPA
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-       ABC 15.6404 15.6404 15.6404
+      ABC 15.6404 15.6404 15.6404
     &END CELL
-    &TOPOLOGY
-       COORD_FILE_NAME   ./H2O-128.xyz
-       COORD_FILE_FORMAT XYZ
-    &END TOPOLOGY
     &KIND H
-      BASIS_SET         cc-TZ
-      BASIS_SET RI_AUX  RI-cc-TZ
-      POTENTIAL         GTH-PBE-q1
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI-cc-TZ
+      POTENTIAL GTH-PBE-q1
     &END KIND
     &KIND O
-      BASIS_SET         cc-TZ
-      BASIS_SET RI_AUX  RI-cc-TZ
-      POTENTIAL         GTH-PBE-q6
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI-cc-TZ
+      POTENTIAL GTH-PBE-q6
     &END KIND
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME ./H2O-128.xyz
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT     H2O-128-RI-dRPA-TZ
-  RUN_TYPE    ENERGY
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-

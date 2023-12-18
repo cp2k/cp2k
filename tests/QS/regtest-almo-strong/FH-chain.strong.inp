@@ -1,49 +1,44 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT LiF-chain
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    &QS
-      ALMO_SCF T
-      EPS_DEFAULT 1.0E-8 ! 1.0E-12
-    &END QS
-
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &ALMO_SCF
-      EPS_FILTER                 1.0E-8
-      ALMO_ALGORITHM             SKIP
-      ALMO_SCF_GUESS             ATOMIC
-      XALMO_TRIAL_WF             SIMPLE
-
+      ALMO_ALGORITHM SKIP
+      ALMO_SCF_GUESS ATOMIC
+      DELOCALIZE_METHOD XALMO_SCF
+      EPS_FILTER 1.0E-8
+      XALMO_R_CUTOFF_FACTOR 1.2
+      XALMO_TRIAL_WF SIMPLE
       &ALMO_OPTIMIZER_DIIS
-        MAX_ITER                 30
-        EPS_ERROR                5.0E-4
-        N_DIIS                   7
+        EPS_ERROR 5.0E-4
+        MAX_ITER 30
+        N_DIIS 7
       &END ALMO_OPTIMIZER_DIIS
-
-      DELOCALIZE_METHOD          XALMO_SCF
-      XALMO_R_CUTOFF_FACTOR      1.2
-
       &XALMO_OPTIMIZER_PCG
-        MAX_ITER                 50
-        EPS_ERROR                5.0E-4
-        CONJUGATOR               FLETCHER
-        LIN_SEARCH_EPS_ERROR     0.05
+        CONJUGATOR FLETCHER
+        EPS_ERROR 5.0E-4
+        LIN_SEARCH_EPS_ERROR 0.05
         LIN_SEARCH_STEP_SIZE_GUESS 0.1
-        MAX_ITER_OUTER_LOOP      2
+        MAX_ITER 50
+        MAX_ITER_OUTER_LOOP 2
         PRECOND_FILTER_THRESHOLD 0.05
       &END XALMO_OPTIMIZER_PCG
-
     &END ALMO_SCF
-
     &MGRID
-      CUTOFF 200 ! 320
+      CUTOFF 200  ! 320
       NGRIDS 5
     &END MGRID
+    &QS
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-8  ! 1.0E-12
+    &END QS
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
@@ -51,12 +46,9 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC      3.0000000000     3.0000000000    10.0000000000
+      ABC 3.0000000000 3.0000000000 10.0000000000
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
-    &TOPOLOGY
-      MULTIPLE_UNIT_CELL 1 1 1
-    &END
     &COORD
       ! atomic decomposition
       H        0.0000000000        0.0000000000        0.0000000000       H1
@@ -82,33 +74,35 @@
       POTENTIAL GTH-BLYP-q1
       &BS
         &ALPHA
+          L 0
+          N 1
           NEL -1
-          L    0
-          N    1
-        &END
+        &END ALPHA
         &BETA
+          L 0
+          N 1
           NEL -1
-          L    0
-          N    1
-        &END
-      &END
+        &END BETA
+      &END BS
     &END KIND
     &KIND F
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q7
       &BS
         &ALPHA
+          L 1
+          N 2
           NEL +1
-          L    1
-          N    2
-        &END
+        &END ALPHA
         &BETA
+          L 1
+          N 2
           NEL +1
-          L    1
-          N    2
-        &END
-      &END
+        &END BETA
+      &END BS
     &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

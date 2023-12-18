@@ -1,49 +1,62 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-geo-pdos_comp_list
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 4
+    OPTIMIZER BFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    &PRINT
-      &PDOS
-         COMPONENTS
-         APPEND
-         NLUMO 5
-         &LDOS
-           LIST 1..3
-           COMPONENTS
-         &END
-         &LDOS
-           LIST  3 1 2
-           COMPONENTS
-         &END
-         &LDOS
-           LIST   1 2
-         &END
-         &LDOS
-           LIST   3 2
-         &END
-         &EACH
-            GEO_OPT 0
-         &END
-         ADD_LAST NUMERIC
-      &END
-    &END
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 200
     &END MGRID
+    &PRINT
+      &PDOS
+        ADD_LAST NUMERIC
+        APPEND
+        COMPONENTS
+        NLUMO 5
+        &EACH
+          GEO_OPT 0
+        &END EACH
+        &LDOS
+          COMPONENTS
+          LIST 1..3
+        &END LDOS
+        &LDOS
+          COMPONENTS
+          LIST 3 1 2
+        &END LDOS
+        &LDOS
+          LIST 1 2
+        &END LDOS
+        &LDOS
+          LIST 3 2
+        &END LDOS
+      &END PDOS
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
     &END QS
     &SCF
+      ADDED_MOS 3 3
       EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT OFF
-      &END
-      ADDED_MOS 3 3
+      &END OT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -55,9 +68,9 @@
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
@@ -72,14 +85,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&MOTION
- &GEO_OPT
-  OPTIMIZER BFGS
-  MAX_ITER 4
- &END
-&END
-&GLOBAL
-  PROJECT H2O-geo-pdos_comp_list
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE GEO_OPT
-&END GLOBAL

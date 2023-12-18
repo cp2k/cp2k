@@ -1,41 +1,127 @@
+&GLOBAL
+  # Rudolph set FFTSG let me test fftw3
+  #  PREFERRED_FFT_LIBRARY FFTSG
+  PREFERRED_FFT_LIBRARY FFTW
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_meta_langevin
+  RUN_TYPE MD
+  WALLTIME 250000
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      LAGRANGE .TRUE.
+      LANGEVIN .TRUE.
+      NT_HILLS 2
+      TEMPERATURE 2000.0
+      TEMP_TOL 2000.0
+      WW 1.0e-3
+      &METAVAR
+        COLVAR 1
+        # THIS IS a.u. (a.u. --> fs 2.41888432649994E-02)
+        GAMMA [au_t^-1] 0.0001
+        ######### LAMBDA is in the order of dehydragenation( a.u (H))
+        LAMBDA 0.1
+        MASS 3
+        SCALE 1
+      &END METAVAR
+      &METAVAR
+        COLVAR 2
+        # THIS IS a.u. (a.u. --> fs 2.41888432649994E-02)
+        GAMMA [au_t^-1] 0.0001
+        ######### LAMBDA is in the order of dehydragenation( a.u (H))
+        LAMBDA 0.1
+        MASS 3
+        SCALE 1
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          &EACH
+            MD 5
+          &END EACH
+        &END COLVAR
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  #   &GEO_OPT
+  #   &END
+  &MD
+    ENSEMBLE NVT
+    STEPS 20
+    TEMPERATURE 400.0
+    TIMESTEP 0.25
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 20
+        &END EACH
+      &END ENERGY
+    &END PRINT
+    &THERMOSTAT
+      &NOSE
+        TIMECON 100
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &FORCES
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+    &TRAJECTORY
+      &EACH
+        MD 5
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES
+      &EACH
+        MD 1
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-    CUTOFF 100
-    NGRIDS 4
-    REL_CUTOFF 30
+      CUTOFF 100
+      NGRIDS 4
+      REL_CUTOFF 30
     &END MGRID
     &QS
-     EPS_DEFAULT 1.0E-12
-      WF_INTERPOLATION ASPC
+      EPS_DEFAULT 1.0E-12
       EXTRAPOLATION_ORDER 3
+      WF_INTERPOLATION ASPC
     &END QS
     &SCF
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 30
       SCF_GUESS ATOMIC
-      &PRINT
-       &RESTART
-        &EACH
-         QS_SCF 0
-         GEO_OPT 1
-         MD 5
-        &END
-        ADD_LAST NUMERIC
-       &END
-      &END
-      &OUTER_SCF
-            EPS_SCF 1.0e-5
-            MAX_SCF 4
-      &END
       &OT
-        PRECONDITIONER FULL_ALL
         MINIMIZER DIIS
         N_DIIS 7
+        PRECONDITIONER FULL_ALL
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0e-5
+        MAX_SCF 4
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          ADD_LAST NUMERIC
+          &EACH
+            GEO_OPT 1
+            MD 5
+            QS_SCF 0
+          &END EACH
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -46,10 +132,33 @@
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
+    #### COLVARS ######################
+    &COLVAR
+      &POPULATION
+        ATOMS_FROM 1
+        KINDS_TO H
+        N0 1
+        ND 60
+        NN 30
+        R0 3.77
+        SIGMA 0.15
+      &END POPULATION
+    &END COLVAR
+    &COLVAR
+      &POPULATION
+        ATOMS_FROM 1
+        KINDS_TO H
+        N0 2
+        ND 60
+        NN 30
+        R0 3.77
+        SIGMA 0.15
+      &END POPULATION
+    &END COLVAR
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -59,113 +168,5 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
-#### COLVARS ######################
-   &COLVAR
-    &POPULATION
-     ATOMS_FROM 1
-     KINDS_TO H
-     R0  3.77
-     NN 30
-     ND 60
-     N0 1
-     SIGMA 0.15
-    &END
-  &END COLVAR
-  &COLVAR
-    &POPULATION
-     ATOMS_FROM 1
-     KINDS_TO H
-     R0  3.77
-     NN 30
-     ND 60
-     N0 2
-     SIGMA 0.15
-    &END
-   &END COLVAR
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_meta_langevin
-# Rudolph set FFTSG let me test fftw3
-#  PREFERRED_FFT_LIBRARY FFTSG
-  PREFERRED_FFT_LIBRARY FFTW
-  RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
-  WALLTIME 250000
-&END GLOBAL
-&MOTION
-#   &GEO_OPT
-#   &END
-  &MD
-    ENSEMBLE NVT
-    STEPS  20
-    TIMESTEP 0.25
-    TEMPERATURE 400.0
-   &THERMOSTAT
-    &NOSE
-     TIMECON  100
-    &END
-   &END
-   &PRINT
-    &ENERGY
-     &EACH
-       MD   20
-     &END
-    &END
-   &END
-  &END MD
-  &FREE_ENERGY
-   &METADYN
-       LAGRANGE .TRUE.
-       LANGEVIN .TRUE.
-       TEMPERATURE 2000.0
-       TEMP_TOL 2000.0
-       DO_HILLS
-       NT_HILLS 2
-       WW 1.0e-3
-       &METAVAR
-######### LAMBDA is in the order of dehydragenation( a.u (H))
-        LAMBDA 0.1
-        MASS 3
-        SCALE 1
-        COLVAR 1
-        # THIS IS a.u. (a.u. --> fs 2.41888432649994E-02)
-        GAMMA [au_t^-1] 0.0001
-       &END METAVAR
-       &METAVAR
-######### LAMBDA is in the order of dehydragenation( a.u (H))
-        LAMBDA 0.1
-        MASS 3
-        SCALE 1
-        COLVAR 2
-        # THIS IS a.u. (a.u. --> fs 2.41888432649994E-02)
-        GAMMA [au_t^-1] 0.0001
-       &END METAVAR
-
-       &PRINT
-        &COLVAR
-          &EACH
-            MD 5
-          &END
-        &END
-       &END PRINT
-   &END METADYN
-  &END FREE_ENERGY
-  &PRINT
-    &TRAJECTORY
-     &EACH
-      MD 5
-     &END
-    &END
-    &VELOCITIES
-     &EACH
-      MD 1
-     &END
-    &END
-    &FORCES
-     &EACH
-      MD 1
-     &END
-    &END
-  &END
-&END MOTION

@@ -3,10 +3,10 @@
 #CPQA INCLUDE inc_inc.inc
 #CPQA INCLUDE empty.inc
 ! -*- cp2k -*-
- @SET VAL 4.0
- @SET inc empty
- @SET new blank
- @SET      X !  y
+@SET VAL 4.0
+@SET inc empty
+@SET new blank
+@SET      X !  y
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -19,11 +19,11 @@
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS
-    @PRINT VAL == ${VAL} /= ${inc} /= ${new}
+@PRINT VAL == ${VAL} /= ${inc} /= ${new}
 @  ! ignored
-    @INCLUDE "${new}.inc"
-    @INCLUDE '${inc}.inc'
-    @INCLUDE "scf_param.inc"
+@INCLUDE "${new}.inc"
+@INCLUDE '${inc}.inc'
+@INCLUDE "scf_param.inc"
 @IF ${inc} == empty
 @set DFT PADE
 @endif
@@ -46,15 +46,15 @@
 @if 0
 @SET VAL 4.0
 @ENDIF
-   @if
-   XXXXXXX
-   @ENDIF
+@if
+    XXXXXXX
+@ENDIF
     &CELL
       ABC ${VAL2} ${VAL}
     &END CELL
     &COORD
-    H     0.000000  0.000000  0.000000
-    H     1.000000  0.000000  0.000000
+      H     0.000000  0.000000  0.000000
+      H     1.000000  0.000000  0.000000
     &END COORD
     &KIND H
       BASIS_SET DZV-GTH-${DFT}
@@ -62,7 +62,8 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
+
 &GLOBAL
-  PROJECT H2-inpp
   PRINT_LEVEL MEDIUM
+  PROJECT H2-inpp
 &END GLOBAL

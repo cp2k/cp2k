@@ -1,80 +1,13 @@
-#CPQA DEPENDS silicon_cluster_3.inp
-
-&FORCE_EVAL
-  METHOD FIST
-  &MM
-    &FORCEFIELD
-      &NONBONDED
-        &WILLIAMS
-          atoms SI O
-          A 208920748.3395
-          B 4.87318
-          C 1549614.30961
-          RCUT 36.0
-        &END WILLIAMS
-        &WILLIAMS
-          atoms SI H
-          A 0.0
-          B 0.0
-          C 0.0
-          RCUT 36.0
-        &END WILLIAMS
-        &WILLIAMS
-          atoms SI SI
-          A 0.0
-          B 0.0
-          C 0.0
-          RCUT 36.0
-        &END WILLIAMS
-        &WILLIAMS
-          atoms O H
-          A 1350000.7166855
-          B 3.24430
-          C 1450.53575
-          RCUT 36.0
-        &END WILLIAMS
-        &WILLIAMS
-          atoms O O
-          A 16115719.1363
-          B 2.76000
-          C 2030750.05696
-          RCUT 36.0
-        &END WILLIAMS
-        &WILLIAMS
-          atoms H H
-          A 0.0
-          B 0.0
-          C 0.0
-          RCUT 36.0
-        &END WILLIAMS
-      &END NONBONDED
-    &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE ewald
-        ALPHA .44
-        GMAX 21
-      &END EWALD
-    &END POISSON
-  &END MM
-  &SUBSYS
-    &CELL
-      ABC 11.24 10.80 8.40
-    &END CELL
-    &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/silicon_cluster.psf
-      CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/silicon_cluster.pdb
-      COORDINATE PDB
-    &END TOPOLOGY
-  &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL MEDIUM
-
   PROJECT res_silica
   RUN_TYPE GEO_OPT
 &END GLOBAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME res_silica-1.restart
+&END EXT_RESTART
+
 &MOTION
   &GEO_OPT
     MAX_ITER 4
@@ -84,10 +17,78 @@
     &RESTART
       &EACH
         GEO_OPT 1
-      &END
-    &END
-  &END
+      &END EACH
+    &END RESTART
+  &END PRINT
 &END MOTION
-&EXT_RESTART
- RESTART_FILE_NAME res_silica-1.restart
-&END
+
+#CPQA DEPENDS silicon_cluster_3.inp
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &WILLIAMS
+          A 208920748.3395
+          ATOMS SI O
+          B 4.87318
+          C 1549614.30961
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          A 0.0
+          ATOMS SI H
+          B 0.0
+          C 0.0
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          A 0.0
+          ATOMS SI SI
+          B 0.0
+          C 0.0
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          A 1350000.7166855
+          ATOMS O H
+          B 3.24430
+          C 1450.53575
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          A 16115719.1363
+          ATOMS O O
+          B 2.76000
+          C 2030750.05696
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          A 0.0
+          ATOMS H H
+          B 0.0
+          C 0.0
+          RCUT 36.0
+        &END WILLIAMS
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .44
+        EWALD_TYPE ewald
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 11.24 10.80 8.40
+    &END CELL
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/silicon_cluster.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/silicon_cluster.pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

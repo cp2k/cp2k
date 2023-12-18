@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT HF_dipole
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -6,44 +12,44 @@
     &MGRID
       CUTOFF 100
     &END MGRID
+    &PRINT
+      &MOMENTS
+        MAX_MOMENT 1
+        PERIODIC F
+      &END MOMENTS
+      &VORONOI
+        MOLECULAR_PROPERTIES
+      &END VORONOI
+    &END PRINT
     &QS
       METHOD GAPW_XC
     &END QS
     &SCF
-      &OT 
-         MINIMIZER CG
-         PRECONDITIONER FULL_SINGLE_INVERSE
-         STEPSIZE 0.2
-      &END
       EPS_SCF 1.0E-5
       MAX_SCF 15
       SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER CG
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        STEPSIZE 0.2
+      &END OT
       &OUTER_SCF
-         EPS_SCF 1.0E-5
-         MAX_SCF 5
-      &END
+        EPS_SCF 1.0E-5
+        MAX_SCF 5
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MOMENTS
-        MAX_MOMENT 1
-        PERIODIC   F
-      &END MOMENTS
-      &VORONOI
-        MOLECULAR_PROPERTIES
-      &END
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-   F 0.0 0.0 0.0    HF
-   H 0.0 0.0 0.917  HF
+      F 0.0 0.0 0.0    HF
+      H 0.0 0.0 0.917  HF
     &END COORD
     &KIND F
       BASIS_SET DZVP-GTH-PADE
@@ -55,8 +61,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT HF_dipole      
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

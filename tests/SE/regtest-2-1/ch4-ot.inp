@@ -1,11 +1,15 @@
+&GLOBAL
+  PROJECT ch4-ot
+  TRACE OFF
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     &QS
       METHOD PM3
       &SE
-
-      &END
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-7
@@ -22,15 +26,11 @@
       PERIODIC NONE
     &END CELL
     &COORD
-          C                   .00000000     .00000000     .00000000
-          H                  1.01578458     .00000000     .00000000
-          H                  -.33859486     .95769088     .00000000
-          H                  -.33859486    -.47884544     .82938463
-          H                  -.33859486    -.47884544    -.82938463
+      C                   .00000000     .00000000     .00000000
+      H                  1.01578458     .00000000     .00000000
+      H                  -.33859486     .95769088     .00000000
+      H                  -.33859486    -.47884544     .82938463
+      H                  -.33859486    -.47884544    -.82938463
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ch4-ot
-  TRACE OFF
-&END GLOBAL

@@ -1,84 +1,86 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT uo2_shell_nve_zbl
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &PRINT
+      &ENERGY
+      &END ENERGY
+      &SHELL_ENERGY LOW
+      &END SHELL_ENERGY
+    &END PRINT
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 5
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY
+      &EACH
+        MD 1000
+      &END EACH
+    &END RESTART_HISTORY
+    &STRESS
+    &END STRESS
+    &TRAJECTORY
+    &END TRAJECTORY
+    &VELOCITIES
+      &EACH
+        MD 1000
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
+  &SHELL_OPT
+    MAX_DR 0.02
+    MAX_FORCE 0.0002
+    OPTIMIZER CG
+    RMS_DR 0.01
+    RMS_FORCE 0.0001
+    &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+        &2PNT
+        &END 2PNT
+      &END LINE_SEARCH
+    &END CG
+  &END SHELL_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Fist
   &MM
 @include pmeis_forcefield.inc
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
-        GMAX  64
+        EWALD_TYPE spme
+        GMAX 64
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
     &CELL
-      ABC  10.936 10.936 10.936
+      ABC 10.936 10.936 10.936
     &END CELL
-    &TOPOLOGY
-      CONN_FILE ../sample_psf/uo2_2x2x2.psf
-      CONNECTIVITY UPSF
-      COORD_FILE ../sample_xyz/uo2_displ.xyz
-      COORDINATE XYZ
-    &END TOPOLOGY
     &KIND U
       MASS 238.03000
-    &END
+    &END KIND
     &KIND O
       MASS 16.000
-    &END
+    &END KIND
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE ../sample_psf/uo2_2x2x2.psf
+      COORDINATE XYZ
+      COORD_FILE ../sample_xyz/uo2_displ.xyz
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT uo2_shell_nve_zbl
-  PRINT_LEVEL LOW
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS  20
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &PRINT
-      &ENERGY
-      &END
-      &SHELL_ENERGY LOW
-      &END
-    &END PRINT
-  &END MD
-  &SHELL_OPT
-    OPTIMIZER CG
-    MAX_DR 0.02
-    RMS_DR 0.01
-    MAX_FORCE 0.0002
-    RMS_FORCE 0.0001
-    &CG
-      &LINE_SEARCH
-        TYPE 2PNT
-        &2PNT
-        &END
-      &END
-    &END
-  &END
-  &PRINT
-    &TRAJECTORY
-    &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
-    &END
-    &STRESS
-    &END
-    &RESTART
-      &EACH
-        MD 5
-      &END
-    &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
-    &END
-  &END
-&END MOTION

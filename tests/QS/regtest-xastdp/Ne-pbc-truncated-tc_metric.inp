@@ -1,71 +1,64 @@
 &GLOBAL
-  PROJECT Ne-pbc-truncated-tc_metric
   PRINT_LEVEL LOW
+  PROJECT Ne-pbc-truncated-tc_metric
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    AUTO_BASIS RI_XAS MEDIUM
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
-    AUTO_BASIS RI_XAS MEDIUM
-
     &QS
       METHOD GAPW
     &END QS
-
-    &XC
-      &XC_FUNCTIONAL
-         &LDA_C_VWN
-         &END LDA_C_VWN
-         &LDA_X
-            SCALE 0.75
-         &END LDA_X
-      &END XC_FUNCTIONAL
-      &HF
-         FRACTION 0.25
-         &INTERACTION_POTENTIAL
-            POTENTIAL_TYPE TRUNCATED
-            CUTOFF_RADIUS 3.0
-         &END INTERACTION_POTENTIAL
-      &END HF
-    &END XC
-
     &XAS_TDP
-      &DONOR_STATES
-         DEFINE_EXCITED BY_INDEX
-         AT_LIST 1
-         STATE_TYPES 1s
-         N_SEARCH 8
-         LOCALIZE
-      &END DONOR_STATES
-
-      TAMM_DANCOFF
       GRID Ne 150 150
       N_EXCITED 10
-
+      TAMM_DANCOFF
+      &DONOR_STATES
+        AT_LIST 1
+        DEFINE_EXCITED BY_INDEX
+        LOCALIZE
+        N_SEARCH 8
+        STATE_TYPES 1s
+      &END DONOR_STATES
       &KERNEL
-         &XC_FUNCTIONAL
-            &LDA_C_VWN
-            &END LDA_C_VWN
-            &LDA_X
-               SCALE 0.75
-            &END LDA_X
-         &END XC_FUNCTIONAL
-
-         &EXACT_EXCHANGE
-            FRACTION 0.25
+        &EXACT_EXCHANGE
+          CUTOFF_RADIUS 3.0
+          EPS_SCREENING 1.0E-8
+          FRACTION 0.25
+          OPERATOR TRUNCATED
+          &RI_METRIC
+            CUTOFF_RADIUS 1.5
             OPERATOR TRUNCATED
-            CUTOFF_RADIUS 3.0
-            EPS_SCREENING 1.0E-8
-            &RI_METRIC
-               OPERATOR TRUNCATED
-               CUTOFF_RADIUS 1.5
-            &END RI_METRIC
-         &END EXACT_EXCHANGE
+          &END RI_METRIC
+        &END EXACT_EXCHANGE
+        &XC_FUNCTIONAL
+          &LDA_C_VWN
+          &END LDA_C_VWN
+          &LDA_X
+            SCALE 0.75
+          &END LDA_X
+        &END XC_FUNCTIONAL
       &END KERNEL
-
     &END XAS_TDP
-
+    &XC
+      &HF
+        FRACTION 0.25
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 3.0
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
+      &END HF
+      &XC_FUNCTIONAL
+        &LDA_C_VWN
+        &END LDA_C_VWN
+        &LDA_X
+          SCALE 0.75
+        &END LDA_X
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &SUBSYS
     &CELL

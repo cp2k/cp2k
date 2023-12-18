@@ -1,3 +1,11 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT simple_ortho_grid_validate
+  &GRID
+    VALIDATE .TRUE.
+  &END GRID
+&END GLOBAL
+
 !
 ! derived from ../QS/regtest-gpw-1/Ar-2.inp
 !
@@ -10,6 +18,13 @@
       CUTOFF 200
       REL_CUTOFF 40
     &END MGRID
+    &PRINT
+      &MO ON
+        CARTESIAN
+        EIGVECS
+        FILENAME cartesian-mos
+      &END MO
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
       EPS_GVG 1.0E-6
@@ -21,27 +36,19 @@
       EPS_SCF 1.0E-6
       MAX_DIIS 4
       MAX_SCF 20
-
       SCF_GUESS atomic
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO ON
-        EIGVECS
-        CARTESIAN
-        FILENAME cartesian-mos
-      &END MO
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    Ar     0.000000  0.000000  0.000000
+      Ar     0.000000  0.000000  0.000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-GTH-PADE
@@ -49,10 +56,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  &GRID
-    VALIDATE .TRUE.
-  &END GRID
-  PROJECT simple_ortho_grid_validate
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

@@ -1,3 +1,41 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      NCOLVAR 1
+      NT_HILLS 50
+      WW 1.0e-3
+      &COLVAR COORD
+        ATOMS_FROM 1 1
+        ATOMS_TO 2 2 3
+        LAMBDA 0.1
+        MASS 10.0
+        R_0 2.3
+        SCALE 0.02
+      &END COLVAR
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVT
+    STEPS 1000
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 100.0
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -20,9 +58,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -34,41 +72,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PROJECT H2O
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 1000
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 100.0
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-  &FREE_ENERGY
-    &METADYN
-      DO_HILLS
-      NCOLVAR 1
-      NT_HILLS 50
-      WW 1.0e-3
-      &COLVAR COORD
-        ATOMS_FROM 1 1
-        ATOMS_TO 2 2 3
-        LAMBDA 0.1
-        MASS 10.0
-        R_0 2.3
-        SCALE 0.02
-      &END COLVAR
-    &END METADYN
-  &END
-&END MOTION

@@ -1,49 +1,49 @@
 # H2O ice structure with 2 potential (exact and approimate)
 # using moves: atom/molecule displacement, molecule rotation and proton reorder
 # on one temperature
-
 &GLOBAL
-  PROJECT H2O_TMC
-  PROGRAM TMC
-  RUN_TYPE TMC
   PRINT_LEVEL LOW
+  PROGRAM TMC
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
   #TRACE
   WALLTIME 00:10:25
 &END GLOBAL
+
 &MOTION
   &TMC
-      GROUP_ENERGY_SIZE 1
-      GROUP_ENERGY_NR 1
-      GROUP_CC_SIZE 0
-      NUM_MC_ELEM 10
-      ENERGY_FILE_NAME H2O_ice.inp
-      TEMPERATURE 330
-      &NMC_MOVES
-        NMC_FILE_NAME H2O_ice_2.inp
-        NR_NMC_STEPS 3
-        &MOVE_TYPE      ATOM_TRANS
-          SIZE          0.1
-          PROB          1
-          INIT_ACC_PROB 0.2
-        &END
-        &MOVE_TYPE      MOL_TRANS
-          SIZE          0.05
-          PROB          1
-        &END
-        &MOVE_TYPE      MOL_ROT
-          SIZE          9
-          PROB          1
-        &END
-        &MOVE_TYPE      PROT_REORDER
-          PROB          2
-        &END
-      &END NMC_MOVES
-      NUM_MV_ELEM_IN_CELL 1
-      RND_DETERMINISTIC 42
-      ESIMATE_ACC_PROB .TRUE.
-      INFO_OUT_STEP_SIZE 1
-      RESTART_OUT 0
-      PRINT_ONLY_ACC .TRUE.
-      PRINT_TEST_OUTPUT
+    ENERGY_FILE_NAME H2O_ice.inp
+    ESIMATE_ACC_PROB .TRUE.
+    GROUP_CC_SIZE 0
+    GROUP_ENERGY_NR 1
+    GROUP_ENERGY_SIZE 1
+    INFO_OUT_STEP_SIZE 1
+    NUM_MC_ELEM 10
+    NUM_MV_ELEM_IN_CELL 1
+    PRINT_ONLY_ACC .TRUE.
+    PRINT_TEST_OUTPUT
+    RESTART_OUT 0
+    RND_DETERMINISTIC 42
+    TEMPERATURE 330
+    &NMC_MOVES
+      NMC_FILE_NAME H2O_ice_2.inp
+      NR_NMC_STEPS 3
+      &MOVE_TYPE ATOM_TRANS
+        INIT_ACC_PROB 0.2
+        PROB 1
+        SIZE 0.1
+      &END MOVE_TYPE
+      &MOVE_TYPE MOL_TRANS
+        PROB 1
+        SIZE 0.05
+      &END MOVE_TYPE
+      &MOVE_TYPE MOL_ROT
+        PROB 1
+        SIZE 9
+      &END MOVE_TYPE
+      &MOVE_TYPE PROT_REORDER
+        PROB 2
+      &END MOVE_TYPE
+    &END NMC_MOVES
   &END TMC
 &END MOTION

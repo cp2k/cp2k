@@ -1,8 +1,9 @@
 &GLOBAL
-  PROJECT H2O-xrd
   PRINT_LEVEL low
+  PROJECT H2O-xrd
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -19,10 +20,10 @@
     &END PRINT
     &QS
       ALPHA0_H 10.0
-      EPS_DEFAULT 1.0E-8
       EPSFIT 1.0E-4
       EPSISO 1.0E-12
       EPSRHO0 1.0E-6
+      EPS_DEFAULT 1.0E-8
       EXTRAPOLATION USE_PREV_P
       LMAXN0 2
       LMAXN1 6
@@ -30,7 +31,6 @@
       QUADRATURE GC_LOG
     &END QS
     &SCF
-
       SCF_GUESS atomic
     &END SCF
     &XC

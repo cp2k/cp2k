@@ -1,5 +1,10 @@
-#CPQA DEPENDS 4H2O-mix-disk-ram.inp
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT 4H2O-disk-ram-on-the-fly
+  RUN_TYPE ENERGY
+&END GLOBAL
 
+#CPQA DEPENDS 4H2O-mix-disk-ram.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -18,23 +23,23 @@
       MAX_SCF 5
       SCF_GUESS ATOMIC
       &OT on
-       PRECONDITIONER FULL_ALL
+        PRECONDITIONER FULL_ALL
       &END OT
     &END SCF
     &XC
+      &HF
+        &MEMORY
+          EPS_STORAGE_SCALING 1.0E-1
+          MAX_DISK_SPACE 1
+          MAX_MEMORY 1
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+          SCREEN_ON_INITIAL_P FALSE
+        &END SCREENING
+      &END HF
       &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
-      &HF
-       &SCREENING
-         EPS_SCHWARZ 1.0E-6
-         SCREEN_ON_INITIAL_P FALSE
-       &END
-       &MEMORY
-         MAX_MEMORY 1
-         EPS_STORAGE_SCALING 1.0E-1
-         MAX_DISK_SPACE 1
-       &END
-      &END
     &END XC
   &END DFT
   &SUBSYS
@@ -42,18 +47,18 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-  O        -4.1351226463        5.6217295343        4.1734819049
-  H        -3.6794166617        5.9133996620        3.3765746437
-  H        -4.8659807993        5.0922120122        3.8367105410
-  O        -1.7983928770        5.3062005829        2.0727136006
-  H        -1.6607899469        5.2055648779        3.0234478427
-  H        -0.9276058519        5.1612802270        1.6955450552
-  O        -2.2646350383        4.0331276465        4.5923016340
-  H        -3.1433583151        3.6906167747        4.3955272151
-  H        -2.4411678963        4.7660987493        5.1927846386
-  O        -4.0009595153        4.1282630654        2.1317813827
-  H        -3.7707244776        4.7370476195        1.4220619137
-  H        -3.1779329744        3.6585072483        2.3046406277
+      O        -4.1351226463        5.6217295343        4.1734819049
+      H        -3.6794166617        5.9133996620        3.3765746437
+      H        -4.8659807993        5.0922120122        3.8367105410
+      O        -1.7983928770        5.3062005829        2.0727136006
+      H        -1.6607899469        5.2055648779        3.0234478427
+      H        -0.9276058519        5.1612802270        1.6955450552
+      O        -2.2646350383        4.0331276465        4.5923016340
+      H        -3.1433583151        3.6906167747        4.3955272151
+      H        -2.4411678963        4.7660987493        5.1927846386
+      O        -4.0009595153        4.1282630654        2.1317813827
+      H        -3.7707244776        4.7370476195        1.4220619137
+      H        -3.1779329744        3.6585072483        2.3046406277
     &END COORD
     &KIND H
       BASIS_SET 6-31Gxx
@@ -65,8 +70,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT 4H2O-disk-ram-on-the-fly
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
-&END GLOBAL

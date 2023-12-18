@@ -1,3 +1,16 @@
+&GLOBAL
+  PROJECT LM-KSDO
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MINIMIZER BFGS
+    &BFGS
+    &END BFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -6,35 +19,35 @@
       &SE
         INTEGRAL_SCREENING KDSO
         &COULOMB
-          CUTOFF   [angstrom]    50.0
-          RC_RANGE [angstrom]     0.1
-        &END
+          CUTOFF [angstrom] 50.0
+          RC_RANGE [angstrom] 0.1
+        &END COULOMB
         &EXCHANGE
-          CUTOFF   [angstrom]    50.0
-          RC_RANGE [angstrom]     0.1
-        &END
+          CUTOFF [angstrom] 50.0
+          RC_RANGE [angstrom] 0.1
+        &END EXCHANGE
         &PRINT
           &EWALD_INFO
-          &END
-        &END
-      &END
+          &END EWALD_INFO
+        &END PRINT
+      &END SE
     &END QS
     &SCF
-      MAX_SCF 40
       EPS_SCF 1.0E-6
+      MAX_SCF 40
       SCF_GUESS MOPAC
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_SINGLE_INVERSE
-      &END
+      &END OT
       &OUTER_SCF
-        MAX_SCF 5
         EPS_SCF 1.0E-6
-      &END
+        MAX_SCF 5
+      &END OUTER_SCF
       &PRINT
-         &RESTART OFF
-         &END
-      &END
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
   &END DFT
   &SUBSYS
@@ -43,20 +56,9 @@
       PERIODIC NONE
     &END CELL
     &TOPOLOGY
+      CONNECTIVITY OFF
       COORDINATE XYZ
       COORD_FILE_NAME ../sample_xyz/long_mol.xyz
-      CONNECTIVITY OFF
-    &END
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT LM-KSDO
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MINIMIZER BFGS
-    &BFGS
-    &END
-  &END
-&END

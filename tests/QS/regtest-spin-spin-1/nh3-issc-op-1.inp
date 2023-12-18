@@ -1,8 +1,9 @@
 &GLOBAL
-  PROJECT nh3-issc-op-1
   PRINT_LEVEL LOW
+  PROJECT nh3-issc-op-1
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
@@ -10,6 +11,13 @@
     &MGRID
       CUTOFF 100
     &END MGRID
+    &PRINT
+      &AO_MATRICES
+        EFG T
+        FERMI_CONTACT T
+        PSO T
+      &END AO_MATRICES
+    &END PRINT
     &QS
       METHOD GAPW
     &END QS
@@ -22,39 +30,32 @@
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &AO_MATRICES
-        FERMI_CONTACT T
-        PSO T
-        EFG T
-      &END
-    &END
   &END DFT
   &PROPERTIES
     &LINRES
-       MAX_ITER 1
-       &LOCALIZE
-         MAX_ITER 1
-       &END
-       &CURRENT
-       &END CURRENT
-       &SPINSPIN
-          DO_FC F
-          DO_SD F
-          DO_DSO F
-          DO_PSO F
-       &END
-    &END
-  &END
+      MAX_ITER 1
+      &CURRENT
+      &END CURRENT
+      &LOCALIZE
+        MAX_ITER 1
+      &END LOCALIZE
+      &SPINSPIN
+        DO_DSO F
+        DO_FC F
+        DO_PSO F
+        DO_SD F
+      &END SPINSPIN
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
- N     0.000000     0.000000     0.000000
- H     0.000000     0.000000     1.008000
- H     1.026719     0.000000    -0.363000
- H    -0.513360    -0.889165    -0.363000
+      N     0.000000     0.000000     0.000000
+      H     0.000000     0.000000     1.008000
+      H     1.026719     0.000000    -0.363000
+      H    -0.513360    -0.889165    -0.363000
     &END COORD
     &KIND N
       BASIS_SET 3-21G*

@@ -1,3 +1,18 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-qmmm-gauss-3
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -39,41 +54,41 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms O O
+          ATOMS O O
           EPSILON 78.198
+          RCUT 11.4
           SIGMA 3.166
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms O H
+          ATOMS O H
           EPSILON 0.0
+          RCUT 11.4
           SIGMA 3.6705
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.30523
           RCUT 11.4
+          SIGMA 3.30523
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 64
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL GAUSS
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
-    ECOUPL GAUSS
-    NOCOMPATIBILITY
     &INTERPOLATOR
       EPS_R 1.0e-14
       EPS_X 1.0e-14
@@ -91,28 +106,28 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  #
-  # QM_KINDS
-  #
-  #
-  # MM_KINDS
-  #
-  #
+    #
+    # QM_KINDS
+    #
+    #
+    # MM_KINDS
+    #
+    #
   &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
     &COORD
-    O     0.000000     0.000000     0.000000   H2O1
-    H     0.000000     0.000000     0.950000   H2O1
-    H     0.895669     0.000000    -0.316667   H2O1
-    O    -2.987344     0.000000    -0.275275   H2O2
-    H    -3.160937     0.000000     0.658730   H2O2
-    H    -3.810068     0.000000    -0.750275   H2O2
-    O    -1.255276     0.000000    -2.724753   H2O3
-    H    -1.977352     0.000000    -3.342092   H2O3
-    H    -0.432552     0.000000    -3.199753   H2O3
+      O     0.000000     0.000000     0.000000   H2O1
+      H     0.000000     0.000000     0.950000   H2O1
+      H     0.895669     0.000000    -0.316667   H2O1
+      O    -2.987344     0.000000    -0.275275   H2O2
+      H    -3.160937     0.000000     0.658730   H2O2
+      H    -3.810068     0.000000    -0.750275   H2O2
+      O    -1.255276     0.000000    -2.724753   H2O3
+      H    -1.977352     0.000000    -3.342092   H2O3
+      H    -0.432552     0.000000    -3.199753   H2O3
     &END COORD
     &KIND H
       BASIS_SET SZV-GTH
@@ -126,16 +141,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-qmmm-gauss-3
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 2
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

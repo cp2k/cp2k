@@ -1,41 +1,42 @@
 #CPQA DEPENDS CO.inp
-
 &GLOBAL
- PROJECT      co_tphh
- IOLEVEL      MEDIUM
- RUN_TYPE     ENERGY
-&END
+  IOLEVEL MEDIUM
+  PROJECT co_tphh
+  RUN_TYPE ENERGY
+&END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
-
   &DFT
-    LSD
     BASIS_SET_FILE_NAME ALL_BASIS_SETS
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
-    RESTART_FILE_NAME   CO-RESTART
-    &XC
-      &XC_FUNCTIONAL PADE
-      &END
-    &END
-    &QS
-      METHOD       GAPW
-      EPS_GVG      1.0E-8
-      EPS_PGF_ORB  1.0E-8
-      QUADRATURE   GC_LOG
-      EPSFIT       1.E-4
-      EPSISO       1.0E-12
-      EPSRHO0      1.E-8
-      LMAXN0       2
-      LMAXN1       6
-      ALPHA0_H     10
-     &END
+    RESTART_FILE_NAME CO-RESTART
     &MGRID
-      CUTOFF       50
-      NGRIDS        1
-    &END
+      CUTOFF 50
+      NGRIDS 1
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+      &MT
+        ALPHA 7.0
+      &END MT
+    &END POISSON
+    &QS
+      ALPHA0_H 10
+      EPSFIT 1.E-4
+      EPSISO 1.0E-12
+      EPSRHO0 1.E-8
+      EPS_GVG 1.0E-8
+      EPS_PGF_ORB 1.0E-8
+      LMAXN0 2
+      LMAXN1 6
+      METHOD GAPW
+      QUADRATURE GC_LOG
+    &END QS
     &SCF
-      ADDED_MOS  1 1
+      ADDED_MOS 1 1
       EPS_DIIS 0.4
       EPS_SCF 5.E-7
       IGNORE_CONVERGENCE_FAILURE
@@ -45,70 +46,62 @@
         PRECONDITIONER FULL_ALL
       &END OT
       &PRINT
-        &TOTAL_DENSITIES MEDIUM
-        &END
         &RESTART
-           FILENAME =CO_xastphh-RESTART
-        &END
-      &END
-
+          FILENAME =CO_xastphh-RESTART
+        &END RESTART
+        &TOTAL_DENSITIES MEDIUM
+        &END TOTAL_DENSITIES
+      &END PRINT
     &END SCF
-   &POISSON
-     POISSON_SOLVER MT
-     &MT
-      ALPHA 7.0
-     &END
-     PERIODIC NONE
-    &END POISSON
-
     &XAS
-      METHOD        TP_FLEX
-      ATOMS_LIST    1 1
+      ATOMS_LIST 1 1
+      METHOD TP_FLEX
       &LOCALIZE
         &PRINT
-        &END
-      &END
+        &END PRINT
+      &END LOCALIZE
       &PRINT
-         &PROGRAM_RUN_INFO
-         &END
-         &RESTART
-             FILENAME ./co_tphh
-             &EACH
-               XAS_SCF 1
-             &END
-         &END
-         &XAS_SPECTRUM
-           FILENAME ./pippo
-         &END
-         &XES_SPECTRUM
-           FILENAME ./co_tphh
-         &END
-      &END
-    &END
+        &PROGRAM_RUN_INFO
+        &END PROGRAM_RUN_INFO
+        &RESTART
+          FILENAME ./co_tphh
+          &EACH
+            XAS_SCF 1
+          &END EACH
+        &END RESTART
+        &XAS_SPECTRUM
+          FILENAME ./pippo
+        &END XAS_SPECTRUM
+        &XES_SPECTRUM
+          FILENAME ./co_tphh
+        &END XES_SPECTRUM
+      &END PRINT
+    &END XAS
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &SUBSYS
     &CELL
-       ABC    3.0    3.0     3.0
-       PERIODIC NONE
+      ABC 3.0 3.0 3.0
+      PERIODIC NONE
     &END CELL
-
-    &KIND O
-      BASIS_SET  6-31G*
-      POTENTIAL ALL
-      LEBEDEV_GRID 50
-      RADIAL_GRID 100
-    &END
-
-    &KIND  C
-      BASIS_SET  6-31G*
-      POTENTIAL  ALL
-      LEBEDEV_GRID 50
-      RADIAL_GRID 100
-    &END
-
     &COORD
       C         0.000000    0.000000   -0.004108
       O        0.000000    0.000000    1.132332
-    &END
+    &END COORD
+    &KIND O
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 100
+    &END KIND
+    &KIND C
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 100
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -1,9 +1,40 @@
+&GLOBAL
+  PROJECT water_3_dist_3
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      MOLNAME WAT2
+      TARGET 1.8897268
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 2
+      MOLNAME WAT2
+      TARGET 1.8897268
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 3
+      MOLNAME WAT2
+      TARGET 3.0859239
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,21 +46,13 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE pme
         ALPHA .44
+        EWALD_TYPE pme
         NS_MAX 25
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
-    &COORD
-OT     -0.757  -5.616  -7.101    WAT1
-HT     -1.206  -5.714  -6.262    WAT1
-HT      0.024  -5.102  -6.896    WAT1
-OT    -11.317  -2.629  -9.689    WAT2
-HT    -11.021  -3.080 -10.480    WAT2
-HT    -10.511  -2.355  -9.252    WAT2
-    &END
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
@@ -48,36 +71,15 @@ HT    -10.511  -2.355  -9.252    WAT2
         ATOMS 2 3
       &END DISTANCE
     &END COLVAR
+    &COORD
+      OT     -0.757  -5.616  -7.101    WAT1
+      HT     -1.206  -5.714  -6.262    WAT1
+      HT      0.024  -5.102  -6.896    WAT1
+      OT    -11.317  -2.629  -9.689    WAT2
+      HT    -11.021  -3.080 -10.480    WAT2
+      HT    -10.511  -2.355  -9.252    WAT2
+    &END COORD
     &TOPOLOGY
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_dist_3
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET 1.8897268
-      MOLNAME WAT2
-      COLVAR 1
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 1.8897268
-      MOLNAME WAT2
-      COLVAR 2
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 3.0859239
-      MOLNAME WAT2
-      COLVAR 3
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

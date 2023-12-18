@@ -1,66 +1,86 @@
+&GLOBAL
+  IOLEVEL LOW
+  PROJECT acn_respa
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 4
+    TEMPERATURE 300
+    TIMESTEP 2.5
+    &RESPA
+      FREQUENCY 5
+    &END RESPA
+  &END MD
+&END MOTION
+
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 1
-&END
+  FORCE_EVAL_ORDER 2 1
+&END MULTIPLE_FORCE_EVALS
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARM_FILE_NAME ../sample_pot/acn_respa.pot
-       PARMTYPE CHM
-       &CHARGE
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/acn_respa.pot
+      &CHARGE
         ATOM CT
         CHARGE 0.000
-       &END CHARGE
-       &CHARGE
+      &END CHARGE
+      &CHARGE
         ATOM YC
-        CHARGE  0.000
-       &END CHARGE
-       &CHARGE
+        CHARGE 0.000
+      &END CHARGE
+      &CHARGE
         ATOM YN
         CHARGE 0.000
-       &END CHARGE
-       &CHARGE
+      &END CHARGE
+      &CHARGE
         ATOM HC
-        CHARGE  0.000
-       &END CHARGE
+        CHARGE 0.000
+      &END CHARGE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA .44
+        EWALD_TYPE SPME
         GMAX 32
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
 &END FORCE_EVAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARM_FILE_NAME ../sample_pot/acn.pot
-       PARMTYPE CHM
-       &CHARGE
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/acn.pot
+      &CHARGE
         ATOM CT
         CHARGE -0.479
-       &END CHARGE
-       &CHARGE
+      &END CHARGE
+      &CHARGE
         ATOM YC
-        CHARGE  0.481
-       &END CHARGE
-       &CHARGE
+        CHARGE 0.481
+      &END CHARGE
+      &CHARGE
         ATOM YN
         CHARGE -0.532
-       &END CHARGE
-       &CHARGE
+      &END CHARGE
+      &CHARGE
         ATOM HC
-        CHARGE  0.177
-       &END CHARGE
+        CHARGE 0.177
+      &END CHARGE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA .44
+        EWALD_TYPE SPME
         GMAX 32
         O_SPLINE 6
       &END EWALD
@@ -72,28 +92,12 @@
     &END CELL
     &TOPOLOGY
       CONNECTIVITY GENERATE
-      &GENERATE
-       BONDPARM_FACTOR 1.31
-      &END
-      MOL_CHECK
+      COORDINATE pdb
       COORD_FILE_NAME ../sample_pdb/acn.pdb
-      COORDINATE      pdb
+      MOL_CHECK
+      &GENERATE
+        BONDPARM_FACTOR 1.31
+      &END GENERATE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT acn_respa
-  RUN_TYPE md
-  IOLEVEL  LOW
-&END GLOBAL
-&MOTION
-  &MD
-    &RESPA
-       FREQUENCY 5
-    &END RESPA
-    ENSEMBLE NVE
-    STEPS 4
-    TIMESTEP 2.5
-    TEMPERATURE 300
-  &END MD
-&END MOTION

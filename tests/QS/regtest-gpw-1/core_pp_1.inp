@@ -1,8 +1,9 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT core_pp_1
   RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -12,8 +13,8 @@
       CUTOFF 200
     &END MGRID
     &QS
-      EPS_DEFAULT 1.0E-8
       CORE_PPL GRID
+      EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
       EPS_SCF 1.0E-5
@@ -31,9 +32,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZV-GTH-PADE

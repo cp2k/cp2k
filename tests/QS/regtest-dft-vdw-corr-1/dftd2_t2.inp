@@ -1,52 +1,53 @@
 &GLOBAL
-  PROJECT dftd2_t2
   PRINT_LEVEL MEDIUM
+  PROJECT dftd2_t2
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      NGRIDS 1
       CUTOFF 10
+      NGRIDS 1
     &END MGRID
     &QS
       METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF 1
       EPS_SCF 1.0e-0
+      MAX_SCF 1
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+        &PAIR_POTENTIAL
+          EXP_PRE 24.e0
+          REFERENCE_FUNCTIONAL PBE
+          TYPE DFTD2
+        &END PAIR_POTENTIAL
+      &END VDW_POTENTIAL
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
-         &PAIR_POTENTIAL
-            TYPE DFTD2
-            REFERENCE_FUNCTIONAL PBE
-            EXP_PRE 24.e0
-         &END PAIR_POTENTIAL
-      &END vdW_POTENTIAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
       PERIODIC NONE
-    &END
+    &END CELL
     &COORD
-       UNIT bohr
-       He    1.501 0.0 0.0
-       He   -1.500 0.0 0.0
-       He    0.000 1.5 0.0
+      UNIT bohr
+      He    1.501 0.0 0.0
+      He   -1.500 0.0 0.0
+      He    0.000 1.5 0.0
     &END COORD
     &KIND He
       BASIS_SET SZV-MOLOPT-SR-GTH
       POTENTIAL GTH-PBE-q2
-    &END
+    &END KIND
   &END SUBSYS
-&END
+&END FORCE_EVAL

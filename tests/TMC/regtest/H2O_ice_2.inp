@@ -1,10 +1,25 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
+  WALLTIME 10
+  #TRACE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &SPLINE
-        EMAX_SPLINE 1000000.0
-      &END
+      &BEND
+        ATOMS H O H
+        K 0.05
+        THETA0 1.4
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.05
+        R0 0.98
+      &END BOND
       &CHARGE
         ATOM O
         CHARGE -1.0
@@ -13,42 +28,35 @@
         ATOM H
         CHARGE 0.5
       &END CHARGE
-      &BOND
-        ATOMS O  H
-        K  0.05
-        R0 0.98
-      &END BOND
-      &BEND
-        ATOMS H  O  H
-        K  0.05
-        THETA0 1.4
-      &END BEND
       &NONBONDED
         &LENNARD-JONES
-      ATOMS O O
+          ATOMS O O
           EPSILON 76
-          SIGMA 3.1
           RCUT 5.0
+          SIGMA 3.1
         &END LENNARD-JONES
         &LENNARD-JONES
-      ATOMS O H
+          ATOMS O H
           EPSILON 0.0
-          SIGMA 3.1
           RCUT 5.0
+          SIGMA 3.1
         &END LENNARD-JONES
         &LENNARD-JONES
-      ATOMS H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.1
           RCUT 5.0
+          SIGMA 3.1
         &END LENNARD-JONES
       &END NONBONDED
+      &SPLINE
+        EMAX_SPLINE 1000000.0
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .40
         EWALD_ACCURACY 1.0E-2
+        EWALD_TYPE ewald
         GMAX 11
       &END EWALD
     &END POISSON
@@ -58,22 +66,15 @@
       ABC 13.52118 15.61292 14.72000
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ./ice_Ih_96.xyz
-      COORD_FILE_FORMAT xyz
       CONNECTIVITY MOL_SET
+      COORD_FILE_FORMAT xyz
+      COORD_FILE_NAME ./ice_Ih_96.xyz
       &MOL_SET
         &MOLECULE
-          NMOL 96
           CONN_FILE_NAME topology_fist_WAT.psf
-        &END
-      &END
+          NMOL 96
+        &END MOLECULE
+      &END MOL_SET
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_TMC
-  RUN_TYPE TMC
-  PRINT_LEVEL LOW
-  WALLTIME 10
-  #TRACE
-&END GLOBAL
