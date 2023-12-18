@@ -1153,7 +1153,7 @@ CONTAINS
 !$          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
 #if defined(__DLAF)
 !$          IF (provided_tsl .LT. MPI_THREAD_MULTIPLE) THEN
-!$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE).")
+!$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future. Build CP2K without DLA-Future.")
 !$          END IF
 #else
 !$          IF (provided_tsl .LT. MPI_THREAD_SERIALIZED) THEN

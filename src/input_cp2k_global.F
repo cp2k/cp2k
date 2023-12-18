@@ -209,7 +209,6 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-#if defined(__DLAF)
       CALL keyword_create(keyword, __LOCATION__, name="DLAF_NEIGVEC_MIN", &
                           description="Minimum number of eigenvectors for the use of the eigensolver from "// &
                           "the DLA-Future library. The eigensolver from the ScaLAPACK library is used as fallback "// &
@@ -218,7 +217,6 @@ CONTAINS
                           default_i_val=1024)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-#endif
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="PREFERRED_FFT_LIBRARY", &

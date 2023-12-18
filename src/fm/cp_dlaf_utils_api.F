@@ -88,8 +88,6 @@ CONTAINS
 
 #if defined(__DLAF)
       CALL dlaf_finalize_aux()
-#else
-      CPABORT("CP2K compiled without the DLA-Future library.")
 #endif
 
       CALL timestop(handle)
