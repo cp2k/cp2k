@@ -62,6 +62,12 @@ CONTAINS
 
       CALL dlaf_init(pika_argc, pika_argv_ptr, dlaf_argc, dlaf_argv_ptr)
 #else
+      MARK_USED(pika_argv)
+      MARK_USED(pika_argv_prt)
+      MARK_USED(pika_argc)
+      MARK_USED(dlaf_argv)
+      MARK_USED(dlaf_argv_prt)
+      MARK_USED(dlaf_argc)
       CPABORT("CP2K compiled without the DLA-Future library.")
 #endif
 
