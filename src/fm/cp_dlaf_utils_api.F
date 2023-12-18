@@ -6,7 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE cp_dlaf_utils_api
-   USE ISO_C_BINDING,                   ONLY: C_INT, C_PTR, C_NULL_CHAR, C_CHAR, C_LOC
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_INT,&
+                                              C_LOC,&
+                                              C_NULL_CHAR,&
+                                              C_PTR
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -28,45 +32,41 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dlaf_initialize()
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dlaf_initialize'
+      INTEGER, PARAMETER                                 :: dlaf_argc = 1, pika_argc = 1
 
-      INTEGER, PARAMETER :: pika_argc = 1
-      INTEGER, PARAMETER :: dlaf_argc = 1
-      CHARACTER(len=5, kind=C_CHAR), ALLOCATABLE, TARGET :: pika_argv(:)
-      CHARACTER(len=5, kind=C_CHAR), ALLOCATABLE, TARGET :: dlaf_argv(:)
-      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: pika_argv_ptr 
-      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dlaf_argv_ptr
+      CHARACTER(len=5, kind=C_CHAR), ALLOCATABLE, TARGET :: dlaf_argv(:), pika_argv(:)
       INTEGER                                            :: handle
-
+      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:)             :: dlaf_argv_ptr, pika_argv_ptr
       INTERFACE
          SUBROUTINE dlaf_init(pika_argc, pika_argv, dlaf_argc, dlaf_argv) BIND(C, name='dlaf_initialize')
             IMPORT :: C_PTR, C_INT
-            type(c_ptr), dimension(*) :: pika_argv
-            type(c_ptr), dimension(*) :: dlaf_argv
-            integer(kind=c_int), value :: pika_argc
-            integer(kind=c_int), value :: dlaf_argc
+            TYPE(c_ptr), DIMENSION(*) :: pika_argv
+            TYPE(c_ptr), DIMENSION(*) :: dlaf_argv
+            INTEGER(kind=c_int), value :: pika_argc
+            INTEGER(kind=c_int), value :: dlaf_argc
          END SUBROUTINE dlaf_init
       END INTERFACE
 
       CALL timeset(routineN, handle)
 
 #if defined(__DLAF)
-      allocate(pika_argv(pika_argc))
-      pika_argv(1) = "dlaf" // C_NULL_CHAR
-      allocate(dlaf_argv(dlaf_argc))
-      dlaf_argv(1) = "dlaf" // C_NULL_CHAR
-      
-      allocate(pika_argv_ptr(pika_argc))
+      ALLOCATE (pika_argv(pika_argc))
+      pika_argv(1) = "dlaf"//C_NULL_CHAR
+      ALLOCATE (dlaf_argv(dlaf_argc))
+      dlaf_argv(1) = "dlaf"//C_NULL_CHAR
+
+      ALLOCATE (pika_argv_ptr(pika_argc))
       pika_argv_ptr(1) = c_loc(pika_argv(1))
-      allocate(dlaf_argv_ptr(dlaf_argc))
+      ALLOCATE (dlaf_argv_ptr(dlaf_argc))
       dlaf_argv_ptr(1) = c_loc(dlaf_argv(1))
 
       CALL dlaf_init(pika_argc, pika_argv_ptr, dlaf_argc, dlaf_argv_ptr)
 #else
       MARK_USED(pika_argv)
-      MARK_USED(pika_argv_prt)
+      MARK_USED(pika_argv_ptr)
       MARK_USED(pika_argc)
       MARK_USED(dlaf_argv)
-      MARK_USED(dlaf_argv_prt)
+      MARK_USED(dlaf_argv_ptr)
       MARK_USED(dlaf_argc)
       CPABORT("CP2K compiled without the DLA-Future library.")
 #endif

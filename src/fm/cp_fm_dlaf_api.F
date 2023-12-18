@@ -183,14 +183,12 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_dlaf_base'
-      CHARACTER(len=*), PARAMETER                        :: dlaf_name = 'pdsyevd_dlaf'
+      CHARACTER, PARAMETER                               :: uplo = 'L'
       CHARACTER(LEN=100)                                 :: message
       INTEGER                                            :: dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, z
-      CHARACTER, PARAMETER :: uplo = 'L'
-
       INTERFACE
          SUBROUTINE pdsyevd_dlaf(uplo, n, a, ia, ja, desca, w, z, iz, jz, descz, info) &
             BIND(C, name='dlaf_pdsyevd')
@@ -204,6 +202,7 @@ CONTAINS
             TYPE(C_PTR), VALUE :: info
          END SUBROUTINE pdsyevd_dlaf
       END INTERFACE
+      CHARACTER(len=*), PARAMETER                        :: dlaf_name = 'pdsyevd_dlaf'
 
       CALL timeset(routineN, handle)
 
