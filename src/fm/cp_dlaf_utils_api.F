@@ -68,7 +68,6 @@ CONTAINS
       MARK_USED(dlaf_argv)
       MARK_USED(dlaf_argv_ptr)
       MARK_USED(dlaf_argc)
-      CPABORT("CP2K compiled without the DLA-Future library.")
 #endif
 
       CALL timestop(handle)
