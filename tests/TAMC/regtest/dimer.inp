@@ -31,7 +31,7 @@
   Echo_input yes
   Preferred_FFT_library FFTSG
    &Print
-    filename=./${name}
+    filename =./${name}
   &end print
   walltime 3600
 &End Global
