@@ -39,6 +39,7 @@ run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
 run_test mypy --strict ./tools/precommit/precommit.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
 run_test mypy --strict ./tools/precommit/format_makefile.py
+run_test mypy --strict ./tools/precommit/format_input_file.py
 run_test mypy --strict ./tools/docker/generate_dockerfiles.py
 run_test mypy --strict ./tools/conventions/analyze_gfortran_ast.py
 run_test mypy --strict ./tests/do_regtest.py
