@@ -11,7 +11,8 @@ MODULE cp_fm_dlaf_api
                                               C_DOUBLE,&
                                               C_INT,&
                                               C_LOC,&
-                                              C_PTR
+                                              C_PTR,&
+                                              C_SIGNED_CHAR
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE kinds,                           ONLY: dp
@@ -53,9 +54,10 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTERFACE
-         SUBROUTINE pdpotrf_dlaf(n, a, ia, ja, desca, info) &
-            BIND(C, name='dlaf_pdpotrf_wrapper')
-            IMPORT :: C_PTR, C_INT, C_DOUBLE
+         SUBROUTINE pdpotrf_dlaf(uplo, n, a, ia, ja, desca, info) &
+            BIND(C, name='dlaf_pdpotrf')
+            IMPORT :: C_PTR, C_INT, C_DOUBLE, C_SIGNED_CHAR
+            INTEGER(KIND=C_SIGNED_CHAR), VALUE :: uplo
             INTEGER(KIND=C_INT), VALUE      ::        ia, ja, n
             TYPE(C_PTR), VALUE ::       info
             INTEGER(kind=C_INT), DIMENSION(*)         :: desca
@@ -66,10 +68,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 #if defined(__DLAF)
-      CPASSERT(uplo == "U")
-      CPASSERT(ia == 1)
-      CPASSERT(ja == 1)
-      CALL pdpotrf_dlaf(N, C_LOC(A(1, 1)), IA, JA, DESCA, C_LOC(INFO))
+      CALL pdpotrf_dlaf(IACHAR(uplo, C_SIGNED_CHAR), n, C_LOC(a(1, 1)), ia, ja, desca, C_LOC(info))
 #else
       MARK_USED(uplo)
       MARK_USED(n)
@@ -108,9 +107,10 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTERFACE
-         SUBROUTINE pspotrf_dlaf(n, a, ia, ja, desca, info) &
-            BIND(C, name='dlaf_pspotrf_wrapper')
-            IMPORT :: C_PTR, C_INT, C_DOUBLE
+         SUBROUTINE pspotrf_dlaf(uplo, n, a, ia, ja, desca, info) &
+            BIND(C, name='dlaf_pspotrf')
+            IMPORT :: C_PTR, C_INT, C_DOUBLE, C_SIGNED_CHAR
+            INTEGER(KIND=C_SIGNED_CHAR), VALUE :: uplo
             INTEGER(KIND=C_INT), VALUE      ::        ia, ja, n
             TYPE(C_PTR), VALUE    ::       info
             INTEGER(kind=C_INT), DIMENSION(*)         :: desca
@@ -121,10 +121,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 #if defined(__DLAF)
-      CPASSERT(uplo == "U")
-      CPASSERT(ia == 1)
-      CPASSERT(ja == 1)
-      CALL pspotrf_dlaf(n, C_LOC(a(1, 1)), ia, ja, desca, C_LOC(info))
+      CALL pspotrf_dlaf(IACHAR(uplo, C_SIGNED_CHAR), n, C_LOC(a(1, 1)), ia, ja, desca, C_LOC(info))
 #else
       MARK_USED(uplo)
       MARK_USED(n)
@@ -186,24 +183,27 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_dlaf_base'
+      CHARACTER(len=*), PARAMETER                        :: dlaf_name = 'pdsyevd_dlaf'
       CHARACTER(LEN=100)                                 :: message
       INTEGER                                            :: dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, z
+      CHARACTER, PARAMETER :: uplo = 'L'
+
       INTERFACE
-         SUBROUTINE pdsyevd_dlaf(n, a, ia, ja, desca, w, z, iz, jz, descz, info) &
-            BIND(C, name='dlaf_pdsyevd_wrapper')
+         SUBROUTINE pdsyevd_dlaf(uplo, n, a, ia, ja, desca, w, z, iz, jz, descz, info) &
+            BIND(C, name='dlaf_pdsyevd')
 
-            IMPORT :: C_INT, C_DOUBLE, C_CHAR, C_PTR
+            IMPORT :: C_INT, C_DOUBLE, C_CHAR, C_PTR, C_SIGNED_CHAR
 
+            INTEGER(kind=C_SIGNED_CHAR), VALUE :: uplo
             INTEGER(kind=C_INT), VALUE :: n, ia, ja, iz, jz
             TYPE(C_PTR), VALUE :: a, w, z
             INTEGER(kind=C_INT), DIMENSION(9) :: desca, descz
             TYPE(C_PTR), VALUE :: info
          END SUBROUTINE pdsyevd_dlaf
       END INTERFACE
-      CHARACTER(len=*), PARAMETER                        :: dlaf_name = 'pdsyevd_dlaf'
 
       CALL timeset(routineN, handle)
 
@@ -225,6 +225,7 @@ CONTAINS
       info = -1
 
       CALL pdsyevd_dlaf( &
+         uplo=IACHAR(uplo, C_SIGNED_CHAR), &
          n=n, &
          a=C_LOC(a(1, 1)), ia=1, ja=1, desca=desca, &
          w=C_LOC(eigenvalues(1)), &
