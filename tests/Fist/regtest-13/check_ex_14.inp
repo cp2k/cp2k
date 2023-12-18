@@ -1,17 +1,23 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT check_ex_14
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      VDW_SCALE14 0.0
-      EI_SCALE14  0.0
-      parm_file_name ../sample_pot/h2o2_amber.pot
-      parmtype CHM
+      EI_SCALE14 0.0
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/h2o2_amber.pot
       SHIFT_CUTOFF .false.
+      VDW_SCALE14 0.0
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 51
       &END EWALD
     &END POISSON
@@ -21,15 +27,10 @@
       ABC 20.0 20.0 20.0
     &END CELL
     &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/h2o2_amber.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/h2o2_amber.pdb
+      CONN_FILE_NAME ../sample_psf/h2o2_amber.psf
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/h2o2_amber.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT check_ex_14
-  PRINT_LEVEL LOW
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

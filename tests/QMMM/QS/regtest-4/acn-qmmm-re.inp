@@ -1,3 +1,9 @@
+&GLOBAL
+  IOLEVEL MEDIUM
+  PROJECT acn-qmmm-re
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -6,8 +12,8 @@
     MULTIPLICITY 1
     POTENTIAL_FILE_NAME ../POTENTIAL
     &MGRID
-      CUTOFF 200
       COMMENSURATE
+      CUTOFF 200
       NGRIDS 3
     &END MGRID
     &QS
@@ -21,43 +27,43 @@
         PRECONDITIONER FULL_SINGLE
       &END OT
       &PRINT
-         &RESTART OFF
-         &END
-      &END
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &XC_GRID
-        XC_SMOOTH_RHO NN50
         XC_DERIV SPLINE2
-      &END
+        XC_SMOOTH_RHO NN50
+      &END XC_GRID
     &END XC
   &END DFT
   &MM
     &FORCEFIELD
-       PARM_FILE_NAME ../sample_pot/acn.pot
-       PARMTYPE CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/acn.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA .44
+        EWALD_TYPE SPME
         GMAX 32
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
-    MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
-    &CELL
-     ABC 5.0 5.0 5.0
-     PERIODIC NONE
-    &END CELL
-    ECOUPL GAUSS
-    NOCOMPATIBILITY
     CENTER SETUP_ONLY
+    ECOUPL GAUSS
+    MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
     USE_GEEP_LIB 8
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
     &MM_KIND HC
       RADIUS 0.54
     &END MM_KIND
@@ -70,44 +76,39 @@
     &MM_KIND CT
       RADIUS 0.73
     &END MM_KIND
-    &QM_KIND Cl
-        MM_INDEX 7
-    &END QM_KIND
     &PERIODIC
       GMAX 0.1
       &MULTIPOLE
-       RCUT 30.0
-       EWALD_PRECISION 0.000001
-      &END
-    &END
+        EWALD_PRECISION 0.000001
+        RCUT 30.0
+      &END MULTIPOLE
+    &END PERIODIC
     &PRINT
       &PERIODIC_INFO
-      &END
-    &END
+      &END PERIODIC_INFO
+    &END PRINT
+    &QM_KIND Cl
+      MM_INDEX 7
+    &END QM_KIND
   &END QMMM
-   &SUBSYS
+  &SUBSYS
     &CELL
       ABC 14. 14. 14.
     &END CELL
-    &TOPOLOGY
-      CHARGE_OCCUP
-      CONNECTIVITY GENERATE
-      &DUMP_PDB
-      &END
-      &DUMP_PSF
-      &END
-      MOL_CHECK
-      COORD_FILE_NAME ../sample_pdb/solvated_system.pdb
-      COORDINATE pdb
-    &END TOPOLOGY
     &KIND Cl
       BASIS_SET TZV2P-GTH
       POTENTIAL GTH-PBE-q7
     &END KIND
+    &TOPOLOGY
+      CHARGE_OCCUP
+      CONNECTIVITY GENERATE
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/solvated_system.pdb
+      MOL_CHECK
+      &DUMP_PDB
+      &END DUMP_PDB
+      &DUMP_PSF
+      &END DUMP_PSF
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT acn-qmmm-re
-  RUN_TYPE ENERGY
-  IOLEVEL MEDIUM
-&END GLOBAL

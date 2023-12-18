@@ -1,211 +1,211 @@
 &GLOBAL
- FLUSH_SHOULD_FLUSH
- PRINT_LEVEL low
- PROJECT cs_cell_opt_lbfgs_geo_opt_lbfgs
- RUN_TYPE cell_opt
- WALLTIME 600
+  FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL low
+  PROJECT cs_cell_opt_lbfgs_geo_opt_lbfgs
+  RUN_TYPE cell_opt
+  WALLTIME 600
 &END GLOBAL
 
 &MOTION
- &CELL_OPT
-  EXTERNAL_PRESSURE [bar] 0.0
-  KEEP_ANGLES no
-  MAX_DR 0.001
-  MAX_FORCE 0.0001
-  MAX_ITER 200
-  OPTIMIZER LBFGS
-  PRESSURE_TOLERANCE [bar] 1.0
-  RMS_DR 0.0003
-  RMS_FORCE 0.00003
-  TYPE geo_opt
-  &LBFGS
-   MAX_H_RANK 30
-  &END LBFGS
+  &CELL_OPT
+    EXTERNAL_PRESSURE [bar] 0.0
+    KEEP_ANGLES no
+    MAX_DR 0.001
+    MAX_FORCE 0.0001
+    MAX_ITER 200
+    OPTIMIZER LBFGS
+    PRESSURE_TOLERANCE [bar] 1.0
+    RMS_DR 0.0003
+    RMS_FORCE 0.00003
+    TYPE geo_opt
+    &LBFGS
+      MAX_H_RANK 30
+    &END LBFGS
+    &PRINT
+      &CELL
+        &EACH
+          GEO_OPT 1
+          MD 1
+        &END EACH
+      &END CELL
+    &END PRINT
+  &END CELL_OPT
+  &GEO_OPT
+    MAX_DR 0.001
+    MAX_FORCE 0.0001
+    MAX_ITER 200
+    OPTIMIZER LBFGS
+    RMS_DR 0.0003
+    RMS_FORCE 0.00003
+    &LBFGS
+      MAX_H_RANK 30
+    &END LBFGS
+  &END GEO_OPT
   &PRINT
-   &CELL
-    &EACH
-     GEO_OPT 1
-     MD 1
-    &END EACH
-   &END CELL
+    &CELL off
+      &EACH
+        MD 1
+      &END EACH
+    &END CELL
+    &RESTART off
+      ADD_LAST NUMERIC
+      BACKUP_COPIES 0
+      &EACH
+        MD 10
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY off
+    &END RESTART_HISTORY
+    &STRESS
+      &EACH
+        GEO_OPT 0
+        MD 1
+      &END EACH
+    &END STRESS
+    &TRAJECTORY
+      &EACH
+        GEO_OPT 0
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES off
+      &EACH
+        MD 1
+      &END EACH
+    &END VELOCITIES
   &END PRINT
- &END CELL_OPT
- &GEO_OPT
-  OPTIMIZER LBFGS
-  MAX_ITER  200
-  MAX_DR    0.001
-  RMS_DR    0.0003
-  MAX_FORCE 0.0001
-  RMS_FORCE 0.00003
-  &LBFGS
-   MAX_H_RANK 30
-  &END LBFGS
- &END GEO_OPT
- &PRINT
-  &CELL off
-   &EACH
-    MD 1
-   &END EACH
-  &END CELL
-  &RESTART off
-   ADD_LAST NUMERIC
-   BACKUP_COPIES 0
-   &EACH
-    MD 10
-   &END EACH
-  &END RESTART
-  &RESTART_HISTORY off
-  &END RESTART_HISTORY
-  &STRESS
-   &EACH
-    GEO_OPT 0
-    MD 1
-   &END EACH
-  &END STRESS
-  &TRAJECTORY
-   &EACH
-    GEO_OPT 0
-    MD 1
-   &END EACH
-  &END TRAJECTORY
-  &VELOCITIES off
-   &EACH
-    MD 1
-   &END EACH
-  &END VELOCITIES
- &END PRINT
 &END MOTION
 
 &FORCE_EVAL
- METHOD Fist
- STRESS_TENSOR ANALYTICAL
- &MM
-  &FORCEFIELD
-   &CHARGE
-    ATOM Cr
-    CHARGE +3.0
-   &END CHARGE
-   &SHELL O
-    CORE_CHARGE  +0.08
-    SHELL_CHARGE -2.08
-    MASS_FRACTION 0.1
-    SPRING [eV*angstrom^-2] 6.3
-    MAX_DISTANCE [angstrom] 0.5
-   &END SHELL
-   &NONBONDED
-    &WILLIAMS
-     ATOMS O O
-     A [eV] 9547.96
-     B [angstrom^-1] 1/0.21916
-     C [eV*angstrom^6] 32.0
-     RCUT [angstrom] 10.4
-    &END WILLIAMS
-    &WILLIAMS
-     ATOMS O Cr
-     A [eV] 1204.18
-     B [angstrom^-1] 1/0.3165
-     C [eV*angstrom^6] 0.0
-     RCUT [angstrom] 10.4
-    &END WILLIAMS
-    &WILLIAMS
-     ATOMS Cr Cr
-     A [eV] 0.0
-     B [angstrom^-1] 0.0
-     C [eV*angstrom^6] 0.0
-     RCUT [angstrom] 10.4
-    &END WILLIAMS
-   &END NONBONDED
-   &SPLINE
-    EMAX_ACCURACY [hartree] 0.02
-    EMAX_SPLINE [hartree] 1.0E4
-    EPS_SPLINE [hartree] 1.0E-7
-    R0_NB [angstrom] 0.1
-   &END SPLINE
-  &END FORCEFIELD
-  &POISSON
-   &EWALD
-    EWALD_TYPE spme
-    ALPHA [angstrom^-1] 0.35
-    GMAX 32 32 32
-    &RS_GRID
-     DISTRIBUTION_TYPE automatic
-    &END RS_GRID
-   &END EWALD
-  &END POISSON
+  METHOD Fist
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Cr
+        CHARGE +3.0
+      &END CHARGE
+      &NONBONDED
+        &WILLIAMS
+          A [eV] 9547.96
+          ATOMS O O
+          B [angstrom^-1] 1/0.21916
+          C [eV*angstrom^6] 32.0
+          RCUT [angstrom] 10.4
+        &END WILLIAMS
+        &WILLIAMS
+          A [eV] 1204.18
+          ATOMS O Cr
+          B [angstrom^-1] 1/0.3165
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 10.4
+        &END WILLIAMS
+        &WILLIAMS
+          A [eV] 0.0
+          ATOMS Cr Cr
+          B [angstrom^-1] 0.0
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 10.4
+        &END WILLIAMS
+      &END NONBONDED
+      &SHELL O
+        CORE_CHARGE +0.08
+        MASS_FRACTION 0.1
+        MAX_DISTANCE [angstrom] 0.5
+        SHELL_CHARGE -2.08
+        SPRING [eV*angstrom^-2] 6.3
+      &END SHELL
+      &SPLINE
+        EMAX_ACCURACY [hartree] 0.02
+        EMAX_SPLINE [hartree] 1.0E4
+        EPS_SPLINE [hartree] 1.0E-7
+        R0_NB [angstrom] 0.1
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA [angstrom^-1] 0.35
+        EWALD_TYPE spme
+        GMAX 32 32 32
+        &RS_GRID
+          DISTRIBUTION_TYPE automatic
+        &END RS_GRID
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO OFF
+        SPLINE_DATA
+        SPLINE_INFO
+      &END FF_INFO
+    &END PRINT
+  &END MM
   &PRINT
-   &FF_INFO OFF
-    SPLINE_DATA
-    SPLINE_INFO
-   &END FF_INFO
+    &FORCES off
+    &END FORCES
+    &GRID_INFORMATION
+    &END GRID_INFORMATION
+    &PROGRAM_RUN_INFO
+      &EACH
+        GEO_OPT 1
+      &END EACH
+    &END PROGRAM_RUN_INFO
+    &STRESS_TENSOR
+      &EACH
+        GEO_OPT 1
+      &END EACH
+    &END STRESS_TENSOR
   &END PRINT
- &END MM
- &PRINT
-  &FORCES off
-  &END FORCES
-  &GRID_INFORMATION
-  &END GRID_INFORMATION
-  &PROGRAM_RUN_INFO
-   &EACH
-    GEO_OPT 1
-   &END EACH
-  &END PROGRAM_RUN_INFO
-  &STRESS_TENSOR
-   &EACH
-    GEO_OPT 1
-   &END EACH
-  &END STRESS_TENSOR
- &END PRINT
- &SUBSYS
-  &CELL
-   A      4.95100000     0.00000000     0.00000000
-   B      2.47550000     4.28769177     0.00000000
-   C      0.00000000     0.00000000    13.56560000
-  &END CELL
-  &COORD
-   SCALED
-   Cr      0.000000    0.000000    0.152340  Cr2O3  1
-   Cr      0.000000    0.000000    0.347660  Cr2O3  1
-   Cr      0.000000    0.000000    0.652340  Cr2O3  1
-   Cr      0.000000    0.000000    0.847660  Cr2O3  1
-   Cr      0.333333    0.333333    0.014327  Cr2O3  1
-   Cr      0.333333    0.333333    0.319007  Cr2O3  1
-   Cr      0.333333    0.333333    0.514327  Cr2O3  1
-   Cr      0.333333    0.333333    0.819007  Cr2O3  1
-   Cr      0.666667    0.666667    0.180993  Cr2O3  1
-   Cr      0.666667    0.666667    0.485673  Cr2O3  1
-   Cr      0.666667    0.666667    0.680993  Cr2O3  1
-   Cr      0.666667    0.666667    0.985673  Cr2O3  1
-   O       0.305100    0.000000    0.083333  Cr2O3  1
-   O       0.000000    0.694900    0.083333  Cr2O3  1
-   O       0.694900    0.305100    0.083333  Cr2O3  1
-   O       0.000000    0.305100    0.250000  Cr2O3  1
-   O       0.694900    0.000000    0.250000  Cr2O3  1
-   O       0.305100    0.694900    0.250000  Cr2O3  1
-   O       0.305100    0.000000    0.416667  Cr2O3  1
-   O       0.000000    0.694900    0.416667  Cr2O3  1
-   O       0.694900    0.305100    0.416667  Cr2O3  1
-   O       0.000000    0.305100    0.583333  Cr2O3  1
-   O       0.694900    0.000000    0.583333  Cr2O3  1
-   O       0.305100    0.694900    0.583333  Cr2O3  1
-   O       0.305100    0.000000    0.750000  Cr2O3  1
-   O       0.000000    0.694900    0.750000  Cr2O3  1
-   O       0.694900    0.305100    0.750000  Cr2O3  1
-   O       0.000000    0.305100    0.916667  Cr2O3  1
-   O       0.694900    0.000000    0.916667  Cr2O3  1
-   O       0.305100    0.694900    0.916667  Cr2O3  1
-  &END COORD
-  &PRINT
-   &CELL
-   &END CELL
-   &KINDS
-   &END KINDS
-   &MOLECULES OFF
-   &END MOLECULES
-   &SYMMETRY
-   &END SYMMETRY
-  &END PRINT
-  &TOPOLOGY
-   CONNECTIVITY off
-  &END TOPOLOGY
- &END SUBSYS
+  &SUBSYS
+    &CELL
+      A 4.95100000 0.00000000 0.00000000
+      B 2.47550000 4.28769177 0.00000000
+      C 0.00000000 0.00000000 13.56560000
+    &END CELL
+    &COORD
+      SCALED
+      Cr      0.000000    0.000000    0.152340  Cr2O3  1
+      Cr      0.000000    0.000000    0.347660  Cr2O3  1
+      Cr      0.000000    0.000000    0.652340  Cr2O3  1
+      Cr      0.000000    0.000000    0.847660  Cr2O3  1
+      Cr      0.333333    0.333333    0.014327  Cr2O3  1
+      Cr      0.333333    0.333333    0.319007  Cr2O3  1
+      Cr      0.333333    0.333333    0.514327  Cr2O3  1
+      Cr      0.333333    0.333333    0.819007  Cr2O3  1
+      Cr      0.666667    0.666667    0.180993  Cr2O3  1
+      Cr      0.666667    0.666667    0.485673  Cr2O3  1
+      Cr      0.666667    0.666667    0.680993  Cr2O3  1
+      Cr      0.666667    0.666667    0.985673  Cr2O3  1
+      O       0.305100    0.000000    0.083333  Cr2O3  1
+      O       0.000000    0.694900    0.083333  Cr2O3  1
+      O       0.694900    0.305100    0.083333  Cr2O3  1
+      O       0.000000    0.305100    0.250000  Cr2O3  1
+      O       0.694900    0.000000    0.250000  Cr2O3  1
+      O       0.305100    0.694900    0.250000  Cr2O3  1
+      O       0.305100    0.000000    0.416667  Cr2O3  1
+      O       0.000000    0.694900    0.416667  Cr2O3  1
+      O       0.694900    0.305100    0.416667  Cr2O3  1
+      O       0.000000    0.305100    0.583333  Cr2O3  1
+      O       0.694900    0.000000    0.583333  Cr2O3  1
+      O       0.305100    0.694900    0.583333  Cr2O3  1
+      O       0.305100    0.000000    0.750000  Cr2O3  1
+      O       0.000000    0.694900    0.750000  Cr2O3  1
+      O       0.694900    0.305100    0.750000  Cr2O3  1
+      O       0.000000    0.305100    0.916667  Cr2O3  1
+      O       0.694900    0.000000    0.916667  Cr2O3  1
+      O       0.305100    0.694900    0.916667  Cr2O3  1
+    &END COORD
+    &PRINT
+      &CELL
+      &END CELL
+      &KINDS
+      &END KINDS
+      &MOLECULES OFF
+      &END MOLECULES
+      &SYMMETRY
+      &END SYMMETRY
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY off
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL

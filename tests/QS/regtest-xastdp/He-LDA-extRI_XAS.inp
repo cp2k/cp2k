@@ -1,49 +1,42 @@
 &GLOBAL
-  PROJECT He-LDA-extRI_XAS
   PRINT_LEVEL LOW
+  PROJECT He-LDA-extRI_XAS
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_def2_QZVP_RI_ALL
     POTENTIAL_FILE_NAME POTENTIAL
-
-    &QS
-      METHOD GAPW
-    &END QS
-
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
-
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
+    &XAS_TDP
+      GRID He 150 250
+      N_EXCITED 10
+      TAMM_DANCOFF
+      &DONOR_STATES
+        AT_LIST 1
+        DEFINE_EXCITED BY_INDEX
+        N_SEARCH 1
+        STATE_TYPES 1s
+      &END DONOR_STATES
+      &KERNEL
+        &XC_FUNCTIONAL
+          &LDA_XC_TETER93
+          &END LDA_XC_TETER93
+        &END XC_FUNCTIONAL
+      &END KERNEL
+    &END XAS_TDP
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-
-    &XAS_TDP
-      &DONOR_STATES
-         DEFINE_EXCITED BY_INDEX
-         AT_LIST 1
-         STATE_TYPES 1s
-         N_SEARCH 1
-      &END DONOR_STATES
-
-      TAMM_DANCOFF
-      GRID He 150 250
-      N_EXCITED 10
-
-      &KERNEL
-         &XC_FUNCTIONAL
-            &LDA_XC_TETER93
-            &END LDA_XC_TETER93
-         &END XC_FUNCTIONAL
-      &END KERNEL
-
-    &END XAS_TDP
-
   &END DFT
   &SUBSYS
     &CELL

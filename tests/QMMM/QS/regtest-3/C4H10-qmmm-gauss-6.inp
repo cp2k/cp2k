@@ -1,3 +1,18 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT C4H10-qmmm-gauss-6
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -19,25 +34,25 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/butane.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/butane.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL GAUSS
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
     &CELL
       ABC 7.0 7.0 7.0
     &END CELL
-    ECOUPL GAUSS
-    NOCOMPATIBILITY
     &INTERPOLATOR
       EPS_R 1.0e-14
       EPS_X 1.0e-14
@@ -84,16 +99,16 @@
     &QM_KIND H
       MM_INDEX 6 7 9 10
     &END QM_KIND
-  #
-  # QM_KINDS
-  #
-  #
-  # MM_KINDS
-  #
-  #
-  # LINKS
-  #
-  #
+    #
+    # QM_KINDS
+    #
+    #
+    # MM_KINDS
+    #
+    #
+    # LINKS
+    #
+    #
   &END QMMM
   &SUBSYS
     &CELL
@@ -109,21 +124,8 @@
     &END KIND
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME ../sample_pdb/butane.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/butane.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT C4H10-qmmm-gauss-6
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 3
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

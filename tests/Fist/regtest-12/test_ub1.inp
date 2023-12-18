@@ -1,31 +1,34 @@
+&GLOBAL
+  PROJECT test_ub1
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &BOND
-        ATOMS O H
-        KIND HARMONIC
-        K 0.0
-        R0 1.0
-      &END BOND
-      &BOND
-        ATOMS O O
-        KIND HARMONIC
-        K 0.0
-        R0 1.0
-      &END BOND
-
       &BEND
         ATOMS H O O
-        KIND HARMONIC
         K 0.0
+        KIND HARMONIC
         THETA0 0.0
         &UB
           K 0.5
           R0 2.0
         &END UB
       &END BEND
-
+      &BOND
+        ATOMS O H
+        K 0.0
+        KIND HARMONIC
+        R0 1.0
+      &END BOND
+      &BOND
+        ATOMS O O
+        K 0.0
+        KIND HARMONIC
+        R0 1.0
+      &END BOND
       &CHARGE
         ATOM O
         CHARGE 0.0
@@ -36,17 +39,17 @@
       &END CHARGE
       &NONBONDED
         &GENPOT
-          atoms H H
+          ATOMS H H
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O H
+          ATOMS O H
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O O
+          ATOMS O O
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
@@ -58,34 +61,30 @@
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &FORCES
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
       PERIODIC NONE
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/H2O2.xyz
-      COORDINATE XYZ
-      &GENERATE
-        CREATE_MOLECULES T
-      &END GENERATE
-      EXCLUDE_VDW 1-3
-    &END TOPOLOGY
     &PRINT
       &TOPOLOGY_INFO
         XYZ_INFO T
       &END TOPOLOGY_INFO
     &END PRINT
+    &TOPOLOGY
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/H2O2.xyz
+      EXCLUDE_VDW 1-3
+      &GENERATE
+        CREATE_MOLECULES T
+      &END GENERATE
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES
-      &EACH
-        MD 1
-      &END
-    &END FORCES
-  &END PRINT
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT test_ub1
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

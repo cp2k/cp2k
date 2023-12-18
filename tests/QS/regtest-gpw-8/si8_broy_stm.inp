@@ -1,74 +1,75 @@
 &GLOBAL
-  PROJECT si8_broy_stm
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
   FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL MEDIUM
+  PROJECT si8_broy_stm
+  RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
-  &PRINT
-    &FORCES ON
-    &END
-  &END
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      NGRIDS 4
       CUTOFF 100
+      NGRIDS 4
     &END MGRID
+    &PRINT
+      #      &MO
+      #        &EACH
+      #          QS_SCF 100
+      #        &END
+      #        EIGENVALUES
+      #        OCCUPATION_NUMBERS
+      #      &END
+      &STM
+        BIAS [eV] -1.0 -0.5 -0.3 -0.2 -0.1 -0.05
+        TH_TORB S
+      &END STM
+    &END PRINT
     &QS
-      METHOD GPW
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
+      METHOD GPW
     &END QS
     &SCF
+      ADDED_MOS 20 20
       EPS_SCF 1.0e-7
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF   5
+      MAX_SCF 5
       SCF_GUESS ATOMIC
-      &SMEAR
-        METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE   300.
-      &END
       &MIXING
-          METHOD BROYDEN_MIXING
-          ALPHA   0.2
-          BETA   1.5
-          NBROYDEN 8
-      &END
-      ADDED_MOS   20 20
+        ALPHA 0.2
+        BETA 1.5
+        METHOD BROYDEN_MIXING
+        NBROYDEN 8
+      &END MIXING
+      &SMEAR
+        ELECTRONIC_TEMPERATURE 300.
+        METHOD FERMI_DIRAC
+      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-#      &MO
-#        &EACH
-#          QS_SCF 100
-#        &END
-#        EIGENVALUES
-#        OCCUPATION_NUMBERS
-#      &END
-      &STM
-         BIAS [eV] -1.0 -0.5 -0.3 -0.2 -0.1 -0.05
-         TH_TORB S
-      &END
-    &END
   &END DFT
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
-       ABC   5.42858871335 5.42858871335 15.42858871335
+      ABC 5.42858871335 5.42858871335 15.42858871335
     &END CELL
-    &KIND  Si
-      BASIS_SET  DZVP-GTH
-      POTENTIAL  GTH-PBE-q4
-    &END
+    &KIND Si
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
-      COORDINATE XYZ
       CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

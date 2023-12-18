@@ -1,8 +1,31 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O-RESPA_restart
+  RUN_TYPE MD
+&END GLOBAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME H2O-RESPA-1.restart
+&END EXT_RESTART
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TEMPERATURE 300
+    TIMESTEP 0.5
+    &RESPA
+      FREQUENCY 5
+    &END RESPA
+  &END MD
+&END MOTION
+
 ! Restart of RESPA is tested. Continues h2o-respa.inp by one more step
 &MULTIPLE_FORCE_EVALS
-   ! 1 is the cheap one (here pade), evaluated multiple times, 2 is the expensive one (here hfx), evaluated once per timestep
-   FORCE_EVAL_ORDER 1 2
-&END
+  ! 1 is the cheap one (here pade), evaluated multiple times, 2 is the expensive one (here hfx), evaluated once per timestep
+  FORCE_EVAL_ORDER 1 2
+&END MULTIPLE_FORCE_EVALS
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -16,26 +39,26 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-7
-      SCF_GUESS ATOMIC
       MAX_SCF 30
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-      &END XC_FUNCTIONAL
       &HF
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 3.4
+          POTENTIAL_TYPE TRUNCATED
+          T_C_G_DATA t_c_g.dat
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          MAX_MEMORY 100
+        &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-10
           EPS_SCHWARZ_FORCES 1.0E-10
-        &END
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 3.4
-          T_C_G_DATA t_c_g.dat
-        &END
-        &MEMORY
-          MAX_MEMORY  100
-        &END
-      &END
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
@@ -43,9 +66,9 @@
       ABC 7.0 7.0 7.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET 6-31Gxx
@@ -57,6 +80,7 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -70,8 +94,8 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-7
-      SCF_GUESS ATOMIC
       MAX_SCF 30
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -83,9 +107,9 @@
       ABC 7.0 7.0 7.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET 6-31Gxx
@@ -97,23 +121,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&MOTION
-  &MD
-    &RESPA
-       FREQUENCY 5
-    &END RESPA
-    ENSEMBLE NVE
-    STEPS 1
-    TIMESTEP 0.5
-    TEMPERATURE 300
-  &END MD
-&END MOTION
-&GLOBAL
-  PROJECT     H2O-RESPA_restart
-  PRINT_LEVEL LOW
-  RUN_TYPE    MD
-&END GLOBAL
-&EXT_RESTART
- RESTART_FILE_NAME  H2O-RESPA-1.restart
-&END
-

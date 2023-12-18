@@ -1,58 +1,58 @@
 # TMC parallel tempering run with analysis output
 # calculates the radial distribution function ( g(r) )
 # if the amount of bins are not specified, the bin size is 0.03A
-
 &GLOBAL
-  PROJECT H2O_TMC
-  PROGRAM TMC
-  RUN_TYPE TMC
   PRINT_LEVEL LOW
+  PROGRAM TMC
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
   #TRACE
-  WALLTIME              00:10:25
+  WALLTIME 00:10:25
 &END GLOBAL
+
 &MOTION
   &TMC
-      GROUP_ENERGY_SIZE     1
-      GROUP_ENERGY_NR       1
-      GROUP_CC_SIZE         0
-      GROUP_ANLYSIS_NR      1
-      NUM_MC_ELEM           50
-      ENERGY_FILE_NAME      H2O.inp
-      NR_TEMPERATURE        3
-      TEMPERATURE           300 460
-      &MOVE_TYPE      ATOM_TRANS
-        SIZE          0.05
-        PROB          1
-        INIT_ACC_PROB 0.2
-      &END
-      &MOVE_TYPE      MOL_TRANS
-        SIZE          0.1
-        PROB          1
-      &END
-      &MOVE_TYPE      MOL_ROT
-        SIZE          4
-        PROB          1
-      &END
-      &MOVE_TYPE      PT_SWAP
-        PROB          3
-      &END
-      NUM_MV_ELEM_IN_CELL   0
-      RND_DETERMINISTIC     42
-      ESIMATE_ACC_PROB      .TRUE.
-      SPECULATIVE_CANCELING .TRUE.
-      INFO_OUT_STEP_SIZE    100
-      PRINT_COORDS          .FALSE.
-      PRINT_FORCES          .FALSE.
-      PRINT_DIPOLE          .FALSE.
-      PRINT_CELL            .FALSE.
-      PRINT_ENERGIES        .FALSE.
-      RESTART_IN
-      RESTART_OUT           0
-      PRINT_ONLY_ACC        .TRUE.
-      PRINT_TEST_OUTPUT
-      &TMC_ANALYSIS
-        RESTART             .FALSE.
-        G_R
-      &END TMC_ANALYSIS
+    ENERGY_FILE_NAME H2O.inp
+    ESIMATE_ACC_PROB .TRUE.
+    GROUP_ANLYSIS_NR 1
+    GROUP_CC_SIZE 0
+    GROUP_ENERGY_NR 1
+    GROUP_ENERGY_SIZE 1
+    INFO_OUT_STEP_SIZE 100
+    NR_TEMPERATURE 3
+    NUM_MC_ELEM 50
+    NUM_MV_ELEM_IN_CELL 0
+    PRINT_CELL .FALSE.
+    PRINT_COORDS .FALSE.
+    PRINT_DIPOLE .FALSE.
+    PRINT_ENERGIES .FALSE.
+    PRINT_FORCES .FALSE.
+    PRINT_ONLY_ACC .TRUE.
+    PRINT_TEST_OUTPUT
+    RESTART_IN
+    RESTART_OUT 0
+    RND_DETERMINISTIC 42
+    SPECULATIVE_CANCELING .TRUE.
+    TEMPERATURE 300 460
+    &MOVE_TYPE ATOM_TRANS
+      INIT_ACC_PROB 0.2
+      PROB 1
+      SIZE 0.05
+    &END MOVE_TYPE
+    &MOVE_TYPE MOL_TRANS
+      PROB 1
+      SIZE 0.1
+    &END MOVE_TYPE
+    &MOVE_TYPE MOL_ROT
+      PROB 1
+      SIZE 4
+    &END MOVE_TYPE
+    &MOVE_TYPE PT_SWAP
+      PROB 3
+    &END MOVE_TYPE
+    &TMC_ANALYSIS
+      G_R
+      RESTART .FALSE.
+    &END TMC_ANALYSIS
   &END TMC
 &END MOTION

@@ -1,3 +1,17 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-trunc-auto-md
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    STEPS 3
+    TEMPERATURE 0.1
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -12,26 +26,26 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC
       MAX_SCF 50
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-      &END XC_FUNCTIONAL
       &HF
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 1.0
+          POTENTIAL_TYPE TRUNCATED
+          T_C_G_DATA t_c_g.dat
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          MAX_MEMORY 10
+        &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-7
           SCREEN_ON_INITIAL_P FALSE
-        &END
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 1.0
-          T_C_G_DATA t_c_g.dat
-        &END
-        &MEMORY
-          MAX_MEMORY 10
-        &END
-      &END
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
@@ -39,9 +53,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET 3-21Gx
@@ -53,15 +67,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-trunc-auto-md
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
- &MD
-   TEMPERATURE 0.1
-   TIMESTEP 0.5
-   STEPS    3
- &END
-&END

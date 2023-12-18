@@ -1,49 +1,50 @@
-#CPQA DEPENDS deca_ala4.inp
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT deca_ala_ext_cell
+  RUN_TYPE md
+&END GLOBAL
 
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 11
+    TEMPERATURE 450.0
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+  &END PRINT
+&END MOTION
+
+#CPQA DEPENDS deca_ala4.inp
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/deca_ala.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/deca_ala.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
     &CELL
-      CELL_FILE_NAME deca_ala4-1.cell
       CELL_FILE_FORMAT CP2K
+      CELL_FILE_NAME deca_ala4-1.cell
     &END CELL
-    &TOPOLOGY
-      CHARGE_BETA
-      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
-      COORDINATE PDB
-      PARA_RES
-    &END TOPOLOGY
     &PRINT
       &CELL
-      &END
-    &END
+      &END CELL
+    &END PRINT
+    &TOPOLOGY
+      CHARGE_BETA
+      COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
+      PARA_RES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-  PROJECT deca_ala_ext_cell
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 11
-    TIMESTEP 0.5
-    TEMPERATURE 450.0
-  &END MD
-  &PRINT
-  &END
-&END MOTION

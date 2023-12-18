@@ -4,10 +4,11 @@
 @SET BASIS_SET_FILE EMSL_BASIS_SETS
 @SET POTENTIAL_FILE POTENTIAL
 &GLOBAL
-  PROJECT he2_bug_disp
   PRINT_LEVEL LOW
+  PROJECT he2_bug_disp
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME ${BASIS_SET_FILE}
@@ -23,8 +24,8 @@
       METHOD GAPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       MAX_SCF 5
+      SCF_GUESS ATOMIC
       &OT
         ALGORITHM IRAC
         MINIMIZER DIIS
@@ -38,36 +39,36 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       &LOCALIZE
-       &END
-       PRECONDITIONER FULL_ALL
-       EPS 1E-6
-       &CURRENT
-         GAUGE ATOM
-         GAUGE_ATOM_RADIUS 4.0
-         ORBITAL_CENTER COMMON
-         COMMON_CENTER 0.0 0.0 0.0
-         USE_OLD_GAUGE_ATOM F
-       &END CURRENT
-       &NMR
-          INTERPOLATE_SHIFT T
-       &END
-    &END
-  &END
+      EPS 1E-6
+      PRECONDITIONER FULL_ALL
+      &CURRENT
+        COMMON_CENTER 0.0 0.0 0.0
+        GAUGE ATOM
+        GAUGE_ATOM_RADIUS 4.0
+        ORBITAL_CENTER COMMON
+        USE_OLD_GAUGE_ATOM F
+      &END CURRENT
+      &LOCALIZE
+      &END LOCALIZE
+      &NMR
+        INTERPOLATE_SHIFT T
+      &END NMR
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
-# need this box size
+      # need this box size
       ABC 5.0 5.0 10.0
     &END CELL
-    &KIND He
-      LEBEDEV_GRID 50
-      RADIAL_GRID 100
-      BASIS_SET ${BASIS_SET}
-      POTENTIAL ALL
-    &END KIND
     &COORD
-   he 0 0 0
-   he 2.5 0 0
+      he 0 0 0
+      he 2.5 0 0
     &END COORD
+    &KIND He
+      BASIS_SET ${BASIS_SET}
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 100
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

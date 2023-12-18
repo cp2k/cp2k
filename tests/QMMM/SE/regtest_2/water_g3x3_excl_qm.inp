@@ -1,3 +1,26 @@
+&GLOBAL
+  PROJECT water_g3x3_excl_qm
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    CONSTRAINT_INIT T
+    &G3X3
+      ATOMS 1 2 3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      EXCLUDE_QM
+      MOLNAME WAT
+    &END G3X3
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -12,8 +35,8 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../../../Fist/sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../../Fist/sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -25,56 +48,35 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 30
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL NONE
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
-    ECOUPL NONE
     &QM_KIND H
       MM_INDEX 2 3
     &END QM_KIND
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  &END
+  &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
-      COORDINATE pdb
-    &END TOPOLOGY
     &PRINT
       &MOLECULES
-      &END
-    &END
+      &END MOLECULES
+    &END PRINT
+    &TOPOLOGY
+      COORDINATE pdb
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_g3x3_excl_qm
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    CONSTRAINT_INIT T
-    &G3X3
-      DISTANCES 1.8897268 1.8897268 3.0859239
-      MOLNAME WAT
-      ATOMS 1 2 3
-      EXCLUDE_QM
-    &END G3X3
-  &END
-  &MD
-    ENSEMBLE NVE
-    STEPS 20
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

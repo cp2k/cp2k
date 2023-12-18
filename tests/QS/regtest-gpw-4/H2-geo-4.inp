@@ -1,3 +1,21 @@
+&GLOBAL
+  PROJECT H2-geo-4
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 2
+    OPTIMIZER CG
+    &CG
+      MAX_STEEP_STEPS 1
+      &LINE_SEARCH
+        TYPE FIT
+      &END LINE_SEARCH
+    &END CG
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -22,8 +40,8 @@
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    H   0.0 0.0 0.0
-    H   0.9 0.0 0.0
+      H   0.0 0.0 0.0
+      H   0.9 0.0 0.0
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -35,19 +53,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2-geo-4
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    OPTIMIZER CG
-    MAX_ITER 2
-    &CG
-      MAX_STEEP_STEPS 1
-      &LINE_SEARCH
-        TYPE FIT
-      &END
-    &END CG
-  &END GEO_OPT
-&END MOTION

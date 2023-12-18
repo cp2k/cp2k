@@ -1,43 +1,43 @@
 # single potential parallel tempering on 3 temperatures with swaps
-
 &GLOBAL
-  PROJECT H2O_TMC
-  PROGRAM TMC
-  RUN_TYPE TMC
   PRINT_LEVEL LOW
+  PROGRAM TMC
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
   #TRACE
   WALLTIME 00:01:30
 &END GLOBAL
+
 &MOTION
   &TMC
-      GROUP_ENERGY_SIZE 1
-      GROUP_ENERGY_NR 1
-      GROUP_CC_SIZE 0
-      NUM_MC_ELEM 100
-      ENERGY_FILE_NAME H2O.inp
-      NR_TEMPERATURE 3
-      TEMPERATURE 300 460
-      &MOVE_TYPE      ATOM_TRANS
-        SIZE          0.05
-        PROB          1
-        INIT_ACC_PROB 0.2
-      &END
-      &MOVE_TYPE      MOL_TRANS
-        SIZE          0.1
-        PROB          1
-      &END
-      &MOVE_TYPE      MOL_ROT
-        SIZE          4
-        PROB          1
-      &END
-      &MOVE_TYPE      PT_SWAP
-        PROB          3
-      &END
-      NUM_MV_ELEM_IN_CELL 0
-      RND_DETERMINISTIC 42
-      INFO_OUT_STEP_SIZE 1
-      RESTART_OUT 0
-      PRINT_ONLY_ACC .FALSE.
-      PRINT_TEST_OUTPUT
+    ENERGY_FILE_NAME H2O.inp
+    GROUP_CC_SIZE 0
+    GROUP_ENERGY_NR 1
+    GROUP_ENERGY_SIZE 1
+    INFO_OUT_STEP_SIZE 1
+    NR_TEMPERATURE 3
+    NUM_MC_ELEM 100
+    NUM_MV_ELEM_IN_CELL 0
+    PRINT_ONLY_ACC .FALSE.
+    PRINT_TEST_OUTPUT
+    RESTART_OUT 0
+    RND_DETERMINISTIC 42
+    TEMPERATURE 300 460
+    &MOVE_TYPE ATOM_TRANS
+      INIT_ACC_PROB 0.2
+      PROB 1
+      SIZE 0.05
+    &END MOVE_TYPE
+    &MOVE_TYPE MOL_TRANS
+      PROB 1
+      SIZE 0.1
+    &END MOVE_TYPE
+    &MOVE_TYPE MOL_ROT
+      PROB 1
+      SIZE 4
+    &END MOVE_TYPE
+    &MOVE_TYPE PT_SWAP
+      PROB 3
+    &END MOVE_TYPE
   &END TMC
 &END MOTION

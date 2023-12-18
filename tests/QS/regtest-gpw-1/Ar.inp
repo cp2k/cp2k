@@ -1,12 +1,25 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT "Ar"
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME "BASIS_SET" # Test parser: allow for comments using quotation marks
+    BASIS_SET_FILE_NAME "BASIS_SET"  # Test parser: allow for comments using quotation marks
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       "CUTOFF"  "200" # Test parser
       REL_CUTOFF 40
     &END MGRID
+    &PRINT
+      &CHARGEMOL ON
+        PERIODIC
+      &END CHARGEMOL
+      &MO_MOLDEN on
+        NDIGITS 12
+      &END MO_MOLDEN
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
       EPS_GVG 1.0E-6
@@ -17,36 +30,23 @@
       EPS_SCF 1.0E-6
       MAX_DIIS 4
       MAX_SCF 20
-
       SCF_GUESS atomic
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO_MOLDEN on
-        NDIGITS 12
-      &END MO_MOLDEN
-      &CHARGEMOL ON
-        PERIODIC
-      &END CHARGEMOL
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    Ar     0.000000  0.000000  0.000000
+      Ar     0.000000  0.000000  0.000000
     &END COORD
     &KIND Ar
-      BASIS_SET "DZVP-GTH-PADE" # Test parser
+      BASIS_SET "DZVP-GTH-PADE"  # Test parser
       POTENTIAL "GTH-PADE-q8"
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT "Ar"
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

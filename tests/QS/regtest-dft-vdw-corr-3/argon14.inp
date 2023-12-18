@@ -1,8 +1,9 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT argon
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   STRESS_TENSOR ANALYTICAL
@@ -22,25 +23,25 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_GRID
-         USE_FINER_GRID
-      &END XC_GRID
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL NON_LOCAL
+        &NON_LOCAL
+          CUTOFF 40
+          KERNEL_FILE_NAME rVV10_kernel_table.dat
+          PARAMETERS 6.3 0.0093
+          TYPE RVV10
+          VERBOSE_OUTPUT
+        &END NON_LOCAL
+      &END VDW_POTENTIAL
       &XC_FUNCTIONAL
-        &GGA_X_RPW86
-        &END GGA_X_RPW86
         &GGA_C_PBE
         &END GGA_C_PBE
+        &GGA_X_RPW86
+        &END GGA_X_RPW86
       &END XC_FUNCTIONAL
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE RVV10
-           PARAMETERS 6.3 0.0093
-           VERBOSE_OUTPUT
-           KERNEL_FILE_NAME rVV10_kernel_table.dat
-           CUTOFF 40
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
+      &XC_GRID
+        USE_FINER_GRID
+      &END XC_GRID
     &END XC
   &END DFT
   &SUBSYS
@@ -58,6 +59,6 @@
     &KIND Ar
       BASIS_SET DZVP-MOLOPT-SR-GTH-q8
       POTENTIAL GTH-PADE-q8
-    &END
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -1,10 +1,15 @@
+&GLOBAL
+  PROJECT G_Kh
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     &QS
       METHOD PM6
       &SE
-      &END
+      &END SE
     &END QS
     &SCF
       MAX_SCF 0
@@ -16,18 +21,14 @@
       PERIODIC NONE
     &END CELL
     &COORD
-C 2 3 4
+      C 2 3 4
     &END COORD
     &PRINT
       &SYMMETRY
-        MOLECULE
-        CHECK_SYMMETRY R(3)
         ALL
-      &END
-    &END
+        CHECK_SYMMETRY R(3)
+        MOLECULE
+      &END SYMMETRY
+    &END PRINT
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT G_Kh
-  RUN_TYPE ENERGY
-&END GLOBAL

@@ -1,77 +1,77 @@
 &GLOBAL
-  PROJECT  H2O_NO_HFX
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_NO_HFX
   RUN_TYPE ENERGY
   &TIMINGS
-     THRESHOLD 0.01
-  &END
+    THRESHOLD 0.01
+  &END TIMINGS
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  HFX_BASIS
-    POTENTIAL_FILE_NAME  POTENTIAL
+    BASIS_SET_FILE_NAME HFX_BASIS
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF  200
-      REL_CUTOFF  30
+      CUTOFF 200
+      REL_CUTOFF 30
     &END MGRID
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS RESTART
       EPS_SCF 0.0008
       MAX_SCF 6
+      SCF_GUESS RESTART
     &END SCF
     &XC
+      &WF_CORRELATION
+        MEMORY 100.
+        NUMBER_PROC 1
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF 200
+            REL_CUTOFF 30
+          &END WFC_GPW
+        &END INTEGRALS
+        &MP2
+          METHOD MP2_GPW
+        &END MP2
+      &END WF_CORRELATION
       ! No HFX.... yet MP2
       &XC_FUNCTIONAL
         &BECKE88
-        &END
+        &END BECKE88
       &END XC_FUNCTIONAL
-      &WF_CORRELATION
-       &MP2
-          METHOD  MP2_GPW
-       &END MP2
-        &INTEGRALS
-        &WFC_GPW
-          CUTOFF  200
-          REL_CUTOFF 30
-        &END WFC_GPW
-        &END INTEGRALS
-        MEMORY  100.
-        NUMBER_PROC  1
-      &END
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  7.0000   7.0000   7.0000
+      ABC [angstrom] 7.0000 7.0000 7.0000
       PERIODIC NONE
     &END CELL
-    &KIND H
-      BASIS_SET  DZVP-GTH
-      POTENTIAL  GTH-HF-q1
-    &END KIND
-    &KIND O
-      BASIS_SET  DZVP-GTH
-      POTENTIAL  GTH-HF-q6
-    &END KIND
     &COORD
       O       0.000000    0.000000    -0.111000
       H       0.000000   -0.744000     0.495000
       H       0.000000    0.744000     0.495000
-    &END
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-HF-q6
+    &END KIND
     &TOPOLOGY
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

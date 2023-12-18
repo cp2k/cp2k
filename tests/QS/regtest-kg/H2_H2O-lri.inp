@@ -1,68 +1,74 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PRINT
-     &FORCES
-     &END
-  &END
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    &MGRID
-      CUTOFF 400
-    &END MGRID
-    &QS
-      METHOD LRIGPW
-      EPS_DEFAULT 5.0E-14
-      EPS_KG_ORB 1.0E-6
-      LS_SCF
-      KG_METHOD
-      &LRIGPW
-         RI_STATISTIC  T
-         EPS_O3_INT   1.e-14
-         PPL_RI        F
-         EXACT_1C_TERMS   F
-         DISTANT_PAIR_APPROXIMATION  T
-         DISTANT_PAIR_METHOD         LW
-         DISTANT_PAIR_RADII    6.0 10.0
-      &END LRIGPW
-    &END QS
-    &LS_SCF
-      MAX_SCF     40
-      EPS_FILTER  1.0E-6
-      EPS_SCF     1.0E-7
-      MU         -0.1
-      PURIFICATION_METHOD TRS4
-    &END
-    &SCF
-      EPS_SCF 1.0E-5
-      MAX_SCF 50
-    &END
     &KG_METHOD
       &XC
         &XC_FUNCTIONAL
           &KE_GGA
             FUNCTIONAL T92
-          &END
-        &END
+          &END KE_GGA
+        &END XC_FUNCTIONAL
       &END XC
     &END KG_METHOD
+    &LS_SCF
+      EPS_FILTER 1.0E-6
+      EPS_SCF 1.0E-7
+      MAX_SCF 40
+      MU -0.1
+      PURIFICATION_METHOD TRS4
+    &END LS_SCF
+    &MGRID
+      CUTOFF 400
+    &END MGRID
+    &QS
+      EPS_DEFAULT 5.0E-14
+      EPS_KG_ORB 1.0E-6
+      KG_METHOD
+      LS_SCF
+      METHOD LRIGPW
+      &LRIGPW
+        DISTANT_PAIR_APPROXIMATION T
+        DISTANT_PAIR_METHOD LW
+        DISTANT_PAIR_RADII 6.0 10.0
+        EPS_O3_INT 1.e-14
+        EXACT_1C_TERMS F
+        PPL_RI F
+        RI_STATISTIC T
+      &END LRIGPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MAX_SCF 50
+    &END SCF
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-      &END
+        &END PADE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 4.0 6.0 3.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
-    H   2.000000    2.500000    0.000000 H2
-    H   2.000000   -2.500000    0.000000 H2
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
+      H   2.000000    2.500000    0.000000 H2
+      H   2.000000   -2.500000    0.000000 H2
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-GTH
@@ -74,8 +80,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2
-  RUN_TYPE ENERGY_FORCE
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

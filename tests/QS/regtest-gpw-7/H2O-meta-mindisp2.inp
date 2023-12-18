@@ -1,3 +1,48 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O-meta-mindisp
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS T
+      LAGRANGE T
+      MIN_DISP 0.01
+      MIN_NT_HILLS 3
+      NT_HILLS 5
+      WW 1.0e-3
+      &METAVAR
+        COLVAR 1
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.02
+      &END METAVAR
+      &METAVAR
+        COLVAR 2
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.02
+      &END METAVAR
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVT
+    STEPS 22
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 100.0
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -9,8 +54,8 @@
     &QS
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 0.001
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -21,10 +66,24 @@
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
+    &COLVAR
+      &COORDINATION
+        ATOMS_FROM 1
+        ATOMS_TO 2 3
+        R_0 2.3
+      &END COORDINATION
+    &END COLVAR
+    &COLVAR
+      &COORDINATION
+        ATOMS_FROM 2
+        ATOMS_TO 3
+        R_0 2.3
+      &END COORDINATION
+    &END COLVAR
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -34,62 +93,5 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
-    &COLVAR
-       &COORDINATION
-          ATOMS_FROM 1
-          ATOMS_TO 2 3
-          R_0 2.3
-       &END COORDINATION
-    &END COLVAR
-    &COLVAR
-       &COORDINATION
-          ATOMS_FROM  2
-            ATOMS_TO  3
-          R_0 2.3
-        &END COORDINATION
-    &END COLVAR
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-meta-mindisp
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 22
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 100.0
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-  &FREE_ENERGY
-    &METADYN
-      DO_HILLS T
-      LAGRANGE T
-      MIN_DISP 0.01
-      NT_HILLS 5
-      MIN_NT_HILLS 3
-      WW 1.0e-3
-      &METAVAR
-        LAMBDA 0.1
-        MASS 10.0
-        SCALE 0.02
-        COLVAR 1
-      &END METAVAR
-      &METAVAR
-        LAMBDA 0.1
-        MASS 10.0
-        SCALE 0.02
-        COLVAR 2
-      &END METAVAR
-    &END METADYN
-  &END
-&END MOTION

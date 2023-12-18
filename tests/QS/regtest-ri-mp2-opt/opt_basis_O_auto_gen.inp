@@ -1,84 +1,85 @@
 &GLOBAL
-  PROJECT     opt_basis_O_auto_gen
   PRINT_LEVEL LOW
-  RUN_TYPE    ENERGY
+  PROJECT opt_basis_O_auto_gen
+  RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  HFX_BASIS
-    POTENTIAL_FILE_NAME  POTENTIAL
+    BASIS_SET_FILE_NAME HFX_BASIS
+    MULTIPLICITY 3
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS
     &MGRID
-      CUTOFF     200
-      REL_CUTOFF  50
+      CUTOFF 200
+      REL_CUTOFF 50
     &END MGRID
     &POISSON
-      PERIODIC        NONE
-      POISSON_SOLVER  WAVELET
+      PERIODIC NONE
+      POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
     &END QS
     &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 20
       SCF_GUESS ATOMIC
-      EPS_SCF   1.0E-6
-      MAX_SCF   20
       &OT
-        MINIMIZER       CG
-        PRECONDITIONER  FULL_SINGLE_INVERSE
-      &END
+        MINIMIZER CG
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
       &OUTER_SCF
-        EPS_SCF  1.0E-6
-        MAX_SCF  20
-      &END
+        EPS_SCF 1.0E-6
+        MAX_SCF 20
+      &END OUTER_SCF
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-      &END XC_FUNCTIONAL
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ         1.0E-8
+          EPS_SCHWARZ 1.0E-8
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        NUMBER_PROC 1
         &RI
           &OPT_RI_BASIS
-            DELTA_I_REL  5.0E-6
-            DELTA_RI     5.0E-5
-            EPS_DERIV    1.0E-3
-            MAX_ITER     100
-            BASIS_SIZE   LARGE
-          &END
-        &END
-        NUMBER_PROC  1
-      &END
+            BASIS_SIZE LARGE
+            DELTA_I_REL 5.0E-6
+            DELTA_RI 5.0E-5
+            EPS_DERIV 1.0E-3
+            MAX_ITER 100
+          &END OPT_RI_BASIS
+        &END RI
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
-    UKS
-    MULTIPLICITY  3
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom] 8.000 8.000 8.000
       PERIODIC NONE
     &END CELL
-    &KIND O
-      BASIS_SET         DZVP-GTH
-      POTENTIAL         GTH-HF-q6
-    &END KIND
     &COORD
       O  0.0000   0.0000   0.0000
     &END COORD
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-HF-q6
+    &END KIND
     &TOPOLOGY
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

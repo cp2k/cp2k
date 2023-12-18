@@ -1,13 +1,14 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT O-ROKS
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    ROKS
     MULTIP 3
+    ROKS
     &PRINT
       &MO
         EIGENVALUES
@@ -18,8 +19,8 @@
     &QS
       METHOD AM1
       &SE
-       ANALYTICAL_GRADIENTS F
-      &END
+        ANALYTICAL_GRADIENTS F
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-6

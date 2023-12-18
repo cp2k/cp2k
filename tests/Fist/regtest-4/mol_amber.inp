@@ -1,41 +1,56 @@
+&GLOBAL
+  PRINT_LEVEL DEBUG
+  PROJECT mol_amber
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TEMPERATURE 0.0
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      EI_SCALE14 0.83333333333333333333
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/mol.pot
+      SHIFT_CUTOFF .false.
       ! PARM91
       ! VDW_SCALE14 0.5
       ! EI_SCALE14  0.5
       ! PARM94 and Following
       VDW_SCALE14 0.5
-      EI_SCALE14  0.83333333333333333333
-      parm_file_name ../sample_pot/mol.pot
-      parmtype CHM
-      SHIFT_CUTOFF .false.
-#&charge
-#atom C
-#charge    0.0
-#&end
-#&charge
-#atom O
-#charge   0.0
-#&end
-#&charge
-#atom N
-#charge  0.0
-#&end
-#&charge
-#atom H1
-#charge  0.0
-#&end
-#&charge
-#atom CT
-#charge  0.0
-#&end
+      #&charge
+      #atom C
+      #charge    0.0
+      #&end
+      #&charge
+      #atom O
+      #charge   0.0
+      #&end
+      #&charge
+      #atom N
+      #charge  0.0
+      #&end
+      #&charge
+      #atom H1
+      #charge  0.0
+      #&end
+      #&charge
+      #atom CT
+      #charge  0.0
+      #&end
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 51
       &END EWALD
     &END POISSON
@@ -44,32 +59,20 @@
     &CELL
       ABC 30.0 30.0 30.0
     &END CELL
-    &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/mol.psf
-      CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/mol.pdb
-      COORDINATE PDB
-    &END TOPOLOGY
     &PRINT
       &TOPOLOGY_INFO
         UTIL_INFO
-      &END
-    &END
+      &END TOPOLOGY_INFO
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/mol.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/mol.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT mol_amber
-  PRINT_LEVEL DEBUG
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 1
-    TIMESTEP 1.0
-    TEMPERATURE 0.0
-  &END MD
-&END MOTION
+
 # BOND    =        0.0001  ANGLE   =        0.0001  DIHED      =        4.0000
 # VDWAALS =       -0.0016  EEL     =       -0.1492  HBOND      =        0.0000
 # 1-4 VDW =       -0.0565  1-4 EEL =       -8.1447  RESTRAINT  =        0.0000

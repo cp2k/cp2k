@@ -1,7 +1,13 @@
+&GLOBAL
+  PROJECT wat_nacl
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    LSD
     POTENTIAL_FILE_NAME ../POTENTIAL
     &MGRID
       COMMENSURATE
@@ -14,7 +20,6 @@
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    LSD
   &END DFT
   &MM
     &FORCEFIELD
@@ -23,19 +28,24 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA 0.44
+        EWALD_TYPE ewald
         GMAX 25
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL GAUSS
     USE_GEEP_LIB 6
     &CELL
       ABC 8.000 8.000 8.000
       PERIODIC XYZ
     &END CELL
-    ECOUPL GAUSS
+    &LINK
+      MM_INDEX 5
+      QM_INDEX 3
+      QM_KIND H
+    &END LINK
     &MM_KIND H
       RADIUS 0.440
     &END MM_KIND
@@ -48,11 +58,6 @@
     &QM_KIND O
       MM_INDEX 3
     &END QM_KIND
-    &LINK
-      QM_INDEX 3
-      QM_KIND H
-      MM_INDEX 5
-    &END LINK
   &END QMMM
   &SUBSYS
     &CELL
@@ -61,17 +66,6 @@
       C 0.000000 0.000000 20.082045
       PERIODIC XYZ
     &END CELL
-    &TOPOLOGY
-      &GENERATE
-        CREATE_MOLECULES
-        &ISOLATED_ATOMS
-          LIST 1 2
-        &END ISOLATED_ATOMS
-      &END GENERATE
-      CHARGE_EXTENDED
-      COORD_FILE_NAME ../sample_pdb/wat_nacl.pdb
-      COORD_FILE_FORMAT PDB
-    &END TOPOLOGY
     &KIND H
       BASIS_SET SZV-GTH
       POTENTIAL GTH-PADE-q1
@@ -80,9 +74,16 @@
       BASIS_SET SZV-GTH
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &TOPOLOGY
+      CHARGE_EXTENDED
+      COORD_FILE_FORMAT PDB
+      COORD_FILE_NAME ../sample_pdb/wat_nacl.pdb
+      &GENERATE
+        CREATE_MOLECULES
+        &ISOLATED_ATOMS
+          LIST 1 2
+        &END ISOLATED_ATOMS
+      &END GENERATE
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT wat_nacl
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

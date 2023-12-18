@@ -1,3 +1,8 @@
+&GLOBAL
+  PROJECT hcl
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 #MOPAC REFERENCE
 #
 #          FINAL HEAT OF FORMATION =         17.03447 KCAL =         71.27223 KJ
@@ -10,28 +15,28 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    &PRINT
+      &AO_MATRICES
+        CORE_HAMILTONIAN
+        DENSITY
+        KOHN_SHAM_MATRIX
+        OVERLAP
+      &END AO_MATRICES
+      &MO
+        EIGENVALUES
+        EIGENVECTORS
+      &END MO
+    &END PRINT
     &QS
       METHOD MNDOD
       &SE
-       ANALYTICAL_GRADIENTS F
-       STO_NG 6
-      &END
+        ANALYTICAL_GRADIENTS F
+        STO_NG 6
+      &END SE
     &END QS
     &SCF
       SCF_GUESS MOPAC
     &END SCF
-    &PRINT
-      &MO
-        EIGENVECTORS
-        EIGENVALUES
-      &END
-      &AO_MATRICES
-          DENSITY
-          CORE_HAMILTONIAN
-          OVERLAP
-          KOHN_SHAM_MATRIX
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
@@ -39,18 +44,14 @@
       PERIODIC NONE
     &END CELL
     &COORD
-       H                    .00000000     .00000000     .00000000
-       Cl                   .60673664    -.11133319    -.90673603
+      H                    .00000000     .00000000     .00000000
+      Cl                   .60673664    -.11133319    -.90673603
     &END COORD
     &PRINT
       &KINDS
         BASIS_SET
         SE_PARAMETERS
-      &END
-    &END
+      &END KINDS
+    &END PRINT
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT hcl
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

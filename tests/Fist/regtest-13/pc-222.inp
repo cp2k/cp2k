@@ -1,20 +1,66 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT pc-222
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 10
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &BAROSTAT
+      PRESSURE 10000.
+      TIMECON 200.
+    &END BAROSTAT
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 200.
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &CELL
+      &EACH
+        MD 10
+      &END EACH
+    &END CELL
+    &RESTART
+      &EACH
+        MD 100
+      &END EACH
+    &END RESTART
+    &TRAJECTORY
+      &EACH
+        MD 10
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
+  STRESS_TENSOR ANALYTICAL
   &MM
     &FORCEFIELD
-      VDW_SCALE14 0.5
-      EI_SCALE14  0.8333333
-      SHIFT_CUTOFF .FALSE.
-      PARM_FILE_NAME ../sample_top/pc.top
+      EI_SCALE14 0.8333333
       PARMTYPE AMBER
+      PARM_FILE_NAME ../sample_top/pc.top
+      SHIFT_CUTOFF .FALSE.
+      VDW_SCALE14 0.5
       &SPLINE
         EMAX_SPLINE 1.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA .36
+        EWALD_TYPE SPME
         GMAX 64
       &END EWALD
     &END POISSON
@@ -25,55 +71,11 @@
       MULTIPLE_UNIT_CELL 2 2 2
     &END CELL
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL 2 2 2
-      COORDINATE XYZ
-      COORD_FILE_NAME ../sample_xyz/pc.xyz
       CONNECTIVITY AMBER
       CONN_FILE_NAME ../sample_top/pc.top
-    &END
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/pc.xyz
+      MULTIPLE_UNIT_CELL 2 2 2
+    &END TOPOLOGY
   &END SUBSYS
-  STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT pc-222
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NPT_I
-    STEPS 10
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &BAROSTAT
-      PRESSURE 10000.
-      TIMECON 200.
-    &END BAROSTAT
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 200.
-        MTS 2
-      &END NOSE
-    &END
-  &END MD
-  &PRINT
-    &RESTART
-       &EACH
-         MD 100
-       &END
-    &END
-    &TRAJECTORY
-       &EACH
-         MD 10
-       &END
-    &END
-    &CELL
-       &EACH
-         MD 10
-       &END
-    &END
-  &END
-&END MOTION

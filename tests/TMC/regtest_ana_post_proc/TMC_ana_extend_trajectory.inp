@@ -1,56 +1,56 @@
 # TMC parallel tempering run WITHOUT analysis
 # creating an trajectory
 # later the ana "restart" without restart file is tested
-
 &GLOBAL
-  PROJECT H2O_TMC
-  PROGRAM TMC
-  RUN_TYPE TMC
   PRINT_LEVEL LOW
+  PROGRAM TMC
+  PROJECT H2O_TMC
+  RUN_TYPE TMC
   #TRACE
-  WALLTIME              00:10:25
+  WALLTIME 00:10:25
 &END GLOBAL
+
 &MOTION
   &TMC
-      GROUP_ENERGY_SIZE     1
-      GROUP_ENERGY_NR       1
-      GROUP_CC_SIZE         0
-      GROUP_ANLYSIS_NR      1
-      NUM_MC_ELEM           200
-      ENERGY_FILE_NAME      H2O.inp
-      NR_TEMPERATURE        3
-      TEMPERATURE           300 460
-      &MOVE_TYPE      ATOM_TRANS
-        SIZE          0.05
-        PROB          1
-        INIT_ACC_PROB 0.2
-      &END
-      &MOVE_TYPE      MOL_TRANS
-        SIZE          0.1
-        PROB          1
-      &END
-      &MOVE_TYPE      MOL_ROT
-        SIZE          4
-        PROB          1
-      &END
-      &MOVE_TYPE      VOL_MOVE
-        SIZE          1.0
-        PROB          1
-      &END
-      PRESSURE              1.0
-      NUM_MV_ELEM_IN_CELL   0
-      RND_DETERMINISTIC     7919
-      ESIMATE_ACC_PROB      .TRUE.
-      SPECULATIVE_CANCELING .TRUE.
-      INFO_OUT_STEP_SIZE    100
-      PRINT_COORDS          .TRUE.
-      PRINT_FORCES          .TRUE.
-      #PRINT_DIPOLE          .TRUE.  # (classical) dipoles are not provided without analysis
-      PRINT_CELL            .TRUE.
-      PRINT_ENERGIES        .TRUE.
-      RESTART_IN
-      RESTART_OUT                    # create TMC restart file
-      PRINT_ONLY_ACC        .TRUE.
-      PRINT_TEST_OUTPUT
+    ENERGY_FILE_NAME H2O.inp
+    ESIMATE_ACC_PROB .TRUE.
+    GROUP_ANLYSIS_NR 1
+    GROUP_CC_SIZE 0
+    GROUP_ENERGY_NR 1
+    GROUP_ENERGY_SIZE 1
+    INFO_OUT_STEP_SIZE 100
+    NR_TEMPERATURE 3
+    NUM_MC_ELEM 200
+    NUM_MV_ELEM_IN_CELL 0
+    PRESSURE 1.0
+    #PRINT_DIPOLE          .TRUE.  # (classical) dipoles are not provided without analysis
+    PRINT_CELL .TRUE.
+    PRINT_COORDS .TRUE.
+    PRINT_ENERGIES .TRUE.
+    PRINT_FORCES .TRUE.
+    PRINT_ONLY_ACC .TRUE.
+    PRINT_TEST_OUTPUT
+    RESTART_IN
+    RESTART_OUT  # create TMC restart file
+    RND_DETERMINISTIC 7919
+    SPECULATIVE_CANCELING .TRUE.
+    TEMPERATURE 300 460
+    &MOVE_TYPE ATOM_TRANS
+      INIT_ACC_PROB 0.2
+      PROB 1
+      SIZE 0.05
+    &END MOVE_TYPE
+    &MOVE_TYPE MOL_TRANS
+      PROB 1
+      SIZE 0.1
+    &END MOVE_TYPE
+    &MOVE_TYPE MOL_ROT
+      PROB 1
+      SIZE 4
+    &END MOVE_TYPE
+    &MOVE_TYPE VOL_MOVE
+      PROB 1
+      SIZE 1.0
+    &END MOVE_TYPE
   &END TMC
 &END MOTION

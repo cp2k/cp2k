@@ -2,6 +2,4 @@
 @SET CONF [He]
 @SET METH RKS
 @SET FUNC PBE
-
 @INCLUDE PBE_energy.inc
-

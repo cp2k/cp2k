@@ -1,62 +1,61 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
-
-
-&MD
- ensemble:     nve                     (nve,nvt,npt_i,npt_f)
- steps:        5
- timestep:     0.1 fs                  time step [fs]
- temperature:  300.0                   temperature [K]
- restart:      init                    start type (pos,posvel)
- constraints:  off
- shake:        1.0E-10
- nose_parameter & 
-  length:    3        &
-  Yoshida:   3        &
-  timecon:   100.0 fs &
-  mts:       2
-&END  
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       200
- EPS_DEFAULT  1.0E-10
-&END
-
-&SCF
- GUESS        ATOMIC
- EPS_SCF      1.0E-6
-&END
-
-&PRINT LOW
-COORD
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
 &CELL
- UNIT         ANGSTROM
- ABC          4.0  4.0  4.0
-&END
+  ABC 4.0 4.0 4.0
+  UNIT ANGSTROM
+&END CELL
 
 &COORD
- O   0.000000    0.000000   -0.065587
- H   0.000000   -0.757136    0.520545
- H   0.000000    0.757136    0.520545
-&END
+  O   0.000000    0.000000   -0.065587
+  H   0.000000   -0.757136    0.520545
+  H   0.000000    0.757136    0.520545
+&END COORD
+
+&CP2K
+  FFTLIB FFTSG
+  IOLEVEL 10
+  PROGRAM Quickstep
+  PROJECT H2O
+  RUN_TYPE MD
+&END CP2K
+
+&DFT
+  FUNCTIONAL Pade
+&END DFT
+
+&KIND H
+  BASIS_SET DZVP-GTH-PADE
+  POTENTIAL GTH-PADE-q1
+&END KIND
+
+&KIND O
+  BASIS_SET DZVP-GTH-PADE
+  POTENTIAL GTH-PADE-q6
+&END KIND
+
+&MD
+  CONSTRAINTS: off
+  ENSEMBLE: nve (nve,nvt,npt_i,npt_f)
+  LENGTH: 3 &
+  MTS: 2
+  NOSE_PARAMETER &
+  RESTART: init start type (pos,posvel)
+  SHAKE: 1.0E-10
+  STEPS: 5
+  TEMPERATURE: 300.0 temperature [K]
+  TIMECON: 100.0 fs &
+  TIMESTEP: 0.1 fs time step [fs]
+  YOSHIDA: 3 &
+&END MD
+
+&PRINT LOW
+  COORD
+&END PRINT
+
+&QS
+  CUTOFF 200
+  EPS_DEFAULT 1.0E-10
+&END QS
+
+&SCF
+  EPS_SCF 1.0E-6
+  GUESS ATOMIC
+&END SCF

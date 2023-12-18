@@ -1,3 +1,24 @@
+&GLOBAL
+  ECHO_ALL_HOSTS
+  ! test debug level printing works
+  PRINT_LEVEL DEBUG
+  PROJECT H2O_OT
+  RUN_TYPE MD
+  ! show basic output
+  &PRINT
+    BASIC_DATA_TYPES
+    SPHERICAL_HARMONICS 2
+  &END PRINT
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 300.0
+    TIMESTEP 0.1
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -24,9 +45,9 @@
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -38,23 +59,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_OT
-  RUN_TYPE MD
-  ECHO_ALL_HOSTS
-  ! test debug level printing works
-  PRINT_LEVEL DEBUG
-  ! show basic output
-  &PRINT
-    BASIC_DATA_TYPES
-    SPHERICAL_HARMONICS 2
-  &END
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 5
-    TIMESTEP 0.1
-    TEMPERATURE 300.0
-  &END MD
-&END MOTION

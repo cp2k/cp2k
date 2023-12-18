@@ -1,44 +1,9 @@
-&FORCE_EVAL
-  METHOD FIST
-  &MM
-    &FORCEFIELD
-      &spline
-       rcut_nb 6.9
-      &end
-      parm_file_name ../sample_pot/charmm.pot
-      parmtype CHM
-      &CHARGE
-        ATOM NH3
-        CHARGE -1.14
-      &END CHARGE
-      &CHARGE
-        ATOM HC
-        CHARGE 0.38
-      &END CHARGE
-    &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE ewald
-        ALPHA .5
-        GMAX 21
-      &END EWALD
-    &END POISSON
-  &END MM
-  &SUBSYS
-    &CELL
-      ABC 13.858 13.858 13.858
-    &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/NH3_1.pdb
-      COORDINATE PDB
-    &END TOPOLOGY
-  &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-  PROJECT nh3-restraint-fixd-2
   PRINT_LEVEL LOW
+  PROJECT nh3-restraint-fixd-2
   RUN_TYPE GEO_OPT
 &END GLOBAL
+
 &MOTION
   &CONSTRAINT
     &FIXED_ATOMS
@@ -49,7 +14,44 @@
     &END FIXED_ATOMS
   &END CONSTRAINT
   &GEO_OPT
-    OPTIMIZER BFGS
     MAX_ITER 50
-  &END
+    OPTIMIZER BFGS
+  &END GEO_OPT
 &END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/charmm.pot
+      &CHARGE
+        ATOM NH3
+        CHARGE -1.14
+      &END CHARGE
+      &CHARGE
+        ATOM HC
+        CHARGE 0.38
+      &END CHARGE
+      &SPLINE
+        RCUT_NB 6.9
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .5
+        EWALD_TYPE ewald
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.858 13.858 13.858
+    &END CELL
+    &TOPOLOGY
+      COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/NH3_1.pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

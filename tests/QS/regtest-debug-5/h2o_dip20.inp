@@ -1,64 +1,66 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT dipole
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PROPERTIES
-    &TDDFPT
-       KERNEL sTDA
-       &sTDA
-          FRACTION 0.0
-          DO_EXCHANGE F
-       &END sTDA
-       NSTATES      5
-       MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
-    &END TDDFPT
-  &END PROPERTIES
   &DFT
+    &EFIELD
+    &END EFIELD
+    &EXCITED_STATES T
+      STATE 2
+    &END EXCITED_STATES
+    &PRINT
+      &MOMENTS ON
+        PERIODIC .FALSE.
+        REFERENCE COM
+      &END MOMENTS
+    &END PRINT
     &QS
       METHOD GPW
     &END QS
-    &EFIELD
-    &END
-    &EXCITED_STATES T
-       STATE 2
-    &END EXCITED_STATES
     &SCF
-      SCF_GUESS ATOMIC 
-      &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
-         MINIMIZER DIIS
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-8
-      &END
-      MAX_SCF  50
       EPS_SCF 1.0E-8
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-8
+        MAX_SCF 10
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MOMENTS ON
-         PERIODIC .FALSE.
-         REFERENCE COM
-      &END
-    &END
   &END DFT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE [eV] 1.0e-7
+      KERNEL sTDA
+      MAX_ITER 50
+      NSTATES 5
+      &STDA
+        DO_EXCHANGE F
+        FRACTION 0.0
+      &END STDA
+    &END TDDFPT
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC [angstrom] 6.0 6.0 6.0
       PERIODIC NONE
-    &END
+    &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
-    &TOPOLOGY
-     &CENTER_COORDINATES
-     &END
-    &END
     &KIND H
       BASIS_SET DZV-GTH-PADE
       POTENTIAL GTH-PADE-q1
@@ -67,11 +69,9 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-  PROJECT dipole
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL
-

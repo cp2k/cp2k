@@ -1,7 +1,31 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O2_auto_excl
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      &BEND
+        ATOMS H O O
+        K 0.0
+        KIND HARMONIC
+        THETA0 1.0
+      &END BEND
+      &BOND
+        ATOMS H O
+        K 0.0
+        KIND HARMONIC
+        R0 1.0
+      &END BOND
+      &BOND
+        ATOMS O O
+        K 1.0
+        KIND HARMONIC
+        R0 1.0
+      &END BOND
       &CHARGE
         ATOM O
         CHARGE -0.2
@@ -10,24 +34,6 @@
         ATOM H
         CHARGE 0.2
       &END CHARGE
-      &BOND
-        ATOMS H O
-        KIND HARMONIC
-        K 0.0
-        R0 1.0
-      &END BOND
-      &BOND
-        ATOMS O O
-        KIND HARMONIC
-        K 1.0
-        R0 1.0
-      &END BOND
-      &BEND
-        ATOMS H O O
-        KIND HARMONIC
-        K 0.0
-        THETA0 1.0
-      &END BEND
       &NONBONDED
         &LENNARD-JONES
           ATOMS H H
@@ -49,8 +55,8 @@
     &POISSON
       PERIODIC NONE
       &EWALD
-        EWALD_TYPE NONE
         ALPHA .36
+        EWALD_TYPE NONE
         GMAX 51
       &END EWALD
     &END POISSON
@@ -61,15 +67,15 @@
       PERIODIC NONE
     &END CELL
     &COORD
-        H  3.864   0.681   0.493
-        O  3.537   1.423   0.000
-        O  2.160   1.188   0.000
-        H  1.832   1.930   0.493
+      H  3.864   0.681   0.493
+      O  3.537   1.423   0.000
+      O  2.160   1.188   0.000
+      H  1.832   1.930   0.493
     &END COORD
     &TOPOLOGY
-      EXCLUDE_VDW 1-4
-      EXCLUDE_EI 1-4
       AUTOGEN_EXCLUDE_LISTS
+      EXCLUDE_EI 1-4
+      EXCLUDE_VDW 1-4
       &GENERATE
         CREATE_MOLECULES
         &TORSION REMOVE
@@ -79,8 +85,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O2_auto_excl
-  PRINT_LEVEL LOW
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

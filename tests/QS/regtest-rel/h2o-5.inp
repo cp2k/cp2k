@@ -1,40 +1,46 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT water
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
-    CHARGE +1
     BASIS_SET_FILE_NAME BASIS_SET
+    CHARGE +1
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
-    &RELATIVISTIC
-        METHOD DKH
-        DKH_ORDER 2
-        TRANSFORMATION ATOM
-    &END RELATIVISTIC
     &MGRID
       CUTOFF 200
       NGRIDS 5
     &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER ANALYTIC
+    &END POISSON
     &QS
       EPS_DEFAULT 1.0E-12
       METHOD GAPW
     &END QS
+    &RELATIVISTIC
+      DKH_ORDER 2
+      METHOD DKH
+      TRANSFORMATION ATOM
+    &END RELATIVISTIC
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-4
       MAX_SCF 7
-      &OUTER_SCF
-         EPS_SCF 1.0E-4
-      &END
+      SCF_GUESS ATOMIC
       &OT
-         MINIMIZER DIIS
-         PRECONDITIONER FULL_ALL
-         ENERGY_GAP 0.001
-      &END
+        ENERGY_GAP 0.001
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-4
+      &END OUTER_SCF
     &END SCF
-    &POISSON
-       PERIODIC NONE
-       POISSON_SOLVER ANALYTIC
-    &END POISSON
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
@@ -46,22 +52,17 @@
       PERIODIC NONE
     &END CELL
     &COORD
-  O         0.0000        0.0000        0.0555
-  H         0.0000        0.7426        0.6587
-  H         0.0000       -0.7426        0.6587
+      O         0.0000        0.0000        0.0555
+      H         0.0000        0.7426        0.6587
+      H         0.0000       -0.7426        0.6587
     &END COORD
     &KIND O
-      POTENTIAL ALL
       BASIS_SET DZ-ANO
+      POTENTIAL ALL
     &END KIND
     &KIND H
-      POTENTIAL ALL
       BASIS_SET DZ-ANO
+      POTENTIAL ALL
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

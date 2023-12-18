@@ -1,8 +1,7 @@
 #CPQA DEPENDS ch4-gapw-1.inp
-
 &GLOBAL
-  PROJECT ch4-gapw-restart-1
   PRINT_LEVEL LOW
+  PROJECT ch4-gapw-restart-1
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
 
@@ -28,29 +27,29 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       &LOCALIZE
-       &END
-       MAX_ITER 10
-       PRECONDITIONER FULL_ALL
-       RESTART T
-       RESTART_FILE_NAME ch4-gapw-1-RESTART.lr
-       &CURRENT
-          GAUGE R_AND_STEP_FUNCTION
-       &END CURRENT
-       &NMR
-       &END
-    &END
-  &END
+      MAX_ITER 10
+      PRECONDITIONER FULL_ALL
+      RESTART T
+      RESTART_FILE_NAME ch4-gapw-1-RESTART.lr
+      &CURRENT
+        GAUGE R_AND_STEP_FUNCTION
+      &END CURRENT
+      &LOCALIZE
+      &END LOCALIZE
+      &NMR
+      &END NMR
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-C  -0.000367    0.000000    0.000481
-H   0.638760   -0.000080    0.888272
-H   0.207743    0.893069   -0.597225
-H   0.207729   -0.892972   -0.597375
-H  -1.052031   -0.000017    0.303441
+      C  -0.000367    0.000000    0.000481
+      H   0.638760   -0.000080    0.888272
+      H   0.207743    0.893069   -0.597225
+      H   0.207729   -0.892972   -0.597375
+      H  -1.052031   -0.000017    0.303441
     &END COORD
     &KIND H
       BASIS_SET 3-21G*

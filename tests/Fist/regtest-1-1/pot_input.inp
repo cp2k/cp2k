@@ -1,255 +1,269 @@
+&GLOBAL
+  PROJECT pot_input
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-#####################################################
-      &BOND
-        #CTL2  HAL2  309.00      1.111
-        ATOMS   CTL2 HAL2
-        KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 309.0
-        R0      [angstrom] 1.111
-      &END BOND
-      &BOND
-        #CTL3  HAL3  322.00      1.111
-        ATOMS   CTL3 HAL3
-        KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 322.0
-        R0      [angstrom] 1.111
-      &END BOND
-      &BOND
-        #CTL2  CTL2  222.500     1.530
-        ATOMS   CTL2 CTL2
-        KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 222.5
-        R0      [angstrom] 1.530
-      &END BOND
-      &BOND
-        #CTL2  CTL3  222.500     1.528
-        ATOMS   CTL2 CTL3
-        KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 222.5
-        R0      [angstrom] 1.528
-      &END BOND
-#####################################################
+      #####################################################
       &BEND
         #HAL2 CTL2 HAL2   35.500    109.00
-        ATOMS   HAL2 CTL2 HAL2
-        K       [kcalmol*rad^-2] 35.500
-        THETA0  [deg] 109.00
+        ATOMS HAL2 CTL2 HAL2
+        K [kcalmol*rad^-2] 35.500
+        THETA0 [deg] 109.00
       &END BEND
       &BEND
         #HAL3 CTL3 HAL3   35.500    108.40
-        ATOMS   HAL3 CTL3 HAL3
-        K       [kcalmol*rad^-2] 35.500
-        THETA0  [deg] 108.40
+        ATOMS HAL3 CTL3 HAL3
+        K [kcalmol*rad^-2] 35.500
+        THETA0 [deg] 108.40
       &END BEND
       &BEND
         #HAL2 CTL2 CTL3   34.600    110.10
-        ATOMS   HAL2 CTL2 CTL3
-        K       [kcalmol*rad^-2] 34.600
-        THETA0  [deg] 110.10
+        ATOMS HAL2 CTL2 CTL3
+        K [kcalmol*rad^-2] 34.600
+        THETA0 [deg] 110.10
       &END BEND
       &BEND
         #CTL2 CTL2 CTL3   58.000    115.00
-        ATOMS   CTL2 CTL2 CTL3
-        K       [kcalmol*rad^-2] 58.000
-        THETA0  [deg] 115.00
+        ATOMS CTL2 CTL2 CTL3
+        K [kcalmol*rad^-2] 58.000
+        THETA0 [deg] 115.00
       &END BEND
       &BEND
         #HAL3 CTL3 CTL2   34.600    110.10
-        ATOMS   HAL3 CTL3 CTL2
-        K       [kcalmol*rad^-2] 34.600
-        THETA0  [deg] 110.10
+        ATOMS HAL3 CTL3 CTL2
+        K [kcalmol*rad^-2] 34.600
+        THETA0 [deg] 110.10
       &END BEND
       &BEND
         #HAL2 CTL2 CTL2   26.500    110.10
-        ATOMS   HAL2 CTL2 CTL2
-        K       [kcalmol*rad^-2] 26.500
-        THETA0  [deg] 110.10
+        ATOMS HAL2 CTL2 CTL2
+        K [kcalmol*rad^-2] 26.500
+        THETA0 [deg] 110.10
       &END BEND
-#####################################################
+      #####################################################
+      &BOND
+        #CTL2  HAL2  309.00      1.111
+        ATOMS CTL2 HAL2
+        K [kcalmol*angstrom^-2] 309.0
+        KIND CHARMM
+        R0 [angstrom] 1.111
+      &END BOND
+      &BOND
+        #CTL3  HAL3  322.00      1.111
+        ATOMS CTL3 HAL3
+        K [kcalmol*angstrom^-2] 322.0
+        KIND CHARMM
+        R0 [angstrom] 1.111
+      &END BOND
+      &BOND
+        #CTL2  CTL2  222.500     1.530
+        ATOMS CTL2 CTL2
+        K [kcalmol*angstrom^-2] 222.5
+        KIND CHARMM
+        R0 [angstrom] 1.530
+      &END BOND
+      &BOND
+        #CTL2  CTL3  222.500     1.528
+        ATOMS CTL2 CTL3
+        K [kcalmol*angstrom^-2] 222.5
+        KIND CHARMM
+        R0 [angstrom] 1.528
+      &END BOND
+      #####################################################
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS HAL2 HAL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL2 HAL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL2 CTL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL2 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL3 HAL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL3 CTL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL3 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS CTL2 CTL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS CTL2 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS CTL3 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+      &END NONBONDED
+      #####################################################
+      &NONBONDED14
+        &LENNARD-JONES
+          ATOMS HAL2 HAL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL2 HAL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL2 CTL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL2 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL3 HAL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL3 CTL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HAL3 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS CTL2 CTL2
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS CTL2 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS CTL3 CTL3
+          EPSILON 0.0
+          RCUT 9.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+      &END NONBONDED14
+      #####################################################
       &TORSION
         #CTL3 CTL2 CTL2 CTL3     0.10    2   180.00
-        ATOMS   CTL3 CTL2 CTL2 CTL3
-        K       [kcalmol] 0.10
-        PHI0    [deg] 180.00
-        M         2
+        ATOMS CTL3 CTL2 CTL2 CTL3
+        K [kcalmol] 0.10
+        M 2
+        PHI0 [deg] 180.00
       &END TORSION
       &TORSION
         #CTL3 CTL2 CTL2 CTL3     0.15    4     0.00
-        ATOMS   CTL3 CTL2 CTL2 CTL3
-        K       [kcalmol] 0.15
-        PHI0    [deg] 0.00
-        M         4
+        ATOMS CTL3 CTL2 CTL2 CTL3
+        K [kcalmol] 0.15
+        M 4
+        PHI0 [deg] 0.00
       &END TORSION
       &TORSION
         #CTL3 CTL2 CTL2 CTL3     0.10    6   180.00
-        ATOMS   CTL3 CTL2 CTL2 CTL3
-        K       [kcalmol] 0.10
-        PHI0    [deg] 180.00
-        M         6
+        ATOMS CTL3 CTL2 CTL2 CTL3
+        K [kcalmol] 0.10
+        M 6
+        PHI0 [deg] 180.00
       &END TORSION
       &TORSION
         #HAL2 CTL2 CTL3 HAL3     0.1600  3     0.00
-        ATOMS   HAL2 CTL2 CTL3 HAL3
-        K       [kcalmol] 0.16
-        PHI0    [deg] 0.00
-        M         3
+        ATOMS HAL2 CTL2 CTL3 HAL3
+        K [kcalmol] 0.16
+        M 3
+        PHI0 [deg] 0.00
       &END TORSION
       &TORSION
         #CTL2 CTL2 CTL3 HAL3     0.1600  3     0.00
-        ATOMS   CTL2 CTL2 CTL3 HAL3
-        K       [kcalmol] 0.16
-        PHI0    [deg] 0.00
-        M         3
+        ATOMS CTL2 CTL2 CTL3 HAL3
+        K [kcalmol] 0.16
+        M 3
+        PHI0 [deg] 0.00
       &END TORSION
       &TORSION
         #CTL3 CTL2 CTL2 HAL2     0.1900  3     0.00
-        ATOMS   CTL3 CTL2 CTL2 HAL2
-        K       [kcalmol] 0.19
-        PHI0    [deg] 0.00
-        M         3
+        ATOMS CTL3 CTL2 CTL2 HAL2
+        K [kcalmol] 0.19
+        M 3
+        PHI0 [deg] 0.00
       &END TORSION
       &TORSION
         #HAL2 CTL2 CTL2 HAL2     0.1900  3     0.00
-        ATOMS   HAL2 CTL2 CTL2 HAL2
-        K       [kcalmol] 0.19
-        PHI0    [deg] 0.00
-        M         3
+        ATOMS HAL2 CTL2 CTL2 HAL2
+        K [kcalmol] 0.19
+        M 3
+        PHI0 [deg] 0.00
       &END TORSION
-#####################################################
-      &NONBONDED14
-        &LENNARD-JONES
-          ATOMS       HAL2 HAL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL2 HAL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL2 CTL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL2 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL3 HAL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL3 CTL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL3 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       CTL2 CTL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       CTL2 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       CTL3 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-      &END NONBONDED14
-#####################################################
-      &NONBONDED
-        &LENNARD-JONES
-          ATOMS       HAL2 HAL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL2 HAL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL2 CTL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL2 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL3 HAL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL3 CTL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       HAL3 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       CTL2 CTL2
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       CTL2 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-        &LENNARD-JONES
-          ATOMS       CTL3 CTL3
-          EPSILON        0.0
-          SIGMA          1.0
-          RCUT           9.0
-        &END LENNARD-JONES
-      &END NONBONDED
-#####################################################
+      #####################################################
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -261,20 +275,8 @@
     &END CELL
     &TOPOLOGY
       CHARGE_B
-      COORD_FILE_NAME ../sample_pdb/butane.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/butane.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT pot_input
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 1
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

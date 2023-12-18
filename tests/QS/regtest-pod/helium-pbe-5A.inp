@@ -10,8 +10,9 @@
   WALLTIME 01:00:00
   &TIMINGS
     THRESHOLD 1.0e-3
-  &END
+  &END TIMINGS
 &END GLOBAL
+
 # Energy & forces calculation
 &FORCE_EVAL
   # Electronic structure
@@ -21,10 +22,10 @@
   &DFT
     # Basis set & pseudopotentials
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     # Charge & multiplicity
     CHARGE 1
     MULTIPLICITY 2
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
@@ -40,22 +41,22 @@
     &END QS
     # SCF procedure
     &SCF
+      ADDED_MOS 2
+      EPS_SCF 1.0E-5
+      LSHIFT 0.01
       MAX_SCF 25
       SCF_GUESS atomic
-      EPS_SCF 1.0E-5
-      ADDED_MOS 2
-      LSHIFT 0.01
       &DIAGONALIZATION on
         ALGORITHM standard
       &END DIAGONALIZATION
       &MIXING
-        METHOD direct_p_mixing
         ALPHA 0.8
+        METHOD direct_p_mixing
       &END MIXING
       &PRINT
         &RESTART off
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     # Exchange-correlation functional
     &XC

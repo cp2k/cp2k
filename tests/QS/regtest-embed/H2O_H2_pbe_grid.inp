@@ -2,108 +2,109 @@
 !  Closed shell grid-based optimization of the embedding potential
 !
 &GLOBAL
-  PROJECT  h2o_h2_pbe_grid
   PRINT_LEVEL MEDIUM
+  PROJECT h2o_h2_pbe_grid
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3 4 5
-   MULTIPLE_SUBSYS T
-&END
+  FORCE_EVAL_ORDER 2 3 4 5
+  MULTIPLE_SUBSYS T
+&END MULTIPLE_FORCE_EVALS
+
 &FORCE_EVAL
-    METHOD EMBED
-    &EMBED
-       NGROUPS 1
-       &MAPPING
-          &FORCE_EVAL_EMBED
-             &FRAGMENT 1
-                1 3
-             &END
-             &FRAGMENT 2
-                4 5
-             &END
-             &FRAGMENT 3
-                1 5
-             &END
-          &END
-          &FORCE_EVAL 1
-             &FRAGMENT 1
-                1 3
-                MAP 1
-              &END
-          &END
-          &FORCE_EVAL 2
-             &FRAGMENT 1
-                1 2
-                MAP 2
-             &END
-          &END
-          &FORCE_EVAL 3
-             &FRAGMENT 1
-                1 5
-                MAP 3
-              &END
-          &END
-          &FORCE_EVAL 4
-             &FRAGMENT 1
-                1 2
-                MAP 2
-             &END
-          &END
-       &END
-    &END EMBED
+  METHOD EMBED
+  &EMBED
+    NGROUPS 1
+    &MAPPING
+      &FORCE_EVAL 1
+        &FRAGMENT 1
+          1 3
+          MAP 1
+        &END FRAGMENT
+      &END FORCE_EVAL
+      &FORCE_EVAL 2
+        &FRAGMENT 1
+          1 2
+          MAP 2
+        &END FRAGMENT
+      &END FORCE_EVAL
+      &FORCE_EVAL 3
+        &FRAGMENT 1
+          1 5
+          MAP 3
+        &END FRAGMENT
+      &END FORCE_EVAL
+      &FORCE_EVAL 4
+        &FRAGMENT 1
+          1 2
+          MAP 2
+        &END FRAGMENT
+      &END FORCE_EVAL
+      &FORCE_EVAL_EMBED
+        &FRAGMENT 1
+          1 3
+        &END FRAGMENT
+        &FRAGMENT 2
+          4 5
+        &END FRAGMENT
+        &FRAGMENT 3
+          1 5
+        &END FRAGMENT
+      &END FORCE_EVAL_EMBED
+    &END MAPPING
+  &END EMBED
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom] 5.000 5.000 5.000
     &END CELL
+    &COORD
+      O      1.75  1.5  0.0
+      H      1.0   1.0  0.0
+      H      2.5   1.0  0.0
+      H      1.75  2.75  0.0
+      H      1.75  3.50 0.0
+    &END COORD
     &KIND H
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q1
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q6
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q6
     &END KIND
-    &COORD
-  O      1.75  1.5  0.0
-  H      1.0   1.0  0.0
-  H      2.5   1.0  0.0
-  H      1.75  2.75  0.0
-  H      1.75  3.50 0.0
-    &END
   &END SUBSYS
 &END FORCE_EVAL
 
 ! Subsys 1
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ
-    POTENTIAL_FILE_NAME   HF_POTENTIALS
+    BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
+    POTENTIAL_FILE_NAME HF_POTENTIALS
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF 100
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
     &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
     &END QS
     &SCF
-      &OT
-       PRECONDITIONER FULL_ALL
-      &END
-      SCF_GUESS ATOMIC
       MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END OT
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -112,55 +113,54 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom] 5.000 5.000 5.000
     &END CELL
+    &COORD
+      O      1.75  1.5  0.0
+      H      1.0   1.0  0.0
+      H      2.5   1.0  0.0
+    &END COORD
     &KIND H
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q1
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q6
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q6
     &END KIND
-    &COORD
-  O      1.75  1.5  0.0
-  H      1.0   1.0  0.0
-  H      2.5   1.0  0.0
-    &END
   &END SUBSYS
 &END FORCE_EVAL
 
 ! Subsys 2
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ
-    POTENTIAL_FILE_NAME   HF_POTENTIALS
+    BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
+    POTENTIAL_FILE_NAME HF_POTENTIALS
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF 100
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
     &END POISSON
     &QS
       CLUSTER_EMBED_SUBSYS .TRUE.
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
     &END QS
     &SCF
-      &OT
-       PRECONDITIONER FULL_ALL
-      &END
-      SCF_GUESS ATOMIC
       MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END OT
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -169,67 +169,66 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom] 5.000 5.000 5.000
     &END CELL
+    &COORD
+      H      1.75  2.75  0.0
+      H      1.75  3.50 0.0
+    &END COORD
     &KIND H
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q1
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q6
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q6
     &END KIND
-    &COORD
-  H      1.75  2.75  0.0
-  H      1.75  3.50 0.0
-    &END
   &END SUBSYS
 &END FORCE_EVAL
 
 ! Total system
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ
-    POTENTIAL_FILE_NAME   HF_POTENTIALS
-    &PRINT
-       &E_DENSITY_CUBE LOW
-       &END
-    &END
+    BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
+    POTENTIAL_FILE_NAME HF_POTENTIALS
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF 100
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
     &END POISSON
+    &PRINT
+      &E_DENSITY_CUBE LOW
+      &END E_DENSITY_CUBE
+    &END PRINT
     &QS
-      REF_EMBED_SUBSYS .TRUE.
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
+      REF_EMBED_SUBSYS .TRUE.
       &OPT_EMBED
-         REG_LAMBDA 0.00001
-         N_ITER 50
-         DENS_CONV_INT 0.55
-         DENS_CONV_MAX 0.03
-         GRID_OPT .TRUE.
-         TRUST_RAD 1.0
-         POT_GUESS DIFF
-      &END
+        DENS_CONV_INT 0.55
+        DENS_CONV_MAX 0.03
+        GRID_OPT .TRUE.
+        N_ITER 50
+        POT_GUESS DIFF
+        REG_LAMBDA 0.00001
+        TRUST_RAD 1.0
+      &END OPT_EMBED
     &END QS
     &SCF
-      &OT
-       PRECONDITIONER FULL_ALL
-      &END
-      SCF_GUESS ATOMIC
       MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END OT
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -238,94 +237,91 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom] 5.000 5.000 5.000
     &END CELL
+    &COORD
+      O      1.75  1.5  0.0
+      H      1.0   1.0  0.0
+      H      2.5   1.0  0.0
+      H      1.75  2.75  0.0
+      H      1.75  3.50 0.0
+    &END COORD
     &KIND H
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q1
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q6
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q6
     &END KIND
-    &COORD
-  O      1.75  1.5  0.0
-  H      1.0   1.0  0.0
-  H      2.5   1.0  0.0
-  H      1.75  2.75  0.0
-  H      1.75  3.50 0.0
-    &END
   &END SUBSYS
 &END FORCE_EVAL
 
 ! Higher level calculation on subsys 2
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ
-    POTENTIAL_FILE_NAME   HF_POTENTIALS
+    BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
+    POTENTIAL_FILE_NAME HF_POTENTIALS
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF 100
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
     &END POISSON
     &QS
-      HIGH_LEVEL_EMBED_SUBSYS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      HIGH_LEVEL_EMBED_SUBSYS
+      METHOD GPW
     &END QS
     &SCF
-      &OT
-       PRECONDITIONER FULL_ALL
-      &END
-      SCF_GUESS ATOMIC
       MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END OT
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-          &PBE
-             SCALE_X 0.75
-             SCALE_C 1.0
-          &END
-      &END XC_FUNCTIONAL
       &HF
         FRACTION 0.25
         &INTERACTION_POTENTIAL
-           POTENTIAL_TYPE TRUNCATED
-           CUTOFF_RADIUS  2.45
-           T_C_G_DATA  t_c_g.dat
-         &END
-
-      &END
+          CUTOFF_RADIUS 2.45
+          POTENTIAL_TYPE TRUNCATED
+          T_C_G_DATA t_c_g.dat
+        &END INTERACTION_POTENTIAL
+      &END HF
+      &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_C 1.0
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.000   5.000  5.000
+      ABC [angstrom] 5.000 5.000 5.000
     &END CELL
+    &COORD
+      H      1.75  2.75  0.0
+      H      1.75  3.50 0.0
+    &END COORD
     &KIND H
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q1
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q1
     &END KIND
     &KIND O
-      BASIS_SET  cc-TZ
-      BASIS_SET RI_AUX  RI_TZ
-      POTENTIAL  GTH-HF-q6
+      BASIS_SET cc-TZ
+      BASIS_SET RI_AUX RI_TZ
+      POTENTIAL GTH-HF-q6
     &END KIND
-    &COORD
-  H      1.75  2.75  0.0
-  H      1.75  3.50 0.0
-    &END
   &END SUBSYS
 &END FORCE_EVAL
-

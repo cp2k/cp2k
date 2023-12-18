@@ -1,9 +1,32 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT water_2_angvel_zero_001
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ANGVEL_ZERO T
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -24,29 +47,8 @@
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_2.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_2.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_2_angvel_zero_001
-  RUN_TYPE md
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 20
-    TIMESTEP 2.5
-    TEMPERATURE 298
-    ANGVEL_ZERO T
-  &END MD
-  &PRINT
-    &RESTART
-      &EACH
-        MD 1
-      &END
-    &END
-  &END
-&END MOTION

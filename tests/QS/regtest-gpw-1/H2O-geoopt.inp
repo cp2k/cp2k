@@ -2,48 +2,50 @@
   EPS_CHECK_DIAG 1.0E-14
   PREFERRED_DIAG_LIBRARY ScaLAPACK
   PRINT_LEVEL low
-  PROJECT " H2O geoopt " # check digestion of spaces
+  PROJECT " H2O geoopt "  # check digestion of spaces
   RUN_TYPE GEO_OPT
 &END GLOBAL
+
 &MOTION
   &GEO_OPT
-    OPTIMIZER BFGS
-    MAX_ITER 3
     MAX_DR 0.001
-    RMS_DR 0.0005
     MAX_FORCE 0.00015
+    MAX_ITER 3
+    OPTIMIZER BFGS
+    RMS_DR 0.0005
     RMS_FORCE 0.0001
   &END GEO_OPT
   &PRINT
     &STRESS
-    &END
+    &END STRESS
     &STRUCTURE_DATA
+      ANGLE 2 1 3
+      ANGLE 2 1 2  # as well as this
+      DIHEDRAL 1 2 3 4  # this should result in a error message
+      DIHEDRAL 1 2 3 1  # as well as this
+      DISTANCE 1 2
+      DISTANCE 2 3
       POSITION 1
       POSITION 2
       POSITION 3
-      DISTANCE 1 2
-      DISTANCE 2 3
-      ANGLE 2 1 3
-      DIHEDRAL 1 2 3 4 # this should result in a error message
-      ANGLE 2 1 2      # as well as this
-      DIHEDRAL 1 2 3 1 # as well as this
     &END STRUCTURE_DATA
   &END PRINT
 &END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR ANALYTICAL
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME "GTH_SOC_POTENTIALS" # quotes needed to allow for this comment
+    POTENTIAL_FILE_NAME "GTH_SOC_POTENTIALS"  # quotes needed to allow for this comment
     &MGRID
       CUTOFF 200
     &END MGRID
     &PRINT
-     &AO_MATRICES
-      NDIGITS 12
-      W_MATRIX
-     &END AO_MATRICES
+      &AO_MATRICES
+        NDIGITS 12
+        W_MATRIX
+      &END AO_MATRICES
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
@@ -58,16 +60,16 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
-  &SubSys
+  &SUBSYS
     &CELL
       ABC 5.0 10.0/2.0 5.0
-    &END Cell
-    &Coord
-     Unit Angstrom
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-  # H   0.000000    0.757136    0.520545 this line should be ignored
-    H   0.000000    1.514272/2  0.520545
+    &END CELL
+    &COORD
+      Unit Angstrom
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      # H   0.000000    0.757136    0.520545 this line should be ignored
+      H   0.000000    1.514272/2  0.520545
     &END COORD
     &KIND H
       BASIS_SET DZV-GTH-PADE
@@ -79,15 +81,15 @@
     &END KIND
     &PRINT
       &STRUCTURE_DATA
+        ANGLE 2 1 3
+        ANGLE 2 1 2  # as well as this
+        DIHEDRAL 1 2 3 4  # this should result in a error message
+        DIHEDRAL 1 2 3 1  # as well as this
+        DISTANCE 1 2
+        DISTANCE 2 3
         POSITION 1
         POSITION 2
         POSITION 3
-        DISTANCE 1 2
-        DISTANCE 2 3
-        ANGLE 2 1 3
-        DIHEDRAL 1 2 3 4 # this should result in a error message
-        ANGLE 2 1 2      # as well as this
-        DIHEDRAL 1 2 3 1 # as well as this
       &END STRUCTURE_DATA
     &END PRINT
   &END SUBSYS

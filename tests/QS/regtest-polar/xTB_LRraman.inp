@@ -1,28 +1,29 @@
 &GLOBAL
-  PROJECT h2o_polar
   PRINT_LEVEL LOW
+  PROJECT h2o_polar
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
     &QS
-       METHOD xTB
+      METHOD xTB
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       MAX_SCF 100
+      SCF_GUESS ATOMIC
     &END SCF
   &END DFT
   &PROPERTIES
     &LINRES
-       MAX_ITER 2000
-       PRECONDITIONER FULL_ALL
-       EPS 1E-6
-       &POLAR
-          DO_RAMAN T
-       &END
-    &END
-  &END
+      EPS 1E-6
+      MAX_ITER 2000
+      PRECONDITIONER FULL_ALL
+      &POLAR
+        DO_RAMAN T
+      &END POLAR
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC [bohr] 10. 10. 10.

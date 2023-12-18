@@ -1,8 +1,23 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT crys_per_qmmm_none
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
-    CHARGE 0
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    CHARGE 0
     POTENTIAL_FILE_NAME ../FAKE_POTENTIAL
     &MGRID
       COMMENSURATE
@@ -30,41 +45,41 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms NA NA
+          ATOMS NA NA
           EPSILON 0.0
-          SIGMA 0.0
           RCUT 5.0
+          SIGMA 0.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms CL NA
+          ATOMS CL NA
           EPSILON 0.0
-          SIGMA 0.0
           RCUT 5.0
+          SIGMA 0.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms CL CL
+          ATOMS CL CL
           EPSILON 0.0
-          SIGMA 0.0
           RCUT 5.0
+          SIGMA 0.0
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .44
+        EWALD_TYPE ewald
         GMAX 111
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL NONE
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 6
     &CELL
       ABC 17.320500 17.320500 17.320500
     &END CELL
-    ECOUPL NONE
-    NOCOMPATIBILITY
-    USE_GEEP_LIB 6
     &INTERPOLATOR
       EPS_R 1.0e-14
       EPS_X 1.0e-14
@@ -79,9 +94,9 @@
     &PERIODIC
       GMAX 0.5
       &MULTIPOLE
+        ANALYTICAL_GTERM
         EWALD_PRECISION 0.00000001
         RCUT 8.0
-        ANALYTICAL_GTERM
       &END MULTIPOLE
     &END PERIODIC
     &PRINT
@@ -96,25 +111,25 @@
     &QM_KIND CL
       MM_INDEX 2
     &END QM_KIND
-  #
-  # QM_KINDS
-  #
-  #
-  #
+    #
+    # QM_KINDS
+    #
+    #
+    #
   &END QMMM
   &SUBSYS
     &CELL
       ABC 17.320500 17.320500 17.320500
     &END CELL
     &COORD
-   NA        -8.660250   -8.660250   -8.660250
-   CL         0.000000    0.000000    0.000000
-   NA        -8.660250    0.000000    0.000000
-   CL         0.000000    8.660250    8.660250
-   NA         0.000000   -8.660250    0.000000
-   CL         8.660250    0.000000    8.660250
-   NA         0.000000    0.000000   -8.660250
-   CL         8.660250    8.660250    0.000000
+      NA        -8.660250   -8.660250   -8.660250
+      CL         0.000000    0.000000    0.000000
+      NA        -8.660250    0.000000    0.000000
+      CL         0.000000    8.660250    8.660250
+      NA         0.000000   -8.660250    0.000000
+      CL         8.660250    0.000000    8.660250
+      NA         0.000000    0.000000   -8.660250
+      CL         8.660250    8.660250    0.000000
     &END COORD
     &KIND NA
       BASIS_SET SZV-GTH
@@ -128,16 +143,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT crys_per_qmmm_none
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 2
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

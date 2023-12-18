@@ -1,29 +1,83 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT 2gly_DIIS-DNEB
+  RUN_TYPE BAND
+&END GLOBAL
+
+&MOTION
+  &BAND
+    BAND_TYPE D-NEB
+    K_SPRING 0.05
+    NPROC_REP 1
+    #NUMBER_OF_REPLICA 10
+    NUMBER_OF_REPLICA 11
+    ROTATE_FRAMES F
+    &CONVERGENCE_CONTROL
+      #MAX_DR 0.01
+      MAX_FORCE 0.001
+      #RMS_DR 0.02
+      RMS_FORCE 0.0005
+    &END CONVERGENCE_CONTROL
+    &CONVERGENCE_INFO
+    &END CONVERGENCE_INFO
+    &OPTIMIZE_BAND
+      OPT_TYPE DIIS
+      &DIIS
+        MAX_STEPS 20
+        NO_LS
+        N_DIIS 3
+      &END DIIS
+    &END OPTIMIZE_BAND
+    &PROGRAM_RUN_INFO
+    &END PROGRAM_RUN_INFO
+    &REPLICA
+      COORD_FILE_NAME ../amber/MOL.0.xyz
+    &END REPLICA
+    &REPLICA
+      COORD_FILE_NAME ../amber/MOL.1.xyz
+    &END REPLICA
+    &REPLICA
+      COORD_FILE_NAME ../amber/MOL.2.xyz
+    &END REPLICA
+    &REPLICA
+      COORD_FILE_NAME ../amber/MOL.3.xyz
+    &END REPLICA
+    &REPLICA
+      COORD_FILE_NAME ../amber/MOL.4.xyz
+    &END REPLICA
+  &END BAND
+  &PRINT
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../amber/mol.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../amber/mol.pot
       &SPLINE
         EMAX_ACCURACY 1.0
-        EMAX_SPLINE  1.0E10
+        EMAX_SPLINE 1.0E10
         EPS_SPLINE 1.0E-4
         R0_NB [bohr] 0.0001
-        RCUT_NB  20.0
-      &END
+        RCUT_NB 20.0
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
     &PRINT
       &FF_INFO
         SPLINE_INFO
-      &END
-    &END
+      &END FF_INFO
+    &END PRINT
   &END MM
   &SUBSYS
     &CELL
@@ -31,62 +85,10 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME ../amber/mol.pdb
-      COORDINATE PDB
       CONNECTIVITY UPSF
-      CONN_FILE_NAME  ../amber/mol.psf
+      CONN_FILE_NAME ../amber/mol.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ../amber/mol.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT 2gly_DIIS-DNEB
-  PRINT_LEVEL LOW
-  RUN_TYPE BAND
-&END GLOBAL
-&MOTION
-  &PRINT
-    &VELOCITIES OFF
-    &END
-  &END
-  &BAND
-    NPROC_REP 1
-    BAND_TYPE D-NEB
-    #NUMBER_OF_REPLICA 10
-    NUMBER_OF_REPLICA 11
-    K_SPRING 0.05
-    &CONVERGENCE_CONTROL
-      #MAX_DR 0.01
-      MAX_FORCE 0.001
-      #RMS_DR 0.02
-      RMS_FORCE 0.0005
-    &END
-    ROTATE_FRAMES F
-    &OPTIMIZE_BAND
-      OPT_TYPE DIIS
-      &DIIS
-       MAX_STEPS 20
-       N_DIIS 3
-       NO_LS
-      &END
-    &END
-    &REPLICA
-      COORD_FILE_NAME  ../amber/MOL.0.xyz
-    &END
-    &REPLICA
-      COORD_FILE_NAME  ../amber/MOL.1.xyz
-    &END
-    &REPLICA
-      COORD_FILE_NAME  ../amber/MOL.2.xyz
-    &END
-    &REPLICA
-      COORD_FILE_NAME  ../amber/MOL.3.xyz
-    &END
-    &REPLICA
-      COORD_FILE_NAME  ../amber/MOL.4.xyz
-    &END
-    &PROGRAM_RUN_INFO
-    &END
-    &CONVERGENCE_INFO
-    &END
-  &END BAND
-&END MOTION

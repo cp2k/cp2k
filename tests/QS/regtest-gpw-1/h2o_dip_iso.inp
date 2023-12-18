@@ -1,8 +1,9 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT h2o_dip_iso
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
@@ -11,6 +12,14 @@
     &MGRID
       CUTOFF 100
     &END MGRID
+    &PRINT
+      &MOMENTS
+        MAX_MOMENT 4
+        PERIODIC F
+        REFERENCE USER_DEFINED
+        REF_POINT [angstrom] 2. 0. 0.
+      &END MOMENTS
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS
@@ -21,34 +30,26 @@
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_ALL
-      &END
+      &END OT
       &PRINT
         &RESTART
-           FILENAME =RESTART
-        &END
-      &END
+          FILENAME =RESTART
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MOMENTS
-        MAX_MOMENT 4
-        PERIODIC   F
-        REFERENCE  USER_DEFINED
-        REF_POINT  [angstrom] 2. 0. 0.
-      &END MOMENTS
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
       ABC 10.58 10.58 10.58
     &END CELL
     &COORD
-    O         0.000000    0.000000    0.119040
-    H         0.000000    0.768000   -0.476160
-    H         0.000000   -0.768000   -0.476160
+      O         0.000000    0.000000    0.119040
+      H         0.000000    0.768000   -0.476160
+      H         0.000000   -0.768000   -0.476160
     &END COORD
     &KIND H
       BASIS_SET ORB DZVP-GTH

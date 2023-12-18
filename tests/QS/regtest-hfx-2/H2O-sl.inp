@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O-HF
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD QUICKSTEP
   &DFT
@@ -6,13 +12,13 @@
     &MGRID
       CUTOFF 100
     &END MGRID
-    &QS
-      EPS_DEFAULT 1.0E-10
-    &END QS
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
     &SCF
       EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
@@ -20,36 +26,36 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
+      &HF
+        FRACTION 1.0
+        &INTERACTION_POTENTIAL
+          OMEGA 0.2
+          POTENTIAL_TYPE SHORTRANGE
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          EPS_STORAGE_SCALING 0.1
+          MAX_MEMORY 100
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
+      &HF
+        FRACTION 1.0
+        &INTERACTION_POTENTIAL
+          OMEGA 0.2
+          POTENTIAL_TYPE LONGRANGE
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          EPS_STORAGE_SCALING 0.1
+          MAX_MEMORY 100
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
       &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
-      &HF
-        &SCREENING
-          EPS_SCHWARZ 1.0E-10
-        &END
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE SHORTRANGE
-          OMEGA 0.2
-        &END
-        &MEMORY
-          MAX_MEMORY 100
-          EPS_STORAGE_SCALING 0.1
-        &END
-        FRACTION 1.0
-      &END HF
-      &HF
-        &SCREENING
-          EPS_SCHWARZ 1.0E-10
-        &END
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE LONGRANGE
-          OMEGA 0.2
-        &END
-        &MEMORY
-          MAX_MEMORY 100
-          EPS_STORAGE_SCALING 0.1
-        &END
-        FRACTION 1.0
-      &END HF
     &END XC
   &END DFT
   &SUBSYS
@@ -58,9 +64,9 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET ORB DZVP-GTH-PBE
@@ -72,8 +78,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-HF
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

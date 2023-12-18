@@ -1,60 +1,50 @@
 &GLOBAL
+  PRINT_LEVEL low
   PROJECT h2o_pbe_mom_t3
   RUN_TYPE energy
-  PRINT_LEVEL low
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
-
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
-    WFN_RESTART_FILE_NAME h2o_pbe_t1-RESTART.wfn
     MULTIPLICITY 3
+    POTENTIAL_FILE_NAME POTENTIAL
     UKS .true.
-
+    WFN_RESTART_FILE_NAME h2o_pbe_t1-RESTART.wfn
     &MGRID
       CUTOFF 100
     &END MGRID
-
     &SCF
-      MAX_SCF   50
-      SCF_GUESS restart
       ADDED_MOS 5
-
+      MAX_SCF 50
+      SCF_GUESS restart
       &MOM
-         DEOCC_ALPHA 5
-         OCC_ALPHA   6
+        DEOCC_ALPHA 5
+        OCC_ALPHA 6
       &END MOM
     &END SCF
-
     &XC
       &XC_FUNCTIONAL pbe
       &END XC_FUNCTIONAL
-
       &XC_GRID
         XC_DERIV spline2_smooth
       &END XC_GRID
     &END XC
   &END DFT
-
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
-
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
-
     &KIND H
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q1
     &END KIND
-
     &KIND O
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6

@@ -1,13 +1,13 @@
 &GLOBAL
-  PROJECT H2O-rks-u_ramping_reset
   PRINT_LEVEL low
+  PROJECT H2O-rks-u_ramping_reset
   RUN_TYPE GEO_OPT
 &END GLOBAL
 
 &MOTION
   &GEO_OPT
+    MAX_ITER 2
     OPTIMIZER BFGS
-    MAX_ITER  2
   &END GEO_OPT
 &END MOTION
 
@@ -15,8 +15,8 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     PLUS_U_METHOD mulliken
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -24,9 +24,9 @@
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
       &PLUS_U
-       &EACH
-        QS_SCF 1
-       &END EACH
+        &EACH
+          QS_SCF 1
+        &END EACH
       &END PLUS_U
     &END PRINT
     &QS
@@ -35,6 +35,7 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
+      SCF_GUESS atomic
       &OT ON
         MINIMIZER cg
       &END OT
@@ -42,7 +43,6 @@
         EPS_SCF 1.0E-5
         MAX_SCF 10
       &END OUTER_SCF
-      SCF_GUESS atomic
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

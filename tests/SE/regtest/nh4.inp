@@ -1,3 +1,8 @@
+&GLOBAL
+  PROJECT nh4
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -5,8 +10,8 @@
     &QS
       METHOD MNDO
       &SE
-       ANALYTICAL_GRADIENTS F
-      &END
+        ANALYTICAL_GRADIENTS F
+      &END SE
     &END QS
     &SCF
       MAX_SCF 20
@@ -19,15 +24,11 @@
       PERIODIC NONE
     &END CELL
     &COORD
-          H                 -1.01578458     .00000000     .00000000
-          N                   .00000000     .00000000     .00000000
-          H                   .33859487     .95769088     .00000000
-          H                   .33859487    -.47884544    -.82938463
-          H                   .33859487    -.47884544     .82938463
+      H                 -1.01578458     .00000000     .00000000
+      N                   .00000000     .00000000     .00000000
+      H                   .33859487     .95769088     .00000000
+      H                   .33859487    -.47884544    -.82938463
+      H                   .33859487    -.47884544     .82938463
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT nh4
-  RUN_TYPE GEO_OPT
-&END GLOBAL

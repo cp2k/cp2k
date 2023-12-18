@@ -1,50 +1,3 @@
-&FORCE_EVAL
-  METHOD Quickstep
-  &PRINT
-     &GRRM
-        FILENAME =grrm.rrm
-     &END
-  &END
-  &DFT
-    &QS
-      METHOD xTB
-    &END QS
-    &SCF
-      SCF_GUESS MOPAC
-      &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
-         MINIMIZER DIIS
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-8
-      &END
-      MAX_SCF  10
-      EPS_SCF 1.0E-8
-    &END SCF
-    &PRINT
-      &MOMENTS ON
-         PERIODIC .FALSE.
-         REFERENCE COM
-      &END
-    &END
-  &END DFT
-  &SUBSYS
-    &CELL
-      ABC [angstrom] 6 6 6
-      PERIODIC NONE
-    &END
-    &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
-    &END COORD
-    &TOPOLOGY
-     &CENTER_COORDINATES
-     &END
-    &END
-  &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT h2oVib
@@ -52,8 +5,54 @@
 &END GLOBAL
 
 &VIBRATIONAL_ANALYSIS
- INTENSITIES .TRUE.
- DX 0.001
-&END
+  DX 0.001
+  INTENSITIES .TRUE.
+&END VIBRATIONAL_ANALYSIS
 
-
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &PRINT
+      &MOMENTS ON
+        PERIODIC .FALSE.
+        REFERENCE COM
+      &END MOMENTS
+    &END PRINT
+    &QS
+      METHOD xTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-8
+      MAX_SCF 10
+      SCF_GUESS MOPAC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-8
+        MAX_SCF 10
+      &END OUTER_SCF
+    &END SCF
+  &END DFT
+  &PRINT
+    &GRRM
+      FILENAME =grrm.rrm
+    &END GRRM
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6 6 6
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

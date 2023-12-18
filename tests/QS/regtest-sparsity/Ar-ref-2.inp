@@ -1,3 +1,21 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT Ar-ref-2
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE REFTRAJ
+    STEPS 2
+    # next MD step, overlap matrix will be sparse
+    &REFTRAJ
+      EVAL ENERGY
+      TRAJ_FILE_NAME Ar-ref-2.xyz
+    &END REFTRAJ
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -10,15 +28,15 @@
       EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
-      SCF_GUESS atomic
-      MAX_SCF 30
       EPS_SCF 1.0E-6
-      &OUTER_SCF
-        MAX_SCF 10
-        EPS_SCF 1.0E-6
-      &END
+      MAX_SCF 30
+      SCF_GUESS atomic
       &OT
-      &END
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -31,8 +49,8 @@
       ABC 6.0 6.0 30.0
     &END CELL
     &COORD
-    Ar     0.000000  0.000000  0.000000
-    Ar     0.000000  0.000000  2.000000
+      Ar     0.000000  0.000000  0.000000
+      Ar     0.000000  0.000000  2.000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-GTH-PADE
@@ -40,20 +58,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT Ar-ref-2
-  RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE REFTRAJ
-    STEPS 2
-    # next MD step, overlap matrix will be sparse
-    &REFTRAJ
-      TRAJ_FILE_NAME Ar-ref-2.xyz
-      EVAL ENERGY
-    &END
-  &END MD
-&END MOTION
-

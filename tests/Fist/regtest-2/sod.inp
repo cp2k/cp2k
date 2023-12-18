@@ -1,27 +1,41 @@
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT sod
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 300
+    TEMP_TOL 50
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &BOND
-        ATOMS Si O
-        KIND HARMONIC
-        K 0.5
-        R0 [angstrom] 1.59
-      &END BOND
-
       &BEND
         ATOMS Si O Si
-        KIND HARMONIC
         K 0.0
+        KIND HARMONIC
         THETA0 0.0
       &END BEND
       &BEND
         ATOMS O Si O
-        KIND HARMONIC
         K 0.0
+        KIND HARMONIC
         THETA0 0.0
       &END BEND
-
+      &BOND
+        ATOMS Si O
+        K 0.5
+        KIND HARMONIC
+        R0 [angstrom] 1.59
+      &END BOND
       &CHARGE
         ATOM Si
         CHARGE 1
@@ -30,11 +44,6 @@
         ATOM O
         CHARGE -0.5
       &END CHARGE
-      &SPLINE
-        EMAX_SPLINE 1.0
-        EMAX_ACCURACY 1.0
-        R0_NB [bohr] 3.5
-      &END SPLINE
       &NONBONDED
         &GENPOT
           ATOMS Si Si
@@ -59,65 +68,55 @@
           VARIABLES r
         &END GENPOT
       &END NONBONDED14
+      &SPLINE
+        EMAX_ACCURACY 1.0
+        EMAX_SPLINE 1.0
+        R0_NB [bohr] 3.5
+      &END SPLINE
     &END FORCEFIELD
-
     &POISSON
       &EWALD
         EWALD_TYPE NONE
       &END EWALD
     &END POISSON
     &PRINT
-      &SUBCELL
-      &END SUBCELL
       #&NEIGHBOR_LISTS
       #&END NEIGHBOR_LISTS
-      &FF_INFO  DEBUG
+      &FF_INFO DEBUG
       &END FF_INFO
+      &SUBCELL
+      &END SUBCELL
     &END PRINT
   &END MM
-  &SUBSYS
-    &CELL
-      ABC 8.965 8.965 8.965
-    &END CELL
-    &TOPOLOGY
-        COORDINATE XYZ
-        COORD_FILE_NAME ../sample_xyz/sod.xyz
-        CONNECTIVITY UPSF
-        CONN_FILE_NAME ../sample_psf/sod.psf
-        #&GENERATE
-        #    CREATE_MOLECULES T
-        #&END GENERATE
-    &END TOPOLOGY
-    &PRINT
-        &CELL
-           UNIT nm
-        &END
-        #&INTERATOMIC_DISTANCES
-        #&END INTERATOMIC_DISTANCES
-        #&TOPOLOGY_INFO
-        #    XYZ_INFO T
-        #    GENERATE_INFO F
-        #&END TOPOLOGY_INFO
-        #&KINDS
-        #&END KINDS
-    &END PRINT
-  &END SUBSYS
   &PRINT
     &FORCES
     &END FORCES
   &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 8.965 8.965 8.965
+    &END CELL
+    &PRINT
+      &CELL
+        UNIT nm
+      &END CELL
+      #&INTERATOMIC_DISTANCES
+      #&END INTERATOMIC_DISTANCES
+      #&TOPOLOGY_INFO
+      #    XYZ_INFO T
+      #    GENERATE_INFO F
+      #&END TOPOLOGY_INFO
+      #&KINDS
+      #&END KINDS
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/sod.psf
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/sod.xyz
+      #&GENERATE
+      #    CREATE_MOLECULES T
+      #&END GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT sod
-  RUN_TYPE MD
-  PRINT_LEVEL HIGH
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    TIMESTEP 1.0
-    TEMPERATURE 300
-    STEPS 10
-    TEMP_TOL 50
-  &END MD
-&END

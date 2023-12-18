@@ -1,71 +1,56 @@
 &GLOBAL
-  PROJECT H2O-B3LYP-pseudo_cano
   PRINT_LEVEL LOW
+  PROJECT H2O-B3LYP-pseudo_cano
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
-    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME  POTENTIAL
-    AUTO_BASIS RI_XAS    MEDIUM
-
+    AUTO_BASIS RI_XAS MEDIUM
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &POISSON
       PERIODIC NONE
       PSOLVER MT
     &END POISSON
-
     &QS
       METHOD GAPW
     &END QS
-
-    &XC
-      &XC_FUNCTIONAL
-         &HYB_GGA_XC_B3LYP5
-         &END HYB_GGA_XC_B3LYP5
-      &END XC_FUNCTIONAL
-      &HF
-         FRACTION 0.2
-      &END HF
-    &END XC
-
     &XAS_TDP
-      &DONOR_STATES
-         DEFINE_EXCITED BY_KIND
-         KIND_LIST O
-         STATE_TYPES 1s
-         N_SEARCH 1
-         LOCALIZE
-      &END DONOR_STATES
-
-      TAMM_DANCOFF .FALSE.
       DIPOLE_FORM LENGTH
       GRID O 150 150
-
+      TAMM_DANCOFF .FALSE.
+      &DONOR_STATES
+        DEFINE_EXCITED BY_KIND
+        KIND_LIST O
+        LOCALIZE
+        N_SEARCH 1
+        STATE_TYPES 1s
+      &END DONOR_STATES
       &GW2X
-         PSEUDO_CANONICAL T
+        PSEUDO_CANONICAL T
       &END GW2X
-
       &KERNEL
-         &XC_FUNCTIONAL
-            &HYB_GGA_XC_B3LYP5
-            &END HYB_GGA_XC_B3LYP5
-         &END XC_FUNCTIONAL
-         &EXACT_EXCHANGE
-            FRACTION 0.2
-         &END EXACT_EXCHANGE
+        &EXACT_EXCHANGE
+          FRACTION 0.2
+        &END EXACT_EXCHANGE
+        &XC_FUNCTIONAL
+          &HYB_GGA_XC_B3LYP5
+          &END HYB_GGA_XC_B3LYP5
+        &END XC_FUNCTIONAL
       &END KERNEL
     &END XAS_TDP
-
+    &XC
+      &HF
+        FRACTION 0.2
+      &END HF
+      &XC_FUNCTIONAL
+        &HYB_GGA_XC_B3LYP5
+        &END HYB_GGA_XC_B3LYP5
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &SUBSYS
-    &KIND O
-      BASIS_SET Ahlrichs-def2-SVP
-      POTENTIAL ALL
-    &END KIND
-    &KIND H
-      BASIS_SET Ahlrichs-def2-SVP
-      POTENTIAL ALL
-    &END KIND
     &CELL
       ABC 5.0 5.0 5.0
       PERIODIC NONE
@@ -75,6 +60,14 @@
       H          0.00000        0.75545       -0.47116
       H          0.00000       -0.75545       -0.47116
     &END COORD
+    &KIND O
+      BASIS_SET Ahlrichs-def2-SVP
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET Ahlrichs-def2-SVP
+      POTENTIAL ALL
+    &END KIND
     &TOPOLOGY
       &CENTER_COORDINATES
       &END CENTER_COORDINATES

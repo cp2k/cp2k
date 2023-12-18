@@ -1,6 +1,7 @@
 &GLOBAL
   PROJECT Quip_Cu_LJ
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -8,13 +9,13 @@
       &CHARGE
         ATOM Cu
         CHARGE 0.0
-      &END
+      &END CHARGE
       &NONBONDED
-      &QUIP
-        ATOMS Cu Cu
-        INIT_ARGS IP LJ
-        PARM_FILE_NAME ip.parms.LJ.xml
-      &END QUIP
+        &QUIP
+          ATOMS Cu Cu
+          INIT_ARGS IP LJ
+          PARM_FILE_NAME ip.parms.LJ.xml
+        &END QUIP
       &END NONBONDED
     &END FORCEFIELD
     &POISSON

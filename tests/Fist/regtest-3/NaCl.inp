@@ -1,3 +1,29 @@
+&GLOBAL
+  PROJECT NaCl
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TEMPERATURE 300.0
+    TIMESTEP 2.5
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 1000
+        YOSHIDA 3
+      &END NOSE
+      &PRINT
+        &ENERGY
+        &END ENERGY
+      &END PRINT
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -12,26 +38,26 @@
       &END CHARGE
       &NONBONDED
         &BMHFT
-          map_atoms NA NA
-          atoms NA NA
+          ATOMS NA NA
+          MAP_ATOMS NA NA
           RCUT 10.0
         &END BMHFT
         &BMHFT
-          map_atoms NA CL
-          atoms NA CL
+          ATOMS NA CL
+          MAP_ATOMS NA CL
           RCUT 10.0
         &END BMHFT
         &BMHFT
-          map_atoms CL CL
-          atoms CL CL
+          ATOMS CL CL
+          MAP_ATOMS CL CL
           RCUT 10.0
         &END BMHFT
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .5
+        EWALD_TYPE spme
         GMAX 40
         O_SPLINE 6
       &END EWALD
@@ -42,35 +68,11 @@
       ABC 22.480 22.480 22.480
     &END CELL
     &TOPOLOGY
-      &GENERATE
-         BONDLENGTH_MAX [bohr] 6.5
-      &END
-      COORD_FILE_NAME ../sample_pdb/NaCl.pdb
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/NaCl.pdb
+      &GENERATE
+        BONDLENGTH_MAX [bohr] 6.5
+      &END GENERATE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT NaCl
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 300.0
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON 1000
-        MTS 2
-      &END NOSE
-      &PRINT
-        &ENERGY
-        &END
-      &END
-    &END
-  &END MD
-&END MOTION

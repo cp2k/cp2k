@@ -1,28 +1,57 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Al2O3
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&DEBUG
+  DX 0.01
+&END DEBUG
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1000
+    MINIMIZER BFGS
+    &BFGS
+    &END BFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    &POISSON
+      &EWALD
+        ALPHA .5
+        EWALD_TYPE ewald
+        GMAX 31
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END MULTIPOLES
+      &END EWALD
+    &END POISSON
     &QS
       METHOD PM6
       &SE
         INTEGRAL_SCREENING KDSO-D
         PERIODIC EWALD
         &COULOMB
-          CUTOFF   [angstrom]      6.0
-          RC_RANGE [angstrom]      0.1
-        &END
-        &SCREENING
-          RC_TAPER [angstrom]      3.0
-          RC_RANGE [angstrom]      0.1
-        &END
+          CUTOFF [angstrom] 6.0
+          RC_RANGE [angstrom] 0.1
+        &END COULOMB
         &LR_CORRECTION
-          CUTOFF   [angstrom]      3.0
-          RC_RANGE [angstrom]      0.1
-        &END
+          CUTOFF [angstrom] 3.0
+          RC_RANGE [angstrom] 0.1
+        &END LR_CORRECTION
         &PRINT
           &EWALD_INFO
-          &END
-        &END
-      &END
+          &END EWALD_INFO
+        &END PRINT
+        &SCREENING
+          RC_RANGE [angstrom] 0.1
+          RC_TAPER [angstrom] 3.0
+        &END SCREENING
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-6
@@ -31,70 +60,44 @@
       SCF_GUESS ATOMIC
       &OT
         MINIMIZER DIIS
-        PRECONDITIONER FULL_SINGLE_INVERSE
         N_DIIS 9
-      &END
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
       &PRINT
-         &RESTART OFF
-         &END
-      &END
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
-    &POISSON
-      &EWALD
-        &MULTIPOLES
-          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
-        &END
-        EWALD_TYPE ewald
-        ALPHA  .5
-        GMAX   31
-      &END EWALD
-    &END
   &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.75900    4.75900   12.99100
-      ALPHA_BETA_GAMMA [deg]  90.00000   90.00000  120.00000
-    &END
+      ABC [angstrom] 4.75900 4.75900 12.99100
+      ALPHA_BETA_GAMMA [deg] 90.00000 90.00000 120.00000
+    &END CELL
+    &PRINT
+      &CELL
+        UNIT angstrom
+      &END CELL
+      &KINDS
+        BASIS_SET
+        POTENTIAL
+      &END KINDS
+      &TOPOLOGY_INFO
+        XTL_INFO
+      &END TOPOLOGY_INFO
+    &END PRINT
     &TOPOLOGY
       CONNECTIVITY OFF
       COORDINATE XTL
       COORD_FILE_NAME ../sample_xtl/al2o3-aloxite.xtl
       &DUMP_PDB
-      &END
+      &END DUMP_PDB
       &DUMP_PSF
-      &END
-    &END
-    &PRINT
-      &CELL
-        UNIT angstrom
-      &END
-      &TOPOLOGY_INFO
-        XTL_INFO
-      &END
-      &KINDS
-        BASIS_SET
-        POTENTIAL
-      &END KINDS
-    &END PRINT
+      &END DUMP_PSF
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES
-    &END
-  &END
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT Al2O3
-  PRINT_LEVEL LOW
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MINIMIZER BFGS
-    MAX_ITER 1000
-    &BFGS
-    &END
-  &END
-&END
-&DEBUG
-  DX 0.01
-&END

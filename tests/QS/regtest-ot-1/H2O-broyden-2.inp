@@ -1,5 +1,18 @@
-#CPQA DEPENDS H2O-broyden-1.inp
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O-broyden
+  RUN_TYPE MD
+&END GLOBAL
 
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TEMPERATURE 300
+  &END MD
+&END MOTION
+
+#CPQA DEPENDS H2O-broyden-1.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -12,16 +25,16 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
-      SCF_GUESS RESTART
       EPS_SCF 1.0E-5
       MAX_SCF 20
+      SCF_GUESS RESTART
       &OT
         MINIMIZER BROYDEN
-      &END
+      &END OT
       &OUTER_SCF
         EPS_SCF 1.0E-5
         MAX_SCF 6
-      &END
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -33,9 +46,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -47,15 +60,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-broyden
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-   &MD
-      STEPS 2
-      ENSEMBLE NVE
-      TEMPERATURE 300
-   &END
-&END

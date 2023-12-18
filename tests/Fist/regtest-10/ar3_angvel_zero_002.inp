@@ -1,5 +1,23 @@
-#CPQA DEPENDS ar3_angvel_zero_000.inp
+&GLOBAL
+  PROJECT ar3_angvel_zero_000
+  RUN_TYPE md
+&END GLOBAL
 
+&EXT_RESTART
+  RESTART_FILE_NAME ar3_angvel_zero_000-1.restart
+&END EXT_RESTART
+
+&MOTION
+  &MD
+    ANGVEL_ZERO T
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 300
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
+#CPQA DEPENDS ar3_angvel_zero_000.inp
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -8,13 +26,13 @@
       &CHARGE
         ATOM Ar
         CHARGE 0.0
-      &END
+      &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms Ar Ar
+          ATOMS Ar Ar
           EPSILON 119.8
-          SIGMA 3.405
           RCUT 8.4
+          SIGMA 3.405
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
@@ -36,19 +54,3 @@
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT ar3_angvel_zero_000
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 20
-    TIMESTEP 0.5
-    TEMPERATURE 300
-    ANGVEL_ZERO T
-  &END MD
-&END MOTION
-&EXT_RESTART
-  RESTART_FILE_NAME ar3_angvel_zero_000-1.restart
-&END

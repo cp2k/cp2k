@@ -1,9 +1,51 @@
+&GLOBAL
+  PROJECT NaCl_fe
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+      &RESTRAINT
+        K 0.05
+      &END RESTRAINT
+    &END COLLECTIVE
+    &G3X3
+      ATOMS 1 2 3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLECULE 3
+    &END G3X3
+  &END CONSTRAINT
+  &FREE_ENERGY
+    METHOD UI
+    &UMBRELLA_INTEGRATION
+      &CONVERGENCE_CONTROL
+        COARSE_GRAINED_POINTS 2
+        COARSE_GRAINED_WIDTH 3
+        EPS_CONV 0.5
+        MAX_COARSE_GRAINED_WIDTH 3
+      &END CONVERGENCE_CONTROL
+      &UVAR
+        COLVAR 1
+      &END UVAR
+    &END UMBRELLA_INTEGRATION
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/NaCl_wat.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/NaCl_wat.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,9 +57,9 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
+        ALPHA .44
         EWALD_TYPE spme
         GMAX 25
-        ALPHA .44
         NS_MAX 50
       &END EWALD
     &END POISSON
@@ -26,56 +68,16 @@
     &CELL
       ABC 28.912 29.461 29.496
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/NaCl_wat.pdb
-      COORDINATE pdb
-      CONN_FILE_NAME  ../sample_psf/NaCl_wat.psf
-      CONNECTIVITY PSF
-    &END TOPOLOGY
     &COLVAR
       &DISTANCE
         ATOMS 1 2
-      &END
-    &END
+      &END DISTANCE
+    &END COLVAR
+    &TOPOLOGY
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ../sample_psf/NaCl_wat.psf
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/NaCl_wat.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT NaCl_fe
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &G3X3
-      DISTANCES 1.8897268 1.8897268 3.0859239
-      MOLECULE 3
-      ATOMS 1 2 3
-    &END G3X3
-    &COLLECTIVE
-      COLVAR 1
-      INTERMOLECULAR
-      &RESTRAINT
-        K 0.05
-      &END
-    &END
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 1.0
-    TEMPERATURE 298
-  &END MD
-  &FREE_ENERGY
-    METHOD UI
-    &UMBRELLA_INTEGRATION
-     &CONVERGENCE_CONTROL
-        EPS_CONV 0.5
-        COARSE_GRAINED_WIDTH     3
-        MAX_COARSE_GRAINED_WIDTH 3
-        COARSE_GRAINED_POINTS    2
-     &END
-     &UVAR
-       COLVAR 1
-     &END
-    &END
-  &END
-&END MOTION

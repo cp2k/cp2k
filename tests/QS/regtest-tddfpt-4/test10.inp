@@ -1,87 +1,91 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ftest
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PROPERTIES
-    &TDDFPT
-       KERNEL FULL
-       NSTATES      5
-       MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
-       RKS_TRIPLETS F
-    &END TDDFPT
-  &END PROPERTIES
   &DFT
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
     &QS
       METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC 
-      &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
-         MINIMIZER DIIS
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-6
-      &END
-      MAX_SCF  50
       EPS_SCF 1.0E-6
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END OUTER_SCF
     &END SCF
-
     &XC
+      &HF
+        FRACTION 1.000
+        &INTERACTION_POTENTIAL
+          OMEGA 0.30
+          POTENTIAL_TYPE MIX_CL
+          SCALE_COULOMB 0.15
+          SCALE_LONGRANGE 0.85
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          MAX_MEMORY 10
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+        &END SCREENING
+      &END HF
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL NON_LOCAL
+        &NON_LOCAL
+          CUTOFF 30
+          KERNEL_FILE_NAME rVV10_kernel_table.dat
+          PARAMETERS 6.0 0.01
+          TYPE RVV10
+          VERBOSE_OUTPUT
+        &END NON_LOCAL
+      &END VDW_POTENTIAL
       &XC_FUNCTIONAL
         &HYB_MGGA_XC_WB97M_V
         &END HYB_MGGA_XC_WB97M_V
       &END XC_FUNCTIONAL
-      &HF
-        FRACTION 1.000
-        &SCREENING
-           EPS_SCHWARZ 1.0E-6
-        &END
-        &INTERACTION_POTENTIAL
-           POTENTIAL_TYPE MIX_CL
-           SCALE_COULOMB   0.15
-           SCALE_LONGRANGE 0.85
-           OMEGA 0.30
-        &END
-        &MEMORY
-          MAX_MEMORY  10
-        &END
-      &END
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE RVV10
-           PARAMETERS 6.0 0.01
-           VERBOSE_OUTPUT
-           KERNEL_FILE_NAME rVV10_kernel_table.dat
-           CUTOFF 30
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
     &END XC
-
-    &MGRID
-       CUTOFF  200
-       REL_CUTOFF  40
-    &END
-    &POISSON
-       PERIODIC NONE
-       POISSON_SOLVER MT
-    &END
   &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE [eV] 1.0e-7
+      KERNEL FULL
+      MAX_ITER 50
+      NSTATES 5
+      RKS_TRIPLETS F
+    &END TDDFPT
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
-    &END
+    &END CELL
     &COORD
-    O   0.000000    0.000000    0.000000
-    H   0.000000   -0.757136    0.580545
-    H   0.000000    0.757136    0.580545
+      O   0.000000    0.000000    0.000000
+      H   0.000000   -0.757136    0.580545
+      H   0.000000    0.757136    0.580545
     &END COORD
-    &TOPOLOGY
-     &CENTER_COORDINATES
-     &END
-    &END
     &KIND H
       BASIS_SET DZV-GTH-PADE
       POTENTIAL GTH-PADE-q1
@@ -90,14 +94,9 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-     &FORCES
-     &END
-  &END
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-  PROJECT ftest
-  RUN_TYPE ENERGY
-&END GLOBAL

@@ -9,8 +9,9 @@
   WALLTIME 01:00:00
   &TIMINGS
     THRESHOLD 1.0e-3
-  &END
+  &END TIMINGS
 &END GLOBAL
+
 # Energy & forces calculation
 &FORCE_EVAL
   # Electronic structure
@@ -20,10 +21,10 @@
   &DFT
     # Basis set & pseudopotentials
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME POTENTIAL
     # Charge & multiplicity
     CHARGE 1
     MULTIPLICITY 2
+    POTENTIAL_FILE_NAME POTENTIAL
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
@@ -38,22 +39,22 @@
     &END QS
     # SCF procedure
     &SCF
+      ADDED_MOS 2
+      EPS_SCF 1.0e-5
       MAX_SCF 15
       SCF_GUESS atomic
-      EPS_SCF 1.0e-5
-      ADDED_MOS 2
       &DIAGONALIZATION
         ALGORITHM standard
       &END DIAGONALIZATION
       &MIXING
-        METHOD direct_p_mixing
         ALPHA 0.1
+        METHOD direct_p_mixing
         NSKIP 10
       &END MIXING
       &PRINT
         &RESTART off
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     # Exchange-correlation functional
     &XC
@@ -68,12 +69,12 @@
       &PROJECTION
         # Donor
         &BLOCK
-          ATOMS  1  2  3  4  5  6
+          ATOMS 1 2 3 4 5 6
           NELECTRON 12
         &END BLOCK
         # Acceptor
         &BLOCK
-          ATOMS  7  8  9 10 11 12
+          ATOMS 7 8 9 10 11 12
           NELECTRON 11
         &END BLOCK
       &END PROJECTION
@@ -89,18 +90,18 @@
     &END CELL
     # Coordinates [A]
     &COORD
- C         0.0000001495      -2.0000004611       0.0623172861
- C         0.0000001471      -2.0000005746       1.3883843988
- H         0.9209880052      -2.0000002746      -0.5055759834
- H        -0.9209880605      -2.0000002249      -0.5055760233
- H         0.9212802030      -2.0000000346       1.9558762357
- H        -0.9212799857      -2.0000000210       1.9558761301
- C         0.0000001495       1.9999995389       0.0623172861
- C         0.0000001471       1.9999994254       1.3883843988
- H         0.9209880052       1.9999997254      -0.5055759834
- H        -0.9209880605       1.9999997751      -0.5055760233
- H         0.9212802030       1.9999999654       1.9558762357
- H        -0.9212799857       1.9999999790       1.9558761301
+      C         0.0000001495      -2.0000004611       0.0623172861
+      C         0.0000001471      -2.0000005746       1.3883843988
+      H         0.9209880052      -2.0000002746      -0.5055759834
+      H        -0.9209880605      -2.0000002249      -0.5055760233
+      H         0.9212802030      -2.0000000346       1.9558762357
+      H        -0.9212799857      -2.0000000210       1.9558761301
+      C         0.0000001495       1.9999995389       0.0623172861
+      C         0.0000001471       1.9999994254       1.3883843988
+      H         0.9209880052       1.9999997254      -0.5055759834
+      H        -0.9209880605       1.9999997751      -0.5055760233
+      H         0.9212802030       1.9999999654       1.9558762357
+      H        -0.9212799857       1.9999999790       1.9558761301
     &END COORD
     # Atomic types
     &KIND H

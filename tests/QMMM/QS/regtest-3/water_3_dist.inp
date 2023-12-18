@@ -1,3 +1,34 @@
+&GLOBAL
+  PROJECT water_3_dist
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      MOLNAME MOL1
+      TARGET 1.8897268
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 2
+      MOLNAME MOL1
+      TARGET 1.8897268
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 3
+      MOLNAME MOL1
+      TARGET 3.0859239
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TEMPERATURE 298
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -24,14 +55,35 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &MM
+    &FORCEFIELD
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/../../../Fist/sample_pot/water.pot
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .44
+        EWALD_TYPE pme
+        NS_MAX 25
+      &END EWALD
+    &END POISSON
+  &END MM
   &QMMM
+    ECOUPL GAUSS
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 4
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
-    ECOUPL GAUSS
-    NOCOMPATIBILITY
-    USE_GEEP_LIB 4
     &MM_KIND H
       RADIUS 0.54
     &END MM_KIND
@@ -48,40 +100,11 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  &END
-  &MM
-    &FORCEFIELD
-      parm_file_name ../sample_pot/../../../Fist/sample_pot/water.pot
-      parmtype CHM
-      &CHARGE
-        ATOM OT
-        CHARGE -0.8476
-      &END CHARGE
-      &CHARGE
-        ATOM HT
-        CHARGE 0.4238
-      &END CHARGE
-    &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE pme
-        ALPHA .44
-        NS_MAX 25
-      &END EWALD
-    &END POISSON
-  &END MM
+  &END QMMM
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
-    &COORD
-OT   -0.757  -5.616  -7.101    MOL1
-HT   -1.206  -5.714  -6.262    MOL1
-HT    0.024  -5.102  -6.896    MOL1
-OT  -11.317  -2.629  -9.689    MOL2
-HT  -11.021  -3.080 -10.480    MOL2
-HT  -10.511  -2.355  -9.252    MOL2
-    &END
     &COLVAR
       &DISTANCE
         ATOMS 1 2
@@ -97,8 +120,14 @@ HT  -10.511  -2.355  -9.252    MOL2
         ATOMS 2 3
       &END DISTANCE
     &END COLVAR
-    &TOPOLOGY
-    &END TOPOLOGY
+    &COORD
+      OT   -0.757  -5.616  -7.101    MOL1
+      HT   -1.206  -5.714  -6.262    MOL1
+      HT    0.024  -5.102  -6.896    MOL1
+      OT  -11.317  -2.629  -9.689    MOL2
+      HT  -11.021  -3.080 -10.480    MOL2
+      HT  -10.511  -2.355  -9.252    MOL2
+    &END COORD
     &KIND H
       BASIS_SET SZV-GTH
       POTENTIAL GTH-PADE-q1
@@ -107,34 +136,7 @@ HT  -10.511  -2.355  -9.252    MOL2
       BASIS_SET SZV-GTH
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_dist
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET 1.8897268
-      MOLNAME MOL1
-      COLVAR 1
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 1.8897268
-      MOLNAME MOL1
-      COLVAR 2
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 3.0859239
-      MOLNAME MOL1
-      COLVAR 3
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 3
-    TIMESTEP 1.0
-    TEMPERATURE 298
-  &END MD
-&END MOTION

@@ -1,24 +1,35 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT vib-mixed
+  RUN_TYPE VIBRATIONAL_ANALYSIS
+&END GLOBAL
+
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3
-&END
+  FORCE_EVAL_ORDER 2 3
+&END MULTIPLE_FORCE_EVALS
+
+&VIBRATIONAL_ANALYSIS
+  NPROC_REP 4
+&END VIBRATIONAL_ANALYSIS
+
 &FORCE_EVAL
- METHOD MIXED
- &MIXED
-   MIXING_TYPE GENMIX
-   &GENERIC
-     MIXING_FUNCTION X+Y
-     VARIABLES X Y
-   &END GENERIC
-   GROUP_PARTITION 3 1
- &END
+  METHOD MIXED
+  &MIXED
+    GROUP_PARTITION 3 1
+    MIXING_TYPE GENMIX
+    &GENERIC
+      MIXING_FUNCTION X+Y
+      VARIABLES X Y
+    &END GENERIC
+  &END MIXED
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
- O        -0.0005010000         1.5173980000         0.0000000000
- H         0.0944820000         0.5534860000         0.0000000000
- H         0.9013420000         1.8476590000         0.0000000000
+      O        -0.0005010000         1.5173980000         0.0000000000
+      H         0.0944820000         0.5534860000         0.0000000000
+      H         0.9013420000         1.8476590000         0.0000000000
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -30,6 +41,7 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -39,21 +51,21 @@
       CUTOFF 100
     &END MGRID
     &QS
-      WF_INTERPOLATION ASPC
       EXTRAPOLATION_ORDER 3
+      WF_INTERPOLATION ASPC
     &END QS
     &SCF
-      &OUTER_SCF
-        EPS_SCF 1.E-2
-        MAX_SCF 5
-      &END OUTER_SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF 30
       EPS_SCF 1.E-2
+      MAX_SCF 30
+      SCF_GUESS ATOMIC
       &OT T
         MINIMIZER DIIS
         N_DIIS 9
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.E-2
+        MAX_SCF 5
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL HCTH120
@@ -61,42 +73,11 @@
     &END XC
   &END DFT
 &END FORCE_EVAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &NONBONDED
-        &GENPOT
-          ATOMS O O
-          FUNCTION A+B*EXP(-C*X)
-          VARIABLES X
-          PARAMETERS A B C
-          VALUES  0. 0.11  0.749685866
-          RCUT 7.
-          RMIN 0.
-          RMAX 10.
-        &END GENPOT
-        &GENPOT
-          ATOMS H H
-          FUNCTION A+B*EXP(-C*X)
-          VARIABLES X
-          PARAMETERS A B C
-          VALUES  0. 0. 0.
-          RCUT 7.
-          RMIN 0.
-          RMAX 10.
-        &END GENPOT
-        &GENPOT
-           ATOMS O H
-           FUNCTION A+B*EXP(-C*X)
-           VARIABLES X
-           PARAMETERS A B C
-           VALUES  0. 0. 0.
-           RCUT 7.
-           RMIN 0.
-           RMAX 10.
-        &END GENPOT
-      &END NONBONDED
       &CHARGE
         ATOM O
         CHARGE 0.0
@@ -105,6 +86,38 @@
         ATOM H
         CHARGE 0.0
       &END CHARGE
+      &NONBONDED
+        &GENPOT
+          ATOMS O O
+          FUNCTION A+B*EXP(-C*X)
+          PARAMETERS A B C
+          RCUT 7.
+          RMAX 10.
+          RMIN 0.
+          VALUES 0. 0.11 0.749685866
+          VARIABLES X
+        &END GENPOT
+        &GENPOT
+          ATOMS H H
+          FUNCTION A+B*EXP(-C*X)
+          PARAMETERS A B C
+          RCUT 7.
+          RMAX 10.
+          RMIN 0.
+          VALUES 0. 0. 0.
+          VARIABLES X
+        &END GENPOT
+        &GENPOT
+          ATOMS O H
+          FUNCTION A+B*EXP(-C*X)
+          PARAMETERS A B C
+          RCUT 7.
+          RMAX 10.
+          RMIN 0.
+          VALUES 0. 0. 0.
+          VARIABLES X
+        &END GENPOT
+      &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -113,11 +126,3 @@
     &END POISSON
   &END MM
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT vib-mixed
-  RUN_TYPE VIBRATIONAL_ANALYSIS
-  PRINT_LEVEL LOW
-&END GLOBAL
-&VIBRATIONAL_ANALYSIS
-  NPROC_REP 4
-&END VIBRATIONAL_ANALYSIS

@@ -1,16 +1,18 @@
 &GLOBAL
+  PRINT_LEVEL MEDIUM
   PROJECT extrap-2-far
   RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
 &END GLOBAL
+
 &MOTION
   &MD
     ENSEMBLE NVE
     STEPS 2
-    TIMESTEP 1.0
     TEMPERATURE 300.0
+    TIMESTEP 1.0
   &END MD
 &END MOTION
+
 &FORCE_EVAL
   METHOD QS
   &DFT
@@ -20,9 +22,9 @@
       CUTOFF 120
     &END MGRID
     &QS
-      EXTRAPOLATION LINEAR_P
       EPS_DEFAULT 1.0E-5
       EPS_FILTER_MATRIX 0.0e0
+      EXTRAPOLATION LINEAR_P
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -37,21 +39,13 @@
       ABC 15 4 4
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
-    O   7.500000    0.000000   -0.065587
-    H   7.500000   -0.757136    0.520545
-    H   7.500000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+      O   7.500000    0.000000   -0.065587
+      H   7.500000   -0.757136    0.520545
+      H   7.500000    0.757136    0.520545
     &END COORD
-    &VELOCITY
-       0.0 0.0 0.0
-       0.0 0.0 0.0
-       0.0 0.0 0.0
-       0.2 0.0 0.0
-       0.2 0.0 0.0
-       0.2 0.0 0.0
-    &END
     &KIND H
       BASIS_SET dZVp-GTH
       POTENTIAL GTH-PADE-q1
@@ -60,5 +54,13 @@
       BASIS_SET dZVp-GTH
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &VELOCITY
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.2 0.0 0.0
+      0.2 0.0 0.0
+      0.2 0.0 0.0
+    &END VELOCITY
   &END SUBSYS
 &END FORCE_EVAL

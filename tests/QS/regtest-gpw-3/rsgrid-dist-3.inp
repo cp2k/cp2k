@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT rsgrid-dist-3
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -6,6 +12,12 @@
     &MGRID
       CUTOFF 200
     &END MGRID
+    &PRINT
+      &MO_CUBES
+        NHOMO 1
+        NLUMO 1
+      &END MO_CUBES
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
       EXTRAPOLATION PS
@@ -17,21 +29,15 @@
       MAX_SCF 3
       SCF_GUESS ATOMIC
       &OT
-         MINIMIZER DIIS
-         PRECONDITIONER FULL_ALL
-         ENERGY_GAP 0.001
-      &END
+        ENERGY_GAP 0.001
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
     &END SCF
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO_CUBES
-        NHOMO 1
-        NLUMO 1
-      &END
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
@@ -40,9 +46,9 @@
       C 0.0 2.0 5.0
     &END CELL
     &COORD
-    O   0.000000    2.000000    1.940000
-    H   0.000000    1.250000    2.520545
-    H   0.000000    2.757136    2.520545
+      O   0.000000    2.000000    1.940000
+      H   0.000000    1.250000    2.520545
+      H   0.000000    2.757136    2.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-BLYP
@@ -54,8 +60,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT rsgrid-dist-3
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

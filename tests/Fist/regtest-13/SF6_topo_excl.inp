@@ -1,7 +1,25 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT SF6_topo_excl
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      &BEND
+        ATOMS F S F
+        K [hartree*rad^-2] 0.2
+        KIND HARMONIC
+        THETA0 [deg] 100
+      &END BEND
+      &BOND
+        ATOMS F S
+        K [hartree*bohr^-2] 0.5
+        KIND HARMONIC
+        R0 [angstrom] 1.564
+      &END BOND
       &CHARGE
         ATOM S
         CHARGE 1.2
@@ -10,18 +28,6 @@
         ATOM F
         CHARGE -0.2
       &END CHARGE
-      &BOND
-        ATOMS F S
-        KIND HARMONIC
-        K [hartree*bohr^-2] 0.5
-        R0 [angstrom] 1.564
-      &END BOND
-      &BEND
-        ATOMS F S F
-        KIND HARMONIC
-        K [hartree*rad^-2] 0.2
-        THETA0 [deg] 100
-      &END BEND
       &NONBONDED
         &LENNARD-JONES
           ATOMS F F
@@ -43,8 +49,8 @@
     &POISSON
       PERIODIC NONE
       &EWALD
-        EWALD_TYPE NONE
         ALPHA .36
+        EWALD_TYPE NONE
         GMAX 51
       &END EWALD
     &END POISSON
@@ -75,8 +81,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT SF6_topo_excl
-  PRINT_LEVEL LOW
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

@@ -1,3 +1,24 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-qmmm-none-force_mixing-1
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE REFTRAJ
+    STEPS 8
+    &REFTRAJ
+      EVAL ENERGY
+      TRAJ_FILE_NAME ../sample_xyz/5H2O_adaptive.xyz
+    &END REFTRAJ
+  &END MD
+  &PRINT
+    &RESTART
+    &END RESTART
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -19,31 +40,46 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/5H2O.pot
-      parmtype CHM
-      &spline
-       rcut_nb 5.2917720830
-      &end
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/5H2O.pot
+      &SPLINE
+        RCUT_NB 5.2917720830
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 64
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &QMMM
     CENTER SETUP_ONLY
+    ECOUPL GAUSS
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 6
     &CELL
       ABC 17.0 7.0 7.0
     &END CELL
-    ECOUPL GAUSS
-    USE_GEEP_LIB 6
-    NOCOMPATIBILITY
-
+    # Noam's new section
+    &FORCE_MIXING
+      QM_KIND_ELEMENT_MAPPING H H
+      QM_KIND_ELEMENT_MAPPING O O
+      R_BUF 2.5 3.5
+      R_CORE 2.5 3.5
+      R_QM 2.5 3.5
+      #      &RESTART_INFO
+      #  INDICES 1 2 3 4 5 6
+      #  LABELS 10 10 10 8 8 8
+      #      &END RESTART_INFO
+    &END FORCE_MIXING
     # core list
     &QM_KIND H
       MM_INDEX 2 3
@@ -51,22 +87,9 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-
-    # Noam's new section
-    &FORCE_MIXING
-      R_CORE 2.5 3.5
-      R_QM 2.5 3.5
-      R_BUF 2.5 3.5
-      QM_KIND_ELEMENT_MAPPING H H
-      QM_KIND_ELEMENT_MAPPING O O
-#      &RESTART_INFO
-#  INDICES 1 2 3 4 5 6
-#  LABELS 10 10 10 8 8 8
-#      &END RESTART_INFO
-    &END FORCE_MIXING
-  #
-  # QM_KINDS
-  #
+    #
+    # QM_KINDS
+    #
   &END QMMM
   &SUBSYS
     &CELL
@@ -80,42 +103,17 @@
       BASIS_SET DZVP-GTH-BLYP
       POTENTIAL GTH-BLYP-q6
     &END KIND
-    &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/5H2O.psf
-      CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/5H2O.pdb
-      COORDINATE pdb
-    &END TOPOLOGY
     &PRINT
-#      &ATOMIC_COORDINATES
-#      &END ATOMIC_COORDINATES
-#      &CELL
-#      &END CELL
+      #      &ATOMIC_COORDINATES
+      #      &END ATOMIC_COORDINATES
+      #      &CELL
+      #      &END CELL
     &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/5H2O.psf
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/5H2O.pdb
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES
-    &END FORCES
-  &END PRINT
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-qmmm-none-force_mixing-1
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    STEPS 8
-    ENSEMBLE REFTRAJ
-    &REFTRAJ
-      TRAJ_FILE_NAME ../sample_xyz/5H2O_adaptive.xyz
-      EVAL ENERGY
-    &END REFTRAJ
-  &END MD
-
-  &PRINT
-    &RESTART
-    &END RESTART
-  &END PRINT
-
-&END MOTION

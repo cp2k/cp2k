@@ -1,39 +1,45 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H_hf_gapw_nopaw_full
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
     LSD
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 200
       REL_CUTOFF 50
     &END MGRID
+    &PRINT
+      &GAPW
+        &RHO0_INFORMATION
+        &END RHO0_INFORMATION
+      &END GAPW
+    &END PRINT
     &QS
       METHOD GAPW_XC
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       MAX_SCF 100
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
-       &XC_FUNCTIONAL NONE
-       &END XC_FUNCTIONAL
-       &HF
+      &HF
+        &MEMORY
+          MAX_MEMORY 1000
+        &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-10
           SCREEN_P_FORCES FALSE
-        &END
-        &MEMORY
-          MAX_MEMORY  1000
-        &END
-       &END
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-       &GAPW
-          &RHO0_INFORMATION
-          &END
-       &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
@@ -41,20 +47,15 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     H   0.000000    0.000000    0.0000
+      H   0.000000    0.000000    0.0000
     &END COORD
     &KIND H
-      &BASIS
- 1
- 1 0 0 1 1
-       0.27311686438733073778 1.0
-      &END
       POTENTIAL GTH-PADE
+      &BASIS
+        1
+        1 0 0 1 1
+        0.27311686438733073778 1.0
+      &END BASIS
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H_hf_gapw_nopaw_full
-  RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-&END GLOBAL

@@ -1,59 +1,64 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT He-full-potential
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD SIRIUS
+  &DFT
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_C_VWN
+        &END LDA_C_VWN
+        &LDA_X
+        &END LDA_X
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &PW_DFT
     &CONTROL
-       PROCESSING_UNIT cpu
-       STD_EVP_SOLVER_NAME lapack
-       GEN_EVP_SOLVER_NAME lapack
-       VERBOSITY 2
+      GEN_EVP_SOLVER_NAME lapack
+      PROCESSING_UNIT cpu
+      STD_EVP_SOLVER_NAME lapack
+      VERBOSITY 2
     &END CONTROL
-    &PARAMETERS
-       ELECTRONIC_STRUCTURE_METHOD  full_potential_lapwlo
-       SMEARING_WIDTH 0.05
-       USE_SYMMETRY true
-       VALENCE_RELATIVITY none
-       CORE_RELATIVITY none
-       NUM_FV_STATES 10
-       AW_CUTOFF 8.0
-       PW_CUTOFF 20.00
-       AUTO_RMT 0
-       NUM_DFT_ITER 20
-       NGRIDK 1 1 1
-       MOLECULE true
-       DENSITY_TOL 1e-7
-       ENERGY_TOL 1e-7
-       lmax_apw 8
-       lmax_pot 8
-       lmax_rho 8
-    &END PARAMETERS
     &ITERATIVE_SOLVER
-       ENERGY_TOLERANCE 1e-4
-       RESIDUAL_TOLERANCE 1e-5
-       NUM_STEPS 8
-       SUBSPACE_SIZE 8
-       TYPE davidson
-       CONVERGE_BY_ENERGY 0
+      CONVERGE_BY_ENERGY 0
+      ENERGY_TOLERANCE 1e-4
+      NUM_STEPS 8
+      RESIDUAL_TOLERANCE 1e-5
+      SUBSPACE_SIZE 8
+      TYPE davidson
     &END ITERATIVE_SOLVER
     &MIXER
-       BETA 0.95
-       TYPE anderson
-       MAX_HISTORY 8
+      BETA 0.95
+      MAX_HISTORY 8
+      TYPE anderson
     &END MIXER
+    &PARAMETERS
+      AUTO_RMT 0
+      AW_CUTOFF 8.0
+      CORE_RELATIVITY none
+      DENSITY_TOL 1e-7
+      ELECTRONIC_STRUCTURE_METHOD full_potential_lapwlo
+      ENERGY_TOL 1e-7
+      LMAX_APW 8
+      LMAX_POT 8
+      LMAX_RHO 8
+      MOLECULE true
+      NGRIDK 1 1 1
+      NUM_DFT_ITER 20
+      NUM_FV_STATES 10
+      PW_CUTOFF 20.00
+      SMEARING_WIDTH 0.05
+      USE_SYMMETRY true
+      VALENCE_RELATIVITY none
+    &END PARAMETERS
     &SETTINGS
-       MIN_OCCUPANCY 0
+      MIN_OCCUPANCY 0
     &END SETTINGS
   &END PW_DFT
-    &DFT
-      &XC
-         &XC_FUNCTIONAL
-            &LDA_X
-            &END LDA_X
-            &LDA_C_VWN
-            &END LDA_C_VWN
-         &END XC_FUNCTIONAL
-      &END XC
-    &END DFT
-
   &SUBSYS
     &CELL
       A [bohr] 10.0 0.0 0.0
@@ -62,15 +67,10 @@
     &END CELL
     &COORD
       SCALED
-        He 0.0 0.0 0.0
+      He 0.0 0.0 0.0
     &END COORD
     &KIND He
       POTENTIAL UPF "He.json"
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT He-full-potential
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
-&END GLOBAL

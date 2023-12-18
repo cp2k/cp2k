@@ -1,3 +1,13 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-3
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DX 0.001
+&END DEBUG
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -7,33 +17,33 @@
       &SE
         ANALYTICAL_GRADIENTS T
         &COULOMB
-          CUTOFF   [angstrom] 12.0
-          RC_RANGE [bohr]      1.0
-        &END
+          CUTOFF [angstrom] 12.0
+          RC_RANGE [bohr] 1.0
+        &END COULOMB
         &EXCHANGE
-          CUTOFF   [angstrom] 4.9325
+          CUTOFF [angstrom] 4.9325
+          RC_RANGE [bohr] 1.0
           RC_TAPER [angstrom] 12.0
-          RC_RANGE [bohr]      1.0
-        &END
-      &END
+        &END EXCHANGE
+      &END SE
     &END QS
     &SCF
-      MAX_SCF 40
       EPS_SCF 1.0E-6
+      MAX_SCF 40
       SCF_GUESS ATOMIC
-      &PRINT
-         &RESTART OFF
-         &END
-      &END
       &OT
-        PRECONDITIONER FULL_SINGLE_INVERSE
         MINIMIZER DIIS
         N_DIIS 9
-      &END
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
       &OUTER_SCF
-        MAX_SCF 5
         EPS_SCF 1.0E-6
-      &END
+        MAX_SCF 5
+      &END OUTER_SCF
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
   &END DFT
   &SUBSYS
@@ -41,12 +51,12 @@
       ABC 9.865 9.865 9.865
     &END CELL
     &COORD
-    O                  -0.083   4.218   0.070   H2O
-    H                  -0.431   3.397   0.609   H2O
-    H                   0.377   3.756  -0.688   H2O
-    O                  -0.740  -1.262  -0.029   H2O
-    H                  -1.272  -0.422  -0.099   H2O
-    H                  -0.403  -1.349   0.873   H2O
+      O                  -0.083   4.218   0.070   H2O
+      H                  -0.431   3.397   0.609   H2O
+      H                   0.377   3.756  -0.688   H2O
+      O                  -0.740  -1.262  -0.029   H2O
+      H                  -1.272  -0.422  -0.099   H2O
+      H                  -0.403  -1.349   0.873   H2O
     &END COORD
     &KIND H
     &END KIND
@@ -54,14 +64,6 @@
     &END KIND
     &TOPOLOGY
       CONNECTIVITY OFF
-    &END
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-3
-  RUN_TYPE DEBUG
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&DEBUG
- DX 0.001
-&END

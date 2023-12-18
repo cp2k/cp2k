@@ -1,3 +1,16 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT C11H24-qmmm-gauss-0
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1
+    OPTIMIZER BFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -19,25 +32,25 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/butane.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/butane.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL GAUSS
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
     &CELL
       ABC 10.0 10.0 10.0
     &END CELL
-    ECOUPL GAUSS
-    NOCOMPATIBILITY
     &INTERPOLATOR
       EPS_R 1.0e-14
       EPS_X 1.0e-14
@@ -48,8 +61,8 @@
       FIST_SCALE_FACTOR 0.0
       LINK_TYPE IMOMM
       MM_INDEX 11
-      QM_INDEX 14
       QMMM_SCALE_FACTOR 0.0
+      QM_INDEX 14
       RADIUS 0.80
     &END LINK
     &LINK
@@ -57,8 +70,8 @@
       FIST_SCALE_FACTOR 0.0
       LINK_TYPE IMOMM
       MM_INDEX 26
-      QM_INDEX 23
       QMMM_SCALE_FACTOR 0.0
+      QM_INDEX 23
       RADIUS 0.80
     &END LINK
     &MM_KIND CTL2
@@ -79,16 +92,16 @@
     &QM_KIND H
       MM_INDEX 15 16 18 19 21 22 24 25
     &END QM_KIND
-  #
-  # QM_KINDS
-  #
-  #
-  # MM_KINDS
-  #
-  #
-  # LINKS
-  #
-  #
+    #
+    # QM_KINDS
+    #
+    #
+    # MM_KINDS
+    #
+    #
+    # LINKS
+    #
+    #
   &END QMMM
   &SUBSYS
     &CELL
@@ -104,19 +117,8 @@
     &END KIND
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME ../sample_pdb/C11H24.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/C11H24.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT C11H24-qmmm-gauss-0
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER 1
-    OPTIMIZER BFGS
-  &END GEO_OPT
-&END MOTION

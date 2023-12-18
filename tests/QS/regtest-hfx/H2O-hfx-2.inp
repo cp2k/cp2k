@@ -1,20 +1,25 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-hfx-2
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 100
       REL_CUTOFF 30
     &END MGRID
-    &QS
-      METHOD GAPW
-    &END QS
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
     &SCF
       EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
@@ -22,16 +27,16 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-      &END XC_FUNCTIONAL
       &HF
+        &MEMORY
+          MAX_MEMORY 10
+        &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-10
-        &END
-        &MEMORY
-          MAX_MEMORY  10
-        &END
-      &END
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
@@ -40,9 +45,9 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET 6-31Gxx
@@ -54,7 +59,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-hfx-2
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

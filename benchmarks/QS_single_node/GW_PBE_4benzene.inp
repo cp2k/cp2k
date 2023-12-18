@@ -1,72 +1,59 @@
 &GLOBAL
-  PROJECT  GW_PBE_4benzene
   PRINT_LEVEL MEDIUM
+  PROJECT GW_PBE_4benzene
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME HFX_BASIS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     SORT_BASIS EXP
-    POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF 100
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
+      METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
       MAX_SCF 100
+      SCF_GUESS ATOMIC
       &PRINT
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-        &PBE
-        &END
-      &END XC_FUNCTIONAL
       &WF_CORRELATION
         &LOW_SCALING
-        &END
+        &END LOW_SCALING
         &RI_RPA
           RPA_NUM_QUAD_POINTS 10
           &GW
-            RI_SIGMA_X            TRUE
+            RI_SIGMA_X TRUE
           &END GW
         &END RI_RPA
-      &END
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL PBE
+        &PBE
+        &END PBE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  12.000   35.000  5.000
+      ABC [angstrom] 12.000 35.000 5.000
       PERIODIC NONE
     &END CELL
-    &KIND H
-      BASIS_SET  DZVP-GTH
-      BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q1
-    &END KIND
-    &KIND C
-      BASIS_SET  DZVP-GTH
-      BASIS_SET RI_AUX  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q4
-    &END KIND
-    &TOPOLOGY
-      &CENTER_COORDINATES
-      &END
-    &END TOPOLOGY
     &COORD
       C         -1.13571        0.81699        0.00000
       C          0.13967        1.39205        0.00000
@@ -117,5 +104,19 @@
       H          0.26235       15.12763       -0.00000
       H          2.52435       16.14763       -0.00000
     &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

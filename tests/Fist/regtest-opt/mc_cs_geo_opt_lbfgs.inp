@@ -1,207 +1,206 @@
 @SET na 2
 @SET nb 2
 @SET nc 1
-
 &GLOBAL
- FLUSH_SHOULD_FLUSH
- PRINT_LEVEL medium
- PROJECT mc_cs_geo_opt_lbfgs
- RUN_TYPE geo_opt
- WALLTIME 600
+  FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL medium
+  PROJECT mc_cs_geo_opt_lbfgs
+  RUN_TYPE geo_opt
+  WALLTIME 600
 &END GLOBAL
 
 &MOTION
- &GEO_OPT
-  OPTIMIZER LBFGS
-  MAX_ITER  200
-  MAX_DR    0.001
-  RMS_DR    0.0003
-  MAX_FORCE 0.0001
-  RMS_FORCE 0.00003
-  &LBFGS
-   MAX_H_RANK 30
-  &END LBFGS
- &END GEO_OPT
- &PRINT
-  &CELL off
-   &EACH
-    MD 1
-   &END EACH
-  &END CELL
-  &RESTART off
-   ADD_LAST NUMERIC
-   BACKUP_COPIES 0
-   &EACH
-    MD 10
-   &END EACH
-  &END RESTART
-  &RESTART_HISTORY off
-  &END RESTART_HISTORY
-  &STRESS
-   &EACH
-    MD 1
-   &END EACH
-  &END STRESS
-  &TRAJECTORY on
-   CHARGE_OCCUP
-   FORMAT pdb
-   &EACH
-    MD 1
-   &END EACH
-  &END TRAJECTORY
-  &VELOCITIES off
-   &EACH
-    MD 1
-   &END EACH
-  &END VELOCITIES
- &END PRINT
+  &GEO_OPT
+    MAX_DR 0.001
+    MAX_FORCE 0.0001
+    MAX_ITER 200
+    OPTIMIZER LBFGS
+    RMS_DR 0.0003
+    RMS_FORCE 0.00003
+    &LBFGS
+      MAX_H_RANK 30
+    &END LBFGS
+  &END GEO_OPT
+  &PRINT
+    &CELL off
+      &EACH
+        MD 1
+      &END EACH
+    &END CELL
+    &RESTART off
+      ADD_LAST NUMERIC
+      BACKUP_COPIES 0
+      &EACH
+        MD 10
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY off
+    &END RESTART_HISTORY
+    &STRESS
+      &EACH
+        MD 1
+      &END EACH
+    &END STRESS
+    &TRAJECTORY on
+      CHARGE_OCCUP
+      FORMAT pdb
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES off
+      &EACH
+        MD 1
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
 &END MOTION
 
 &FORCE_EVAL
- METHOD Fist
- STRESS_TENSOR ANALYTICAL
- &MM
-  &FORCEFIELD
-   &CHARGE
-    ATOM Cr
-    CHARGE +3.0
-   &END CHARGE
-   &SHELL O
-    CORE_CHARGE  +0.08
-    SHELL_CHARGE -2.08
-    MASS_FRACTION 0.1
-    SPRING [eV*angstrom^-2] 6.3
-    MAX_DISTANCE [angstrom] 0.5
-   &END SHELL
-   &NONBONDED
-    &WILLIAMS
-     ATOMS O O
-     A [eV] 9547.96
-     B [angstrom^-1] 1/0.21916
-     C [eV*angstrom^6] 32.0
-     RCUT [angstrom] 10.4
-    &END WILLIAMS
-    &WILLIAMS
-     ATOMS O Cr
-     A [eV] 1204.18
-     B [angstrom^-1] 1/0.3165
-     C [eV*angstrom^6] 0.0
-     RCUT [angstrom] 10.4
-    &END WILLIAMS
-    &WILLIAMS
-     ATOMS Cr Cr
-     A [eV] 0.0
-     B [angstrom^-1] 0.0
-     C [eV*angstrom^6] 0.0
-     RCUT [angstrom] 10.4
-    &END WILLIAMS
-   &END NONBONDED
-   &SPLINE
-    EMAX_ACCURACY [hartree] 0.02
-    EMAX_SPLINE [hartree] 1.0E4
-    EPS_SPLINE [hartree] 1.0E-7
-    R0_NB [angstrom] 0.1
-   &END SPLINE
-  &END FORCEFIELD
-  &POISSON
-   &EWALD
-    EWALD_TYPE spme
-    ALPHA [angstrom^-1] 0.35
-    GMAX ${na}*8 ${nb}*8 ${nc}*16
-    &RS_GRID
-     DISTRIBUTION_TYPE automatic
-    &END RS_GRID
-   &END EWALD
-  &END POISSON
+  METHOD Fist
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Cr
+        CHARGE +3.0
+      &END CHARGE
+      &NONBONDED
+        &WILLIAMS
+          A [eV] 9547.96
+          ATOMS O O
+          B [angstrom^-1] 1/0.21916
+          C [eV*angstrom^6] 32.0
+          RCUT [angstrom] 10.4
+        &END WILLIAMS
+        &WILLIAMS
+          A [eV] 1204.18
+          ATOMS O Cr
+          B [angstrom^-1] 1/0.3165
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 10.4
+        &END WILLIAMS
+        &WILLIAMS
+          A [eV] 0.0
+          ATOMS Cr Cr
+          B [angstrom^-1] 0.0
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 10.4
+        &END WILLIAMS
+      &END NONBONDED
+      &SHELL O
+        CORE_CHARGE +0.08
+        MASS_FRACTION 0.1
+        MAX_DISTANCE [angstrom] 0.5
+        SHELL_CHARGE -2.08
+        SPRING [eV*angstrom^-2] 6.3
+      &END SHELL
+      &SPLINE
+        EMAX_ACCURACY [hartree] 0.02
+        EMAX_SPLINE [hartree] 1.0E4
+        EPS_SPLINE [hartree] 1.0E-7
+        R0_NB [angstrom] 0.1
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA [angstrom^-1] 0.35
+        EWALD_TYPE spme
+        GMAX ${na}*8 ${nb}*8 ${nc}*16
+        &RS_GRID
+          DISTRIBUTION_TYPE automatic
+        &END RS_GRID
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO OFF
+        SPLINE_DATA
+        SPLINE_INFO
+      &END FF_INFO
+    &END PRINT
+  &END MM
   &PRINT
-   &FF_INFO OFF
-    SPLINE_DATA
-    SPLINE_INFO
-   &END FF_INFO
+    &FORCES off
+    &END FORCES
+    &GRID_INFORMATION
+    &END GRID_INFORMATION
+    &PROGRAM_RUN_INFO
+      &EACH
+        GEO_OPT 1
+      &END EACH
+    &END PROGRAM_RUN_INFO
+    &STRESS_TENSOR
+      &EACH
+        GEO_OPT 1
+      &END EACH
+    &END STRESS_TENSOR
   &END PRINT
- &END MM
- &PRINT
-  &FORCES off
-  &END FORCES
-  &GRID_INFORMATION
-  &END GRID_INFORMATION
-  &PROGRAM_RUN_INFO
-   &EACH
-    GEO_OPT 1
-   &END EACH
-  &END PROGRAM_RUN_INFO
-  &STRESS_TENSOR
-   &EACH
-    GEO_OPT 1
-   &END EACH
-  &END STRESS_TENSOR
- &END PRINT
- &PROPERTIES
-  &ATOMIC
-   ENERGY on
-   PRESSURE off
-  &END ATOMIC
- &END PROPERTIES
- &SUBSYS
-  &CELL
-   # Use some weird constructs to test the parser
-   A  0.5*4.95100000*2   0.00000000     0.00000000
-   B  .25*2.47550000*4   4.28769177     0.00000000
-   C      0.00000000     0.00000000   -13.56560000*-.1e1/2*2.d0
-   MULTIPLE_UNIT_CELL -1*${na}*-1*+1 ${nb} ${nc}
-  &END CELL
-  &COORD
-   SCALED
-   Cr      0*1/3       0/3         0.152340  Cr2O3  1
-   Cr      0*1/3       0/3         0.347660  Cr2O3  1
-   Cr      0*1/3       0/3         0.652340  Cr2O3  1
-   Cr      0*1/3       0/3         0.847660  Cr2O3  1
-   Cr      1*1/3       1/3         0.014327  Cr2O3  1
-   Cr      1*1/3       1/3         0.319007  Cr2O3  1
-   Cr      1*1/3       1/3         0.514327  Cr2O3  1
-   Cr      1*1/3       1/3         0.819007  Cr2O3  1
-   Cr      2*1/3       2/3         0.180993  Cr2O3  1
-   Cr      2*1/3       2/3         0.485673  Cr2O3  1
-   Cr      2*1/3       2/3         0.680993  Cr2O3  1
-   Cr      2*1/3       2/3         0.985673  Cr2O3  1
-   O       0.305100    0            1/12     Cr2O3  1
-   O       0           0.694900     1/12     Cr2O3  1
-   O       0.694900    0.305100     1/12     Cr2O3  1
-   O       0           0.305100     3/12     Cr2O3  1
-   O       0.694900    0            3/12     Cr2O3  1
-   O       0.305100    0.694900     3/12     Cr2O3  1
-   O       0.305100    0            5/12     Cr2O3  1
-   O       0           0.694900     5/12     Cr2O3  1
-   O       0.694900    0.305100     5/12     Cr2O3  1
-   O       0           0.305100     7/12     Cr2O3  1
-   O       0.694900    0            7/12     Cr2O3  1
-   O       0.305100    0.694900     7/12     Cr2O3  1
-   O       0.305100    0            9/12     Cr2O3  1
-   O       0           0.694900     9/12     Cr2O3  1
-   O       0.694900    0.305100     9/12     Cr2O3  1
-   O       0           0.305100    11/12     Cr2O3  1
-   O       0.694900    0           11/12     Cr2O3  1
-   O       0.305100    0.694900    11/12     Cr2O3  1
-  &END COORD
-  &PRINT
-   &ATOMIC_COORDINATES
-   &END ATOMIC_COORDINATES
-   &CELL
-   &END CELL
-   &KINDS
-   &END KINDS
-   &MOLECULES off
-   &END MOLECULES
-   &SYMMETRY
-   &END SYMMETRY
-  &END PRINT
-  &TOPOLOGY
-   CONNECTIVITY user
-   DISABLE_EXCLUSION_LISTS
-   MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
-   PARA_RES off
-   &DUMP_PDB
-   &END DUMP_PDB
-  &END TOPOLOGY
- &END SUBSYS
+  &PROPERTIES
+    &ATOMIC
+      ENERGY on
+      PRESSURE off
+    &END ATOMIC
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      # Use some weird constructs to test the parser
+      A 0.5*4.95100000*2 0.00000000 0.00000000
+      B .25*2.47550000*4 4.28769177 0.00000000
+      C 0.00000000 0.00000000 -13.56560000*-.1e1/2*2.d0
+      MULTIPLE_UNIT_CELL -1*${na}*-1*+1 ${nb} ${nc}
+    &END CELL
+    &COORD
+      SCALED
+      Cr      0*1/3       0/3         0.152340  Cr2O3  1
+      Cr      0*1/3       0/3         0.347660  Cr2O3  1
+      Cr      0*1/3       0/3         0.652340  Cr2O3  1
+      Cr      0*1/3       0/3         0.847660  Cr2O3  1
+      Cr      1*1/3       1/3         0.014327  Cr2O3  1
+      Cr      1*1/3       1/3         0.319007  Cr2O3  1
+      Cr      1*1/3       1/3         0.514327  Cr2O3  1
+      Cr      1*1/3       1/3         0.819007  Cr2O3  1
+      Cr      2*1/3       2/3         0.180993  Cr2O3  1
+      Cr      2*1/3       2/3         0.485673  Cr2O3  1
+      Cr      2*1/3       2/3         0.680993  Cr2O3  1
+      Cr      2*1/3       2/3         0.985673  Cr2O3  1
+      O       0.305100    0            1/12     Cr2O3  1
+      O       0           0.694900     1/12     Cr2O3  1
+      O       0.694900    0.305100     1/12     Cr2O3  1
+      O       0           0.305100     3/12     Cr2O3  1
+      O       0.694900    0            3/12     Cr2O3  1
+      O       0.305100    0.694900     3/12     Cr2O3  1
+      O       0.305100    0            5/12     Cr2O3  1
+      O       0           0.694900     5/12     Cr2O3  1
+      O       0.694900    0.305100     5/12     Cr2O3  1
+      O       0           0.305100     7/12     Cr2O3  1
+      O       0.694900    0            7/12     Cr2O3  1
+      O       0.305100    0.694900     7/12     Cr2O3  1
+      O       0.305100    0            9/12     Cr2O3  1
+      O       0           0.694900     9/12     Cr2O3  1
+      O       0.694900    0.305100     9/12     Cr2O3  1
+      O       0           0.305100    11/12     Cr2O3  1
+      O       0.694900    0           11/12     Cr2O3  1
+      O       0.305100    0.694900    11/12     Cr2O3  1
+    &END COORD
+    &PRINT
+      &ATOMIC_COORDINATES
+      &END ATOMIC_COORDINATES
+      &CELL
+      &END CELL
+      &KINDS
+      &END KINDS
+      &MOLECULES off
+      &END MOLECULES
+      &SYMMETRY
+      &END SYMMETRY
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY user
+      DISABLE_EXCLUSION_LISTS
+      MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+      PARA_RES off
+      &DUMP_PDB
+      &END DUMP_PDB
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL

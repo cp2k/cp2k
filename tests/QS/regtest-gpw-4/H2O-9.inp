@@ -11,8 +11,8 @@
   &MD
     ENSEMBLE NVE
     STEPS 3
-    TIMESTEP 0.5
     TEMPERATURE 300.0
+    TIMESTEP 0.5
   &END MD
 &END MOTION
 
@@ -24,12 +24,12 @@
     &MGRID
       CUTOFF 200
       &RS_GRID
-         DISTRIBUTION_TYPE DISTRIBUTED
-      &END
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
     &END MGRID
     &QS
-      WF_INTERPOLATION PS
       EXTRAPOLATION_ORDER 3
+      WF_INTERPOLATION PS
     &END QS
     &SCF
       IGNORE_CONVERGENCE_FAILURE
@@ -46,9 +46,9 @@
       ABC 9.865 9.865 9.865
     &END CELL
     &COORD
-    O                  -4.583   5.333   1.560   H2O
-    H                  -3.777   5.331   0.943   H2O
-    H                  -5.081   4.589   1.176   H2O
+      O                  -4.583   5.333   1.560   H2O
+      H                  -3.777   5.331   0.943   H2O
+      H                  -5.081   4.589   1.176   H2O
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE

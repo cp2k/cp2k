@@ -1,78 +1,79 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    STRESS_TENSOR ANALYTICAL
-    &PRINT
-      &STRESS_TENSOR
-         COMPONENTS
-      &END
-    &END
-    &DFT
-        BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
-        POTENTIAL_FILE_NAME POTENTIAL
-        SORT_BASIS EXP
-        LSD
-        &QS
-           METHOD GPW
-           PW_GRID_BLOCKED FALSE
-        &END
-        &MGRID
-            CUTOFF 150
-            REL_CUTOFF 30
-        &END MGRID
-        &SCF
-      IGNORE_CONVERGENCE_FAILURE
-            MAX_SCF 2
-      SCF_GUESS ATOMIC
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL
-               &PBE
-                  SCALE_X 0.75
-               &END
-            &END XC_FUNCTIONAL
-            &HF
-                FRACTION 0.25
-                &RI
-                   RI_METRIC IDENTITY
-                   NGROUPS 2
-                   MEMORY_CUT 2
-                   EPS_FILTER 1.0E-10
-                &END
-                &INTERACTION_POTENTIAL
-                    !this is too small for a real calculation. The only requirement is that it is
-                    !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
-                    !on efficiency, as it greatly increses the number of periodic images to consider
-                    POTENTIAL_TYPE TRUNCATED
-                    CUTOFF_RADIUS 0.5
-                &END
-            &END
-        &END XC 
-        &KPOINTS
-           SCHEME  MONKHORST-PACK  2 2 2
-        &END KPOINTS
-    &END DFT
-    &SUBSYS
-        &CELL
-            !this is not a realistic cell, but denser systems would be too expensive for a test
-            ABC 8.0 8.0 8.0
-            ALPHA_BETA_GAMMA 60.0 60.0 60.0
-        &END CELL
-        &TOPOLOGY
-        &END
-        &COORD
-           SCALED
-           C   0.00000000  0.00000000  0.00000000  
-           C   0.25000000  0.25000000  0.25000000  
-        &END COORD
-        &KIND C
-            BASIS_SET cc-DZ
-            BASIS_SET RI_HFX RI_DZ
-            POTENTIAL GTH-HF
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT diamond_gpw_stress
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL MEDIUM
+  PROJECT diamond_gpw_stress
+  RUN_TYPE ENERGY_FORCE
 &END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
+    LSD
+    POTENTIAL_FILE_NAME POTENTIAL
+    SORT_BASIS EXP
+    &KPOINTS
+      SCHEME MONKHORST-PACK 2 2 2
+    &END KPOINTS
+    &MGRID
+      CUTOFF 150
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD GPW
+      PW_GRID_BLOCKED FALSE
+    &END QS
+    &SCF
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 2
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &HF
+        FRACTION 0.25
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 0.5
+          !this is too small for a real calculation. The only requirement is that it is
+          !smaller than N_kp * L/2 in each direction. Potential range has a drastic effect
+          !on efficiency, as it greatly increses the number of periodic images to consider
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
+        &RI
+          EPS_FILTER 1.0E-10
+          MEMORY_CUT 2
+          NGROUPS 2
+          RI_METRIC IDENTITY
+        &END RI
+      &END HF
+      &XC_FUNCTIONAL
+        &PBE
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PRINT
+    &STRESS_TENSOR
+      COMPONENTS
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      !this is not a realistic cell, but denser systems would be too expensive for a test
+      ABC 8.0 8.0 8.0
+      ALPHA_BETA_GAMMA 60.0 60.0 60.0
+    &END CELL
+    &COORD
+      SCALED
+      C   0.00000000  0.00000000  0.00000000
+      C   0.25000000  0.25000000  0.25000000
+    &END COORD
+    &KIND C
+      BASIS_SET cc-DZ
+      BASIS_SET RI_HFX RI_DZ
+      POTENTIAL GTH-HF
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

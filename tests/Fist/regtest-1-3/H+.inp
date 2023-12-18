@@ -1,3 +1,9 @@
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT H+
+  RUN_TYPE energy
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -8,23 +14,23 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          ATOMS       H H
-          EPSILON  [kjmol] 0.0
-          SIGMA    [angstrom]   5.0
-          RCUT           10.0
+          ATOMS H H
+          EPSILON [kjmol] 0.0
+          RCUT 10.0
+          SIGMA [angstrom] 5.0
         &END LENNARD-JONES
-      &END
+      &END NONBONDED
     &END FORCEFIELD
     &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER ANALYTIC
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 100
         O_SPLINE 6
       &END EWALD
-      PERIODIC NONE
-      POISSON_SOLVER ANALYTIC
-   &END POISSON
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
@@ -32,12 +38,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-H 0.0 0.0 0.0
-    &END
+      H 0.0 0.0 0.0
+    &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H+
-  RUN_TYPE energy
-  PRINT_LEVEL HIGH
-&END GLOBAL

@@ -1,10 +1,23 @@
+&GLOBAL
+  PROJECT ethene
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
 
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name sample_pot/charmm.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME sample_pot/charmm.pot
       &CHARGE
         ATOM CE2
         CHARGE -0.42
@@ -16,8 +29,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .44
+        EWALD_TYPE ewald
         GMAX 23
       &END EWALD
     &END POISSON
@@ -27,21 +40,8 @@
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME sample_pdb/ethene.pdb
       COORDINATE pdb
+      COORD_FILE_NAME sample_pdb/ethene.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PROJECT ethene
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 100
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

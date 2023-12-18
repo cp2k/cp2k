@@ -1,9 +1,40 @@
+&GLOBAL
+  PROJECT water_3_dist_g
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      MOLECULE 1
+      TARGET 1.8897268
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 2
+      MOLECULE 1
+      TARGET 1.8897268
+    &END COLLECTIVE
+    &COLLECTIVE
+      COLVAR 3
+      MOLECULE 1
+      TARGET 3.0859239
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,8 +46,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE pme
         ALPHA .44
+        EWALD_TYPE pme
         NS_MAX 25
       &END EWALD
     &END POISSON
@@ -32,62 +63,33 @@
     &END COLVAR
     &COLVAR
       &DISTANCE
-        &POINT
-    TYPE GEO_CENTER
-          ATOMS 1
-        &END
-        &POINT
-    TYPE GEO_CENTER
-          ATOMS 3
-        &END
         ATOMS 1 2
+        &POINT
+          ATOMS 1
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 3
+          TYPE GEO_CENTER
+        &END POINT
       &END DISTANCE
     &END COLVAR
     &COLVAR
       &DISTANCE
-        &POINT
-    TYPE GEO_CENTER
-          ATOMS 2
-        &END
-        &POINT
-    TYPE GEO_CENTER
-          ATOMS 3
-        &END
         ATOMS 1 2
+        &POINT
+          ATOMS 2
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 3
+          TYPE GEO_CENTER
+        &END POINT
       &END DISTANCE
     &END COLVAR
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_2.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_2.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_3_dist_g
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &COLLECTIVE
-      TARGET 1.8897268
-      MOLECULE 1
-      COLVAR 1
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 1.8897268
-      MOLECULE 1
-      COLVAR 2
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET 3.0859239
-      MOLECULE 1
-      COLVAR 3
-    &END COLLECTIVE
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

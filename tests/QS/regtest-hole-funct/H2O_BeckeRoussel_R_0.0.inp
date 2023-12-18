@@ -1,3 +1,8 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_BeckeRoussel_R_0.0
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -19,7 +24,7 @@
         &BECKE_ROUSSEL
           CUTOFF_RADIUS 0.0
           GAMMA 0.8
-        &END
+        &END BECKE_ROUSSEL
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -28,9 +33,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET SZV-GTH
@@ -42,7 +47,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O_BeckeRoussel_R_0.0
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

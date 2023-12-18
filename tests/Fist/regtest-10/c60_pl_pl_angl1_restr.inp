@@ -1,90 +1,85 @@
 @SET INDEX 1
 &GLOBAL
-  PROJECT c60_pl_pl_angl1_restr
   PRINT_LEVEL LOW
+  PROJECT c60_pl_pl_angl1_restr
   RUN_TYPE md
 &END GLOBAL
+
 &MOTION
   &CONSTRAINT
-     &COLLECTIVE
-        COLVAR 1
-        TARGET [deg] 70.0
-        INTERMOLECULAR
-        &RESTRAINT
-          K [kcalmol*deg^-2] 10.0
-        &END
-     &END
-  &END
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+      TARGET [deg] 70.0
+      &RESTRAINT
+        K [kcalmol*deg^-2] 10.0
+      &END RESTRAINT
+    &END COLLECTIVE
+  &END CONSTRAINT
   &MD
     ENSEMBLE NVT
+    STEPS 200
+    TEMPERATURE 300.0
+    TIMESTEP 1.0
+    &PRINT
+      &ENERGY
+        &EACH
+          MD ${INDEX}
+        &END EACH
+      &END ENERGY
+      &PROGRAM_RUN_INFO
+        &EACH
+          MD ${INDEX}
+        &END EACH
+      &END PROGRAM_RUN_INFO
+    &END PRINT
     &THERMOSTAT
       TYPE CSVR
       &CSVR
         TIMECON 10.
-      &END
-    &END
-    STEPS 200
-    TIMESTEP 1.0
-    TEMPERATURE 300.0
-    &PRINT
-      &PROGRAM_RUN_INFO
-        &EACH
-          MD ${INDEX}
-        &END
-      &END
-      &ENERGY
-        &EACH
-          MD ${INDEX}
-        &END
-      &END ENERGY
-    &END PRINT
+      &END CSVR
+    &END THERMOSTAT
   &END MD
   &PRINT
-    &TRAJECTORY
-      &EACH
-        MD ${INDEX}
-      &END
-    &END TRAJECTORY
-    &VELOCITIES OFF
-    &END VELOCITIES
     &RESTART OFF
     &END RESTART
     &RESTART_HISTORY OFF
     &END RESTART_HISTORY
-  &END PRINT
-&END MOTION
-&FORCE_EVAL
-  &PRINT
-    &PROGRAM_RUN_INFO
+    &TRAJECTORY
       &EACH
         MD ${INDEX}
-      &END
-    &END
-  &END
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      &SPLINE
-       EPS_SPLINE 1.E-6
-      &END
       &NONBONDED
         &TERSOFF
-          ATOMS C  C
-          A        1.3936E3
-          B        3.467E2
-          lambda1  3.4879
-          lambda2  2.2119
-          alpha    0.00
-          beta     1.5724E-7
-          n        7.2751E-1
-          c        3.8049E4
-          d        4.384
-          h       -5.7058E-1
-          lambda3  0.0000
-          bigR     1.95
-          bigD     0.15
+          A 1.3936E3
+          ALPHA 0.00
+          ATOMS C C
+          B 3.467E2
+          BETA 1.5724E-7
+          BIGD 0.15
+          BIGR 1.95
+          C 3.8049E4
+          D 4.384
+          H -5.7058E-1
+          LAMBDA1 3.4879
+          LAMBDA2 2.2119
+          LAMBDA3 0.0000
+          N 7.2751E-1
         &END TERSOFF
       &END NONBONDED
+      &SPLINE
+        EPS_SPLINE 1.E-6
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -92,27 +87,34 @@
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &PROGRAM_RUN_INFO
+      &EACH
+        MD ${INDEX}
+      &END EACH
+    &END PROGRAM_RUN_INFO
+  &END PRINT
   &SUBSYS
     &CELL
-      ABC  30. 30. 30.
+      ABC 30. 30. 30.
     &END CELL
-    &TOPOLOGY
-       COORDINATE XYZ
-       COORD_FILE_NAME ../sample_xyz/c60.xyz
-       CONNECTIVITY OFF
-    &END TOPOLOGY
     # COLVARS
     &COLVAR
       &ANGLE_PLANE_PLANE
         &PLANE
-          DEF_TYPE ATOMS
           ATOMS 17 25 50
-        &END
+          DEF_TYPE ATOMS
+        &END PLANE
         &PLANE
           DEF_TYPE VECTOR
           NORMAL_VECTOR 0.0 0.0 1.0
-        &END
-      &END
-    &END
+        &END PLANE
+      &END ANGLE_PLANE_PLANE
+    &END COLVAR
+    &TOPOLOGY
+      CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/c60.xyz
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

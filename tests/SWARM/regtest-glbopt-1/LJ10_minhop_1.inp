@@ -1,58 +1,45 @@
 &GLOBAL
-   PROJECT_NAME LJ10_minhop_1
-   PROGRAM_NAME SWARM
-   RUN_TYPE NONE
-   SEED 42
+  PROGRAM_NAME SWARM
+  PROJECT_NAME LJ10_minhop_1
+  RUN_TYPE NONE
+  SEED 42
 &END GLOBAL
 
-&SWARM
-   BEHAVIOR GLOBAL_OPT
-   NUMBER_OF_WORKERS 1
-   MAX_ITER 5
-   &GLOBAL_OPT
-     E_TARGET -0.028421532
-     METHOD MINIMA_HOPPING
-   &HISTORY
-     ENERGY_PRECISION 1.0e-5
-     FINGERPRINT_PRECISION 1.0e-2
-   &END HISTORY
-   &END GLOBAL_OPT
-&END SWARM
-
-
 &MOTION
-  &PRINT  ! IO is expensive, turning everything off
-    &RESTART OFF
-    &END RESTART
-    &RESTART_HISTORY OFF
-    &END RESTART_HISTORY
-    &TRAJECTORY
-     !ADD_LAST NUMERIC
-      &EACH
-        GEO_OPT -1
-        MD -1
-      &END EACH
-    &END TRAJECTORY
-  &END PRINT
-
+  &GEO_OPT
+    MAX_ITER 300
+    OPTIMIZER BFGS
+    &BFGS
+      TRUST_RADIUS [angstrom] 0.1
+      USE_RAT_FUN_OPT  ! otherwise LJ particle sth. get too close.
+      &RESTART OFF
+      &END RESTART
+    &END BFGS
+    &CG
+      MAX_STEEP_STEPS 3
+      &LINE_SEARCH
+        &GOLD
+          INITIAL_STEP 1.0e-2
+        &END GOLD
+      &END LINE_SEARCH
+    &END CG
+    &PRINT
+      &PROGRAM_RUN_INFO OFF
+      &END PROGRAM_RUN_INFO
+    &END PRINT
+  &END GEO_OPT
   &MD
     ENSEMBLE NVE
     STEPS 1000
     TIMESTEP 0.5
-
-    &VELOCITY_SOFTENING
-      STEPS 20
-    ALPHA 1.0
-    DELTA 0.01
-    &END VELOCITY_SOFTENING
-
     &PRINT
-      &ENERGY OFF
-      &END ENERGY
+      FORCE_LAST .TRUE.
       &CENTER_OF_MASS OFF
       &END CENTER_OF_MASS
       &COEFFICIENTS OFF
       &END COEFFICIENTS
+      &ENERGY OFF
+      &END ENERGY
       &PROGRAM_RUN_INFO OFF
       &END PROGRAM_RUN_INFO
       &ROTATIONAL_INFO OFF
@@ -63,77 +50,64 @@
       &END TEMP_KIND
       &TEMP_SHELL_KIND OFF
       &END TEMP_SHELL_KIND
-      FORCE_LAST .TRUE.
     &END PRINT
+    &VELOCITY_SOFTENING
+      ALPHA 1.0
+      DELTA 0.01
+      STEPS 20
+    &END VELOCITY_SOFTENING
   &END MD
-
-  &GEO_OPT
-    OPTIMIZER BFGS
-  MAX_ITER 300
-  &CG
-    MAX_STEEP_STEPS 3
-    &LINE_SEARCH
-      &GOLD
-      INITIAL_STEP 1.0e-2
-    &END GOLD
-    &END LINE_SEARCH
-  &END CG
-    &BFGS
-     TRUST_RADIUS [angstrom] 0.1
-     USE_RAT_FUN_OPT  ! otherwise LJ particle sth. get too close.
-     &RESTART OFF
-     &END RESTART
-    &END BFGS
-    &PRINT
-      &PROGRAM_RUN_INFO OFF
-      &END PROGRAM_RUN_INFO
-    &END PRINT
-  &END GEO_OPT
-
+  &PRINT  ! IO is expensive, turning everything off
+    &RESTART OFF
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY
+      !ADD_LAST NUMERIC
+      &EACH
+        GEO_OPT -1
+        MD -1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
 &END MOTION
 
+&SWARM
+  BEHAVIOR GLOBAL_OPT
+  MAX_ITER 5
+  NUMBER_OF_WORKERS 1
+  &GLOBAL_OPT
+    E_TARGET -0.028421532
+    METHOD MINIMA_HOPPING
+    &HISTORY
+      ENERGY_PRECISION 1.0e-5
+      FINGERPRINT_PRECISION 1.0e-2
+    &END HISTORY
+  &END GLOBAL_OPT
+&END SWARM
+
 &FORCE_EVAL
- &PRINT
-    &DISTRIBUTION OFF
-    &END DISTRIBUTION
-    &DISTRIBUTION1D OFF
-    &END DISTRIBUTION1D
-    &DISTRIBUTION2D OFF
-    &END DISTRIBUTION2D
-    &FORCES OFF
-    &END FORCES
-    &GRID_INFORMATION OFF
-    &END GRID_INFORMATION
-    &PROGRAM_RUN_INFO OFF
-    &END PROGRAM_RUN_INFO
-    &STRESS_TENSOR OFF
-    &END STRESS_TENSOR
-    &TOTAL_NUMBERS OFF
-    &END TOTAL_NUMBERS
-  &END PRINT
-
-
   METHOD FIST
   &MM
     &FORCEFIELD
-     &SPLINE
-        R0_NB 1.0E-10 ! solely MAX_SPLINE shall control spline range
-        EMAX_SPLINE   [hartree]  1000
-        EMAX_ACCURACY [hartree]  1000  ! yields r_min = 0.66 bohr
-        EPS_SPLINE    [hartree] 1.0E-10   ! yields 1698 spline points
-     &END SPLINE
-      &NONBONDED
-        &LENNARD-JONES
-          atoms X X
-          EPSILON [hartree] 0.001
-          SIGMA 1.0
-          RCUT 25.0
-        &END LENNARD-JONES
-      &END NONBONDED
       &CHARGE
         ATOM X
         CHARGE 0.0
       &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS X X
+          EPSILON [hartree] 0.001
+          RCUT 25.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EMAX_ACCURACY [hartree] 1000  ! yields r_min = 0.66 bohr
+        EMAX_SPLINE [hartree] 1000
+        EPS_SPLINE [hartree] 1.0E-10  ! yields 1698 spline points
+        R0_NB 1.0E-10  ! solely MAX_SPLINE shall control spline range
+      &END SPLINE
     &END FORCEFIELD
     &NEIGHBOR_LISTS
       GEO_CHECK OFF
@@ -166,33 +140,47 @@
       &END SUBCELL
     &END PRINT
   &END MM
+  &PRINT
+    &DISTRIBUTION OFF
+    &END DISTRIBUTION
+    &DISTRIBUTION1D OFF
+    &END DISTRIBUTION1D
+    &DISTRIBUTION2D OFF
+    &END DISTRIBUTION2D
+    &FORCES OFF
+    &END FORCES
+    &GRID_INFORMATION OFF
+    &END GRID_INFORMATION
+    &PROGRAM_RUN_INFO OFF
+    &END PROGRAM_RUN_INFO
+    &STRESS_TENSOR OFF
+    &END STRESS_TENSOR
+    &TOTAL_NUMBERS OFF
+    &END TOTAL_NUMBERS
+  &END PRINT
   &SUBSYS
     &CELL
-    ABC [angstrom] 50.0 50.0 50.0
+      ABC [angstrom] 50.0 50.0 50.0
       !PERIODIC NONE
-   &END CELL
-
-   &COORD
-   X         0.4589898422        0.6967471136        1.4966414161
-   X         1.7810159326        0.6241736315        0.2505541610
-   X         0.1800792183        1.4360203812        0.7133104604
-   X         0.6907533252        0.4858379327        0.4287806799
-   X         0.4848961364       -0.3602827169        1.1199932299
-   X         1.4327710668        0.2177870536        1.2319379170
-   X         0.5703803927        1.7787454084        1.7106241277
-   X         1.2561570161        1.2871878862        0.9796453399
-   X        -0.2286542076       -0.0595967487        1.9261848287
-   X         0.8736112905       -0.1066199530        2.1423278315
-  &END COORD
-
+    &END CELL
+    &COORD
+      X         0.4589898422        0.6967471136        1.4966414161
+      X         1.7810159326        0.6241736315        0.2505541610
+      X         0.1800792183        1.4360203812        0.7133104604
+      X         0.6907533252        0.4858379327        0.4287806799
+      X         0.4848961364       -0.3602827169        1.1199932299
+      X         1.4327710668        0.2177870536        1.2319379170
+      X         0.5703803927        1.7787454084        1.7106241277
+      X         1.2561570161        1.2871878862        0.9796453399
+      X        -0.2286542076       -0.0595967487        1.9261848287
+      X         0.8736112905       -0.1066199530        2.1423278315
+    &END COORD
+    &KIND X
+      ELEMENT H
+      MASS 1.0
+    &END KIND
     &TOPOLOGY
       CONNECTIVITY OFF
     &END TOPOLOGY
-
-     &KIND X
-        ELEMENT H
-        MASS 1.0
-     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-

@@ -1,38 +1,39 @@
 &GLOBAL
+  PRINT_LEVEL MEDIUM
   PROJECT O2
   RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     MULTIP 3
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     ROKS
     &LOW_SPIN_ROKS
-       ! Singlet: E(s) = E(t) - 2*E(t) + 2*E(m) = 2*E(m) - E(t)
-       ENERGY_SCALING -2.0 2.0
-       SPIN_CONFIGURATION 1 1  ! (t)
-       SPIN_CONFIGURATION 1 2  ! (m)
-    &END
+      ! Singlet: E(s) = E(t) - 2*E(t) + 2*E(m) = 2*E(m) - E(t)
+      ENERGY_SCALING -2.0 2.0
+      SPIN_CONFIGURATION 1 1  ! (t)
+      SPIN_CONFIGURATION 1 2  ! (m)
+    &END LOW_SPIN_ROKS
     &MGRID
       CUTOFF 280
     &END MGRID
     &QS
     &END QS
     &SCF
-       EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
-       MAX_SCF 10
+      MAX_SCF 10
       SCF_GUESS ATOMIC
-       &OT
-         ROTATION
-       &END
-       &OUTER_SCF
-          EPS_SCF 1.0E-6
-          MAX_SCF 1
-       &END
+      &OT
+        ROTATION
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 1
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
@@ -43,13 +44,13 @@
     &CELL
       ABC 4.0 4.0 6.0
     &END CELL
-    &KIND O
-      BASIS_SET DZVP-GTH
-      POTENTIAL GTH-PADE-q6
-    &END KIND
     &COORD
       O  0.000000  0.000000  0.608000
       O  0.000000  0.000000 -0.608000
     &END COORD
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q6
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

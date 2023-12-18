@@ -1,75 +1,77 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    &DFT
-        BASIS_SET_FILE_NAME BASIS_MOLOPT
-        BASIS_SET_FILE_NAME BASIS_ADMM
-        POTENTIAL_FILE_NAME POTENTIAL_UZH
-        AUTO_BASIS RI_HFX SMALL
-        LSD
-        &MGRID
-            CUTOFF 100
-            REL_CUTOFF 30
-        &END MGRID
-        &QS
-            METHOD GPW
-        &END QS
-        &AUXILIARY_DENSITY_MATRIX_METHOD
-        &END
-        &POISSON
-            PERIODIC NONE
-            PSOLVER MT
-        &END
-        &SCF
-            EPS_SCF 1.0E-6
-      IGNORE_CONVERGENCE_FAILURE
-            MAX_SCF 5
-      SCF_GUESS ATOMIC
-            &OT
-               PRECONDITIONER FULL_ALL
-            &END
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL
-               &HYB_GGA_XC_B3LYP
-               &END
-            &END XC_FUNCTIONAL
-            &HF
-                FRACTION 0.2
-                &RI
-                &END
-            &END
-        &END XC
-    &END DFT
-    &SUBSYS
-        &CELL
-            ABC 5.0 5.0 5.0
-            PERIODIC NONE
-        &END CELL
-        &COORD
-            C       0.0000   0.0000   0.5000
-            H       0.0000   1.0728   0.0000
-            H       0.9291   -0.5364 0.0000
-            H      -0.9291 -0.5364 0.0000
-        &END COORD
-        &KIND H
-            BASIS_SET SZV-MOLOPT-GTH
-            BASIS_SET AUX_FIT FIT3
-            POTENTIAL GTH-HYB-q1
-        &END KIND
-        &KIND C
-            BASIS_SET SZV-MOLOPT-GTH
-            BASIS_SET AUX_FIT FIT3
-            POTENTIAL GTH-HYB-q4
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT CH3-b3lyp-ADMM
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE GEO_OPT
+  PRINT_LEVEL MEDIUM
+  PROJECT CH3-b3lyp-ADMM
+  RUN_TYPE GEO_OPT
 &END GLOBAL
+
 &MOTION
-   &GEO_OPT
-      MAX_ITER 1
-   &END GEO_OPT
+  &GEO_OPT
+    MAX_ITER 1
+  &END GEO_OPT
 &END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    AUTO_BASIS RI_HFX SMALL
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    BASIS_SET_FILE_NAME BASIS_ADMM
+    LSD
+    POTENTIAL_FILE_NAME POTENTIAL_UZH
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 30
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 5
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+    &XC
+      &HF
+        FRACTION 0.2
+        &RI
+        &END RI
+      &END HF
+      &XC_FUNCTIONAL
+        &HYB_GGA_XC_B3LYP
+        &END HYB_GGA_XC_B3LYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C       0.0000   0.0000   0.5000
+      H       0.0000   1.0728   0.0000
+      H       0.9291   -0.5364 0.0000
+      H      -0.9291 -0.5364 0.0000
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-MOLOPT-GTH
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL GTH-HYB-q1
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-MOLOPT-GTH
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL GTH-HYB-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

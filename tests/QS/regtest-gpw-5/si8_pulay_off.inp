@@ -1,94 +1,89 @@
 #CPQA DEPENDS si8_pulay.inp
-
 &GLOBAL
-  PROJECT  si8_pulay
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
   FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL MEDIUM
+  PROJECT si8_pulay
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
-  &PRINT
-    &FORCES ON
-    &END
-  &END
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     RESTART_FILE_NAME si8_pulay-RESTART.wfn
     &MGRID
-      NGRIDS 4
       CUTOFF 40
+      NGRIDS 4
     &END MGRID
+    &PRINT
+      &MO
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+        &EACH
+          QS_SCF 100
+        &END EACH
+      &END MO
+      ##      &MO_CUBES
+      ##        NHOMO  64
+      ##        NLUMO 20
+      ##        WRITE_CUBE F
+      ##      &END
+    &END PRINT
     &QS
-      METHOD GPW
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
+      METHOD GPW
     &END QS
     &SCF
+      ADDED_MOS 20 20
+      CHOLESKY OFF
       EPS_DIIS 1.0e-7
       EPS_SCF 1.0e-7
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF   5
+      MAX_SCF 5
       SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.4
+        BETA 1.0
+        METHOD PULAY_MIXING
+        NPULAY 5
+        PULAY_ALPHA 0.0
+      &END MIXING
+      &OT OFF
+        ENERGY_GAP 0.001
+        PRECONDITIONER FULL_ALL
+      &END OT
       &OUTER_SCF OFF
         EPS_SCF 1.0E-6
         MAX_SCF 1
-      &END
-      &OT OFF
-        PRECONDITIONER FULL_ALL
-        ENERGY_GAP 0.001
-      &END OT
+      &END OUTER_SCF
       &SMEAR
+        ELECTRONIC_TEMPERATURE 5000.
         METHOD FERMI_DIRAC
-        ELECTRONIC_TEMPERATURE   5000.
-      &END
-      &MIXING
-          METHOD PULAY_MIXING
-          ALPHA   0.4
-          BETA   1.0
-          NPULAY  5
-          PULAY_ALPHA 0.0
-      &END
-      CHOLESKY OFF
-      ADDED_MOS   20 20
+      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MO
-        &EACH
-          QS_SCF 100
-        &END
-        EIGENVALUES
-        OCCUPATION_NUMBERS
-      &END
-##      &MO_CUBES
-##        NHOMO  64
-##        NLUMO 20
-##        WRITE_CUBE F
-##      &END
-    &END
   &END DFT
-
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
-       ABC   5.42858871335 5.42858871335 5.42858871335
+      ABC 5.42858871335 5.42858871335 5.42858871335
     &END CELL
-
-    &KIND  Si
-      BASIS_SET  DZVP-GTH
-      POTENTIAL  GTH-PBE-q4
-    &END
-
+    &KIND Si
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
-      COORDINATE XYZ
       CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
     &END TOPOLOGY
-
   &END SUBSYS
 &END FORCE_EVAL

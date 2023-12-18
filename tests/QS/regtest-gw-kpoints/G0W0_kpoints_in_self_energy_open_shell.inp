@@ -1,41 +1,40 @@
 &GLOBAL
-  PROJECT GW_kp_open_shell
   PRINT_LEVEL MEDIUM
+  PROJECT GW_kp_open_shell
   RUN_TYPE ENERGY
   &TIMINGS
-     THRESHOLD 0.01
-  &END
+    THRESHOLD 0.01
+  &END TIMINGS
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME HFX_BASIS
-    SORT_BASIS EXP
-    POTENTIAL_FILE_NAME  GTH_POTENTIALS
-    UKS
     MULTIPLICITY 2
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    SORT_BASIS EXP
+    UKS
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 20
+    &END MGRID
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
-    &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
-    &END MGRID
+    &END POISSON
     &QS
-      METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-15
+      METHOD GPW
     &END QS
     &SCF
-      SCF_GUESS RESTART
       EPS_SCF 1.0E-5
       MAX_SCF 100
-!      ADDED_MOS -1
+      SCF_GUESS RESTART
+      !      ADDED_MOS -1
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
-      &END XC_FUNCTIONAL
       &WF_CORRELATION
         &INTEGRALS
           SIZE_LATTICE_SUM 2
@@ -45,40 +44,42 @@
           REGULARIZATION_RI 1.0E-3
         &END LOW_SCALING
         &RI_RPA
-          RPA_NUM_QUAD_POINTS  6
+          RPA_NUM_QUAD_POINTS 6
           &GW
-           CORR_OCC   1
-           CORR_VIRT  1
-           RI_SIGMA_X
-           KPOINTS_SELF_ENERGY 2 2 1
-           &KPOINT_SET
-             SPECIAL_POINT  0.5   0.0   0.0
-             SPECIAL_POINT  0.0   0.0   0.0
-             NPOINTS 3
-           &END
+            CORR_OCC 1
+            CORR_VIRT 1
+            KPOINTS_SELF_ENERGY 2 2 1
+            RI_SIGMA_X
+            &KPOINT_SET
+              NPOINTS 3
+              SPECIAL_POINT 0.5 0.0 0.0
+              SPECIAL_POINT 0.0 0.0 0.0
+            &END KPOINT_SET
           &END GW
         &END RI_RPA
-      &END
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.0 8.0 8.0
-      MULTIPLE_UNIT_CELL  1 1 1
+      ABC [angstrom] 8.0 8.0 8.0
+      MULTIPLE_UNIT_CELL 1 1 1
       PERIODIC YZ
     &END CELL
+    &COORD
+      H 10.0 10.0 10.0
+      H 9.5 10.0 10.0
+      H 10.5 10.0 10.0
+    &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
       BASIS_SET RI_AUX RI_DZVP-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL  1 1 1
+      MULTIPLE_UNIT_CELL 1 1 1
     &END TOPOLOGY
-    &COORD
-H 10.0 10.0 10.0 
-H 9.5 10.0 10.0
-H 10.5 10.0 10.0
-    &END COORD
   &END SUBSYS
 &END FORCE_EVAL

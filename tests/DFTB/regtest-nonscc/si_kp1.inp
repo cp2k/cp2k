@@ -1,61 +1,62 @@
 @SET NREP 1
 &FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
   &DFT
+    &KPOINTS
+      EPS_GEO 1.e-8
+      FULL_GRID ON
+      PARALLEL_GROUP_SIZE 0
+      SCHEME MONKHORST-PACK 4 4 4
+      SYMMETRY ON
+      VERBOSE T
+    &END KPOINTS
     &QS
+      EXTRAPOLATION USE_GUESS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    F
-        DISPERSION         T
-        ORTHOGONAL_BASIS   F
+        DISPERSION T
+        ORTHOGONAL_BASIS F
+        SELF_CONSISTENT F
         &PARAMETER
-          PARAM_FILE_PATH  DFTB/nonscc
-          PARAM_FILE_NAME  nonscc_parameter
-          SK_FILE  Si  Si   sisi-d
-          UFF_FORCE_FIELD  ../uff_table
+          PARAM_FILE_NAME nonscc_parameter
+          PARAM_FILE_PATH DFTB/nonscc
+          SK_FILE Si Si sisi-d
+          UFF_FORCE_FIELD ../uff_table
         &END PARAMETER
       &END DFTB
-      EXTRAPOLATION USE_GUESS
     &END QS
     &SCF
       SCF_GUESS NONE
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   1.
-      &END
+        ALPHA 1.
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
-    &KPOINTS
-       SCHEME  MONKHORST-PACK  4 4 4
-       SYMMETRY ON
-       EPS_GEO 1.e-8
-       FULL_GRID ON
-       VERBOSE T
-       PARALLEL_GROUP_SIZE   0
-    &END KPOINTS
   &END DFT
   &SUBSYS
-    &TOPOLOGY
-      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
-    &END
     &CELL
       ABC 5.431 5.431 5.431
       MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
     &END CELL
     &COORD
-     SCALED
-     Si     0.000000    0.000000    0.000000
-     Si     0.500000    0.500000    0.000000
-     Si     0.500000    0.000000    0.500000
-     Si     0.000000    0.500000    0.500000
-     Si     0.250000    0.250000    0.250000
-     Si     0.250000    0.750000    0.750000
-     Si     0.750000    0.250000    0.750000
-     Si     0.750000    0.750000    0.250000
+      SCALED
+      Si     0.000000    0.000000    0.000000
+      Si     0.500000    0.500000    0.000000
+      Si     0.500000    0.000000    0.500000
+      Si     0.000000    0.500000    0.500000
+      Si     0.250000    0.250000    0.250000
+      Si     0.250000    0.750000    0.750000
+      Si     0.750000    0.250000    0.750000
+      Si     0.750000    0.750000    0.250000
     &END COORD
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END TOPOLOGY
   &END SUBSYS
-  STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
+
 &GLOBAL
-  PROJECT Si
   PRINT_LEVEL high
+  PROJECT Si
   RUN_TYPE ENERGY
 &END GLOBAL

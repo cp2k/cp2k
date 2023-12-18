@@ -1,3 +1,27 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT nh3_g4x6_excl_mm
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    CONSTRAINT_INIT T
+    &G4X6
+      ATOMS 1 2 3 4
+      DISTANCES 1.9275 1.9275 1.9275 3.1483 3.1483 3.1483
+      EXCLUDE_MM
+      MOLNAME MOL01
+    &END G4X6
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -10,74 +34,52 @@
       SCF_GUESS ATOMIC
     &END SCF
   &END DFT
+  &MM
+    &FORCEFIELD
+      PARMTYPE CHM
+      PARM_FILE_NAME ../../../Fist/sample_pot/nh3.pot
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .44
+        EWALD_TYPE spme
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
   &QMMM
     CENTER SETUP_ONLY
+    ECOUPL NONE
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
-    ECOUPL NONE
     &QM_KIND H
       MM_INDEX 2 3 4
     &END QM_KIND
     &QM_KIND N
       MM_INDEX 1
     &END QM_KIND
-  &END
-  &MM
-    &FORCEFIELD
-      parm_file_name ../../../Fist/sample_pot/nh3.pot
-      parmtype CHM
-    &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE spme
-        ALPHA .44
-        GMAX 30
-        O_SPLINE 6
-      &END EWALD
-    &END POISSON
-  &END MM
+  &END QMMM
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/NH3.pdb
-      COORDINATE pdb
-      CONNECTIVITY MOL_SET
-      &MOL_SET
-        &MOLECULE
-          NMOL 2
-          CONN_FILE_NAME ../../../Fist/sample_psf/nh3.psf
-          CONNECTIVITY UPSF
-        &END
-      &END
-    &END TOPOLOGY
     &PRINT
       &MOLECULES
-      &END
-    &END
+      &END MOLECULES
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY MOL_SET
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/NH3.pdb
+      &MOL_SET
+        &MOLECULE
+          CONNECTIVITY UPSF
+          CONN_FILE_NAME ../../../Fist/sample_psf/nh3.psf
+          NMOL 2
+        &END MOLECULE
+      &END MOL_SET
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT nh3_g4x6_excl_mm
-  RUN_TYPE md
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    CONSTRAINT_INIT T
-    &G4X6
-      DISTANCES 1.9275 1.9275 1.9275 3.1483 3.1483 3.1483
-      MOLNAME MOL01
-      ATOMS 1 2 3 4
-      EXCLUDE_MM
-    &END G4X6
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 20
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

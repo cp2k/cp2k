@@ -1,70 +1,72 @@
-&FORCE_EVAL
-    METHOD Quickstep
-    &DFT
-        BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
-        BASIS_SET_FILE_NAME BASIS_ADMM_UZH
-        POTENTIAL_FILE_NAME POTENTIAL_UZH
-        &MGRID
-            CUTOFF 240
-            REL_CUTOFF 40
-        &END MGRID
-        &AUXILIARY_DENSITY_MATRIX_METHOD
-            ADMM_PURIFICATION_METHOD NONE
-            METHOD BASIS_PROJECTION
-            EXCH_SCALING_MODEL MERLOT
-        &END
-        &QS
-            EPS_DEFAULT 1.0E-12
-            METHOD GAPW
-        &END
-        &SCF
-            SCF_GUESS ATOMIC
-            EPS_SCF 1.0E-6
-        &END SCF
-        &XC
-            &XC_FUNCTIONAL NONE
-            &END XC_FUNCTIONAL
-            &HF
-                FRACTION 1.0
-                &INTERACTION_POTENTIAL
-                  POTENTIAL_TYPE TRUNCATED
-                  CUTOFF_RADIUS 2.0
-                &END
-                &SCREENING
-                   EPS_SCHWARZ 1.0E-10
-                   EPS_SCHWARZ_FORCES 1.0E-10
-                &END
-            &END
-        &END XC
-    &END DFT
-    &SUBSYS
-        &CELL
-            ABC 4.5 4.5 4.5
-        &END CELL
-        &TOPOLOGY
-        &END
-        &COORD
-            O   0.000000    0.000000   -0.045587                                                     
-            H   0.000000   -0.757136    0.510545                                                     
-            H   0.000000    0.757136    0.510545
-        &END COORD
-        &KIND H
-            BASIS_SET ccGRB-D-q1
-            BASIS_SET AUX_FIT admm-dz-q1
-            POTENTIAL GTH-HYB-q1
-        &END KIND
-        &KIND O
-            BASIS_SET ccGRB-D-q6
-            BASIS_SET AUX_FIT admm-dz-q6
-            POTENTIAL GTH-HYB-q6
-        &END KIND
-    &END SUBSYS
-&END FORCE_EVAL
 &GLOBAL
-    PROJECT H2O-ADMMP-GAPW
-    PRINT_LEVEL MEDIUM
-    RUN_TYPE DEBUG
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-ADMMP-GAPW
+  RUN_TYPE DEBUG
 &END GLOBAL
+
 &DEBUG
-   CHECK_ATOM_FORCE 1 Z
-&END
+  CHECK_ATOM_FORCE 1 Z
+&END DEBUG
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+    BASIS_SET_FILE_NAME BASIS_ADMM_UZH
+    POTENTIAL_FILE_NAME POTENTIAL_UZH
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_SCALING_MODEL MERLOT
+      METHOD BASIS_PROJECTION
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &MGRID
+      CUTOFF 240
+      REL_CUTOFF 40
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &HF
+        FRACTION 1.0
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 2.0
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ_FORCES 1.0E-10
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.5 4.5 4.5
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.045587
+      H   0.000000   -0.757136    0.510545
+      H   0.000000    0.757136    0.510545
+    &END COORD
+    &KIND H
+      BASIS_SET ccGRB-D-q1
+      BASIS_SET AUX_FIT admm-dz-q1
+      POTENTIAL GTH-HYB-q1
+    &END KIND
+    &KIND O
+      BASIS_SET ccGRB-D-q6
+      BASIS_SET AUX_FIT admm-dz-q6
+      POTENTIAL GTH-HYB-q6
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

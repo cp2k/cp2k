@@ -1,18 +1,43 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT JAC_us
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &RESTART OFF
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY OFF
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/par_all27_prot_lipid.pot
-      parmtype CHM
-      &spline
-       rcut_nb 9.0
-       unique_spline
-      &end
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/par_all27_prot_lipid.pot
+      &SPLINE
+        RCUT_NB 9.0
+        UNIQUE_SPLINE
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .4
+        EWALD_TYPE spme
         GMAX 27
         O_SPLINE 4
       &END EWALD
@@ -23,34 +48,11 @@
       ABC 62.23 62.23 62.23
     &END CELL
     &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/5dhfr_cube.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/5dhfr_cube.pdb
+      CONN_FILE_NAME ../sample_psf/5dhfr_cube.psf
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/5dhfr_cube.pdb
       PARA_RES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT JAC_us
-  PRINT_LEVEL LOW
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 0.5
-    TEMPERATURE 298
-  &END MD
-  &PRINT
-    &RESTART OFF
-    &END
-    &RESTART_HISTORY OFF
-    &END
-    &TRAJECTORY OFF
-    &END
-    &VELOCITIES OFF
-    &END
-  &END
-&END MOTION

@@ -1,21 +1,36 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT water_gra
   RUN_TYPE MD
-  PRINT_LEVEL LOW
 &END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 0
+    TEMPERATURE 300
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &CSVR
+        TIMECON 10
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-     &NONBONDED
-     &ALLEGRO
-        ATOMS H C O
-        PARM_FILE_NAME Allegro/water-gra-film-double.pth
-        UNIT_COORDS angstrom
-        UNIT_ENERGY Hartree
-        UNIT_FORCES eV*angstrom^-1
-     &END ALLEGRO
-    &END NONBONDED
+      &NONBONDED
+        &ALLEGRO
+          ATOMS H C O
+          PARM_FILE_NAME Allegro/water-gra-film-double.pth
+          UNIT_COORDS angstrom
+          UNIT_ENERGY Hartree
+          UNIT_FORCES eV*angstrom^-1
+        &END ALLEGRO
+      &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -25,27 +40,14 @@
   &END MM
   &SUBSYS
     &CELL
-       A 12.8160 0.0 0.0
-       B 0.0  12.3322 0.0
-       C 0.0 0.0 55.0
+      A 12.8160 0.0 0.0
+      B 0.0 12.3322 0.0
+      C 0.0 0.0 55.0
     &END CELL
     &TOPOLOGY
-#     coordinates must be ordered by atomic number
-      COORD_FILE_NAME ./wat_gra_film.xyz
       COORD_FILE_FORMAT XYZ
+      #     coordinates must be ordered by atomic number
+      COORD_FILE_NAME ./wat_gra_film.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&MOTION
-  &MD
-    ENSEMBLE NVT
-    STEPS 0
-    TIMESTEP 0.5
-    TEMPERATURE 300
-    &THERMOSTAT
-      &CSVR
-        TIMECON 10
-      &END CSVR
-    &END
-  &END MD
-&END MOTION

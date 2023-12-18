@@ -1,3 +1,11 @@
+&GLOBAL
+  PROJECT multipole_ch_dip.dbg_f
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+&END DEBUG
+
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -12,36 +20,40 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms O O
+          ATOMS O O
           EPSILON 0.0
-          SIGMA 1.0
           RCUT 2.0
+          SIGMA 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms O H
+          ATOMS O H
           EPSILON 0.0
-          SIGMA 1.0
           RCUT 2.0
+          SIGMA 1.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 1.0
           RCUT 2.0
+          SIGMA 1.0
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
+        ALPHA 0.8
+        EWALD_TYPE ewald
+        GMAX 91
         &MULTIPOLES
           MAX_MULTIPOLE_EXPANSION QUADRUPOLE
-        &END
-        EWALD_TYPE ewald
-        ALPHA 0.8
-        GMAX 91
+        &END MULTIPOLES
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
@@ -53,23 +65,13 @@
     &END COORD
     &MULTIPOLES
       &DIPOLES
-   0.783994234    0.579808346    0.221755096
-   1.460922230    1.112441716    0.792577862
-   0.891091176    0.656387625    1.665866682
-      &END
-    &END
+        0.783994234    0.579808346    0.221755096
+        1.460922230    1.112441716    0.792577862
+        0.891091176    0.656387625    1.665866682
+      &END DIPOLES
+    &END MULTIPOLES
     &TOPOLOGY
       CONNECTIVITY OFF
-    &END
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-    &FORCES
-    &END
-  &END
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT multipole_ch_dip.dbg_f
-  RUN_TYPE DEBUG
-&END GLOBAL
-&DEBUG
-&END

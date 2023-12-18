@@ -1,3 +1,10 @@
+&GLOBAL
+  FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL MEDIUM
+  PROJECT KCl
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -24,88 +31,88 @@
   &MM
     &FORCEFIELD
       &CHARGE
-         ATOM Cl
-         CHARGE -1.0
+        ATOM Cl
+        CHARGE -1.0
       &END CHARGE
       &CHARGE
-         ATOM K
-         CHARGE 1.0
+        ATOM K
+        CHARGE 1.0
       &END CHARGE
       &CHARGE
-         ATOM KZ
-         CHARGE 0.0
+        ATOM KZ
+        CHARGE 0.0
       &END CHARGE
       &CHARGE
-         ATOM ClZ
-         CHARGE 0.0
+        ATOM ClZ
+        CHARGE 0.0
       &END CHARGE
       &NONBONDED
         &WILLIAMS
-          atoms K   Cl
           A [eV] 4117.9
-          B [angstrom^-1] 3.2808
-          C [eV*angstrom^6] 0.0
-          RCUT [angstrom] 5.0
-        &END WILLIAMS
-  &WILLIAMS
-          atoms K   ClZ
-          A [eV] 4117.9
+          ATOMS K Cl
           B [angstrom^-1] 3.2808
           C [eV*angstrom^6] 0.0
           RCUT [angstrom] 5.0
         &END WILLIAMS
         &WILLIAMS
-          atoms KZ  Cl
           A [eV] 4117.9
-          B [angstrom^-1] 3.2808
-          C [eV*angstrom^6] 0.0
-          RCUT [angstrom] 5.0
-        &END WILLIAMS
-  &WILLIAMS
-          atoms KZ  ClZ
-          A [eV] 4117.9
+          ATOMS K ClZ
           B [angstrom^-1] 3.2808
           C [eV*angstrom^6] 0.0
           RCUT [angstrom] 5.0
         &END WILLIAMS
         &WILLIAMS
-          atoms Cl  Cl
+          A [eV] 4117.9
+          ATOMS KZ Cl
+          B [angstrom^-1] 3.2808
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 5.0
+        &END WILLIAMS
+        &WILLIAMS
+          A [eV] 4117.9
+          ATOMS KZ ClZ
+          B [angstrom^-1] 3.2808
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 5.0
+        &END WILLIAMS
+        &WILLIAMS
           A [eV] 1227.2
+          ATOMS Cl Cl
           B [angstrom^-1] 3.1114
           C [eV*angstrom^6] 124.0
           RCUT [angstrom] 10.0
         &END WILLIAMS
         &WILLIAMS
-          atoms Cl  ClZ
           A [eV] 1227.2
+          ATOMS Cl ClZ
           B [angstrom^-1] 3.1114
           C [eV*angstrom^6] 124.0
           RCUT [angstrom] 10.0
         &END WILLIAMS
         &WILLIAMS
-          atoms ClZ ClZ
           A [eV] 1227.2
+          ATOMS ClZ ClZ
           B [angstrom^-1] 3.1114
           C [eV*angstrom^6] 124.0
           RCUT [angstrom] 10.0
         &END WILLIAMS
         &WILLIAMS
-          atoms K   K
           A [eV] 3796.9
+          ATOMS K K
           B [angstrom^-1] 3.84172
           C [eV*angstrom^6] 124.0
           RCUT [angstrom] 10.0
         &END WILLIAMS
         &WILLIAMS
-          atoms K   KZ
           A [eV] 3796.9
+          ATOMS K KZ
           B [angstrom^-1] 3.84172
           C [eV*angstrom^6] 124.0
           RCUT [angstrom] 10.0
         &END WILLIAMS
         &WILLIAMS
-          atoms KZ   KZ
           A [eV] 3796.9
+          ATOMS KZ KZ
           B [angstrom^-1] 3.84172
           C [eV*angstrom^6] 124.0
           RCUT [angstrom] 10.0
@@ -115,74 +122,68 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
-        GMAX  40
+        EWALD_TYPE spme
+        GMAX 40
       &END EWALD
     &END POISSON
     &PRINT
       &EWALD_INFO
-      &END
-    &END
+      &END EWALD_INFO
+    &END PRINT
   &END MM
   &QMMM
+    CENTER NEVER
+    CENTER_TYPE PBC_AWARE_MAX_MINUS_MIN
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 6
     &CELL
       ABC 6.0 6.0 6.0
       PERIODIC XYZ
     &END CELL
-    &PERIODIC
-    &END
-    CENTER_TYPE PBC_AWARE_MAX_MINUS_MIN
-    CENTER NEVER
-    ECOUPL GAUSS
-    NOCOMPATIBILITY
-    USE_GEEP_LIB 6
     &MM_KIND K
       RADIUS 1.52
     &END MM_KIND
     &MM_KIND Cl
       RADIUS 1.67
     &END MM_KIND
+    &PERIODIC
+    &END PERIODIC
     &QM_KIND K
-      MM_INDEX  5 6 7 8
+      MM_INDEX 5 6 7 8
     &END QM_KIND
     &QM_KIND Cl
       MM_INDEX 1 2 3 4
     &END QM_KIND
   &END QMMM
-   &SUBSYS
-     &CELL
-       ABC     1.2430769273802913E+01  1.2430769273802913E+01 1.2430769273802913E+01
-     &END CELL
-    &TOPOLOGY
-      COORD_FILE_NAME KCl_64.xyz
-      COORD_FILE_FORMAT XYZ
-    &END
+  &SUBSYS
+    &CELL
+      ABC 1.2430769273802913E+01 1.2430769273802913E+01 1.2430769273802913E+01
+    &END CELL
     &KIND K
-      ELEMENT K
       BASIS_SET DZVP-MOLOPT-SR-GTH
+      ELEMENT K
       POTENTIAL GTH-PBE-q9
     &END KIND
     &KIND Cl
-      ELEMENT Cl
       BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT Cl
       POTENTIAL GTH-PBE-q7
-    &END
+    &END KIND
     &KIND KZ
-      ELEMENT K
       BASIS_SET DZVP-MOLOPT-SR-GTH
+      ELEMENT K
       POTENTIAL GTH-PBE-q9
     &END KIND
     &KIND ClZ
-      ELEMENT Cl
       BASIS_SET DZVP-MOLOPT-GTH
+      ELEMENT Cl
       POTENTIAL GTH-PBE-q7
-    &END
+    &END KIND
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME KCl_64.xyz
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  FLUSH_SHOULD_FLUSH
-  PRINT_LEVEL MEDIUM
-  PROJECT KCl
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

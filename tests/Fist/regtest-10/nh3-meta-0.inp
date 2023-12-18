@@ -1,14 +1,54 @@
+&GLOBAL
+  PROJECT nh3-meta-0
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      LAGRANGE
+      NT_HILLS 3
+      WW 1.0e-2
+      &METAVAR
+        COLVAR 1
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.02
+        &WALL
+          POSITION 0.0
+          TYPE NONE
+        &END WALL
+        &WALL
+          POSITION -1.6
+          TYPE NONE
+          &REFLECTIVE
+            DIRECTION WALL_MINUS
+          &END REFLECTIVE
+        &END WALL
+      &END METAVAR
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TEMPERATURE 300.0
+    TEMP_TOL 10.0
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/nh3.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/nh3.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 30
         O_SPLINE 6
       &END EWALD
@@ -18,55 +58,17 @@
     &CELL
       ABC 10.0 10.0 10.0
     &END CELL
-    &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/nh3.psf
-      CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/nh3_1mol.pdb
-      COORDINATE pdb
-    &END TOPOLOGY
     &COLVAR
-       &DISTANCE_POINT_PLANE
-          ATOMS_PLANE 2 3 4
-          ATOM_POINT 1
-       &END DISTANCE_POINT_PLANE
+      &DISTANCE_POINT_PLANE
+        ATOMS_PLANE 2 3 4
+        ATOM_POINT 1
+      &END DISTANCE_POINT_PLANE
     &END COLVAR
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/nh3.psf
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/nh3_1mol.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT nh3-meta-0
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 50
-    TIMESTEP 1.0
-    TEMPERATURE 300.0
-    TEMP_TOL 10.0
-  &END MD
-  &FREE_ENERGY
-    &METADYN
-      DO_HILLS
-      LAGRANGE
-      NT_HILLS 3
-      WW 1.0e-2
-      &METAVAR
-        LAMBDA 0.1
-        MASS 10.0
-        SCALE 0.02
-        COLVAR 1
-        &WALL
-          TYPE NONE
-          POSITION 0.0
-        &END
-        &WALL
-          TYPE NONE
-          POSITION -1.6
-          &REFLECTIVE
-             DIRECTION WALL_MINUS
-          &END
-        &END
-      &END METAVAR
-    &END METADYN
-  &END
-&END MOTION

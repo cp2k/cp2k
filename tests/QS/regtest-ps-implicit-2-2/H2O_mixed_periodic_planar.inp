@@ -4,11 +4,10 @@
 @SET OT   1
 @SET LS   off
 @SET RST  off
-
 &GLOBAL
-  PROJECT     H2O_mixed_periodic_planar
-  RUN_TYPE    ENERGY
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_mixed_periodic_planar
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
@@ -16,28 +15,46 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &LS_SCF
+      EPS_FILTER 1.0E-7
+      EPS_SCF 1.0E-7
+      MAX_SCF 3
+      MIXING_FRACTION 0.45
+      MU -0.20
+      PERFORM_MU_SCAN off
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES off
+      S_PRECONDITIONER NONE
+    &END LS_SCF
+    &MGRID
+      CUTOFF 150
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
     &POISSON
       POISSON_SOLVER ${PS}
       &IMPLICIT
         BOUNDARY_CONDITIONS ${BC}
-        MAX_ITER     300
-        TOL          1.0E-4
+        MAX_ITER 300
         OR_PARAMETER 1.0E-01
+        TOL 1.0E-4
         &DIELECTRIC
-          DIELECTRIC_CONSTANT 78.36
-          RHO_MIN    1.0E-4
-          RHO_MAX    1.0E-3
           DERIVATIVE_METHOD cd5
+          DIELECTRIC_CONSTANT 78.36
+          RHO_MAX 1.0E-3
+          RHO_MIN 1.0E-4
         &END DIELECTRIC
         &DIRICHLET_BC
           &PLANAR
-            v_D      0.01
-            A        1.1523    3.9377    1.3945
-            B        2.1523    5.9377    6.3945
-            C        5.1523    6.9377    5.3945
-            n_prtn   2 3
-            thickness   0.7
-            smoothing_width 0.1
+            A 1.1523 3.9377 1.3945
+            B 2.1523 5.9377 6.3945
+            C 5.1523 6.9377 5.3945
+            N_PRTN 2 3
+            SMOOTHING_WIDTH 0.1
+            THICKNESS 0.7
+            V_D 0.01
           &END PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -48,8 +65,8 @@
           STRIDE 1 1 1
         &END DIELECTRIC_CUBE
         &DIRICHLET_BC_CUBE off
-          TILE_CUBES .false.
           STRIDE 1 1 1
+          TILE_CUBES .false.
         &END DIRICHLET_BC_CUBE
         &DIRICHLET_CSTR_CHARGE_CUBE off
           STRIDE 1 1 1
@@ -59,13 +76,6 @@
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
     &END PRINT
-    &MGRID
-      CUTOFF 150
-      NGRIDS 4
-      &RS_GRID
-        DISTRIBUTION_TYPE DISTRIBUTED
-      &END RS_GRID
-    &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
       LS_SCF ${LS}
@@ -74,41 +84,30 @@
         BASIC_SPATIAL_OPTIMIZATION .TRUE.
       &END DISTRIBUTION
     &END QS
-    &LS_SCF
-      MAX_SCF    3
-      EPS_FILTER 1.0E-7
-      EPS_SCF    1.0E-7
-      MU        -0.20
-      MIXING_FRACTION 0.45
-      S_PRECONDITIONER      NONE
-      REPORT_ALL_SPARSITIES off
-      PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4
-    &END LS_SCF
     &SCF
-      @IF ${Diag}
-        EPS_SCF   1.0E-5
-        IGNORE_CONVERGENCE_FAILURE
-        MAX_SCF   3
-        SCF_GUESS ATOMIC
-        &MIXING
-          ALPHA 0.2
-        &END MIXING
-      @ENDIF
-      @IF ${OT}
-        EPS_SCF   1.0E-4
-        IGNORE_CONVERGENCE_FAILURE
-        MAX_SCF   3
-        SCF_GUESS ATOMIC
-        &OT
-          MINIMIZER DIIS
-          PRECONDITIONER FULL_SINGLE_INVERSE
-        &END OT
-        &OUTER_SCF
-          MAX_SCF 3
-          EPS_SCF 1.0E-4
-        &END OUTER_SCF
-      @ENDIF
+@IF ${Diag}
+      EPS_SCF 1.0E-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.2
+      &END MIXING
+@ENDIF
+@IF ${OT}
+      EPS_SCF 1.0E-4
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-4
+        MAX_SCF 3
+      &END OUTER_SCF
+@ENDIF
       &PRINT
         &RESTART ${RST}
           BACKUP_COPIES 0
@@ -128,9 +127,9 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     O         3.9999870401        3.5606769781        3.5606769833
-     H         4.0000000491        3.4536015938        4.5327585878
-     H         4.0000000214        4.5327585972        3.4536017371
+      O         3.9999870401        3.5606769781        3.5606769833
+      H         4.0000000491        3.4536015938        4.5327585878
+      H         4.0000000214        4.5327585972        3.4536017371
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH

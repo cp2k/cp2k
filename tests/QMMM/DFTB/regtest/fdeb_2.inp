@@ -1,21 +1,33 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT test
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DEBUG_FORCES T
+  DEBUG_STRESS_TENSOR F
+  EPS_NO_ERROR_CHECK 5.E-5
+&END DEBUG
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    T
-        DO_EWALD           F
-        DISPERSION         F
+        DISPERSION F
+        DO_EWALD F
+        SELF_CONSISTENT T
         &PARAMETER
-           PARAM_FILE_PATH  DFTB/scc
-           PARAM_FILE_NAME  scc_parameter
+          PARAM_FILE_NAME scc_parameter
+          PARAM_FILE_PATH DFTB/scc
         &END PARAMETER
-      &END
+      &END DFTB
     &END QS
     &SCF
-      SCF_GUESS MOPAC
       EPS_SCF 1.E-8
+      SCF_GUESS MOPAC
     &END SCF
   &END DFT
   &MM
@@ -40,40 +52,40 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atoms O O
+          ATOMS O O
           EPSILON 78.198
+          RCUT 11.4
           SIGMA 3.166
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms O H
+          ATOMS O H
           EPSILON 0.0
+          RCUT 11.4
           SIGMA 3.6705
-          RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atoms H H
+          ATOMS H H
           EPSILON 0.0
-          SIGMA 3.30523
           RCUT 11.4
+          SIGMA 3.30523
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE SPME
         ALPHA .44
+        EWALD_TYPE SPME
         GMAX 42
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    CENTER SETUP_ONLY
+    ECOUPL COULOMB
+    NOCOMPATIBILITY
     &CELL
       ABC 8.0 8.0 8.0
     &END CELL
-    ECOUPL COULOMB
-    CENTER SETUP_ONLY
-    NOCOMPATIBILITY
     &MM_KIND H
       RADIUS 0.44
     &END MM_KIND
@@ -81,10 +93,10 @@
       RADIUS 0.78
     &END MM_KIND
     &QM_KIND H
-         MM_INDEX 2 3
+      MM_INDEX 2 3
     &END QM_KIND
     &QM_KIND O
-         MM_INDEX 1
+      MM_INDEX 1
     &END QM_KIND
   &END QMMM
   &SUBSYS
@@ -92,27 +104,17 @@
       ABC 24.955 24.955 24.955
     &END CELL
     &COORD
-   O     0.000000     0.000000     0.000000    H2O1
-   H     0.000000     0.000000     1.000000    H2O1
-   H     0.942809     0.000000    -0.333333    H2O1
-   O    -1.617979    -0.948062    -2.341650    H2O2
-   H    -2.529195    -1.296822    -2.122437    H2O2
-   H    -1.534288    -0.833088    -3.331486    H2O2
-   O    -1.507990     2.117783     1.555094    H2O3
-   H    -1.501128     2.645178     2.403050    H2O3
-   H    -2.090603     1.352766     1.597519    H2O3
+      O     0.000000     0.000000     0.000000    H2O1
+      H     0.000000     0.000000     1.000000    H2O1
+      H     0.942809     0.000000    -0.333333    H2O1
+      O    -1.617979    -0.948062    -2.341650    H2O2
+      H    -2.529195    -1.296822    -2.122437    H2O2
+      H    -1.534288    -0.833088    -3.331486    H2O2
+      O    -1.507990     2.117783     1.555094    H2O3
+      H    -1.501128     2.645178     2.403050    H2O3
+      H    -2.090603     1.352766     1.597519    H2O3
     &END COORD
     &TOPOLOGY
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT test
-  PRINT_LEVEL LOW
-  RUN_TYPE DEBUG
-&END GLOBAL
-&DEBUG
-   DEBUG_FORCES T
-   DEBUG_STRESS_TENSOR F
-   EPS_NO_ERROR_CHECK 5.E-5
-&END

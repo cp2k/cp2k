@@ -4,11 +4,10 @@
 @SET OT   1
 @SET LS   off
 @SET RST  off
-
 &GLOBAL
-  PROJECT     Ar_mixed_periodic_aa_planar
-  RUN_TYPE    ENERGY
   PRINT_LEVEL MEDIUM
+  PROJECT Ar_mixed_periodic_aa_planar
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
@@ -16,30 +15,48 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &LS_SCF
+      EPS_FILTER 1.0E-7
+      EPS_SCF 1.0E-7
+      MAX_SCF 30
+      MIXING_FRACTION 0.45
+      MU -0.20
+      PERFORM_MU_SCAN off
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES off
+      S_PRECONDITIONER NONE
+    &END LS_SCF
+    &MGRID
+      CUTOFF 200
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
     &POISSON
       POISSON_SOLVER ${PS}
       &IMPLICIT
         BOUNDARY_CONDITIONS ${BC}
-        MAX_ITER     300
-        TOL          1.0E-8
+        MAX_ITER 300
         OR_PARAMETER 1.0
+        TOL 1.0E-8
         &DIELECTRIC
-          DIELECTRIC_CONSTANT 1.50
-          RHO_MIN    1.0E-4
-          RHO_MAX    1.0E-3
           DERIVATIVE_METHOD cd5
+          DIELECTRIC_CONSTANT 1.50
+          RHO_MAX 1.0E-3
+          RHO_MIN 1.0E-4
         &END DIELECTRIC
         &DIRICHLET_BC
           VERBOSE_OUTPUT .false.
           &AA_PLANAR
-            v_D      0.01
-            PARALLEL_PLANE XY
             INTERCEPT 7.5
-            X_xtnt    0.5 7.5
-            Y_xtnt    0.5 7.5
-            n_prtn    2 2
-            thickness 0.7
-            smoothing_width 0.1
+            N_PRTN 2 2
+            PARALLEL_PLANE XY
+            SMOOTHING_WIDTH 0.1
+            THICKNESS 0.7
+            V_D 0.01
+            X_XTNT 0.5 7.5
+            Y_XTNT 0.5 7.5
           &END AA_PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -50,8 +67,8 @@
           STRIDE 1 1 1
         &END DIELECTRIC_CUBE
         &DIRICHLET_BC_CUBE off
-          TILE_CUBES .false.
           STRIDE 1 1 1
+          TILE_CUBES .false.
         &END DIRICHLET_BC_CUBE
         &DIRICHLET_CSTR_CHARGE_CUBE off
           STRIDE 1 1 1
@@ -61,13 +78,6 @@
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
     &END PRINT
-    &MGRID
-      CUTOFF 200
-      NGRIDS 4
-      &RS_GRID
-        DISTRIBUTION_TYPE DISTRIBUTED
-      &END RS_GRID
-    &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
       LS_SCF ${LS}
@@ -76,39 +86,28 @@
         BASIC_SPATIAL_OPTIMIZATION .TRUE.
       &END DISTRIBUTION
     &END QS
-    &LS_SCF
-      MAX_SCF    30
-      EPS_FILTER 1.0E-7
-      EPS_SCF    1.0E-7
-      MU        -0.20
-      MIXING_FRACTION 0.45
-      S_PRECONDITIONER      NONE
-      REPORT_ALL_SPARSITIES off
-      PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4
-    &END LS_SCF
     &SCF
-      @IF ${Diag}
-        SCF_GUESS ATOMIC
-        MAX_SCF   300
-        EPS_SCF   1.0E-5
-        &MIXING
-          ALPHA 0.2
-        &END MIXING
-      @ENDIF
-      @IF ${OT}
-        SCF_GUESS ATOMIC
-        MAX_SCF   31
-        EPS_SCF   1.0E-5
-        &OT
-          MINIMIZER DIIS
-          PRECONDITIONER FULL_SINGLE_INVERSE
-        &END OT
-        &OUTER_SCF
-          MAX_SCF 50
-          EPS_SCF 1.0E-5
-        &END OUTER_SCF
-      @ENDIF
+@IF ${Diag}
+      SCF_GUESS ATOMIC
+      MAX_SCF 300
+      EPS_SCF 1.0E-5
+      &MIXING
+        ALPHA 0.2
+      &END MIXING
+@ENDIF
+@IF ${OT}
+      SCF_GUESS ATOMIC
+      MAX_SCF 31
+      EPS_SCF 1.0E-5
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-5
+        MAX_SCF 50
+      &END OUTER_SCF
+@ENDIF
       &PRINT
         &RESTART ${RST}
           BACKUP_COPIES 0
@@ -128,7 +127,7 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     Ar        4.0000000000        4.0000000000        4.0000000000
+      Ar        4.0000000000        4.0000000000        4.0000000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-MOLOPT-SR-GTH

@@ -1,7 +1,21 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2-md
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1000
+    TEMPERATURE 300.0
+    TIMESTEP 0.01
+  &END MD
+&END MOTION
+
 # should give a real energy conserving md.
 # i.e. about 1.0E-7 fluctuations in the constant of motion
 # for this the very small timestep is needed
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -13,11 +27,11 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-7
-      &MIXING
-        METHOD DIRECT_P_MIXING
-        ALPHA 0.6
-      &END
       SCF_GUESS RESTART
+      &MIXING
+        ALPHA 0.6
+        METHOD DIRECT_P_MIXING
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL pade
@@ -29,8 +43,8 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-    H   0.0 0.0 0.85
-    H   0.0 0.0 0.0
+      H   0.0 0.0 0.85
+      H   0.0 0.0 0.0
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -38,17 +52,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PROJECT H2-md
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 1000
-    TIMESTEP 0.01
-    TEMPERATURE 300.0
-  &END MD
-&END MOTION

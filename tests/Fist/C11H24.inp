@@ -1,15 +1,27 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT undecane
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 0
+    OPTIMIZER BFGS
+  &END GEO_OPT
+&END MOTION
 
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name sample_pot/butane.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME sample_pot/butane.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -21,20 +33,8 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME sample_pdb/C11H24.pdb
       COORDINATE pdb
+      COORD_FILE_NAME sample_pdb/C11H24.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-
-  PROJECT undecane
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER 0
-    OPTIMIZER BFGS
-  &END GEO_OPT
-&END MOTION

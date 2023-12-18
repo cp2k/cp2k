@@ -1,90 +1,94 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ftest
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PROPERTIES
-    &TDDFPT
-       KERNEL FULL
-       NSTATES      5
-       MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
-       RKS_TRIPLETS F
-    &END TDDFPT
-  &END PROPERTIES
   &DFT
+    &EXCITED_STATES T
+      STATE 1
+    &END EXCITED_STATES
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
     &QS
       METHOD GPW
     &END QS
-    &EXCITED_STATES T
-       STATE 1
-    &END EXCITED_STATES
     &SCF
-      SCF_GUESS ATOMIC 
-      &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
-         MINIMIZER DIIS
-      &END
-      &OUTER_SCF
-         MAX_SCF  10
-         EPS_SCF 1.0E-6
-      &END
-      MAX_SCF  50
       EPS_SCF 1.0E-6
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END OUTER_SCF
     &END SCF
-
     &XC
+      &HF
+        &INTERACTION_POTENTIAL
+          OMEGA 0.33
+          POTENTIAL_TYPE MIX_CL
+          SCALE_COULOMB 0.18352
+          SCALE_LONGRANGE 0.94979
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          MAX_MEMORY 100
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
       &XC_FUNCTIONAL
         &BECKE88
           SCALE_X 0.95238
-        &END
+        &END BECKE88
         &BECKE88_LR
           OMEGA 0.33
           SCALE_X -0.94979
-        &END
+        &END BECKE88_LR
         &LYP
           SCALE_C 1.0
-        &END
+        &END LYP
         &XALPHA
           SCALE_X -0.13590
-        &END
+        &END XALPHA
       &END XC_FUNCTIONAL
-      &HF
-       &SCREENING
-         EPS_SCHWARZ 1.0E-10
-       &END
-       &MEMORY
-         MAX_MEMORY 100
-       &END
-       &INTERACTION_POTENTIAL
-         POTENTIAL_TYPE MIX_CL
-         OMEGA 0.33
-         SCALE_LONGRANGE 0.94979
-         SCALE_COULOMB 0.18352
-       &END
-      &END
     &END XC
-
-    &MGRID
-       CUTOFF  200
-       REL_CUTOFF  40
-    &END
-    &POISSON
-       PERIODIC NONE
-       POISSON_SOLVER MT
-    &END
   &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE [eV] 1.0e-7
+      KERNEL FULL
+      MAX_ITER 50
+      NSTATES 5
+      RKS_TRIPLETS F
+    &END TDDFPT
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
-    &END
+    &END CELL
     &COORD
-    O   0.000000    0.000000    0.000000
-    H   0.000000   -0.757136    0.580545
-    H   0.000000    0.757136    0.580545
+      O   0.000000    0.000000    0.000000
+      H   0.000000   -0.757136    0.580545
+      H   0.000000    0.757136    0.580545
     &END COORD
-    &TOPOLOGY
-     &CENTER_COORDINATES
-     &END
-    &END
     &KIND H
       BASIS_SET DZV-GTH-PADE
       POTENTIAL GTH-PADE-q1
@@ -93,14 +97,9 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
-  &PRINT
-     &FORCES
-     &END
-  &END
 &END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-  PROJECT ftest
-  RUN_TYPE ENERGY_FORCE
-&END GLOBAL

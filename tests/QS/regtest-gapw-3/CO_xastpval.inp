@@ -1,117 +1,110 @@
 #CPQA DEPENDS CO.inp
-
 &GLOBAL
- PROJECT      xes_core1_homo1
- IOLEVEL      MEDIUM
- RUN_TYPE     ENERGY
-&END
+  IOLEVEL MEDIUM
+  PROJECT xes_core1_homo1
+  RUN_TYPE ENERGY
+&END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
-
   &DFT
-    LSD
     BASIS_SET_FILE_NAME ALL_BASIS_SETS
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
-    RESTART_FILE_NAME   CO-RESTART
-    &XC
-      &XC_FUNCTIONAL
-       &BECKE88
-       &END
-       &LYP
-       &END
-      &END
-    &END
-    &QS
-      METHOD       GAPW
-      EPS_GVG      1.0E-8
-      EPS_PGF_ORB  1.0E-8
-      QUADRATURE   GC_LOG
-      EPSFIT       1.E-4
-      EPSISO       1.0E-12
-      EPSRHO0      1.E-8
-      LMAXN0       2
-      LMAXN1       6
-      ALPHA0_H     10
-     &END
+    RESTART_FILE_NAME CO-RESTART
     &MGRID
-      CUTOFF       150
-      NGRIDS        4
-    &END
+      CUTOFF 150
+      NGRIDS 4
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+      &MT
+        ALPHA 7.0
+        REL_CUTOFF 1.2
+      &END MT
+    &END POISSON
+    &QS
+      ALPHA0_H 10
+      EPSFIT 1.E-4
+      EPSISO 1.0E-12
+      EPSRHO0 1.E-8
+      EPS_GVG 1.0E-8
+      EPS_PGF_ORB 1.0E-8
+      LMAXN0 2
+      LMAXN1 6
+      METHOD GAPW
+      QUADRATURE GC_LOG
+    &END QS
     &SCF
-      SCF_GUESS RESTART
-      EPS_SCF 5.E-6
+      ADDED_MOS 1 1
       EPS_DIIS 0.4
+      EPS_SCF 5.E-6
       MAX_SCF 100
-
-      ADDED_MOS  1 1
+      SCF_GUESS RESTART
       &OT OFF
         PRECONDITIONER FULL_ALL
       &END OT
       &PRINT
-        &TOTAL_DENSITIES MEDIUM
-        &END
         &RESTART OFF
-        &END
-      &END
+        &END RESTART
+        &TOTAL_DENSITIES MEDIUM
+        &END TOTAL_DENSITIES
+      &END PRINT
     &END SCF
-   &POISSON
-     POISSON_SOLVER MT
-     &MT
-      ALPHA 7.0
-      REL_CUTOFF 1.2
-     &END
-     PERIODIC NONE
-    &END POISSON
-
     &XAS
-      &SCF
-        EPS_SCF 0.000001
-        EPS_DIIS   0.4
-        MAX_SCF       3
-      &END SCF
-      METHOD        TP_VAL
-      DIPOLE_FORM   VELOCITY
-      STATE_TYPE    1s
-      STATE_SEARCH  2
-      ATOMS_LIST    1
-      ATOMS_LIST    2
-      ADDED_MOS     20
+      ADDED_MOS 20
+      ATOMS_LIST 1
+      ATOMS_LIST 2
+      DIPOLE_FORM VELOCITY
+      METHOD TP_VAL
+      STATE_SEARCH 2
+      STATE_TYPE 1s
       &LOCALIZE
-      &END
+      &END LOCALIZE
       &PRINT
         &RESTART
-        &END
+        &END RESTART
         &XAS_SPECTRUM OFF
-        &END
+        &END XAS_SPECTRUM
         &XES_SPECTRUM
-        &END
-      &END
-    &END
-  &END SECTION DFT
+        &END XES_SPECTRUM
+      &END PRINT
+      &SCF
+        EPS_DIIS 0.4
+        EPS_SCF 0.000001
+        MAX_SCF 3
+      &END SCF
+    &END XAS
+    &XC
+      &XC_FUNCTIONAL
+        &BECKE88
+        &END BECKE88
+        &LYP
+        &END LYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &SUBSYS
     &CELL
-       ABC    6.0    6.0     6.0
-       PERIODIC NONE
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
     &END CELL
-
-    &KIND O
-      BASIS_SET  6-31G*
-      POTENTIAL ALL
-      LEBEDEV_GRID 50
-      RADIAL_GRID 100
-    &END
-
-    &KIND  C
-      BASIS_SET  6-31G*
-      POTENTIAL  ALL
-      LEBEDEV_GRID 50
-      RADIAL_GRID 100
-    &END
-
     &COORD
       C         0.000000    0.000000   -0.004108
       O        0.000000    0.000000    1.132332
-    &END
+    &END COORD
+    &KIND O
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 100
+    &END KIND
+    &KIND C
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 100
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -1,3 +1,16 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-qmmm-none-1
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 3
+    OPTIMIZER BFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD QMMM
   &DFT
@@ -19,37 +32,37 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/2H2O.pot
-      parmtype CHM
-      &spline
-       rcut_nb 5.2917720830
-      &end
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/2H2O.pot
+      &SPLINE
+        RCUT_NB 5.2917720830
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 64
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
+    ECOUPL NONE
     MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
+    NOCOMPATIBILITY
     &CELL
       ABC 7.0 7.0 7.0
     &END CELL
-    ECOUPL NONE
-    NOCOMPATIBILITY
     &QM_KIND H
       MM_INDEX 5 6
     &END QM_KIND
     &QM_KIND O
       MM_INDEX 4
     &END QM_KIND
-  #
-  # QM_KINDS
-  #
+    #
+    # QM_KINDS
+    #
   &END QMMM
   &SUBSYS
     &CELL
@@ -64,21 +77,10 @@
       POTENTIAL GTH-BLYP-q6
     &END KIND
     &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/2H2O.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ../sample_pdb/2H2O.pdb
+      CONN_FILE_NAME ../sample_psf/2H2O.psf
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/2H2O.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2O-qmmm-none-1
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE GEO_OPT
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER 3
-    OPTIMIZER BFGS
-  &END GEO_OPT
-&END MOTION

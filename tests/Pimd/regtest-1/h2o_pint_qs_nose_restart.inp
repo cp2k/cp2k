@@ -1,24 +1,32 @@
 #CPQA DEPENDS h2o_pint_qs_nose.inp
 #CPQA INCLUDE BASIS_SET
 #CPQA INCLUDE POTENTIAL
-
 &GLOBAL
-  PROJECT_NAME               h2o_pint_qs_nose
-  RUN_TYPE                   PINT
-  PRINT_LEVEL                LOW
+  PRINT_LEVEL LOW
+  PROJECT_NAME h2o_pint_qs_nose
+  RUN_TYPE PINT
 &END GLOBAL
+
+&EXT_RESTART
+  RESTART_COUNTERS
+  RESTART_DEFAULT F
+  RESTART_FILE_NAME h2o_pint_qs_nose-1.restart
+  RESTART_PINT_NOSE
+  RESTART_PINT_POS
+  RESTART_PINT_VEL
+&END EXT_RESTART
 
 &MOTION
   &PINT
-    P                        4
-    PROC_PER_REPLICA         1
-    NUM_STEPS               10
-    TEMP                    50.0
-    DT                       0.5
-    NRESPA                   2
-    TRANSFORMATION           NORMAL
+    DT 0.5
+    NRESPA 2
+    NUM_STEPS 10
+    P 4
+    PROC_PER_REPLICA 1
+    TEMP 50.0
+    TRANSFORMATION NORMAL
     &NOSE
-      NNOS                   3
+      NNOS 3
     &END NOSE
   &END PINT
 &END MOTION
@@ -30,14 +38,14 @@
       CUTOFF 200
     &END MGRID
     &QS
-       EPS_DEFAULT 1.0E-8
+      EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
       EPS_SCF 1.0E-4
-      SCF_GUESS              RESTART
+      SCF_GUESS RESTART
     &END SCF
     &XC
-      &XC_FUNCTIONAL  Pade
+      &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -46,9 +54,9 @@
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -60,12 +68,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-
-&EXT_RESTART
-  RESTART_FILE_NAME          h2o_pint_qs_nose-1.restart
-  RESTART_DEFAULT            F
-  RESTART_COUNTERS
-  RESTART_PINT_POS
-  RESTART_PINT_VEL
-  RESTART_PINT_NOSE
-&END EXT_RESTART

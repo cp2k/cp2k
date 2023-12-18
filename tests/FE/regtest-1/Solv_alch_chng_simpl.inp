@@ -1,7 +1,54 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Solv_alch_chng_simpl
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    METHOD AC
+    &ALCHEMICAL_CHANGE
+      PARAMETER k
+    &END ALCHEMICAL_CHANGE
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 200.0
+    TIMESTEP 0.5
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 1
+        &END EACH
+      &END ENERGY
+    &END PRINT
+  &END MD
+  &PRINT
+    &FORCES OFF
+    &END FORCES
+    &RESTART
+      &EACH
+        MD 10
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY
+      &EACH
+        MD 100
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3
-   MULTIPLE_SUBSYS T
-&END
+  FORCE_EVAL_ORDER 2 3
+  MULTIPLE_SUBSYS T
+&END MULTIPLE_FORCE_EVALS
+
 &FORCE_EVAL
   METHOD MIXED
   &MIXED
@@ -10,150 +57,108 @@
       # X: Energy force_eval 2
       # Y: Energy force_eval 3
       MIXING_FUNCTION k*X+(1.0-k)*Y
-      VARIABLES X Y
       PARAMETERS k
       VALUES 0.5
-    &END
+      VARIABLES X Y
+    &END GENERIC
     &MAPPING
+      &FORCE_EVAL 1
+        DEFINE_FRAGMENTS 1 2 3 5
+      &END FORCE_EVAL
+      &FORCE_EVAL 2
+        DEFINE_FRAGMENTS 1 4 3 5
+      &END FORCE_EVAL
       &FORCE_EVAL_MIXED
         &FRAGMENT 1
           1 6
-        &END
+        &END FRAGMENT
         &FRAGMENT 2
           7 16
-        &END
+        &END FRAGMENT
         &FRAGMENT 3
           17 22
-        &END
+        &END FRAGMENT
         &FRAGMENT 4
           23 33
-        &END
+        &END FRAGMENT
         &FRAGMENT 5
           34 1851
-        &END
-      &END
-      &FORCE_EVAL 1
-        DEFINE_FRAGMENTS 1 2 3 5
-      &END
-      &FORCE_EVAL 2
-        DEFINE_FRAGMENTS 1 4 3 5
-      &END
-    &END
-  &END
+        &END FRAGMENT
+      &END FORCE_EVAL_MIXED
+    &END MAPPING
+  &END MIXED
   &SUBSYS
+    &CELL
+      ABC 30.9751780 30.8599250 30.7278700
+    &END CELL
     &TOPOLOGY
       CONNECTIVITY OFF
       COORDINATE PDB
       COORD_FILE_NAME full.pdb
     &END TOPOLOGY
-    &CELL
-      ABC  30.9751780  30.8599250  30.7278700
-    &END CELL
   &END SUBSYS
 &END FORCE_EVAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      PARMTYPE CHM
       PARM_FILE_NAME ala.pot
-      parmtype CHM
       &SPLINE
         EMAX_SPLINE 100000000.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .5
+        EWALD_TYPE spme
         GMAX 36
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
+    &CELL
+      ABC 30.9751780 30.8599250 30.7278700
+    &END CELL
     &TOPOLOGY
       CONNECTIVITY PSF
       CONN_FILE_NAME ala.psf
       COORDINATE PDB
       COORD_FILE_NAME ala.pdb
     &END TOPOLOGY
-    &CELL
-      ABC 30.9751780  30.8599250  30.7278700
-    &END CELL
   &END SUBSYS
 &END FORCE_EVAL
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      PARMTYPE CHM
       PARM_FILE_NAME ser.pot
-      parmtype CHM
       &SPLINE
         EMAX_SPLINE 100000000.0
-      &END
+      &END SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .5
+        EWALD_TYPE spme
         GMAX 36
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
+    &CELL
+      ABC 30.9751780 30.8599250 30.7278700
+    &END CELL
     &TOPOLOGY
       CONNECTIVITY PSF
       CONN_FILE_NAME ser.psf
       COORDINATE PDB
       COORD_FILE_NAME ser.pdb
     &END TOPOLOGY
-    &CELL
-      ABC  30.9751780  30.8599250  30.7278700
-    &END CELL
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT Solv_alch_chng_simpl
-  RUN_TYPE MD
-  PRINT_LEVEL LOW
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 20
-    TIMESTEP 0.5
-    TEMPERATURE 200.0
-    &PRINT
-     &ENERGY
-      &EACH
-        MD 1
-      &END
-     &END
-    &END
-  &END MD
-  &PRINT
-   &TRAJECTORY
-    &EACH
-      MD 100
-    &END
-   &END
-   &VELOCITIES OFF
-   &END
-   &FORCES OFF
-   &END
-   &RESTART_HISTORY OFF
-   &END
-   &RESTART
-    &EACH
-     MD 10
-    &END
-   &END
-  &END
-  &FREE_ENERGY
-    METHOD AC
-    &ALCHEMICAL_CHANGE
-      PARAMETER k
-    &END
-  &END
-&END MOTION

@@ -1,8 +1,8 @@
 # test implicit poisson solver: dielectric = 1.0 , two parallel planar Dirichlet regions , OT CG
 &GLOBAL
-  PROJECT     H2O_dbl_cstr_otcg
-  RUN_TYPE    ENERGY
   PRINT_LEVEL MEDIUM
+  PROJECT H2O_dbl_cstr_otcg
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
@@ -10,40 +10,58 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &LS_SCF
+      EPS_FILTER 1.0E-7
+      EPS_SCF 1.0E-7
+      MAX_SCF 3
+      MIXING_FRACTION 0.45
+      MU -0.20
+      PERFORM_MU_SCAN off
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES off
+      S_PRECONDITIONER NONE
+    &END LS_SCF
+    &MGRID
+      CUTOFF 180
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
     &POISSON
       POISSON_SOLVER IMPLICIT
       &IMPLICIT
         BOUNDARY_CONDITIONS MIXED_PERIODIC
-        MAX_ITER     300
-        TOL          1.0E-09
+        MAX_ITER 300
         OR_PARAMETER 1.0E-00
+        TOL 1.0E-09
         &DIELECTRIC
           DIELECTRIC_CONSTANT 1.0
-!          RHO_MIN    1.0E-4
-!          RHO_MAX    1.0E-3
-!          DERIVATIVE_METHOD cd5
+          !          RHO_MIN    1.0E-4
+          !          RHO_MAX    1.0E-3
+          !          DERIVATIVE_METHOD cd5
         &END DIELECTRIC
         &DIRICHLET_BC
           VERBOSE_OUTPUT .FALSE.
           &AA_PLANAR
-            v_D       0.0
-            PARALLEL_PLANE YZ
             INTERCEPT 1.0
-            Y_xtnt    0.5 7.5
-            Z_xtnt    0.5 7.5
-            n_prtn    1 1
-            thickness 0.7
-            smoothing_width 0.1
+            N_PRTN 1 1
+            PARALLEL_PLANE YZ
+            SMOOTHING_WIDTH 0.1
+            THICKNESS 0.7
+            V_D 0.0
+            Y_XTNT 0.5 7.5
+            Z_XTNT 0.5 7.5
           &END AA_PLANAR
           &AA_PLANAR
-            v_D       0.1
-            PARALLEL_PLANE YZ
             INTERCEPT 7.0
-            Y_xtnt    0.5 7.5
-            Z_xtnt    0.5 7.5
-            n_prtn    1 1
-            thickness 0.7
-            smoothing_width 0.1
+            N_PRTN 1 1
+            PARALLEL_PLANE YZ
+            SMOOTHING_WIDTH 0.1
+            THICKNESS 0.7
+            V_D 0.1
+            Y_XTNT 0.5 7.5
+            Z_XTNT 0.5 7.5
           &END AA_PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -54,8 +72,8 @@
           STRIDE 1 1 1
         &END DIELECTRIC_CUBE
         &DIRICHLET_BC_CUBE off
-          TILE_CUBES .false.
           STRIDE 1 1 1
+          TILE_CUBES .false.
         &END DIRICHLET_BC_CUBE
         &DIRICHLET_CSTR_CHARGE_CUBE off
           STRIDE 1 1 1
@@ -65,13 +83,6 @@
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
     &END PRINT
-    &MGRID
-      CUTOFF 180
-      NGRIDS 4
-      &RS_GRID
-        DISTRIBUTION_TYPE DISTRIBUTED
-      &END RS_GRID
-    &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
       LS_SCF off
@@ -80,29 +91,18 @@
         BASIC_SPATIAL_OPTIMIZATION .TRUE.
       &END DISTRIBUTION
     &END QS
-    &LS_SCF
-      MAX_SCF    3
-      EPS_FILTER 1.0E-7
-      EPS_SCF    1.0E-7
-      MU        -0.20
-      MIXING_FRACTION 0.45
-      S_PRECONDITIONER      NONE
-      REPORT_ALL_SPARSITIES off
-      PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4
-    &END LS_SCF
     &SCF
-      EPS_SCF   1.0E-4
+      EPS_SCF 1.0E-4
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF   3
+      MAX_SCF 3
       SCF_GUESS ATOMIC
       &OT
         MINIMIZER CG
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
       &OUTER_SCF
-        MAX_SCF 3
         EPS_SCF 1.0E-4
+        MAX_SCF 3
       &END OUTER_SCF
       &PRINT
         &RESTART off
@@ -123,9 +123,9 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     O         3.9999870401        3.5606769781        3.5606769833
-     H         4.0000000491        3.4536015938        4.5327585878
-     H         4.0000000214        4.5327585972        3.4536017371
+      O         3.9999870401        3.5606769781        3.5606769833
+      H         4.0000000491        3.4536015938        4.5327585878
+      H         4.0000000214        4.5327585972        3.4536017371
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH

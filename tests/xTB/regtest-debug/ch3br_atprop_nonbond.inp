@@ -1,47 +1,62 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT CH3Br-Xe
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TEMPERATURE 330.0
+    TIMESTEP 0.48
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
-  STRESS_TENSOR ANALYTICAL
-  &PROPERTIES
-     &ATOMIC
-        ENERGY
-        PRESSURE
-     &END ATOMIC
-  &END PROPERTIES
   METHOD Quickstep
+  STRESS_TENSOR ANALYTICAL
   &DFT
     &QS
-      METHOD xTB
       EPS_DEFAULT 1.0E-12
-    &xTB
-     DO_EWALD T
-     CHECK_ATOMIC_CHARGES OFF
-      DO_NONBONDED T
+      METHOD xTB
+      &XTB
+        CHECK_ATOMIC_CHARGES OFF
+        DO_EWALD T
+        DO_NONBONDED T
         &NONBONDED
-         &GENPOT
-          ATOMS Br Xe
-          FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8
-          PARAMETERS Aparam Bparam Cparam
-          VALUES 49.507 1.441 6703.192
-          VARIABLES r
-         &END GENPOT
-         DX 0.0001
-         ERROR_LIMIT 0.0000001
+          DX 0.0001
+          ERROR_LIMIT 0.0000001
+          &GENPOT
+            ATOMS Br Xe
+            FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8
+            PARAMETERS Aparam Bparam Cparam
+            VALUES 49.507 1.441 6703.192
+            VARIABLES r
+          &END GENPOT
         &END NONBONDED
-    &END XTB
+      &END XTB
     &END QS
     &SCF
-      SCF_GUESS RESTART
       EPS_SCF 1.0E-8
       MAX_SCF 50
+      SCF_GUESS RESTART
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_S_INVERSE
-      &END
+      &END OT
       &OUTER_SCF
-         EPS_SCF 1.0E-8
-         MAX_SCF 10
-      &END
+        EPS_SCF 1.0E-8
+        MAX_SCF 10
+      &END OUTER_SCF
     &END SCF
   &END DFT
+  &PROPERTIES
+    &ATOMIC
+      ENERGY
+      PRESSURE
+    &END ATOMIC
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 12.0 12.0 12.0
@@ -56,16 +71,3 @@
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT  CH3Br-Xe
-  PRINT_LEVEL LOW
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 3
-    TIMESTEP 0.48
-    TEMPERATURE 330.0
-  &END MD
-&END MOTION

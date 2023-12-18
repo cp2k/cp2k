@@ -3,40 +3,41 @@
   PROGRAM_NAME TEST
   RUN_TYPE NONE
   &TIMINGS
-     THRESHOLD 0.00000000001
-  &END
+    THRESHOLD 0.00000000001
+  &END TIMINGS
 &END GLOBAL
+
 &TEST
   &CP_DBCSR
-     K 128
-     M 256
-     N 512
-     TRANSA FALSE
-     TRANSB TRUE
-     N_LOOP 3
-     ! ALPHA 2.0
-     ! BETA  2.0
-     DATA_TYPE COMPLEX_8
-     ASPARSITY 0.5
-     BSPARSITY 0.5
-     CSPARSITY 0.5
-     bs_m 1 13 2 5
-     bs_n 1 4
-  &END
+    ASPARSITY 0.5
+    BSPARSITY 0.5
+    BS_M 1 13 2 5
+    BS_N 1 4
+    CSPARSITY 0.5
+    ! ALPHA 2.0
+    ! BETA  2.0
+    DATA_TYPE COMPLEX_8
+    K 128
+    M 256
+    N 512
+    N_LOOP 3
+    TRANSA FALSE
+    TRANSB TRUE
+  &END CP_DBCSR
   &CP_DBCSR
-     K 128
-     M 256
-     N 512
-     TRANSA FALSE
-     TRANSB TRUE
-     N_LOOP 3
-     ALPHA 2.0
-     BETA  2.0
-     DATA_TYPE REAL_8
-     ASPARSITY 0.5
-     BSPARSITY 0.5
-     CSPARSITY 0.5
-     bs_m 1 13 2 5
-     bs_n 1 4
-  &END
+    ALPHA 2.0
+    ASPARSITY 0.5
+    BETA 2.0
+    BSPARSITY 0.5
+    BS_M 1 13 2 5
+    BS_N 1 4
+    CSPARSITY 0.5
+    DATA_TYPE REAL_8
+    K 128
+    M 256
+    N 512
+    N_LOOP 3
+    TRANSA FALSE
+    TRANSB TRUE
+  &END CP_DBCSR
 &END TEST

@@ -1,9 +1,47 @@
+&GLOBAL
+  PROJECT water_2_TS
+  RUN_TYPE GEO_OPT
+  #TRACE
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 20
+    OPTIMIZER CG
+    TYPE TRANSITION_STATE
+    &CG
+      MAX_STEEP_STEPS 20
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+    &TRANSITION_STATE
+      METHOD DIMER
+      &DIMER
+        ANGLE_TOLERANCE [deg] 0.5
+        DR 0.0001
+        INTERPOLATE_GRADIENT
+        &ROT_OPT
+          MAX_ITER 1000
+          OPTIMIZER CG
+          &CG
+            MAX_STEEP_STEPS 1000
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END LINE_SEARCH
+          &END CG
+        &END ROT_OPT
+      &END DIMER
+    &END TRANSITION_STATE
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,8 +53,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 44
         O_SPLINE 6
       &END EWALD
@@ -27,49 +65,13 @@
       ABC 25.0 25.0 25.0
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/water_2_TS.xyz
       COORDINATE xyz
+      COORD_FILE_NAME ../sample_xyz/water_2_TS.xyz
       &DUMP_PSF
-      &END
+      &END DUMP_PSF
       &GENERATE
         CREATE_MOLECULES
-      &END
+      &END GENERATE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_2_TS
-  RUN_TYPE GEO_OPT
-  #TRACE
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    TYPE TRANSITION_STATE
-    MAX_ITER 20
-    OPTIMIZER CG
-    &CG
-      MAX_STEEP_STEPS 20
-      &LINE_SEARCH
-        TYPE 2PNT
-      &END
-    &END
-    &TRANSITION_STATE
-      METHOD DIMER
-      &DIMER
-        DR 0.0001
-        ANGLE_TOLERANCE [deg] 0.5
-        INTERPOLATE_GRADIENT
-        &ROT_OPT
-          OPTIMIZER CG
-          MAX_ITER 1000
-          &CG
-            MAX_STEEP_STEPS 1000
-            &LINE_SEARCH
-              TYPE 2PNT
-            &END
-          &END
-        &END
-      &END
-    &END
-  &END GEO_OPT
-&END MOTION

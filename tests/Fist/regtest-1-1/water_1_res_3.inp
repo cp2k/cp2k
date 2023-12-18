@@ -1,11 +1,28 @@
-#CPQA DEPENDS water_1_res_2.inp
+&GLOBAL
+  PROJECT water_1
+  RUN_TYPE md
+&END GLOBAL
 
+&EXT_RESTART
+  EXTERNAL_FILE water_1-1.restart
+&END EXT_RESTART
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
+#CPQA DEPENDS water_1_res_2.inp
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -17,8 +34,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .44
+        EWALD_TYPE spme
         GMAX 24
         O_SPLINE 6
       &END EWALD
@@ -29,25 +46,8 @@
       ABC 24.955 24.955 24.955
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_1.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-
-  PROJECT water_1
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION
-&EXT_RESTART
-  EXTERNAL_FILE water_1-1.restart
-&END
-

@@ -1,8 +1,9 @@
 &GLOBAL
-  PROJECT H2O-NMR-1-postene
   PRINT_LEVEL LOW
+  PROJECT H2O-NMR-1-postene
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
@@ -22,37 +23,37 @@
   &END DFT
   &PROPERTIES
     &LINRES
-##       RESTART
-       &LOCALIZE
-          MAX_ITER 20
-           &PRINT
-              &LOC_RESTART
-              &END
-           &END
-##           RESTART
-       &END
-       MAX_ITER 10
-       RESTART_EVERY 5
-       PRECONDITIONER FULL_ALL
-       &CURRENT
-          GAUGE R_AND_STEP_FUNCTION
-       &END CURRENT
-       &NMR
-       &END
-       &PRINT
-         &RESTART
-         &END
-       &END
-    &END
-  &END
+      MAX_ITER 10
+      PRECONDITIONER FULL_ALL
+      RESTART_EVERY 5
+      &CURRENT
+        GAUGE R_AND_STEP_FUNCTION
+      &END CURRENT
+      ##       RESTART
+      &LOCALIZE
+        MAX_ITER 20
+        &PRINT
+          &LOC_RESTART
+          &END LOC_RESTART
+        &END PRINT
+        ##           RESTART
+      &END LOCALIZE
+      &NMR
+      &END NMR
+      &PRINT
+        &RESTART
+        &END RESTART
+      &END PRINT
+    &END LINRES
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-  H       .000689482500      -.765854689700      1.551514984100
-  H       .000592940100       .767987328300      1.553204324000
-  O       .046239583400       .001896697900      0.9564530746
+      H       .000689482500      -.765854689700      1.551514984100
+      H       .000592940100       .767987328300      1.553204324000
+      O       .046239583400       .001896697900      0.9564530746
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH

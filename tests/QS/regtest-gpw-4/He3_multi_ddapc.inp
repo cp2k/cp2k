@@ -1,32 +1,56 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT He3_multi_ddapc
+  ! RUN_TYPE MD
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 300.0
+    TIMESTEP 0.4
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
     LSD
+    POTENTIAL_FILE_NAME POTENTIAL
+    &DENSITY_FITTING
+    &END DENSITY_FITTING
     &MGRID
       CUTOFF 80
     &END MGRID
+    &PRINT
+      &E_DENSITY_CUBE
+      &END E_DENSITY_CUBE
+      &MULLIKEN
+      &END MULLIKEN
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
       &DDAPC_RESTRAINT
-        ATOMS   3
-        TARGET -1.0
-        STRENGTH 0.02
+        ATOMS 3
         FUNCTIONAL_FORM CONSTRAINT
-      &END
-      &DDAPC_RESTRAINT
-        ATOMS   2
-        TARGET  0.0
-        STRENGTH 6.0
-        TYPE_OF_DENSITY FULL
-      &END
-      &DDAPC_RESTRAINT
-        ATOMS   1
+        STRENGTH 0.02
         TARGET -1.0
+      &END DDAPC_RESTRAINT
+      &DDAPC_RESTRAINT
+        ATOMS 2
         STRENGTH 6.0
+        TARGET 0.0
+        TYPE_OF_DENSITY FULL
+      &END DDAPC_RESTRAINT
+      &DDAPC_RESTRAINT
+        ATOMS 1
+        STRENGTH 6.0
+        TARGET -1.0
         TYPE_OF_DENSITY SPIN
-      &END
+      &END DDAPC_RESTRAINT
     &END QS
     &SCF
       EPS_SCF 5.0E-7
@@ -34,37 +58,29 @@
       MAX_SCF 7
       SCF_GUESS ATOMIC
       &OT
-        PRECONDITIONER FULL_ALL
         ENERGY_GAP 0.01
-      &END
+        PRECONDITIONER FULL_ALL
+      &END OT
       &OUTER_SCF
-         MAX_SCF 1
-         EPS_SCF 3.0E-3
-         OPTIMIZER BISECT
-         TYPE DDAPC_CONSTRAINT
-      &END
+        EPS_SCF 3.0E-3
+        MAX_SCF 1
+        OPTIMIZER BISECT
+        TYPE DDAPC_CONSTRAINT
+      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
-    &DENSITY_FITTING
-    &END
-    &PRINT
-       &E_DENSITY_CUBE
-       &END
-       &MULLIKEN
-       &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 10.0
     &END CELL
     &COORD
-    He   0.000000   0.0   0.0
-    He   0.000000   0.0   3.0
-    He   0.000000   0.0   6.0
+      He   0.000000   0.0   0.0
+      He   0.000000   0.0   3.0
+      He   0.000000   0.0   6.0
     &END COORD
     &KIND He
       BASIS_SET DZVP-GTH-PADE
@@ -72,17 +88,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT He3_multi_ddapc
-! RUN_TYPE MD
-   RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 5
-    TIMESTEP 0.4
-    TEMPERATURE 300.0
-  &END MD
-&END MOTION

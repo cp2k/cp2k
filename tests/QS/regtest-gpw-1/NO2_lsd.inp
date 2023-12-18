@@ -1,9 +1,14 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT NO2_lsd
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
     LSD
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -13,7 +18,6 @@
       EPS_DIIS 0.4
       EPS_SCF 3.0E-6
       MAX_SCF 150
-
       SCF_GUESS ATOMIC
     &END SCF
     &XC
@@ -26,9 +30,9 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-   O  3.71590        2.5        2.5
-   O  1.65536    3.37465        2.5
-   N  2.5 2.5 2.5
+      O  3.71590        2.5        2.5
+      O  1.65536    3.37465        2.5
+      N  2.5 2.5 2.5
     &END COORD
     &KIND O
       BASIS_SET DZVP-GTH-PADE
@@ -40,7 +44,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT NO2_lsd
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

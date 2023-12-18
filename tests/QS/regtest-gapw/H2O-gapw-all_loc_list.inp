@@ -1,3 +1,8 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT gapw_all_pade_loc_list
+&END GLOBAL
+
 #CPQA DEPENDS H2O-gapw-all.inp
 &FORCE_EVAL
   METHOD Quickstep
@@ -5,23 +10,31 @@
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
     RESTART_FILE_NAME gapw_all_pade_ref0-RESTART.wfn
+    &LOCALIZE
+      LIST 2 3 4 5
+      &PRINT
+        &MOLECULAR_DIPOLES
+        &END MOLECULAR_DIPOLES
+      &END PRINT
+    &END LOCALIZE
     &MGRID
       CUTOFF 150
       NGRIDS 1
     &END MGRID
+    &PRINT
+    &END PRINT
     &QS
       ALPHA0_H 10
-      EPS_GVG 1.0E-6
-      EPS_PGF_ORB 1.0E-6
       EPSFIT 1.E-4
       EPSISO 1.0E-12
-      EPSSVD 0.0
       EPSRHO0 1.E-8
+      EPSSVD 0.0
+      EPS_GVG 1.0E-6
+      EPS_PGF_ORB 1.0E-6
       LMAXN0 2
       LMAXN1 6
       METHOD GAPW
       QUADRATURE GC_LOG
-
     &END QS
     &SCF
       EPS_SCF 1.0E-4
@@ -31,31 +44,22 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
-    &LOCALIZE
-       LIST 2 3 4 5
-      &PRINT
-        &MOLECULAR_DIPOLES
-        &END
-      &END
-    &END
-    &PRINT
-    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-ALL-PADE
+      HARD_EXP_RADIUS 1.5117809071370015011
       LEBEDEV_GRID 50
       POTENTIAL ALL
       RADIAL_GRID 50
-      HARD_EXP_RADIUS 1.5117809071370015011
     &END KIND
     &KIND O
       BASIS_SET TZVP-ALL-PADE
@@ -65,7 +69,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT gapw_all_pade_loc_list
-  PRINT_LEVEL MEDIUM
-&END GLOBAL

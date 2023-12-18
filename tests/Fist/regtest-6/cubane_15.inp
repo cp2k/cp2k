@@ -1,21 +1,45 @@
+&GLOBAL
+  PRINT_LEVEL DEBUG
+  PROJECT cubane_15
+  RUN_TYPE GEO_OPT
+  #RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 50
+  &END GEO_OPT
+  &MD
+    ENSEMBLE NPT_F
+    STEPS 5
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME __STD_OUT__
+      FORMAT ATOMIC
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
+      EI_SCALE14 0.83333333333333333333
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/cubane.pot
+      SHIFT_CUTOFF .false.
       ! PARM91
       ! VDW_SCALE14 0.5
       ! EI_SCALE14  0.5
       ! PARM94 and Following
       VDW_SCALE14 0.5
-      EI_SCALE14  0.83333333333333333333
-      parm_file_name ../sample_pot/cubane.pot
-      parmtype CHM
-      SHIFT_CUTOFF .false.
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
         ALPHA .36
+        EWALD_TYPE spme
         GMAX 64
       &END EWALD
     &END POISSON
@@ -24,38 +48,16 @@
     &CELL
       ABC 30.0 30.0 30.0
     &END CELL
-    &TOPOLOGY
-      CONN_FILE_NAME ../sample_psf/cubane.psf
-      CONNECTIVITY PSF
-      COORD_FILE_NAME ../sample_pdb/cubane_15.pdb
-      COORDINATE PDB
-    &END TOPOLOGY
     &PRINT
       &TOPOLOGY_INFO
         UTIL_INFO
-      &END
-    &END
+      &END TOPOLOGY_INFO
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ../sample_psf/cubane.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/cubane_15.pdb
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT cubane_15
-  PRINT_LEVEL DEBUG
-  RUN_TYPE GEO_OPT
-  #RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER 50
-  &END
-  &MD
-    ENSEMBLE NPT_F
-    STEPS 5
-    TIMESTEP 0.5
-  &END
-  &PRINT
-    &TRAJECTORY
-      FILENAME __STD_OUT__
-      FORMAT ATOMIC
-    &END
-  &END
-&END MOTION

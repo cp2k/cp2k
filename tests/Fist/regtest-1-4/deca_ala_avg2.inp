@@ -1,14 +1,43 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT deca_ala_avg2
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &HBONDS
+      MOLECULE 1 2 3 4 5 6 7 8 9 10
+    &END HBONDS
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TEMPERATURE 298
+    TIMESTEP 2.5
+    &AVERAGES
+      ACQUISITION_START_TIME [fs] 20.0
+      AVERAGE_COLVAR T
+      &PRINT_AVERAGES
+        &EACH
+          MD 5
+        &END EACH
+      &END PRINT_AVERAGES
+    &END AVERAGES
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/deca_ala.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/deca_ala.pot
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE ewald
         ALPHA .36
+        EWALD_TYPE ewald
         GMAX 29
       &END EWALD
     &END POISSON
@@ -19,35 +48,8 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
       COORDINATE PDB
+      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT deca_ala_avg2
-  PRINT_LEVEL LOW
-  RUN_TYPE md
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-     &HBONDS
-       MOLECULE 1 2 3 4 5 6 7 8 9 10
-     &END
-  &END
-  &MD
-    ENSEMBLE NVE
-    STEPS 20
-    TIMESTEP 2.5
-    TEMPERATURE 298
-    &AVERAGES
-      ACQUISITION_START_TIME [fs] 20.0
-      AVERAGE_COLVAR T
-      &PRINT_AVERAGES
-        &EACH
-           MD 5
-        &END
-      &END
-    &END
-  &END MD
-&END MOTION

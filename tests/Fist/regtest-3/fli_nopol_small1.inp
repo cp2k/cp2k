@@ -1,80 +1,81 @@
 &GLOBAL
-  PROJECT fli_nopol_small1
-  PREFERRED_FFT_LIBRARY  FFTW
+  PREFERRED_FFT_LIBRARY FFTW
   PRINT_LEVEL LOW
   PROGRAM_NAME CP2K
+  PROJECT fli_nopol_small1
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
- METHOD FIST
- &MM
-   &FORCEFIELD
-     &SPLINE
-       R0_NB 0.1
-       EMAX_SPLINE 20.0
-     &END SPLINE
-     &NONBONDED
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM F
+        CHARGE 0.0000
+      &END CHARGE
+      &CHARGE
+        ATOM Li
+        CHARGE 0.000
+      &END CHARGE
+      &NONBONDED
         &BMHFTD
-          atoms F F
           A 181.8373
+          ATOMS F F
           B 4.2833
+          BD 3.59048
           C 0.329381
           D 0.922357
-          BD 3.59048
           RCUT 9.36643
         &END BMHFTD
         &BMHFTD
-          atoms Li F
           A 20.4158478
+          ATOMS Li F
           B 3.87854
+          BD 0.0
           C 0.0
           D 0.0
-          BD 0.0
           RCUT 9.36643
         &END BMHFTD
         &BMHFTD
-          atoms Li Li
           A 195.910854
+          ATOMS Li Li
           B 8.03542
+          BD 0.0
           C 0.0
           D 0.0
-          BD 0.0
           RCUT 9.36643
         &END BMHFTD
-     &END NONBONDED
-     &CHARGE
-       atom F
-       CHARGE 0.0000
-     &END CHARGE
-     &CHARGE
-       atom Li
-       CHARGE 0.000
-     &END CHARGE
-   &END FORCEFIELD
-   &POISSON
-     PERIODIC NONE
-     POISSON_SOLVER ANALYTIC
-     &EWALD
-       GMAX 7
-     &END EWALD
+      &END NONBONDED
+      &SPLINE
+        EMAX_SPLINE 20.0
+        R0_NB 0.1
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER ANALYTIC
+      &EWALD
+        GMAX 7
+      &END EWALD
     &END POISSON
   &END MM
-   &SUBSYS
+  &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD
-     F     0.0 0.0 0.0
-     Li    0.0 0.0 0.5
+      F     0.0 0.0 0.0
+      Li    0.0 0.0 0.5
     &END COORD
     &KIND F
       ELEMENT F
-      MASS    18.99840
+      MASS 18.99840
     &END KIND
     &KIND Li
       ELEMENT Li
-      MASS    6.941
+      MASS 6.941
     &END KIND
-   &END SUBSYS
- &END FORCE_EVAL
+  &END SUBSYS
+&END FORCE_EVAL

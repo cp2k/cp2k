@@ -1,47 +1,42 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT hf-chain
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD QS
   &DFT
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    &QS
-      ALMO_SCF T
-      EPS_DEFAULT 1.0E-8
-    &END QS
-
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &ALMO_SCF
-
-      EPS_FILTER                    1.0E-8
-      ALMO_ALGORITHM                SKIP
-      ALMO_SCF_GUESS                ATOMIC
-      MO_OVERLAP_INV_ALG            LS_HOTELLING
-      RETURN_ORTHOGONALIZED_MOS     F
-      XALMO_R_CUTOFF_FACTOR         1.2
-
-      XALMO_ALGORITHM               TRUST_REGION
-      XALMO_TRIAL_WF                SIMPLE
-      DELOCALIZE_METHOD             XALMO_SCF
-
+      ALMO_ALGORITHM SKIP
+      ALMO_SCF_GUESS ATOMIC
+      DELOCALIZE_METHOD XALMO_SCF
+      EPS_FILTER 1.0E-8
+      MO_OVERLAP_INV_ALG LS_HOTELLING
+      RETURN_ORTHOGONALIZED_MOS F
+      XALMO_ALGORITHM TRUST_REGION
+      XALMO_R_CUTOFF_FACTOR 1.2
+      XALMO_TRIAL_WF SIMPLE
       &XALMO_OPTIMIZER_TRUSTR
-        ALGORITHM                   DOGLEG
-        MAX_ITER_OUTER_LOOP         200
-        EPS_ERROR                   5.50E-4
-        CONJUGATOR                  FLETCHER ! recommended
-        ETA                         0.1
-        INITIAL_TRUST_RADIUS        0.1
-        MAX_TRUST_RADIUS            2.0
+        ALGORITHM DOGLEG
+        CONJUGATOR FLETCHER  ! recommended
+        EPS_ERROR 5.50E-4
+        ETA 0.1
+        INITIAL_TRUST_RADIUS 0.1
+        MAX_ITER_OUTER_LOOP 200
+        MAX_TRUST_RADIUS 2.0
       &END XALMO_OPTIMIZER_TRUSTR
-
     &END ALMO_SCF
-
     &MGRID
       CUTOFF 300
       NGRIDS 5
     &END MGRID
+    &QS
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-8
+    &END QS
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
@@ -52,9 +47,6 @@
 @INCLUDE '../regtest-almo-2/FH-chain.cell'
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
-    &TOPOLOGY
-      MULTIPLE_UNIT_CELL 1 1 1
-    &END
     &COORD
 @INCLUDE '../regtest-almo-2/FH-chain.xyz'
     &END COORD
@@ -66,6 +58,8 @@
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q7
     &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

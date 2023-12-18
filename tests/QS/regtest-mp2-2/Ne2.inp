@@ -1,8 +1,9 @@
 &GLOBAL
-  PROJECT Ne2
   PRINT_LEVEL LOW
+  PROJECT Ne2
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -17,37 +18,37 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      METHOD GAPW
       EPS_DEFAULT 1.0E-12
+      METHOD GAPW
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
+      ADDED_MOS 1000 1000
       EPS_SCF 1.0E-5
       MAX_SCF 1000
-      ADDED_MOS 1000 1000
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-      &END XC_FUNCTIONAL
       &HF
         FRACTION 1.0000000
         &SCREENING
-            EPS_SCHWARZ 1.0E-7
+          EPS_SCHWARZ 1.0E-7
         &END SCREENING
       &END HF
       &WF_CORRELATION
-       &MP2
-          METHOD DIRECT_CANONICAL
-       &END MP2
         MEMORY 1000.
         &INTEGRALS
           &INTERACTION_POTENTIAL
             POTENTIAL_TYPE TShPSC
             TRUNCATION_RADIUS [angstrom] 3.0
-            TShPSC_DATA t_sh_p_s_c.dat
-          &END
+            TSHPSC_DATA t_sh_p_s_c.dat
+          &END INTERACTION_POTENTIAL
         &END INTEGRALS
-      &END
+        &MP2
+          METHOD DIRECT_CANONICAL
+        &END MP2
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
@@ -65,8 +66,7 @@
     &END KIND
     &TOPOLOGY
       &CENTER_COORDINATES
-      &END
+      &END CENTER_COORDINATES
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

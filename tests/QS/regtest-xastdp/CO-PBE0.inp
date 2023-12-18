@@ -1,66 +1,61 @@
 &GLOBAL
-  PROJECT CO-PBE0
   PRINT_LEVEL LOW
+  PROJECT CO-PBE0
   RUN_TYPE ENERGY
 &END GLOBAL
+
 &FORCE_EVAL
   &DFT
+    AUTO_BASIS RI_XAS SMALL
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
-    AUTO_BASIS RI_XAS SMALL
-
-    &QS
-      METHOD GAPW
-    &END QS
-
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
-
-    &XC
-      &XC_FUNCTIONAL
-            &GGA_C_PBE
-            &END GGA_C_PBE
-            &GGA_X_PBE
-               SCALE 0.75
-            &END GGA_X_PBE
-      &END XC_FUNCTIONAL
-      &HF
-         FRACTION 0.25
-      &END HF
-    &END XC
-
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
     &XAS_TDP
-      &DONOR_STATES
-         DEFINE_EXCITED BY_INDEX
-         ATOM_LIST 1 2
-         STATE_TYPES 1s 1s
-         N_SEARCH 2
-      &END DONOR_STATES
-
+      DIPOLE_FORM LENGTH
       GRID C 60 120
       GRID O 60 120
-      DIPOLE_FORM LENGTH
       N_EXCITED 15
-
+      &DONOR_STATES
+        ATOM_LIST 1 2
+        DEFINE_EXCITED BY_INDEX
+        N_SEARCH 2
+        STATE_TYPES 1s 1s
+      &END DONOR_STATES
       &KERNEL
-         &XC_FUNCTIONAL
-            &GGA_C_PBE
-            &END GGA_C_PBE
-            &GGA_X_PBE
-               SCALE 0.75
-            &END GGA_X_PBE
-         &END XC_FUNCTIONAL
-         &EXACT_EXCHANGE
-            FRACTION 0.25
-         &END EXACT_EXCHANGE
+        &EXACT_EXCHANGE
+          FRACTION 0.25
+        &END EXACT_EXCHANGE
+        &XC_FUNCTIONAL
+          &GGA_C_PBE
+          &END GGA_C_PBE
+          &GGA_X_PBE
+            SCALE 0.75
+          &END GGA_X_PBE
+        &END XC_FUNCTIONAL
       &END KERNEL
     &END XAS_TDP
+    &XC
+      &HF
+        FRACTION 0.25
+      &END HF
+      &XC_FUNCTIONAL
+        &GGA_C_PBE
+        &END GGA_C_PBE
+        &GGA_X_PBE
+          SCALE 0.75
+        &END GGA_X_PBE
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC  6.0  6.0  6.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD

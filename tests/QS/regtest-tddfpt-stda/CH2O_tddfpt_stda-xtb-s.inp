@@ -1,23 +1,12 @@
 &GLOBAL
+  PREFERRED_DIAG_LIBRARY SL
+  PRINT_LEVEL LOW
   PROJECT CH2O_tddfpt_stda-xtb-s-1
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
-  PREFERRED_DIAG_LIBRARY SL
 &END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PROPERTIES
-    &TDDFPT
-       KERNEL sTDA
-       &sTDA
-          FRACTION 0.0
-          DO_EXCHANGE F
-       &END sTDA
-       NSTATES      1
-       MAX_ITER    500
-       CONVERGENCE [eV] 1.0e-10
-    &END TDDFPT
-  &END PROPERTIES
   &DFT
     &QS
       METHOD xTB
@@ -27,20 +16,32 @@
       SCF_GUESS atomic
     &END SCF
   &END DFT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE [eV] 1.0e-10
+      KERNEL sTDA
+      MAX_ITER 500
+      NSTATES 1
+      &STDA
+        DO_EXCHANGE F
+        FRACTION 0.0
+      &END STDA
+    &END TDDFPT
+  &END PROPERTIES
   &SUBSYS
     &CELL
       ABC 8.0 8.0 8.0
       PERIODIC NONE
     &END CELL
-    &TOPOLOGY
-     &CENTER_COORDINATES
-     &END
-    &END TOPOLOGY
     &COORD
-  O         0.094933   -0.000368    0.895642
-  C        -0.031077   -0.000121   -0.307326
-  H        -0.090437    0.947608   -0.895642
-  H        -0.094933   -0.947608   -0.895562
+      O         0.094933   -0.000368    0.895642
+      C        -0.031077   -0.000121   -0.307326
+      H        -0.090437    0.947608   -0.895642
+      H        -0.094933   -0.947608   -0.895562
     &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

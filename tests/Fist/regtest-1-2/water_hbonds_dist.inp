@@ -1,9 +1,27 @@
+&GLOBAL
+  PROJECT water_hbonds_dist
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &HBONDS
+    &END HBONDS
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TEMPERATURE 298
+    TIMESTEP 2.5
+  &END MD
+&END MOTION
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/water.pot
-      parmtype CHM
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/water.pot
       &CHARGE
         ATOM OT
         CHARGE -0.8476
@@ -15,8 +33,8 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE pme
         ALPHA .44
+        EWALD_TYPE pme
         NS_MAX 25
       &END EWALD
     &END POISSON
@@ -25,30 +43,14 @@
     &CELL
       ABC 24.955 24.955 24.955
     &END CELL
+    &PRINT
+      &TOPOLOGY_INFO
+        PDB_INFO
+      &END TOPOLOGY_INFO
+    &END PRINT
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_pdb/water_2.pdb
       COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/water_2.pdb
     &END TOPOLOGY
-      &PRINT
-        &TOPOLOGY_INFO
-          PDB_INFO
-        &END
-      &END
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT water_hbonds_dist
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &CONSTRAINT
-    &HBONDS
-    &END
-  &END CONSTRAINT
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TIMESTEP 2.5
-    TEMPERATURE 298
-  &END MD
-&END MOTION

@@ -1,10 +1,15 @@
+&GLOBAL
+  PROJECT G_Oh
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     &QS
       METHOD PM6
       &SE
-      &END
+      &END SE
     &END QS
     &SCF
       MAX_SCF 0
@@ -16,23 +21,19 @@
       PERIODIC NONE
     &END CELL
     &COORD
-C   0.00      1.00      0.00
-C   0.00      0.00      1.00
-C   1.00      0.00      0.00
-C   0.00      0.00     -1.00
-C  -1.00      0.00      0.00
-C   0.00     -1.00      0.00
+      C   0.00      1.00      0.00
+      C   0.00      0.00      1.00
+      C   1.00      0.00      0.00
+      C   0.00      0.00     -1.00
+      C  -1.00      0.00      0.00
+      C   0.00     -1.00      0.00
     &END COORD
     &PRINT
       &SYMMETRY
-        MOLECULE
         ALL
         CHECK_SYMMETRY Oh
-      &END
-    &END
+        MOLECULE
+      &END SYMMETRY
+    &END PRINT
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT G_Oh
-  RUN_TYPE ENERGY
-&END GLOBAL

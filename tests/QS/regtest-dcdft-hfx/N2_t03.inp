@@ -1,14 +1,56 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT N2
+  RUN_TYPE GEO_OPT
+  &REFERENCES OFF
+  &END REFERENCES
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
-
-  &PRINT
-    &FORCES                    ON
-    &END FORCES
-  &END PRINT
-
   &DFT
     BASIS_SET_FILE_NAME HFX_BASIS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &ENERGY_CORRECTION
+      ENERGY_FUNCTIONAL DCDFT
+      HARRIS_BASIS HARRIS
+      &RESPONSE_SOLVER
+        EPS 1.0E-6
+        METHOD AO_ORTHO
+        PRECONDITIONER MULTI_LEVEL
+      &END RESPONSE_SOLVER
+      &XC
+        &HF
+          ! 25 % HFX exchange
+          FRACTION 0.25
+          &INTERACTION_POTENTIAL
+            CUTOFF_RADIUS 2.4
+            POTENTIAL_TYPE TRUNCATED
+            T_C_G_DATA t_c_g.dat
+          &END INTERACTION_POTENTIAL
+          &SCREENING
+            EPS_SCHWARZ 1.0E-4
+          &END SCREENING
+        &END HF
+        ! use a PBE0 functional
+        ! By using a different EPS_SCHWARZ
+        ! the HFX section of the ground-state calculation is not reused
+        &XC_FUNCTIONAL
+          &PBE
+            ! 100% GGA correlation
+            SCALE_C 1.0
+            ! 75% GGA exchange
+            SCALE_X 0.75
+          &END PBE
+        &END XC_FUNCTIONAL
+      &END XC
+    &END ENERGY_CORRECTION
     &MGRID
       CUTOFF 100
       REL_CUTOFF 30
@@ -20,76 +62,45 @@
     &QS
       EPS_DEFAULT 1.E-12
     &END QS
-    &ENERGY_CORRECTION
-      ENERGY_FUNCTIONAL        DCDFT
-      HARRIS_BASIS             HARRIS 
-      &RESPONSE_SOLVER
-        METHOD                 AO_ORTHO
-        PRECONDITIONER         MULTI_LEVEL
-        EPS                    1.0E-6
-      &END RESPONSE_SOLVER
-      &XC
-        ! use a PBE0 functional
-        ! By using a different EPS_SCHWARZ 
-        ! the HFX section of the ground-state calculation is not reused
-        &XC_FUNCTIONAL
-         &PBE
-           ! 75% GGA exchange
-           SCALE_X 0.75
-           ! 100% GGA correlation
-           SCALE_C 1.0
-         &END PBE
-        &END XC_FUNCTIONAL
-        &HF
-          ! 25 % HFX exchange
-          FRACTION 0.25
-          &SCREENING
-            EPS_SCHWARZ 1.0E-4 
-          &END
-          &INTERACTION_POTENTIAL
-             POTENTIAL_TYPE      TRUNCATED
-             CUTOFF_RADIUS       2.4
-             T_C_G_DATA          t_c_g.dat
-           &END INTERACTION_POTENTIAL
-        &END
-      &END XC
-    &END ENERGY_CORRECTION
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
-    &END
+      SCF_GUESS ATOMIC
+    &END SCF
     &XC
-      &XC_FUNCTIONAL
-       &PBE
-         ! 75% GGA exchange
-         SCALE_X 0.75
-         ! 100% GGA correlation
-         SCALE_C 1.0
-       &END PBE
-      &END XC_FUNCTIONAL
       &HF
         ! 25 % HFX exchange
         FRACTION 0.25
-        &SCREENING
-          EPS_SCHWARZ 1.0E-3 
-        &END
         &INTERACTION_POTENTIAL
-           POTENTIAL_TYPE      TRUNCATED
-           CUTOFF_RADIUS       2.4
-           T_C_G_DATA          t_c_g.dat
-         &END INTERACTION_POTENTIAL
-      &END
+          CUTOFF_RADIUS 2.4
+          POTENTIAL_TYPE TRUNCATED
+          T_C_G_DATA t_c_g.dat
+        &END INTERACTION_POTENTIAL
+        &SCREENING
+          EPS_SCHWARZ 1.0E-3
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL
+        &PBE
+          ! 100% GGA correlation
+          SCALE_C 1.0
+          ! 75% GGA exchange
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
-
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD
-    N     0.000000     0.000000     0.650000    
-    N     0.000000     0.000000    -0.650000   
+      N     0.000000     0.000000     0.650000
+      N     0.000000     0.000000    -0.650000
     &END COORD
     &KIND N
       BASIS_SET ORB DZVP-GTH
@@ -98,15 +109,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT N2 
-  RUN_TYPE GEO_OPT
-  PRINT_LEVEL LOW
-  &REFERENCES OFF
-  &END REFERENCES
-&END GLOBAL
-&MOTION
-  &GEO_OPT
-     MAX_ITER 1
-  &END
-&END

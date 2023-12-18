@@ -1,30 +1,36 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2
+  RUN_TYPE ENERGY
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    LSD
-    CHARGE +1
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    CHARGE +1
+    LSD
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 250
       REL_CUTOFF 50
     &END MGRID
-    &QS
-      METHOD GAPW
-    &END QS
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC
       MAX_SCF 10
+      SCF_GUESS ATOMIC
       &PRINT
         &RESTART
-           FILENAME =H2-pbe.restart
-        &END
-      &END
+          FILENAME =H2-pbe.restart
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -37,8 +43,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-    H 0.0 0.0 0.0
-    H 0.0 0.0 1.0
+      H 0.0 0.0 0.0
+      H 0.0 0.0 1.0
     &END COORD
     &KIND H
       BASIS_SET aug-cc-pVTZ
@@ -46,8 +52,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
-&END GLOBAL

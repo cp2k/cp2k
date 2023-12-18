@@ -1,3 +1,12 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2-test
+  RUN_TYPE ENERGY_FORCE
+  &TIMINGS
+    THRESHOLD 0.000000001
+  &END TIMINGS
+&END GLOBAL
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -7,54 +16,54 @@
       CUTOFF 100
       REL_CUTOFF 30
     &END MGRID
-    &QS
-      METHOD GPW
-      EPS_PGF_ORB 1.0E-12
-      EPS_FILTER_MATRIX 0.0e0
-    &END QS
     &POISSON
       PERIODIC NONE
       PSOLVER MT
-    &END
+    &END POISSON
+    &QS
+      EPS_FILTER_MATRIX 0.0e0
+      EPS_PGF_ORB 1.0E-12
+      METHOD GPW
+    &END QS
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC
       MAX_SCF 10
+      SCF_GUESS ATOMIC
       &OT ON
-      &END
+      &END OT
     &END SCF
     &XC
+      &HF
+        FRACTION 1.000
+        &INTERACTION_POTENTIAL
+          OMEGA 0.30
+          POTENTIAL_TYPE MIX_CL
+          SCALE_COULOMB 0.167
+          SCALE_LONGRANGE 0.833
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          MAX_MEMORY 10
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL NON_LOCAL
+        &NON_LOCAL
+          CUTOFF 40
+          KERNEL_FILE_NAME rVV10_kernel_table.dat
+          PARAMETERS 6.3 0.0093
+          SCALE 1.0
+          TYPE RVV10
+          VERBOSE_OUTPUT
+        &END NON_LOCAL
+      &END VDW_POTENTIAL
       &XC_FUNCTIONAL
         &HYB_GGA_XC_WB97X_V
         &END HYB_GGA_XC_WB97X_V
       &END XC_FUNCTIONAL
-      &HF
-        FRACTION 1.000
-        &SCREENING
-           EPS_SCHWARZ 1.0E-10
-        &END
-        &INTERACTION_POTENTIAL
-           POTENTIAL_TYPE MIX_CL
-           SCALE_COULOMB   0.167
-           SCALE_LONGRANGE 0.833
-           OMEGA 0.30
-        &END
-        &MEMORY
-          MAX_MEMORY  10
-        &END
-      &END
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE RVV10
-           PARAMETERS 6.3 0.0093
-           VERBOSE_OUTPUT
-           KERNEL_FILE_NAME rVV10_kernel_table.dat
-           CUTOFF 40
-           SCALE 1.0
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
-   &END XC
+    &END XC
   &END DFT
   &SUBSYS
     &CELL
@@ -62,8 +71,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-H       0.0000   0.3628   0.0000
-H       0.0000   -0.3628 0.0000
+      H       0.0000   0.3628   0.0000
+      H       0.0000   -0.3628 0.0000
     &END COORD
     &KIND H
       BASIS_SET SZV-MOLOPT-GTH
@@ -71,11 +80,3 @@ H       0.0000   -0.3628 0.0000
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT H2-test
-  PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY_FORCE
-  &TIMINGS
-    THRESHOLD 0.000000001
-  &END
-&END GLOBAL

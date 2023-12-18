@@ -1,83 +1,104 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT test
+  RUN_TYPE GEO_OPT
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
+  SAVE_MEM
+  ! TRACE
+  ! TRACE_ROUTINES dbcsr_mm_cannon_multiply kg_ekin_subset
+&END GLOBAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME test-1.restart
+&END EXT_RESTART
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 2
+    OPTIMIZER LBFGS
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
-  &PRINT
-    &FORCES
-    &END
-  &END
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME POTENTIAL
+    &KG_METHOD
+      ! satur 27 colors (~250s) , greedy 37 (~1s)
+      COLORING_METHOD DSATUR
+      ! COLORING_METHOD GREEDY
+      &XC
+        &XC_FUNCTIONAL
+          &KE_GGA
+            FUNCTIONAL LLP
+          &END KE_GGA
+        &END XC_FUNCTIONAL
+      &END XC
+    &END KG_METHOD
+    &LS_SCF
+      ! 1E-8 seems more than accurate enough (trace(PS)-N=0.001)
+      EPS_FILTER 1E-7
+      ! 1E-8 / mix 0.2 = 22 SCF with final change E 0.019656220
+      EPS_SCF 1E-9
+      ! not particularly stable with default
+      EXTRAPOLATION_ORDER 1
+      MAX_ITER_LANCZOS 128
+      MAX_SCF 100
+      ! 0.25 seems the limit at 200Ry
+      ! 0.20 seems past the limit at 300Ry
+      MIXING_FRACTION 0.05
+      PURIFICATION_METHOD TRS4
+      REPORT_ALL_SPARSITIES .FALSE.
+      S_PRECONDITIONER NONE
+      &CURVY_STEPS
+      &END CURVY_STEPS
+      ! about 160 Gb of data, 700s
+      !    RESTART_WRITE
+      !    RESTART_READ
+      !&CHEBYSHEV
+      !  N_CHEBYSHEV 200
+      !  &DOS
+      !     N_GRIDPOINTS 5000
+      !  &END
+      !  ! HOMO/LUMO/mu     -0.01824     0.04318     0.00202
+      !  &PRINT_SPECIFIC_E_DENSITY_CUBE
+      !     MIN_ENERGY -0.25 -0.20 0.40 0.45
+      !     MAX_ENERGY -0.20 -0.15 0.45 0.50
+      !  &END
+      !&END
+    &END LS_SCF
     &MGRID
       ! to be changed to 300, is possible on daint, but causes TRS4 problems
       CUTOFF 200
       NGRIDS 3
-      &RS_GRID
-         MAX_DISTRIBUTED_LEVEL 5
-      &END
       SKIP_LOAD_BALANCE_DISTRIBUTED
+      &RS_GRID
+        MAX_DISTRIBUTED_LEVEL 5
+      &END RS_GRID
     &END MGRID
+    &PRINT
+      &MULLIKEN
+      &END MULLIKEN
+    &END PRINT
     &QS
+      CORE_PPL GRID
       EPS_DEFAULT 1.0E-8
-      EPS_KG_ORB  1.0E-4
-      CORE_PPL    GRID
+      EPS_KG_ORB 1.0E-4
       KG_METHOD
       LS_SCF
     &END QS
-    &PRINT
-      &MULLIKEN
-      &END
-    &END
-    &LS_SCF
-      ! 1E-8 / mix 0.2 = 22 SCF with final change E 0.019656220
-      EPS_SCF  1E-9
-      ! 1E-8 seems more than accurate enough (trace(PS)-N=0.001)
-      EPS_FILTER 1E-7
-      MAX_SCF 100
-      PURIFICATION_METHOD TRS4
-      ! 0.25 seems the limit at 200Ry
-      ! 0.20 seems past the limit at 300Ry
-      MIXING_FRACTION 0.05
-      REPORT_ALL_SPARSITIES .FALSE.
-      MAX_ITER_LANCZOS 128
-      ! not particularly stable with default
-      EXTRAPOLATION_ORDER 1
-      &CURVY_STEPS
-      &END
-      S_PRECONDITIONER NONE
-      ! about 160 Gb of data, 700s
-!    RESTART_WRITE
-!    RESTART_READ
-     !&CHEBYSHEV
-     !  N_CHEBYSHEV 200
-     !  &DOS
-     !     N_GRIDPOINTS 5000
-     !  &END
-     !  ! HOMO/LUMO/mu     -0.01824     0.04318     0.00202
-     !  &PRINT_SPECIFIC_E_DENSITY_CUBE
-     !     MIN_ENERGY -0.25 -0.20 0.40 0.45
-     !     MAX_ENERGY -0.20 -0.15 0.45 0.50
-     !  &END
-     !&END
-    &END
-    &KG_METHOD
-       ! satur 27 colors (~250s) , greedy 37 (~1s)
-       COLORING_METHOD DSATUR
-       ! COLORING_METHOD GREEDY
-       &XC
-         &XC_FUNCTIONAL
-           &KE_GGA
-             FUNCTIONAL LLP
-           &END
-         &END XC_FUNCTIONAL
-       &END XC
-    &END
     &XC
       &XC_FUNCTIONAL
         &PBE
-        &END
+        &END PBE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 7.0 7.0 7.0
@@ -94,21 +115,3 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-&GLOBAL
-  PROJECT test
-  RUN_TYPE GEO_OPT
-  PRINT_LEVEL MEDIUM
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
-  SAVE_MEM
-! TRACE
-! TRACE_ROUTINES dbcsr_mm_cannon_multiply kg_ekin_subset
-&END GLOBAL
-&MOTION
-   &GEO_OPT
-      OPTIMIZER LBFGS
-      MAX_ITER  2
-   &END
-&END
-&EXT_RESTART
-   RESTART_FILE_NAME test-1.restart
-&END

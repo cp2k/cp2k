@@ -1,21 +1,23 @@
 #CPQA INCLUDE BASIS_SET
 #CPQA INCLUDE POTENTIAL
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT h2o_pint_qs_nve
-  RUN_TYPE                   PINT
-  PRINT_LEVEL                LOW
+  RUN_TYPE PINT
 &END GLOBAL
+
 &MOTION
   &PINT
-    P                        4
-    PROC_PER_REPLICA         1
-    NUM_STEPS               10
-    TEMP                    50.0
-    DT                       0.5
-    NRESPA                   2
-    TRANSFORMATION           NORMAL
+    DT 0.5
+    NRESPA 2
+    NUM_STEPS 10
+    P 4
+    PROC_PER_REPLICA 1
+    TEMP 50.0
+    TRANSFORMATION NORMAL
   &END PINT
 &END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -23,14 +25,14 @@
       CUTOFF 200
     &END MGRID
     &QS
-       EPS_DEFAULT 1.0E-8
+      EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
       EPS_SCF 1.0E-4
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL  Pade
+      &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -39,9 +41,9 @@
       ABC 4.0 4.0 4.0
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
