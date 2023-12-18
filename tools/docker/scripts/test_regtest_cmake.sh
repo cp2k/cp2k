@@ -13,6 +13,11 @@ fi
 
 eval "$(spack env activate myenv --sh)"
 
+# pika-bind
+PIKA_LOCATION=$(spack --env=myenv location -i pika)
+echo "pika: ${PIKA_LOCATION}"
+export PATH=${PIKA_LOCATION}/bin:$PATH
+
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
 # Run CMake.
@@ -26,12 +31,14 @@ if ! cmake \
   -Werror=dev \
   -DCP2K_USE_VORI=OFF \
   -DCP2K_USE_COSMA=OFF \
+  -DCP2K_USE_DLAF=ON \
   -DCP2K_BLAS_VENDOR=OpenBLAS \
   -DCP2K_USE_SPGLIB=ON \
   -DCP2K_USE_LIBINT2=OFF \
   -DCP2K_USE_LIBXC=ON \
   -DCP2K_USE_LIBTORCH=OFF \
   -DCP2K_USE_MPI=ON \
+  -DCP2K_USE_MPI_F08=ON \
   -DCP2K_ENABLE_REGTESTS=ON \
   .. |& tee ./cmake.log; then
   echo -e "\nSummary: CMake failed."
@@ -74,7 +81,7 @@ export OMP_STACKSIZE=64m
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
 set -x
-./tests/do_regtest.py local psmp ${TESTOPTS:+""}
+./tests/do_regtest.py local psmp --mpiexec "mpiexec pika-bind --print-bind --"
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 

@@ -35,6 +35,9 @@ MODULE cp_fm_diag
                          set_elpa_print, &
                          set_elpa_qr
    USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver
+#if defined(__DLAF)
+   USE cp_fm_dlaf_api, ONLY: cp_fm_diag_dlaf
+#endif
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
                           cp_fm_to_fm, &
@@ -71,6 +74,11 @@ MODULE cp_fm_diag
    ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE       :: elpa_neigvec_min = 0
+#if defined(__DLAF)
+   ! Minimum number of eigenvectors for the use of the DLAF eigensolver.
+   ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
+   INTEGER, SAVE       :: dlaf_neigvec_min = 0
+#endif
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
@@ -78,11 +86,14 @@ MODULE cp_fm_diag
    ! Constants for the diag_type above
    INTEGER, PARAMETER, PUBLIC  :: FM_DIAG_TYPE_SCALAPACK = 101, &
                                   FM_DIAG_TYPE_ELPA = 102, &
-                                  FM_DIAG_TYPE_CUSOLVER = 103
+                                  FM_DIAG_TYPE_CUSOLVER = 103, &
+                                  FM_DIAG_TYPE_DLAF = 104
 #if defined(__CUSOLVERMP)
    INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_CUSOLVER
 #elif defined(__ELPA)
    INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_ELPA
+#elif defined(__DLAF)
+   INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_DLAF
 #else
    INTEGER, PARAMETER, PUBLIC :: FM_DIAG_TYPE_DEFAULT = FM_DIAG_TYPE_SCALAPACK
 #endif
@@ -112,15 +123,19 @@ CONTAINS
 !> \param elpa_print logical that determines if information about the ELPA diagonalization should
 !>                   be printed
 !> \param elpa_qr_unsafe logical that enables potentially unsafe ELPA options
+!> \param dlaf_neigvec_min_input ...
 !> \param eps_check_diag_input ...
+!> \par History
+!>      - Add support for DLA-Future (05.09.2023, RMeli)
 !> \author  MI 11.2013
 ! **************************************************************************************************
    SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_neigvec_min_input, elpa_qr, &
-                        elpa_print, elpa_qr_unsafe, eps_check_diag_input)
+                        elpa_print, elpa_qr_unsafe, dlaf_neigvec_min_input, eps_check_diag_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
       INTEGER, INTENT(IN)                                :: elpa_kernel, elpa_neigvec_min_input
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
+      INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
 
       fallback_applied = .FALSE.
@@ -138,6 +153,12 @@ CONTAINS
 #endif
       ELSE IF (diag_lib == "cuSOLVER") THEN
          diag_type = FM_DIAG_TYPE_CUSOLVER
+      ELSE IF (diag_lib == "DLAF") THEN
+#if defined (__DLAF)
+         diag_type = FM_DIAG_TYPE_DLAF
+#else
+         CPABORT("ERROR in diag_init: CP2K was not compiled with DLA-Future support")
+#endif
       ELSE
          CPABORT("ERROR in diag_init: Initialization of unknown diagonalization library requested")
       END IF
@@ -151,6 +172,11 @@ CONTAINS
       END IF
 
       elpa_neigvec_min = elpa_neigvec_min_input
+#if defined(__DLAF)
+      dlaf_neigvec_min = dlaf_neigvec_min_input
+#else
+      MARK_USED(dlaf_neigvec_min_input)
+#endif
       eps_check_diag = eps_check_diag_input
 
    END SUBROUTINE diag_init
@@ -210,6 +236,16 @@ CONTAINS
             CALL cp_fm_diag_cusolver(matrix, eigenvectors, eigenvalues)
          END IF
 
+#if defined(__DLAF)
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
+         IF (SIZE(eigenvalues) < dlaf_neigvec_min) THEN
+            ! Use ScaLAPACK for small matrices
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
+         ELSE
+            CALL cp_fm_diag_dlaf(matrix, eigenvectors, eigenvalues)
+         END IF
+#endif
+
       ELSE
          CPABORT("ERROR in "//routineN//": Invalid diagonalization type requested")
       END IF
@@ -250,6 +286,8 @@ CONTAINS
          diag_type_name = "ELPA"
       ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
          diag_type_name = "CUSOLVER"
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
+         diag_type_name = "DLAF"
       ELSE
          CPABORT("Unknown diag_type")
       END IF

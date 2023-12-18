@@ -26,6 +26,8 @@ MODULE f77_interface
    USE cell_methods,                    ONLY: init_cell
    USE cell_types,                      ONLY: cell_type
    USE cp2k_info,                       ONLY: get_runtime_info
+   USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
+                                              cp_dlaf_initialize
    USE cp_error_handling,               ONLY: cp_error_handling_setup
    USE cp_files,                        ONLY: init_preconnection_list,&
                                               open_file
@@ -292,6 +294,8 @@ CONTAINS
          CALL pw_gpu_init()
          CALL grid_library_init()
 
+         CALL cp_dlaf_initialize()
+
          CALL dbm_library_init()
       ELSE
          ierr = cp_failure_level
@@ -337,6 +341,8 @@ CONTAINS
          CALL mp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()
+
+         CALL cp_dlaf_finalize()
 
          !   *** deallocate the bibliography ***
          CALL remove_all_references()

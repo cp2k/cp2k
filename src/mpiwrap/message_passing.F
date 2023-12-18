@@ -67,6 +67,9 @@ MODULE message_passing
                       mpi_isend, mpi_recv, mpi_reduce, mpi_reduce_scatter, mpi_rget, mpi_scatter, mpi_send, &
                      mpi_sendrecv, mpi_sendrecv_replace, mpi_testany, mpi_waitall, mpi_waitany, mpi_win_create, mpi_comm_get_attr, &
               mpi_ibcast, mpi_any_tag, mpi_any_source, mpi_address_kind, mpi_thread_serialized, mpi_errors_return, mpi_comm_world, &
+#if defined(__DLAF)
+                      mpi_thread_multiple, &
+#endif
                       mpi_comm_self, mpi_comm_null, mpi_info_null, mpi_request_null, mpi_request, mpi_comm, mpi_group, &
                       mpi_status_ignore, mpi_info, mpi_file, mpi_success, &
                       mpi_tag_ub, mpi_host, mpi_io, mpi_wtime_is_global, mpi_logical, &
@@ -1140,11 +1143,23 @@ CONTAINS
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init @ mp_world_init")
 !$       ELSE
 !$OMP MASTER
+#if defined(__DLAF)
+            ! DLA-Future requires that the MPI library supports
+            ! THREAD_MULTIPLE mode
+!$          CALL mpi_init_thread(MPI_THREAD_MULTIPLE, provided_tsl, ierr)
+#else
 !$          CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
+#endif
 !$          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
+#if defined(__DLAF)
+!$          IF (provided_tsl .LT. MPI_THREAD_MULTIPLE) THEN
+!$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future. Build CP2K without DLA-Future.")
+!$          END IF
+#else
 !$          IF (provided_tsl .LT. MPI_THREAD_SERIALIZED) THEN
 !$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_SERIALIZED).")
 !$          END IF
+#endif
 !$OMP END MASTER
 !$       END IF
          CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)

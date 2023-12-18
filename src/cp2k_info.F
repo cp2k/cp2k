@@ -246,6 +246,10 @@ CONTAINS
       flags = TRIM(flags)//" cusolvermp"
 #endif
 
+#if defined(__DLAF)
+      flags = TRIM(flags)//" dlaf"
+#endif
+
 #if defined(__LIBVDWXC)
       flags = TRIM(flags)//" libvdwxc"
 #endif

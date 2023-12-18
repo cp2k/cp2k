@@ -117,6 +117,10 @@ option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(CP2K_USE_SPLA
        "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
 option(CP2K_USE_METIS "enable metis library support" OFF)
+option(
+  CP2K_USE_DLAF
+  "Use DLA-Future for Cholesky decompositions and the solution of eigenvalue problems"
+  OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
        OFF)
 # option(CP2K_USE_LIBGRPP "Use libgrpp" OFF)
@@ -618,6 +622,10 @@ if(CP2K_USE_VORI)
   find_package(LibVORI REQUIRED)
 endif()
 
+if(CP2K_USE_DLAF)
+  find_package(DLAF REQUIRED)
+endif()
+
 # FFTW3
 
 # we set this variable to ON when we want fftw3 support (with or without MKL).
@@ -898,7 +906,16 @@ endif()
 
 if(CP2K_USE_ELPA)
   message(" - ELPA\n" "   - include directories : ${CP2K_ELPA_INCLUDE_DIRS}\n"
-          "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES})\n\n")
+          "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_DLAF)
+  get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::DLAF
+                      INTERFACE_LINK_LIBRARIES)
+  message(" - DLAF\n" "   - include directories : ${CP2K_DLAF_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -940,6 +957,10 @@ endif()
 
 if(NOT CP2K_USE_ELPA)
   message("   - ELPA")
+endif()
+
+if(NOT CP2K_USE_DLAF)
+  message("   - DLAF")
 endif()
 
 if(NOT CP2K_USE_PLUMMED)
