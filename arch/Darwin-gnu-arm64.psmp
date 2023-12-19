@@ -4,7 +4,7 @@
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
 # Tested with: GNU 13.2.0, OpenMPI 4.1.5,,
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.24,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.25,
 #              FFTW 3.3.10, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2,
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
@@ -17,7 +17,7 @@
 #        Ensure the links in /usr/local/bin to the lastest gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 15.12.2023
+# Last update: 19.12.2023
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
