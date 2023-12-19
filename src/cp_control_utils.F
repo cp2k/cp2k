@@ -258,17 +258,17 @@ CONTAINS
             dft_control%admm_control%scaling_model = method_id
          CASE (admm1_type)
             ! METHOD BASIS_PROJECTION
-            ! ADMM_PURIFICATION_METHOD NONE
-            ! EXCH_SCALING_MODEL NONE
-            dft_control%admm_control%purification_method = do_admm_purify_none
-            dft_control%admm_control%method = do_admm_basis_projection
-            dft_control%admm_control%scaling_model = do_admm_exch_scaling_none
-         CASE (admm2_type)
-            ! METHOD BASIS_PROJECTION
             ! ADMM_PURIFICATION_METHOD choose
             ! EXCH_SCALING_MODEL NONE
             CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD", i_val=method_id)
             dft_control%admm_control%purification_method = method_id
+            dft_control%admm_control%method = do_admm_basis_projection
+            dft_control%admm_control%scaling_model = do_admm_exch_scaling_none
+         CASE (admm2_type)
+            ! METHOD BASIS_PROJECTION
+            ! ADMM_PURIFICATION_METHOD NONE
+            ! EXCH_SCALING_MODEL NONE
+            dft_control%admm_control%purification_method = do_admm_purify_none
             dft_control%admm_control%method = do_admm_basis_projection
             dft_control%admm_control%scaling_model = do_admm_exch_scaling_none
          CASE (admms_type)
