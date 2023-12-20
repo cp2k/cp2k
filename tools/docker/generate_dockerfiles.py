@@ -790,7 +790,8 @@ RUN spack compiler find
 WORKDIR /
 COPY ./tools/spack/cp2k-dependencies.yaml .
 RUN spack env create myenv ./cp2k-dependencies.yaml
-RUN spack --env=myenv install
+RUN spack -e myenv concretize -f
+RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
 """
 
 
