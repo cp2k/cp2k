@@ -461,19 +461,26 @@ CONTAINS
                      ! *** Calculate the GTH pseudo potential forces ***
                      IF (calculate_forces) THEN
 
-                        CALL ppl_integral( &
-                           la_max(iset), la_min(iset), npgfa(iset), &
-                           rpgfa(:, iset), zeta(:, iset), &
-                           lb_max(jset), lb_min(jset), npgfb(jset), &
-                           rpgfb(:, jset), zetb(:, jset), &
-                           nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
-                           rab, dab, rac, dac, rbc, dbc, &
-                           hab(:, :, iset, jset), ppl_work, pab(:, :, iset, jset), &
-                           force_a, force_b, ppl_fwork)
+                        force_a(:) = 0.0_dp
+                        force_b(:) = 0.0_dp
+
+                        IF (only_gaussians) THEN
+                           CALL ppl_integral( &
+                              la_max(iset), la_min(iset), npgfa(iset), &
+                              rpgfa(:, iset), zeta(:, iset), &
+                              lb_max(jset), lb_min(jset), npgfb(jset), &
+                              rpgfb(:, jset), zetb(:, jset), &
+                              nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
+                              rab, dab, rac, dac, rbc, dbc, &
+                              hab(:, :, iset, jset), ppl_work, pab(:, :, iset, jset), &
+                              force_a, force_b, ppl_fwork)
+                        ELSE
+                           CPABORT("ECP gradients NYI")
+                        END IF
 
                         IF (ecp_semi_local) THEN
                            ! semi local ECP part -- forces
-                           CPABORT("NYA")
+                           CPABORT("ECP gradients NYI")
                         END IF
                         ! *** The derivatives w.r.t. atomic center c are    ***
                         ! *** calculated using the translational invariance ***
