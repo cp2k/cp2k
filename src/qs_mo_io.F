@@ -684,7 +684,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nset_info, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, nshell_info
       INTEGER, DIMENSION(:, :, :), POINTER               :: nso_info, offset_info
-      LOGICAL                                            :: minbas, natom_match, use_this
+      LOGICAL                                            :: diff_mult, minbas, natom_match, use_this
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_read, occ_read
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer, vecbuffer_read
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -777,12 +777,23 @@ CONTAINS
          mos(ispin)%eigenvalues(:) = 0.0_dp
          mos(ispin)%occupation_numbers(:) = 0.0_dp
          CALL cp_fm_set_all(mos(ispin)%mo_coeff, 0.0_dp)
+         diff_mult = .FALSE.
 
          IF (para_env%is_source() .AND. (nmo > 0)) THEN
             READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
             ALLOCATE (eig_read(nmo_read), occ_read(nmo_read))
             eig_read = 0.0_dp
             occ_read = 0.0_dp
+
+            IF ((nelectron_read .NE. mos(ispin)%nelectron) .AND. nspin == 2) THEN
+               diff_mult = .TRUE.
+               CALL cp_warn(__LOCATION__, &
+                            "The multiplicity of the restart unit is different from the current input "// &
+                            "multiplicity. MO coefficients will be read from the RESTART file, while "// &
+                            "their occupation number will be adapted to the input multiplicity. This "// &
+                            "can only be done if there are enough ADDED_MOS in the RESTART file to "// &
+                            "accomodate the input multiplicity.")
+            END IF
 
             nmo = MIN(nmo, nmo_read)
             IF (nmo_read < nmo) &
@@ -794,25 +805,34 @@ CONTAINS
                             "The number of MOs on the restart unit is greater than the number of "// &
                             "the allocated MOs. The read MO set will be truncated!")
 
-            READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
-            mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
-            mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
-            DEALLOCATE (eig_read, occ_read)
+            IF (.NOT. diff_mult) THEN
+               READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
+               mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
+               mos(ispin)%occupation_numbers(1:nmo) = occ_read(1:nmo)
+               DEALLOCATE (eig_read, occ_read)
 
-            mos(ispin)%homo = homo_read
-            mos(ispin)%lfomo = lfomo_read
-            IF (homo_read > nmo) THEN
-               IF (nelectron_read == mos(ispin)%nelectron) THEN
-                  CALL cp_warn(__LOCATION__, &
-                               "The number of occupied MOs on the restart unit is larger than "// &
-                               "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!")
-                  CALL set_mo_occupation(mo_set=mos(ispin))
-               ELSE
-                  ! can not make this a warning i.e. homo must be smaller than nmo
-                  ! otherwise e.g. set_mo_occupation will go out of bounds
-                  CPABORT("Number of occupied MOs on restart unit larger than allocated MOs. ")
+               mos(ispin)%homo = homo_read
+               mos(ispin)%lfomo = lfomo_read
+               IF (homo_read > nmo) THEN
+                  IF (nelectron_read == mos(ispin)%nelectron) THEN
+                     CALL cp_warn(__LOCATION__, &
+                                  "The number of occupied MOs on the restart unit is larger than "// &
+                                  "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!")
+                     CALL set_mo_occupation(mo_set=mos(ispin))
+                  ELSE
+                     ! can not make this a warning i.e. homo must be smaller than nmo
+                     ! otherwise e.g. set_mo_occupation will go out of bounds
+                     CPABORT("Number of occupied MOs on restart unit larger than allocated MOs. ")
+                  END IF
                END IF
-            END IF
+            ELSE
+               !If different multiplicities, keep original number of electrons and HOMO, and
+               !recalculated occupation numbers
+               READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
+               mos(ispin)%eigenvalues(1:nmo) = eig_read(1:nmo)
+               DEALLOCATE (eig_read, occ_read)
+               CALL set_mo_occupation(mo_set=mos(ispin))
+            END IF !diff mult
          END IF
 
          CALL para_env%bcast(nmo)
