@@ -81,7 +81,7 @@ export OMP_STACKSIZE=64m
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
 set -x
-./tests/do_regtest.py local psmp --mpiexec "mpiexec pika-bind --print-bind --"
+./tests/do_regtest.py local psmp --mpiexec "mpiexec --bind-to core:16 pika-bind --print-bind --"
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 
