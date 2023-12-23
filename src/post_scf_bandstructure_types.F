@@ -129,7 +129,7 @@ MODULE post_scf_bandstructure_types
                                                          hinv_primitive_cell = -1.0_dp, &
                                                          hmat = -1.0_dp
 
-      ! imaginary time and frequency grids
+      ! imaginary time and imaginary frequency grids
       INTEGER                                         :: num_time_freq_points = -1, &
                                                          num_freq_points_fit = -1
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_time_points, &
@@ -181,6 +181,7 @@ MODULE post_scf_bandstructure_types
                                                          mat_Sigma_from_Gvir_tensor, &
                                                          mat_W_MIC_time_tensor
 
+      ! tensors for sparse matrix-tensor operations
       TYPE(dbt_type)                                  :: t_G, &
                                                          t_chi, &
                                                          t_W, &
@@ -246,7 +247,7 @@ MODULE post_scf_bandstructure_types
       TYPE(libint_potential_type)                     :: ri_metric, &
                                                          trunc_coulomb
 
-      ! parameters for SOC calculation (SOC is always computed by default because it is cheap)
+      ! parameters for SOC calculation
       REAL(KIND=dp)                                   :: energy_window_soc = -1.0_dp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_V_SOC_xyz => NULL()
       TYPE(cp_fm_type), DIMENSION(3)                  :: fm_V_SOC_xyz_mo
@@ -255,15 +256,17 @@ MODULE post_scf_bandstructure_types
                                                          cfm_s_spinor_Gamma
       TYPE(band_edges_type)                           :: band_edges_scf_SOC, &
                                                          band_edges_G0W0_SOC
+
       ! parameters for DOS and PDOS calculation
       REAL(KIND=dp)                                   :: energy_window_DOS = -1.0_dp, &
                                                          energy_step_DOS = -1.0_dp, &
                                                          broadening_DOS = -1.0_dp
 
-      ! parameters for local VBM, CBM, gap calculation (from local density of states, ldos)
+      ! parameters for LDOS calculation (LDOS: local density of states)
       INTEGER                                         :: int_ldos_xyz = -1
       INTEGER, DIMENSION(:), POINTER                  :: bin_mesh => NULL()
       INTEGER                                         :: n_bins_max_for_printing = -1
+      REAL(KIND=dp)                                   :: unit_ldos_int_z_inv_Ang2_eV
 
    END TYPE post_scf_bandstructure_type
 
