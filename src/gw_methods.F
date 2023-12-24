@@ -1185,7 +1185,7 @@ CONTAINS
       CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_ikp_freq_j, cfm_V_sqrt_ikp, &
                                     cfm_M_inv_V_sqrt_ikp, cfm_W_ikp_freq_j)
 
-      ! 5. k-point integration W_PQ(iω_j,k_i) to W_PQ^MIC(iω_j)
+      ! 5. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
       IF (.NOT. bs_env%approx_kp_extrapol) THEN
          CALL MIC_contribution_from_ikp(bs_env, qs_env, fm_W_MIC_freq_j, cfm_W_ikp_freq_j, ikp, &
                                         bs_env%kpoints_chi_eps_W, "RI_AUX")
