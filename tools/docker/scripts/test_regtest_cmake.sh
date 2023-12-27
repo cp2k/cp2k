@@ -11,12 +11,8 @@ if ((SHM_AVAIL < 1024)); then
   exit 1
 fi
 
+# Activate Spack environment.
 eval "$(spack env activate myenv --sh)"
-
-# pika-bind
-PIKA_LOCATION=$(spack --env=myenv location -i pika)
-echo "pika: ${PIKA_LOCATION}"
-export PATH=${PIKA_LOCATION}/bin:$PATH
 
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
@@ -72,16 +68,21 @@ cd ..
 mkdir -p ./share/cp2k
 ln -s ../../data ./share/cp2k/data
 
+# Increase stack size.
+ulimit -s unlimited
+export OMP_STACKSIZE=64m
+
 # Improve code coverage on COSMA.
 export COSMA_DIM_THRESHOLD=0
 
-ulimit -s unlimited
-export OMP_STACKSIZE=64m
+# Bind pika threads to first two cores. This is a hack. Do not use for production!
+export PIKA_PROCESS_MASK="0x3"
 
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
 set -x
-./tests/do_regtest.py local psmp --mpiexec "mpiexec pika-bind --print-bind --"
+# shellcheck disable=SC2086
+./tests/do_regtest.py local psmp ${TESTOPTS}
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 
