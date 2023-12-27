@@ -23,10 +23,9 @@ fi
 source /opt/cp2k-toolchain/install/setup
 
 # Make OpenMPI happy.
-if command -v ompi_info &> /dev/null; then
-  TESTOPTS="--mpiexec='mpiexec --bind-to none --allow-run-as-root' ${TESTOPTS}"
-  export OMPI_MCA_plm_rsh_agent=/bin/false
-fi
+export OMPI_MCA_plm_rsh_agent=/bin/false
+export OMPI_ALLOW_RUN_AS_ROOT=1
+export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 # Use keepalive mode for GPU tests.
 if [[ "${ARCH}" == *cuda* ]] || [[ "${ARCH}" == *hip* ]]; then
