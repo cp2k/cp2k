@@ -51,7 +51,7 @@ async def main() -> None:
     parser.add_argument("--num_gpus", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=400)
     parser.add_argument("--maxerrors", type=int, default=50)
-    parser.add_argument("--mpiexec", default="mpiexec")
+    parser.add_argument("--mpiexec", default="mpiexec --bind-to none")
     help = "Runs only the first test of each directory."
     parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
     help = "Runs tests under Valgrind memcheck. Best used together with --keepalive."
