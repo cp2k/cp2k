@@ -64,8 +64,7 @@ MODULE gw_methods
                                               dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                              kpoint_type
+   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
@@ -78,15 +77,14 @@ MODULE gw_methods
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-   USE post_scf_bandstructure_utils,    ONLY: cfm_ikp_from_fm_Gamma,&
+   USE post_scf_bandstructure_utils,    ONLY: MIC_contribution_from_ikp,&
+                                              cfm_ikp_from_fm_Gamma,&
                                               get_fname
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
    USE rpa_gw,                          ONLY: continuation_pade
-   USE rpa_gw_im_time_util,             ONLY: compute_weight_re_im,&
-                                              get_atom_index_from_basis_function_index
    USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power,&
                                               cp_cfm_upper_to_full
 #include "./base/base_uses.f90"
@@ -1187,10 +1185,10 @@ CONTAINS
       CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_ikp_freq_j, cfm_V_sqrt_ikp, &
                                     cfm_M_inv_V_sqrt_ikp, cfm_W_ikp_freq_j)
 
-      ! 5. k-point integration W_PQ(iω_j,k_i) to W_PQ^MIC(iω_j)
+      ! 5. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
       IF (.NOT. bs_env%approx_kp_extrapol) THEN
-         CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
-                                                       cfm_W_ikp_freq_j, ikp)
+         CALL MIC_contribution_from_ikp(bs_env, qs_env, fm_W_MIC_freq_j, cfm_W_ikp_freq_j, ikp, &
+                                        bs_env%kpoints_chi_eps_W, "RI_AUX")
       END IF
 
       ! 6. for approximate kpoint extrapolation: get W_PQ^MIC(iω_1) with and without k-point
@@ -1202,24 +1200,23 @@ CONTAINS
          IF (j_w == 1) THEN
 
             ! k-point extrapolated
-            CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, &
-                                                          bs_env%fm_W_MIC_freq_1_extra, &
-                                                          cfm_W_ikp_freq_j, ikp)
+            CALL MIC_contribution_from_ikp(bs_env, qs_env, bs_env%fm_W_MIC_freq_1_extra, &
+                                           cfm_W_ikp_freq_j, ikp, bs_env%kpoints_chi_eps_W, &
+                                           "RI_AUX")
             ! non-kpoint extrapolated
             IF (ikp .LE. bs_env%nkp_chi_eps_W_orig) THEN
-               CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, &
-                                                             bs_env%fm_W_MIC_freq_1_no_extra, &
-                                                             cfm_W_ikp_freq_j, ikp, &
-                                                             wkp_ext=bs_env%wkp_orig)
+               CALL MIC_contribution_from_ikp(bs_env, qs_env, bs_env%fm_W_MIC_freq_1_no_extra, &
+                                              cfm_W_ikp_freq_j, ikp, bs_env%kpoints_chi_eps_W, &
+                                              "RI_AUX", wkp_ext=bs_env%wkp_orig)
             END IF
 
          END IF
 
          ! for all ω_j, we need to compute W^MIC without k-point extrpolation
          IF (ikp .LE. bs_env%nkp_chi_eps_W_orig) THEN
-            CALL compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
-                                                          cfm_W_ikp_freq_j, ikp, &
-                                                          wkp_ext=bs_env%wkp_orig)
+            CALL MIC_contribution_from_ikp(bs_env, qs_env, fm_W_MIC_freq_j, cfm_W_ikp_freq_j, &
+                                           ikp, bs_env%kpoints_chi_eps_W, "RI_AUX", &
+                                           wkp_ext=bs_env%wkp_orig)
          END IF
 
       END IF
@@ -1548,112 +1545,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cfm_add_on_diag
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param qs_env ...
-!> \param fm_W_MIC_freq_j ...
-!> \param cfm_W_ikp_freq_j ...
-!> \param ikp ...
-!> \param wkp_ext ...
-! **************************************************************************************************
-   SUBROUTINE compute_fm_W_MIC_freq_j_ikp_contribution(bs_env, qs_env, fm_W_MIC_freq_j, &
-                                                       cfm_W_ikp_freq_j, ikp, wkp_ext)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
-      TYPE(cp_cfm_type)                                  :: cfm_W_ikp_freq_j
-      INTEGER                                            :: ikp
-      REAL(KIND=dp), OPTIONAL                            :: wkp_ext
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j_ikp_contribution'
-
-      INTEGER                                            :: handle, i_RI, iatom, iatom_old, irow, &
-                                                            j_RI, jatom, jatom_old, jcol, n_RI, &
-                                                            ncol_local, nrow_local, num_cells
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_RI_index
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      REAL(KIND=dp)                                      :: contribution, weight_im, weight_re, &
-                                                            wkp_of_ikp
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL timeset(routineN, handle)
-
-      n_RI = bs_env%n_RI
-      ALLOCATE (atom_from_RI_index(n_RI))
-      CALL get_atom_index_from_basis_function_index(qs_env, atom_from_RI_index, n_RI, "RI_AUX")
-
-      NULLIFY (cell, particle_set)
-      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
-      CALL get_cell(cell=cell, h=hmat)
-
-      CALL cp_cfm_get_info(matrix=cfm_W_ikp_freq_j, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      CALL get_kpoint_info(bs_env%kpoints_chi_eps_W, xkp=xkp, wkp=wkp)
-      index_to_cell => bs_env%kpoints_chi_eps_W%index_to_cell
-      num_cells = SIZE(index_to_cell, 2)
-
-      iatom_old = 0
-      jatom_old = 0
-
-      DO irow = 1, nrow_local
-         DO jcol = 1, ncol_local
-
-            i_RI = row_indices(irow)
-            j_RI = col_indices(jcol)
-
-            iatom = atom_from_RI_index(i_RI)
-            jatom = atom_from_RI_index(j_RI)
-
-            IF (PRESENT(wkp_ext)) THEN
-               wkp_of_ikp = wkp_ext
-            ELSE
-               SELECT CASE (bs_env%l_RI(i_RI) + bs_env%l_RI(j_RI))
-               CASE (0)
-                  ! both RI functions are s-functions, k-extrapolation for 2D and 3D
-                  wkp_of_ikp = wkp(ikp)
-               CASE (1)
-                  ! one function is an s-function, the other a p-function, k-extrapolation for 3D
-                  wkp_of_ikp = bs_env%wkp_s_p(ikp)
-               CASE DEFAULT
-                  ! for any other matrix element of W, there is no need for extrapolation
-                  wkp_of_ikp = bs_env%wkp_no_extra(ikp)
-               END SELECT
-            END IF
-
-            IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
-
-               CALL compute_weight_re_im(weight_re, weight_im, &
-                                         num_cells, iatom, jatom, xkp(1:3, ikp), wkp_of_ikp, &
-                                         cell, index_to_cell, hmat, particle_set)
-
-               iatom_old = iatom
-               jatom_old = jatom
-
-            END IF
-
-            contribution = weight_re*REAL(cfm_W_ikp_freq_j%local_data(irow, jcol)) + &
-                           weight_im*AIMAG(cfm_W_ikp_freq_j%local_data(irow, jcol))
-
-            fm_W_MIC_freq_j%local_data(irow, jcol) = fm_W_MIC_freq_j%local_data(irow, jcol) &
-                                                     + contribution
-
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_fm_W_MIC_freq_j_ikp_contribution
 
 ! **************************************************************************************************
 !> \brief ...
