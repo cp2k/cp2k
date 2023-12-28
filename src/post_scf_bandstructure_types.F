@@ -266,7 +266,7 @@ MODULE post_scf_bandstructure_types
       INTEGER                                         :: int_ldos_xyz = -1
       INTEGER, DIMENSION(:), POINTER                  :: bin_mesh => NULL()
       INTEGER                                         :: n_bins_max_for_printing = -1
-      REAL(KIND=dp)                                   :: unit_ldos_int_z_inv_Ang2_eV
+      REAL(KIND=dp)                                   :: unit_ldos_int_z_inv_Ang2_eV = -1.0_dp
 
    END TYPE post_scf_bandstructure_type
 
