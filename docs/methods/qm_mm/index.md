@@ -7,7 +7,7 @@ maxdepth: 1
 ---
 builtin
 gromacs
-polarizable_ff
+polarizable_force_field
 implicit_solvation
 image_charges
 ```

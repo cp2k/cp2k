@@ -5,7 +5,7 @@
 titlesonly:
 maxdepth: 1
 ---
-allegro
+nequip
 nnp
 pao-ml
 ```

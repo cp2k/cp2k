@@ -1,4 +1,4 @@
-# Møller–Plesset perturbation theory
+# Møller–Plesset Perturbation Theory
 
 The MP2 method computes
 

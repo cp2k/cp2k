@@ -7,9 +7,9 @@ maxdepth: 1
 ---
 gpw
 gapw
-hfx
-lri-gpw
-constrained_dft
+hartree-fock
+local_ri
+constrained
 linear_scaling
 basis_sets
 pseudopotentials

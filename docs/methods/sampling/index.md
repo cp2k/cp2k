@@ -10,7 +10,7 @@ metadynamics
 path_integrals
 newton-x
 i-pi
-gemc
+monte_carlo
 Langevin Dynamics <https://www.cp2k.org/howto:langevin_regions>
 ehrenfest
 ```

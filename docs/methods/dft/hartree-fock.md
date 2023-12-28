@@ -1,7 +1,8 @@
-# Polarizable Force-Fields
+# Hartree-Fock Exchange
 
 Unfortunately no one has gotten around to writing this page yet :-(
 
 In the meantime, the following links might be helpful:
 
-- [](#Devynck2012)
+- [](#Guidon2009)
+- [](#Guidon2010)

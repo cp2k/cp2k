@@ -1,4 +1,4 @@
-# QM/MM with built-in force-field
+# QM/MM with Built-in Force Field
 
 This tutorial will illustrate the setup process of a QM/MM protein - substrate system. The model
 system we will be using is chorismate mutase, an enzyme that catalyzes the conversion of chorismate
