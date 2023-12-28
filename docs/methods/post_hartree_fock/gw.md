@@ -1,4 +1,4 @@
-# GW approximation
+# GW Approximation
 
 The purpose of this section is to explain how to compute the energy of molecular orbitals/bands from
 GW for molecules/condensed phase systems with CP2K. In DFT, the energy of a molecular orbital

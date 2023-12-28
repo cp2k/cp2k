@@ -1,4 +1,4 @@
-# Gibbs Ensemble Monte Carlo
+# Monte Carlo
 
 In the most common set up of Gibbs Ensemble Monte Carlo (GEMC) simulation, 2 boxes are utilized to
 represent vapor and liquid phases. In order to equilibrate the system, different types of moves are

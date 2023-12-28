@@ -1,4 +1,4 @@
-# Image charges
+# Image Charges
 
 ## Introduction
 
