@@ -57,7 +57,7 @@ caption: Release Versions
 titlesonly:
 maxdepth: 1
 ---
+2024.1 <https://manual.cp2k.org/cp2k-2024_1-branch/index.html>
 2023.2 <https://manual.cp2k.org/cp2k-2023_2-branch/index.html>
-2023.1 <https://manual.cp2k.org/cp2k-2023_1-branch/index.html>
 All versions <versions>
 ```
