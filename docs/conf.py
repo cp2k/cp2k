@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "CP2K"
-copyright = "2000-2023, CP2K Developers"
+copyright = "2000-2024, CP2K Developers"
 author = "CP2K Developers"
 
 # -- General configuration ---------------------------------------------------
