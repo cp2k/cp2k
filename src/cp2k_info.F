@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -38,7 +38,7 @@ MODULE cp2k_info
 #endif
 
    CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2023.2 (Development Version)"
-   CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2023"
+   CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2024"
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
 
    ! compile time information
@@ -276,7 +276,7 @@ CONTAINS
          "******************************************************************************", &
          "*                                                                            *", &
          "*   CP2K: A general program to perform molecular dynamics simulations        *", &
-         "*   Copyright (C) 2000-2023  CP2K developer group <https://www.cp2k.org/>    *", &
+         "*   Copyright (C) 2000-2024  CP2K developer group <https://www.cp2k.org/>    *", &
          "*                                                                            *", &
          "*   This program is free software: you can redistribute it and/or modify     *", &
          "*   it under the terms of the GNU General Public License as published by     *", &
