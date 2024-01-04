@@ -98,8 +98,6 @@ OPTIONS:
                           default option. Explicitly setting --with-acml, --with-mkl,
                           or --with-openblas options will switch --math-mode to the
                           respective modes.
---deepmd-mode             Selects which DeePMD interface to build with. Available options
-                          are: cpu, cuda.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
                           options are: K20X, K40, K80, P100, V100, Mi50, Mi100, Mi250, 
                           and no.
@@ -206,11 +204,6 @@ The --with-PKG options follow the rules:
   --with-quip             Enable interface to QUIP library
                           Default = no
   --with-deepmd           Enable interface to DeePMD-kit library.
-                          Mode of library should be selected from --deepmd-mode
-                          for compatibility with CPU or CUDA version. 
-                          Default = no
-  --with-tfcc             Enable interface to TensorFlow.
-                          Should be used together with --with-deepmd.
                           Default = no
   --with-plumed           Enable interface to the PLUMED library.
                           Default = no
@@ -466,17 +459,6 @@ while [ $# -ge 1 ]; do
           ;;
       esac
       ;;
-    --deepmd-mode=*)
-      user_input="${1#*=}"
-      case "$user_input" in
-        cuda)
-          export DEEPMD_MODE=cuda
-          ;;
-        *)
-          export DEEPMD_MODE=cpu
-          ;;
-      esac
-      ;;
     --gpu-ver=*)
       user_input="${1#*=}"
       case "${user_input}" in
@@ -634,9 +616,6 @@ while [ $# -ge 1 ]; do
       ;;
     --with-deepmd*)
       with_deepmd=$(read_with $1)
-      ;;
-    --with-tfcc*)
-      with_tfcc=$(read_with $1)
       ;;
     --with-plumed*)
       with_plumed=$(read_with "${1}")
