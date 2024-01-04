@@ -65,7 +65,7 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_pot_type, deepmd_type, &
+        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, &
         do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, &
         gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
         nequip_pot_type, nequip_type, no_potential_single_allocation, pair_potential_p_type, &
