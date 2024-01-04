@@ -65,12 +65,12 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, b4_type, bm_type, do_potential_single_allocation, ea_type, &
-        eam_pot_type, ft_pot_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, &
-        ip_type, ipbv_pot_type, lj_charmm_type, nequip_pot_type, nequip_type, &
-        no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
-        potential_single_allocation, quip_type, siepmann_type, tab_pot_type, tab_type, &
-        tersoff_type, wl_type
+        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, &
+        do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, &
+        gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
+        nequip_pot_type, nequip_type, no_potential_single_allocation, pair_potential_p_type, &
+        pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
+        tab_pot_type, tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -107,9 +107,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
-      INTEGER :: nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngal21, &
-         ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, ntersoff, &
-         ntors, ntot, nubs, nwl
+      INTEGER :: nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, &
+         ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, &
+         ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -319,6 +319,19 @@ CONTAINS
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntab, tab=.TRUE.)
             CALL read_tabpot_section(inp_info%nonbonded, tmp_section2, ntot, para_env, mm_section)
          END IF
+
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "DEEPMD")
+         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ndeepmd)
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
+                nquip + nnequip + nallegro + ntab
+         IF (explicit) THEN
+            ! avoid repeating the deepmd section for each pair
+            CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
+            ndeepmd = ndeepmd - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ndeepmd, deepmd=.TRUE.)
+            CALL read_deepmd_section(inp_info%nonbonded, tmp_section2, ntot)
+         END IF
+
       END IF
 
       tmp_section => section_vals_get_subs_vals(ff_section, "NONBONDED14")
@@ -653,6 +666,47 @@ CONTAINS
          nonbonded%pot(start + isec)%pot%rcutsq = nonbonded%pot(start + isec)%pot%set(1)%eam%acutal**2
       END DO
    END SUBROUTINE read_eam_section
+
+! **************************************************************************************************
+!> \brief Reads the DEEPMD section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
+!> \author teo
+! **************************************************************************************************
+   SUBROUTINE read_deepmd_section(nonbonded, section, start)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+
+      CHARACTER(LEN=default_string_length)               :: deepmd_file_name
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: isec, jsec, n_items
+      INTEGER, DIMENSION(:), POINTER                     :: atm_deepmd_types
+
+      n_items = 1
+      isec = 1
+      n_items = isec*n_items
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+      CALL section_vals_val_get(section, "ATOMS_DEEPMD_TYPE", i_vals=atm_deepmd_types)
+      CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=deepmd_file_name)
+
+      DO isec = 1, SIZE(atm_names)
+         DO jsec = isec, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = deepmd_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
+
+            nonbonded%pot(start + n_items)%pot%set(1)%deepmd%deepmd_file_name = discover_file(deepmd_file_name)
+            nonbonded%pot(start + n_items)%pot%set(1)%deepmd%atom_deepmd_type = atm_deepmd_types(isec)
+            nonbonded%pot(start + n_items)%pot%rcutsq = 0.0_dp
+            n_items = n_items + 1
+         END DO
+      END DO
+   END SUBROUTINE read_deepmd_section
 
 ! **************************************************************************************************
 !> \brief Reads the QUIP section

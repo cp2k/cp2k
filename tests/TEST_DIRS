@@ -356,5 +356,6 @@ Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
 Fist/regtest-nequip                                         libtorch
 Fist/regtest-allegro                                        libtorch
+Fist/regtest-deepmd                                         deepmd
 Fist/regtest-16
 DFTB/regtest-vdw

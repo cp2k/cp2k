@@ -456,6 +456,15 @@ Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 - See <https://brehm-research.de> for more information.
 -->
 
+### 2y. DeePMD-kit (optional, wider range of interaction potentials)
+
+DeePMD-kit - Deep Potential Molecular Dyanmics. Support for DeePMD-kit can be enabled via the flag
+`-D__DEEPMD`.
+
+- DeePMD-kit C interface can be downloaded from
+  <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
+- For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
+
 ## 3. Compile
 
 ### 3a. ARCH files

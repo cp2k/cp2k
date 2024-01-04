@@ -137,9 +137,14 @@ CONTAINS
       flags = TRIM(flags)//" patched_cufft_70"
 #endif
 
+#if defined(__DEEPMD)
+      flags = TRIM(flags)//" deepmd"
+#endif
+
 #if defined(__PW_FPGA)
       flags = TRIM(flags)//" pw_fpga"
 #endif
+
 #if defined(__PW_FPGA_SP)
       flags = TRIM(flags)//" pw_fpga_sp"
 #endif

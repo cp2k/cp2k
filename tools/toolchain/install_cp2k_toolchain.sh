@@ -203,6 +203,8 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-quip             Enable interface to QUIP library
                           Default = no
+  --with-deepmd           Enable interface to DeePMD-kit library.
+                          Default = no
   --with-plumed           Enable interface to the PLUMED library.
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
@@ -264,7 +266,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch"
+          libvori libtorch deepmd"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -611,6 +613,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-quip*)
       with_quip=$(read_with "${1}")
+      ;;
+    --with-deepmd*)
+      with_deepmd=$(read_with $1)
       ;;
     --with-plumed*)
       with_plumed=$(read_with "${1}")
