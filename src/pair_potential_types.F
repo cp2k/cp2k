@@ -1204,7 +1204,6 @@ CONTAINS
                         .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab)
          CPASSERT(check)
       END IF
-
       IF (lbmhft) THEN
          ipot = ft_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &

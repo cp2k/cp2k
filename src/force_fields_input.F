@@ -65,7 +65,7 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, &
+        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_pot_type, deepmd_type, &
         do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, &
         gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
         nequip_pot_type, nequip_type, no_potential_single_allocation, pair_potential_p_type, &
@@ -327,7 +327,7 @@ CONTAINS
          IF (explicit) THEN
             ! avoid repeating the deepmd section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
-            ndeepmd = ndeepmd + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            ndeepmd = ndeepmd - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ndeepmd, deepmd=.TRUE.)
             CALL read_deepmd_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
@@ -688,12 +688,12 @@ CONTAINS
       n_items = 1
       isec = 1
       n_items = isec*n_items
-      CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
-      CALL section_vals_val_get(section, "ATOMS_DEEPMD_TYPE", i_rep_section=isec, i_vals=atm_deepmd_types)
-      CALL section_vals_val_get(section, "POT_FILE_NAME", i_rep_section=isec, c_val=deepmd_file_name)
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+      CALL section_vals_val_get(section, "ATOMS_DEEPMD_TYPE", i_vals=atm_deepmd_types)
+      CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=deepmd_file_name)
 
       DO isec = 1, SIZE(atm_names)
-         DO jsec = 1, SIZE(atm_names)
+         DO jsec = isec, SIZE(atm_names)
             nonbonded%pot(start + n_items)%pot%type = deepmd_type
             nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
             nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
