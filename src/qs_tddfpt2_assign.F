@@ -124,8 +124,9 @@ CONTAINS
             END IF
          END IF
          DO ispin = 1, nspins
+            CALL cp_fm_get_info(wfn_history%evect(ispin), ncol_global=ncol)
             CALL cp_fm_to_fm(evects(ispin, my_state), wfn_history%evect(ispin))
-            CALL cp_fm_to_fm(psi0(ispin), wfn_history%cpmos(ispin))
+            CALL cp_fm_to_fm(psi0(ispin), wfn_history%cpmos(ispin), ncol, 1, 1)
          END DO
          !
          DEALLOCATE (dv)
@@ -135,11 +136,12 @@ CONTAINS
          ALLOCATE (wfn_history%cpmos(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_create(wfn_history%evect(ispin), evects(ispin, 1)%matrix_struct, "Xvec")
-            CALL cp_fm_create(wfn_history%cpmos(ispin), psi0(ispin)%matrix_struct, "Cvec")
+            CALL cp_fm_create(wfn_history%cpmos(ispin), evects(ispin, 1)%matrix_struct, "Cvec")
          END DO
          DO ispin = 1, nspins
+            CALL cp_fm_get_info(wfn_history%evect(ispin), ncol_global=ncol)
             CALL cp_fm_to_fm(evects(ispin, my_state), wfn_history%evect(ispin))
-            CALL cp_fm_to_fm(psi0(ispin), wfn_history%cpmos(ispin))
+            CALL cp_fm_to_fm(psi0(ispin), wfn_history%cpmos(ispin), ncol, 1, 1)
          END DO
          wfn_history%xsval = 1.0_dp
          wfn_history%gsval = 1.0_dp
@@ -188,7 +190,7 @@ CONTAINS
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
       IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
 
-      CALL cp_fm_create(sc, vmatrix%matrix_struct, "SC")
+      CALL cp_fm_create(sc, xmatrix%matrix_struct, "SC")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, sc, ncol)
 
       NULLIFY (fm_struct_tmp)
