@@ -49,9 +49,12 @@ MODULE qs_tddfpt2_soc_types
    TYPE soc_env_type
       !! a :: singlet or spin-conserving b :: triplet or spin flip
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: orb_soc => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat_ao => Null()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat => Null()
       REAL(dp), POINTER, DIMENSION(:)                 :: evals_a => Null(), &
                                                          evals_b => Null()
+      TYPE(cp_fm_type), DIMENSION(:, :), ALLOCATABLE   :: CdS
+      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE     :: SC, ediff
       TYPE(cp_fm_type)                                :: a_coeff = cp_fm_type(), &
                                                          b_coeff = cp_fm_type()
       REAL(dp), ALLOCATABLE, DIMENSION(:)             :: soc_evals, &
@@ -86,7 +89,7 @@ CONTAINS
       NULLIFY (soc_env%orb_soc)
       NULLIFY (soc_env%evals_a)
       NULLIFY (soc_env%evals_b)
-      NULLIFY (soc_env%dipmat)
+      NULLIFY (soc_env%dipmat, soc_env%dipmat_ao)
 
    END SUBROUTINE soc_env_create
 
@@ -97,7 +100,7 @@ CONTAINS
    SUBROUTINE soc_env_release(soc_env)
       TYPE(soc_env_type), TARGET                         :: soc_env
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, j
 
       IF (ASSOCIATED(soc_env%orb_soc)) THEN
          DO i = 1, SIZE(soc_env%orb_soc)
@@ -118,8 +121,30 @@ CONTAINS
          END DO
          DEALLOCATE (soc_env%dipmat)
       END IF
+      IF (ASSOCIATED(soc_env%dipmat_ao)) THEN
+         DO i = 1, SIZE(soc_env%dipmat_ao)
+            CALL dbcsr_release(soc_env%dipmat_ao(i)%matrix)
+            DEALLOCATE (soc_env%dipmat_ao(i)%matrix)
+         END DO
+         DEALLOCATE (soc_env%dipmat_ao)
+      END IF
       IF (ALLOCATED(soc_env%soc_evals)) DEALLOCATE (soc_env%soc_evals)
       IF (ALLOCATED(soc_env%soc_osc)) DEALLOCATE (soc_env%soc_osc)
+      IF (ALLOCATED(soc_env%CdS)) THEN
+         DO i = 1, SIZE(soc_env%CdS, 1)
+            DO j = 1, SIZE(soc_env%CdS, 2)
+               CALL cp_fm_release(soc_env%CdS(i, j))
+            END DO
+         END DO
+         DEALLOCATE (soc_env%CdS)
+      END IF
+      IF (ALLOCATED(soc_env%SC)) THEN
+         DO i = 1, SIZE(soc_env%SC)
+            CALL cp_fm_release(soc_env%SC(i))
+            CALL cp_fm_release(soc_env%ediff(i))
+         END DO
+         DEALLOCATE (soc_env%SC, soc_env%ediff)
+      END IF
 
    END SUBROUTINE soc_env_release
 
