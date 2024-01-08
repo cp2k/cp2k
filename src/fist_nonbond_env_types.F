@@ -11,11 +11,11 @@
 !> \author HAF
 ! **************************************************************************************************
 MODULE fist_nonbond_env_types
-   USE ISO_C_BINDING,                   ONLY: C_PTR
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type
-   USE deepmd_wrapper,                  ONLY: deepmd_model_release
+   USE deepmd_wrapper,                  ONLY: deepmd_model_release,&
+                                              deepmd_model_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                               fist_neighbor_type
    USE kinds,                           ONLY: default_string_length,&
@@ -74,7 +74,7 @@ MODULE fist_nonbond_env_types
       INTEGER, POINTER        :: use_indices(:) => NULL()
       REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
-      TYPE(C_PTR)             :: model
+      TYPE(deepmd_model_type) :: model
    END TYPE
 
 ! **************************************************************************************************
