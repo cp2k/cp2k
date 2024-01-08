@@ -361,3 +361,4 @@ Fist/regtest-allegro                                        libtorch
 Fist/regtest-deepmd                                         deepmd
 Fist/regtest-16
 DFTB/regtest-vdw
+QS/regtest-bse                                              libint
