@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2023 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -658,7 +658,7 @@ CONTAINS
             WRITE (unit_nr, '(T3,I16,T50,F22.3)') i, Exc_ens(i)*evolt
          END DO
          WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'EXCITONIC ENERGY| First Exciton for ',info_approximation, &
+         WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'EXCITONIC ENERGY| First Exciton for ', info_approximation, &
             ' BSE [a.u.]:', Exc_ens(1)
          WRITE (unit_nr, '(T3,A)') ' '
       END IF

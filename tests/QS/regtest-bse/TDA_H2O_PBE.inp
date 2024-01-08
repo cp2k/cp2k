@@ -43,10 +43,10 @@
             CORR_MOS_VIRT 20
             RI_SIGMA_X
             &BSE
-                BSE_METHOD FULLDIAG_TDA
-                BSE_CUTOFF_OCC 60.0
-                BSE_CUTOFF_VIRT 60.0
-           &END BSE
+              BSE_CUTOFF_OCC 60.0
+              BSE_CUTOFF_VIRT 60.0
+              BSE_METHOD FULLDIAG_TDA
+            &END BSE
           &END GW
         &END RI_RPA
       &END WF_CORRELATION
