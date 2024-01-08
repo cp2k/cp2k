@@ -15,80 +15,62 @@
 ! **************************************************************************************************
 
 MODULE deepmd_wrapper
-
    USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_DOUBLE,&
                                               C_INT,&
-                                              C_LOC,&
                                               C_NULL_CHAR,&
                                               C_NULL_PTR,&
                                               C_PTR
+   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: dp_deep_pot, dp_deep_pot_compute, deepmd_model_release
+   PUBLIC :: deepmd_model_type, deepmd_model_load, deepmd_model_compute, deepmd_model_release
 
-#if(__DEEPMD)
-   INTERFACE
-      FUNCTION dp_deep_pot_c(c_model) BIND(C, name="DP_NewDeepPot")
-         USE ISO_C_BINDING, ONLY: C_PTR, &
-                                  C_CHAR, &
-                                  C_DOUBLE, &
-                                  C_INT, &
-                                  C_NULL_CHAR, &
-                                  C_LOC
-      CHARACTER(LEN=1, KIND=C_CHAR)                      :: c_model(*)
-      TYPE(C_PTR)                                        :: dp_deep_pot_c
-
-      END FUNCTION
-
-      SUBROUTINE dp_deep_pot_compute_c(dp, natom, &
-                                       coord, atype, cell, &
-                                       energy, force, virial, &
-                                       atomic_energy, atomic_virial) BIND(C, name="DP_DeepPotCompute")
-         USE ISO_C_BINDING, ONLY: C_PTR, &
-                                  C_INT, &
-                                  C_CHAR, &
-                                  C_DOUBLE
-      TYPE(C_PTR), VALUE                                 :: dp
-      INTEGER(C_INT), VALUE                              :: natom
-      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(IN)    :: coord
-      INTEGER(C_INT), DIMENSION(natom), INTENT(IN)       :: atype
-      REAL(C_DOUBLE), DIMENSION(9), INTENT(IN)           :: cell
-      REAL(C_DOUBLE), INTENT(OUT)                        :: energy
-      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(OUT)   :: force
-      REAL(C_DOUBLE), DIMENSION(9), INTENT(OUT)          :: virial
-      REAL(C_DOUBLE), DIMENSION(natom), INTENT(OUT)      :: atomic_energy
-      REAL(C_DOUBLE), DIMENSION(natom, 9), INTENT(OUT)   :: atomic_virial
-
-      END SUBROUTINE
-   END INTERFACE
-#endif
+   TYPE deepmd_model_type
+      PRIVATE
+      TYPE(C_PTR)                          :: c_ptr = C_NULL_PTR
+   END TYPE deepmd_model_type
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief Load DP from a model file.
-!> \param model Path to the model file.
+!> \param filename Path to the model file.
 !> \return Pointer to the DP model.
 ! **************************************************************************************************
+   FUNCTION deepmd_model_load(filename) RESULT(model)
+      CHARACTER(len=*), INTENT(INOUT)                    :: filename
+      TYPE(deepmd_model_type)                            :: model
 
-   FUNCTION dp_deep_pot(model) RESULT(pot)
-      CHARACTER(len=*), INTENT(INOUT)                    :: model
-      TYPE(C_PTR)                                        :: pot
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'deepmd_model_load'
 
-#if(__DEEPMD)
-      pot = dp_deep_pot_c(c_model=TRIM(model)//C_NULL_CHAR)
+      INTEGER                                            :: handle
+      INTERFACE
+         FUNCTION NewDeepPot(filename) BIND(C, name="DP_NewDeepPot")
+            IMPORT :: C_PTR, C_CHAR
+            CHARACTER(kind=C_CHAR), DIMENSION(*)               :: filename
+            TYPE(C_PTR)                                        :: NewDeepPot
+         END FUNCTION
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+
+#if defined(__DEEPMD)
+      model%c_ptr = NewDeepPot(filename=TRIM(filename)//C_NULL_CHAR)
 #else
+      CPABORT("CP2K was compiled without libdeepmd_c library.")
+      MARK_USED(filename)
       MARK_USED(model)
-      pot = C_NULL_PTR
 #endif
-   END FUNCTION dp_deep_pot
+
+      CALL timestop(handle)
+   END FUNCTION deepmd_model_load
 
 ! **************************************************************************************************
 !> \brief Compute energy, force and virial from DP.
-!> \param dp Pointer to the DP model.
+!> \param model Pointer to the DP model.
 !> \param natom Number of atoms.
 !> \param coord Coordinates of the atoms.
 !> \param atype Atom types.
@@ -99,25 +81,55 @@ CONTAINS
 !> \param atomic_energy Atomic energies.
 !> \param atomic_virial Atomic virial tensors.
 ! **************************************************************************************************
+   SUBROUTINE deepmd_model_compute(model, natom, coord, atype, cell, energy, force, virial, &
+                                   atomic_energy, atomic_virial)
+      TYPE(deepmd_model_type)                            :: model
+      INTEGER                                            :: natom
+      REAL(kind=dp), DIMENSION(natom, 3), INTENT(IN)     :: coord
+      INTEGER, DIMENSION(natom), INTENT(IN)              :: atype
+      REAL(kind=dp), DIMENSION(9), INTENT(IN)            :: cell
+      REAL(kind=dp), INTENT(OUT)                         :: energy
+      REAL(kind=dp), DIMENSION(natom, 3), INTENT(OUT)    :: force
+      REAL(kind=dp), DIMENSION(9), INTENT(OUT)           :: virial
+      REAL(kind=dp), DIMENSION(natom), INTENT(OUT)       :: atomic_energy
+      REAL(kind=dp), DIMENSION(natom, 9), INTENT(OUT)    :: atomic_virial
 
-   SUBROUTINE dp_deep_pot_compute(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)
-      USE, INTRINSIC :: ISO_C_BINDING
-      TYPE(C_PTR), VALUE :: dp
-      INTEGER(C_INT), VALUE :: natom
-      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(IN) :: coord
-      INTEGER(C_INT), DIMENSION(natom), INTENT(IN) :: atype
-      REAL(C_DOUBLE), DIMENSION(9), INTENT(IN), OPTIONAL :: cell
-      REAL(C_DOUBLE), INTENT(OUT), OPTIONAL :: energy
-      REAL(C_DOUBLE), DIMENSION(natom, 3), INTENT(OUT), OPTIONAL :: force
-      REAL(C_DOUBLE), DIMENSION(9), INTENT(OUT), OPTIONAL :: virial
-      REAL(C_DOUBLE), DIMENSION(natom), INTENT(OUT), OPTIONAL :: atomic_energy
-      REAL(C_DOUBLE), DIMENSION(natom, 9), INTENT(OUT), OPTIONAL :: atomic_virial
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_model_compute'
 
-#if(__DEEPMD)
-      CALL dp_deep_pot_compute_c(dp, natom, coord, atype, cell, energy, force, virial, atomic_energy, atomic_virial)
+      INTEGER                                            :: handle
+      INTERFACE
+         SUBROUTINE DeepPotCompute(model, natom, coord, atype, cell, energy, force, virial, &
+                                   atomic_energy, atomic_virial) BIND(C, name="DP_DeepPotCompute")
+            IMPORT :: C_PTR, C_INT, C_DOUBLE
+            TYPE(C_PTR), VALUE                                 :: model
+            INTEGER(C_INT), VALUE                              :: natom
+            REAL(C_DOUBLE), DIMENSION(natom, 3)                :: coord
+            INTEGER(C_INT), DIMENSION(natom)                   :: atype
+            REAL(C_DOUBLE), DIMENSION(9)                       :: cell
+            REAL(C_DOUBLE)                                     :: energy
+            REAL(C_DOUBLE), DIMENSION(natom, 3)                :: force
+            REAL(C_DOUBLE), DIMENSION(9)                       :: virial
+            REAL(C_DOUBLE), DIMENSION(natom)                   :: atomic_energy
+            REAL(C_DOUBLE), DIMENSION(natom, 9)                :: atomic_virial
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+
+#if defined(__DEEPMD)
+      CALL DeepPotCompute(model=model%c_ptr, &
+                          natom=natom, &
+                          coord=coord, &
+                          atype=atype, &
+                          cell=cell, &
+                          energy=energy, &
+                          force=force, &
+                          virial=virial, &
+                          atomic_energy=atomic_energy, &
+                          atomic_virial=atomic_virial)
 #else
       CPABORT("CP2K was compiled without libdeepmd_c library.")
-      MARK_USED(dp)
+      MARK_USED(model)
       MARK_USED(natom)
       MARK_USED(coord)
       MARK_USED(atype)
@@ -128,6 +140,8 @@ CONTAINS
       MARK_USED(atomic_energy)
       MARK_USED(atomic_virial)
 #endif
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -135,11 +149,9 @@ CONTAINS
 !> \param model Pointer to the DP model.
 ! **************************************************************************************************
    SUBROUTINE deepmd_model_release(model)
-      USE ISO_C_BINDING, ONLY: C_PTR, &
-                               C_NULL_PTR
-      TYPE(C_PTR), INTENT(INOUT)                         :: model
+      TYPE(deepmd_model_type)                            :: model
 
-      model = C_NULL_PTR
+      model%c_ptr = C_NULL_PTR
    END SUBROUTINE deepmd_model_release
 
 END MODULE deepmd_wrapper
