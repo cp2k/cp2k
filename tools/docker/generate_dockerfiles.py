@@ -74,6 +74,7 @@ def main() -> None:
                 base_image="arm64v8/ubuntu:22.04",
                 with_libxsmm="no",
                 with_libtorch="no",
+                with_deepmd="no",
             )
         )
         f.write(regtest("psmp"))
