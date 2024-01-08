@@ -233,6 +233,7 @@ CONTAINS
       MARK_USED(fist_nonbond_env)
       MARK_USED(force)
       MARK_USED(pv_nonbond)
+      MARK_USED(use_virial)
 #else
       CALL fist_nonbond_env_get(fist_nonbond_env, deepmd_data=deepmd_data)
 
