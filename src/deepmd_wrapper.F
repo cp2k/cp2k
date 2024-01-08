@@ -81,6 +81,7 @@ CONTAINS
 #if(__DEEPMD)
       pot = dp_deep_pot_c(c_model=TRIM(model)//C_NULL_CHAR)
 #else
+      MARK_USED(model)
       pot = C_NULL_PTR
 #endif
    END FUNCTION dp_deep_pot
