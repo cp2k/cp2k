@@ -49,11 +49,16 @@ apt-get update -qq
 apt-get install -qq --no-install-recommends \
   python3 \
   python3-dev \
+  python3-venv \
   python3-pip \
   python3-wheel \
   python3-setuptools \
   build-essential
 rm -rf /var/lib/apt/lists/*
+
+# Create and activate a virtual environment for Python packages.
+python3 -m venv /opt/venv
+export PATH="/opt/venv/bin:$PATH"
 
 echo -e "\n========== Installing ASE =========="
 git clone --quiet --depth=1 --single-branch -b master https://gitlab.com/ase/ase.git /opt/ase
