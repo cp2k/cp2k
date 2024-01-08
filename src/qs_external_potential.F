@@ -28,7 +28,8 @@ MODULE qs_external_potential
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_8
    USE maxwell_solver_interface,        ONLY: maxwell_solver
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
@@ -69,9 +70,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'external_e_potential'
 
       INTEGER                                            :: handle, i, j, k
+      INTEGER(kind=int_8)                                :: npoints
       INTEGER, DIMENSION(2, 3)                           :: bo_global, bo_local
-      REAL(kind=dp)                                      :: dvol, efunc, scaling_factor
-      REAL(kind=dp), DIMENSION(3)                        :: dr, grid_p
+      REAL(kind=dp)                                      :: dvol, scaling_factor
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: efunc, grid_p_i, grid_p_j, grid_p_k
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: grid_p
+      REAL(kind=dp), DIMENSION(3)                        :: dr
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_type), POINTER                             :: v_ee
       TYPE(section_vals_type), POINTER                   :: ext_pot_section, input
@@ -102,17 +106,53 @@ CONTAINS
                bo_local = v_ee%pw_grid%bounds_local
                bo_global = v_ee%pw_grid%bounds
 
+               npoints = INT(bo_local(2, 1) - bo_local(1, 1) + 1, kind=int_8)* &
+                         INT(bo_local(2, 2) - bo_local(1, 2) + 1, kind=int_8)* &
+                         INT(bo_local(2, 3) - bo_local(1, 3) + 1, kind=int_8)
+               ALLOCATE (efunc(npoints))
+               ALLOCATE (grid_p(3, npoints))
+               ALLOCATE (grid_p_i(bo_local(1, 1):bo_local(2, 1)))
+               ALLOCATE (grid_p_j(bo_local(1, 2):bo_local(2, 2)))
+               ALLOCATE (grid_p_k(bo_local(1, 3):bo_local(2, 3)))
+
+               DO i = bo_local(1, 1), bo_local(2, 1)
+                  grid_p_i(i) = (i - bo_global(1, 1))*dr(1)
+               END DO
+               DO j = bo_local(1, 2), bo_local(2, 2)
+                  grid_p_j(j) = (j - bo_global(1, 2))*dr(2)
+               END DO
+               DO k = bo_local(1, 3), bo_local(2, 3)
+                  grid_p_k(k) = (k - bo_global(1, 3))*dr(3)
+               END DO
+
+               npoints = 0
                DO k = bo_local(1, 3), bo_local(2, 3)
                   DO j = bo_local(1, 2), bo_local(2, 2)
                      DO i = bo_local(1, 1), bo_local(2, 1)
-                        grid_p(1) = (i - bo_global(1, 1))*dr(1)
-                        grid_p(2) = (j - bo_global(1, 2))*dr(2)
-                        grid_p(3) = (k - bo_global(1, 3))*dr(3)
-                        CALL get_external_potential(grid_p, ext_pot_section, func=efunc)
-                        v_ee%cr3d(i, j, k) = v_ee%cr3d(i, j, k) + efunc
+                        npoints = npoints + 1
+                        grid_p(1, npoints) = grid_p_i(i)
+                        grid_p(2, npoints) = grid_p_j(j)
+                        grid_p(3, npoints) = grid_p_k(k)
                      END DO
                   END DO
                END DO
+
+               DEALLOCATE (grid_p_i, grid_p_j, grid_p_k)
+
+               CALL get_external_potential(grid_p, ext_pot_section, func=efunc)
+
+               npoints = 0
+               DO k = bo_local(1, 3), bo_local(2, 3)
+                  DO j = bo_local(1, 2), bo_local(2, 2)
+                     DO i = bo_local(1, 1), bo_local(2, 1)
+                        npoints = npoints + 1
+                        v_ee%cr3d(i, j, k) = v_ee%cr3d(i, j, k) + efunc(npoints)
+                     END DO
+                  END DO
+               END DO
+
+               DEALLOCATE (grid_p, efunc)
+
                dft_control%eval_external_potential = .FALSE.
             END IF
          END IF
@@ -135,11 +175,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'external_c_potential'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
-                                                            nkind
+                                                            nkind, nparticles
       INTEGER, DIMENSION(:), POINTER                     :: list
       LOGICAL                                            :: my_force, pot_on_grid
-      REAL(KIND=dp)                                      :: ee_core_ener, efunc, zeff
-      REAL(KIND=dp), DIMENSION(3)                        :: dfunc, r
+      REAL(KIND=dp)                                      :: ee_core_ener, zeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: efunc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfunc, r
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -182,43 +223,71 @@ CONTAINS
             ext_pot_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_POTENTIAL")
          END IF
 
+         nparticles = 0
+         DO ikind = 1, SIZE(atomic_kind_set)
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+            nparticles = nparticles + MAX(natom, 0)
+         END DO
+
+         ALLOCATE (efunc(nparticles))
+         ALLOCATE (dfunc(3, nparticles), r(3, nparticles))
+
+         nparticles = 0
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list, natom=natom)
-            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
 
-            natom = SIZE(list)
             DO iatom = 1, natom
                atom_a = list(iatom)
+               nparticles = nparticles + 1
                !pbc returns r(i) in range [-cell%hmat(i,i)/2, cell%hmat(i,i)/2]
                !for periodic dimensions (assuming the cell is orthorombic).
                !This is not consistent with the potential on grid, where r(i) is
                !in range [0, cell%hmat(i,i)]
                !Use new pbc function with switch positive_range=.TRUE.
-               r(:) = pbc(particle_set(atom_a)%r(:), cell, positive_range=.TRUE.)
-               !if potential is on grid, interpolate the value at r,
-               !otherwise evaluate the given function
-               IF (pot_on_grid) THEN
-                  CALL interpolate_external_potential(r, v_ee, func=efunc, &
-                                                      dfunc=dfunc, calc_derivatives=my_force)
-               ELSE
-                  CALL get_external_potential(r, ext_pot_section, func=efunc, &
-                                              dfunc=dfunc, calc_derivatives=my_force)
-               END IF
-               ee_core_ener = ee_core_ener + zeff*efunc
+               r(:, nparticles) = pbc(particle_set(atom_a)%r(:), cell, positive_range=.TRUE.)
+            END DO
+         END DO
+
+         !if potential is on grid, interpolate the value at r,
+         !otherwise evaluate the given function
+         IF (pot_on_grid) THEN
+            DO iatom = 1, nparticles
+               CALL interpolate_external_potential(r(:, iatom), v_ee, func=efunc(iatom), &
+                                                   dfunc=dfunc(:, iatom), calc_derivatives=my_force)
+            END DO
+         ELSE
+            CALL get_external_potential(r, ext_pot_section, func=efunc, dfunc=dfunc, calc_derivatives=my_force)
+         END IF
+
+         IF (my_force) THEN
+            CALL get_qs_env(qs_env=qs_env, force=force)
+         END IF
+
+         nparticles = 0
+         DO ikind = 1, SIZE(atomic_kind_set)
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+
+            DO iatom = 1, natom
+               nparticles = nparticles + 1
+
+               ee_core_ener = ee_core_ener + zeff*efunc(nparticles)
                IF (my_force) THEN
-                  CALL get_qs_env(qs_env=qs_env, force=force)
-                  force(ikind)%eev(:, iatom) = dfunc*zeff
+                  force(ikind)%eev(1:3, iatom) = dfunc(1:3, nparticles)*zeff
                END IF
             END DO
          END DO
          energy%ee_core = ee_core_ener
+
+         DEALLOCATE (dfunc, r)
+         DEALLOCATE (efunc)
       END IF
       CALL timestop(handle)
    END SUBROUTINE external_c_potential
 
 ! **************************************************************************************************
 !> \brief  Low level function for computing the potential and the derivatives
-!> \param r                position in realspace
+!> \param r                position in realspace for each grid-point
 !> \param ext_pot_section ...
 !> \param func             external potential at r
 !> \param dfunc            derivative of the external potential at r
@@ -230,9 +299,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
    SUBROUTINE get_external_potential(r, ext_pot_section, func, dfunc, calc_derivatives)
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r
       TYPE(section_vals_type), POINTER                   :: ext_pot_section
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: func
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: dfunc
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_external_potential'
@@ -242,6 +313,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: my_par
       INTEGER                                            :: handle, j
+      INTEGER(kind=int_8)                                :: ipoint, npoints
       LOGICAL                                            :: check, my_force
       REAL(KIND=dp)                                      :: dedf, dx, err, lerr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_val
@@ -259,27 +331,31 @@ CONTAINS
       CALL initf(1)
       CALL parsef(1, TRIM(coupling_function), my_par)
 
-      my_val(1) = r(1)
-      my_val(2) = r(2)
-      my_val(3) = r(3)
+      npoints = SIZE(r, 2, kind=int_8)
 
-      IF (PRESENT(func)) func = evalf(1, my_val)
-      IF (my_force) THEN
-         DO j = 1, 3
-            dedf = evalfd(1, j, my_val, dx, err)
-            IF (ABS(err) > lerr) THEN
-               WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
-               WRITE (def_error, "(A,G12.6,A)") "(", lerr, ")"
-               CALL compress(this_error, .TRUE.)
-               CALL compress(def_error, .TRUE.)
-               CALL cp_warn(__LOCATION__, &
-                            'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
-                            ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
-                            TRIM(def_error)//' .')
-            END IF
-            dfunc(j) = dedf
-         END DO
-      END IF
+      DO ipoint = 1, npoints
+         my_val(1) = r(1, ipoint)
+         my_val(2) = r(2, ipoint)
+         my_val(3) = r(3, ipoint)
+
+         IF (PRESENT(func)) func(ipoint) = evalf(1, my_val)
+         IF (my_force) THEN
+            DO j = 1, 3
+               dedf = evalfd(1, j, my_val, dx, err)
+               IF (ABS(err) > lerr) THEN
+                  WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
+                  WRITE (def_error, "(A,G12.6,A)") "(", lerr, ")"
+                  CALL compress(this_error, .TRUE.)
+                  CALL compress(def_error, .TRUE.)
+                  CALL cp_warn(__LOCATION__, &
+                               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
+                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                               TRIM(def_error)//' .')
+               END IF
+               dfunc(j, ipoint) = dedf
+            END DO
+         END IF
+      END DO
       DEALLOCATE (my_par)
       DEALLOCATE (my_val)
       CALL finalizef()
