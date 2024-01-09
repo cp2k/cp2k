@@ -3,12 +3,13 @@
 ```{toctree}
 ---
 titlesonly:
-maxdepth: 1
+maxdepth: 2
 ---
-X-Ray Spectroscopy <https://www.cp2k.org/howto:xas_tdp>
 optical
+X-Ray Spectroscopy <https://www.cp2k.org/howto:xas_tdp>
 Infrared Spectroscopy <https://brehm-research.de/spectroscopy>
 raman
+bandstructure_gw
 nmr
 STM Images <https://www.cp2k.org/howto:stm>
 Electron Transport <https://www.cp2k.org/howto:cp2k_omen>

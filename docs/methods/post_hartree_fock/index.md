@@ -7,5 +7,4 @@ maxdepth: 1
 ---
 mp2
 rpa
-gw
 ```
