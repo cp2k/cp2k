@@ -47,4 +47,10 @@ html_context = {
     "conf_py_path": "/docs/",
 }
 
+# https://sphinx-rtd-theme.readthedocs.io/en/stable/configuring.html
+
+html_theme_options = {
+    "collapse_navigation": False,
+}
+
 # EOF
