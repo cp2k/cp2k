@@ -89,7 +89,8 @@ MODULE gw_large_cell_gamma
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_gamma'
 
-   PUBLIC :: gw_calc_large_cell_Gamma
+   PUBLIC :: gw_calc_large_cell_Gamma,&
+             compute_3c_integrals
 
 CONTAINS
 

@@ -192,6 +192,17 @@ CONTAINS
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
+      ! Allocate sigma matrices
+      ! TODO : Spin dependence
+      CALL cp_fm_create(sigma_COH, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_create(sigma_SEX, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(sigma_COH, 0.0_dp)
+      CALL cp_fm_set_all(sigma_SEX, 0.0_dp)
+
+      ! Allocate inverse full matrix
+      CALL cp_fm_create(S_inv_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(S_inv_fm, 0.0_dp)
+
       ! ********************** EXTRACT PREVIOUS DATA **********************
 
       IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
