@@ -34,9 +34,18 @@ MODULE rt_tdagw
                                               dbcsr_type,&
                                               dbcsr_print,&
                                               dbcsr_create,&
+                                              dbcsr_release,&
                                               dbcsr_copy,&
                                               dbcsr_set
+   USE dbt_api,                         ONLY: dbt_create,&
+                                              dbt_contract,&
+                                              dbt_copy_matrix_to_tensor,&
+                                              dbt_copy_tensor_to_matrix,&
+                                              dbt_destroy,&
+                                              dbt_type
+   USE qs_tensors,                      ONLY: neighbor_list_3c_destroy
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set,&
                                               cp_dbcsr_sm_fm_multiply
@@ -47,6 +56,7 @@ MODULE rt_tdagw
    USE efield_utils,                    ONLY: make_field
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
+   USE gw_methods,                      ONLY: compute_3c_integrals
    USE matrix_exp,                      ONLY: taylor_only_imaginary
    USE cp_log_handling,                 ONLY: cp_logger_type,&
                                               cp_get_default_logger,&
@@ -92,6 +102,12 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: ham_effective,&
                                                             ham_exp,&
                                                             rho_work
+      ! TODO : Maybe complex?
+      TYPE(cp_fm_type), TARGET                           :: sigma_COH,&
+                                                            sigma_SEX,&
+                                                            S_inv_fm
+      TYPE(cp_fm_type), POINTER                          :: sigma_p,&
+                                                            greens_fm_p
       REAL(kind=dp)                                      :: field(3)
       INTEGER                                            :: i,j,k,nspin,re,im
       INTEGER                                            :: rho_unit
@@ -136,6 +152,17 @@ CONTAINS
          CALL cp_fm_set_all(rho_work(i), 0.0_dp)
       END DO
 
+      ! Allocate sigma matrices
+      ! TODO : Spin dependence
+      CALL cp_fm_create(sigma_COH, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_create(sigma_SEX, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(sigma_COH, 0.0_dp)
+      CALL cp_fm_set_all(sigma_SEX, 0.0_dp)
+
+      ! Allocate inverse full matrix
+      CALL cp_fm_create(S_inv_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(S_inv_fm, 0.0_dp)
+
       ! ********************** EXTRACT PREVIOUS DATA **********************
       ! Prepare the relevant matrices
       CALL tdagw_prepare(qs_env, ham_single_particle_p, moments_full_p, rho_full_p)
@@ -148,11 +175,16 @@ CONTAINS
                       input=input)
       CALL get_rtp(rtp, S_inv=S_inv)
 
-      ! Marek : After getting the G0W0 Hamiltonian, first check the no-self-energy time propagation
-      ! In order to do that, need to be able to add the electric field to the Hamiltonian at every simulation step
-      ! Electric field is added to the core hamiltonian in efield_potential_length_gauge
-      ! Here, we reimplement it in order to add it directly to the effective Hamiltonian at each timestep
-      ! Convert the density matrix into full matrix TODO : Spin coupling?
+      ! TODO : Determine the Coulomb-Hole part of the self-energy - remains constant throughout the time propagation
+      ! TODO : Maybe time has come to create a structure that initializes the necessary storage?
+      CALL copy_dbcsr_to_fm(S_inv, S_inv_fm)
+      ! Point to correct structures
+      sigma_p => sigma_COH
+      greens_fm_p => S_inv_fm
+      CALL get_sigma(qs_env, greens_fm_p, sigma_p, -0.5_dp)
+      PRINT *, "== Sigma COH =="
+      CALL cp_fm_write_formatted(sigma_COH, 6)
+
       ! Setup the files
       logger => cp_get_default_logger()
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
@@ -175,15 +207,21 @@ CONTAINS
          qs_env%sim_step = i
          CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
          PRINT *, "Field : ", field(1), field(2), field(3)
-         ! The field is added to the real part of both spins
+
+         ! TODO : Create the screened-exchange part of COHSEX - updated every loop
+         !        Some W * G multiplication, through the auxiliary basis
          ! TODO : Preprocessor macro that sets up the spin loop
          DO j=1,nspin
             re = 2*j - 1
             im = 2*j
             ! Add electric field
+            ! The field is added to the real part of both spins
             DO k=1,3
                CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), field(k), moments_full(k))
             END DO
+
+            ! TODO : Add the Hartree term difference to the Hamiltonian - discuss with Jan
+            ! TODO : Add the COHSEX self-energy to the Hamiltonian
 
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
             ! TODO : Using rho_work(1) - maybe rename?
@@ -305,6 +343,13 @@ CONTAINS
       DEALLOCATE(ham_single_particle)
       DEALLOCATE(rho_full)
       DEALLOCATE(rho_work)
+      ! Deallocate sigma matrices
+      CALL cp_fm_release(sigma_COH)
+      CALL cp_fm_release(sigma_SEX)
+      ! Deallocate full overlap matrix
+      CALL cp_fm_release(S_inv_fm)
+      ! Deallocate the neighbour list that is not deallocated in gw anymore
+      IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
    END SUBROUTINE run_propagation_gw
 
 ! **************************************************************************************************
@@ -318,7 +363,7 @@ CONTAINS
 !> \param moments Pointer to array of dbcsr_type, where the moments are stored
 ! **************************************************************************************************
    SUBROUTINE tdagw_prepare(qs_env, ham_single_particle, moments_full, rho_full)
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tdagw_prepare'
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -401,4 +446,111 @@ CONTAINS
       END DO
 
    END SUBROUTINE tdagw_prepare
+
+! **************************************************************************************************
+!> \brief Calculates the self-energy by contraction of screened potential
+!> \note Can be used for both the Coulomb hole part and screened exchange part 
+!> \param qs_env Quickstep environment data, entry point of the calculation
+!> \param greens_fm Pointer to the Green's function matrix, which is used as input data
+!> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
+!> \author Stepan Marek
+!> \date 01.2024
+! **************************************************************************************************
+   SUBROUTINE get_sigma(qs_env, greens_fm, sigma_fm, prefactor_opt)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: greens_fm ! matrix to contract with RI_W
+      TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: sigma_fm ! resulting self energy
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma'
+      REAL(kind=dp)                                      :: prefactor
+      TYPE(dbt_type)                                     :: t_3c_w, t_3c_g, t_work1, t_work2,&
+                                                            w_dbt, greens_dbt, sigma_dbt
+      TYPE(dbcsr_type)                                   :: w_dbcsr_mat, greens_dbcsr_mat, sigma_dbcsr
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      IF(PRESENT(prefactor_opt)) THEN
+         prefactor = prefactor_opt
+      ELSE
+         prefactor = 1.0_dp
+      END IF
+
+      CALL get_qs_env(qs_env,&
+                      bs_env=bs_env)
+
+      ! Three-centre integrals are obtained from build_3c_integrals, from qs_tensors
+      ! These should use sparcity, while W and Sigma can be full matrices
+      ! The summation is carried out by dbt library - dbt_contract in dbt_api
+      ! The building of the tensors might be a bit hard, because it requires a lot of parallel information
+      ! Probably just use the tensors already present in bs_env? They seem to be mostly work tensors
+      ! TODO : Starting with unbounded integrals, then probably need to reduce to a subset
+      ! Create by template
+      CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_w)
+      CALL dbt_create(bs_env%t_RI_AO__AO, t_work1)
+      CALL dbt_create(bs_env%t_W, w_dbt)
+      CALL compute_3c_integrals(qs_env,&
+                         bs_env,&
+                         t_3c_w)
+      ! Copy W to dbcsr and then to dbt
+      CALL dbcsr_create(w_dbcsr_mat, name="w", template=bs_env%mat_RI_RI%matrix)
+      CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, w_dbcsr_mat)
+      ! TODO : Maybe call filter here?
+      CALL dbt_copy_matrix_to_tensor(w_dbcsr_mat, w_dbt)
+      CALL dbt_contract(alpha=1.0_dp,&
+                   tensor_1=w_dbt,&
+                   tensor_2=t_3c_w,&
+                   beta=1.0_dp,&
+                   tensor_3=t_work1,&
+                   contract_1=[2],notcontract_1=[1], map_1=[1],&
+                   contract_2=[1],notcontract_2=[2,3], map_2=[2,3],&
+                   filter_eps=bs_env%eps_filter)
+      ! t_work1 now contains sum _ P (alpha beta | P) W _ (PQ) (iomega = 0)
+      ! Next step is to convert the greens full matrix to dbcsr matrix 
+      CALL dbcsr_create(greens_dbcsr_mat, name="greens", template=bs_env%mat_ao_ao%matrix)
+      CALL copy_fm_to_dbcsr(greens_fm, greens_dbcsr_mat)
+      CALL dbt_create(bs_env%t_G, greens_dbt)
+      CALL dbt_copy_matrix_to_tensor(greens_dbcsr_mat, greens_dbt) 
+      ! TODO : Is this the correct way to compute different direction of the ingetrals?
+      ! TODO : Do we need different t_3c? Maybe for performance reasons ...
+      CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_g)
+      CALL compute_3c_integrals(qs_env,&
+                         bs_env,&
+                         t_3c_g)
+      CALL dbt_create(bs_env%t_RI_AO__AO, t_work2)
+      ! Then contract it
+      ! no scaling applied - this has to be applied externally TODO : Is this a good approach?
+      CALL dbt_contract(alpha=1.0_dp,&
+                   tensor_1=greens_dbt,&
+                   tensor_2=t_3c_g,&
+                   beta=1.0_dp,&
+                   tensor_3=t_work2,&
+                   contract_1=[1], notcontract_1=[2], map_1=[2],&
+                   contract_2=[3], notcontract_2=[1,2], map_2=[1,3],&
+                   filter_eps=bs_env%eps_filter)
+      ! Now, final contraction over remaining indices
+      CALL dbt_create(bs_env%t_G, sigma_dbt)
+      ! Final contraction, which introduces the given prefactor
+      CALL dbt_contract(alpha=prefactor,&
+                   tensor_1=t_work1,&
+                   tensor_2=t_work2,&
+                   beta=1.0_dp,&
+                   tensor_3=sigma_dbt,&
+                   contract_1=[1,2], notcontract_1=[3], map_1=[2],&
+                   contract_2=[1,2], notcontract_2=[3], map_2=[1],&
+                   filter_eps=bs_env%eps_filter)
+      ! Finally, convert the COH tensor to matrix and then to fm matrix
+      CALL dbcsr_create(sigma_dbcsr, name="sigma", template=bs_env%mat_ao_ao%matrix)
+      CALL dbt_copy_tensor_to_matrix(sigma_dbt, sigma_dbcsr)
+      CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm)
+      ! TODO : Deallocations
+      CALL dbt_destroy(t_3c_w)
+      CALL dbt_destroy(t_work1)
+      CALL dbt_destroy(w_dbt)
+      CALL dbt_destroy(greens_dbt)
+      CALL dbt_destroy(t_3c_g)
+      CALL dbt_destroy(t_work2)
+      CALL dbt_destroy(sigma_dbt)
+      CALL dbcsr_release(sigma_dbcsr)
+      CALL dbcsr_release(greens_dbcsr_mat)
+      CALL dbcsr_release(w_dbcsr_mat)
+   END SUBROUTINE
 END MODULE rt_tdagw

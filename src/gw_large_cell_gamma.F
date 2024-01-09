@@ -1052,6 +1052,20 @@ CONTAINS
       CALL cp_cfm_release(cfm_V_sqrt_ikp)
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
 
+      ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
+      ! TODO : Should this be activeted here or somewhere else? Maybe directly in the main (gw) routine?
+      ! TODO : Add activation dependent on the rt_propagation
+      ! Create the matrix TODO: Add release statement in some well understood place - at destruction of bs_env?
+      CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
+      ! Set to zero
+      CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)
+      ! Sum over all times
+      DO i_t = 1, bs_env%num_time_freq_points
+         ! Add the relevant structure with correct weight
+         CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero,&
+                                  bs_env%imag_time_weights_freq_zero(i_t), fm_W_MIC_time(i_t))
+      END DO 
+
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
       CALL timestop(handle)
