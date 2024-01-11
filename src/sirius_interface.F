@@ -690,6 +690,10 @@ CONTAINS
       CALL pwdft_env_get(pwdft_env=pwdft_env, energy=energy)
       etotal = 0.0_C_DOUBLE
 
+      CALL sirius_get_energy(gs_handler, 'band-gap', etotal)
+      energy%band_gap = etotal
+
+      etotal = 0.0_C_DOUBLE
       CALL sirius_get_energy(gs_handler, 'total', etotal)
       energy%etotal = etotal
 
