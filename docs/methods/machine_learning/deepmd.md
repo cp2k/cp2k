@@ -26,15 +26,17 @@ full input file can be found and on the regtests, see
 
 ### Input details
 
-The tag [ATOMS](#CP2K_INPUT.FORCE_EVAL.MM.FORCEFIELD.NONBONDED.DEEPMD.ATOMS) expects a list of
-elements/kinds (`ATOMS`) and a list of their index (`ATOMS_DEEPMD_TYPE`) that is consistent with the
-`type_map` in DeePMD-kit parameters. If this is not done unphysical results will be obtained.
-Spotting such issues is quite straightforward as the energy is significantly wrong.
+The tag [ATOMS](#CP2K_INPUT.FORCE_EVAL.MM.FORCEFIELD.NONBONDED.DEEPMD.ATOMS) expects a list of elements/kinds 
+and [ATOMS_DEEPMD_TYPE](#CP2K_INPUT.FORCE_EVAL.MM.FORCEFIELD.NONBONDED.DEEPMD.ATOMS_DEEPMD_TYPE)
+expects a list of their index that is consistent with the `type_map` in DeePMD-kit parameters. 
+If this is not done unphysical results will be obtained. Spotting such issues is quite 
+straightforward as the energy is significantly wrong.
 
 ## Compiling CP2K with Libdeepmd_c
 
-Running with DeePMD-kit requires compiling CP2K with the libdeepmd_c library. For the CP2K binaries
-installing the toolchain using the flag `--with-deepmd` is enough.
+Running with DeePMD-kit requires compiling CP2K with the libdeepmd_c library. For the CP2K binaries, 
+please install the toolchain using the flag `--with-deepmd`, which would download libdeepmd_c from 
+DeePMD-kit Github release and compile. GPU support is enabled when CUDA envrionment exists.
 
 ## Further Resources
 
