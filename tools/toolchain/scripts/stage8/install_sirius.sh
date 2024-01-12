@@ -160,8 +160,8 @@ case "$with_sirius" in
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
-        -DUSE_MEMORY_POOL=OFF \
-        -DUSE_ELPA=OFF \
+        -DSIRIUS_USE_MEMORY_POOL=OFF \
+        -DSIRIUS_USE_ELPA=OFF \
         ${EXTRA_CMAKE_FLAGS} .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
 
@@ -185,10 +185,10 @@ case "$with_sirius" in
           -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
-          -DUSE_CUDA=ON \
-          -DUSE_ELPA=OFF \
+          -DSIRIUS_USE_CUDA=ON \
+	  -DSIRIUS_USE_ELPA=OFF \
           -DGPU_MODEL=P100 \
-          -DUSE_MEMORY_POOL=OFF \
+          -DSIRIUS_USE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_C_COMPILER="${MPICC}" \
