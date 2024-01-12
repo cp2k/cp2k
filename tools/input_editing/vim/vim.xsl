@@ -119,6 +119,7 @@ syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 
 setlocal autoindent
 setlocal expandtab
+setlocal iskeyword+=-
 
 "----------------------------------------------------------------------------/
 " Indentation support for CP2K input syntax
