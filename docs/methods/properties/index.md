@@ -7,11 +7,10 @@ maxdepth: 2
 ---
 optical
 x-ray
-Infrared Spectroscopy <https://brehm-research.de/spectroscopy>
+infrared
 raman
 bandstructure_gw
 nmr
-STM Images <https://www.cp2k.org/howto:stm>
-Electron Transport <https://www.cp2k.org/howto:cp2k_omen>
+stm_images
 resp_charges
 ```
