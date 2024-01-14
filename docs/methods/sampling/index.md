@@ -11,6 +11,6 @@ path_integrals
 newton-x
 i-pi
 monte_carlo
-Langevin Dynamics <https://www.cp2k.org/howto:langevin_regions>
+langevin_dynamics
 ehrenfest
 ```
