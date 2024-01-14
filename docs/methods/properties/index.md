@@ -6,7 +6,7 @@ titlesonly:
 maxdepth: 2
 ---
 optical
-X-Ray Spectroscopy <https://www.cp2k.org/howto:xas_tdp>
+x-ray
 Infrared Spectroscopy <https://brehm-research.de/spectroscopy>
 raman
 bandstructure_gw
