@@ -13,5 +13,5 @@ bandstructure_gw
 nmr
 STM Images <https://www.cp2k.org/howto:stm>
 Electron Transport <https://www.cp2k.org/howto:cp2k_omen>
-RESP Charges <https://www.cp2k.org/howto:resp>
+resp_charges
 ```
