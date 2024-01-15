@@ -1,0 +1,47 @@
+    # SPC/E water
+    # H. J. C. Berendsen, J. R. Grigera, and T. P. Straatsma, J. Phys. Chem. 91, 6269 (1987)
+    # https://doi.org/10.1021/j100308a038
+    # Note: This force field requires a correpsonding &G3X3 constraint section
+    #       in &MOTION / &CONSTRAINT
+    &FORCEFIELD
+      &BEND
+        ATOMS HW OW HW
+        K [kcalmol*rad^-2] 0.0
+        KIND harmonic
+        THETA0 [deg] 109.47
+      &END BEND
+      &BOND
+        ATOMS OW HW
+        K [kcalmol*Angstrom^-2] 0.0
+        KIND harmonic
+        R0 [Angstrom] 1.000
+      &END BOND
+      &CHARGE
+        ATOM OW
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HW
+        CHARGE +0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS HW HW
+          EPSILON [kcalmol] 0.0
+          SIGMA [Angstrom] 1.0
+          RCUT [Angstrom] 12.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS OW HW
+          EPSILON [kcalmol] 0.0
+          SIGMA [Angstrom] 1.0
+          RCUT [Angstrom] 12.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS OW OW
+          EPSILON [kJmol] 0.65016958
+          SIGMA [Angstrom] 3.16555789
+          RCUT [Angstrom] 12.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
