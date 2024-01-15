@@ -97,12 +97,12 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(inpp))
 
-      ! find location of directive in line and check whether it is commented out
+      ! Find location of directive in line and check whether it is commented out
       indi = INDEX(input_line, "@")
       pos1 = INDEX(input_line, "!")
       pos2 = INDEX(input_line, "#")
       IF (((pos1 > 0) .AND. (pos1 < indi)) .OR. ((pos2 > 0) .AND. (pos2 < indi))) THEN
-         ! nothing to do here.
+         ! Nothing to do
          RETURN
       END IF
 
@@ -117,12 +117,13 @@ CONTAINS
       SELECT CASE (mytag)
 
       CASE ("@INCLUDE")
-         ! Get the filename.. allow for " or ' or nothing..
+         ! Get the file name, allow for " or ' or nothing
          filename = TRIM(input_line(indf:))
          IF (LEN_TRIM(filename) == 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6)") &
-               "INPP_@INCLUDE: Incorrect @INCLUDE directive in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               "No filename argument found for "//TRIM(mytag)// &
+               " directive in file <"//TRIM(input_file_name)// &
+               ">  Line:", input_line_number
             CPABORT(TRIM(message))
          END IF
          indi = 1
@@ -131,7 +132,7 @@ CONTAINS
          END DO
          filename = TRIM(filename(indi:))
 
-         ! handle quoting of the filename
+         ! Handle quoting of the filename
          pos1 = INDEX(filename, '"')
          pos2 = INDEX(filename(pos1 + 1:), '"')
          IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
@@ -142,15 +143,14 @@ CONTAINS
             IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
                filename = filename(pos1 + 1:pos1 + pos2 - 1)
             ELSE
-               ! incorrect quotes (only one of ' or ").
+               ! Check quoting of the included file name
                pos2 = INDEX(filename, '"')
                IF ((pos1 /= 0) .OR. (pos2 /= 0)) THEN
-                  WRITE (UNIT=message, FMT="(3A,I6)") &
-                     "INPP_@INCLUDE: Incorrect quoting of include file in file: ", &
-                     TRIM(input_file_name), "  Line:", input_line_number
+                  WRITE (UNIT=message, FMT="(A,I0)") &
+                     "Incorrect quoting of the included filename in file <", &
+                     TRIM(input_file_name)//">  Line:", input_line_number
                   CPABORT(TRIM(message))
                END IF
-               ! nothing to do. unquoted filename.
             END IF
          END IF
 
@@ -160,21 +160,13 @@ CONTAINS
             CPASSERT(check)
          END DO
 
-         ! this stops on so we can always assume success
          CALL open_file(file_name=TRIM(filename), &
                         file_status="OLD", &
                         file_form="FORMATTED", &
                         file_action="READ", &
                         unit_number=unit)
 
-         IF (debug_this_module .AND. output_unit > 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6,2A)") "INPP_@INCLUDE: in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number, &
-               " Opened include file: ", TRIM(filename)
-            WRITE (output_unit, *) TRIM(message)
-         END IF
-
-         ! make room, save status and position the parser at the beginning of new file.
+         ! Make room, save status and position the parser at the beginning of new file.
          inpp%io_stack_level = inpp%io_stack_level + 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
@@ -188,14 +180,16 @@ CONTAINS
          input_line_number = 0
          input_unit = unit
 
-      CASE ("@XCTYPE")
-         ! Include a &XC section from the data/xc_section directory or the local directory
-         ! Get the filename.. allow for " or ' or nothing..
+      CASE ("@FFTYPE", "@XCTYPE")
+         ! Include a &XC section from the data/xc_section directory or include
+         ! a &FORCEFIELD section from the data/forcefield_section directory
+         ! Get the filename, allow for " or ' or nothing
          filename = TRIM(input_line(indf:))
          IF (LEN_TRIM(filename) == 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6)") &
-               "INPP_@XCTYPE: Incorrect @XCTYPE directive in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               "No filename argument found for "//TRIM(mytag)// &
+               " directive in file <"//TRIM(input_file_name)// &
+               ">  Line:", input_line_number
             CPABORT(TRIM(message))
          END IF
          indi = 1
@@ -204,7 +198,7 @@ CONTAINS
          END DO
          filename = TRIM(filename(indi:))
 
-         ! handle quoting of the filename
+         ! Handle quoting of the filename
          pos1 = INDEX(filename, '"')
          pos2 = INDEX(filename(pos1 + 1:), '"')
          IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
@@ -215,32 +209,37 @@ CONTAINS
             IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
                filename = filename(pos1 + 1:pos1 + pos2 - 1)
             ELSE
-               ! incorrect quotes (only one of ' or ").
+               ! Incorrect quotes (only one of ' or ").
                pos2 = INDEX(filename, '"')
                IF ((pos1 /= 0) .OR. (pos2 /= 0)) THEN
-                  WRITE (UNIT=message, FMT="(3A,I6)") &
-                     "INPP_@XCTYPE: Incorrect quoting of include file in file: ", &
-                     TRIM(input_file_name), "  Line:", input_line_number
+                  WRITE (UNIT=message, FMT="(A,I0)") &
+                     "Incorrect quoting of the filename argument in file <", &
+                     TRIM(input_file_name)//">  Line:", input_line_number
                   CPABORT(TRIM(message))
                END IF
-               ! nothing to do. unquoted filename.
             END IF
          END IF
 
-         ! add file extension ".sec"
+         ! Add file extension ".sec"
          filename = TRIM(filename)//".sec"
-         ! check for file
+         ! Check for file
          IF (.NOT. file_exists(TRIM(filename))) THEN
-            IF (filename(1:1) == '/') THEN
+            IF (filename(1:1) == "/") THEN
                ! this is an absolute path filename, don't change
             ELSE
-               filename = "xc_section"//'/'//filename
+               SELECT CASE (mytag)
+               CASE ("@FFTYPE")
+                  filename = "forcefield_section/"//TRIM(filename)
+               CASE ("@XCTYPE")
+                  filename = "xc_section/"//TRIM(filename)
+               END SELECT
             END IF
          END IF
          IF (.NOT. file_exists(TRIM(filename))) THEN
-            WRITE (UNIT=message, FMT="(3A,I6)") &
-               "INPP_@XCTYPE: Could not find input XC section: ", &
-               TRIM(input_file_name), "  Line:", input_line_number
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               TRIM(mytag)//": Could not find the file <"// &
+               TRIM(filename)//"> with the input section given in the file <"// &
+               TRIM(input_file_name)//">  Line: ", input_line_number
             CPABORT(TRIM(message))
          END IF
 
@@ -250,19 +249,12 @@ CONTAINS
             CPASSERT(check)
          END DO
 
-         ! this stops on so we can always assume success
+         ! This stops on error so we can always assume success
          CALL open_file(file_name=TRIM(filename), &
                         file_status="OLD", &
                         file_form="FORMATTED", &
                         file_action="READ", &
                         unit_number=unit)
-
-         IF (debug_this_module .AND. output_unit > 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6,2A)") "INPP_@XCTYPE: in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number, &
-               " Opened include file: ", TRIM(filename)
-            WRITE (output_unit, *) TRIM(message)
-         END IF
 
          ! make room, save status and position the parser at the beginning of new file.
          inpp%io_stack_level = inpp%io_stack_level + 1
@@ -279,12 +271,12 @@ CONTAINS
          input_unit = unit
 
       CASE ("@SET")
-         ! split directive into variable name and value data.
+         ! Split directive into variable name and value data.
          varname = TRIM(input_line(indf:))
          IF (LEN_TRIM(varname) == 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6)") &
-               "INPP_@SET: Incorrect @SET directive in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               "No variable name found for "//TRIM(mytag)//" directive in file <"// &
+               TRIM(input_file_name)//">  Line:", input_line_number
             CPABORT(TRIM(message))
          END IF
 
@@ -300,9 +292,9 @@ CONTAINS
          varname = TRIM(varname(indi:indf - 1))
 
          IF (.NOT. is_valid_varname(TRIM(varname))) THEN
-            WRITE (UNIT=message, FMT="(3A,I6)") &
-               "INPP_@SET: Invalid variable name in @SET directive in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               "Invalid variable name for "//TRIM(mytag)//" directive in file <"// &
+               TRIM(input_file_name)//">  Line:", input_line_number
             CPABORT(TRIM(message))
          END IF
 
@@ -313,9 +305,10 @@ CONTAINS
          value = TRIM(value(indi:))
 
          IF (LEN_TRIM(value) == 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6)") &
-               "INPP_@SET: Incorrect @SET directive in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               "Incomplete "//TRIM(mytag)//" directive: "// &
+               "No value found for variable <"//TRIM(varname)//"> in file <"// &
+               TRIM(input_file_name)//">  Line:", input_line_number
             CPABORT(TRIM(message))
          END IF
 
@@ -367,19 +360,19 @@ CONTAINS
             cond2 = input_line(pos1 + 2:)
             check = .TRUE.
             IF ((pos2 > 0) .OR. (INDEX(cond2, "==") > 0)) THEN
-               WRITE (UNIT=message, FMT="(3A,I6)") &
-                  "INPP_@IF: Incorrect @IF directive in file: ", &
-                  TRIM(input_file_name), "  Line:", input_line_number
+               WRITE (UNIT=message, FMT="(A,I0)") &
+                  "Incorrect "//TRIM(mytag)//" directive found in file <", &
+                  TRIM(input_file_name)//">  Line:", input_line_number
                CPABORT(TRIM(message))
             END IF
-         ELSEIF (pos2 > 0) THEN
+         ELSE IF (pos2 > 0) THEN
             cond1 = input_line(indi:pos2 - 1)
             cond2 = input_line(pos2 + 2:)
             check = .FALSE.
             IF ((pos1 > 0) .OR. (INDEX(cond2, "/=") > 0)) THEN
-               WRITE (UNIT=message, FMT="(3A,I6)") &
-                  "INPP_@IF: Incorrect @IF directive in file: ", &
-                  TRIM(input_file_name), "  Line:", input_line_number
+               WRITE (UNIT=message, FMT="(A,I0)") &
+                  "Incorrect "//TRIM(mytag)//" directive found in file <", &
+                  TRIM(input_file_name)//">  Line:", input_line_number
                CPABORT(TRIM(message))
             END IF
          ELSE
@@ -457,7 +450,7 @@ CONTAINS
                pos1 = INDEX(input_line, "!")
                pos2 = INDEX(input_line, "#")
                IF (((pos1 > 0) .AND. (pos1 < indi)) .OR. ((pos2 > 0) .AND. (pos2 < indi))) THEN
-                  ! comment. nothing to do here.
+                  ! Nothing to do
                   CYCLE
                END IF
 
@@ -479,30 +472,28 @@ CONTAINS
                END IF
             END DO
             IF (istat /= 0) THEN
-               WRITE (UNIT=message, FMT="(3A,I6)") &
-                  "INPP_@IF: Error while looking for @ENDIF directive in file: ", &
-                  TRIM(input_file_name), "  Line:", input_line_number
+               WRITE (UNIT=message, FMT="(A,I0)") &
+                  "Error while searching for matching @ENDIF directive in file <"// &
+                  TRIM(input_file_name)//">  Line:", input_line_number
                CPABORT(TRIM(message))
             END IF
          END IF
 
       CASE ("@ENDIF")
-         IF (debug_this_module .AND. output_unit > 0) THEN
-            WRITE (output_unit, *) "INPP_@IF: found @ENDIF in normal parsing. Ignoring it."
-         END IF
-         ! nothing to do. just return to skip the line.
-         RETURN
+         WRITE (UNIT=message, FMT="(A,I0)") &
+            "Unmatched "//TRIM(mytag)//" directive found and ignored in file <"// &
+            TRIM(input_file_name)//">  Line: ", input_line_number
+         CPWARN(TRIM(message))
 
       CASE ("@PRINT")
-         ! for debugging of variables etc.
+         ! For debugging of variables etc.
          IF (output_unit > 0) THEN
-            WRITE (UNIT=message, FMT="(3A,I6,2A)") "INPP_@PRINT: in file: ", &
-               TRIM(input_file_name), "  Line:", input_line_number, &
-               " Text: ", TRIM(input_line(indf:))
-            WRITE (output_unit, *) TRIM(message)
+            WRITE (UNIT=output_unit, FMT="(T2,A,I0,A)") &
+               TRIM(mytag)//" directive in file <"// &
+               TRIM(input_file_name)//">  Line: ", input_line_number, &
+               " ->"//TRIM(input_line(indf:))
          END IF
-         RETURN
-         ! Do Nothing..
+
       END SELECT
 
    END SUBROUTINE inpp_process_directive
@@ -636,6 +627,7 @@ CONTAINS
          newline = input_line(1:pos1 - 2)//TRIM(inpp%variable_value(idx))//input_line(pos2 + 1:)
          input_line = newline
       END DO
+
    END SUBROUTINE inpp_expand_variables
 
 ! **************************************************************************************************

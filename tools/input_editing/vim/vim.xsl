@@ -103,7 +103,7 @@ syn keyword cp2kKeyword <xsl:value-of select="NAME[@type='alias']"/>
 " CP2K preprocessing directives
 "-----------------------------------------------------------------/
 
-syn keyword cp2kPreProc endif if include set xctype
+syn keyword cp2kPreProc ENDIF FFTYPE IF INCLUDE PRINT SET XCTYPE
 
 "-----------------------------------------------------------------/
 " CP2K strings
