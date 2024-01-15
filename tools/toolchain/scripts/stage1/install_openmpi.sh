@@ -6,9 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="4.1.5"
-openmpi_sha256="c018b127619d2a2a30c1931f316fc8a245926d0f5b4ebed4711f9695e7f70925"
-openmpi_pkg="openmpi-${openmpi_ver}.tar.gz"
+openmpi_ver="4.1.6"
+openmpi_sha256="f740994485516deb63b5311af122c265179f5328a0d857a567b85db00b11e415"
+openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -40,7 +40,7 @@ case "${with_openmpi}" in
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
-      tar -xzf ${openmpi_pkg}
+      tar -xjf ${openmpi_pkg}
       cd openmpi-${openmpi_ver}
       if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
         # can have issue with older glibc libraries, in which case
