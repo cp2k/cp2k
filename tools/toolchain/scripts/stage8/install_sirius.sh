@@ -186,7 +186,7 @@ case "$with_sirius" in
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
           -DSIRIUS_USE_CUDA=ON \
-	  -DSIRIUS_USE_ELPA=OFF \
+          -DSIRIUS_USE_ELPA=OFF \
           -DGPU_MODEL=P100 \
           -DSIRIUS_USE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
