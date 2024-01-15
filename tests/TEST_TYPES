@@ -83,7 +83,7 @@ HOMO SCF Cycle:     4!9
 DEBUG| Sum of differences:!5
 1\[\ \ \ 1\]\ -\ 2\[\ \ \ 1\]!7
 Ionization potential of the excited atom:!7
-( SIRIUS ) !9
+Total FORCE_EVAL ( SIRIUS ) energy!9
 DIPOLE : CheckSum  =!5
 POLAR : CheckSum  =!5
 XAS excitation energy (eV): !7
