@@ -3,19 +3,19 @@
 # see regtest/TEST_FILES
 # Density-corrected DFT with exact exchange contribution
 # PBE0 - B3LYP - MO solver
-N2_t01.inp                                            11      2e-11                -19.832131213062343
+N2_t01.inp                                            11      2e-11                -19.832131213645233
 # PBE0 - B3LYP - AO solver
-N2_t02.inp                                            11      2e-11                -19.833869176317489
+N2_t02.inp                                            11      2e-11                -19.833869175515257
 # PBE0 - PBE0 (no hfx_reuse)
-N2_t03.inp                                            11      2e-11                -19.844567389563924
+N2_t03.inp                                            11      2e-11                -19.844158613418390
 # HFX(ADMM-NONE) - PBE0 (no hfx_reuse)
-N2_t04.inp                                            11      2e-11                -19.828808345190410
+N2_t04.inp                                            11      2e-11                -19.828806880366045
 # HFX(ADMM-PBEX) - PBE0 (no hfx_reuse)
-N2_t05.inp                                            11      2e-11                -19.834993600346927
+N2_t05.inp                                            11      2e-11                -19.835080433980480
 # HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (no hfx_reuse)
-N2_t06.inp                                            11      2e-11                -19.826274785794372
+N2_t06.inp                                            11      2e-11                -19.826210273097676
 # HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (hfx_reuse)
-N2_t07.inp                                            11      2e-11                -19.830296445771687
+N2_t07.inp                                            11      2e-11                -19.829509514937033
 # HFX(ADMM-PBEX) - B3LYP(ADMM) - AO solver (hfx_reuse)
-N2_t08.inp                                            11      2e-11                -19.830322314126654
+N2_t08.inp                                            11      2e-11                -19.829523049876723
 #EOF

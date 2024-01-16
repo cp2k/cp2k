@@ -19,21 +19,21 @@ N2_t07.inp                                            11      1e-12             
 # BR89 - LDA AO solver
 N2_t08.inp                                            11      5e-12                -19.794774602971181
 # HFX - PBE
-N2_t09.inp                                            11      1e-12                -19.910974562359936
+N2_t09.inp                                            11      1e-12                -19.910974562321606
 # HFX - PBE AO solver
-N2_t10.inp                                            11      1e-12                -19.910894021392888
+N2_t10.inp                                            11      1e-12                -19.910894021355617
 # PBE0 - LDA
-N2_t11.inp                                            11      1e-12                -19.807038516382899
+N2_t11.inp                                            11      1e-12                -19.807038516362912
 # PBE0 - LDA AO solver
 N2_t12.inp                                            11      1e-12                -19.807038021121674
 # HFX-ADMM-NONE - PBE
-N2_t13.inp                                            11      1e-12                -19.890454327406964
+N2_t13.inp                                            11      1e-12                -19.890454343902313
 # HFX-ADMM-NONE - PBE AO solver
-N2_t14.inp                                            11      1e-12                -19.890468780431696
+N2_t14.inp                                            11      1e-12                -19.890468803153006
 # HFX-ADMM-DEFAULT - PBE
-N2_t15.inp                                            11      1e-12                -19.894462675351377
+N2_t15.inp                                            11      1e-12                -19.894462652578405
 # HFX-ADMM-DEFAULT - PBE AO solver
-N2_t16.inp                                            11      1e-12                -19.894473078176457
+N2_t16.inp                                            11      1e-12                -19.894473054900882
 # LDA - PBE | ADDED_MOS MO solver
 N2_t17.inp                                            11      2e-11                -19.917073388683157
 # LDA - PBE | ADDED_MOS AO solver

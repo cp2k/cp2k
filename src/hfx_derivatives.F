@@ -425,6 +425,9 @@ CONTAINS
          log10_eps_schwarz = LOG10(eps_schwarz)
       END IF
       screen_pmat_forces = screening_parameter%do_p_screening_forces
+      ! don't do density screening in case of response forces
+      IF (with_resp_density) screen_pmat_forces = .FALSE.
+
       eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
 
       counter = 0_int_8

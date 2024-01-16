@@ -50,6 +50,10 @@
     &END SCF
     &XC
       &HF
+        &SCREENING
+          EPS_SCHWARZ 1.E-10
+          EPS_SCHWARZ_FORCES 1.E-6
+        &END SCREENING
       &END HF
       #     &XC_FUNCTIONAL PBE0
       #     &END XC_FUNCTIONAL

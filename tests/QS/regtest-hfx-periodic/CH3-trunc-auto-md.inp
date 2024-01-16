@@ -42,6 +42,7 @@
         &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-7
+          EPS_SCHWARZ_FORCES 1.0E-6
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF

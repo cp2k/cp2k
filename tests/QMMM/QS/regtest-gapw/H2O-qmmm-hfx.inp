@@ -47,6 +47,7 @@
         &END MEMORY
         &SCREENING
           EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ_FORCES 1.0E-6
         &END SCREENING
       &END HF
       # These are the coefficients used for B3LYP using VWN5, this is recommended but
