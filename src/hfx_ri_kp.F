@@ -4154,7 +4154,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_AO_1, dist_AO_2, dist_RI, &
                                                             nRI_per_atom, present_img, RI_cells
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      REAL(dp)                                           :: bump_fact, dij, dik, fact, image_range, &
+      REAL(dp)                                           :: bump_fact, dij, dik, image_range, &
                                                             RI_range, rij(3), rik(3)
       TYPE(dbt_type)                                     :: t_dummy
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -4189,7 +4189,6 @@ CONTAINS
       kp_index_ubounds = UBOUND(cell_to_index)
 
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
-      CALL section_vals_val_get(hfx_section, "KP_RI_EXTENSION_FACTOR", r_val=fact)
       CALL section_vals_val_get(hfx_section, "KP_NGROUPS", i_val=ngroups)
 
       ALLOCATE (basis_set_RI(nkind), basis_set_AO(nkind))
@@ -4207,7 +4206,7 @@ CONTAINS
       ri_data%kp_image_range = 0.0_dp
       DO ikind = 1, nkind
 
-         CALL init_interaction_radii_orb_basis(basis_set_AO(ikind)%gto_basis_set, fact*ri_data%eps_pgf_orb)
+         CALL init_interaction_radii_orb_basis(basis_set_AO(ikind)%gto_basis_set, ri_data%eps_pgf_orb)
          CALL get_gto_basis_set(basis_set_AO(ikind)%gto_basis_set, kind_radius=RI_range)
          ri_data%kp_RI_range = MAX(RI_range, ri_data%kp_RI_range)
 
@@ -4330,8 +4329,6 @@ CONTAINS
       IF (ri_data%unit_nr > 0) THEN
          WRITE (ri_data%unit_nr, FMT="(/T3,A,I29)") &
             "KP-HFX_RI_INFO| Number of RI-KP parallel groups:", ngroups
-         WRITE (ri_data%unit_nr, FMT="(T3,A,F35.3)") &
-            "KP-HFX_RI_INFO| RI basis extension factor:", fact
          WRITE (ri_data%unit_nr, FMT="(T3,A,F31.3,A)") &
             "KP-HFX_RI_INFO| RI basis extension radius:", ri_data%kp_RI_range*angstrom, " Ang"
          WRITE (ri_data%unit_nr, FMT="(T3,A,F12.3,A, F6.3, A)") &
