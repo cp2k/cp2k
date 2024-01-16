@@ -330,7 +330,7 @@ CONTAINS
          description="Screens the near field part of the electronic repulsion "// &
          "integrals using the Schwarz inequality for the given "// &
          "threshold. This will be approximately the accuracy of the forces, "// &
-         "and should normally be similar to EPS_SCF", &
+         "and should normally be similar to EPS_SCF. Default value is 100*EPS_SCHWARZ.", &
          usage="EPS_SCHWARZ_FORCES 1.0E-5", &
          default_r_val=1.0E-6_dp)
       CALL section_add_keyword(section, keyword)
@@ -341,7 +341,8 @@ CONTAINS
          keyword, __LOCATION__, &
          name="SCREEN_P_FORCES", &
          description="Screens the electronic repulsion integrals for the forces "// &
-         "using the density matrix. "// &
+         "using the density matrix. Will be disabled for the "// &
+         "response part of forces in MP2/RPA/TDDFT. "// &
          "This results in a significant speedup for large systems, "// &
          "but might require a somewhat tigher EPS_SCHWARZ_FORCES.", &
          usage="SCREEN_P_FORCES TRUE", &

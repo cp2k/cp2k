@@ -48,6 +48,7 @@
         FRACTION 0.25
         &SCREENING
           EPS_SCHWARZ 1.0E-7
+          EPS_SCHWARZ_FORCES 1.0E-6
         &END SCREENING
       &END HF
       &WF_CORRELATION
@@ -69,6 +70,7 @@
             FRACTION 1.0000000
             &SCREENING
               EPS_SCHWARZ 1.0E-7
+              EPS_SCHWARZ_FORCES 1.0E-6
             &END SCREENING
           &END HF
         &END RI_RPA
