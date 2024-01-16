@@ -6,12 +6,11 @@
 @SET run_type cell_opt
 # Select force field parameter file
 @SET ff       Morelon
-@SET ffp_file ${ff}.ffp
 # Use 5x5x5 unit cells
 @SET na       5
 @SET nb       ${na}
 @SET nc       ${na}
-@SET project  ${system}-${run_type}-${na}x${nb}x${nc}-${ff}
+@SET project  ${system}-${ff}-${na}x${nb}x${nc}-${run_type}
 # Experimental lattice constant
 @SET a        5.4682
 @SET b        ${a}
@@ -90,7 +89,7 @@
   METHOD Fist
   STRESS_TENSOR analytical
   &MM
-    @INCLUDE ${ffp_file}
+    @FFTYPE UO2/${ff}
     &POISSON
       &EWALD
         ALPHA [angstrom^-1] 0.35
