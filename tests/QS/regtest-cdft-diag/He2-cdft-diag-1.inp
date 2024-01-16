@@ -39,10 +39,10 @@
 
 &FORCE_EVAL
   METHOD QS
-@SET BECKE_STR    ${BECKE_STR_1}
-@SET BECKE_TARGET ${BECKE_TARGET_1}
-@SET PROJECT_NAME ${NAME}
-@SET WFN_FILE     ${WFN_FILE_1}
-@include subsys.inc
-@include dft-common-params.inc
+  @SET BECKE_STR    ${BECKE_STR_1}
+  @SET BECKE_TARGET ${BECKE_TARGET_1}
+  @SET PROJECT_NAME ${NAME}
+  @SET WFN_FILE     ${WFN_FILE_1}
+  @INCLUDE subsys.inc
+  @INCLUDE dft-common-params.inc
 &END FORCE_EVAL

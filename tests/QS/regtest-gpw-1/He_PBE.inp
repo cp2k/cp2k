@@ -23,7 +23,7 @@
       SCF_GUESS atomic
     &END SCF
     # TEST for include of XC section
-@XCTYPE PBE
+    @XCTYPE PBE
   &END DFT
   &SUBSYS
     &CELL

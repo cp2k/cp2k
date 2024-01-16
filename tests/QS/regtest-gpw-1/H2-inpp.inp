@@ -19,36 +19,36 @@
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS
-@PRINT VAL == ${VAL} /= ${inc} /= ${new}
-@  ! ignored
-@INCLUDE "${new}.inc"
-@INCLUDE '${inc}.inc'
-@INCLUDE "scf_param.inc"
-@IF ${inc} == empty
-@set DFT PADE
-@endif
-@IF ${inc} /= empty
-@set DFT BLYP
-@ENDIF
+    @PRINT VAL == ${VAL} /= ${inc} /= ${new}
+    @  ! ignored
+    @INCLUDE "${new}.inc"
+    @INCLUDE '${inc}.inc'
+    @INCLUDE "scf_param.inc"
+    @IF ${inc} == empty
+    @SET DFT PADE
+    @ENDIF
+    @IF ${inc} /= empty
+    @SET DFT BLYP
+    @ENDIF
     &XC
       &XC_FUNCTIONAL ${DFT}
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &SUBSYS
-@SET VAL2 8.0 ${VAL}
-@IF ${VAL2}
-@SET VAL 6.0
-@ENDIF
-@IF 1 /= 0
-@SET VAL 6.0
-@ENDIF
-@if 0
-@SET VAL 4.0
-@ENDIF
-@if
+    @SET VAL2 8.0 ${VAL}
+    @IF ${VAL2}
+    @SET VAL 6.0
+    @ENDIF
+    @IF 1 /= 0
+    @SET VAL 6.0
+    @ENDIF
+    @IF 0
+    @SET VAL 4.0
+    @ENDIF
+    @IF
     XXXXXXX
-@ENDIF
+    @ENDIF
     &CELL
       ABC ${VAL2} ${VAL}
     &END CELL

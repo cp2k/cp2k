@@ -125,7 +125,7 @@
   METHOD Fist
   STRESS_TENSOR analytical
   &MM
-@FFTYPE H2O/${model}
+    @FFTYPE H2O/${model}
     &POISSON
       &EWALD
         ALPHA 0.35

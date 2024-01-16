@@ -144,7 +144,7 @@
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
-@INCLUDE 'tio2_in_acn.xyz'
+      @INCLUDE 'tio2_in_acn.xyz'
     &END COORD
     &KIND HC
       BASIS_SET DZVP-MOLOPT-GTH
