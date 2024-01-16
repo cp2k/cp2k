@@ -13,8 +13,8 @@
 @SET WAN F
 @SET PATH_BASIS GTH_BASIS_SETS
 @SET PATH_POTENTIAL POTENTIAL
-@include 2h2o_md_qs_forceeval.inc
+@INCLUDE 2h2o_md_qs_forceeval.inc
 @SET ENSEMBLE NVE
 @SET STEPS 4
 @SET TIMESTEP 0.25
-@include 2h2o_md_qs_motion.inc
+@INCLUDE 2h2o_md_qs_motion.inc

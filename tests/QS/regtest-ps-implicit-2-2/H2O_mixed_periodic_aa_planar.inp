@@ -86,7 +86,7 @@
       &END DISTRIBUTION
     &END QS
     &SCF
-@IF ${Diag}
+      @IF ${Diag}
       EPS_SCF 1.0E-5
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 3
@@ -94,8 +94,8 @@
       &MIXING
         ALPHA 0.2
       &END MIXING
-@ENDIF
-@IF ${OT}
+      @ENDIF
+      @IF ${OT}
       EPS_SCF 1.0E-4
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 3
@@ -108,7 +108,7 @@
         EPS_SCF 1.0E-4
         MAX_SCF 3
       &END OUTER_SCF
-@ENDIF
+      @ENDIF
       &PRINT
         &RESTART ${RST}
           BACKUP_COPIES 0

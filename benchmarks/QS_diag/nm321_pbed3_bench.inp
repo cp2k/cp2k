@@ -79,15 +79,15 @@
     &END SCF
     &XC
       &VDW_POTENTIAL
-@if ${VV10} == 1
+        @IF ${VV10} == 1
         POTENTIAL_TYPE NON_LOCAL
         &NON_LOCAL
           KERNEL_FILE_NAME rVV10_kernel_table.dat
           TYPE RVV10
           VERBOSE_OUTPUT
         &END NON_LOCAL
-@endif
-@if ${D3} == 1
+        @ENDIF
+        @IF ${D3} == 1
         POTENTIAL_TYPE PAIR_POTENTIAL
         &PAIR_POTENTIAL
           CALCULATE_C9_TERM .TRUE.
@@ -99,7 +99,7 @@
           R_CUTOFF [angstrom] 16.
           TYPE DFTD3
         &END PAIR_POTENTIAL
-@endif
+        @ENDIF
       &END VDW_POTENTIAL
       &XC_FUNCTIONAL
         &PBE
@@ -110,7 +110,7 @@
         XC_SMOOTH_RHO NN50
       &END XC_GRID
     &END XC
-@if ${WANNIER} == 1
+    @IF ${WANNIER} == 1
     &LOCALIZE
       EPS_LOCALIZATION 1.0E-4
       EPS_OCCUPATION 1.E-4
@@ -127,9 +127,9 @@
         &END WANNIER_SPREADS
       &END PRINT
     &END LOCALIZE
-@endif
+    @ENDIF
     &PRINT
-@if  ${CUBE} == 1
+      @IF  ${CUBE} == 1
       &MULLIKEN
         FILENAME =${PROJECT}.mulliken
       &END MULLIKEN
@@ -148,14 +148,14 @@
           QS_SCF 0
         &END EACH
       &END ELF_CUBE
-@endif
-@if ${STM} == 1
+      @ENDIF
+      @IF ${STM} == 1
       &STM
         BIAS [eV] -2.0 -1.0 1.0 2.0
         TH_TORB S
       &END STM
-@endif
-@if ${PDOS} ==1
+      @ENDIF
+      @IF ${PDOS} ==1
       &PDOS
         COMPONENTS
         NLUMO 2500
@@ -175,7 +175,7 @@
           LIST 275 282 283 284
         &END LDOS
       &END PDOS
-@endif
+      @ENDIF
     &END PRINT
   &END DFT
   &PRINT
@@ -219,7 +219,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 
-@if ${RESTART} == 1
+@IF ${RESTART} == 1
 &EXT_RESTART
   RESTART_BAND T
   RESTART_COUNTERS T
@@ -227,4 +227,4 @@
   RESTART_POS T
 &END EXT_RESTART
 
-@endif
+@ENDIF

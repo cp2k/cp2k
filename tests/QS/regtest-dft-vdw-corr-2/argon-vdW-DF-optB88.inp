@@ -21,7 +21,7 @@
       MAX_SCF 3
       SCF_GUESS ATOMIC
     &END SCF
-@XCTYPE vdW-DF-optB88
+    @XCTYPE vdW-DF-optB88
   &END DFT
   &SUBSYS
     &CELL

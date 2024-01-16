@@ -67,7 +67,7 @@
       ABC 10.8949 10.8949 10.8949
     &END CELL
     &COORD
-@INCLUDE ../sample_cp2k/UO2-2x2x2-coord-1.xyz
+      @INCLUDE ../sample_cp2k/UO2-2x2x2-coord-1.xyz
     &END COORD
     &PRINT
       &CELL

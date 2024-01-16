@@ -85,7 +85,7 @@
   METHOD Fist
   STRESS_TENSOR ANALYTICAL
   &MM
-@include pmeis_forcefield.inc
+    @INCLUDE pmeis_forcefield.inc
     &POISSON
       &EWALD
         ALPHA .44

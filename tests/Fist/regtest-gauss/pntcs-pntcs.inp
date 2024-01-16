@@ -40,20 +40,20 @@
         ATOM Cl
         CHARGE 1.0
       &END CHARGE
-@IF 1
+      @IF 1
       &SHELL Na
         CORE_CHARGE 0.5
         SHELL_CHARGE -1.5
         SPRING 0.0
       &END SHELL
-@ENDIF
-@IF 1
+      @ENDIF
+      @IF 1
       &SHELL Cl
         CORE_CHARGE 1.5
         SHELL_CHARGE -0.5
         SPRING 0.0
       &END SHELL
-@ENDIF
+      @ENDIF
     &END FORCEFIELD
     &POISSON
       PERIODIC NONE
@@ -73,12 +73,12 @@
       Cl 0.0 0.0 2.1167088332
     &END COORD
     &CORE_COORD
-@IF 1
+      @IF 1
       NA 0.0 0.0 0.0 1
-@ENDIF
-@IF 1
+      @ENDIF
+      @IF 1
       CL 0.0 0.0 2.1167088332 2
-@ENDIF
+      @ENDIF
     &END CORE_COORD
     &KIND Na
       MM_RADIUS 0.000000000000000
@@ -87,12 +87,12 @@
       MM_RADIUS 0.000000000000000
     &END KIND
     &SHELL_COORD
-@IF 1
+      @IF 1
       NA 0.0 0.05291772083 -0.026458860415 1
-@ENDIF
-@IF 1
+      @ENDIF
+      @IF 1
       CL 0.0 0.05291772083 2.14316769361 2
-@ENDIF
+      @ENDIF
     &END SHELL_COORD
   &END SUBSYS
 &END FORCE_EVAL

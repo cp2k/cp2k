@@ -32,7 +32,7 @@ def format_line(line: str) -> str:
 def indent(lines: List[str]) -> List[str]:
     output = []
     for line in lines:
-        output.append(f"  {line}" if not line.startswith("@") else line)
+        output.append(f"  {line}")
     return output
 
 
@@ -91,7 +91,9 @@ class Preprocessor(Child):
         self.sortkey = ""  # Pre-processor lines are not sortable.
 
     def render(self, verbatim: bool) -> List[str]:
-        return self.preamble + [self.line]
+        tokens = self.line.split(" ", 1)
+        tokens[0] = tokens[0].upper()
+        return self.preamble + [" ".join(tokens)]
 
 
 # ======================================================================================

@@ -90,7 +90,7 @@
   METHOD Fist
   STRESS_TENSOR analytical
   &MM
-@INCLUDE ${ffp_file}
+    @INCLUDE ${ffp_file}
     &POISSON
       &EWALD
         ALPHA [angstrom^-1] 0.35

@@ -58,11 +58,11 @@
   &END DFT
   &SUBSYS
     &CELL
-@INCLUDE 'ice.cell'
+      @INCLUDE 'ice.cell'
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
-@INCLUDE 'ice.xyz'
+      @INCLUDE 'ice.xyz'
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH

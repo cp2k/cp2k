@@ -23,7 +23,7 @@
       MAX_SCF 10
       SCF_GUESS ATOMIC
     &END SCF
-@XCTYPE vdW-DF1
+    @XCTYPE vdW-DF1
   &END DFT
   &SUBSYS
     &CELL

@@ -66,11 +66,11 @@
   &END DFT
   &SUBSYS
     &CELL
-@INCLUDE '../regtest-almo-1/ice.cell'
+      @INCLUDE '../regtest-almo-1/ice.cell'
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
-@INCLUDE '../regtest-almo-1/ice-cut.xyz'
+      @INCLUDE '../regtest-almo-1/ice-cut.xyz'
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH

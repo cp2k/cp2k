@@ -5,11 +5,11 @@
 &END GLOBAL
 
 &MOTION
-@INCLUDE 'deca_ala_md_section.txt'
+  @INCLUDE 'deca_ala_md_section.txt'
 &END MOTION
 
 &FORCE_EVAL
   METHOD FIST
-@INCLUDE "deca_ala_mm_section.txt"
-@INCLUDE deca_ala_subsys_section.txt
+  @INCLUDE "deca_ala_mm_section.txt"
+  @INCLUDE deca_ala_subsys_section.txt
 &END FORCE_EVAL
