@@ -484,7 +484,9 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI", &
-                          description="Parameters for RI method in HFX (experimental, forces not yet implemented).")
+                          description="Parameters for RI methods in HFX, including RI-HFXk with "// &
+                          "k-point sampling. All keywords relevant to RI-HFXk have an "// &
+                          "alias starting with KP_")
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of RI", &
@@ -495,7 +497,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
-                          description="Filter threshold for DBCSR tensor contraction.", &
+                          description="Filter threshold for DBT tensor contraction.", &
+                          variants=(/"KP_EPS_FILTER"/), &
                           default_r_val=1.0E-09_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -524,6 +527,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
                           description="The range parameter for the short range operator (in 1/a0). "// &
                           "Default is OMEGA from INTERACTION_POTENTIAL. ", &
+                          variants=(/"KP_OMEGA"/), &
                           default_r_val=0.0_dp, &
                           repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -532,6 +536,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
                           description="The cutoff radius (in Angstroms) for the truncated Coulomb operator. "// &
                           "Default is CUTOFF_RADIUS from INTERACTION_POTENTIAL. ", &
+                          variants=(/"KP_CUTOFF_RADIUS"/), &
                           default_r_val=0.0_dp, &
                           repeats=.FALSE., &
                           unit_str="angstrom")
@@ -578,22 +583,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="KP_RI_EXTENSION_FACTOR", &
-                          variants=s2a("RI_EXTENSION_FACTOR", "RI_EXT", "RI_EXT_FACT", "KP_RI_EXT", &
-                                       "KP_RI_EXT_FACT", "KP_RI_BASIS_EXT", "RI_BASIS_EXT"), &
-                          description="In KP-RI-HFX, each atom has its own local RI basis. The RI "// &
-                          "basis is defined by a sphere of radius R centered on the atom, "// &
-                          "whereby all neighboring atoms within that sphere contribute their "// &
-                          "RI basis elements. The radius of that sphere is calculated based "// &
-                          "on the systems' most diffuse orbital PGF (with exponant alpha), such "// &
-                          "that EPS_PGF_ORB * KP_RI_EXTENSION_FACTOR  = exp(-alpha*R^2). "// &
-                          "The default value of 1.0 is safe. More accurate results can be "// &
-                          "obtained with a value < 1.0, at greated computational cost.", &
-                          default_r_val=1.0_dp, &
-                          repeats=.FALSE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="KP_RI_BUMP_FACTOR", &
                           variants=s2a("RI_BUMP", "BUMP", "BUMP_FACTOR"), &
                           description="In KP-RI-HFX, the extended RI basis set has a bump radius. "// &
@@ -614,6 +603,7 @@ CONTAINS
                           "Coulomb operator cannot be used in periodic systems.", &
                           usage="OPERATOR {string}", &
                           repeats=.FALSE., &
+                          variants=(/"KP_RI_METRIC"/), &
                           default_i_val=0, &
                           enum_c_vals=s2a("HFX", "COULOMB", "IDENTITY", "TRUNCATED", "SHORTRANGE"), &
                           enum_desc=s2a("Same as HFX operator", &
@@ -677,6 +667,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_PGF_ORB", &
                           description="Sets precision of the integral tensors.", &
+                          variants=(/"KP_EPS_PGF_ORB"/), &
                           default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
