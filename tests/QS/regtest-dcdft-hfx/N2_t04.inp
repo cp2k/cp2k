@@ -42,7 +42,8 @@
             T_C_G_DATA t_c_g.dat
           &END INTERACTION_POTENTIAL
           &SCREENING
-            EPS_SCHWARZ 1.0E-5
+            EPS_SCHWARZ 1.0E-6
+            EPS_SCHWARZ_FORCES 1.0E-6
           &END SCREENING
         &END HF
         ! use a PBE0 functional
@@ -76,7 +77,8 @@
     &XC
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-4
+          EPS_SCHWARZ 1.0E-6
+          EPS_SCHWARZ_FORCES 1.0E-6
         &END SCREENING
       &END HF
       &XC_FUNCTIONAL NONE
