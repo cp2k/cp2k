@@ -5,17 +5,17 @@
 # PBE0 - B3LYP - MO solver
 N2_t01.inp                                            11      2e-11                -19.832131213645233
 # PBE0 - B3LYP - AO solver
-N2_t02.inp                                            11      2e-11                -19.833869175515257
+N2_t02.inp                                            11      2e-11                -19.833869175515250
 # PBE0 - PBE0 (no hfx_reuse)
-N2_t03.inp                                            11      2e-11                -19.844497503972416
+N2_t03.inp                                            11      2e-11                -19.844497503972438
 # HFX(ADMM-NONE) - PBE0 (no hfx_reuse)
-N2_t04.inp                                            11      2e-11                -19.828806787106977
+N2_t04.inp                                            11      2e-11                -19.828806787106984
 # HFX(ADMM-PBEX) - PBE0 (no hfx_reuse)
-N2_t05.inp                                            11      2e-11                -19.835080433980480
+N2_t05.inp                                            11      2e-11                -19.835080433980490
 # HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (no hfx_reuse)
-N2_t06.inp                                            11      2e-11                -19.826210273097676
+N2_t06.inp                                            11      2e-11                -19.826210273097672
 # HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (hfx_reuse)
-N2_t07.inp                                            11      2e-11                -19.829509514937033
+N2_t07.inp                                            11      2e-11                -19.829509514937030
 # HFX(ADMM-PBEX) - B3LYP(ADMM) - AO solver (hfx_reuse)
-N2_t08.inp                                            11      2e-11                -19.829523049876723
+N2_t08.inp                                            11      2e-11                -19.829523049876734
 #EOF

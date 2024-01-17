@@ -1,9 +1,9 @@
-H2O_grad_mme.inp                                      11      7e-09            -16.766973026874989
-H2O_grad_gpw.inp                                      11      7e-08            -16.990048927268898
-H2O_grad_gpw_single_group.inp                         11      7e-08            -16.990048927268898
-HF_dipole.inp                                         11      7e-08            -24.660454660161022
-H2_H2_no_freeHFX.inp                                  11      2e-13             -2.307432149680962
-H2_MP2_debug.inp                                      11      1e-10             -1.146241031776471
+H2O_grad_mme.inp                                      11      7e-09            -16.766973117914596
+H2O_grad_gpw.inp                                      11      7e-08            -16.990049367524886
+H2O_grad_gpw_single_group.inp                         11      7e-08            -16.990049367524886
+HF_dipole.inp                                         11      7e-08            -24.660454660161033
+H2_H2_no_freeHFX.inp                                  11      2e-13             -2.307432149680968
+H2_MP2_debug.inp                                      11      1e-10             -1.146241031776841
 H2O_grad_ri-hfx.inp                                   11      7e-09            -16.764370375058888
-H2O_grad_blksize.inp                                  11      7e-08            -16.990048927268898
+H2O_grad_blksize.inp                                  11      7e-08            -16.990049367524882
 #EOF
