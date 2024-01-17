@@ -21,6 +21,7 @@ MODULE qs_scf_post_tb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
@@ -110,7 +111,9 @@ MODULE qs_scf_post_tb
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -172,11 +175,12 @@ CONTAINS
 
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
-      INTEGER                                            :: handle, homo, iat, iatom, ikind, ispin, &
-                                                            nat, natom, nkind, nlumo_stm, nlumos, &
-                                                            nspins, print_level, unit_nr
+      INTEGER                                            :: after, handle, homo, iat, iatom, ikind, &
+                                                            ispin, iw, nat, natom, nkind, &
+                                                            nlumo_stm, nlumos, nspins, &
+                                                            print_level, unit_nr
       LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
-                                                            print_it, rebuild
+                                                            omit_headers, print_it, rebuild
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
@@ -187,7 +191,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -611,6 +615,38 @@ CONTAINS
                END IF
             END IF
          END IF
+      END IF
+
+      ! Write the density matrix
+      CALL get_qs_env(qs_env, rho=rho, matrix_ks=ks_rmpv)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      CALL section_vals_val_get(print_section, "AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
+                                           "AO_MATRICES/DENSITY"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, print_section, "AO_MATRICES/DENSITY", &
+                                   extension=".Log")
+         CALL section_vals_val_get(print_section, "AO_MATRICES%NDIGITS", i_val=after)
+         after = MIN(MAX(after, 1), 16)
+         DO ispin = 1, dft_control%nspins
+            CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix, 4, after, qs_env, &
+                                              para_env, output_unit=iw, omit_headers=omit_headers)
+         END DO
+         CALL cp_print_key_finished_output(iw, logger, print_section, "AO_MATRICES/DENSITY")
+      END IF
+
+      ! The xTB matrix itself
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
+                                           "AO_MATRICES/KOHN_SHAM_MATRIX"), cp_p_file)) THEN
+         CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+         iw = cp_print_key_unit_nr(logger, print_section, "AO_MATRICES/KOHN_SHAM_MATRIX", &
+                                   extension=".Log")
+         CALL section_vals_val_get(print_section, "AO_MATRICES%NDIGITS", i_val=after)
+         after = MIN(MAX(after, 1), 16)
+         CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
+         CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix, 4, after, qs_env, &
+                                           para_env, output_unit=iw, omit_headers=omit_headers)
+         CALL cp_print_key_finished_output(iw, logger, print_section, "AO_MATRICES/KOHN_SHAM_MATRIX")
       END IF
 
       ! these print keys are not supported in TB
