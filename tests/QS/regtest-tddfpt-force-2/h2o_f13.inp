@@ -26,6 +26,7 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
+      EPS_DEFAULT 1.0E-12
       METHOD GPW
     &END QS
     &SCF
