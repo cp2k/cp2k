@@ -569,13 +569,13 @@ CONTAINS
       INTEGER                                            :: after, handle, i, ic, iw, output_unit
       LOGICAL                                            :: omit_headers
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_v
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_v
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_s, matrixkp_t
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (logger, matrix_v, matrix_s, para_env)
+      NULLIFY (logger, matrix_v, para_env)
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, para_env=para_env)
 
@@ -607,10 +607,9 @@ CONTAINS
                                                  output_unit=iw, omit_headers=omit_headers)
             END DO
             IF (BTEST(cp_print_key_should_output(logger%iter_info, qs_env%input, &
-                                                 "DFT%PRINT%AO_MATRICES/DERIVATIVES"), cp_p_file) &
-                .AND. ASSOCIATED(matrix_s)) THEN
+                                                 "DFT%PRINT%AO_MATRICES/DERIVATIVES"), cp_p_file)) THEN
                DO ic = 1, SIZE(matrixkp_s, 2)
-                  DO i = 2, SIZE(matrix_s)
+                  DO i = 2, SIZE(matrixkp_s, 1)
                      CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i, ic)%matrix, 4, after, qs_env, para_env, &
                                                        output_unit=iw, omit_headers=omit_headers)
                   END DO
