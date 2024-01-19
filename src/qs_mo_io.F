@@ -74,7 +74,8 @@ MODULE qs_mo_io
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_mo_occupation,                ONLY: set_mo_occupation
-   USE qs_mo_types,                     ONLY: mo_set_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -977,6 +978,7 @@ CONTAINS
 !> \param rtp ...
 !> \param cpart ...
 !> \param sim_step ...
+!> \param umo_set ...
 !> \date    15.05.2001
 !> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005, MK)
@@ -989,7 +991,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
                                           dft_section, before, kpoint, final_mos, spin, &
-                                          solver_method, rtp, cpart, sim_step)
+                                          solver_method, rtp, cpart, sim_step, umo_set)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1002,6 +1004,7 @@ CONTAINS
       CHARACTER(LEN=2), INTENT(IN), OPTIONAL             :: solver_method
       LOGICAL, INTENT(IN), OPTIONAL                      :: rtp
       INTEGER, INTENT(IN), OPTIONAL                      :: cpart, sim_step
+      TYPE(mo_set_type), INTENT(IN), OPTIONAL            :: umo_set
 
       CHARACTER(LEN=12)                                  :: symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
@@ -1017,17 +1020,20 @@ CONTAINS
       CHARACTER(LEN=4)                                   :: reim
       CHARACTER(LEN=40)                                  :: fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
-      INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, ikind, imo, irow, iset, isgf, &
-         ishell, iso, iw, jcol, last_mo, left, lmax, lshell, natom, ncgf, ncol, ncol_global, &
-         nrow_global, nset, nsgf, right, scf_step, to, width
+      INTEGER :: after, first_mo, from, homo, iatom, icgf, ico, icol, ikind, imo, irow, iset, &
+         isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, nao, natom, ncgf, ncol, nmo, &
+         nset, nsgf, numo, right, scf_step, to, width
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       LOGICAL                                            :: ionode, my_final, my_rtp, &
                                                             print_cartesian, print_eigvals, &
                                                             print_eigvecs, print_occup, &
                                                             should_output
-      REAL(KIND=dp)                                      :: gap
+      REAL(KIND=dp)                                      :: gap, maxocc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mo_eigenvalues, mo_occupation_numbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, umo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
@@ -1037,6 +1043,7 @@ CONTAINS
       NULLIFY (logger)
       NULLIFY (mo_index_range)
       NULLIFY (nshell)
+      NULLIFY (mo_coeff)
 
       logger => cp_get_default_logger()
       ionode = logger%para_env%is_source()
@@ -1099,12 +1106,41 @@ CONTAINS
          my_solver_method = "TD"
       END IF
 
+      ! Retrieve MO information
+      CALL get_mo_set(mo_set=mo_set, &
+                      mo_coeff=mo_coeff, &
+                      eigenvalues=eigenvalues, &
+                      occupation_numbers=occupation_numbers, &
+                      homo=homo, &
+                      maxocc=maxocc, &
+                      nao=nao, &
+                      nmo=nmo)
+      IF (PRESENT(umo_set)) THEN
+         CALL get_mo_set(mo_set=umo_set, &
+                         mo_coeff=umo_coeff, &
+                         nmo=numo)
+         nmo = nmo + numo
+      ELSE
+         numo = 0
+      END IF
+      ALLOCATE (mo_eigenvalues(nmo))
+      mo_eigenvalues(:) = 0.0_dp
+      mo_eigenvalues(1:nmo - numo) = eigenvalues(1:nmo - numo)
+      ALLOCATE (mo_occupation_numbers(nmo))
+      mo_occupation_numbers(:) = 0.0_dp
+      mo_occupation_numbers(1:nmo - numo) = occupation_numbers(1:nmo - numo)
+      IF (numo > 0) THEN
+         CALL get_mo_set(mo_set=umo_set, &
+                         eigenvalues=eigenvalues)
+         mo_eigenvalues(nmo - numo + 1:nmo) = eigenvalues(1:numo)
+      END IF
+
       IF (print_eigvecs) THEN
-         CALL cp_fm_get_info(mo_set%mo_coeff, &
-                             nrow_global=nrow_global, &
-                             ncol_global=ncol_global)
-         ALLOCATE (smatrix(nrow_global, ncol_global))
-         CALL cp_fm_get_submatrix(mo_set%mo_coeff, smatrix)
+         ALLOCATE (smatrix(nao, nmo))
+         CALL cp_fm_get_submatrix(mo_coeff, smatrix(1:nao, 1:nmo - numo))
+         IF (numo > 0) THEN
+            CALL cp_fm_get_submatrix(umo_coeff, smatrix(1:nao, nmo - numo + 1:nmo))
+         END IF
          IF (.NOT. ionode) THEN
             DEALLOCATE (smatrix)
          END IF
@@ -1182,7 +1218,7 @@ CONTAINS
                      DO iset = 1, nset
                         DO ishell = 1, nshell(iset)
                            lshell = l(ishell, iset)
-                           CALL dgemm("T", "N", nco(lshell), mo_set%nmo, nso(lshell), 1.0_dp, &
+                           CALL dgemm("T", "N", nco(lshell), nmo, nso(lshell), 1.0_dp, &
                                       orbtramat(lshell)%c2s, nso(lshell), &
                                       smatrix(isgf, 1), nsgf, 0.0_dp, &
                                       cmatrix(icgf, 1), ncgf)
@@ -1246,10 +1282,10 @@ CONTAINS
              (mo_index_range(2) > 0) .AND. &
              (mo_index_range(2) >= mo_index_range(1))) THEN
             first_mo = MAX(1, mo_index_range(1))
-            last_mo = MIN(mo_set%nmo, mo_index_range(2))
+            last_mo = MIN(nmo, mo_index_range(2))
          ELSE
             first_mo = 1
-            last_mo = mo_set%nmo
+            last_mo = nmo
          END IF
 
          IF (print_eigvecs) THEN
@@ -1265,10 +1301,10 @@ CONTAINS
                WRITE (UNIT=iw, FMT=fmtstr1) &
                   "MO|", (jcol, jcol=from, to)
                WRITE (UNIT=iw, FMT=fmtstr2) &
-                  "MO|", (mo_set%eigenvalues(jcol), jcol=from, to)
+                  "MO|", (mo_eigenvalues(jcol), jcol=from, to)
                WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
                WRITE (UNIT=iw, FMT=fmtstr2) &
-                  "MO|", (mo_set%occupation_numbers(jcol), jcol=from, to)
+                  "MO|", (mo_occupation_numbers(jcol), jcol=from, to)
                WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
 
                irow = 1
@@ -1396,14 +1432,14 @@ CONTAINS
             END IF
             DO imo = first_mo, last_mo
                WRITE (UNIT=iw, FMT=fmtstr4) &
-                  "MO|", imo, mo_set%eigenvalues(imo), &
-                  mo_set%eigenvalues(imo)*evolt, &
-                  mo_set%occupation_numbers(imo)
+                  "MO|", imo, mo_eigenvalues(imo), &
+                  mo_eigenvalues(imo)*evolt, &
+                  mo_occupation_numbers(imo)
             END DO
             fmtstr5 = "(A,T59,F22.  )"
             WRITE (UNIT=fmtstr5(12:13), FMT="(I2)") after
             WRITE (UNIT=iw, FMT=fmtstr5) &
-               " MO| Sum:", accurate_sum(mo_set%occupation_numbers(:))
+               " MO| Sum:", accurate_sum(mo_occupation_numbers(:))
 
          END IF ! print_eigvecs
 
@@ -1414,10 +1450,10 @@ CONTAINS
             WRITE (UNIT=iw, FMT=fmtstr6) &
                " MO| E(Fermi):", mo_set%mu, " a.u.", mo_set%mu*evolt, " eV"
          END IF
-         IF ((mo_set%homo > 0) .AND. .NOT. my_rtp) THEN
-            IF ((mo_set%occupation_numbers(mo_set%homo) == mo_set%maxocc) .AND. (last_mo > mo_set%homo)) THEN
-               gap = mo_set%eigenvalues(mo_set%homo + 1) - &
-                     mo_set%eigenvalues(mo_set%homo)
+         IF ((homo > 0) .AND. .NOT. my_rtp) THEN
+            IF ((mo_occupation_numbers(homo) == maxocc) .AND. (last_mo > homo)) THEN
+               gap = mo_eigenvalues(homo + 1) - &
+                     mo_eigenvalues(homo)
                WRITE (UNIT=iw, FMT=fmtstr6) &
                   " MO| Band gap:", gap, " a.u.", gap*evolt, " eV"
             END IF
@@ -1425,6 +1461,9 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(A)") ""
 
       END IF ! iw
+
+      IF (ALLOCATED(mo_eigenvalues)) DEALLOCATE (mo_eigenvalues)
+      IF (ALLOCATED(mo_occupation_numbers)) DEALLOCATE (mo_occupation_numbers)
 
       CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%MO", &
                                         ignore_should_output=should_output)
