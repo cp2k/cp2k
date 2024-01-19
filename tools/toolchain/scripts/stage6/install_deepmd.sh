@@ -95,6 +95,7 @@ EOF
   cat << EOF >> "${INSTALLDIR}/lsan.supp"
 # leaks related to DeePMD-kit and TensorFlow
 leak:DP_NewDeepPot
+leak:deepmd::AtomMap::AtomMap
 EOF
 fi
 
