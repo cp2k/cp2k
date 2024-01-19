@@ -301,13 +301,6 @@ CONTAINS
                   CPABORT("The OT method is not implemented for k points")
                END IF
 
-               IF (.NOT. final_mos) THEN
-                  message = "The MO information for unoccupied MOs is only calculated after "// &
-                            "SCF convergence is achieved when the orbital transformation (OT) "// &
-                            "method is used"
-                  CPWARN(TRIM(message))
-               END IF
-
                matrix_ks => ks(ispin)%matrix
                matrix_s => s(1)%matrix
 
@@ -339,6 +332,14 @@ CONTAINS
                mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
                CPASSERT(ASSOCIATED(mo_index_range))
                numo = MIN(mo_index_range(2) - homo, nao - homo)
+
+               IF (.NOT. final_mos) THEN
+                  numo = 0
+                  message = "The MO information for unoccupied MOs is only calculated after "// &
+                            "SCF convergence is achieved when the orbital transformation (OT) "// &
+                            "method is used"
+                  CPWARN(TRIM(message))
+               END IF
 
                ! Calculate the unoccupied MO set (umo_set) with OT if needed
                IF (numo > 0) THEN
