@@ -18,7 +18,7 @@
       STATE 4
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 200
+      CUTOFF 280
       REL_CUTOFF 40
     &END MGRID
     &POISSON
