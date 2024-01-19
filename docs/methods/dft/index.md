@@ -8,6 +8,7 @@ maxdepth: 1
 gpw
 gapw
 hartree-fock
+ri_hfx
 local_ri
 constrained
 linear_scaling
