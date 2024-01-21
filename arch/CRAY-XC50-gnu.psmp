@@ -80,6 +80,7 @@ USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.9.0
 #USE_QUIP       := 0.9.10
+#USE_DEEPMD     := 2.2.7
 USE_SIRIUS     := 7.5.2
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
@@ -157,6 +158,22 @@ ifneq ($(USE_QUIP),)
    LIBS           += $(QUIP_LIB)/libFoX_common.a
    LIBS           += $(QUIP_LIB)/libFoX_utils.a
    LIBS           += $(QUIP_LIB)/libFoX_fsys.a
+endif
+
+ifneq ($(USE_DEEPMD),)
+   USE_DEEPMD       := $(strip $(USE_DEEPMD))
+   DEEPMD_INC       := $(INSTALL_PATH)/libdeepmd_c-$(USE_DEEPMD)/include
+   DEEPMD_LIB       := $(INSTALL_PATH)/libdeepmd_c-$(USE_DEEPMD)/lib
+   CFLAGS         += -I$(DEEPMD_INC)
+   DFLAGS         += -D__DEEPMD
+   LIBS           += $(DEEPMD_LIB)/libdeepmd.so
+   LIBS           += $(DEEPMD_LIB)/libdeepmd_c.so
+   LIBS           += $(DEEPMD_LIB)/libdeepmd_cc.so
+   LIBS           += $(DEEPMD_LIB)/libdeepmd_dyn_cudart.so
+   LIBS           += $(DEEPMD_LIB)/libdeepmd_op.so
+   LIBS           += $(DEEPMD_LIB)/libdeepmd_op_cuda.so
+   LIBS           += $(DEEPMD_LIB)/libtensorflow_cc.so.2
+   LIBS           += $(DEEPMD_LIB)/libtensorflow_framework.so.2
 endif
 
 ifneq ($(USE_LIBPEXSI),)
