@@ -176,7 +176,7 @@ CONTAINS
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
       INTEGER                                            :: after, handle, homo, iat, iatom, ikind, &
-                                                            ispin, iw, nat, natom, nkind, &
+                                                            img, ispin, iw, nat, natom, nkind, &
                                                             nlumo_stm, nlumos, nspins, &
                                                             print_level, unit_nr
       LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
@@ -191,8 +191,8 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs, rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -618,8 +618,7 @@ CONTAINS
       END IF
 
       ! Write the density matrix
-      CALL get_qs_env(qs_env, rho=rho, matrix_ks=ks_rmpv)
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks)
       CALL section_vals_val_get(print_section, "AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
                                            "AO_MATRICES/DENSITY"), cp_p_file)) THEN
@@ -628,8 +627,10 @@ CONTAINS
          CALL section_vals_val_get(print_section, "AO_MATRICES%NDIGITS", i_val=after)
          after = MIN(MAX(after, 1), 16)
          DO ispin = 1, dft_control%nspins
-            CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix, 4, after, qs_env, &
-                                              para_env, output_unit=iw, omit_headers=omit_headers)
+            DO img = 1, SIZE(matrix_p, 2)
+               CALL cp_dbcsr_write_sparse_matrix(matrix_p(ispin, img)%matrix, 4, after, qs_env, &
+                                                 para_env, output_unit=iw, omit_headers=omit_headers)
+            END DO
          END DO
          CALL cp_print_key_finished_output(iw, logger, print_section, "AO_MATRICES/DENSITY")
       END IF
@@ -637,15 +638,16 @@ CONTAINS
       ! The xTB matrix itself
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
                                            "AO_MATRICES/KOHN_SHAM_MATRIX"), cp_p_file)) THEN
-         CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
-         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
          iw = cp_print_key_unit_nr(logger, print_section, "AO_MATRICES/KOHN_SHAM_MATRIX", &
                                    extension=".Log")
          CALL section_vals_val_get(print_section, "AO_MATRICES%NDIGITS", i_val=after)
          after = MIN(MAX(after, 1), 16)
-         CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
-         CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix, 4, after, qs_env, &
-                                           para_env, output_unit=iw, omit_headers=omit_headers)
+         DO ispin = 1, dft_control%nspins
+            DO img = 1, SIZE(matrix_ks, 2)
+               CALL cp_dbcsr_write_sparse_matrix(matrix_ks(ispin, img)%matrix, 4, after, qs_env, para_env, &
+                                                 output_unit=iw, omit_headers=omit_headers)
+            END DO
+         END DO
          CALL cp_print_key_finished_output(iw, logger, print_section, "AO_MATRICES/KOHN_SHAM_MATRIX")
       END IF
 
