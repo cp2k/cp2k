@@ -322,12 +322,6 @@ CONTAINS
                                nmo=nmo, &
                                flexible_electron_count=flexible_electron_count)
 
-               CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
-                                                   ks_matrix=matrix_ks, &
-                                                   evals_arg=mo_eigenvalues, &
-                                                   do_rotation=.TRUE.)
-               CALL set_mo_occupation(mo_set=mo_set)
-
                ! Retrieve the index of the last MO for which a printout is requested
                mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
                CPASSERT(ASSOCIATED(mo_index_range))
