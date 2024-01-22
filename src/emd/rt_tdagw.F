@@ -730,13 +730,13 @@ CONTAINS
       LOGICAL                                            :: data_transpose
       INTEGER, DIMENSION(2)                              :: block_shape
       ! Pair of indices for current block
-      INTEGER, DIMENSION(2)                              :: index_matrix
       INTEGER, DIMENSION(3)                              :: index_tensor
       REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
       REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
       INTEGER                                            :: j,number_of_blocks,backup
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices_block_matrix_1,&
-                                                            indices_block_matrix_2
+                                                            indices_block_matrix_2,&
+                                                            indices_block_matrix_custom
       LOGICAL                                            :: found
       
       ! Desymmetrize the matrix
@@ -751,14 +751,17 @@ CONTAINS
       number_of_blocks = dbcsr_get_num_blocks(matrix_desym_p)
       ALLOCATE(indices_block_matrix_1(number_of_blocks))
       ALLOCATE(indices_block_matrix_2(number_of_blocks))
+      ALLOCATE(indices_block_matrix_custom(number_of_blocks))
       CALL dbcsr_iterator_start(iterator_matrix, matrix_desym_p)
       DO j=1,number_of_blocks
          CALL dbcsr_iterator_next_block(iterator_matrix, indices_block_matrix_1(j), indices_block_matrix_2(j), block_matrix)
+         indices_block_matrix_custom(j) = 1
       END DO
       CALL dbcsr_iterator_stop(iterator_matrix)
       ! Construct parallelisation bounds
       PRINT *, indices_block_matrix_1
       PRINT *, indices_block_matrix_2
+      PRINT *, indices_block_matrix_custom
       ! TODO : OMP DO does not register as OMP parallel - dbm requires reservations to be called within parallel block
       ! Proceed as in dbt - determine distribution of blocks among threads - maybe distvec function? Or integer division
       ! TODO : The reservations are a confusing mess of a spaghetti code - tread lightly
@@ -766,26 +769,25 @@ CONTAINS
       !        parallelisations have failed
       backup = omp_get_max_threads()
       CALL omp_set_num_threads(1)
-      !$OMP PARALLEL DEFAULT(none) SHARED(tensor, indices_block_matrix_1, indices_block_matrix_2)
-      CALL dbt_reserve_blocks(tensor, indices_block_matrix_1, indices_block_matrix_2, [1])
+      !$OMP PARALLEL DEFAULT(none) SHARED(tensor, indices_block_matrix_1, indices_block_matrix_2, indices_block_matrix_custom)
+      ! All index fields should be identical 
+      CALL dbt_reserve_blocks(tensor, indices_block_matrix_1, indices_block_matrix_2, indices_block_matrix_custom)
       !$OMP END PARALLEL
       CALL omp_set_num_threads(backup)
       PRINT *, "Blocks reserved"
-      !$OMP DO PRIVATE(indices_block_matrix_1, indices_block_matrix_2,&
-      !$OMP block_matrix, block_tensor, data_transpose, found, block_shape, index_tensor)
       DO j=1,number_of_blocks
          CALL dbcsr_get_block_p(matrix_desym_p, indices_block_matrix_1(j), indices_block_matrix_2(j),&
                              block_matrix, data_transpose,found, block_shape(1), block_shape(2))
          ALLOCATE(block_tensor(block_shape(1),block_shape(2),1))
          block_tensor(:,:,1) = block_matrix(:,:)
-         index_tensor = [index_matrix(1), index_matrix(2),1]
+         index_tensor = [indices_block_matrix_1(j), indices_block_matrix_2(j),1]
          CALL dbt_put_block(tensor, index_tensor, SHAPE(block_tensor), block_tensor)
          DEALLOCATE(block_tensor)
       END DO
-      !$OMP END DO
       PRINT *, "Blocks copied"
       DEALLOCATE(indices_block_matrix_1)
       DEALLOCATE(indices_block_matrix_2)
+      DEALLOCATE(indices_block_matrix_custom)
 
       IF (dbcsr_has_symmetry(matrix)) THEN
          CALL dbcsr_release(matrix_desym)
@@ -793,7 +795,8 @@ CONTAINS
       END IF
    END SUBROUTINE
 ! **************************************************************************************************
-!> \brief Copies the data from a matrix to a 3d tensor, to the first index in the 3rd dimension
+!> \brief Copies the data from a 3d tensor to a matrix, only taking into account fist slice
+!>        along the third dimension
 !> \param matrix DBCSR Matrix from which the data are copied to the tensor
 !> \param tensor Tensor representation of the Hartree matrix in the auxiliary basis
 !> \author Stepan Marek
@@ -809,12 +812,14 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
       REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE         :: block_matrix
       LOGICAL                                            :: found
+      INTEGER                                            :: backup
       
       ! Start the block iterator
       ! Has to be inside an omp block
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(tensor, matrix, iterator_tensor) &
-      !$OMP PRIVATE(indices_block_tensor, &
-      !$OMP sizes_block_tensor, block_tensor, found, block_matrix)
+      backup = omp_get_max_threads()
+      CALL omp_set_num_threads(1)
+      !$OMP PARALLEL SHARED(iterator_tensor, tensor, indices_block_tensor, sizes_block_tensor, matrix, &
+      !$OMP block_tensor, found, block_matrix)
       CALL dbt_iterator_start(iterator_tensor, tensor)
       DO WHILE (dbt_iterator_blocks_left(iterator_tensor))
          ! Get the tensor indices - last should always be one
@@ -837,6 +842,7 @@ CONTAINS
       END DO
       CALL dbt_iterator_stop(iterator_tensor)
       !$OMP END PARALLEL
+      CALL omp_set_num_threads(backup)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix
@@ -857,7 +863,7 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(dbt_type)                                     :: t_3c_w,&
                                                             t_work1,&
-                                                            rho_dbt,&
+      !                                                     rho_dbt,&
                                                             t_one_plus_one
       TYPE(dbt_type), ALLOCATABLE, TARGET                :: t_two_plus_one
       TYPE(dbt_type), POINTER                            :: t_two_plus_one_p
@@ -996,7 +1002,7 @@ CONTAINS
       ! TODO : Deallocations, initialisations, CALL statements etc.
       CALL dbt_destroy(t_3c_w)
       CALL dbt_destroy(t_work1)
-      CALL dbt_destroy(rho_dbt)
+      ! CALL dbt_destroy(rho_dbt)
       CALL dbt_destroy(t_two_plus_one)
       CALL dbt_destroy(t_one_plus_one)
       CALL dbcsr_release(rho_dbcsr)
