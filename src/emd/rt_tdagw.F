@@ -33,16 +33,50 @@ MODULE rt_tdagw
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_print,&
+                                              dbcsr_has_symmetry,&
+                                              dbcsr_desymmetrize,&
                                               dbcsr_create,&
                                               dbcsr_release,&
                                               dbcsr_copy,&
-                                              dbcsr_set
+                                              dbcsr_set,&
+                                              dbcsr_clear,&
+                                              dbcsr_iterator_type,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_put_block,&
+                                              dbcsr_reserve_blocks,&
+                                              dbcsr_get_num_blocks,&
+                                              dbcsr_get_block_p
+   USE OMP_LIB,                         ONLY: omp_get_thread_num,&
+                                              omp_get_num_threads,&
+                                              omp_set_num_threads,&
+                                              omp_get_max_threads
    USE dbt_api,                         ONLY: dbt_create,&
                                               dbt_contract,&
                                               dbt_copy_matrix_to_tensor,&
                                               dbt_copy_tensor_to_matrix,&
                                               dbt_destroy,&
-                                              dbt_type
+                                              dbt_type,&
+                                              dbt_pgrid_type,&
+                                              dbt_pgrid_create,&
+                                              dbt_pgrid_destroy,&
+                                              dbt_mp_environ_pgrid,&
+                                              dbt_default_distvec,&
+                                              dbt_distribution_type,&
+                                              dbt_distribution_new,&
+                                              dbt_distribution_destroy,&
+                                              dbt_iterator_type,&
+                                              dbt_iterator_start,&
+                                              dbt_iterator_stop,&
+                                              dbt_iterator_blocks_left,&
+                                              dbt_iterator_next_block,&
+                                              dbt_put_block,&
+                                              dbt_get_block,&
+                                              dbt_reserve_blocks
+   USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE qs_tensors,                      ONLY: neighbor_list_3c_destroy
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -50,6 +84,7 @@ MODULE rt_tdagw
                                               dbcsr_deallocate_matrix_set,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+                                              cp_fm_invert,&
                                               cp_fm_scale_and_add
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_moments,                      ONLY: build_local_moment_matrix
@@ -57,7 +92,7 @@ MODULE rt_tdagw
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE gw_methods,                      ONLY: compute_3c_integrals
-   USE matrix_exp,                      ONLY: taylor_only_imaginary
+   USE matrix_exp,                      ONLY: taylor_full_complex
    USE cp_log_handling,                 ONLY: cp_logger_type,&
                                               cp_get_default_logger,&
                                               cp_logger_get_unit_nr
@@ -84,8 +119,8 @@ CONTAINS
 !> \param qs_env Quickstep environment data, entry point of the calculation
 ! **************************************************************************************************
    SUBROUTINE run_propagation_gw(qs_env)
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -105,9 +140,14 @@ CONTAINS
       ! TODO : Maybe complex?
       TYPE(cp_fm_type), TARGET                           :: sigma_COH,&
                                                             sigma_SEX,&
-                                                            S_inv_fm
+                                                            S_inv_fm,&
+                                                            hartree_fm,&
+                                                            hartree_fm_orig
       TYPE(cp_fm_type), POINTER                          :: sigma_p,&
-                                                            greens_fm_p
+                                                            greens_fm_p,&
+                                                            hartree_fm_p
+      TYPE(dbt_type), TARGET, ALLOCATABLE                :: hartree_dbt
+      TYPE(dbt_type), POINTER                            :: hartree_dbt_p
       REAL(kind=dp)                                      :: field(3)
       INTEGER                                            :: i,j,k,nspin,re,im
       INTEGER                                            :: rho_unit
@@ -163,6 +203,15 @@ CONTAINS
       CALL cp_fm_create(S_inv_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
       CALL cp_fm_set_all(S_inv_fm, 0.0_dp)
 
+      ! Allocate structures for the Hartree term
+      CALL cp_fm_create(hartree_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(hartree_fm, 0.0_dp)
+      CALL cp_fm_create(hartree_fm_orig, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      CALL cp_fm_set_all(hartree_fm_orig, 0.0_dp)
+      ALLOCATE(hartree_dbt)
+      hartree_dbt_p => hartree_dbt
+      CALL init_hartree(qs_env, hartree_dbt_p)
+      PRINT *, "Hartree initialised"
       ! ********************** EXTRACT PREVIOUS DATA **********************
       ! Prepare the relevant matrices
       CALL tdagw_prepare(qs_env, ham_single_particle_p, moments_full_p, rho_full_p)
@@ -182,8 +231,22 @@ CONTAINS
       sigma_p => sigma_COH
       greens_fm_p => S_inv_fm
       CALL get_sigma(qs_env, greens_fm_p, sigma_p, -0.5_dp)
-      PRINT *, "== Sigma COH =="
-      CALL cp_fm_write_formatted(sigma_COH, 6)
+      ! TODO : Maybe enable printing under debug option?
+      ! PRINT *, "== Sigma COH =="
+      ! CALL cp_fm_write_formatted(sigma_COH, 6)
+
+      ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
+      ! TODO : Spin dependence in sigma_COH
+      CALL cp_fm_scale_and_add(1.0_dp, sigma_COH, -1.0_dp, bs_env%fm_V_xc_Gamma(1))
+
+      ! Calculate the initial Hartree interaction matrix
+      ! TODO : k-points and the possible divergence
+      hartree_fm_p => hartree_fm_orig
+      ! TODO : Spin dependence
+      CALL get_hartree(qs_env, hartree_dbt, rho_full(1), hartree_fm_p)
+      PRINT *, "Hartree retrieved"
+      ! From now on, hartree_fm_p will point to current hartree potential
+      hartree_fm_p => hartree_fm
 
       ! Setup the files
       logger => cp_get_default_logger()
@@ -222,6 +285,30 @@ CONTAINS
 
             ! TODO : Add the Hartree term difference to the Hamiltonian - discuss with Jan
             ! TODO : Add the COHSEX self-energy to the Hamiltonian
+            sigma_p => sigma_SEX
+            ! Add the COH part
+            ! TODO : COH spin dependence
+            ! TODO : Proper inverse matric tensor multiplication
+            ! TODO : Check the signs with respect to G -> rho transformation
+            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), 1.0_dp, sigma_COH)
+            ! Calculate the SEX part
+            ! TODO : SEX spin dependence
+            ! Real part of iGW is product of Im G, and G = i rho, so Im G = Re rho, all multiplied by i^2 = -1
+            greens_fm_p => rho_full(re)
+            CALL get_sigma(qs_env, greens_fm_p, sigma_p, 1.0_dp)
+            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), -1.0_dp, sigma_SEX)
+            ! Imaginary part of iGW is product of Re G = - Im rho
+            greens_fm_p => rho_full(im)
+            CALL get_sigma(qs_env, greens_fm_p, sigma_p, 1.0_dp)
+            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(im), -1.0_dp, sigma_SEX)
+            ! Calculate update Hartree potential
+            ! TODO : Spin (in)dependence check
+            CALL get_hartree(qs_env, hartree_dbt, rho_full(re), hartree_fm_p)
+            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), 1.0_dp, hartree_fm)
+            CALL get_hartree(qs_env, hartree_dbt, rho_full(im), hartree_fm_p)
+            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(im), 1.0_dp, hartree_fm)
+            ! Subtract original Hartree, which is purely real
+            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), -1.0_dp, hartree_fm_orig)
 
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
             ! TODO : Using rho_work(1) - maybe rename?
@@ -247,7 +334,8 @@ CONTAINS
          DO j=1,nspin
             re = 2*j - 1
             im = 2*j
-            CALL taylor_only_imaginary(ham_exp(re:im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
+            ! CALL taylor_only_imaginary(ham_exp(re:im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
+            CALL taylor_full_complex(ham_exp(re:im), ham_effective(im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
          END DO
 
          ! TODO : Consult/think about using complex routines and types
@@ -348,6 +436,10 @@ CONTAINS
       CALL cp_fm_release(sigma_SEX)
       ! Deallocate full overlap matrix
       CALL cp_fm_release(S_inv_fm)
+      ! Deallocate bare Hartree matrix and tensor
+      CALL cp_fm_release(hartree_fm)
+      CALL dbt_destroy(hartree_dbt)
+      DEALLOCATE(hartree_dbt)
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
    END SUBROUTINE run_propagation_gw
@@ -498,7 +590,7 @@ CONTAINS
       CALL dbt_contract(alpha=1.0_dp,&
                    tensor_1=w_dbt,&
                    tensor_2=t_3c_w,&
-                   beta=1.0_dp,&
+                   beta=0.0_dp,&
                    tensor_3=t_work1,&
                    contract_1=[2],notcontract_1=[1], map_1=[1],&
                    contract_2=[1],notcontract_2=[2,3], map_2=[2,3],&
@@ -521,7 +613,7 @@ CONTAINS
       CALL dbt_contract(alpha=1.0_dp,&
                    tensor_1=greens_dbt,&
                    tensor_2=t_3c_g,&
-                   beta=1.0_dp,&
+                   beta=0.0_dp,&
                    tensor_3=t_work2,&
                    contract_1=[1], notcontract_1=[2], map_1=[2],&
                    contract_2=[3], notcontract_2=[1,2], map_2=[1,3],&
@@ -532,7 +624,7 @@ CONTAINS
       CALL dbt_contract(alpha=prefactor,&
                    tensor_1=t_work1,&
                    tensor_2=t_work2,&
-                   beta=1.0_dp,&
+                   beta=0.0_dp,&
                    tensor_3=sigma_dbt,&
                    contract_1=[1,2], notcontract_1=[3], map_1=[2],&
                    contract_2=[1,2], notcontract_2=[3], map_2=[1],&
@@ -552,5 +644,364 @@ CONTAINS
       CALL dbcsr_release(sigma_dbcsr)
       CALL dbcsr_release(greens_dbcsr_mat)
       CALL dbcsr_release(w_dbcsr_mat)
+   END SUBROUTINE
+! TODO : Maybe combine with get_sigma? - this will be updated at every step and requires rebuilding of 3c?
+! **************************************************************************************************
+!> \brief Creates the V_dbt tensor and populates it with correct values
+!> \note Tensor contains Hartree elements in the auxiliary basis
+!> \param qs_env Quickstep environment - entry point of calculation
+!> \param V_dbt Tensor representation of the Hartree matrix in the auxiliary basis
+!> \author Stepan Marek
+!> \date 01.2024
+! **************************************************************************************************
+   SUBROUTINE init_hartree(qs_env, V_dbt)
+      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
+      TYPE(dbt_type), POINTER, INTENT(OUT)               :: V_dbt
+      CHARACTER(len=*), PARAMETER                        :: routineN = "init_hartree"
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(libint_potential_type)                        :: coulomb_op
+      TYPE(cp_fm_type)                                   :: V_fm
+      TYPE(cp_fm_type), DIMENSION(:,:), ALLOCATABLE      :: metric_fm,&
+                                                            metric_fm_2
+      TYPE(cp_fm_type)                                   :: metric_inv_fm,&
+                                                            work_fm
+      TYPE(dbcsr_type)                                   :: V_dbcsr
+
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
+      ! Allocate for bare Hartree term
+      CALL cp_fm_create(V_fm, bs_env%fm_W_MIC_freq_zero%matrix_struct)
+
+      ! Calculate full coulomb RI basis elements - V _ (PQ) matrix
+      CALL RI_2c_integral_mat(qs_env, metric_fm, V_fm, &
+                              bs_env%n_RI, coulomb_op, do_kpoints=.FALSE., &
+                              regularization_RI=bs_env%regularization_RI)
+      ! Actual data are in the metric_inv_fm matrix
+      ! TODO : Spin and k-points
+      CALL cp_fm_to_fm(metric_fm(1,1), V_fm)
+      ! Since the routine below allocates the matrices, they have to be freed again
+      CALL cp_fm_release(metric_fm(1,1))
+      DEALLOCATE(metric_fm)
+      ! Now, calculate the matrices in the standard RI metric
+      CALL RI_2c_integral_mat(qs_env, metric_fm_2, bs_env%fm_RI_RI,&
+                              bs_env%n_RI, bs_env%ri_metric, do_kpoints=.FALSE.,&
+                              regularization_RI=bs_env%regularization_RI)
+      ! These matrices have yet to be inverted
+      CALL cp_fm_create(metric_inv_fm, bs_env%fm_RI_RI%matrix_struct)
+      CALL cp_fm_create(work_fm, bs_env%fm_RI_RI%matrix_struct)
+      ! TODO : Spins and k-points
+      CALL cp_fm_invert(metric_fm_2(1,1), metric_inv_fm)
+      ! Multiply by the inverse from each site (M^-1 is symmetric)
+      CALL parallel_gemm("N", "N", bs_env%n_RI, bs_env%n_RI, bs_env%n_RI,&
+                         1.0_dp, metric_inv_fm, V_fm, 0.0_dp, work_fm)
+      CALL parallel_gemm("N", "N", bs_env%n_RI, bs_env%n_RI, bs_env%n_RI,&
+                         1.0_dp, work_fm, metric_inv_fm, 0.0_dp, V_fm)
+      ! Now, create the tensor from the matrix
+      ! First, convert full matrix to dbcsr
+      CALL dbcsr_create(V_dbcsr, name="Hartree_dbcsr", template=bs_env%mat_RI_RI%matrix)
+      ! TODO : No k-points so far
+      CALL copy_fm_to_dbcsr(V_fm, V_dbcsr)
+      ! Create and copy distinctly, so that unnecessary objects can be destroyed
+      CALL dbt_create(bs_env%t_W, V_dbt, name="Hartree_dbt")
+      CALL dbt_copy_matrix_to_tensor(V_dbcsr, V_dbt)
+      ! Destroy all unnecessary matrices
+      CALL dbcsr_release(V_dbcsr)
+      ! TODO : No k-points so far
+      CALL cp_fm_release(V_fm)
+      CALL cp_fm_release(metric_fm_2(1,1))
+      DEALLOCATE(metric_fm_2)
+      CALL cp_fm_release(work_fm)
+      CALL cp_fm_release(metric_inv_fm)
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Copies the data from a matrix to a 3d tensor, to the first index in the 3rd dimension
+!> \param matrix DBCSR Matrix from which the data are copied to the tensor
+!> \param tensor Tensor representation of the Hartree matrix in the auxiliary basis
+!> \author Stepan Marek
+!> \date 01.2024
+! **************************************************************************************************
+   SUBROUTINE copy_matrix_to_3d_tensor(matrix, tensor)
+      TYPE(dbt_type), POINTER, INTENT(OUT)               :: tensor
+      TYPE(dbcsr_type), POINTER, INTENT(IN)              :: matrix
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'copy_matrix_to_3d_tensor'
+      TYPE(dbcsr_type), ALLOCATABLE, TARGET              :: matrix_desym
+      TYPE(dbcsr_type), POINTER                          :: matrix_desym_p
+      TYPE(dbcsr_iterator_type)                          :: iterator_matrix
+      LOGICAL                                            :: data_transpose
+      INTEGER, DIMENSION(2)                              :: block_shape
+      ! Pair of indices for current block
+      INTEGER, DIMENSION(2)                              :: index_matrix
+      INTEGER, DIMENSION(3)                              :: index_tensor
+      REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
+      REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
+      INTEGER                                            :: j,number_of_blocks,backup
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices_block_matrix_1,&
+                                                            indices_block_matrix_2
+      LOGICAL                                            :: found
+      
+      ! Desymmetrize the matrix
+      IF (dbcsr_has_symmetry(matrix)) THEN
+         ALLOCATE(matrix_desym)
+         CALL dbcsr_desymmetrize(matrix, matrix_desym)
+         matrix_desym_p => matrix_desym
+      ELSE
+         matrix_desym_p => matrix
+      END IF
+      ! Get the number of blocks to initiate index vectors
+      number_of_blocks = dbcsr_get_num_blocks(matrix_desym_p)
+      ALLOCATE(indices_block_matrix_1(number_of_blocks))
+      ALLOCATE(indices_block_matrix_2(number_of_blocks))
+      CALL dbcsr_iterator_start(iterator_matrix, matrix_desym_p)
+      DO j=1,number_of_blocks
+         CALL dbcsr_iterator_next_block(iterator_matrix, indices_block_matrix_1(j), indices_block_matrix_2(j), block_matrix)
+      END DO
+      CALL dbcsr_iterator_stop(iterator_matrix)
+      ! Construct parallelisation bounds
+      PRINT *, indices_block_matrix_1
+      PRINT *, indices_block_matrix_2
+      ! TODO : OMP DO does not register as OMP parallel - dbm requires reservations to be called within parallel block
+      ! Proceed as in dbt - determine distribution of blocks among threads - maybe distvec function? Or integer division
+      ! TODO : The reservations are a confusing mess of a spaghetti code - tread lightly
+      !        Sure, the statement below does nthreads-times more work than necessary, but it works - any attempts at
+      !        parallelisations have failed
+      backup = omp_get_max_threads()
+      CALL omp_set_num_threads(1)
+      !$OMP PARALLEL DEFAULT(none) SHARED(tensor, indices_block_matrix_1, indices_block_matrix_2)
+      CALL dbt_reserve_blocks(tensor, indices_block_matrix_1, indices_block_matrix_2, [1])
+      !$OMP END PARALLEL
+      CALL omp_set_num_threads(backup)
+      PRINT *, "Blocks reserved"
+      !$OMP DO PRIVATE(indices_block_matrix_1, indices_block_matrix_2,&
+      !$OMP block_matrix, block_tensor, data_transpose, found, block_shape, index_tensor)
+      DO j=1,number_of_blocks
+         CALL dbcsr_get_block_p(matrix_desym_p, indices_block_matrix_1(j), indices_block_matrix_2(j),&
+                             block_matrix, data_transpose,found, block_shape(1), block_shape(2))
+         ALLOCATE(block_tensor(block_shape(1),block_shape(2),1))
+         block_tensor(:,:,1) = block_matrix(:,:)
+         index_tensor = [index_matrix(1), index_matrix(2),1]
+         CALL dbt_put_block(tensor, index_tensor, SHAPE(block_tensor), block_tensor)
+         DEALLOCATE(block_tensor)
+      END DO
+      !$OMP END DO
+      PRINT *, "Blocks copied"
+      DEALLOCATE(indices_block_matrix_1)
+      DEALLOCATE(indices_block_matrix_2)
+
+      IF (dbcsr_has_symmetry(matrix)) THEN
+         CALL dbcsr_release(matrix_desym)
+         DEALLOCATE(matrix_desym)
+      END IF
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Copies the data from a matrix to a 3d tensor, to the first index in the 3rd dimension
+!> \param matrix DBCSR Matrix from which the data are copied to the tensor
+!> \param tensor Tensor representation of the Hartree matrix in the auxiliary basis
+!> \author Stepan Marek
+!> \date 01.2024
+! **************************************************************************************************
+   SUBROUTINE copy_3d_tensor_to_matrix(tensor, matrix)
+      TYPE(dbt_type), POINTER, INTENT(IN)                :: tensor
+      TYPE(dbcsr_type), POINTER, INTENT(OUT)             :: matrix
+      CHARACTER(len=*), PARAMETER                        :: routineN = "copy_3d_tensor_to_matrix"
+      TYPE(dbt_iterator_type)                            :: iterator_tensor
+      INTEGER, DIMENSION(3)                              :: indices_block_tensor,&
+                                                            sizes_block_tensor
+      REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
+      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE         :: block_matrix
+      LOGICAL                                            :: found
+      
+      ! Start the block iterator
+      ! Has to be inside an omp block
+      !$OMP PARALLEL DEFAULT(NONE) SHARED(tensor, matrix, iterator_tensor) &
+      !$OMP PRIVATE(indices_block_tensor, &
+      !$OMP sizes_block_tensor, block_tensor, found, block_matrix)
+      CALL dbt_iterator_start(iterator_tensor, tensor)
+      DO WHILE (dbt_iterator_blocks_left(iterator_tensor))
+         ! Get the tensor indices - last should always be one
+         CALL dbt_iterator_next_block(iterator_tensor, indices_block_tensor, sizes_block_tensor)
+         CPASSERT(indices_block_tensor(3) == 1)
+         ! Reserve the blocks in the matrix
+         CALL dbcsr_reserve_blocks(matrix, [indices_block_tensor(1)], [indices_block_tensor(2)]) 
+         ! Initiate storage for the block
+         ALLOCATE(block_tensor(sizes_block_tensor(1), sizes_block_tensor(2), 1))
+         ! Get the block
+         CALL dbt_get_block(tensor, indices_block_tensor, sizes_block_tensor, block_tensor, found)
+         CPASSERT(found)
+         ! Now copy data to matrix
+         ALLOCATE(block_matrix(sizes_block_tensor(1), sizes_block_tensor(2)))
+         block_matrix(:,:) = block_tensor(:,:,1)
+         ! TODO : Handle symmetry and transpose
+         CALL dbcsr_put_block(matrix, indices_block_tensor(1), indices_block_tensor(2), block_matrix)
+         DEALLOCATE(block_tensor)
+         DEALLOCATE(block_matrix)
+      END DO
+      CALL dbt_iterator_stop(iterator_tensor)
+      !$OMP END PARALLEL
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix
+!> \note Uses precalculated Hartree matrix kernel in the auxiliary basis. Hartree term is one-electron.
+!> \param qs_env Quickstep environment - entry point of calculation
+!> \param V_dbt Tensor representation of the Hartree matrix in the auxiliary basis
+!> \param rho Density matrix in ao basis
+!> \param V_ao Overwritten by the Hartree matrix in the atomic orbital basis
+!> \author Stepan Marek
+!> \date 01.2024
+! **************************************************************************************************
+   SUBROUTINE get_hartree(qs_env, V_dbt, rho, V_ao)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbt_type), INTENT(INOUT)                      :: V_dbt
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho
+      TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: V_ao
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hartree'
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(dbt_type)                                     :: t_3c_w,&
+                                                            t_work1,&
+                                                            rho_dbt,&
+                                                            t_one_plus_one
+      TYPE(dbt_type), ALLOCATABLE, TARGET                :: t_two_plus_one
+      TYPE(dbt_type), POINTER                            :: t_two_plus_one_p
+      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: distvec
+      INTEGER, DIMENSION(1)                              :: distvec_one
+      TYPE(dbt_distribution_type)                        :: dist
+      TYPE(dbcsr_type), ALLOCATABLE, TARGET              :: rho_dbcsr
+      TYPE(dbcsr_type), POINTER                          :: rho_dbcsr_p
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pdims, pcoord
+      TYPE(dbt_pgrid_type)                               :: pgrid
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: empty_list
+      INTEGER                                            :: j
+      
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
+      ! Create the empty list, used for no contraction indices
+      ALLOCATE(empty_list(0))
+
+      CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_w)
+      CALL dbt_create(bs_env%t_RI__AO_AO, t_work1)
+      ! build 3c integrals
+      CALL compute_3c_integrals(qs_env,&
+                         bs_env,&
+                         t_3c_w)
+      ! Create a 1D tensor (vector) for the result of contraction with density matrix
+      ! TODO : 1D tensor is not available for construction, but maybe can be emulated by
+      !        2D tensor with one dimension set to 1. However, extracting 2D matrix from
+      !        3D tensor with one dimension set to 1 is not implemented
+      ! Taken from gw_utils
+
+      ! Create the 2-index tensor with one dimension of size 1 from tensor primitives
+      ! Create 2-index process grid
+      ALLOCATE(pdims(3))
+      ALLOCATE(pcoord(3))
+      ! Set elements to zero - otherwise can get erronous behaviour
+      DO j=1,3
+         pdims(j) = 0
+         pcoord(j) = 0
+      END DO
+      ! Process grid creation
+      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
+      ! Determine processes on the created grid
+      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+      ! Prepare task distribution on the process grid for each dimension
+      ALLOCATE(distvec(2, SIZE(bs_env%sizes_AO)))
+      DO j=1,2
+         CALL dbt_default_distvec(SIZE(bs_env%sizes_AO), pdims(j), bs_env%sizes_AO, distvec(j,:))
+      END DO
+      CALL dbt_default_distvec(1, pdims(3), [1], distvec_one)
+      ! TODO : Maybe just [1] instead of pdims(2)?
+      ! Create the tensor distribution
+      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec(2,:), distvec_one)
+      ! Create the tensor aligned for the task distribution
+      ALLOCATE(t_two_plus_one)
+      CALL dbt_create(t_two_plus_one, "four index tensor", dist, [1], [2, 3],&
+                      bs_env%sizes_AO,&
+                      bs_env%sizes_AO,&
+                      [1])
+      ! No longer need the process information
+      CALL dbt_pgrid_destroy(pgrid)
+      CALL dbt_distribution_destroy(dist)
+      DEALLOCATE(distvec)
+      DEALLOCATE(pdims)
+      DEALLOCATE(pcoord)
+
+      ! Create the one + one tensor - true vector
+      ALLOCATE(pdims(2))
+      ALLOCATE(pcoord(2))
+      DO j=1,2
+         pdims(j) = 0
+         pcoord(j) = 0
+      END DO
+      ALLOCATE(distvec(1,SIZE(bs_env%sizes_RI)))
+      ! Create the process grid
+      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
+      ! Populate the process grid
+      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+      ! Prepare distribution vectors that allocate tasks to tensor blocks
+      CALL dbt_default_distvec(SIZE(bs_env%sizes_RI), pdims(1), bs_env%sizes_RI, distvec(1,:))
+      CALL dbt_default_distvec(1, pdims(2), [1], distvec_one)
+      ! Create tensor distribution
+      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec_one)
+      CALL dbt_create(t_one_plus_one, "tensor vector", dist, [1], [2], bs_env%sizes_RI, [1])
+      ! No longer need the process information
+      CALL dbt_pgrid_destroy(pgrid)
+      CALL dbt_distribution_destroy(dist)
+      DEALLOCATE(distvec)
+      DEALLOCATE(pcoord)
+      DEALLOCATE(pdims)
+
+      ! Convert density to tensor
+      ALLOCATE(rho_dbcsr)
+      CALL dbcsr_create(rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
+      CALL copy_fm_to_dbcsr(rho, rho_dbcsr)
+      ! Maybe doable via creation
+      ! CALL dbt_create(bs_env%t_G, rho_dbt, "Density tensor")
+      ! CALL dbt_copy_matrix_to_tensor(rho_dbcsr, t_two_plus_one)
+      rho_dbcsr_p => rho_dbcsr
+      t_two_plus_one_p => t_two_plus_one
+      CALL copy_matrix_to_3d_tensor(rho_dbcsr_p, t_two_plus_one_p)
+      PRINT *, "Matrix copied to tensor"
+      ! Contract T _ (Q 1) = sum _ Q (Q|mu'nu') D _ (mu' nu' 1)
+      CALL dbt_contract(alpha=1.0_dp,&
+                   tensor_1=t_3c_w,&
+                   tensor_2=t_two_plus_one,&
+                   beta=0.0_dp,&
+                   tensor_3=t_one_plus_one,&
+                   contract_1=[2,3],notcontract_1=[1],map_1=[1],&
+                   contract_2=[1,2],notcontract_2=[3],map_2=[2],&
+                   filter_eps=bs_env%eps_filter)
+      ! Contract Q _ (mu nu Q) = sum _ P (mu nu | P) V _ (PQ)
+      CALL dbt_contract(alpha=1.0_dp,&
+                   tensor_1=t_3c_w,&
+                   tensor_2=V_dbt,&
+                   beta=0.0_dp,&
+                   tensor_3=t_work1,&
+                   contract_1=[1],notcontract_1=[2,3],map_1=[2,3],&
+                   contract_2=[1],notcontract_2=[2],map_2=[1],&
+                   filter_eps=bs_env%eps_filter)
+      ! Final contraction V ^ H _ (mu nu 1) = sum _ (Q) Q _ (mu nu Q) T _ (Q 1)
+      CALL dbt_contract(alpha=1.0_dp,&
+                   tensor_1=t_work1,&
+                   tensor_2=t_one_plus_one,&
+                   beta=0.0_dp,&
+                   tensor_3=t_two_plus_one,&
+                   contract_1=[1], notcontract_1=[2,3], map_1=[1,2],&
+                   contract_2=[1], notcontract_2=[2], map_2=[3],&
+                   filter_eps=bs_env%eps_filter)
+      ! TODO : Allocations, conversion from t_two_plus_one back to matrix - check that the copying makes sense
+      ! Copy result to output matrix
+      ! Use rho_dbcsr - TODO : Instead, use some workspace?
+      CALL dbcsr_clear(rho_dbcsr)
+      CALL copy_3d_tensor_to_matrix(t_two_plus_one_p, rho_dbcsr_p)
+      PRINT *, "Tensor copied to matrix"
+      CALL copy_dbcsr_to_fm(rho_dbcsr, V_ao)
+      ! TODO : Deallocations, initialisations, CALL statements etc.
+      CALL dbt_destroy(t_3c_w)
+      CALL dbt_destroy(t_work1)
+      CALL dbt_destroy(rho_dbt)
+      CALL dbt_destroy(t_two_plus_one)
+      CALL dbt_destroy(t_one_plus_one)
+      CALL dbcsr_release(rho_dbcsr)
+      DEALLOCATE(rho_dbcsr)
+      DEALLOCATE(t_two_plus_one)
+      DEALLOCATE(empty_list)
    END SUBROUTINE
 END MODULE rt_tdagw
