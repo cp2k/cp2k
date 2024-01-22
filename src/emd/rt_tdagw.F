@@ -661,8 +661,7 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(libint_potential_type)                        :: coulomb_op
       TYPE(cp_fm_type)                                   :: V_fm
-      TYPE(cp_fm_type), DIMENSION(:,:), ALLOCATABLE      :: metric_fm,&
-                                                            metric_fm_2
+      TYPE(cp_fm_type), DIMENSION(:,:), ALLOCATABLE      :: metric_fm
       TYPE(cp_fm_type)                                   :: metric_inv_fm,&
                                                             work_fm
       TYPE(dbcsr_type)                                   :: V_dbcsr
@@ -670,27 +669,28 @@ CONTAINS
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
       ! Allocate for bare Hartree term
-      CALL cp_fm_create(V_fm, bs_env%fm_W_MIC_freq_zero%matrix_struct)
+      CALL cp_fm_create(V_fm, bs_env%fm_RI_RI%matrix_struct)
+      CALL cp_fm_set_all(V_fm, 0.0_dp)
 
       ! Calculate full coulomb RI basis elements - V _ (PQ) matrix
-      CALL RI_2c_integral_mat(qs_env, metric_fm, V_fm, &
+      CALL RI_2c_integral_mat(qs_env, metric_fm, bs_env%fm_RI_RI, &
                               bs_env%n_RI, coulomb_op, do_kpoints=.FALSE., &
                               regularization_RI=bs_env%regularization_RI)
-      ! Actual data are in the metric_inv_fm matrix
+      ! Actual data are in the metric_fm matrix
       ! TODO : Spin and k-points
       CALL cp_fm_to_fm(metric_fm(1,1), V_fm)
-      ! Since the routine below allocates the matrices, they have to be freed again
+      ! Since the routine RI_2c_integral_mat allocates the matrices, they have to be freed again
       CALL cp_fm_release(metric_fm(1,1))
       DEALLOCATE(metric_fm)
       ! Now, calculate the matrices in the standard RI metric
-      CALL RI_2c_integral_mat(qs_env, metric_fm_2, bs_env%fm_RI_RI,&
+      CALL RI_2c_integral_mat(qs_env, metric_fm, bs_env%fm_RI_RI,&
                               bs_env%n_RI, bs_env%ri_metric, do_kpoints=.FALSE.,&
                               regularization_RI=bs_env%regularization_RI)
       ! These matrices have yet to be inverted
       CALL cp_fm_create(metric_inv_fm, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_create(work_fm, bs_env%fm_RI_RI%matrix_struct)
       ! TODO : Spins and k-points
-      CALL cp_fm_invert(metric_fm_2(1,1), metric_inv_fm)
+      CALL cp_fm_invert(metric_fm(1,1), metric_inv_fm)
       ! Multiply by the inverse from each site (M^-1 is symmetric)
       CALL parallel_gemm("N", "N", bs_env%n_RI, bs_env%n_RI, bs_env%n_RI,&
                          1.0_dp, metric_inv_fm, V_fm, 0.0_dp, work_fm)
@@ -708,8 +708,8 @@ CONTAINS
       CALL dbcsr_release(V_dbcsr)
       ! TODO : No k-points so far
       CALL cp_fm_release(V_fm)
-      CALL cp_fm_release(metric_fm_2(1,1))
-      DEALLOCATE(metric_fm_2)
+      CALL cp_fm_release(metric_fm(1,1))
+      DEALLOCATE(metric_fm)
       CALL cp_fm_release(work_fm)
       CALL cp_fm_release(metric_inv_fm)
    END SUBROUTINE
@@ -727,7 +727,7 @@ CONTAINS
       TYPE(dbcsr_type), ALLOCATABLE, TARGET              :: matrix_desym
       TYPE(dbcsr_type), POINTER                          :: matrix_desym_p
       TYPE(dbcsr_iterator_type)                          :: iterator_matrix
-      LOGICAL                                            :: data_transpose
+      LOGICAL                                            :: data_transpose, found
       INTEGER, DIMENSION(2)                              :: block_shape
       ! Pair of indices for current block
       INTEGER, DIMENSION(3)                              :: index_tensor
@@ -737,7 +737,13 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices_block_matrix_1,&
                                                             indices_block_matrix_2,&
                                                             indices_block_matrix_custom
-      LOGICAL                                            :: found
+      INTEGER                                            :: thread_lower,&
+                                                            thread_upper,&
+                                                            thread_number,&
+                                                            per_thread,&
+                                                            per_this_thread,&
+                                                            extra_threads,&
+                                                            thread_id
       
       ! Desymmetrize the matrix
       IF (dbcsr_has_symmetry(matrix)) THEN
@@ -751,28 +757,60 @@ CONTAINS
       number_of_blocks = dbcsr_get_num_blocks(matrix_desym_p)
       ALLOCATE(indices_block_matrix_1(number_of_blocks))
       ALLOCATE(indices_block_matrix_2(number_of_blocks))
-      ALLOCATE(indices_block_matrix_custom(number_of_blocks))
+      ALLOCATE(indices_block_matrix_custom(number_of_blocks), source=1)
+      ! TODO : Think about parallelisation
       CALL dbcsr_iterator_start(iterator_matrix, matrix_desym_p)
       DO j=1,number_of_blocks
          CALL dbcsr_iterator_next_block(iterator_matrix, indices_block_matrix_1(j), indices_block_matrix_2(j), block_matrix)
-         indices_block_matrix_custom(j) = 1
       END DO
       CALL dbcsr_iterator_stop(iterator_matrix)
       ! Construct parallelisation bounds
-      PRINT *, indices_block_matrix_1
-      PRINT *, indices_block_matrix_2
-      PRINT *, indices_block_matrix_custom
-      ! TODO : OMP DO does not register as OMP parallel - dbm requires reservations to be called within parallel block
+      ! PRINT *, indices_block_matrix_1
+      ! PRINT *, indices_block_matrix_2
+      ! PRINT *, indices_block_matrix_custom
       ! Proceed as in dbt - determine distribution of blocks among threads - maybe distvec function? Or integer division
       ! TODO : The reservations are a confusing mess of a spaghetti code - tread lightly
       !        Sure, the statement below does nthreads-times more work than necessary, but it works - any attempts at
       !        parallelisations have failed
       backup = omp_get_max_threads()
-      CALL omp_set_num_threads(1)
-      !$OMP PARALLEL DEFAULT(none) SHARED(tensor, indices_block_matrix_1, indices_block_matrix_2, indices_block_matrix_custom)
-      ! All index fields should be identical 
-      CALL dbt_reserve_blocks(tensor, indices_block_matrix_1, indices_block_matrix_2, indices_block_matrix_custom)
+      IF (backup > number_of_blocks) THEN
+         CALL omp_set_num_threads(number_of_blocks)
+         per_thread = 1
+         extra_threads = 0
+      ELSE
+         ! At least one job per thread should be safe ...
+         per_thread = number_of_blocks / backup
+         extra_threads = MODULO(number_of_blocks, backup)
+      END IF
+      !$OMP PARALLEL DEFAULT(none) SHARED(tensor, indices_block_matrix_1, indices_block_matrix_2, indices_block_matrix_custom,& 
+      !$OMP number_of_blocks, per_thread, extra_threads) &
+      !$OMP PRIVATE(thread_lower, thread_upper, per_this_thread, thread_id, thread_number)
+         ! Get the omp variables
+         thread_number = omp_get_num_threads()
+         thread_id = omp_get_thread_num()
+         ! Default (higher) bound on reservations to be made by every thread
+         per_this_thread = per_thread
+         IF (thread_id < extra_threads) THEN
+            ! This thread is one of the lucky few who gets to do extra work
+            per_this_thread = per_this_thread + 1
+         END IF
+         ! Get the lower bound for this thread indices, accounting for difference in conventions for omp
+         thread_lower = MIN(extra_threads, thread_id) * (per_thread + 1) +&
+                        MAX(thread_id - extra_threads, 0) * per_thread + 1
+         thread_upper = MIN(thread_lower + per_this_thread - 1, number_of_blocks)
+         ! If the lower bound is within the range, some reservations will be made
+         IF (thread_lower .LE. number_of_blocks) THEN
+            ! Determine the upper bound by minimum
+            thread_upper = MIN(thread_lower + per_this_thread - 1, number_of_blocks)
+            ! All index fields should be identical 
+            CALL dbt_reserve_blocks(tensor,&
+                                    indices_block_matrix_1(thread_lower:thread_upper),&
+                                    indices_block_matrix_2(thread_lower:thread_upper),&
+                                    indices_block_matrix_custom(thread_lower:thread_upper))
+         END IF
+         PRINT *, "thread", thread_id, "done"
       !$OMP END PARALLEL
+      ! TODO : Only run when necessary?
       CALL omp_set_num_threads(backup)
       PRINT *, "Blocks reserved"
       DO j=1,number_of_blocks
