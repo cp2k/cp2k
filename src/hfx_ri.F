@@ -2755,7 +2755,6 @@ CONTAINS
 
          CALL timeset(routineN//"_3c", handle)
          !Start looping of the batches
-         CALL dbt_batched_contract_init(t_R)
          DO i_mem = 1, n_mem
             ibounds(:, 1) = [batch_start(i_mem), batch_end(i_mem)]
 
@@ -2812,6 +2811,7 @@ CONTAINS
                   ijbounds(:, 2) = jbounds(:, 1)
 
                   !Contract R_PS = (acP) M_acS
+                  CALL dbt_batched_contract_init(t_R)
                   CALL dbt_contract(1.0_dp, t_3c_int_2, t_3c_3, 1.0_dp, t_R, &
                                     contract_1=[2, 3], notcontract_1=[1], &
                                     contract_2=[2, 3], notcontract_2=[1], &
@@ -2819,6 +2819,7 @@ CONTAINS
                                     bounds_1=ijbounds, bounds_3=kbounds, &
                                     unit_nr=unit_nr_dbcsr, flop=nflop)
                   ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                  CALL dbt_batched_contract_finalize(t_R)
 
                END DO !k_mem
             END DO !j_mem
@@ -2873,7 +2874,6 @@ CONTAINS
             CALL dbt_clear(t_3c_help_1)
             CALL dbt_clear(t_3c_help_2)
          END DO !i_mem
-         CALL dbt_batched_contract_finalize(t_R)
          CALL timestop(handle)
 
          CALL timeset(routineN//"_2c", handle)
