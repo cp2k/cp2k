@@ -4711,8 +4711,8 @@
 !> \param[out] stat      (optional) allocation status result
 ! **************************************************************************************************
    SUBROUTINE mp_free_mem_${nametype1}$ (DATA, stat)
-      ${type1}$, CONTIGUOUS, DIMENSION(:), &
-         POINTER, ASYNCHRONOUS                                :: DATA
+      ${type1}$, DIMENSION(:), &
+         POINTER, ASYNCHRONOUS                 :: DATA
       INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
 #if defined(__parallel)
