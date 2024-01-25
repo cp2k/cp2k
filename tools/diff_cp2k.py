@@ -70,7 +70,7 @@ import sys
 import argparse
 import operator
 import os
-import imp
+from importlib.machinery import SourceFileLoader
 
 
 def read_file(filename, field, special_keys, stats_keys):
@@ -217,7 +217,7 @@ def main():
 
     for filename in file_keys:
         try:
-            module = imp.load_source("*", filename)
+            module = SourceFileLoader("*", filename).load_module()
             special_keys = module.special_keys
             stats_keys = module.stats_keys
         except IOError:
