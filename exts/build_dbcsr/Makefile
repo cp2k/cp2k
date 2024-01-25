@@ -276,8 +276,10 @@ endif
 endif
 
 # if compiling CUDA backend
-ifeq (cuda,$(USE_ACCEL))
 ifneq ($(ACC),)
+ifeq (cuda,$(USE_ACCEL))
+calculate_norms.o: calculate_norms.cpp
+	$(ACC) -x cu -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 %.o: %.cpp
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 acc_cuda.o: acc_cuda.cpp acc_cuda.h
@@ -286,11 +288,12 @@ acc_cuda.o: acc_cuda.cpp acc_cuda.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 # if compiling HIP backend
 else ifeq (hip,$(USE_ACCEL))
+calculate_norms.o: calculate_norms.cpp
+	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
 %.o: %.cpp
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 acc_hip.o: acc_hip.cpp acc_hip.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-endif
 # if compiling OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
 OPENCL_KRNLGEN := $(LIBSMM_ACC_ABS_DIR)/../opencl/acc_opencl.sh
@@ -316,6 +319,7 @@ else
   ifneq (,$(CUDATOOLKIT_HOME))
     CFLAGS += -I$(CUDATOOLKIT_HOME)/include
   endif
+endif
 endif
 endif
 
