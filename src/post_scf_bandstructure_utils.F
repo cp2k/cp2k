@@ -82,10 +82,10 @@ MODULE post_scf_bandstructure_utils
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -2084,9 +2084,10 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_non_spinor, fm_weighted_dm_MIC
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: weighted_dm_MIC
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_type)                                  :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: LDOS_3d, rho_g
+      TYPE(pw_type)                                      :: LDOS_3d
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
@@ -2113,7 +2114,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       CALL auxbas_pw_pool%create_pw(LDOS_3d, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
 
       i_x_start = LBOUND(LDOS_3d%cr3d, 1)
       i_x_end = UBOUND(LDOS_3d%cr3d, 1)

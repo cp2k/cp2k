@@ -44,10 +44,11 @@ MODULE pme
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
+                                              pw_r3d_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
@@ -124,12 +125,12 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       TYPE(dg_type), POINTER                             :: dg
       TYPE(mp_comm_type)                                 :: group
+      TYPE(pw_c1d_type)                                  :: phi_g, rhob_g
+      TYPE(pw_c1d_type), DIMENSION(3)                    :: dphi_g
       TYPE(pw_grid_type), POINTER                        :: grid_b, grid_s
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_big_pool, pw_small_pool
-      TYPE(pw_type)                                      :: phi_g, phi_r, rhob_g, rhob_r, rhos1, &
-                                                            rhos2
-      TYPE(pw_type), DIMENSION(3)                        :: dphi_g
+      TYPE(pw_type)                                      :: phi_r, rhob_r, rhos1, rhos2
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
@@ -250,14 +251,22 @@ CONTAINS
       ! allocate intermediate arrays
       DO i = 1, 3
          CALL pw_big_pool%create_pw(dphi_g(i), &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       END DO
       CALL pw_big_pool%create_pw(phi_r, &
                                  use_data=REALDATA3D, &
                                  in_space=REALSPACE)
 
-      CALL pw_poisson_solve(poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress)
+      BLOCK
+         TYPE(pw_r3d_type) :: my_rhob_r, my_phi_r
+         my_rhob_r%in_space = rhob_r%in_space
+         my_rhob_r%pw_grid => rhob_r%pw_grid
+         my_rhob_r%array => rhob_r%cr3d
+         my_phi_r%in_space = phi_r%in_space
+         my_phi_r%pw_grid => phi_r%pw_grid
+         my_phi_r%array => phi_r%cr3d
+         CALL pw_poisson_solve(poisson_env, my_rhob_r, vg_coulomb, my_phi_r, dphi_g, h_stress)
+      END BLOCK
 
       ! atomic energies
       IF (atprop%energy .OR. atprop%stress) THEN
@@ -297,19 +306,17 @@ CONTAINS
          END DO
          IF (atprop%stress) THEN
             CALL pw_big_pool%create_pw(phi_g, &
-                                       use_data=COMPLEXDATA1D, &
                                        in_space=RECIPROCALSPACE)
             CALL pw_big_pool%create_pw(rhob_g, &
-                                       use_data=COMPLEXDATA1D, &
                                        in_space=RECIPROCALSPACE)
             ffa = (0.5_dp/dg_rho0%zet(1))**2
             ffb = 1.0_dp/fourpi
             DO i = 1, 3
                DO ig = grid_b%first_gne0, grid_b%ngpts_cut_local
-                  phi_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
-                  phi_g%cc(ig) = phi_g%cc(ig)*poisson_env%green_fft%influence_fn%array(ig)
+                  phi_g%array(ig) = ffb*dphi_g(i)%array(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
+                  phi_g%array(ig) = phi_g%array(ig)*poisson_env%green_fft%influence_fn%array(ig)
                END DO
-               IF (grid_b%have_g0) phi_g%cc(1) = 0.0_dp
+               IF (grid_b%have_g0) phi_g%array(1) = 0.0_dp
                DO j = 1, i
                   CALL pw_copy(phi_g, rhob_g)
                   nd = 0

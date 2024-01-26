@@ -127,8 +127,7 @@ MODULE energy_corrections
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
@@ -628,12 +627,12 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
+      TYPE(pw_type)                                      :: v_hartree_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -688,9 +687,9 @@ CONTAINS
 
       ! Calculate the Hartree potential
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1717,16 +1716,17 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, rhodn_tot_gspace, &
+                                                            v_hartree_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g, rhoout_g
       TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: dv_hartree_rspace, rho_tot_gspace, &
-                                                            rhodn_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace, vtot_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
-                                                            tauout_r, v_rspace, v_tau_rspace, &
-                                                            v_xc, v_xc_tau
+      TYPE(pw_type)                                      :: dv_hartree_rspace, v_hartree_rspace, &
+                                                            vtot_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, rhoout_r, tau_r, tauout_r, &
+                                                            v_rspace, v_tau_rspace, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1779,9 +1779,9 @@ CONTAINS
 
       ! Calculate the Hartree potential
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(rhodn_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1797,7 +1797,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(rhoout_r(ispin), &
                                        use_data=REALDATA3D, in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(rhoout_g(ispin), &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
       END DO
       CALL auxbas_pw_pool%create_pw(dv_hartree_rspace, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
@@ -1824,14 +1824,14 @@ CONTAINS
       NULLIFY (tauout_r)
       IF (dft_control%use_kinetic_energy_density) THEN
          BLOCK
-            TYPE(pw_type) :: tauout_g
+            TYPE(pw_c1d_type) :: tauout_g
             ALLOCATE (tauout_r(nspins))
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(tauout_r(ispin), &
                                              use_data=REALDATA3D, in_space=REALSPACE)
             END DO
             CALL auxbas_pw_pool%create_pw(tauout_g, &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
 
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
@@ -1850,7 +1850,7 @@ CONTAINS
 
          ! Calculate the Hartree potential
          CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
 
          ! Get the total input density in g-space [ions + electrons]
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)

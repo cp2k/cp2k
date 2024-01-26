@@ -22,10 +22,10 @@ MODULE qs_elf_methods
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -73,10 +73,10 @@ CONTAINS
                                                             udvol
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
+      TYPE(pw_c1d_type)                                  :: tmp_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: tmp_g
       TYPE(pw_type), DIMENSION(3)                        :: drho_r
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_struct_r, tau_struct_r
       TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_struct_r
@@ -114,7 +114,7 @@ CONTAINS
       END IF
       IF (.NOT. tau_r_valid .OR. .NOT. drho_r_valid) THEN
          CALL auxbas_pw_pool%create_pw(tmp_g, &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
       END IF
       IF (.NOT. drho_r_valid) THEN
          DO idir = 1, 3

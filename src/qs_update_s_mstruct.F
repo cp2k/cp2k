@@ -69,8 +69,8 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: do_ppl
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), POINTER                         :: rho_core
-      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g, vppl
+      TYPE(pw_c1d_type), POINTER                         :: rho_core, rho_nlcc_g
+      TYPE(pw_type), POINTER                             :: rho_nlcc, vppl
 
       CALL timeset(routineN, handle)
 

@@ -84,8 +84,7 @@ MODULE qs_ks_methods
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
@@ -204,11 +203,11 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
@@ -348,10 +347,8 @@ CONTAINS
 
       ! Calculate the Hartree potential
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
 
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
@@ -923,7 +920,7 @@ CONTAINS
 !> \param skip_nuclear_density ...
 ! **************************************************************************************************
    SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density)
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_tot_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
@@ -931,9 +928,8 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), POINTER                         :: rho_core
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
-      TYPE(pw_type), POINTER                             :: rho0_s_gs
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_type), POINTER                         :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
       my_skip = .FALSE.

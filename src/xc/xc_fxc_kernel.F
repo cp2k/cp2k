@@ -18,10 +18,10 @@ MODULE xc_fxc_kernel
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE xc_b97_fxc,                      ONLY: b97_fcc_eval,&
                                               b97_fxc_eval
@@ -57,7 +57,9 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE calc_fxc_kernel(fxc_rspace, rho_r, rho_g, tau_r, xc_kernel, triplet, pw_pool)
-      TYPE(pw_type), DIMENSION(:)                        :: fxc_rspace, rho_r, rho_g, tau_r
+      TYPE(pw_type), DIMENSION(:)                        :: fxc_rspace, rho_r
+      TYPE(pw_c1d_type), DIMENSION(:)                    :: rho_g
+      TYPE(pw_type), DIMENSION(:)                        :: tau_r
       TYPE(section_vals_type), POINTER                   :: xc_kernel
       LOGICAL, INTENT(IN)                                :: triplet
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -72,8 +74,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: scalec, scalex
       REAL(KIND=dp), DIMENSION(3)                        :: ccaa, ccab, cxaa, g_ab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rvals
+      TYPE(pw_c1d_type)                                  :: rhog, tmpg
       TYPE(pw_type)                                      :: fxa, fxb, norm_drhoa, norm_drhob, rhoa, &
-                                                            rhob, rhog, tmpg
+                                                            rhob
       TYPE(pw_type), DIMENSION(3)                        :: drhoa
       TYPE(xc_rho_cflags_type)                           :: needs
 
@@ -116,8 +119,8 @@ CONTAINS
          END DO
          CALL pw_pool%create_pw(norm_drhoa, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool%create_pw(norm_drhob, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool%create_pw(rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_pool%create_pw(tmpg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(rhog, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(tmpg, in_space=RECIPROCALSPACE)
          IF (lsd) THEN
             CALL pw_copy(rho_g(1), rhog)
          ELSE IF (triplet) THEN

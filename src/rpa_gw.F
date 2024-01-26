@@ -111,10 +111,10 @@ MODULE rpa_gw
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -2205,9 +2205,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_local_bandgap'
 
       INTEGER                                            :: handle, i_E
+      TYPE(pw_c1d_type)                                  :: rho_g_dummy
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: E_CBM_rspace, E_gap_rspace, &
-                                                            E_VBM_rspace, rho_g_dummy
+      TYPE(pw_type)                                      :: E_CBM_rspace, E_gap_rspace, E_VBM_rspace
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
 
       CALL timeset(routineN, handle)
@@ -2246,8 +2246,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_E_gap_rspace(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, &
                                      LDOS, qs_env, Eigenval, gw_corr_lev_occ, gw_corr_lev_virt, homo, dft_gw_char)
-      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, &
-                                                            E_CBM_rspace, rho_g_dummy
+      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
+      TYPE(pw_c1d_type)                                  :: rho_g_dummy
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
@@ -2503,8 +2503,8 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE create_real_space_grids(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, LDOS, auxbas_pw_pool, qs_env)
-      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, &
-                                                            E_CBM_rspace, rho_g_dummy
+      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
+      TYPE(pw_c1d_type)                                  :: rho_g_dummy
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -2524,7 +2524,7 @@ CONTAINS
       CALL auxbas_pw_pool%create_pw(E_gap_rspace, use_data=REALDATA3D, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(E_VBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(E_CBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g_dummy, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g_dummy, in_space=RECIPROCALSPACE)
 
       n_E = INT(mp2_env%ri_g0w0%energy_window_print_loc_bandgap/ &
                 mp2_env%ri_g0w0%energy_spacing_print_loc_bandgap)

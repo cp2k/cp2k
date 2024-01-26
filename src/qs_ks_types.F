@@ -162,8 +162,8 @@ MODULE qs_ks_types
                                                                rho_xc => Null()
 
       TYPE(pw_type), POINTER                              :: vppl => Null(), &
-                                                             rho_nlcc => Null(), &
-                                                             rho_nlcc_g => Null()
+                                                             rho_nlcc => Null()
+      TYPE(pw_c1d_type), POINTER ::                                                  rho_nlcc_g => Null()
 
       TYPE(pw_c1d_type), POINTER :: rho_core => NULL()
       TYPE(pw_type), POINTER ::                            vee => NULL()
@@ -342,7 +342,9 @@ CONTAINS
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
       TYPE(pw_type), OPTIONAL, POINTER                   :: vppl
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc, rho_nlcc_g, vee
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc
+      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
          sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
@@ -576,7 +578,9 @@ CONTAINS
          matrix_ks_im_kp
       TYPE(pw_type), OPTIONAL, POINTER                   :: vppl
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc, rho_nlcc_g, vee
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc
+      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &

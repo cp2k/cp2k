@@ -65,10 +65,10 @@ MODULE ed_analysis
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_core
    USE qs_core_energies,                ONLY: calculate_ecore_alpha,&
@@ -916,11 +916,11 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: rho_tot_ewd_g, v_hewd_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_ewd_g, rho_tot_ewd_r, &
-                                                            v_hewd_gspace, v_hewd_rspace
+      TYPE(pw_type)                                      :: rho_tot_ewd_r, v_hewd_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -944,11 +944,11 @@ CONTAINS
                       poisson_env=poisson_env)
       !
       CALL auxbas_pw_pool%create_pw(v_hewd_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hewd_rspace, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_tot_ewd_g, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_tot_ewd_r, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
       rhotot = 0.0_dp

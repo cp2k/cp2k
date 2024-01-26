@@ -42,7 +42,6 @@ MODULE pw_types
 
    ! Flags for the structure member 'in_use'
    ! NODATA only for internal use, we enforce a certain data type
-   INTEGER, PARAMETER, PUBLIC :: COMPLEXDATA1D = 302
    INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303
    INTEGER, PARAMETER         :: NODATA = 305
 
@@ -53,10 +52,7 @@ MODULE pw_types
 
 ! **************************************************************************************************
    TYPE pw_type
-      REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cr => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cr3d => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cc => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cc3d => NULL()
 
       INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
       INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
@@ -107,8 +103,6 @@ CONTAINS
       CLASS(pw_type), INTENT(INOUT)                       :: pw
 
       SELECT CASE (pw%in_use)
-      CASE (COMPLEXDATA1D)
-         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
       CASE (REALDATA3D)
          IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       CASE (NODATA)
@@ -133,15 +127,11 @@ CONTAINS
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, c1d_ptr, r3d_ptr)
+   SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, r3d_ptr)
       CLASS(pw_type), INTENT(INOUT)                         :: pw
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(in)                                :: use_data, in_space
-      #:for kind, type in zip(pw_kinds, pw_types)
-         #:if kind != "c3d" and kind != "r1d"
-            ${type}$, CONTIGUOUS, INTENT(IN), OPTIONAL, POINTER                   :: ${kind}$_ptr
-         #:endif
-      #:endfor
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, INTENT(IN), OPTIONAL, POINTER                   :: r3d_ptr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_create'
 
@@ -162,20 +152,6 @@ CONTAINS
       bounds => pw%pw_grid%bounds_local
 
       SELECT CASE (use_data)
-      CASE (COMPLEXDATA1D)
-         IF (PRESENT(c1d_ptr)) THEN
-         IF (ASSOCIATED(c1d_ptr)) THEN
-         IF (ALL(bounds(1, :) <= bounds(2, :))) THEN
-            CPASSERT(LBOUND(c1d_ptr, 1) == 1)
-            CPASSERT(UBOUND(c1d_ptr, 1) == pw%pw_grid%ngpts_cut_local)
-         END IF
-         pw%cc => c1d_ptr
-         END IF
-         END IF
-         IF (.NOT. ASSOCIATED(pw%cc)) THEN
-            ALLOCATE (pw%cc(pw%pw_grid%ngpts_cut_local))
-         END IF
-
       CASE (REALDATA3D)
          IF (PRESENT(r3d_ptr)) THEN
             IF (ASSOCIATED(r3d_ptr)) THEN

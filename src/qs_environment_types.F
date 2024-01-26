@@ -547,7 +547,8 @@ CONTAINS
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
       TYPE(pw_type), OPTIONAL, POINTER                   :: vppl
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc
+      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_nlcc_g
       TYPE(qs_ks_env_type), OPTIONAL, POINTER            :: ks_env
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
@@ -572,7 +573,8 @@ CONTAINS
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho0_s_rs, rho0_s_gs
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho0_s_rs
+      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho0_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
                                                             requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &

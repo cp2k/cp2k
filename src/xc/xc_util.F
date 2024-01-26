@@ -12,25 +12,25 @@
 !> \author Frederick Stein
 ! **************************************************************************************************
 MODULE xc_util
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_copy,&
-                                              pw_derive,&
-                                              pw_laplace,&
-                                              pw_transfer,&
-                                              pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_spline_utils,                 ONLY: &
-        nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, &
-        pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
-        pw_spline3_interpolate_values_g, pw_spline_scale_deriv, spline2_coeffs, &
-        spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
-   USE xc_input_constants,              ONLY: &
-        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-        xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, &
-        xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
+   USE pw_methods, ONLY: pw_axpy, &
+                         pw_copy, &
+                         pw_derive, &
+                         pw_laplace, &
+                         pw_transfer, &
+                         pw_zero
+   USE pw_pool_types, ONLY: pw_pool_type
+   USE pw_spline_utils, ONLY: &
+      nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, &
+      pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
+      pw_spline3_interpolate_values_g, pw_spline_scale_deriv, spline2_coeffs, &
+      spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
+   USE pw_types, ONLY: RECIPROCALSPACE, &
+                       REALDATA3D, REALSPACE, pw_c1d_type, &
+                       pw_type
+   USE xc_input_constants, ONLY: &
+      xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
+      xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, &
+      xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -39,6 +39,14 @@ MODULE xc_util
 
    PUBLIC :: xc_pw_smooth, xc_pw_laplace, xc_pw_divergence, xc_pw_derive, xc_requires_tmp_g, xc_pw_gradient
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_util'
+
+   INTERFACE xc_pw_derive
+      MODULE PROCEDURE xc_pw_derive_pw_type, xc_pw_derive_pw_c1d_type
+   END INTERFACE
+
+   INTERFACE xc_pw_laplace
+      MODULE PROCEDURE xc_pw_laplace_pw_type, xc_pw_laplace_pw_c1d_type
+   END INTERFACE
 
 CONTAINS
 
@@ -114,7 +122,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_pw_gradient(pw_r, pw_g, tmp_g, gradient, xc_deriv_method_id)
       TYPE(pw_type), INTENT(IN)                          :: pw_r
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_g, tmp_g
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw_g, tmp_g
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: gradient
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
 
@@ -127,6 +135,7 @@ CONTAINS
 
    END SUBROUTINE xc_pw_gradient
 
+   #:for kind in ["pw_type", "pw_c1d_type"]
 ! **************************************************************************************************
 !> \brief Calculates the Laplacian of pw
 !> \param pw on input: pw of which the Laplacian shall be calculated, on output if pw_out is absent: Laplacian of input
@@ -135,52 +144,52 @@ CONTAINS
 !> \param pw_out if present, save the Laplacian of pw here
 !> \param tmp_g scratch grid in reciprocal space, used instead of the internal grid if given explicitly to save memory
 ! **************************************************************************************************
-   SUBROUTINE xc_pw_laplace(pw, pw_pool, deriv_method_id, pw_out, tmp_g)
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
-      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      INTEGER, INTENT(IN)                                :: deriv_method_id
-      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: pw_out
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: tmp_g
+      SUBROUTINE xc_pw_laplace_${kind}$ (pw, pw_pool, deriv_method_id, pw_out, tmp_g)
+         TYPE(${kind}$), INTENT(INOUT)                       :: pw
+         TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+         INTEGER, INTENT(IN)                                :: deriv_method_id
+         TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: pw_out
+         TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: tmp_g
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_laplace'
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_laplace'
 
-      INTEGER                                            :: handle
-      LOGICAL                                            :: owns_tmp_g
-      TYPE(pw_type)                                      :: my_tmp_g
+         INTEGER                                            :: handle
+         LOGICAL                                            :: owns_tmp_g
+         TYPE(pw_c1d_type)                                  :: my_tmp_g
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      SELECT CASE (deriv_method_id)
-      CASE (xc_deriv_pw)
+         SELECT CASE (deriv_method_id)
+         CASE (xc_deriv_pw)
 
-         IF (PRESENT(tmp_g)) my_tmp_g = tmp_g
+            IF (PRESENT(tmp_g)) my_tmp_g = tmp_g
 
-         owns_tmp_g = .FALSE.
-         IF (.NOT. ASSOCIATED(my_tmp_g%pw_grid)) THEN
-            CALL pw_pool%create_pw(my_tmp_g, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            owns_tmp_g = .TRUE.
-         END IF
-         CALL pw_zero(my_tmp_g)
-         CALL pw_transfer(pw, my_tmp_g)
+            owns_tmp_g = .FALSE.
+            IF (.NOT. ASSOCIATED(my_tmp_g%pw_grid)) THEN
+               CALL pw_pool%create_pw(my_tmp_g, in_space=RECIPROCALSPACE)
+               owns_tmp_g = .TRUE.
+            END IF
+            CALL pw_zero(my_tmp_g)
+            CALL pw_transfer(pw, my_tmp_g)
 
-         CALL pw_laplace(my_tmp_g)
+            CALL pw_laplace(my_tmp_g)
 
-         IF (PRESENT(pw_out)) THEN
-            CALL pw_transfer(my_tmp_g, pw_out)
-         ELSE
-            CALL pw_transfer(my_tmp_g, pw)
-         END IF
-         IF (owns_tmp_g) THEN
-            CALL pw_pool%give_back_pw(my_tmp_g)
-         END IF
-      CASE default
-         CPABORT("Unsupported derivative method")
-      END SELECT
+            IF (PRESENT(pw_out)) THEN
+               CALL pw_transfer(my_tmp_g, pw_out)
+            ELSE
+               CALL pw_transfer(my_tmp_g, pw)
+            END IF
+            IF (owns_tmp_g) THEN
+               CALL pw_pool%give_back_pw(my_tmp_g)
+            END IF
+         CASE default
+            CPABORT("Unsupported derivative method")
+         END SELECT
 
-      CALL timestop(handle)
+         CALL timestop(handle)
 
-   END SUBROUTINE xc_pw_laplace
+      END SUBROUTINE xc_pw_laplace_${kind}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief Calculates the divergence of pw_to_deriv
@@ -193,7 +202,8 @@ CONTAINS
    SUBROUTINE xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_r)
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
       TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: pw_to_deriv
-      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g, vxc_g, vxc_r
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: tmp_g, vxc_g
+      TYPE(pw_type), INTENT(INOUT) :: vxc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_divergence'
 
@@ -222,6 +232,7 @@ CONTAINS
 
    END SUBROUTINE xc_pw_divergence
 
+   #:for kind in ["pw_type", "pw_c1d_type"]
 ! **************************************************************************************************
 !> \brief Calculates the derivative of a function on a planewave grid in a given direction
 !> \param pw function to derive
@@ -232,75 +243,105 @@ CONTAINS
 !> \param copy_to_vxcr ...
 !> \param pw_g ...
 ! **************************************************************************************************
-   SUBROUTINE xc_pw_derive(pw, tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr, pw_g)
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g, vxc_r
-      INTEGER, INTENT(IN)                                :: idir, xc_deriv_method_id
-      LOGICAL, INTENT(IN), OPTIONAL                      :: copy_to_vxcr
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: pw_g
+      SUBROUTINE xc_pw_derive_${kind}$ (pw, tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr, pw_g)
+         TYPE(${kind}$), INTENT(IN)                          :: pw
+         TYPE(pw_c1d_type), INTENT(INOUT)                   :: tmp_g
+         TYPE(pw_type), INTENT(INOUT)                       :: vxc_r
+         INTEGER, INTENT(IN)                                :: idir, xc_deriv_method_id
+         LOGICAL, INTENT(IN), OPTIONAL                      :: copy_to_vxcr
+         TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: pw_g
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_derive'
-      INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_derive'
+         INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
-      INTEGER                                            :: handle
-      LOGICAL                                            :: my_copy_to_vxcr
+         INTEGER                                            :: handle
+         LOGICAL                                            :: my_copy_to_vxcr
+         #:if kind=="pw_c1d_type"
+            TYPE(pw_type) :: tmp_r
+         #:endif
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      my_copy_to_vxcr = .TRUE.
-      IF (PRESENT(copy_to_vxcr)) my_copy_to_vxcr = copy_to_vxcr
+         my_copy_to_vxcr = .TRUE.
+         IF (PRESENT(copy_to_vxcr)) my_copy_to_vxcr = copy_to_vxcr
 
-      IF (xc_requires_tmp_g(xc_deriv_method_id)) THEN
+         IF (xc_requires_tmp_g(xc_deriv_method_id)) THEN
 
-         IF (PRESENT(pw_g)) THEN
-            IF (ASSOCIATED(pw_g%pw_grid)) THEN
-               CALL pw_copy(pw_g, tmp_g)
+            IF (PRESENT(pw_g)) THEN
+               IF (ASSOCIATED(pw_g%pw_grid)) THEN
+                  CALL pw_copy(pw_g, tmp_g)
+               ELSE
+                  CALL pw_transfer(pw, tmp_g)
+               END IF
             ELSE
                CALL pw_transfer(pw, tmp_g)
             END IF
+
+            SELECT CASE (xc_deriv_method_id)
+            CASE (xc_deriv_pw)
+               CALL pw_derive(tmp_g, nd(:, idir))
+            CASE (xc_deriv_spline2)
+               CALL pw_spline2_interpolate_values_g(tmp_g)
+               CALL pw_spline2_deriv_g(tmp_g, idir=idir)
+            CASE (xc_deriv_spline3)
+               CALL pw_spline3_interpolate_values_g(tmp_g)
+               CALL pw_spline3_deriv_g(tmp_g, idir=idir)
+            CASE default
+               CPABORT("Unsupported deriv method")
+            END SELECT
+
+            IF (my_copy_to_vxcr) CALL pw_transfer(tmp_g, vxc_r)
          ELSE
-            CALL pw_transfer(pw, tmp_g)
+            #:if kind=="pw_type"
+               SELECT CASE (xc_deriv_method_id)
+               CASE (xc_deriv_spline2_smooth)
+                  CALL pw_nn_deriv_r(pw_in=pw, &
+                                     pw_out=vxc_r, coeffs=spline2_deriv_coeffs, &
+                                     idir=idir)
+               CASE (xc_deriv_spline3_smooth)
+                  CALL pw_nn_deriv_r(pw_in=pw, &
+                                     pw_out=vxc_r, coeffs=spline3_deriv_coeffs, &
+                                     idir=idir)
+               CASE (xc_deriv_nn10_smooth)
+                  CALL pw_nn_deriv_r(pw_in=pw, &
+                                     pw_out=vxc_r, coeffs=nn10_deriv_coeffs, &
+                                     idir=idir)
+               CASE (xc_deriv_nn50_smooth)
+                  CALL pw_nn_deriv_r(pw_in=pw, &
+                                     pw_out=vxc_r, coeffs=nn50_deriv_coeffs, &
+                                     idir=idir)
+               CASE default
+                  CPABORT("Unsupported derivative method")
+               END SELECT
+            #:else
+               CALL tmp_r%create(pw%pw_grid, REALDATA3D, REALSPACE)
+               SELECT CASE (xc_deriv_method_id)
+               CASE (xc_deriv_spline2_smooth)
+                  CALL pw_nn_deriv_r(pw_in=tmp_r, &
+                                     pw_out=vxc_r, coeffs=spline2_deriv_coeffs, &
+                                     idir=idir)
+               CASE (xc_deriv_spline3_smooth)
+                  CALL pw_nn_deriv_r(pw_in=tmp_r, &
+                                     pw_out=vxc_r, coeffs=spline3_deriv_coeffs, &
+                                     idir=idir)
+               CASE (xc_deriv_nn10_smooth)
+                  CALL pw_nn_deriv_r(pw_in=tmp_r, &
+                                     pw_out=vxc_r, coeffs=nn10_deriv_coeffs, &
+                                     idir=idir)
+               CASE (xc_deriv_nn50_smooth)
+                  CALL pw_nn_deriv_r(pw_in=tmp_r, &
+                                     pw_out=vxc_r, coeffs=nn50_deriv_coeffs, &
+                                     idir=idir)
+               CASE default
+                  CPABORT("Unsupported derivative method")
+               END SELECT
+               CALL tmp_r%release()
+            #:endif
          END IF
 
-         SELECT CASE (xc_deriv_method_id)
-         CASE (xc_deriv_pw)
-            CALL pw_derive(tmp_g, nd(:, idir))
-         CASE (xc_deriv_spline2)
-            CALL pw_spline2_interpolate_values_g(tmp_g)
-            CALL pw_spline2_deriv_g(tmp_g, idir=idir)
-         CASE (xc_deriv_spline3)
-            CALL pw_spline3_interpolate_values_g(tmp_g)
-            CALL pw_spline3_deriv_g(tmp_g, idir=idir)
-         CASE default
-            CPABORT("Unsupported deriv method")
-         END SELECT
+         CALL timestop(handle)
 
-         IF (my_copy_to_vxcr) CALL pw_transfer(tmp_g, vxc_r)
-      ELSE
-         SELECT CASE (xc_deriv_method_id)
-         CASE (xc_deriv_spline2_smooth)
-            CALL pw_nn_deriv_r(pw_in=pw, &
-                               pw_out=vxc_r, coeffs=spline2_deriv_coeffs, &
-                               idir=idir)
-         CASE (xc_deriv_spline3_smooth)
-            CALL pw_nn_deriv_r(pw_in=pw, &
-                               pw_out=vxc_r, coeffs=spline3_deriv_coeffs, &
-                               idir=idir)
-         CASE (xc_deriv_nn10_smooth)
-            CALL pw_nn_deriv_r(pw_in=pw, &
-                               pw_out=vxc_r, coeffs=nn10_deriv_coeffs, &
-                               idir=idir)
-         CASE (xc_deriv_nn50_smooth)
-            CALL pw_nn_deriv_r(pw_in=pw, &
-                               pw_out=vxc_r, coeffs=nn50_deriv_coeffs, &
-                               idir=idir)
-         CASE default
-            CPABORT("Unsupported derivative method")
-         END SELECT
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE xc_pw_derive
+      END SUBROUTINE xc_pw_derive_${kind}$
+   #:endfor
 
 END MODULE xc_util

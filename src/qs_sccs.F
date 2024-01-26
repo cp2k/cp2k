@@ -75,10 +75,11 @@ MODULE qs_sccs
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
+                                              pw_r3d_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -124,7 +125,8 @@ CONTAINS
    SUBROUTINE sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs, h_stress)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace, v_hartree_gspace, v_sccs
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: v_sccs
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
 
@@ -678,21 +680,30 @@ CONTAINS
          ! Calculate the total SCCS Hartree energy, potential, and its
          ! derivatives of the solute and the implicit solvent
          CALL pw_transfer(rho_tot, rho_tot_gspace)
-         IF (calculate_stress_tensor) THEN
-            ! Request also the calculation of the stress tensor contribution
-            CALL pw_poisson_solve(poisson_env=poisson_env, &
-                                  density=rho_tot_gspace, &
-                                  ehartree=e_tot, &
-                                  vhartree=v_hartree_gspace, &
-                                  dvhartree=dphi_tot, &
-                                  h_stress=h_stress)
-         ELSE
-            CALL pw_poisson_solve(poisson_env=poisson_env, &
-                                  density=rho_tot_gspace, &
-                                  ehartree=e_tot, &
-                                  vhartree=v_hartree_gspace, &
-                                  dvhartree=dphi_tot)
-         END IF
+         BLOCK
+            TYPE(pw_r3d_type) :: my_dphi_tot(3)
+            INTEGER :: i
+            DO i = 1, 3
+               my_dphi_tot(i)%in_space = dphi_tot(i)%in_space
+               my_dphi_tot(i)%array => dphi_tot(i)%cr3d
+               my_dphi_tot(i)%pw_grid => dphi_tot(i)%pw_grid
+            END DO
+            IF (calculate_stress_tensor) THEN
+               ! Request also the calculation of the stress tensor contribution
+               CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                     density=rho_tot_gspace, &
+                                     ehartree=e_tot, &
+                                     vhartree=v_hartree_gspace, &
+                                     dvhartree=my_dphi_tot, &
+                                     h_stress=h_stress)
+            ELSE
+               CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                     density=rho_tot_gspace, &
+                                     ehartree=e_tot, &
+                                     vhartree=v_hartree_gspace, &
+                                     dvhartree=my_dphi_tot)
+            END IF
+         END BLOCK
          CALL pw_transfer(v_hartree_gspace, phi_tot)
          energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
 
@@ -994,8 +1005,8 @@ CONTAINS
 
       INTEGER                                            :: border_points, handle, i
       INTEGER, DIMENSION(3)                              :: lb, n, ub
+      TYPE(pw_c1d_type), DIMENSION(2)                    :: work_g1d
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(2)                        :: work_g1d
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
@@ -1033,7 +1044,6 @@ CONTAINS
          ! Get work storage for the 1d grids in g-space (derivative calculation)
          DO i = 1, SIZE(work_g1d)
             CALL auxbas_pw_pool%create_pw(work_g1d(i), &
-                                          use_data=COMPLEXDATA1D, &
                                           in_space=RECIPROCALSPACE)
          END DO
       END SELECT

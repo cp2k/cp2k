@@ -96,11 +96,11 @@ MODULE qs_active_space_methods
                                pw_poisson_type
    USE pw_pool_types, ONLY: &
       pw_pool_type
-   USE pw_types, ONLY: COMPLEXDATA1D, &
-                       REALDATA3D, &
-                       REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_type
+   USE pw_types, ONLY: &
+      pw_c1d_type, REALDATA3D, &
+      REALSPACE, &
+      RECIPROCALSPACE, &
+      pw_type
    USE qcschema, ONLY: qcschema_env_create, &
                        qcschema_env_release, &
                        qcschema_to_hdf5, &
@@ -1222,10 +1222,11 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, rho_g, rho_r, wfn_r
+      TYPE(pw_type)                                      :: rho_r, wfn_r
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: wfn_a
       TYPE(pw_type), POINTER                             :: wfn1, wfn2, wfn3, wfn4
@@ -1406,7 +1407,7 @@ CONTAINS
       END IF
 
       CALL auxbas_pw_pool%create_pw(wfn_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
@@ -1460,7 +1461,7 @@ CONTAINS
 
       ! get some of the grids ready
       CALL auxbas_pw_pool%create_pw(rho_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(pot_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pot_g, in_space=RECIPROCALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
       CALL pw_zero(rho_r)
@@ -1873,9 +1874,10 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_type)                                      :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section, scf_input
@@ -1907,7 +1909,7 @@ CONTAINS
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(wf_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_g, in_space=RECIPROCALSPACE)
       !
       dft_section => section_vals_get_subs_vals(scf_input, "DFT")
       !

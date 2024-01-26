@@ -37,14 +37,14 @@ MODULE pw_pool_types
       USE pw_grids, ONLY: pw_grid_compare, &
                           pw_grid_release, &
                           pw_grid_retain
-      USE pw_types, ONLY: COMPLEXDATA1D, &
-                          REALDATA3D, &
-                          REALSPACE, &
-                          RECIPROCALSPACE, &
+      USE pw_types, ONLY: &
+         REALDATA3D, &
+         REALSPACE, &
+         RECIPROCALSPACE, &
 #:for kind in pw_kinds
-                          pw_${kind}$_type, &
+         pw_${kind}$_type, &
 #:endfor
-                          pw_type
+         pw_type
 #include "../base/base_uses.f90"
 
       IMPLICIT NONE
@@ -242,7 +242,7 @@ MODULE pw_pool_types
 !> \brief returns a pw, allocating it if none is in the pool
 !> \param pool the pool from where you get the pw
 !> \param pw will contain the new pw
-!> \param use_data which data it uses: COMPLEXDATA1D,
+!> \param use_data which data it uses:
 !>        REALDATA3D
 !> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
 !> \par History
@@ -307,7 +307,7 @@ MODULE pw_pool_types
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: COMPLEXDATA1D,
+!> \param use_data which data it uses:
 !>        REALDATA3D
 !> \param in_space ...
 !> \par History
@@ -356,7 +356,7 @@ MODULE pw_pool_types
 !> \brief returns a pw, allocating it if none is in the pool
 !> \param pool the pool from where you get the pw
 !> \param pw will contain the new pw
-!> \param use_data which data it uses: COMPLEXDATA1D,
+!> \param use_data which data it uses:
 !>        REALDATA3D
 !> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
 !> \par History
@@ -385,10 +385,6 @@ MODULE pw_pool_types
                         r3d_ptr => try_pop_r3d(pool%r3d_array)
                         CALL pw%create(pool%pw_grid, use_data=use_data, &
                                        in_space=in_space, r3d_ptr=r3d_ptr)
-                     CASE (COMPLEXDATA1D)
-                        c1d_ptr => try_pop_c1d(pool%c1d_array)
-                        CALL pw%create(pool%pw_grid, use_data=use_data, &
-                                       in_space=in_space, c1d_ptr=c1d_ptr)
                      CASE default
 ! unknown use_data
                         CPABORT("")
@@ -423,15 +419,6 @@ MODULE pw_pool_types
                                  IF (cp_sll_3d_r_get_length(pool%r3d_array) < pool%max_cache) THEN
                                     CALL cp_sll_3d_r_insert_el(pool%r3d_array, el=pw%cr3d)
                                     NULLIFY (pw%cr3d)
-                                 ELSE IF (max_max_cache >= 0) THEN
-                                    CPWARN("hit max_cache")
-                                 END IF
-                              END IF
-                           CASE (COMPLEXDATA1D)
-                              IF (ASSOCIATED(pw%cc)) THEN
-                                 IF (cp_sll_1d_c_get_length(pool%c1d_array) < pool%max_cache) THEN
-                                    CALL cp_sll_1d_c_insert_el(pool%c1d_array, el=pw%cc)
-                                    NULLIFY (pw%cc)
                                  ELSE IF (max_max_cache >= 0) THEN
                                     CPWARN("hit max_cache")
                                  END IF
@@ -513,7 +500,7 @@ MODULE pw_pool_types
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: COMPLEXDATA1D,
+!> \param use_data which data it uses:
 !>        REALDATA3D
 !> \param in_space ...
 !> \par History

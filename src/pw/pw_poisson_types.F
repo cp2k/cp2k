@@ -46,11 +46,9 @@ MODULE pw_poisson_types
                                               pw_pool_release,&
                                               pw_pool_type,&
                                               pw_pools_dealloc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_r1d_type,&
-                                              pw_type
+                                              pw_r1d_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs_grid_release
 #include "../base/base_uses.f90"
@@ -162,8 +160,8 @@ MODULE pw_poisson_types
       REAL(KIND=dp) :: sr_alpha = 1.0_dp
       REAL(KIND=dp) :: sr_rc = 0.0_dp
       TYPE(pw_c1d_type) :: influence_fn = pw_c1d_type()
-      TYPE(pw_type), POINTER :: dct_influence_fn => NULL()
-      TYPE(pw_type), POINTER :: screen_fn => NULL()
+      TYPE(pw_c1d_type), POINTER :: dct_influence_fn => NULL()
+      TYPE(pw_c1d_type), POINTER :: screen_fn => NULL()
       TYPE(pw_r1d_type), POINTER :: p3m_charge => NULL()
    END TYPE greens_fn_type
 
@@ -192,9 +190,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: g2, g3d, gg, gxy, gz, j0g, j1g, k0g, &
                                                             k1g, rlength, zlength
       REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(pw_c1d_type), POINTER                         :: dct_gf
       TYPE(pw_grid_type), POINTER                        :: dct_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
-      TYPE(pw_type), POINTER                             :: dct_gf
 
       !CPASSERT(cell%orthorhombic)
       DO i = 1, 3
@@ -303,7 +301,7 @@ CONTAINS
                NULLIFY (green%dct_influence_fn)
                ALLOCATE (green%dct_influence_fn)
                CALL pw_pool_xpndd%create_pw(green%dct_influence_fn, &
-                                            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                            in_space=RECIPROCALSPACE)
                CALL pw_pool_release(pw_pool_xpndd)
             END IF
          END SELECT
@@ -379,10 +377,10 @@ CONTAINS
             DO ig = grid%first_gne0, grid%ngpts_cut_local
                g2 = grid%gsq(ig)
                g3d = fourpi/g2
-               gf%array(ig) = g3d + green%screen_fn%cc(ig)
+               gf%array(ig) = g3d + green%screen_fn%array(ig)
             END DO
             IF (grid%have_g0) &
-               gf%array(1) = green%screen_fn%cc(1)
+               gf%array(1) = green%screen_fn%array(1)
 
          CASE (PS_IMPLICIT)
 
@@ -398,9 +396,9 @@ CONTAINS
 
                DO ig = dct_grid%first_gne0, dct_grid%ngpts_cut_local
                   g2 = dct_grid%gsq(ig)
-                  dct_gf%cc(ig) = fourpi/g2
+                  dct_gf%array(ig) = fourpi/g2
                END DO
-               IF (dct_grid%have_g0) dct_gf%cc(1) = 0.0_dp
+               IF (dct_grid%have_g0) dct_gf%array(1) = 0.0_dp
             END IF
 
          CASE DEFAULT

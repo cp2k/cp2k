@@ -37,10 +37,10 @@ MODULE qs_dispersion_nonloc
                                               pw_derive,&
                                               pw_transfer
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE virial_types,                    ONLY: virial_type
@@ -164,7 +164,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
                                           dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rho, rho_r, rho_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rho, rho_r
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       REAL(KIND=dp), INTENT(OUT)                         :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -183,9 +184,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dq0_dgradrho, dq0_drho, hpot, potential, &
                                                             q0, rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, thetas
+      TYPE(pw_c1d_type)                                  :: tmp_g, vxc_g
+      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: thetas_g
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: tmp_g, tmp_r, vxc_g, vxc_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: thetas_g
+      TYPE(pw_type)                                      :: tmp_r, vxc_r
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: drho_r
 
       CALL timeset(routineN, handle)
@@ -215,7 +217,7 @@ CONTAINS
       const = 1.0_dp/(3.0_dp*SQRT(pi)*b_value**1.5_dp)/(pi**0.75_dp)
 
       ! temporary arrays for FFT
-      CALL pw_pool%create_pw(tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(tmp_g, in_space=RECIPROCALSPACE)
       CALL pw_pool%create_pw(tmp_r, use_data=REALDATA3D, in_space=REALSPACE)
 
       ! get density derivatives
@@ -392,7 +394,7 @@ CONTAINS
             END DO
          END DO
 !$OMP END PARALLEL DO
-         CALL pw_pool%create_pw(thetas_g(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(thetas_g(i), in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_r, thetas_g(i))
       END DO
       grid => thetas_g(1)%pw_grid
@@ -530,7 +532,7 @@ CONTAINS
          CALL pw_transfer(vxc_r, tmp_g)
          CALL pw_pool%give_back_pw(vxc_r)
          CALL xc_pw_pool%create_pw(vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL xc_pw_pool%create_pw(vxc_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL xc_pw_pool%create_pw(vxc_g, in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_g, vxc_g)
          CALL pw_transfer(vxc_g, vxc_r)
          DO ispin = 1, nspin
@@ -574,7 +576,7 @@ CONTAINS
 !>    OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial)
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: thetas_g
+      TYPE(pw_c1d_type), DIMENSION(:), INTENT(IN)        :: thetas_g
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(OUT)                         :: vdW_xc_energy
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -642,7 +644,7 @@ CONTAINS
             IF (use_virial) CALL interpolate_dkernel_dk(g, dkernel_of_dk, dispersion_env)
          END IF
          DO iq = 1, nqs
-            theta(iq) = thetas_g(iq)%cc(ig)
+            theta(iq) = thetas_g(iq)%array(ig)
          END DO
          DO q2_i = 1, nqs
             uu = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -681,7 +683,7 @@ CONTAINS
 !$OMP DO
          DO ig = 1, grid%ngpts_cut_local
             DO iq = 1, nqs
-               thetas_g(iq)%cc(ig) = u_vdW(ig, iq)
+               thetas_g(iq)%array(ig) = u_vdW(ig, iq)
             END DO
          END DO
 !$OMP END DO

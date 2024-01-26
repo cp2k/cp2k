@@ -26,14 +26,15 @@ MODULE tip_scan_methods
                                               pw_grid_release,&
                                               pw_grid_setup
    USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_multiply_with,&
                                               pw_structure_factor,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -84,9 +85,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: mos_ref
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(pw_c1d_type)                                  :: sf, vref
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: sf, vref
       TYPE(pw_type), POINTER                             :: vee, vtip
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(scanning_type)                                :: scan_env
@@ -128,9 +129,9 @@ CONTAINS
          ALLOCATE (vtip)
          CALL auxbas_pw_pool%create_pw(vtip, REALDATA3D, REALSPACE)
          CALL pw_zero(vtip)
-         CALL auxbas_pw_pool%create_pw(vref, COMPLEXDATA1D, RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(vref, RECIPROCALSPACE)
          CALL pw_zero(vref)
-         CALL auxbas_pw_pool%create_pw(sf, COMPLEXDATA1D, RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(sf, RECIPROCALSPACE)
 
          ! get the reference tip potential and store it in reciprocal space (vref)
          CALL pw_transfer(scan_env%tip_pw_g, vref)
@@ -225,7 +226,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE shift_tip_potential(vref, sf, vtip, rpos)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: vref, sf, vtip
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: vref, sf
+      TYPE(pw_type), INTENT(INOUT)                       :: vtip
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rpos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_tip_potential'
@@ -235,7 +237,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL pw_structure_factor(sf, rpos)
-      sf%cc = vref%cc*sf%cc
+      CALL pw_multiply_with(sf, vref)
       CALL pw_transfer(sf, vtip)
 
       CALL timestop(handle)
@@ -296,7 +298,7 @@ CONTAINS
       scaling = 0.1_dp
 !deb
       CALL cp_cube_to_pw(scan_env%tip_pw_r, scan_env%tip_cube_file, scaling, silent=.TRUE.)
-      CALL scan_env%tip_pw_g%create(pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL scan_env%tip_pw_g%create(pw_grid, in_space=RECIPROCALSPACE)
       CALL pw_transfer(scan_env%tip_pw_r, scan_env%tip_pw_g)
       CALL pw_grid_release(pw_grid)
 

@@ -61,10 +61,10 @@ MODULE rt_propagation_output
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -704,9 +704,10 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(dbcsr_type), POINTER                          :: tmp, zero
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type)                                  :: gs
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: gs, rs
+      TYPE(pw_type)                                      :: rs
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
@@ -729,7 +730,7 @@ CONTAINS
       current_env%gauge = -1
       current_env%gauge_init = .FALSE.
       CALL auxbas_pw_pool%create_pw(rs, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(gs, in_space=RECIPROCALSPACE)
 
       NULLIFY (stride)
       ALLOCATE (stride(3))

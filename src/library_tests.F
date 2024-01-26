@@ -88,10 +88,10 @@ MODULE library_tests
                                               pw_grid_setup
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_c3d_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
@@ -830,9 +830,9 @@ CONTAINS
                                                             t_min, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_end, t_start
       TYPE(cell_type), POINTER                           :: box
+      TYPE(pw_c1d_type)                                  :: ca, cc
       TYPE(pw_c3d_type)                                  :: cb
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: ca, cc
 
 !..set fft lib
 
@@ -939,18 +939,18 @@ CONTAINS
             ! note that the number of grid points might be different from what the user requested (fft-able needed)
             no = grid%npts
 
-            CALL ca%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL ca%create(grid, RECIPROCALSPACE)
             CALL cb%create(grid, REALSPACE)
-            CALL cc%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL cc%create(grid, RECIPROCALSPACE)
 
             ! initialize data
             CALL pw_zero(ca)
             CALL pw_zero(cb)
             CALL pw_zero(cc)
-            nn = SIZE(ca%cc)
+            nn = SIZE(ca%array)
             DO ig = 1, nn
                gsq = grid%gsq(ig)
-               ca%cc(ig) = EXP(-gsq)
+               ca%array(ig) = EXP(-gsq)
             END DO
 
             flops = PRODUCT(no)*30.0_dp*LOG(REAL(MAXVAL(no), KIND=dp))
@@ -971,9 +971,9 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            em = MAXVAL(ABS(ca%cc(:) - cc%cc(:)))
+            em = MAXVAL(ABS(ca%array(:) - cc%array(:)))
             CALL para_env%max(em)
-            et = SUM(ABS(ca%cc(:) - cc%cc(:)))
+            et = SUM(ABS(ca%array(:) - cc%array(:)))
             CALL para_env%sum(et)
             t_min = MINVAL(t_end - t_start)
             t_max = MAXVAL(t_end - t_start)

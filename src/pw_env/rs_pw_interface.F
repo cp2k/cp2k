@@ -29,8 +29,7 @@ MODULE rs_pw_interface
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pools_create_pws,&
                                               pw_pools_give_back_pws
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
@@ -73,19 +72,16 @@ CONTAINS
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
-      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_gspace
 
-      TYPE(pw_c1d_type)                                  :: my_rho_gspace
       TYPE(pw_r3d_type)                                  :: my_rho
 
-      my_rho_gspace%in_space = rho_gspace%in_space
-      my_rho_gspace%pw_grid => rho_gspace%pw_grid
-      my_rho_gspace%array => rho_gspace%cc
       my_rho%in_space = rho%in_space
       my_rho%pw_grid => rho%pw_grid
       my_rho%array => rho%cr3d
 
-      CALL density_rs2pw(pw_env, rs_rho, my_rho, my_rho_gspace)
+      CALL density_rs2pw(pw_env, rs_rho, my_rho, rho_gspace)
 
    END SUBROUTINE
 
@@ -113,8 +109,9 @@ CONTAINS
 
       INTEGER                                            :: handle, igrid_level, interp_kind
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
+      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_rspace
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
 
@@ -131,7 +128,6 @@ CONTAINS
                                in_space=REALSPACE)
 
       CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                               use_data=COMPLEXDATA1D, &
                                in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
@@ -227,8 +223,9 @@ CONTAINS
                                                             interp_kind
       REAL(KIND=dp)                                      :: scale
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
+      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_rspace
 
       CALL timeset(routineN, handle)
 
@@ -245,7 +242,6 @@ CONTAINS
       SELECT CASE (interp_kind)
       CASE (pw_interp)
          CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                                  use_data=COMPLEXDATA1D, &
                                   in_space=RECIPROCALSPACE)
          CALL pw_transfer(v_rspace, mgrid_gspace(auxbas_grid))
          DO igrid_level = 1, gridlevel_info%ngrid_levels

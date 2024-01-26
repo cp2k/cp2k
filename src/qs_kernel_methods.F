@@ -22,7 +22,8 @@ MODULE qs_kernel_methods
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
@@ -237,10 +238,12 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: rho_g_valid, tau_r_valid
       REAL(KIND=dp)                                      :: factor
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_type), POINTER                         :: rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, tau_r
-      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r
+      TYPE(pw_type), POINTER                             :: rho_nlcc
       TYPE(section_vals_type), POINTER                   :: xc_kernel
 
       CALL timeset(routineN, handle)
