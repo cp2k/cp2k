@@ -1,5 +1,5 @@
 &GLOBAL
-  PRINT_LEVEL LOW
+  PRINT_LEVEL medium
   PROJECT td_dipole
   RUN_TYPE DEBUG
 &END GLOBAL
@@ -45,10 +45,11 @@
       &END MOMENTS
     &END PRINT
     &QS
+      EPS_DEFAULT 1.0E-10
       METHOD GAPW_XC
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-6
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT
@@ -56,7 +57,7 @@
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-8
+        EPS_SCF 1.0E-6
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
@@ -68,7 +69,7 @@
   &PROPERTIES
     &TDDFPT
       ADMM_KERNEL_CORRECTION_SYMMETRIC
-      CONVERGENCE [eV] 1.0e-7
+      CONVERGENCE [eV] 1.0E-6
       KERNEL FULL
       MAX_ITER 50
       NSTATES 1

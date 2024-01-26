@@ -1,5 +1,5 @@
 &GLOBAL
-  PRINT_LEVEL LOW
+  PRINT_LEVEL medium
   PROJECT td_dipole
   RUN_TYPE DEBUG
 &END GLOBAL
@@ -37,11 +37,11 @@
       &END MOMENTS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.0E-10
       METHOD GAPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 20
       SCF_GUESS ATOMIC
       &OT
@@ -50,7 +50,7 @@
         STEPSIZE 0.1
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-7
+        EPS_SCF 1.0E-6
         MAX_SCF 20
       &END OUTER_SCF
     &END SCF
@@ -61,7 +61,7 @@
   &END DFT
   &PROPERTIES
     &TDDFPT
-      CONVERGENCE [eV] 1.0e-7
+      CONVERGENCE [eV] 1.0E-6
       EV_SHIFT 6.0
       KERNEL sTDA
       MAX_ITER 50

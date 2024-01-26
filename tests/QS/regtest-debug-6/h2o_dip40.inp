@@ -1,5 +1,5 @@
 &GLOBAL
-  PRINT_LEVEL LOW
+  PRINT_LEVEL medium
   PROJECT td_dipole
   RUN_TYPE DEBUG
 &END GLOBAL
@@ -24,7 +24,7 @@
       STATE 1
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 400
+      CUTOFF 200
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -37,7 +37,7 @@
       &END MOMENTS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.0E-10
       METHOD GAPW
     &END QS
     &SCF
@@ -61,7 +61,7 @@
   &END DFT
   &PROPERTIES
     &TDDFPT
-      CONVERGENCE [eV] 1.0e-7
+      CONVERGENCE [eV] 1.0E-7
       KERNEL NONE
       MAX_ITER 50
       NSTATES 1
