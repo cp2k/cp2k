@@ -24,10 +24,15 @@ echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
   python3 \
+  python3-venv \
   python3-pip \
   python3-wheel \
   python3-setuptools
 rm -rf /var/lib/apt/lists/*
+
+# Create and activate a virtual environment for Python packages.
+python3 -m venv /opt/venv
+export PATH="/opt/venv/bin:$PATH"
 
 echo -e "\n========== Installing i-Pi =========="
 git clone --quiet --depth=1 --single-branch -b master https://github.com/i-pi/i-pi.git /opt/i-pi
@@ -36,7 +41,7 @@ pip3 install --quiet .
 
 echo -e "\n========== Running i-Pi Tests =========="
 
-cd /opt/i-pi/examples/clients/cp2k/nvt-cl
+cd /opt/i-pi/examples/clients/cp2k/nvt_cl
 set +e # disable error trapping for remainder of script
 
 TIMEOUT_SEC="300"
@@ -56,7 +61,7 @@ ulimit -t ${TIMEOUT_SEC} # Limit cpu time.
 # launch i-pi
 sed -i "s/total_steps>1000/total_steps>10/" input.xml
 # Limit walltime too, because waiting for a connection consumes no cpu time.
-timeout ${TIMEOUT_SEC} /usr/local/bin/i-pi input.xml
+timeout ${TIMEOUT_SEC} i-pi input.xml
 IPI_EXIT_CODE=$?
 
 wait # for cp2k to shutdown
