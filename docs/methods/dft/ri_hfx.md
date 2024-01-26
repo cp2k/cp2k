@@ -57,8 +57,9 @@ with a large basis, and a small dense system. Different input options are shown 
 
 In this example, a geometry optimization of the glycine molecule is calculated at the Hartree-Fock
 level of theory, with the cc-pVQZ basis set (taken from https://www.basissetexchange.org). The RI
-basis set, referred to as `RI_HFX` in the `&KIND` input section, is explicitly provided by the user
-in this example. It takes about 70 seconds to run on 16 CPUs, per geometry optimization step.
+basis set, referred to as `RI_HFX` in the [KIND](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND) input section,
+is explicitly provided by the user in this example. It takes about 70 seconds to run on 16 CPUs, per
+geometry optimization step.
 
 There are a couple take home messages with this example:
 
@@ -70,99 +71,100 @@ There are a couple take home messages with this example:
   $(\mu\sigma\lfloor P)$, which is only really useful in PBCs.
 
 In this specific example, RI-HFX is much more efficient than the original 4-center implementation.
-You can try running the same input with the `&HF%RI` section commented out for a demonstration.
+You can try running the same input with the [HF/RI](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI) section
+commented out for a demonstration.
 
 ```none
-&GLOBAL  
-  PROJECT glycine  
-  PRINT_LEVEL MEDIUM  
-  RUN_TYPE GEO_OPT  
-&END GLOBAL  
-&FORCE_EVAL  
-  METHOD Quickstep  
-  &DFT  
-    BASIS_SET_FILE_NAME BASIS_cc-pVQZ  
-    POTENTIAL_FILE_NAME POTENTIAL  
-    !Sort basis function accoring to their exponent for more sparsity 
-    SORT_BASIS EXP  
-  
-    &MGRID  
-      CUTOFF 500  
-      REL_CUTOFF 50  
-      NGRIDS 5  
-    &END MGRID  
-  
-    &QS  
-      !all-electron calculations require GAPW  
-      METHOD GAPW  
-    &END QS  
-  
-    &POISSON  
-      !non-periodic calculation for this molecule  
-      PERIODIC NONE  
-      PSOLVER WAVELET  
-    &END  
-  
-    &SCF  
-      EPS_SCF 1.0E-6  
-      MAX_SCF 50  
-      &END SCF  
-    &XC  
-      &XC_FUNCTIONAL NONE  
-      &END XC_FUNCTIONAL  
-      &HF  
-        !Pure RI Hartree-Fock calculation using only defaults:  
-        ! -HFX potential is the 1/r Coulomb interaction  
-        ! -RI metric is also the 1/r Coulomb interaction  
-        ! -Default accuracy parameters (good in most cases)  
-        &RI  
-        &END RI  
-      &END HF  
-    &END XC  
-  &END DFT  
-  &SUBSYS  
-    &CELL  
-      ABC 10.0 10.0 10.0  
-      PERIODIC NONE  
-    &END CELL  
-    &COORD  
-      C -0.04879702 -0.00000000 1.40419128  
-      N -1.35021542 0.00000000 2.04225544  
-      C -0.04354337 0.00000000 -0.12235209  
-      O -1.02422569 -0.00000000 -0.83489570  
-      O 1.22983691 0.00000000 -0.61028238  
-      H 1.14837668 -0.00000000 -1.58391528  
-      H 0.53209836 -0.87421885 1.73662058  
-      H 0.53209836 0.87421885 1.73662058  
-      H -1.88873390 0.81280508 1.74087629  
+&GLOBAL
+  PROJECT glycine
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_cc-pVQZ
+    POTENTIAL_FILE_NAME POTENTIAL
+    !Sort basis function accoring to their exponent for more sparsity
+    SORT_BASIS EXP
+
+    &MGRID
+      CUTOFF 500
+      REL_CUTOFF 50
+      NGRIDS 5
+    &END MGRID
+
+    &QS
+      !all-electron calculations require GAPW
+      METHOD GAPW
+    &END QS
+
+    &POISSON
+      !non-periodic calculation for this molecule
+      PERIODIC NONE
+      PSOLVER WAVELET
+    &END
+
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 50
+      &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        !Pure RI Hartree-Fock calculation using only defaults:
+        ! -HFX potential is the 1/r Coulomb interaction
+        ! -RI metric is also the 1/r Coulomb interaction
+        ! -Default accuracy parameters (good in most cases)
+        &RI
+        &END RI
+      &END HF
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C -0.04879702 -0.00000000 1.40419128
+      N -1.35021542 0.00000000 2.04225544
+      C -0.04354337 0.00000000 -0.12235209
+      O -1.02422569 -0.00000000 -0.83489570
+      O 1.22983691 0.00000000 -0.61028238
+      H 1.14837668 -0.00000000 -1.58391528
+      H 0.53209836 -0.87421885 1.73662058
+      H 0.53209836 0.87421885 1.73662058
+      H -1.88873390 0.81280508 1.74087629
       H -1.88873390 -0.81280508 1.7408762
     &END COORD
-    &TOPOLOGY  
-      !Always a good idea to put the molecule in the middle of the simulation cell in non-PBCs  
-      &CENTER_COORDINATES  
-      &END CENTER_COORDINATES  
-    &END TOPOLOGY  
-    &KIND C  
-      BASIS_SET cc-pVQZ  
-      BASIS_SET RI_HFX cc-pVQZ-JKFIT  
-      POTENTIAL ALL  
-    &END KIND  
-   &KIND O  
-      BASIS_SET cc-pVQZ  
-      BASIS_SET RI_HFX cc-pVQZ-JKFIT  
-      POTENTIAL ALL  
-    &END KIND  
-    &KIND N  
-      BASIS_SET cc-pVQZ  
-      BASIS_SET RI_HFX cc-pVQZ-JKFIT  
-      POTENTIAL ALL  
-    &END KIND  
-    &KIND H  
-      BASIS_SET cc-pVQZ  
-      BASIS_SET RI_HFX cc-pVQZ-JKFIT  
-      POTENTIAL ALL  
-    &END KIND  
-  &END SUBSYS  
+    &TOPOLOGY
+      !Always a good idea to put the molecule in the middle of the simulation cell in non-PBCs
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+    &KIND C
+      BASIS_SET cc-pVQZ
+      BASIS_SET RI_HFX cc-pVQZ-JKFIT
+      POTENTIAL ALL
+    &END KIND
+   &KIND O
+      BASIS_SET cc-pVQZ
+      BASIS_SET RI_HFX cc-pVQZ-JKFIT
+      POTENTIAL ALL
+    &END KIND
+    &KIND N
+      BASIS_SET cc-pVQZ
+      BASIS_SET RI_HFX cc-pVQZ-JKFIT
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET cc-pVQZ
+      BASIS_SET RI_HFX cc-pVQZ-JKFIT
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
 &END FORCE_EVAL
 ```
 
@@ -182,76 +184,77 @@ There are a handful of take home messages with this example:
 - Always use HFX potentials that decay within half the simulation cell in periodic HFX calculations
 - Using short range RI metrics is crucial for performance
 - ADMM is available in all its flavors, and it helps reducing computational costs
-- Using the keyword `SORT_BASIS EXP` helps create sparsity and improves performance
+- Setting the keyword [SORT_BASIS](#CP2K_INPUT.FORCE_EVAL.DFT.SORT_BASIS) to `EXP` helps create
+  sparsity and improves performance
 - Automatically generated RI basis sets are very accurate, although larger and less efficient than
   pre-optimized ones
 
 ```none
-&GLOBAL  
-  PROJECT Si64  
-  RUN_TYPE ENERGY  
-&END GLOBAL  
-&FORCE_EVAL  
-  &DFT  
-    BASIS_SET_FILE_NAME BASIS_ccGRB_UZH  
-    BASIS_SET_FILE_NAME BASIS_ADMM_UZH  
+&GLOBAL
+  PROJECT Si64
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+    BASIS_SET_FILE_NAME BASIS_ADMM_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
-    !sort the basis function according to their exponent for more sparsity  
+    !sort the basis function according to their exponent for more sparsity
     SORT_BASIS EXP
     !generate the RI_HFX basis set on the fly
-    AUTO_BASIS RI_HFX SMALL  
-    
+    AUTO_BASIS RI_HFX SMALL
+
     !turn on ADMM
-    &AUXILIARY_DENSITY_MATRIX_METHOD  
-      ADMM_TYPE ADMMS  
-    &END AUXILIARY_DENSITY_MATRIX_METHOD  
-  
-    &MGRID  
-      CUTOFF 600  
-      REL_CUTOFF 50  
-      NGRIDS 5  
-    &END MGRID  
-  
-    &SCF  
-      EPS_SCF 1.0E-6  
-      MAX_SCF 40  
-    &END SCF  
-  
-    &XC  
-      &XC_FUNCTIONAL  
-        &PBE  
-          SCALE_X 0.75  
-        &END PBE 
-            &END XC_FUNCTIONAL  
-            &HF  
-                FRACTION 0.25  
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_TYPE ADMMS
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+
+    &MGRID
+      CUTOFF 600
+      REL_CUTOFF 50
+      NGRIDS 5
+    &END MGRID
+
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 40
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          SCALE_X 0.75
+        &END PBE
+            &END XC_FUNCTIONAL
+            &HF
+                FRACTION 0.25
                 &INTERACTION_POTENTIAL
-                  !Important to use a limited range potential in periodic HFX  
+                  !Important to use a limited range potential in periodic HFX
                     POTENTIAL_TYPE TRUNCATED
                     !5.4 < half cell dimension
-                    CUTOFF_RADIUS 5.4  
-                &END  
+                    CUTOFF_RADIUS 5.4
+                &END
                 &RI
-                  !overlap metric for maximal efficiency  
-                    RI_METRIC IDENTITY  
-                &END RI  
-            &END HF  
-        &END XC  
-    &END DFT  
-    &SUBSYS  
-        &CELL  
-            ABC 10.861395 10.861395 10.861395  
-        &END CELL  
-        &TOPOLOGY  
-            COORD_FILE_FORMAT XYZ  
-            COORD_FILE_NAME ./Si64.xyz  
-        &END TOPOLOGY  
-        &KIND Si  
-            BASIS_SET ccGRB-D-q4  
-            BASIS_SET AUX_FIT admm-dzp-q4  
-            POTENTIAL GTH-PBE0-q4  
-        &END KIND  
-    &END SUBSYS  
+                  !overlap metric for maximal efficiency
+                    RI_METRIC IDENTITY
+                &END RI
+            &END HF
+        &END XC
+    &END DFT
+    &SUBSYS
+        &CELL
+            ABC 10.861395 10.861395 10.861395
+        &END CELL
+        &TOPOLOGY
+            COORD_FILE_FORMAT XYZ
+            COORD_FILE_NAME ./Si64.xyz
+        &END TOPOLOGY
+        &KIND Si
+            BASIS_SET ccGRB-D-q4
+            BASIS_SET AUX_FIT admm-dzp-q4
+            POTENTIAL GTH-PBE0-q4
+        &END KIND
+    &END SUBSYS
 &END FORCE_EVAL
 ```
 
@@ -260,21 +263,22 @@ There are a handful of take home messages with this example:
 There are some few input parameters of particular importance when running RI-HFX, mostly concerning
 the efficiency to accuracy balance. Here is a list:
 
-- `RI_METRIC`: the choice of RI metric is crucial for performance in periodic calculations. A
-  shorter ranged RI metric will generally be more efficient, while a longer ranged metric (e.g. TC
-  with a cutoff radius of 1.5 Angstrom) can be more accurate. See [](#Bussy2023) for a full
-  discussion.
-- `EPS_FILTER`: the bottleneck of the RI-HFX calculation consists of sparse tensor contractions.
-  This parameter is the threshold for block sparsity during calculations, with a safe default of
-  $1.0\times10^{-9}$. A looser threshold might significantly speedup calculations (not recommended
-  to go higher than $1.0\times10^{-8}$).
-- `MEMORY_CUT`: this keyword influences the batching strategy for large tensor contractions. In
-  RI-HFX, some tensor contractions are done in multiple steps, with large intermediate results.
-  Storing these intermediates can lead to memory shortage. The value of `MEMORY_CUT` (default of 3)
-  indicates how large tensors are split into batches, such that smaller intermediates can be stored.
-  Note that MEMORY_CUT 3 does not mean that the total memory consumption of the program is divided
-  by three (initial and final tensors are not affected, as well as the data concerning the rest of
-  the calculation). A higher value reduces the memory footprint, but leads to performance overheads.
+- [RI_METRIC](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.RI_METRIC): the choice of RI metric is crucial for
+  performance in periodic calculations. A shorter ranged RI metric will generally be more efficient,
+  while a longer ranged metric (e.g. TC with a cutoff radius of 1.5 Angstrom) can be more accurate.
+  See [](#Bussy2023) for a full discussion.
+- [EPS_FILTER](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_FILTER): the bottleneck of the RI-HFX
+  calculation consists of sparse tensor contractions. This parameter is the threshold for block
+  sparsity during calculations, with a safe default of $1.0\times10^{-9}$. A looser threshold might
+  significantly speedup calculations (not recommended to go higher than $1.0\times10^{-8}$).
+- [MEMORY_CUT](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.MEMORY_CUT): this keyword influences the batching
+  strategy for large tensor contractions. In RI-HFX, some tensor contractions are done in multiple
+  steps, with large intermediate results. Storing these intermediates can lead to memory shortage.
+  The value of [MEMORY_CUT](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.MEMORY_CUT) (default of 3) indicates
+  how large tensors are split into batches, such that smaller intermediates can be stored. Note that
+  `MEMORY_CUT 3` does not mean that the total memory consumption of the program is divided by three
+  (initial and final tensors are not affected, as well as the data concerning the rest of the
+  calculation). A higher value reduces the memory footprint, but leads to performance overheads.
 
 Most other keywords have little to no importance, and their default values are fine.
 
@@ -352,10 +356,10 @@ input. The matrices are diagonalized, and their eigenvalues used as band energie
 [cp2k_bs2csv](https://github.com/cp2k/cp2k-output-tools) to transform the resulting CP2K output to a
 more workable CSV file.
 
-Note that in this input file, we select a value of $1.0\times 10^{-6}$ for `EPS_PGF_ORB`. This
-parameter controls the range of AOs, and threfore the extent of the local atom-specific RI basis
-sets. This value leads to particularly high accuracy. The default of $1.0\times 10^{-5}$ is
-typically enough.
+Note that in this input file, we select a value of $1.0\times 10^{-6}$ for
+[EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB). This parameter controls the range of
+AOs, and threfore the extent of the local atom-specific RI basis sets. This value leads to
+particularly high accuracy. The default of $1.0\times 10^{-5}$ is typically enough.
 
 The HFX potential was selected as the Truncated Coulomb operator with a cutoff radius of $R_C = 5.0$
 Angstroms. As for all periodic HFX calculations, a limited range potential is required. In case of
@@ -373,131 +377,135 @@ affect speed in RI-HFXk, while insuring best possible accuracy.
 As for most HFX calculations, the SCF convergence can be spedup by restarting from a converged PBE
 wavefunction. Note that in k-point restart files, the real-space density matrices are dumped.
 However, many more images are required for HFX calculation than for PBE, due to the non-locality of
-exact-exchange. Using a very tight value of `EPS_PGF_ORB` (e.g. $1.0\times 10^{-12}$) in the initial
-PBE calculation leads to a lot of images there as well. An example is provided in the example file
-[bundle](https://www.cp2k.org/_media/howto:ri_hfx_examples.zip). The example bellow takes about 5
-minutes to run on 32 CPUs if restarted from a PBE wavefunction, and 10 minutes otherwise.
+exact-exchange. Using a very tight value of
+[EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB) (e.g. $1.0\times 10^{-12}$) in the
+initial PBE calculation leads to a lot of images there as well. An example is provided in the
+example file [bundle](https://www.cp2k.org/_media/howto:ri_hfx_examples.zip). The example bellow
+takes about 5 minutes to run on 32 CPUs if restarted from a PBE wavefunction, and 10 minutes
+otherwise.
 
 ```none
-&GLOBAL  
-  PROJECT graphene_kp   
-  RUN_TYPE ENERGY  
+&GLOBAL
+  PROJECT graphene_kp
+  RUN_TYPE ENERGY
 &END GLOBAL
-&FORCE_EVAL   
-  &DFT  
-    BASIS_SET_FILE_NAME BASIS_pob  
-    POTENTIAL_FILE_NAME POTENTIAL  
-    SORT_BASIS EXP  
-    AUTO_BASIS RI_HFX MEDIUM  
-    !restarting from a converged PBE calculation lead to less SCF steps  
-    WFN_RESTART_FILE_NAME graphene_pbe-RESTART.kp  
-  
-    !Turning on the ADMM approximation  
-    &AUXILIARY_DENSITY_MATRIX_METHOD  
-      ADMM_TYPE ADMMS  
-    &END AUXILIARY_DENSITY_MATRIX_METHOD  
-  
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_pob
+    POTENTIAL_FILE_NAME POTENTIAL
+    SORT_BASIS EXP
+    AUTO_BASIS RI_HFX MEDIUM
+    !restarting from a converged PBE calculation lead to less SCF steps
+    WFN_RESTART_FILE_NAME graphene_pbe-RESTART.kp
+
+    !Turning on the ADMM approximation
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_TYPE ADMMS
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+
     &QS
       !sometimes necessary when running small systems with a lot of CPUs
-      PW_GRID_BLOCKED FALSE  
-      METHOD GAPW  
-      !needs to be the same value as that in RI%EPS_PGF_ORB  
-      EPS_PGF_ORB 1.0E-6  
+      PW_GRID_BLOCKED FALSE
+      METHOD GAPW
+      !needs to be the same value as that in RI%EPS_PGF_ORB
+      EPS_PGF_ORB 1.0E-6
     &END  QS
-  
-    &MGRID  
-      CUTOFF 600  
-      REL_CUTOFF 60  
-      NGRIDS 5  
-    &END MGRID  
-  
-    &SCF  
-      EPS_SCF 1.0E-06  
+
+    &MGRID
+      CUTOFF 600
+      REL_CUTOFF 60
+      NGRIDS 5
+    &END MGRID
+
+    &SCF
+      EPS_SCF 1.0E-06
       MAX_SCF 50
-      !typically need lower threshold to start DIIS with k-points  
-      EPS_DIIS 0.05  
-      SCF_GUESS RESTART  
-    &END SCF  
-  
-    &XC  
-      &XC_FUNCTIONAL  
-        &PBE  
-          SCALE_X 0.75  
-        &END  
-      &END XC_FUNCTIONAL  
-      &HF  
-        FRACTION 0.25  
-        &RI  
-          KP_NGROUPS 16  
-          !using a smaller than default EPS_PGF_ORB allows for a  
-          !more accurate calculation with a larger local RI basis  
-          EPS_PGF_ORB 1.0E-6  
-        &END RI  
-        &INTERACTION_POTENTIAL  
-          !Always use a limited ranged potential in PBCs  
-          POTENTIAL_TYPE TRUNCATED  
-          CUTOFF_RADIUS 5.0  
+      !typically need lower threshold to start DIIS with k-points
+      EPS_DIIS 0.05
+      SCF_GUESS RESTART
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          SCALE_X 0.75
+        &END
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 0.25
+        &RI
+          KP_NGROUPS 16
+          !using a smaller than default EPS_PGF_ORB allows for a
+          !more accurate calculation with a larger local RI basis
+          EPS_PGF_ORB 1.0E-6
+        &END RI
+        &INTERACTION_POTENTIAL
+          !Always use a limited ranged potential in PBCs
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 5.0
         &END INTERACTION_POTENTIAL
       &END HF
-    &END XC  
-    &KPOINTS  
-      SCHEME MONKHORST-PACK 19 19 1  
+    &END XC
+    &KPOINTS
+      SCHEME MONKHORST-PACK 19 19 1
     &END KPOINTS
-    &PRINT  
-      &BAND_STRUCTURE  
-        ADDED_MOS 5  
-        &KPOINT_SET  
-          NPOINTS 50  
-          SPECIAL_POINT GAMMA 0.0000000000 0.0000000000 0.0000000000  
-          SPECIAL_POINT M 0.5000000000 0.0000000000 0.0000000000  
-          SPECIAL_POINT K 0.3333333333 0.3333333333 0.0000000000  
-          SPECIAL_POINT GAMMA 0.0000000000 0.0000000000 0.0000000000  
+    &PRINT
+      &BAND_STRUCTURE
+        ADDED_MOS 5
+        &KPOINT_SET
+          NPOINTS 50
+          SPECIAL_POINT GAMMA 0.0000000000 0.0000000000 0.0000000000
+          SPECIAL_POINT M 0.5000000000 0.0000000000 0.0000000000
+          SPECIAL_POINT K 0.3333333333 0.3333333333 0.0000000000
+          SPECIAL_POINT GAMMA 0.0000000000 0.0000000000 0.0000000000
         &END  KPOINT_SET
-        FILE_NAME graphene_kp.bs  
-      &END BAND_STRUCTURE 
+        FILE_NAME graphene_kp.bs
+      &END BAND_STRUCTURE
     &END PRINT
-  &END DFT  
-  &SUBSYS  
-    &CELL  
-      !enough space between 2 sheets of graphene not to interact  
-      ABC 2.46 2.46 20.000  
-      ALPHA_BETA_GAMMA 90.0 90.0 120.0  
-    &END CELL    
-    &COORD  
-      SCALED  
-      C 0.3333333 0.6666667 0.000  
-      C 0.6666667 0.3333333 0.000  
-    &END COORD  
-    &KIND C  
-      BASIS_SET pob-TZVP-rev2  
-      BASIS_SET AUX_FIT pob-DZVP-rev2  
-      POTENTIAL ALL  
-    &END KIND  
-  &END SUBSYS  
-&END FORCE_EVAL  
+  &END DFT
+  &SUBSYS
+    &CELL
+      !enough space between 2 sheets of graphene not to interact
+      ABC 2.46 2.46 20.000
+      ALPHA_BETA_GAMMA 90.0 90.0 120.0
+    &END CELL
+    &COORD
+      SCALED
+      C 0.3333333 0.6666667 0.000
+      C 0.6666667 0.3333333 0.000
+    &END COORD
+    &KIND C
+      BASIS_SET pob-TZVP-rev2
+      BASIS_SET AUX_FIT pob-DZVP-rev2
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
 ```
 
 ### Important input parameters
 
 There are a few important input parameters for RI-HFXk calculations:
 
-- `EPS_FILTER`: the filtering threshold for sparse tensors. Works the same way as for $\Gamma$-point
-  calculations (see above).
-- `RI_METRIC`: using the default value for the RI metric, which correspond to the choice of HFX
-  potential, is the way to go. It insures best possible accuracy, while only marginally increasing
-  the costs.
-- `NGROUPS`: this is a performance keyword. During the calculation of the real-space exact-exchange
-  matrices, the work is split among MPI subcommunicators. Using more groups drastically speeds up
-  the calculation (efficienctly up to 16 groups, reasonably up to 32). This comes with a memory
-  overhead though, as some data must be replicated on each subgroup. The total number of MPI ranks
-  must be divisible by the number of groups.
-- `EPS_PGF_ORB`: generally determines the range of GTOs in the AO basis. As such, it also determines
-  the extent of the local atom-specific RI basis used for RI-HFXk. The default value of
-  $1.0\times 10^{-5}$ has proven to be accurate and fast.
-- `KP_USE_DELTA_P`: when set to .TRUE. (default value), the next SCF step is calculated using the
-  density matrix difference, rather than the full new density matrix. This helps with computational
-  efficiency by increasing sparsity. If your calculation struggles to converge, you can try to turn
-  this off.
+- [EPS_FILTER](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_FILTER): the filtering threshold for sparse
+  tensors. Works the same way as for $\Gamma$-point calculations (see above).
+- [RI_METRIC](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.RI_METRIC): using the default value for the RI
+  metric, which correspond to the choice of HFX potential, is the way to go. It insures best
+  possible accuracy, while only marginally increasing the costs.
+- [KP_NGROUPS](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.KP_NGROUPS): this is a performance keyword. During
+  the calculation of the real-space exact-exchange matrices, the work is split among MPI
+  subcommunicators. Using more groups drastically speeds up the calculation (efficienctly up to 16
+  groups, reasonably up to 32). This comes with a memory overhead though, as some data must be
+  replicated on each subgroup. The total number of MPI ranks must be divisible by the number of
+  groups.
+- [EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB): generally determines the range of
+  GTOs in the AO basis. As such, it also determines the extent of the local atom-specific RI basis
+  used for RI-HFXk. The default value of $1.0\times 10^{-5}$ has proven to be accurate and fast.
+- [KP_USE_DELTA_P](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.KP_USE_DELTA_P): when set to .TRUE. (default
+  value), the next SCF step is calculated using the density matrix difference, rather than the full
+  new density matrix. This helps with computational efficiency by increasing sparsity. If your
+  calculation struggles to converge, you can try to turn this off.
 
-The rest of the `&HF%RI` input parameters related to k-point sampling (all with a KP\_ prefix) have
-little to no impact, and their default values are good enough.
+The rest of the [HF/RI](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI) input parameters related to k-point
+sampling (all with a KP\_ prefix) have little to no impact, and their default values are good
+enough.
