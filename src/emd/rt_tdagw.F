@@ -57,6 +57,7 @@ MODULE rt_tdagw
                                               dbt_contract,&
                                               dbt_copy_matrix_to_tensor,&
                                               dbt_copy_tensor_to_matrix,&
+                                              dbt_copy,&
                                               dbt_destroy,&
                                               dbt_type,&
                                               dbt_pgrid_type,&
@@ -101,6 +102,9 @@ MODULE rt_tdagw
                                               section_vals_type
    USE input_constants,                 ONLY: rtp_tdagw_ham_ks,&
                                               rtp_tdagw_ham_g0w0
+   USE rt_tdagw_types,                  ONLY: tdagw_env_type,&
+                                              create_tdagw_env,&
+                                              release_tdagw_env
 
 #include "../base/base_uses.f90"
 
@@ -109,6 +113,8 @@ MODULE rt_tdagw
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "rt_tdagw"
+
+   #:include "tdagw_macros.fypp"
 
    PUBLIC :: run_propagation_gw
 
@@ -121,328 +127,291 @@ CONTAINS
    SUBROUTINE run_propagation_gw(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+      TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input, rtp_section
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type), POINTER                          :: S_inv
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
-      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE, TARGET:: moments_full,&
-                                                            ham_single_particle,&
-                                                            rho_full
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moments_full_p,&
-                                                            ham_single_particle_p,&
-                                                            rho_full_p
-      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: ham_effective,&
-                                                            ham_exp,&
-                                                            rho_work
       ! TODO : Maybe complex?
-      TYPE(cp_fm_type), TARGET                           :: sigma_COH,&
-                                                            sigma_SEX,&
-                                                            S_inv_fm,&
-                                                            hartree_fm,&
-                                                            hartree_fm_orig
-      TYPE(cp_fm_type), POINTER                          :: sigma_p,&
-                                                            greens_fm_p,&
-                                                            hartree_fm_p
-      TYPE(dbt_type), TARGET, ALLOCATABLE                :: hartree_dbt
-      TYPE(dbt_type), POINTER                            :: hartree_dbt_p
-      REAL(kind=dp)                                      :: field(3)
-      INTEGER                                            :: i,j,k,nspin,re,im
-      INTEGER                                            :: rho_unit
+      INTEGER                                            :: i,j,re,im
 
-      ! TODO : Ask Jan whether there is already an identifier present in some of the environments
-      CALL get_qs_env(qs_env, mos=start_mos, bs_env=bs_env)
-      nspin = SIZE(start_mos)
+      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! ********************** ALLOCATIONS **********************
+      CALL create_tdagw_env(tdagw_env, qs_env)
 
-      ! Allocate the single particle Hamiltonian - can be either KS or G0W0 Hamiltonian
-      ! Marek TODO : Always uses bs_env - truly only for debug or redo with possibility to refer to qs_env?
-      ALLOCATE(ham_single_particle(nspin))
-      DO i=1,nspin
-         CALL cp_fm_create(ham_single_particle(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      END DO
-      ham_single_particle_p => ham_single_particle
-
-      ! Allocate the moments matrices
-      ALLOCATE(moments_full(3))
-      ! Now, for each index, create the matrix
-      DO i=1,3
-         ! Use cp_fm_struct from Kohn-Sham matrix TODO : Differentiate by spin/kp? - not necessary for moments 
-         CALL cp_fm_create(moments_full(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
-      END DO
-      moments_full_p => moments_full
-
-      ! Allocate the storage for effective Hamiltonian, density and propagator matrix - Hamiltonian exponential
-      ALLOCATE(ham_effective(2*nspin))
-      ALLOCATE(rho_full(2*nspin))
-      ALLOCATE(ham_exp(2*nspin))
-      DO i=1,2*nspin
-         CALL cp_fm_create(ham_effective(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(rho_full(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(ham_exp(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      END DO
-      rho_full_p => rho_full
-
-      ! Allocate and initialise workspace for density propagation
-      ALLOCATE(rho_work(3))
-      DO i=1,3
-         CALL cp_fm_create(rho_work(i), bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_set_all(rho_work(i), 0.0_dp)
-      END DO
-
-      ! Allocate sigma matrices
-      ! TODO : Spin dependence
-      CALL cp_fm_create(sigma_COH, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_create(sigma_SEX, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(sigma_COH, 0.0_dp)
-      CALL cp_fm_set_all(sigma_SEX, 0.0_dp)
-
-      ! Allocate inverse full matrix
-      CALL cp_fm_create(S_inv_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(S_inv_fm, 0.0_dp)
-
-      ! Allocate structures for the Hartree term
-      CALL cp_fm_create(hartree_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(hartree_fm, 0.0_dp)
-      CALL cp_fm_create(hartree_fm_orig, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(hartree_fm_orig, 0.0_dp)
-      ALLOCATE(hartree_dbt)
-      hartree_dbt_p => hartree_dbt
-      CALL init_hartree(qs_env, hartree_dbt_p)
+      ! Calculate Coulomb RI elements, necessary for Hartree calculation
+      CALL init_hartree(qs_env, tdagw_env%hartree_dbt)
       PRINT *, "Hartree initialised"
       ! ********************** EXTRACT PREVIOUS DATA **********************
-      ! Prepare the relevant matrices
-      CALL tdagw_prepare(qs_env, ham_single_particle_p, moments_full_p, rho_full_p)
 
-      ! Get data from QS and RTP
-      CALL get_qs_env(qs_env,&
-                      rtp=rtp,&
-                      bs_env=bs_env,&
-                      dft_control=dft_control,&
-                      input=input)
-      CALL get_rtp(rtp, S_inv=S_inv)
-
-      ! TODO : Determine the Coulomb-Hole part of the self-energy - remains constant throughout the time propagation
-      ! TODO : Maybe time has come to create a structure that initializes the necessary storage?
-      CALL copy_dbcsr_to_fm(S_inv, S_inv_fm)
-      ! Point to correct structures
-      sigma_p => sigma_COH
-      greens_fm_p => S_inv_fm
-      CALL get_sigma(qs_env, greens_fm_p, sigma_p, -0.5_dp)
-      ! TODO : Maybe enable printing under debug option?
-      ! PRINT *, "== Sigma COH =="
-      ! CALL cp_fm_write_formatted(sigma_COH, 6)
 
       ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
-      ! TODO : Spin dependence in sigma_COH
-      CALL cp_fm_scale_and_add(1.0_dp, sigma_COH, -1.0_dp, bs_env%fm_V_xc_Gamma(1))
+      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         ! TODO : Determine the Coulomb-Hole part of the self-energy - remains constant throughout the time propagation
+         ! TODO : Maybe time has come to create a structure that initializes the necessary storage?
+         ! Point to correct structures
+         CALL get_sigma(qs_env, tdagw_env%sigma_COH(im), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
+         ! TODO : Maybe enable printing underneath debug option?
+         ! PRINT *, "== Sigma COH =="
+         ! CALL cp_fm_write_formatted(sigma_COH, 6)
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, bs_env%fm_V_xc_Gamma(j))
+      END DO
 
       ! Calculate the initial Hartree interaction matrix
       ! TODO : k-points and the possible divergence
-      hartree_fm_p => hartree_fm_orig
-      ! TODO : Spin dependence
-      CALL get_hartree(qs_env, hartree_dbt, rho_full(1), hartree_fm_p)
+      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+      END DO
       PRINT *, "Hartree retrieved"
-      ! From now on, hartree_fm_p will point to current hartree potential
-      hartree_fm_p => hartree_fm
 
       ! Setup the files
-      logger => cp_get_default_logger()
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
-      rho_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=".dat")
       ! ********************** Start the time loop **********************
-      DO i = rtp%i_start, rtp%nsteps
+      DO i = tdagw_env%sim_start, tdagw_env%sim_nsteps
 
-         ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0
-         DO j=1,nspin
-            re = 2*j - 1
-            im = 2*j
-            CALL cp_fm_to_fm(ham_single_particle(j), ham_effective(re))
-            ! Imaginary part of KS + G0W0 is zero
-            CALL cp_fm_set_all(ham_effective(im), 0.0_dp)
-         END DO
-
-         ! Update the field
-         qs_env%sim_time = REAL(i, dp)*rtp%dt
-         ! TODO : Understand and implement rtp%istep - that should mainly be used for restart calculations?
-         qs_env%sim_step = i
-         CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-         PRINT *, "Field : ", field(1), field(2), field(3)
-
-         ! TODO : Create the screened-exchange part of COHSEX - updated every loop
-         !        Some W * G multiplication, through the auxiliary basis
-         ! TODO : Preprocessor macro that sets up the spin loop
-         DO j=1,nspin
-            re = 2*j - 1
-            im = 2*j
-            ! Add electric field
-            ! The field is added to the real part of both spins
-            DO k=1,3
-               CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), field(k), moments_full(k))
-            END DO
-
-            ! TODO : Add the Hartree term difference to the Hamiltonian - discuss with Jan
-            ! TODO : Add the COHSEX self-energy to the Hamiltonian
-            sigma_p => sigma_SEX
-            ! Add the COH part
-            ! TODO : COH spin dependence
-            ! TODO : Proper inverse matric tensor multiplication
-            ! TODO : Check the signs with respect to G -> rho transformation
-            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), 1.0_dp, sigma_COH)
-            ! Calculate the SEX part
-            ! TODO : SEX spin dependence
-            ! Real part of iGW is product of Im G, and G = i rho, so Im G = Re rho, all multiplied by i^2 = -1
-            greens_fm_p => rho_full(re)
-            CALL get_sigma(qs_env, greens_fm_p, sigma_p, 1.0_dp)
-            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), -1.0_dp, sigma_SEX)
-            ! Imaginary part of iGW is product of Re G = - Im rho
-            greens_fm_p => rho_full(im)
-            CALL get_sigma(qs_env, greens_fm_p, sigma_p, 1.0_dp)
-            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(im), -1.0_dp, sigma_SEX)
-            ! Calculate update Hartree potential
-            ! TODO : Spin (in)dependence check
-            CALL get_hartree(qs_env, hartree_dbt, rho_full(re), hartree_fm_p)
-            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), 1.0_dp, hartree_fm)
-            CALL get_hartree(qs_env, hartree_dbt, rho_full(im), hartree_fm_p)
-            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(im), 1.0_dp, hartree_fm)
-            ! Subtract original Hartree, which is purely real
-            CALL cp_fm_scale_and_add(1.0_dp, ham_effective(re), -1.0_dp, hartree_fm_orig)
+         ! Update the simulation time
+         tdagw_env%sim_time = REAL(i, dp)*rtp%dt
+         tdagw_env%sim_step = i
+         ! Update the effective Hamiltonian
+         ! TODO : So far no ETRS
+         CALL update_effective_ham(tdagw_env, qs_env, tdagw_env%rho)
+         ! Print the updated field TODO : Use printing function that is MPI rank sensitive
+         PRINT *, "Field : ", tdagw_env%field(1), tdagw_env%field(2), tdagw_env%field(3)
+         ! Start the implicit exponential midpoint method
+         ! This method determines the density matrix at time (t+dt) by guessing the density matrix at time (t + dt/2)
+         ! and using this density to propagate the density from time (t). Self-consistent refinement
+         ! cycle of the midpoint guess then leads to more refined value of propagated density
+         ! Pseudocode of the algorithm
+         !      rho(t + dt/2, 0) = rho(t)
+         !      for j in 0,max_self_iter
+         !              rho(t+dt,i) = exp(-iH[rho(t+dt/2, j) dt] rho(t) exp(i H [rho(t+dt/2,j)] dt)
+         !              rho(t+dt/2,i+1) = 1/2 * (rho(t) + rho(t+dt, i))
+         !              if ||rho(t+dt/2,i+1) - rho(t+dt/2,j)|| < epsilon
+         !                      break
+         ! TODO : In future, think about enforced time-reversal symmetry approach, which does not need the arbitrary interpolation
+         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
 
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
-            ! TODO : Using rho_work(1) - maybe rename?
-            CALL cp_dbcsr_sm_fm_multiply(S_inv, ham_effective(re), rho_work(1), bs_env%n_ao)
-            CALL cp_dbcsr_sm_fm_multiply(S_inv, ham_effective(im), rho_work(2), bs_env%n_ao)
-            CALL cp_fm_to_fm(rho_work(1),ham_effective(re))
-            CALL cp_fm_to_fm(rho_work(2),ham_effective(im))
-         END DO
+            CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(re)%matrix,&
+                                         tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
+            CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(im)%matrix,&
+                                         tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
+            CALL cp_fm_to_fm(tdagw_env%rho_workspace(1)%matrix,tdagw_env%ham_effective(re)%matrix)
+            CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix,tdagw_env%ham_effective(im)%matrix)
 
-         ! TODO : Create the matrix exponential (matrix_exponential.F:taylor_only_imaginary, but might need complex because of
-         ! complex W and hence complex self-energy? Furthermore, is the self-energy in COHSEX Hermitian or not?)
-         ! TODO : Understand which input options set the orders
-         DO j=1,nspin
-            re = 2*j - 1
-            im = 2*j
             ! The evolution of density matrix is in the opposite way to the evolution of operators, i.e. multiply by -dt
             ! TODO : Maybe better to do opposite exponentiation
-            CALL cp_fm_scale(-rtp%dt, ham_effective(re))
+            CALL cp_fm_scale(-rtp%dt, tdagw_env%ham_effective(re)%matrix)
             ! Also scale by -1 as we are also multiplying by imaginary unit - this is convention used by exponential routines
-            ! TODO : Note that so far, this is only multiplying a zero matrix
-            CALL cp_fm_scale(rtp%dt, ham_effective(im))
+            CALL cp_fm_scale(rtp%dt, tdagw_env%ham_effective(im)%matrix)
+            ! TODO : Understand which input options set the orders
+            CALL taylor_full_complex([tdagw_env%ham_workspace(re)%matrix, tdagw_env%ham_workspace(im)%matrix],&
+                                     tdagw_env%ham_effective(im)%matrix, tdagw_env%ham_effective(re)%matrix,&
+                                     rtp%orders(1,j), rtp%orders(2,j))
          END DO
-         DO j=1,nspin
-            re = 2*j - 1
-            im = 2*j
-            ! CALL taylor_only_imaginary(ham_exp(re:im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
-            CALL taylor_full_complex(ham_exp(re:im), ham_effective(im), ham_effective(re), rtp%orders(1,j), rtp%orders(2,j))
-         END DO
-
-         ! TODO : Consult/think about using complex routines and types
-         ! (ham_exp(re) + i * ham_exp(im)) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re)^T - i * ham_exp(im)^T) = 
-         ! + ham_exp(re) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
-         ! + ham_exp(im) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
-         ! + i * ham_exp(im) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
-         ! - i * ham_exp(re) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
-         DO j=1,nspin
-            re = 2*j - 1
-            im = 2*j
-            ! Real part
-            ! Term 1 - right multiplication first
-            CALL parallel_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               1.0_dp, rho_full(re), ham_exp(re), 0.0_dp, rho_work(1))
-            CALL parallel_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               1.0_dp, rho_full(im), ham_exp(im), 1.0_dp, rho_work(1))
-            ! Now term 1 left multiplication real part
-            CALL parallel_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               1.0_dp, ham_exp(re), rho_work(1), 0.0_dp, rho_work(2))
-            ! Now term 1 left multiplication imag part
-            CALL parallel_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               1.0_dp, ham_exp(im), rho_work(1), 0.0_dp, rho_work(3))
-            ! Repeat the same procedure for the second term
-            ! Term 2 - right multiplication first
-            CALL parallel_gemm("N","T", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               1.0_dp, rho_full(re), ham_exp(im), 0.0_dp, rho_work(1))
-            CALL parallel_gemm("N","T",bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               -1.0_dp, rho_full(im), ham_exp(re), 1.0_dp, rho_work(1))
-            ! Now term 2 left multiplication real part
-            CALL parallel_gemm("N", "N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               1.0_dp, ham_exp(im), rho_work(1), 1.0_dp, rho_work(2))
-            ! Now term 2 left multiplication imag part
-            CALL parallel_gemm("N","N", bs_env%n_ao, bs_env%n_ao, bs_env%n_ao,&
-                               -1.0_dp, ham_exp(re), rho_work(1), 1.0_dp, rho_work(3))
-            ! Finally, copy the results to rho_full - not used anymore TODO : Unless there is spin coupling
-            CALL cp_fm_to_fm(rho_work(2), rho_full(re))
-            CALL cp_fm_to_fm(rho_work(3), rho_full(im))
-            ! Transform the density matrix into molecular orbitals basis and print it out
-            ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
-            !  - Store results in rho_work for now, maybe MO x MO matrix for results is not too expensive?
-            ! S * rho
-            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp, bs_env%fm_s_Gamma, rho_full(re), 0.0_dp, rho_work(1))
-            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp, bs_env%fm_s_Gamma, rho_full(im), 0.0_dp, rho_work(2))
-            ! C^T * S * rho
-            CALL parallel_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp,bs_env%fm_mo_coeff_Gamma(j),rho_work(1),0.0_dp,rho_work(3))
-            CALL parallel_gemm("T","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp,bs_env%fm_mo_coeff_Gamma(j),rho_work(2),0.0_dp,rho_work(1))
-            ! C^T * S * rho * S
-            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp, rho_work(3),bs_env%fm_s_Gamma, 0.0_dp, rho_work(2))
-            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp, rho_work(1),bs_env%fm_s_Gamma, 0.0_dp, rho_work(3))
-            ! C^T * S * rho * S * C
-            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp,rho_work(2),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(1))
-            CALL parallel_gemm("N","N",bs_env%n_ao,bs_env%n_ao,bs_env%n_ao,&
-                            1.0_dp,rho_work(3),bs_env%fm_mo_coeff_Gamma(j),0.0_dp,rho_work(2))
-            ! TODO : Save these as separate files
-            WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Real"
-            CALL cp_fm_write_formatted(rho_work(1), rho_unit)
-            WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Imag"
-            CALL cp_fm_write_formatted(rho_work(2), rho_unit)
-         END DO
+         ! Propagate the density - TODO : So far, only one step - immediately overwrite previous cycle density
+         CALL propagate_density(tdagw_env, tdagw_env%ham_workspace, tdagw_env%rho)
+         
+         ! TODO : Implement more relevant outputs
+         ! TODO : k-points
+         CALL output_mos_rho(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, bs_env%fm_s_Gamma, rtp_section)
       END DO
       ! ********************** End the time loop **********************
 
       ! ********************** DEALLOCATIONS **********************
-      DO i=1,3
-         CALL cp_fm_release(moments_full(i))
-      END DO
-      DEALLOCATE(moments_full)
-      DO i=1,2*nspin
-         ! Deallocate matrix used to store the propagator
-         CALL cp_fm_release(ham_exp(i))
-         ! Deallocate matrix used to store the effective Hamiltonian
-         CALL cp_fm_release(ham_effective(i))
-         ! Deallocate the propagated density matrix
-         CALL cp_fm_release(rho_full(i))
-      END DO
-      DO i=1,nspin
-         CALL cp_fm_release(ham_single_particle(i))
-      END DO
-      ! Deallocate the workspace density matrix
-      CALL cp_fm_release(rho_work(1))
-      CALL cp_fm_release(rho_work(2))
-      CALL cp_fm_release(rho_work(3))
-      DEALLOCATE(ham_exp)
-      DEALLOCATE(ham_effective)
-      DEALLOCATE(ham_single_particle)
-      DEALLOCATE(rho_full)
-      DEALLOCATE(rho_work)
-      ! Deallocate sigma matrices
-      CALL cp_fm_release(sigma_COH)
-      CALL cp_fm_release(sigma_SEX)
-      ! Deallocate full overlap matrix
-      CALL cp_fm_release(S_inv_fm)
-      ! Deallocate bare Hartree matrix and tensor
-      CALL cp_fm_release(hartree_fm)
-      CALL dbt_destroy(hartree_dbt)
-      DEALLOCATE(hartree_dbt)
+      CALL release_tdagw_env(tdagw_env)
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
    END SUBROUTINE run_propagation_gw
+
+! **************************************************************************************************
+!> \brief Updates the effective Hamiltonian, given a density matrix rho
+!> \param tdaggw_env Entry point of the calculation - contains current state of variables
+!> \param rho Real and imaginary parts ( + spin) of the density at current time 
+! **************************************************************************************************
+   SUBROUTINE update_effective_ham(tdagw_env, qs_env, rho)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      INTEGER                                            :: k, j, re, im, nspin
+      ! Shorthand
+      nspin = tdagw_env%n_spin
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+      ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0
+      @:SPIN_DO(j,re,im,nspin)
+         CALL cp_fm_to_fm(tdagw_env%ham_single_particle(j)%matrix, tdagw_env%ham_effective(re)%matrix)
+         ! Imaginary part of KS + G0W0 is zero
+         CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
+      END DO
+      ! Determine the field at current time
+      ! TODO : Understand and implement rtp%istep - that should mainly be used for restart calculations?
+      CALL make_field(tdagw_env%dft_control, tdagw_env%field, tdagw_env%sim_step, tdagw_env%sim_time)
+      ! TODO : Get field at next step to determine interpolated field at half step
+      ! sim_next_time = REAL(i+1, dp) * rtp%dt
+      ! CALL make_field(dft_control, next_field, qs_env%sim_step+1, sim_next_time)
+      ! half_field(:) = 0.5 * (field(:) + next_field(:))
+      @:SPIN_DO(j, re, im, nspin)
+         DO k=1,3
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                     tdagw_env%field(k), tdagw_env%moments(k)%matrix)
+         END DO
+         ! Add the COH part
+         ! TODO : Check the signs with respect to G -> rho transformation
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                  1.0_dp, tdagw_env%sigma_COH(re)%matrix)
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                  1.0_dp, tdagw_env%sigma_COH(im)%matrix)
+         ! Calculate the SEX part - based on provided rho, not on the 
+         ! TODO : Can get away with smaller number of matrices? - depends on memory consumption
+         ! Real part of iGW is product of Im G, and G = i rho, so Im G = Re rho, all multiplied by i^2 = -1
+         CALL get_sigma(qs_env, tdagw_env%sigma_SEX(re),&
+                        1.0_dp, greens_fm_opt=rho(re))
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                 -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
+         ! Imaginary part of iGW is product of Re G = - Im rho
+         CALL get_sigma(qs_env, tdagw_env%sigma_SEX(im), 1.0_dp,&
+                        greens_fm_opt=rho(im))
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                 -1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
+         ! Calculate update Hartree potential
+         ! TODO : Spin (in)dependence check
+         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, rho(re)%matrix, tdagw_env%hartree_curr(re)%matrix)
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                  1.0_dp, tdagw_env%hartree_curr(re)%matrix)
+         ! TODO : Check signs
+         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, rho(im)%matrix, tdagw_env%hartree_curr(im)%matrix)
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                  1.0_dp, tdagw_env%hartree_curr(im)%matrix)
+         ! Subtract original Hartree, which is purely real
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                 -1.0_dp, tdagw_env%hartree_orig(re)%matrix)
+         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                 -1.0_dp, tdagw_env%hartree_orig(im)%matrix)
+      END DO
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Updates the density in tdagw_env, using the provided exponential
+!>        The new density is saved to a different matrix, which enables for comparison of matrices
+!> \param tdaggw_env Entry point of the calculation - contains current state of variables
+!> \param exponential Real and imaginary parts ( + spin) of the exponential propagator 
+! **************************************************************************************************
+   SUBROUTINE propagate_density(tdagw_env, exponential, rho_new)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: exponential,&
+                                                            rho_new
+      INTEGER                                            :: j, re, im
+      ! TODO : Consult/think about using complex routines and types
+      ! (ham_exp(re) + i * ham_exp(im)) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re)^T - i * ham_exp(im)^T) = 
+      ! + ham_exp(re) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
+      ! + ham_exp(im) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
+      ! + i * ham_exp(im) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
+      ! - i * ham_exp(re) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
+      ! workspace 2 - real part, workspace 3 - imag part
+      ! Real part
+      ! TODO : Basis dimensions to tdagw_env
+      ! Term 1 - right multiplication first
+      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         CALL parallel_gemm("N","T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho(re)%matrix, exponential(re)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N","T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho(im)%matrix, exponential(im)%matrix,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! Now term 1 left multiplication real part
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! Now term 1 left multiplication imag part
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(3)%matrix)
+         ! Repeat the same procedure for the second term
+         ! Term 2 - right multiplication first
+         CALL parallel_gemm("N","T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho(re)%matrix, exponential(im)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N","T",tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                           -1.0_dp, tdagw_env%rho(im)%matrix, exponential(re)%matrix,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! Now term 2 left multiplication real part
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                            1.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! Now term 2 left multiplication imag part
+         CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                           -1.0_dp, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                            1.0_dp, tdagw_env%rho_workspace(3)%matrix)
+         ! Finally, copy the results to rho - not used anymore TODO : Unless there is spin coupling
+         CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix, rho_new(re)%matrix)
+         CALL cp_fm_to_fm(tdagw_env%rho_workspace(3)%matrix, rho_new(im)%matrix)
+      END DO
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Extracts the relevant information from previous run
+!> \param tdagw_env Entry point - tdagw environment
+!> \param rho Density matrix in AO basis
+!> \param mos Spin dependent molecular orbitals
+! **************************************************************************************************
+   SUBROUTINE output_mos_rho(tdagw_env, rho, mos, overlap, rtp_section)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      TYPE(cp_fm_type), DIMENSION(2)                     :: mos
+      TYPE(cp_fm_type)                                   :: overlap
+      TYPE(section_vals_type), POINTER                   :: rtp_section
+      CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_rho"
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: j, re, im,&
+                                                            rho_unit_re, rho_unit_im
+      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
+      
+      file_labels(1) = "_SPIN_A_RE.dat"
+      file_labels(2) = "_SPIN_A_IM.dat"
+      file_labels(3) = "_SPIN_B_RE.dat"
+      file_labels(4) = "_SPIN_B_IM.dat"
+      logger => cp_get_default_logger()
+      ! Start by multiplying the current density by MOS
+      @:SPIN_DO(j,re, im, tdagw_env%n_spin)
+         rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(re))
+         rho_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(im))
+         ! Transform the density matrix into molecular orbitals basis and print it out
+         ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
+         !  - Store results in rho_work for now, maybe MO x MO matrix for results is not too expensive?
+         ! S * rho
+         CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp, overlap, rho(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp, overlap, rho(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! C^T * S * rho
+         CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
+                         tdagw_env%rho_workspace(3)%matrix)
+         CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
+                         tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * S * rho * S
+         CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp, tdagw_env%rho_workspace(3)%matrix,overlap, 0.0_dp,&
+                         tdagw_env%rho_workspace(2)%matrix)
+         CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp, tdagw_env%rho_workspace(1)%matrix,overlap, 0.0_dp,&
+                         tdagw_env%rho_workspace(3)%matrix)
+         ! C^T * S * rho * S * C
+         CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp,tdagw_env%rho_workspace(2)%matrix,mos(j),0.0_dp,&
+                         tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+                         1.0_dp,tdagw_env%rho_workspace(3)%matrix,mos(j),0.0_dp,&
+                         tdagw_env%rho_workspace(2)%matrix)
+         ! TODO : Save these as separate files
+         ! WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Real"
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(1)%matrix, rho_unit_re)
+         ! WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Imag"
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
+      END DO
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Extracts the relevant information from previous run
@@ -454,90 +423,90 @@ CONTAINS
 !> \param ham_single_particle Pointer to array of cp_fm_type, where the single particle H will be
 !> \param moments Pointer to array of dbcsr_type, where the moments are stored
 ! **************************************************************************************************
-   SUBROUTINE tdagw_prepare(qs_env, ham_single_particle, moments_full, rho_full)
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'tdagw_prepare'
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
-                                                            matrix_s,&
-                                                            matrix_ks,&
-                                                            moments
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ham_single_particle,&
-                                                            moments_full,&
-                                                            rho_full
-      INTEGER                                            :: nspin,i,re,im
-
-      ! Get values from QS environment
-      CALL get_qs_env(qs_env,&
-                 bs_env=bs_env,&
-                 rtp=rtp,&
-                 dft_control=dft_control,&
-                 mos=start_mos,&
-                 matrix_s=matrix_s,&
-                 matrix_ks=matrix_ks)
-      ! Get the number of spins
-      nspin = SIZE(start_mos)
-
-      ! Initialize single particle Hamiltonian
-      DO i=1,nspin
-         IF (dft_control%rtp_control%tdagw_ham == rtp_tdagw_ham_ks) THEN
-            ! Setup the KS Hamiltonian in MO basis
-            CALL copy_dbcsr_to_fm(matrix_ks(i)%matrix, ham_single_particle(i))
-         ELSE
-            ! Setup the G0W0 Hamiltonian in MO basis
-            ! TODO : Spins ...
-            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_single_particle(i))
-            ! TODO : Redo via pointers? But fm in KS does not exist ...
-            ! ham_single_particle(i)%matrix => bs_env%fm_h_G0W0_Gamma
-         END IF
-      END DO
-
-      ! Initialise the moments matrix
-      ! TODO : Set the moments matrix in the create_and_init_bs_env (post_scf_bandstructure_utils.F) 
-      NULLIFY(moments)
-      CALL dbcsr_allocate_matrix_set(moments, 3)
-      ! Initialize individual matrices
-      DO i=1,3
-         ! Allocate the memory for the moments matrix
-         ALLOCATE(moments(i)%matrix)
-      END DO
-      ! Initialize moments
-      DO i=1,3
-         ! TODO : Ideally should create by dbcsr_create, but some properties are not copied - but likely this will not be
-         ! a performance bottleneck
-         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments matrix")
-      END DO
-      ! Create the actual moments
-      CALL build_local_moment_matrix(qs_env, moments, 1)
-      DO i=1,3
-         CALL copy_dbcsr_to_fm(moments(i)%matrix, moments_full(i))
-      END DO
-      ! Once this is done, sparse moment matrices are no longer required
-      ! Deallocate dbcsr moments
-      CALL dbcsr_deallocate_matrix_set(moments)
-
-      ! Initialize density matrix from mos
-      CALL rt_initialize_rho_from_mos(rtp, start_mos)
-      ! Create the inverse overlap matrix
-      CALL s_matrices_create(matrix_s, rtp)
-
-      ! Get the density matrix created from DFT mos
-      ! Rho matrix from rtp has 2*nspin dimensions in the following order
-      !  - real of spin1, imag of spin1(, real of spin2, imag of spin2)
-      !  - for restricted calculation, second spins are not present
-      CALL get_rtp(rtp, rho_new=rho_dft)
-      ! Initialise the density matrix
-      DO i=1,nspin
-         re = 2*i - 1
-         im = 2*i
-         CALL copy_dbcsr_to_fm(rho_dft(re)%matrix, rho_full(re))
-         CALL cp_fm_set_all(rho_full(im), 0.0_dp)
-      END DO
-
-   END SUBROUTINE tdagw_prepare
+!   SUBROUTINE tdagw_prepare(qs_env, ham_single_particle, moments_full, rho_full)
+!      CHARACTER(len=*), PARAMETER                        :: routineN = 'tdagw_prepare'
+!      TYPE(qs_environment_type), POINTER                 :: qs_env
+!      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+!      TYPE(rt_prop_type), POINTER                        :: rtp
+!      TYPE(dft_control_type), POINTER                    :: dft_control
+!      TYPE(mo_set_type), DIMENSION(:), POINTER           :: start_mos
+!      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dft,&
+!                                                            matrix_s,&
+!                                                            matrix_ks,&
+!                                                            moments
+!      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ham_single_particle,&
+!                                                            moments_full,&
+!                                                            rho_full
+!      INTEGER                                            :: nspin,i,re,im
+!
+!      ! Get values from QS environment
+!      CALL get_qs_env(qs_env,&
+!                 bs_env=bs_env,&
+!                 rtp=rtp,&
+!                 dft_control=dft_control,&
+!                 mos=start_mos,&
+!                 matrix_s=matrix_s,&
+!                 matrix_ks=matrix_ks)
+!      ! Get the number of spins
+!      nspin = SIZE(start_mos)
+!
+!      ! Initialize single particle Hamiltonian
+!      DO i=1,nspin
+!         IF (dft_control%rtp_control%tdagw_ham == rtp_tdagw_ham_ks) THEN
+!            ! Setup the KS Hamiltonian in MO basis
+!            CALL copy_dbcsr_to_fm(matrix_ks(i)%matrix, ham_single_particle(i))
+!         ELSE
+!            ! Setup the G0W0 Hamiltonian in MO basis
+!            ! TODO : Spins ...
+!            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, ham_single_particle(i))
+!            ! TODO : Redo via pointers? But fm in KS does not exist ...
+!            ! ham_single_particle(i)%matrix => bs_env%fm_h_G0W0_Gamma
+!         END IF
+!      END DO
+!
+!      ! Initialise the moments matrix
+!      ! TODO : Set the moments matrix in the create_and_init_bs_env (post_scf_bandstructure_utils.F) 
+!      NULLIFY(moments)
+!      CALL dbcsr_allocate_matrix_set(moments, 3)
+!      ! Initialize individual matrices
+!      DO i=1,3
+!         ! Allocate the memory for the moments matrix
+!         ALLOCATE(moments(i)%matrix)
+!      END DO
+!      ! Initialize moments
+!      DO i=1,3
+!         ! TODO : Ideally should create by dbcsr_create, but some properties are not copied - but likely this will not be
+!         ! a performance bottleneck
+!         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments matrix")
+!      END DO
+!      ! Create the actual moments
+!      CALL build_local_moment_matrix(qs_env, moments, 1)
+!      DO i=1,3
+!         CALL copy_dbcsr_to_fm(moments(i)%matrix, moments_full(i))
+!      END DO
+!      ! Once this is done, sparse moment matrices are no longer required
+!      ! Deallocate dbcsr moments
+!      CALL dbcsr_deallocate_matrix_set(moments)
+!
+!      ! Initialize density matrix from mos
+!      CALL rt_initialize_rho_from_mos(rtp, start_mos)
+!      ! Create the inverse overlap matrix
+!      CALL s_matrices_create(matrix_s, rtp)
+!
+!      ! Get the density matrix created from DFT mos
+!      ! Rho matrix from rtp has 2*nspin dimensions in the following order
+!      !  - real of spin1, imag of spin1(, real of spin2, imag of spin2)
+!      !  - for restricted calculation, second spins are not present
+!      CALL get_rtp(rtp, rho_new=rho_dft)
+!      ! Initialise the density matrix
+!      DO i=1,nspin
+!         re = 2*i - 1
+!         im = 2*i
+!         CALL copy_dbcsr_to_fm(rho_dft(re)%matrix, rho_full(re))
+!         CALL cp_fm_set_all(rho_full(im), 0.0_dp)
+!      END DO
+!
+!   END SUBROUTINE tdagw_prepare
 
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
@@ -548,17 +517,22 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
-   SUBROUTINE get_sigma(qs_env, greens_fm, sigma_fm, prefactor_opt)
+   SUBROUTINE get_sigma(qs_env, sigma_fm, prefactor_opt, greens_dbcsr_opt, greens_fm_opt)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: greens_fm ! matrix to contract with RI_W
-      TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: sigma_fm ! resulting self energy
+      TYPE(cp_fm_p_type)                                 :: sigma_fm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
+      TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL           :: greens_fm_opt ! matrix to contract with RI_W
+      TYPE(dbcsr_type), POINTER, INTENT(IN), OPTIONAL    :: greens_dbcsr_opt ! matrix, but already in dbcsr form
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma'
       REAL(kind=dp)                                      :: prefactor
       TYPE(dbt_type)                                     :: t_3c_w, t_3c_g, t_work1, t_work2,&
                                                             w_dbt, greens_dbt, sigma_dbt
-      TYPE(dbcsr_type)                                   :: w_dbcsr_mat, greens_dbcsr_mat, sigma_dbcsr
+      TYPE(dbcsr_type)                                   :: w_dbcsr_mat, sigma_dbcsr
+      TYPE(dbcsr_type), POINTER                          :: greens_dbcsr
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CALL get_qs_env(qs_env,&
+                      bs_env=bs_env)
 
       IF(PRESENT(prefactor_opt)) THEN
          prefactor = prefactor_opt
@@ -566,8 +540,17 @@ CONTAINS
          prefactor = 1.0_dp
       END IF
 
-      CALL get_qs_env(qs_env,&
-                      bs_env=bs_env)
+      IF (PRESENT(greens_dbcsr_opt)) THEN
+         greens_dbcsr => greens_dbcsr_opt
+      ELSE IF (PRESENT(greens_fm_opt)) THEN
+         ALLOCATE(greens_dbcsr)
+         CALL dbcsr_create(greens_dbcsr, name="greens", template=bs_env%mat_ao_ao%matrix)
+         CALL copy_fm_to_dbcsr(greens_fm_opt%matrix, greens_dbcsr)
+      ELSE
+         ! TODO : Warn and exit
+         PRINT *, "Either dbcsr or fm greens function has to be provided"
+         CPASSERT(.FALSE.)
+      END IF
 
       ! Three-centre integrals are obtained from build_3c_integrals, from qs_tensors
       ! These should use sparcity, while W and Sigma can be full matrices
@@ -597,10 +580,8 @@ CONTAINS
                    filter_eps=bs_env%eps_filter)
       ! t_work1 now contains sum _ P (alpha beta | P) W _ (PQ) (iomega = 0)
       ! Next step is to convert the greens full matrix to dbcsr matrix 
-      CALL dbcsr_create(greens_dbcsr_mat, name="greens", template=bs_env%mat_ao_ao%matrix)
-      CALL copy_fm_to_dbcsr(greens_fm, greens_dbcsr_mat)
       CALL dbt_create(bs_env%t_G, greens_dbt)
-      CALL dbt_copy_matrix_to_tensor(greens_dbcsr_mat, greens_dbt) 
+      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, greens_dbt) 
       ! TODO : Is this the correct way to compute different direction of the ingetrals?
       ! TODO : Do we need different t_3c? Maybe for performance reasons ...
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_g)
@@ -632,7 +613,7 @@ CONTAINS
       ! Finally, convert the COH tensor to matrix and then to fm matrix
       CALL dbcsr_create(sigma_dbcsr, name="sigma", template=bs_env%mat_ao_ao%matrix)
       CALL dbt_copy_tensor_to_matrix(sigma_dbt, sigma_dbcsr)
-      CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm)
+      CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm%matrix)
       ! TODO : Deallocations
       CALL dbt_destroy(t_3c_w)
       CALL dbt_destroy(t_work1)
@@ -642,7 +623,10 @@ CONTAINS
       CALL dbt_destroy(t_work2)
       CALL dbt_destroy(sigma_dbt)
       CALL dbcsr_release(sigma_dbcsr)
-      CALL dbcsr_release(greens_dbcsr_mat)
+      IF (PRESENT(greens_fm_opt)) THEN
+         CALL dbcsr_release(greens_dbcsr)
+         DEALLOCATE(greens_dbcsr)
+      END IF
       CALL dbcsr_release(w_dbcsr_mat)
    END SUBROUTINE
 ! TODO : Maybe combine with get_sigma? - this will be updated at every step and requires rebuilding of 3c?
@@ -894,14 +878,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_hartree(qs_env, V_dbt, rho, V_ao)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbt_type), INTENT(INOUT)                      :: V_dbt
-      TYPE(cp_fm_type), INTENT(IN)                       :: rho
+      TYPE(dbt_type), POINTER, INTENT(INOUT)             :: V_dbt
+      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: rho
       TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: V_ao
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hartree'
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(dbt_type)                                     :: t_3c_w,&
                                                             t_work1,&
-      !                                                     rho_dbt,&
+      !                                                       rho_dbt,&
                                                             t_one_plus_one
       TYPE(dbt_type), ALLOCATABLE, TARGET                :: t_two_plus_one
       TYPE(dbt_type), POINTER                            :: t_two_plus_one_p
@@ -1002,6 +986,9 @@ CONTAINS
       rho_dbcsr_p => rho_dbcsr
       t_two_plus_one_p => t_two_plus_one
       CALL copy_matrix_to_3d_tensor(rho_dbcsr_p, t_two_plus_one_p)
+      ! CALL dbt_create(bs_env%t_G, rho_dbt)
+      ! CALL dbt_copy_matrix_to_tensor(rho_dbcsr, rho_dbt)
+      ! CALL dbt_copy(rho_dbt, t_two_plus_one)
       PRINT *, "Matrix copied to tensor"
       ! Contract T _ (Q 1) = sum _ Q (Q|mu'nu') D _ (mu' nu' 1)
       CALL dbt_contract(alpha=1.0_dp,&
@@ -1035,12 +1022,14 @@ CONTAINS
       ! Use rho_dbcsr - TODO : Instead, use some workspace?
       CALL dbcsr_clear(rho_dbcsr)
       CALL copy_3d_tensor_to_matrix(t_two_plus_one_p, rho_dbcsr_p)
+      !CALL dbt_copy(t_two_plus_one, rho_dbt)
+      !CALL dbt_copy_tensor_to_matrix(rho_dbt, rho_dbcsr_p)
       PRINT *, "Tensor copied to matrix"
       CALL copy_dbcsr_to_fm(rho_dbcsr, V_ao)
       ! TODO : Deallocations, initialisations, CALL statements etc.
       CALL dbt_destroy(t_3c_w)
       CALL dbt_destroy(t_work1)
-      ! CALL dbt_destroy(rho_dbt)
+      !CALL dbt_destroy(rho_dbt)
       CALL dbt_destroy(t_two_plus_one)
       CALL dbt_destroy(t_one_plus_one)
       CALL dbcsr_release(rho_dbcsr)
