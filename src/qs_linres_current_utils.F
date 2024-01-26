@@ -76,10 +76,10 @@ MODULE qs_linres_current_utils
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -600,9 +600,10 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
@@ -1267,7 +1268,7 @@ CONTAINS
                                           use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(rho_r(ispin))
             CALL auxbas_pw_pool%create_pw(rho_g(ispin), &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
             CALL pw_zero(rho_g(ispin))
          END DO
          NULLIFY (current_env%jrho1_set(idir)%rho)

@@ -35,7 +35,8 @@ MODULE cp_ddapc_types
    USE pw_poisson_types,                ONLY: pw_poisson_multipole
    USE pw_pool_types,                   ONLY: pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,7 +102,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(kind=dp), DIMENSION(:), POINTER               :: radii
       TYPE(cell_type), POINTER                           :: cell, super_cell
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iw2
       REAL(KIND=dp), INTENT(IN)                          :: Vol

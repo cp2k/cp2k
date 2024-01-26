@@ -38,6 +38,7 @@ MODULE pw_gpu
    USE pw_grid_types,                   ONLY: FULLSPACE
    USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -103,7 +104,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
       TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
@@ -139,7 +140,7 @@ CONTAINS
 
       ! pointers to data arrays
       ptr_pwin => pw1%cr3d(l1, l2, l3)
-      ptr_pwout => pw2%cc(1)
+      ptr_pwout => pw2%array(1)
 
       ! pointer to map array
       ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
@@ -163,7 +164,7 @@ CONTAINS
 !> \author Benjamin G Levine
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
@@ -198,7 +199,7 @@ CONTAINS
       npts => pw1%pw_grid%npts
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cc(1)
+      ptr_pwin => pw1%array(1)
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! pointer to map array
@@ -225,7 +226,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
       TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
@@ -399,7 +400,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
@@ -817,7 +818,7 @@ CONTAINS
    SUBROUTINE pw_gpu_fg(pwbuf, pw2, scale)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_type), INTENT(IN)                          :: pw2
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
@@ -850,7 +851,7 @@ CONTAINS
 
          ! pointers to data arrays
          ptr_pwin => pwbuf(1, 1)
-         ptr_pwout => pw2%cc(1)
+         ptr_pwout => pw2%array(1)
 
          ! pointer to map array
          ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
@@ -875,7 +876,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_sf(pw1, pwbuf, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
       REAL(KIND=dp), INTENT(IN)                          :: scale
@@ -909,7 +910,7 @@ CONTAINS
          mmax = MAX(mg, 1)
 
          ! pointers to data arrays
-         ptr_pwin => pw1%cc(1)
+         ptr_pwin => pw1%array(1)
          ptr_pwout => pwbuf(1, 1)
 
          ! pointer to map array

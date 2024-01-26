@@ -47,8 +47,7 @@ MODULE cp_ddapc_util
                                               pw_copy,&
                                               pw_transfer
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
                                               pw_c1d_type,&
                                               pw_type
    USE qs_charges_types,                ONLY: qs_charges_type
@@ -92,9 +91,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: rho_tot_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type)                                      :: rho_tot_g
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: density_fit_section
@@ -135,8 +134,7 @@ CONTAINS
             WRITE (iw, '(/,A)') " Initializing the DDAPC Environment"
          END IF
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pool)
-         CALL auxbas_pool%create_pw(rho_tot_g, in_space=RECIPROCALSPACE, &
-                                    use_data=COMPLEXDATA1D)
+         CALL auxbas_pool%create_pw(rho_tot_g, in_space=RECIPROCALSPACE)
          Vol = rho_tot_g%pw_grid%vol
          !
          ! Get Input Parameters
@@ -210,7 +208,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: qout1, qout2, out_radii
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: dq_out
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: ext_rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: ext_rho_tot_g
       CHARACTER(LEN=*), OPTIONAL                         :: Itype_of_density
       INTEGER, INTENT(IN), OPTIONAL                      :: iwc
 
@@ -233,12 +231,12 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type), POINTER                         :: rho_core
+      TYPE(pw_c1d_type)                                  :: rho_tot_g
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_type), POINTER                         :: rho0_s_gs, rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type)                                      :: rho_tot_g
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
-      TYPE(pw_type), POINTER                             :: rho0_s_gs
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -277,8 +275,7 @@ CONTAINS
       END IF
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pool)
-      CALL auxbas_pool%create_pw(rho_tot_g, in_space=RECIPROCALSPACE, &
-                                 use_data=COMPLEXDATA1D)
+      CALL auxbas_pool%create_pw(rho_tot_g, in_space=RECIPROCALSPACE)
       IF (PRESENT(ext_rho_tot_g)) THEN
          ! If provided use the input density in g-space
          CALL pw_transfer(ext_rho_tot_g, rho_tot_g)
@@ -311,7 +308,7 @@ CONTAINS
       Vol = rho_r(1)%pw_grid%vol
       ch_dens = 0.0_dp
       ! should use pw_integrate
-      IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1), KIND=dp)
+      IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%array(1), KIND=dp)
       CALL logger%para_env%sum(ch_dens)
       !
       ! Get Input Parameters
@@ -536,7 +533,7 @@ CONTAINS
    SUBROUTINE restraint_functional_potential(v_hartree_gspace, &
                                              density_fit_section, particle_set, AmI, radii, charges, &
                                              ddapc_restraint_control, energy_res)
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: v_hartree_gspace
       TYPE(section_vals_type), POINTER                   :: density_fit_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: AmI
@@ -571,7 +568,7 @@ CONTAINS
          fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
          cv(:) = uv - cv*fac2/fac
          cv(:) = MATMUL(AmI, cv)
-         IF (pw_grid%have_g0) v_hartree_gspace%cc(1) = v_hartree_gspace%cc(1) + sfac*fac2/fac
+         IF (pw_grid%have_g0) v_hartree_gspace%array(1) = v_hartree_gspace%array(1) + sfac*fac2/fac
          DO ig = pw_grid%first_gne0, pw_grid%ngpts_cut_local
             g2 = pw_grid%gsq(ig)
             w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
@@ -592,7 +589,7 @@ CONTAINS
                END DO
             END DO
             g_corr = g_corr*w
-            v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + sfac*g_corr/Vol
+            v_hartree_gspace%array(ig) = v_hartree_gspace%array(ig) + sfac*g_corr/Vol
          END DO
       END ASSOCIATE
       CALL timestop(handle)
@@ -613,7 +610,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE modify_hartree_pot(v_hartree_gspace, density_fit_section, &
                                  particle_set, M, AmI, radii, charges)
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
+      TYPE(pw_c1d_type), INTENT(IN)                      :: v_hartree_gspace
       TYPE(section_vals_type), POINTER                   :: density_fit_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: M, AmI
@@ -641,7 +638,7 @@ CONTAINS
          fac2 = DOT_PRODUCT(cv, MATMUL(AmI, uv))
          cv(:) = uv - cv*fac2/fac
          cv(:) = MATMUL(AmI, cv)
-         IF (pw_grid%have_g0) v_hartree_gspace%cc(1) = v_hartree_gspace%cc(1) + sfac*fac2/fac
+         IF (pw_grid%have_g0) v_hartree_gspace%array(1) = v_hartree_gspace%array(1) + sfac*fac2/fac
          DO ig = pw_grid%first_gne0, pw_grid%ngpts_cut_local
             g2 = pw_grid%gsq(ig)
             w = 4.0_dp*pi*(g2 - gcut2)**2.0_dp/(g2*gcut2)
@@ -662,7 +659,7 @@ CONTAINS
                END DO
             END DO
             g_corr = g_corr*w
-            v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + sfac*g_corr/Vol
+            v_hartree_gspace%array(ig) = v_hartree_gspace%array(ig) + sfac*g_corr/Vol
          END DO
       END ASSOCIATE
       CALL timestop(handle)
@@ -688,7 +685,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: dbv
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(in)                                :: iparticle
       REAL(KIND=dp), INTENT(IN)                          :: Vol
@@ -761,7 +758,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: dAm
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(in)                                :: iparticle
       REAL(KIND=dp), INTENT(IN)                          :: Vol
@@ -843,7 +840,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: density_fit_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       CHARACTER(LEN=*)                                   :: type_of_density
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'debug_charge'

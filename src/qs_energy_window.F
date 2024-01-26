@@ -48,10 +48,10 @@ MODULE qs_energy_window
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -107,9 +107,10 @@ CONTAINS
                                                             tmp
       TYPE(dbcsr_type), POINTER                          :: rho_ao_ortho, window
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type)                                  :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_g, rho_r
+      TYPE(pw_type)                                      :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -159,7 +160,7 @@ CONTAINS
       CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
       CALL auxbas_pw_pool%create_pw(rho_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
 
       !calculate S_minus_half
       CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, filter_eps, &

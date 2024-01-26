@@ -50,10 +50,10 @@ MODULE qs_linres_epr_nablavks
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -141,11 +141,14 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_coulomb_gspace, &
+                                                            v_coulomb_gtemp, v_hartree_gspace, &
+                                                            v_hartree_gtemp, v_xc_gtemp
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type) :: rho_tot_gspace, v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
-         v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
+      TYPE(pw_type)                                      :: v_coulomb_rtemp, v_hartree_rtemp, &
+                                                            v_xc_rtemp, wf_r
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho2_r, rho_r, v_rspace_new, &
                                                             v_tau_rspace
       TYPE(pw_type), POINTER                             :: pwx, pwy, pwz
@@ -281,13 +284,13 @@ CONTAINS
 !   -------------------------------------
 
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hartree_gtemp, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hartree_rtemp, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
 
       IF (gapw) THEN
          ! need to rebuild the coeff !
@@ -349,9 +352,9 @@ CONTAINS
                !
                !       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
                !
-               !       v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + gtemp
+               !       v_hartree_gspace%array(ig) = v_hartree_gspace%array(ig) + gtemp
                !    END DO
-               !    IF ( v_hartree_gspace%pw_grid%have_g0 ) v_hartree_gspace%cc(1) = 0.0_dp
+               !    IF ( v_hartree_gspace%pw_grid%have_g0 ) v_hartree_gspace%array(1) = 0.0_dp
                !
                ! END DO
 
@@ -503,9 +506,9 @@ CONTAINS
             IF (gth_gspace) THEN
 
                CALL auxbas_pw_pool%create_pw(v_coulomb_gspace, &
-                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                             in_space=RECIPROCALSPACE)
                CALL auxbas_pw_pool%create_pw(v_coulomb_gtemp, &
-                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                             in_space=RECIPROCALSPACE)
                CALL auxbas_pw_pool%create_pw(v_coulomb_rtemp, &
                                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -582,9 +585,9 @@ CONTAINS
                      arg = DOT_PRODUCT(v_coulomb_gspace%pw_grid%g(:, ig), ratom)
 
                      gtemp = gtemp*CMPLX(COS(arg), -SIN(arg), KIND=dp)
-                     v_coulomb_gspace%cc(ig) = v_coulomb_gspace%cc(ig) + gtemp
+                     v_coulomb_gspace%array(ig) = v_coulomb_gspace%array(ig) + gtemp
                   END DO
-                  IF (v_coulomb_gspace%pw_grid%have_g0) v_coulomb_gspace%cc(1) = 0.0_dp
+                  IF (v_coulomb_gspace%pw_grid%have_g0) v_coulomb_gspace%array(1) = 0.0_dp
 
                END DO
 
@@ -849,7 +852,7 @@ CONTAINS
 !   -------------------------------------
 
       CALL auxbas_pw_pool%create_pw(v_xc_gtemp, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_xc_rtemp, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
 

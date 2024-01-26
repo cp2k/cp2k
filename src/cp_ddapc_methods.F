@@ -28,7 +28,8 @@ MODULE cp_ddapc_methods
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE spherical_harmonics,             ONLY: legendre
 #include "./base/base_uses.f90"
 
@@ -61,7 +62,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gfunc
       REAL(kind=dp), DIMENSION(:), POINTER               :: w
       REAL(KIND=dp), INTENT(IN)                          :: gcut
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(kind=dp), DIMENSION(:), POINTER               :: radii
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ddapc_eval_gfunc'
@@ -114,7 +115,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'build_b_vector'
@@ -147,7 +148,7 @@ CONTAINS
                gvec = rho_tot_g%pw_grid%g(:, ig)
                arg = DOT_PRODUCT(gvec, rvec)
                phase = CMPLX(COS(arg), -SIN(arg), KIND=dp)
-               my_bv(ig) = w(ig)*REAL(CONJG(rho_tot_g%cc(ig))*phase, KIND=dp)
+               my_bv(ig) = w(ig)*REAL(CONJG(rho_tot_g%array(ig))*phase, KIND=dp)
             END DO
             DO igauss = 1, SIZE(radii)
                idim = (iparticle - 1)*SIZE(radii) + igauss
@@ -192,7 +193,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: g_dot_rvec_sin, g_dot_rvec_cos
 
@@ -278,7 +279,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iparticle0
 
@@ -312,7 +313,7 @@ CONTAINS
                gvec = rho_tot_g%pw_grid%g(:, ig)
                arg = DOT_PRODUCT(gvec, rvec)
                dphase = -CMPLX(SIN(arg), COS(arg), KIND=dp)
-               my_dbv(:, ig) = w(ig)*REAL(CONJG(rho_tot_g%cc(ig))*dphase, KIND=dp)*gvec(:)
+               my_dbv(:, ig) = w(ig)*REAL(CONJG(rho_tot_g%array(ig))*dphase, KIND=dp)*gvec(:)
             END DO
             DO igauss = 1, SIZE(radii)
                idim = (iparticle - 1)*SIZE(radii) + igauss
@@ -370,7 +371,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iparticle0, nparticles
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: g_dot_rvec_sin, g_dot_rvec_cos
@@ -488,7 +489,7 @@ CONTAINS
 !> \param g_dot_rvec_cos ...
 ! **************************************************************************************************
    SUBROUTINE prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: g_dot_rvec_sin, g_dot_rvec_cos
@@ -546,7 +547,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: gcut
-      TYPE(pw_type), INTENT(IN)                          :: rho_tot_g
+      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), INTENT(IN)                          :: Vol

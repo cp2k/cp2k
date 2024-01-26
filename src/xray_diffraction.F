@@ -47,8 +47,8 @@ MODULE xray_diffraction
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
+   USE pw_types,                        ONLY: RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -106,9 +106,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: rhotot_elec_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhotot_elec_gspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
 
@@ -162,7 +162,6 @@ CONTAINS
       ! Plane waves grid to assemble the total electronic density
 
       CALL auxbas_pw_pool%create_pw(pw=rhotot_elec_gspace, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       CALL pw_zero(rhotot_elec_gspace)
 
@@ -240,7 +239,7 @@ CONTAINS
          f2sum(ishell) = 0.0_dp
          f4sum(ishell) = 0.0_dp
          DO ig_shell = 1, ng_shell(ishell)
-            f = ABS(rhotot_elec_gspace%cc(ig + ig_shell))
+            f = ABS(rhotot_elec_gspace%array(ig + ig_shell))
             fmin(ishell) = MIN(fmin(ishell), f)
             fmax(ishell) = MAX(fmax(ishell), f)
             fsum(ishell) = fsum(ishell) + f
@@ -490,7 +489,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), INTENT(INOUT)                       :: rhotot_elec_gspace
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rhotot_elec_gspace
       REAL(KIND=dp), INTENT(IN)                          :: q_max
       REAL(KIND=dp), INTENT(OUT)                         :: rho_hard, rho_soft
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign
@@ -512,7 +511,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_type)                                      :: rho_elec_gspace
+      TYPE(pw_C1d_type)                                  :: rho_elec_gspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -562,7 +561,6 @@ CONTAINS
       ! Load the soft contribution of the electronic density
 
       CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
 
       CALL pw_zero(rhotot_elec_gspace)
@@ -784,7 +782,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: pab
       INTEGER, INTENT(IN)                                :: na, nb
       REAL(dp), INTENT(IN)                               :: eps_rho_gspace, gsq_max
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_c1d_type), INTENT(IN)                      :: pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_pgf_product_gspace'
 
@@ -832,8 +830,8 @@ CONTAINS
       CALL reallocate(rag, lb_cube_min, ub_cube_max)
       CALL reallocate(rbg, lb_cube_min, ub_cube_max)
 
-      lb_grid = LBOUND(pw%cc, 1)
-      ub_grid = UBOUND(pw%cc, 1)
+      lb_grid = LBOUND(pw%array, 1)
+      ub_grid = UBOUND(pw%array, 1)
 
       DO i = 1, 3
 
@@ -943,9 +941,9 @@ CONTAINS
                ig = pw%pw_grid%g_hat(1, i)
                jg = pw%pw_grid%g_hat(2, i)
                kg = pw%pw_grid%g_hat(3, i)
-               pw%cc(i) = pw%cc(i) + pij*cubeaxis(ig, 1, ax, bx)* &
-                          cubeaxis(jg, 2, ay, by)* &
-                          cubeaxis(kg, 3, az, bz)
+               pw%array(i) = pw%array(i) + pij*cubeaxis(ig, 1, ax, bx)* &
+                             cubeaxis(jg, 2, ay, by)* &
+                             cubeaxis(kg, 3, az, bz)
             END DO
 
          END DO

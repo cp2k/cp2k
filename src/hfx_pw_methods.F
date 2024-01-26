@@ -46,8 +46,7 @@ MODULE hfx_pw_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
@@ -108,10 +107,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: greenfn
+      TYPE(pw_c1d_type)                                  :: greenfn, pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: pot_g, rho_g, rho_r
+      TYPE(pw_type)                                      :: rho_r
       TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_i, rho_j
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ip_section
@@ -139,10 +138,8 @@ CONTAINS
                                        use_data=REALDATA3D, &
                                        in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(rho_g, &
-                                       use_data=COMPLEXDATA1D, &
                                        in_space=RECIPROCALSPACE)
          CALL auxbas_pw_pool%create_pw(pot_g, &
-                                       use_data=COMPLEXDATA1D, &
                                        in_space=RECIPROCALSPACE)
 
          ALLOCATE (rho_i(blocksize))

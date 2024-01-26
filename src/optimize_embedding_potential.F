@@ -68,10 +68,10 @@ MODULE optimize_embedding_potential
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_wavefunction
@@ -963,10 +963,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: dvol, normalize_factor
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs_subsys
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type)                                  :: v_resp_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_resp, v_resp_gspace, v_resp_rspace
+      TYPE(pw_type)                                      :: rho_resp, v_resp_rspace
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       ! Get available particles
@@ -994,7 +995,6 @@ CONTAINS
                       poisson_env=poisson_env)
 
       CALL auxbas_pw_pool%create_pw(v_resp_gspace, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
 
       CALL auxbas_pw_pool%create_pw(v_resp_rspace, &
@@ -1010,11 +1010,8 @@ CONTAINS
       CALL calculate_rho_resp_all(rho_resp, rhs_subsys, natom, eta, qs_env)
 
       ! Calculate potential
-      CALL pw_zero(v_resp_gspace)
       CALL pw_poisson_solve(poisson_env, rho_resp, &
-                            vhartree=v_resp_gspace)
-      CALL pw_zero(v_resp_rspace)
-      CALL pw_transfer(v_resp_gspace, v_resp_rspace)
+                            vhartree=v_resp_rspace)
       dvol = v_resp_rspace%pw_grid%dvol
       CALL pw_scale(v_resp_rspace, dvol)
       normalize_factor = SQRT((eta/pi)**3)
@@ -1397,10 +1394,11 @@ CONTAINS
 
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(3)                              :: lb, n, ub
+      TYPE(pw_c1d_type)                                  :: dr2_pot, grid_reg_g, potential_g
+      TYPE(pw_c1d_type), DIMENSION(3)                    :: dpot_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: dr2_pot, grid_reg, grid_reg_g, &
-                                                            potential_g, square_norm_dpot
-      TYPE(pw_type), DIMENSION(3)                        :: dpot, dpot_g
+      TYPE(pw_type)                                      :: grid_reg, square_norm_dpot
+      TYPE(pw_type), DIMENSION(3)                        :: dpot
 
       !
       ! First, the contribution to the gradient
@@ -1410,11 +1408,9 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       CALL auxbas_pw_pool%create_pw(potential_g, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
 
       CALL auxbas_pw_pool%create_pw(dr2_pot, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
 
       CALL auxbas_pw_pool%create_pw(grid_reg, &
@@ -1422,7 +1418,6 @@ CONTAINS
                                     in_space=REALSPACE)
 
       CALL auxbas_pw_pool%create_pw(grid_reg_g, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       CALL pw_zero(grid_reg_g)
 
@@ -1448,7 +1443,6 @@ CONTAINS
                                        use_data=REALDATA3D, &
                                        in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(dpot_g(i), &
-                                       use_data=COMPLEXDATA1D, &
                                        in_space=RECIPROCALSPACE)
       END DO
 
@@ -1771,9 +1765,10 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: psi_L, rho_g
+      TYPE(pw_type)                                      :: psi_L
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
@@ -1792,7 +1787,6 @@ CONTAINS
 
       ! get some of the grids ready
       CALL auxbas_pw_pool%create_pw(rho_g, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
 
       CALL auxbas_pw_pool%create_pw(psi_L, &
@@ -2901,9 +2895,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: density_smooth_cut_range, my_rho, &
                                                             rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: rhoa, rhob
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, tau
+      TYPE(pw_type), DIMENSION(:), POINTER               :: tau
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set
@@ -2926,7 +2921,6 @@ CONTAINS
       ALLOCATE (rho_g(nspins))
       DO i_spin = 1, nspins
          CALL auxbas_pw_pool%create_pw(rho_g(i_spin), &
-                                       use_data=COMPLEXDATA1D, &
                                        in_space=RECIPROCALSPACE)
          CALL pw_transfer(rho_r(i_spin), rho_g(i_spin))
       END DO

@@ -94,8 +94,7 @@ MODULE response_solver
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
@@ -866,16 +865,19 @@ CONTAINS
                                                             sap_ppnl
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type) :: rho_tot_gspace, rho_tot_gspace_gs, rho_tot_gspace_t, rhoz_tot_gspace, &
+         v_hartree_gspace_gs, v_hartree_gspace_t, zv_hartree_gspace
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g_aux, rho_g_gs, rho_g_t, rhoz_g, &
+                                                            rhoz_g_aux, rhoz_g_xc
       TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type) :: rho_tot_gspace, rho_tot_gspace_gs, rho_tot_gspace_t, rhoz_tot_gspace, &
-         v_hartree_gspace_gs, v_hartree_gspace_t, v_hartree_rspace_gs, v_hartree_rspace_t, &
-         vhxc_rspace, zv_hartree_gspace, zv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER :: rho_g_aux, rho_g_gs, rho_g_t, rho_r_aux, rho_r_gs, &
-         rho_r_t, rhoz_g, rhoz_g_aux, rhoz_g_xc, rhoz_r, rhoz_r_aux, rhoz_r_xc, tau_r_aux, tauz_r, &
-         tauz_r_xc, v_xc, v_xc_tau
+      TYPE(pw_type)                                      :: v_hartree_rspace_gs, v_hartree_rspace_t, &
+                                                            vhxc_rspace, zv_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_aux, rho_r_gs, rho_r_t, rhoz_r, &
+                                                            rhoz_r_aux, rhoz_r_xc, tau_r_aux, &
+                                                            tauz_r, tauz_r_xc, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1196,10 +1198,10 @@ CONTAINS
             CALL auxbas_pw_pool%create_pw(rho_r_gs(ispin), &
                                           use_data=REALDATA3D, in_space=REALSPACE)
             CALL auxbas_pw_pool%create_pw(rho_g_gs(ispin), &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
          END DO
          CALL auxbas_pw_pool%create_pw(rho_tot_gspace_gs, &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
          ! compute soft GS density
          total_rho_gs = 0.0_dp
          CALL pw_zero(rho_tot_gspace_gs)
@@ -1221,7 +1223,7 @@ CONTAINS
             END IF
             ! compute GS potential
             CALL auxbas_pw_pool%create_pw(v_hartree_gspace_gs, &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
             CALL auxbas_pw_pool%create_pw(v_hartree_rspace_gs, &
                                           use_data=REALDATA3D, in_space=REALSPACE)
             NULLIFY (hartree_local_gs)
@@ -1447,14 +1449,14 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(rhoz_r(ispin), &
                                        use_data=REALDATA3D, in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(rhoz_g(ispin), &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
       END DO
       CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(zv_hartree_rspace, &
                                     use_data=REALDATA3D, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(zv_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
 
       CALL pw_zero(rhoz_tot_gspace)
       DO ispin = 1, nspins
@@ -1470,7 +1472,7 @@ CONTAINS
             CALL auxbas_pw_pool%create_pw(rhoz_r_xc(ispin), &
                                           use_data=REALDATA3D, in_space=REALSPACE)
             CALL auxbas_pw_pool%create_pw(rhoz_g_xc(ispin), &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
          END DO
          DO ispin = 1, nspins
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
@@ -1482,10 +1484,9 @@ CONTAINS
       IF (ASSOCIATED(vtau_rspace)) THEN
          CPASSERT(.NOT. (gapw .OR. gapw_xc))
          BLOCK
-            TYPE(pw_type) :: work_g
+            TYPE(pw_c1d_type) :: work_g
             ALLOCATE (tauz_r(nspins))
-            CALL auxbas_pw_pool%create_pw(work_g, &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(work_g, in_space=RECIPROCALSPACE)
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(tauz_r(ispin), &
                                              use_data=REALDATA3D, in_space=REALSPACE)
@@ -1511,7 +1512,7 @@ CONTAINS
 
          CALL get_qs_env(qs_env, rho=rho)
          CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
 
          ! Get the total input density in g-space [ions + electrons]
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
@@ -1668,10 +1669,10 @@ CONTAINS
             CALL auxbas_pw_pool%create_pw(rho_r_t(ispin), &
                                           use_data=REALDATA3D, in_space=REALSPACE)
             CALL auxbas_pw_pool%create_pw(rho_g_t(ispin), &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
          END DO
          CALL auxbas_pw_pool%create_pw(rho_tot_gspace_t, &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
          total_rho_t = 0.0_dp
          CALL pw_zero(rho_tot_gspace_t)
          DO ispin = 1, nspins
@@ -1687,7 +1688,7 @@ CONTAINS
             CALL pw_axpy(local_rho_set_t%rho0_mpole%rho0_s_gs, rho_tot_gspace_t)
             ! compute response Coulomb potential
             CALL auxbas_pw_pool%create_pw(v_hartree_gspace_t, &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                          in_space=RECIPROCALSPACE)
             CALL auxbas_pw_pool%create_pw(v_hartree_rspace_t, &
                                           use_data=REALDATA3D, in_space=REALSPACE)
             NULLIFY (hartree_local_t)
@@ -2073,7 +2074,7 @@ CONTAINS
                CALL auxbas_pw_pool%create_pw(rhoz_r_aux(ispin), &
                                              use_data=REALDATA3D, in_space=REALSPACE)
                CALL auxbas_pw_pool%create_pw(rhoz_g_aux(ispin), &
-                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                             in_space=RECIPROCALSPACE)
             END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpz(ispin, 1)%matrix, &

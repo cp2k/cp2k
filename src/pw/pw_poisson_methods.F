@@ -54,11 +54,11 @@ MODULE pw_poisson_methods
                             pw_pool_type, &
                             pw_pools_copy, &
                             pw_pools_dealloc
-   USE pw_types, ONLY: COMPLEXDATA1D, &
-                       REALDATA3D, &
-                       REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_type, pw_c1d_type, pw_r3d_type
+   USE pw_types, ONLY: &
+      REALDATA3D, &
+      REALSPACE, &
+      RECIPROCALSPACE, &
+      pw_type, pw_c1d_type, pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1139,23 +1139,6 @@ CONTAINS
                                             dvhartree, h_stress, rho_core, greenfn)
             END IF
          END BLOCK
-      ELSE
-         BLOCK
-            TYPE(pw_c1d_type) :: my_density, my_aux_density
-            my_density%in_space = density%in_space
-            my_density%pw_grid => density%pw_grid
-            my_density%array => density%cc
-            IF (PRESENT(aux_density)) THEN
-               my_aux_density%in_space = aux_density%in_space
-               my_aux_density%pw_grid => aux_density%pw_grid
-               my_aux_density%array => aux_density%cc
-               CALL pw_poisson_solve_pw_c1d(poisson_env, my_density, ehartree, vhartree, &
-                                            dvhartree, h_stress, rho_core, greenfn, my_aux_density)
-            ELSE
-               CALL pw_poisson_solve_pw_c1d(poisson_env, my_density, ehartree, vhartree, &
-                                            dvhartree, h_stress, rho_core, greenfn)
-            END IF
-         END BLOCK
       END IF
 
    END SUBROUTINE pw_poisson_solve_pw
@@ -1185,16 +1168,6 @@ CONTAINS
                                                       vhartree=my_vhartree, dvhartree=dvhartree, h_stress=h_stress, &
                                                       rho_core=rho_core, greenfn=greenfn, aux_density=aux_density)
             END BLOCK
-         ELSE
-            BLOCK
-               TYPE(pw_c1d_type) :: my_vhartree
-               my_vhartree%in_space = vhartree%in_space
-               my_vhartree%pw_grid => vhartree%pw_grid
-               my_vhartree%array => vhartree%cc
-               CALL pw_poisson_solve_pw_${kindd}$_c1d(poisson_env, density, ehartree, &
-                                                      vhartree=my_vhartree, dvhartree=dvhartree, h_stress=h_stress, &
-                                                      rho_core=rho_core, greenfn=greenfn, aux_density=aux_density)
-            END BLOCK
          END IF
          ELSE IF (PRESENT(dvhartree)) THEN
          IF (dvhartree(1)%in_use == REALDATA3D) THEN
@@ -1205,18 +1178,6 @@ CONTAINS
                   my_dvhartree(i)%in_space = dvhartree(i)%in_space
                   my_dvhartree(i)%pw_grid => dvhartree(i)%pw_grid
                   my_dvhartree(i)%array => dvhartree(i)%cr3d
-               END DO
-               CALL pw_poisson_solve(poisson_env, density, ehartree, dvhartree=my_dvhartree, h_stress=h_stress, &
-                                     rho_core=rho_core, greenfn=greenfn, aux_density=aux_density)
-            END BLOCK
-         ELSE
-            BLOCK
-               TYPE(pw_c1d_type) :: my_dvhartree(3)
-               INTEGER :: i
-               DO i = 1, 3
-                  my_dvhartree(i)%in_space = dvhartree(i)%in_space
-                  my_dvhartree(i)%pw_grid => dvhartree(i)%pw_grid
-                  my_dvhartree(i)%array => dvhartree(i)%cc
                END DO
                CALL pw_poisson_solve(poisson_env, density, ehartree, dvhartree=my_dvhartree, h_stress=h_stress, &
                                      rho_core=rho_core, greenfn=greenfn, aux_density=aux_density)
@@ -1417,21 +1378,6 @@ CONTAINS
                  CALL calc_stress_and_gradient_r3d(poisson_env, rhog, ehartree, rhog_aux, h_stress=h_stress, dvhartree=my_dvhartree)
                      ELSE
                         CALL calc_stress_and_gradient_r3d(poisson_env, rhog, ehartree, h_stress=h_stress, dvhartree=my_dvhartree)
-                     END IF
-                  END BLOCK
-               ELSE IF (dvhartree(1)%in_use == COMPLEXDATA1D) THEN
-                  BLOCK
-                     TYPE(pw_c1d_type) :: my_dvhartree(3)
-                     INTEGER :: i
-                     DO i = 1, 3
-                        my_dvhartree(i)%in_space = dvhartree(i)%in_space
-                        my_dvhartree(i)%pw_grid => dvhartree(i)%pw_grid
-                        my_dvhartree(i)%array => dvhartree(i)%cc
-                     END DO
-                     IF (PRESENT(aux_density)) THEN
-                 CALL calc_stress_and_gradient_c1d(poisson_env, rhog, ehartree, rhog_aux, h_stress=h_stress, dvhartree=my_dvhartree)
-                     ELSE
-                        CALL calc_stress_and_gradient_c1d(poisson_env, rhog, ehartree, h_stress=h_stress, dvhartree=my_dvhartree)
                      END IF
                   END BLOCK
                ELSE

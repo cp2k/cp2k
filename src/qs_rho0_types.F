@@ -13,7 +13,8 @@ MODULE qs_rho0_types
                                               pi,&
                                               rootpi
    USE memory_utilities,                ONLY: reallocate
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_rho_atom_types,               ONLY: rho_atom_coeff
    USE whittaker,                       ONLY: whittaker_c0a,&
@@ -58,8 +59,8 @@ MODULE qs_rho0_types
       REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h
       INTEGER, DIMENSION(:), POINTER             :: lmax0_kind
       INTEGER                                     :: lmax_0, igrid_zet0_s
-      TYPE(pw_type), POINTER                    :: rho0_s_rs, &
-                                                   rho0_s_gs
+      TYPE(pw_type), POINTER                    :: rho0_s_rs
+      TYPE(pw_c1d_type), POINTER ::                                                   rho0_s_gs
    END TYPE rho0_mpole_type
 
 ! **************************************************************************************************
@@ -435,7 +436,8 @@ CONTAINS
       REAL(dp), INTENT(OUT), OPTIONAL                    :: zet0_h
       INTEGER, INTENT(OUT), OPTIONAL                     :: igrid_zet0_s
       REAL(dp), INTENT(OUT), OPTIONAL                    :: rpgf0_h, rpgf0_s, max_rpgf0_s
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho0_s_rs, rho0_s_gs
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho0_s_rs
+      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho0_s_gs
 
       IF (ASSOCIATED(rho0_mpole)) THEN
 

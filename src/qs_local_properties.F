@@ -39,8 +39,7 @@ MODULE qs_local_properties
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
@@ -95,14 +94,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_w, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), POINTER                         :: rho_core
+      TYPE(pw_c1d_type)                                  :: edens_g
+      TYPE(pw_c1d_type), POINTER                         :: rho_core, rho_tot_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: band_density, edens_g, edens_r, &
-                                                            hartree_density, xc_density
+      TYPE(pw_type)                                      :: band_density, edens_r, hartree_density, &
+                                                            xc_density
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(pw_type), POINTER                             :: rho_tot_gspace, rho_tot_rspace, &
-                                                            v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: rho_tot_rspace, v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct
@@ -155,7 +154,6 @@ CONTAINS
                                     use_data=REALDATA3D, &
                                     in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(edens_g, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       CALL pw_zero(band_density)
       DO ispin = 1, nspins
@@ -172,7 +170,6 @@ CONTAINS
       ! Hartree energy density correction = -0.5 * V_H(r) * [rho(r) - rho_core(r)]
       ALLOCATE (rho_tot_gspace, rho_tot_rspace)
       CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_tot_rspace, &
                                     use_data=REALDATA3D, &
@@ -271,10 +268,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_type)                                  :: v_hartree_gspace
+      TYPE(pw_c1d_type), DIMENSION(3)                    :: efield
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_gspace, xc_density
-      TYPE(pw_type), DIMENSION(3)                        :: efield
+      TYPE(pw_type)                                      :: xc_density
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -346,11 +344,11 @@ CONTAINS
       ! Electrical field terms
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace)
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
       CALL pw_transfer(v_hartree_rspace, v_hartree_gspace)
       DO i = 1, 3
          CALL auxbas_pw_pool%create_pw(efield(i), &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
          CALL pw_copy(v_hartree_gspace, efield(i))
       END DO
       CALL pw_derive(efield(1), (/1, 0, 0/))

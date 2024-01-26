@@ -42,10 +42,10 @@ MODULE qs_tddfpt2_types
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -159,7 +159,7 @@ MODULE qs_tddfpt2_types
       !> group-specific copy of a Coulomb/xc-potential on a real-space grid
       TYPE(pw_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub
       !> group-specific copy of a reciprocal-space grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
       !> group-specific copy of a real-space grid
       TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
       !> group-specific copy of a real-space grid for the kinetic energy density
@@ -416,7 +416,7 @@ CONTAINS
                                        use_data=REALDATA3D, in_space=REALSPACE)
 
          CALL auxbas_pw_pool%create_pw(work_matrices%wpw_gspace_sub(ispin), &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                       in_space=RECIPROCALSPACE)
          CALL auxbas_pw_pool%create_pw(work_matrices%wpw_rspace_sub(ispin), &
                                        use_data=REALDATA3D, in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(work_matrices%wpw_tau_rspace_sub(ispin), &

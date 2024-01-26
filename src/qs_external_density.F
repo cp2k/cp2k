@@ -23,7 +23,8 @@ MODULE qs_external_density
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -69,8 +70,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
+      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_ext_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_g, rho_ext_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_r
       TYPE(qs_rho_type), POINTER                         :: rho_external
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -128,13 +130,6 @@ CONTAINS
                npoints_local = rho_ext_r(1)%pw_grid%npts_local
                lbounds_local = rho_ext_r(1)%pw_grid%bounds_local(1, :)
                ubounds_local = rho_ext_r(1)%pw_grid%bounds_local(2, :)
-
-!        IF ( my_rank .eq. 0 ) THEN
-!          WRITE(*,*) my_rank,npoints, lbounds, ubounds
-!          WRITE(*,*) my_rank,npoints_local
-!          WRITE(*,*) my_rank,lbounds_local
-!          WRITE(*,*) my_rank,ubounds_local
-!        END IF
 
                ALLOCATE (buffer(lbounds_local(3):ubounds_local(3)))
 

@@ -36,10 +36,10 @@ MODULE qs_rho0_ggrid
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -110,11 +110,13 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: coeff_gspace
+      TYPE(pw_c1d_type), POINTER                         :: rho0_s_gs
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type)                                      :: coeff_gspace, coeff_rspace, rho0_r_tmp
-      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho0_s_rs
+      TYPE(pw_type)                                      :: coeff_rspace, rho0_r_tmp
+      TYPE(pw_type), POINTER                             :: rho0_s_rs
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: descs
@@ -158,7 +160,6 @@ CONTAINS
          CALL pw_pool%create_pw(coeff_rspace, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool%create_pw(coeff_gspace, &
-                                use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END IF
       CALL rs_grid_zero(rs_grid)
@@ -298,7 +299,7 @@ CONTAINS
          ALLOCATE (rho0_mpole%rho0_s_gs)
       END IF
       CALL auxbas_pw_pool%create_pw(rho0_mpole%rho0_s_gs, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                                    in_space=RECIPROCALSPACE)
 
       ! Find the grid level suitable for rho0_soft
       rho0_mpole%igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info, 2.0_dp*rho0_mpole%zet0_h)
@@ -352,11 +353,11 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type)                                  :: coeff_gaux, coeff_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: pw_aux, pw_pool
-      TYPE(pw_type)                                      :: coeff_gaux, coeff_gspace, coeff_raux, &
-                                                            coeff_rspace
+      TYPE(pw_type)                                      :: coeff_raux, coeff_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
@@ -437,7 +438,6 @@ CONTAINS
       pw_pool => pw_pools(igrid)%pool
 
       CALL pw_pool%create_pw(coeff_gspace, &
-                             use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       CALL pw_pool%create_pw(coeff_rspace, use_data=REALDATA3D, &
@@ -446,7 +446,6 @@ CONTAINS
       IF (igrid /= auxbas_grid) THEN
          pw_aux => pw_pools(auxbas_grid)%pool
          CALL pw_aux%create_pw(coeff_gaux, &
-                               use_data=COMPLEXDATA1D, &
                                in_space=RECIPROCALSPACE)
          CALL pw_transfer(v_rspace, coeff_gaux)
          CALL pw_copy(coeff_gaux, coeff_gspace)
