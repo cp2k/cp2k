@@ -2153,7 +2153,7 @@ CONTAINS
             ! need to undo this to get proper charge from printed cube
             CALL pw_scale(rho_elec_gspace, 1.0_dp/volume)
 
-            CALL pw_transfer(rho_elec_gspace, rho_elec_rspace, debug=.FALSE.)
+            CALL pw_transfer(rho_elec_gspace, rho_elec_rspace)
             rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
             filename = "TOTAL_ELECTRON_DENSITY"
             mpi_io = .TRUE.
@@ -2199,7 +2199,7 @@ CONTAINS
                ! need to undo this to get proper charge from printed cube
                CALL pw_scale(rho_elec_gspace, 1.0_dp/volume)
 
-               CALL pw_transfer(rho_elec_gspace, rho_elec_rspace, debug=.FALSE.)
+               CALL pw_transfer(rho_elec_gspace, rho_elec_rspace)
                rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
                filename = "TOTAL_SPIN_DENSITY"
                mpi_io = .TRUE.

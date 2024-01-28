@@ -564,7 +564,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL pw_zero(rho_elec_gspace)
-         CALL pw_transfer(rho_r(ispin), rho_elec_gspace, debug=.FALSE.)
+         CALL pw_transfer(rho_r(ispin), rho_elec_gspace)
          IF (PRESENT(fsign) .AND. (ispin == 2)) THEN
             alpha = fsign
          ELSE
