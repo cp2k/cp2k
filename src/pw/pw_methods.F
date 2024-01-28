@@ -207,14 +207,22 @@ MODULE pw_methods
    END INTERFACE
 
    INTERFACE pw_transfer
-      #:for space in pw_spaces
-         #:for space2 in pw_spaces
-            #:for kind, kind2 in pw_kinds2
-               #:if space==space2 or ((space=="rs" or kind[0]=="c") and (space2=="rs" or kind2[0]=="c") and (kind[1]=="3" or kind2[1]=="3"))
-                  MODULE PROCEDURE pw_transfer_${kind}$_${kind2}$_${space}$_${space2}$
-               #:endif
-            #:endfor
+      #:for kind, kind2 in pw_kinds2
+         #:if kind[1]=="1" and kind2[1]=="3"
+            MODULE PROCEDURE pw_gather_s_${kind}$_${kind2}$_2
+            MODULE PROCEDURE pw_scatter_s_${kind}$_${kind2}$_2
+         #:endif
+         #:for space in pw_spaces
+            #:if kind[1]==kind2[1]
+               MODULE PROCEDURE pw_copy_${kind}$_${kind2}$_${space}$
+            #:endif
          #:endfor
+         #:if kind2[0]=="c" and kind[1]=="3"
+            MODULE PROCEDURE fft_wrap_pw1pw2_${kind}$_${kind2}$_rs_gs
+         #:endif
+         #:if kind[0]=="c" and kind2[1]=="3"
+            MODULE PROCEDURE fft_wrap_pw1pw2_${kind}$_${kind2}$_gs_rs
+         #:endif
       #:endfor
    END INTERFACE
 
@@ -1129,74 +1137,8 @@ CONTAINS
                   #:for kind, type, kind2, type2 in pw_list2
                      #:for space in pw_spaces
                         #:for space2 in pw_spaces
-                           #:if space==space2 or ((space=="rs" or kind[0]=="c") and (space2=="rs" or kind2[0]=="c") and (kind[1]=="3" or kind2[1]=="3"))
-! **************************************************************************************************
-!> \brief Generalize copy of pw types
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (13-Mar-2001) : added gather/scatter cases
-!> \author JGH (25-Feb-2001)
-!> \note
-!>      Copy routine that allows for in_space changes
-! **************************************************************************************************
-                              SUBROUTINE pw_transfer_${kind}$_${kind2}$_${space}$_${space2}$ (pw1, pw2, debug)
 
-                                 TYPE(pw_${kind}$_${space}$_type), INTENT(IN)                          :: pw1
-                                 TYPE(pw_${kind2}$_${space2}$_type), INTENT(INOUT)                       :: pw2
-                                 LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-                                 CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer'
-
-                                 INTEGER                                            :: handle
-
-! Some combinations are not implemented, so we mark them as used in any case (we are just lazy)
-                                 MARK_USED(pw1)
-                                 MARK_USED(pw2)
-
-                                 CALL timeset(routineN, handle)
-                                 !sample peak memory
-                                 CALL m_memory()
-
-                                 #:if space == "rs" and space2 == "rs"
-                                    MARK_USED(debug)
-                                    ! simple copy should do
-                                    #:if kind[1:]==kind2[1:]
-                                       CALL pw_copy_${kind}$_${kind2}$_rs(pw1, pw2)
-                                    #:else
-                                       CPABORT("Type combinatipn not supported!")
-                                    #:endif
-                                 #:elif space == "gs" and space2=="gs"
-                                    MARK_USED(debug)
-
-                                    #:if kind[1:]==kind2[1:]
-
-                                       ! simple copy should do
-                                       CALL pw_copy_${kind}$_${kind2}$_gs(pw1, pw2)
-
-                                    #:elif kind[1]=="1" and kind2[1]=="3"
-                                       CALL pw_scatter_s_${kind}$_${kind2}$ (pw1, pw2%array)
-                                    #:elif kind2[1]=="1" and kind[1]=="3"
-                                       CALL pw_gather_s_${kind2}$_${kind}$ (pw2, pw1%array)
-                                    #:else
-                                       CPABORT("Do not know what to do")
-                                    #:endif
-
-                                 #:elif (space=="rs" or kind[0]=="c") and (space2=="rs" or kind2[0]=="c") and (kind[1]=="3" or kind2[1]=="3")
-
-                                    ! FFT needed, all further tests done in fft_wrap_pw1pw2
-                                    CALL fft_wrap_pw1pw2_${kind}$_${kind2}$_${space}$_${space2}$ (pw1, pw2, debug)
-                                 #:else
-                                    CPABORT("NIY")
-                                 #:endif
-
-                                 CALL timestop(handle)
-
-                              END SUBROUTINE pw_transfer_${kind}$_${kind2}$_${space}$_${space2}$
-                           #:endif
-
-                           #:if space != space2 and (space=="rs" or kind[0]=="c") and (space2=="rs" or kind2[0]=="c") and kind[1]=="3" or kind2[1]=="3"
+                           #:if space != space2 and ((space=="rs" and kind[1]=="3" and kind2[0]=="c") or (space=="gs" and kind2[1]=="3" and kind[0]=="c"))
 ! **************************************************************************************************
 !> \brief Generic function for 3d FFT of a coefficient_type or pw_r3d_rs_type
 !> \param pw1 ...
@@ -1542,6 +1484,26 @@ CONTAINS
                            #:endfor
 
                            #:if kind[1]=='1' and kind2[1]=='3'
+
+! **************************************************************************************************
+!> \brief Gathers the pw vector from a 3d data field
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+                              SUBROUTINE pw_gather_s_${kind}$_${kind2}$_2(pw1, pw2, scale)
+
+                                 TYPE(pw_${kind2}$_gs_type), INTENT(IN)                       :: pw1
+                                 TYPE(pw_${kind}$_gs_type), INTENT(INOUT)   :: pw2
+                                 REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+
+                                 CALL pw_gather_s_${kind}$_${kind2}$ (pw2, pw1%array, scale)
+
+                              END SUBROUTINE pw_gather_s_${kind}$_${kind2}$_2
+
 ! **************************************************************************************************
 !> \brief Gathers the pw vector from a 3d data field
 !> \param pw ...
@@ -1591,6 +1553,25 @@ CONTAINS
                                  CALL timestop(handle)
 
                               END SUBROUTINE pw_gather_s_${kind}$_${kind2}$
+
+! **************************************************************************************************
+!> \brief Scatters a pw vector to a 3d data field
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+                              SUBROUTINE pw_scatter_s_${kind}$_${kind2}$_2(pw1, pw2, scale)
+
+                                 TYPE(pw_${kind}$_gs_type), INTENT(IN)                 :: pw1
+                                 TYPE(pw_${kind2}$_gs_type), INTENT(INOUT)               :: pw2
+                                 REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+
+                                 CALL pw_scatter_s_${kind}$_${kind2}$ (pw1, pw2%array, scale)
+
+                              END SUBROUTINE pw_scatter_s_${kind}$_${kind2}$_2
 
 ! **************************************************************************************************
 !> \brief Scatters a pw vector to a 3d data field
