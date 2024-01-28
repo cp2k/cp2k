@@ -24,7 +24,7 @@ MODULE fist_pol_scf
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type
    USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
    USE fist_energy_types,               ONLY: fist_energy_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
@@ -78,7 +78,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(multipole_type), POINTER                      :: multipoles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -141,7 +141,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(multipole_type), POINTER                      :: multipoles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -355,7 +355,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(multipole_type), POINTER                      :: multipoles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -680,7 +680,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: ewald_type
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set

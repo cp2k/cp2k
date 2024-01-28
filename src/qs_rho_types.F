@@ -26,7 +26,7 @@ MODULE qs_rho_types
                                               set_2d_pointer
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -63,14 +63,14 @@ MODULE qs_rho_types
       PRIVATE
       TYPE(kpoint_transitional_type)                 :: rho_ao
       TYPE(kpoint_transitional_type)                 :: rho_ao_im
-      TYPE(pw_type), DIMENSION(:), POINTER           :: rho_r => Null()
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r => Null()
       TYPE(pw_c1d_type), DIMENSION(:), POINTER ::                                                        rho_g => Null()
-      TYPE(pw_type), DIMENSION(:), POINTER ::                                                        tau_r => Null()
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER ::                                                        tau_r => Null()
       TYPE(pw_c1d_type), DIMENSION(:), POINTER ::                 tau_g => Null()
-      TYPE(pw_type), DIMENSION(:, :), POINTER :: drho_r => NULL()
+      TYPE(pw_r3d_type), DIMENSION(:, :), POINTER :: drho_r => NULL()
       TYPE(pw_c1d_type), DIMENSION(:, :), POINTER :: drho_g => NULL()
       ! Final rho_iter of last SCCS cycle (r-space)
-      TYPE(pw_type), POINTER                         :: rho_r_sccs => Null()
+      TYPE(pw_r3d_type), POINTER                         :: rho_r_sccs => Null()
       LOGICAL                                        :: rho_g_valid = .FALSE., &
                                                         rho_r_valid = .FALSE., &
                                                         drho_r_valid = .FALSE., &
@@ -231,17 +231,18 @@ CONTAINS
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp, rho_ao_im_kp
-      TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: rho_r
-      TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_r
+      TYPE(pw_r3d_type), DIMENSION(:), OPTIONAL, POINTER :: rho_r
+      TYPE(pw_r3d_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: drho_r
       TYPE(pw_c1d_type), DIMENSION(:), OPTIONAL, POINTER :: rho_g
       TYPE(pw_c1d_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: drho_g
-      TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: tau_r
+      TYPE(pw_r3d_type), DIMENSION(:), OPTIONAL, POINTER :: tau_r
       TYPE(pw_c1d_type), DIMENSION(:), OPTIONAL, POINTER :: tau_g
       LOGICAL, INTENT(out), OPTIONAL                     :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: rho_r_sccs
       LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid, complex_rho_ao
 
       IF (PRESENT(rho_ao)) rho_ao => get_1d_pointer(rho_struct%rho_ao)
@@ -305,17 +306,18 @@ CONTAINS
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp, rho_ao_im_kp
-      TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: rho_r
-      TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_r
+      TYPE(pw_r3d_type), DIMENSION(:), OPTIONAL, POINTER :: rho_r
+      TYPE(pw_r3d_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: drho_r
       TYPE(pw_c1d_type), DIMENSION(:), OPTIONAL, POINTER :: rho_g
       TYPE(pw_c1d_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: drho_g
-      TYPE(pw_type), DIMENSION(:), OPTIONAL, POINTER     :: tau_r
+      TYPE(pw_r3d_type), DIMENSION(:), OPTIONAL, POINTER :: tau_r
       TYPE(pw_c1d_type), DIMENSION(:), OPTIONAL, POINTER :: tau_g
       LOGICAL, INTENT(in), OPTIONAL                      :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_r_sccs
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: rho_r_sccs
       LOGICAL, INTENT(in), OPTIONAL                      :: soft_valid, complex_rho_ao
 
       IF (PRESENT(rho_ao)) CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)

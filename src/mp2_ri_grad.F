@@ -60,7 +60,7 @@ MODULE mp2_ri_grad
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: allocate_qs_force,&
@@ -161,7 +161,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: psi_L, rho_r
+      TYPE(pw_r3d_type)                                  :: psi_L, rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force, mp2_force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub

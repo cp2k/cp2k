@@ -30,12 +30,10 @@ MODULE dielectric_methods
                             pw_pool_release, &
                             pw_pool_type
    USE pw_types, ONLY: &
-      REALDATA3D, &
       REALSPACE, &
       RECIPROCALSPACE, &
       pw_c1d_type, &
-      pw_r3d_type, &
-      pw_type
+      pw_r3d_type
    USE realspace_grid_types, ONLY: realspace_grid_type
    USE rs_methods, ONLY: derive_fdm_cd3, &
                          derive_fdm_cd5, &

@@ -39,9 +39,8 @@ MODULE qs_energy_utils
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: REALSPACE,&
+                                              pw_r3d_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -105,7 +104,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: input, post_scf_bands_section, &
                                                             proj_section, rest_b_section, &
@@ -274,9 +273,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: xc_den
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: vtau, vxc
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_type)                                  :: xc_den
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: vtau, vxc
+      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -316,17 +315,17 @@ CONTAINS
 
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(xc_den, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          ALLOCATE (vxc(nspins))
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%create_pw(vxc(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
          END DO
          IF (needs%tau .OR. needs%tau_spin) THEN
             ALLOCATE (vtau(nspins))
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(vtau(ispin), &
-                                             use_data=REALDATA3D, in_space=REALSPACE)
+                                             in_space=REALSPACE)
             END DO
          END IF
 

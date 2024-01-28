@@ -42,11 +42,10 @@ MODULE cp_ddapc
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -85,7 +84,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_type), POINTER                             :: v_spin_ddapc_rest_r
+      TYPE(pw_r3d_type), POINTER                         :: v_spin_ddapc_rest_r
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
@@ -100,7 +99,7 @@ CONTAINS
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_type)                                  :: v_spin_ddapc_rest_g
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
 
       NULLIFY (v_hartree_rspace, dft_control)
 
@@ -143,7 +142,7 @@ CONTAINS
          NULLIFY (v_spin_ddapc_rest_r)
          ALLOCATE (v_spin_ddapc_rest_r)
          CALL auxbas_pw_pool%create_pw(v_spin_ddapc_rest_r, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
       END IF
 
       IF (calculate_forces) CALL reset_ch_pulay(qs_env)

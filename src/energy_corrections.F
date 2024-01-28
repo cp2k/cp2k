@@ -127,11 +127,10 @@ MODULE energy_corrections
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
@@ -427,7 +426,7 @@ CONTAINS
          ALLOCATE (ec_env%rhoz_r(nspins))
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%create_pw(ec_env%rhoz_r(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
          END DO
 
          CALL response_force(qs_env, &
@@ -632,8 +631,8 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace, v_rspace_in, &
+      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -691,7 +690,7 @@ CONTAINS
       CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
                                     in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       ! Get the total input density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
@@ -730,7 +729,7 @@ CONTAINS
       ALLOCATE (ec_env%rhoout_r(nspins))
       DO ispin = 1, nspins
          CALL auxbas_pw_pool%create_pw(ec_env%rhoout_r(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL pw_copy(rho_r(ispin), ec_env%rhoout_r(ispin))
       END DO
 
@@ -766,7 +765,7 @@ CONTAINS
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -791,7 +790,7 @@ CONTAINS
       ALLOCATE (v_rspace_in(nspins))
       DO ispin = 1, nspins
          CALL v_rspace_in(ispin)%create(pw_grid, &
-                                        use_data=REALDATA3D, in_space=REALSPACE)
+                                        in_space=REALSPACE)
       END DO
 
       ! v_rspace_in = v_H[n_in] + v_xc[n_in] calculated in ks_ref_potential
@@ -967,7 +966,7 @@ CONTAINS
             ALLOCATE (v_tau_rspace(nspins))
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(v_tau_rspace(ispin), &
-                                             use_data=REALDATA3D, in_space=REALSPACE)
+                                             in_space=REALSPACE)
                CALL pw_zero(v_tau_rspace(ispin))
             END DO
          END IF
@@ -1274,7 +1273,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r, v_rspace, v_tau_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, tau_r, v_rspace, v_tau_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1398,7 +1397,7 @@ CONTAINS
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -1723,9 +1722,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: dv_hartree_rspace, v_hartree_rspace, &
+      TYPE(pw_r3d_type)                                  :: dv_hartree_rspace, v_hartree_rspace, &
                                                             vtot_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, rhoout_r, tau_r, tauout_r, &
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, rhoout_r, tau_r, tauout_r, &
                                                             v_rspace, v_tau_rspace, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1783,7 +1782,7 @@ CONTAINS
       CALL auxbas_pw_pool%create_pw(rhodn_tot_gspace, &
                                     in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       CALL pw_transfer(ec_env%vh_rspace, v_hartree_rspace)
 
@@ -1795,14 +1794,14 @@ CONTAINS
       ALLOCATE (rhoout_r(nspins), rhoout_g(nspins))
       DO ispin = 1, nspins
          CALL auxbas_pw_pool%create_pw(rhoout_r(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(rhoout_g(ispin), &
                                        in_space=RECIPROCALSPACE)
       END DO
       CALL auxbas_pw_pool%create_pw(dv_hartree_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(vtot_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       CALL pw_zero(rhodn_tot_gspace)
       DO ispin = 1, nspins
@@ -1817,7 +1816,7 @@ CONTAINS
       ALLOCATE (ec_env%rhoout_r(nspins))
       DO ispin = 1, nspins
          CALL auxbas_pw_pool%create_pw(ec_env%rhoout_r(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL pw_copy(rhoout_r(ispin), ec_env%rhoout_r(ispin))
       END DO
 
@@ -1828,7 +1827,7 @@ CONTAINS
             ALLOCATE (tauout_r(nspins))
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(tauout_r(ispin), &
-                                             use_data=REALDATA3D, in_space=REALSPACE)
+                                             in_space=REALSPACE)
             END DO
             CALL auxbas_pw_pool%create_pw(tauout_g, &
                                           in_space=RECIPROCALSPACE)
@@ -2112,7 +2111,7 @@ CONTAINS
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -3019,7 +3018,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_elec_rspace
+      TYPE(pw_r3d_type)                                  :: rho_elec_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ec_section, print_key, print_key_bqb, &
                                                             print_key_voro
@@ -3172,9 +3171,7 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, &
                          auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
-         CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace, in_space=REALSPACE)
 
          IF (dft_control%nspins > 1) THEN
 

@@ -27,9 +27,8 @@ MODULE qs_ks_qmmm_methods
                                               pw_integral_ab
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: REALSPACE,&
+                                              pw_r3d_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -110,7 +109,7 @@ CONTAINS
       ks_qmmm_env%n_evals = 0
 
       CALL auxbas_pw_pool%create_pw(ks_qmmm_env%v_qmmm_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss) .OR. (qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN
          CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
@@ -146,8 +145,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: rho
-      TYPE(pw_type), INTENT(IN)                          :: v_qmmm
+      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)        :: rho
+      TYPE(pw_r3d_type), INTENT(IN)                      :: v_qmmm
       REAL(KIND=dp), INTENT(INOUT)                       :: qmmm_energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy'
@@ -155,7 +154,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_type), POINTER                             :: rho0_s_rs
+      TYPE(pw_r3d_type), POINTER                         :: rho0_s_rs
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
@@ -198,8 +197,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_modify_hartree_pot(v_hartree, v_qmmm, scale)
-      TYPE(pw_type), INTENT(INOUT)                       :: v_hartree
-      TYPE(pw_type), INTENT(IN)                          :: v_qmmm
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: v_hartree
+      TYPE(pw_r3d_type), INTENT(IN)                      :: v_qmmm
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CALL pw_axpy(v_qmmm, v_hartree, v_qmmm%pw_grid%dvol*scale)

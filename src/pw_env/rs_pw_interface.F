@@ -29,12 +29,10 @@ MODULE rs_pw_interface
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pools_create_pws,&
                                               pw_pools_give_back_pws
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_r3d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type,&
                                               transfer_pw2rs,&
@@ -51,39 +49,7 @@ MODULE rs_pw_interface
    PUBLIC :: density_rs2pw, &
              potential_pw2rs
 
-   INTERFACE density_rs2pw
-      MODULE PROCEDURE density_rs2pw_pw, density_rs2pw_new
-   END INTERFACE
-
-   INTERFACE potential_pw2rs
-      MODULE PROCEDURE potential_pw2rs_pw, potential_pw2rs_new
-   END INTERFACE
-
 CONTAINS
-! **************************************************************************************************
-!> \brief ...
-!> \param pw_env ...
-!> \param rs_rho ...
-!> \param rho ...
-!> \param rho_gspace ...
-! **************************************************************************************************
-   SUBROUTINE density_rs2pw_pw(pw_env, rs_rho, rho, rho_gspace)
-
-      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
-      TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_rho
-      TYPE(pw_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_gspace
-
-      TYPE(pw_r3d_type)                                  :: my_rho
-
-      my_rho%in_space = rho%in_space
-      my_rho%pw_grid => rho%pw_grid
-      my_rho%array => rho%cr3d
-
-      CALL density_rs2pw(pw_env, rs_rho, my_rho, rho_gspace)
-
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief given partial densities on the realspace multigrids,
@@ -97,7 +63,7 @@ CONTAINS
 !>      should contain all communication in the collocation of the density
 !>      in the case of replicated grids
 ! **************************************************************************************************
-   SUBROUTINE density_rs2pw_new(pw_env, rs_rho, rho, rho_gspace)
+   SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
 
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), &
@@ -105,13 +71,13 @@ CONTAINS
       TYPE(pw_r3d_type), INTENT(INOUT)                   :: rho
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_gspace
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw_new'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
 
       INTEGER                                            :: handle, igrid_level, interp_kind
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_rspace
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: mgrid_rspace
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
 
@@ -123,12 +89,9 @@ CONTAINS
 
       CALL section_vals_val_get(pw_env%interp_section, "KIND", i_val=interp_kind)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                               use_data=REALDATA3D, &
-                               in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, in_space=REALSPACE)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                               in_space=RECIPROCALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
          CALL transfer_rs2pw(rs_rho(1), rho)
@@ -172,30 +135,7 @@ CONTAINS
       CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
       CALL timestop(handle)
 
-   END SUBROUTINE density_rs2pw_new
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs_v ...
-!> \param v_rspace ...
-!> \param pw_env ...
-! **************************************************************************************************
-   SUBROUTINE potential_pw2rs_pw(rs_v, v_rspace, pw_env)
-
-      TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_v
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
-      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
-
-      TYPE(pw_r3d_type)                                  :: my_v_rspace
-
-      my_v_rspace%pw_grid => v_rspace%pw_grid
-      my_v_rspace%array => v_rspace%cr3d
-      my_v_rspace%in_space = v_rspace%in_space
-
-      CALL potential_pw2rs_new(rs_v, my_v_rspace, pw_env)
-
-   END SUBROUTINE potential_pw2rs_pw
+   END SUBROUTINE density_rs2pw
 
 ! **************************************************************************************************
 !> \brief transfers a potential from a pw_grid to a vector of
@@ -210,14 +150,14 @@ CONTAINS
 !>      should contain all parallel communication of integrate_v_rspace in the
 !>      case of replicated grids.
 ! **************************************************************************************************
-   SUBROUTINE potential_pw2rs_new(rs_v, v_rspace, pw_env)
+   SUBROUTINE potential_pw2rs(rs_v, v_rspace, pw_env)
 
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_v
       TYPE(pw_r3d_type), INTENT(IN)                      :: v_rspace
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_pw2rs_new'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'potential_pw2rs'
 
       INTEGER                                            :: auxbas_grid, handle, igrid_level, &
                                                             interp_kind
@@ -225,7 +165,7 @@ CONTAINS
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_rspace
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: mgrid_rspace
 
       CALL timeset(routineN, handle)
 
@@ -233,16 +173,13 @@ CONTAINS
       CALL pw_env_get(pw_env, pw_pools=pw_pools, gridlevel_info=gridlevel_info, &
                       auxbas_grid=auxbas_grid)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                               use_data=REALDATA3D, &
-                               in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, in_space=REALSPACE)
 
       ! use either realspace or fft techniques to get the potential on the rs multigrids
       CALL section_vals_val_get(pw_env%interp_section, "KIND", i_val=interp_kind)
       SELECT CASE (interp_kind)
       CASE (pw_interp)
-         CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                                  in_space=RECIPROCALSPACE)
+         CALL pw_pools_create_pws(pw_pools, mgrid_gspace, in_space=RECIPROCALSPACE)
          CALL pw_transfer(v_rspace, mgrid_gspace(auxbas_grid))
          DO igrid_level = 1, gridlevel_info%ngrid_levels
             IF (igrid_level /= auxbas_grid) THEN
@@ -259,8 +196,8 @@ CONTAINS
             IF (igrid_level /= auxbas_grid) THEN
                scale = mgrid_rspace(igrid_level)%pw_grid%dvol/ &
                        mgrid_rspace(auxbas_grid)%pw_grid%dvol
-               mgrid_rspace(igrid_level)%cr3d = &
-                  scale*mgrid_rspace(igrid_level)%cr3d
+               mgrid_rspace(igrid_level)%array = &
+                  scale*mgrid_rspace(igrid_level)%array
             END IF
          END DO
          CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
@@ -272,8 +209,8 @@ CONTAINS
                                 mgrid_rspace(igrid_level + 1), pw_pools(igrid_level + 1)%pool, &
                                 pw_env%interp_section)
             ! *** Multiply by the grid volume element ratio
-            mgrid_rspace(igrid_level + 1)%cr3d = &
-               mgrid_rspace(igrid_level + 1)%cr3d*8._dp
+            mgrid_rspace(igrid_level + 1)%array = &
+               mgrid_rspace(igrid_level + 1)%array*8._dp
          END DO
       CASE default
          CALL cp_abort(__LOCATION__, &
@@ -290,6 +227,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE potential_pw2rs_new
+   END SUBROUTINE potential_pw2rs
 
 END MODULE rs_pw_interface

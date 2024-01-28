@@ -88,12 +88,11 @@ MODULE library_tests
                                               pw_grid_setup
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
                                               pw_c3d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
         rs_grid_create_descriptor, rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
@@ -713,7 +712,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: tend, tstart
       TYPE(cell_type), POINTER                           :: box
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: ca
+      TYPE(pw_r3d_type)                                  :: ca
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type)                          :: rs_grid
@@ -742,7 +741,7 @@ CONTAINS
       CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
-      CALL ca%create(grid, REALDATA3D, REALSPACE)
+      CALL ca%create(grid, REALSPACE)
       CALL pw_zero(ca)
 
       ! .. rs input setting type

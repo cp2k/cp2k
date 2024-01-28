@@ -29,7 +29,7 @@ MODULE pme
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_type
+                                              ewald_pw_r3d_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_comm_type
@@ -44,12 +44,10 @@ MODULE pme
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_r3d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
                                               rs_grid_create,&
@@ -100,7 +98,7 @@ CONTAINS
                            fg_coulomb, pv_g, shell_particle_set, core_particle_set, &
                            fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(OUT)                         :: vg_coulomb
@@ -130,7 +128,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_b, grid_s
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_big_pool, pw_small_pool
-      TYPE(pw_type)                                      :: phi_r, rhob_r, rhos1, rhos2
+      TYPE(pw_r3d_type)                                  :: phi_r, rhob_r, rhos1, rhos2
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
       TYPE(realspace_grid_type), POINTER                 :: rden, rpot
@@ -167,9 +165,9 @@ CONTAINS
       END IF
 
       CALL pw_small_pool%create_pw(rhos1, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
       CALL pw_small_pool%create_pw(rhos2, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+                                   in_space=REALSPACE)
 
       ALLOCATE (rden)
       CALL rs_grid_create(rden, rs_desc)
@@ -243,30 +241,18 @@ CONTAINS
          END DO
       END IF
 
-      CALL pw_big_pool%create_pw(rhob_r, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_big_pool%create_pw(rhob_r, in_space=REALSPACE)
       CALL transfer_rs2pw(rden, rhob_r)
 
       !-------------- ELECTROSTATIC CALCULATION -----------
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         CALL pw_big_pool%create_pw(dphi_g(i), &
-                                    in_space=RECIPROCALSPACE)
+         CALL pw_big_pool%create_pw(dphi_g(i), in_space=RECIPROCALSPACE)
       END DO
-      CALL pw_big_pool%create_pw(phi_r, &
-                                 use_data=REALDATA3D, &
-                                 in_space=REALSPACE)
+      CALL pw_big_pool%create_pw(phi_r, in_space=REALSPACE)
 
-      BLOCK
-         TYPE(pw_r3d_type) :: my_rhob_r, my_phi_r
-         my_rhob_r%in_space = rhob_r%in_space
-         my_rhob_r%pw_grid => rhob_r%pw_grid
-         my_rhob_r%array => rhob_r%cr3d
-         my_phi_r%in_space = phi_r%in_space
-         my_phi_r%pw_grid => phi_r%pw_grid
-         my_phi_r%array => phi_r%cr3d
-         CALL pw_poisson_solve(poisson_env, my_rhob_r, vg_coulomb, my_phi_r, dphi_g, h_stress)
-      END BLOCK
+      CALL pw_poisson_solve(poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress)
 
       ! atomic energies
       IF (atprop%energy .OR. atprop%stress) THEN
@@ -520,7 +506,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: box
       INTEGER, INTENT(IN)                                :: p1, p2
       TYPE(pw_grid_type), INTENT(IN)                     :: grid_b, grid_s
-      TYPE(pw_type), INTENT(INOUT)                       :: rhos1, rhos2
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rhos1, rhos2
       LOGICAL, OPTIONAL                                  :: is1_core, is2_core, is1_shell, is2_shell
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: core_particle_set
@@ -534,7 +520,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: r1, r2
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-      TYPE(pw_type), POINTER                             :: rho0
+      TYPE(pw_r3d_type), POINTER                         :: rho0
       TYPE(shell_kind_type), POINTER                     :: shell
 
       NULLIFY (shell)
@@ -665,7 +651,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(structure_factor_type)                        :: exp_igr
       INTEGER, INTENT(IN)                                :: p1, p2
-      TYPE(pw_type), INTENT(INOUT)                       :: rhos1, rhos2
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rhos1, rhos2
       LOGICAL, OPTIONAL                                  :: is1_core, is2_core, is1_shell, is2_shell
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
 
@@ -675,7 +661,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: q1, q2
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-      TYPE(pw_type), POINTER                             :: rho0
+      TYPE(pw_r3d_type), POINTER                         :: rho0
       TYPE(shell_kind_type), POINTER                     :: shell
 
       NULLIFY (shell)

@@ -28,7 +28,7 @@ MODULE xc_adiabatic_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -72,7 +72,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_new, v_tau_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_rspace_new, v_tau_rspace
       REAL(dp), DIMENSION(:)                             :: hf_energy
       LOGICAL, INTENT(in)                                :: just_energy, calculate_forces, use_virial
 

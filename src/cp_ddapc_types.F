@@ -36,7 +36,7 @@ MODULE cp_ddapc_types
    USE pw_pool_types,                   ONLY: pw_pool_release,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,7 +71,7 @@ MODULE cp_ddapc_types
       TYPE(section_vals_type), POINTER :: ewald_section => NULL()
       TYPE(pw_pool_type), POINTER :: pw_pool_qm => NULL(), pw_pool_mm => NULL()
       TYPE(pw_grid_type), POINTER :: pw_grid_qm => NULL(), pw_grid_mm => NULL()
-      TYPE(pw_type), POINTER :: coeff_qm => NULL(), coeff_mm => NULL()
+      TYPE(pw_r3d_type), POINTER :: coeff_qm => NULL(), coeff_mm => NULL()
    END TYPE cp_ddapc_ewald_type
 
 CONTAINS

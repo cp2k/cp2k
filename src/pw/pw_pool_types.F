@@ -23,40 +23,35 @@
 ! **************************************************************************************************
 MODULE pw_pool_types
    #:include 'pw_types.fypp'
-   USE cp_linked_list_pw, ONLY: &
-      cp_sll_pw_dealloc, cp_sll_pw_get_first_el, cp_sll_pw_get_length, cp_sll_pw_insert_el, &
-      cp_sll_pw_next, cp_sll_pw_rm_first_el, cp_sll_pw_type, &
-   #:for i, kind in enumerate(pw_kinds)
-      cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el, &
-      cp_sll_${kind[1:]}$_${kind[0]}$_get_length, &
-      cp_sll_${kind[1:]}$_${kind[0]}$_insert_el, cp_sll_${kind[1:]}$_${kind[0]}$_next, &
-      cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el, cp_sll_${kind[1:]}$_${kind[0]}$_type#{if i<len(pw_kinds)-1}#, &#{endif}#
-      #:endfor
-      USE kinds, ONLY: dp
-      USE pw_grid_types, ONLY: pw_grid_type
-      USE pw_grids, ONLY: pw_grid_compare, &
-                          pw_grid_release, &
-                          pw_grid_retain
-      USE pw_types, ONLY: &
-         REALDATA3D, &
-         REALSPACE, &
-         RECIPROCALSPACE, &
+   #:for kind in pw_kinds
+      USE cp_linked_list_pw, ONLY: cp_sll_${kind[1:]}$_${kind[0]}$_dealloc, cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el, &
+                                   cp_sll_${kind[1:]}$_${kind[0]}$_get_length, &
+                                   cp_sll_${kind[1:]}$_${kind[0]}$_insert_el, cp_sll_${kind[1:]}$_${kind[0]}$_next, &
+                                   cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el, cp_sll_${kind[1:]}$_${kind[0]}$_type
+   #:endfor
+   USE kinds, ONLY: dp
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_grids, ONLY: pw_grid_compare, &
+                       pw_grid_release, &
+                       pw_grid_retain
+   USE pw_types, ONLY: &
 #:for kind in pw_kinds
-         pw_${kind}$_type, &
+      pw_${kind}$_type, &
 #:endfor
-         pw_type
+      REALSPACE, &
+      RECIPROCALSPACE
 #include "../base/base_uses.f90"
 
-      IMPLICIT NONE
-      PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
-      CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_pool_types'
-      INTEGER, PARAMETER :: default_max_cache = 75, max_max_cache = 150
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_pool_types'
+   INTEGER, PARAMETER :: default_max_cache = 75, max_max_cache = 150
 
-      PUBLIC :: pw_pool_type, pw_pool_p_type
-      PUBLIC :: pw_pool_create, pw_pool_release
-      PUBLIC :: pw_pools_copy, pw_pools_dealloc, &
-                pw_pools_create_pws, pw_pools_give_back_pws
+   PUBLIC :: pw_pool_type, pw_pool_p_type
+   PUBLIC :: pw_pool_create, pw_pool_release
+   PUBLIC :: pw_pools_copy, pw_pools_dealloc, &
+             pw_pools_create_pws, pw_pools_give_back_pws
 
 ! **************************************************************************************************
 !> \brief Manages a pool of grids (to be used for example as tmp objects),
@@ -72,33 +67,23 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-      TYPE pw_pool_type
-         INTEGER :: ref_count = 0, max_cache = 0
-         TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
-         #:for kind in pw_kinds
-            TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: ${kind}$_array => NULL()
-         #:endfor
-      CONTAINS
-         PROCEDURE, PUBLIC, NON_OVERRIDABLE :: retain => pw_pool_retain
-         PROCEDURE, PUBLIC, NON_OVERRIDABLE :: pw_pool_create_pw_pw, &
+   TYPE pw_pool_type
+      INTEGER :: ref_count = 0, max_cache = 0
+      TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
+      #:for kind in pw_kinds
+         TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER :: ${kind}$_array => NULL()
+      #:endfor
+   CONTAINS
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: retain => pw_pool_retain
       #:for i, kind in enumerate(pw_kinds)
-            pw_pool_create_pw_${kind}$#{if i<len(pw_kinds)-1}#, &#{endif}#
-            #:endfor
-            GENERIC, PUBLIC :: create_pw => pw_pool_create_pw_pw, &
-#:for i, kind in enumerate(pw_kinds)
-               pw_pool_create_pw_${kind}$#{if i<len(pw_kinds)-1}#, &#{endif}#
-               #:endfor
-               PROCEDURE, PUBLIC, NON_OVERRIDABLE :: pw_pool_give_back_pw_pw, &
-      #:for i, kind in enumerate(pw_kinds)
-                  pw_pool_give_back_pw_${kind}$#{if i<len(pw_kinds)-1}#, &#{endif}#
-                  #:endfor
-                  GENERIC, PUBLIC :: give_back_pw => pw_pool_give_back_pw_pw, &
-#:for i, kind in enumerate(pw_kinds)
-                     pw_pool_give_back_pw_${kind}$#{if i<len(pw_kinds)-1}#, &#{endif}#
-                     #:endfor
-                     PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create_cr3d => pw_pool_create_cr3d
-                     PROCEDURE, PUBLIC, NON_OVERRIDABLE :: give_back_cr3d => pw_pool_give_back_cr3d
-                  END TYPE pw_pool_type
+         PROCEDURE, PUBLIC, NON_OVERRIDABLE ::            pw_pool_create_pw_${kind}$
+         GENERIC, PUBLIC :: create_pw => pw_pool_create_pw_${kind}$
+         PROCEDURE, PUBLIC, NON_OVERRIDABLE ::                  pw_pool_give_back_pw_${kind}$
+         GENERIC, PUBLIC :: give_back_pw => pw_pool_give_back_pw_${kind}$
+      #:endfor
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create_cr3d => pw_pool_create_cr3d
+      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: give_back_cr3d => pw_pool_give_back_cr3d
+   END TYPE pw_pool_type
 
 ! **************************************************************************************************
 !> \brief to create arrays of pools
@@ -107,25 +92,23 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  TYPE pw_pool_p_type
-                     TYPE(pw_pool_type), POINTER :: pool => NULL()
-                  END TYPE pw_pool_p_type
+   TYPE pw_pool_p_type
+      TYPE(pw_pool_type), POINTER :: pool => NULL()
+   END TYPE pw_pool_p_type
 
-                  INTERFACE pw_pools_create_pws
-                     MODULE PROCEDURE pw_pools_create_pws_pw
-                     #:for kind in pw_kinds
-                        MODULE PROCEDURE pw_pools_create_pws_${kind}$
-                     #:endfor
-                  END INTERFACE
+   INTERFACE pw_pools_create_pws
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pools_create_pws_${kind}$
+      #:endfor
+   END INTERFACE
 
-                  INTERFACE pw_pools_give_back_pws
-                     MODULE PROCEDURE pw_pools_give_back_pws_pw
-                     #:for kind in pw_kinds
-                        MODULE PROCEDURE pw_pools_give_back_pws_${kind}$
-                     #:endfor
-                  END INTERFACE
+   INTERFACE pw_pools_give_back_pws
+      #:for kind in pw_kinds
+         MODULE PROCEDURE pw_pools_give_back_pws_${kind}$
+      #:endfor
+   END INTERFACE
 
-               CONTAINS
+CONTAINS
 
 ! **************************************************************************************************
 !> \brief creates a pool for pw
@@ -136,19 +119,19 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pool_create(pool, pw_grid, max_cache)
-                     TYPE(pw_pool_type), POINTER                        :: pool
-                     TYPE(pw_grid_type), POINTER                        :: pw_grid
-                     INTEGER, OPTIONAL                                  :: max_cache
+   SUBROUTINE pw_pool_create(pool, pw_grid, max_cache)
+      TYPE(pw_pool_type), POINTER                        :: pool
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      INTEGER, OPTIONAL                                  :: max_cache
 
-                     ALLOCATE (pool)
-                     pool%pw_grid => pw_grid
-                     CALL pw_grid_retain(pw_grid)
-                     pool%ref_count = 1
-                     pool%max_cache = default_max_cache
-                     IF (PRESENT(max_cache)) pool%max_cache = max_cache
-                     pool%max_cache = MIN(max_max_cache, pool%max_cache)
-                  END SUBROUTINE pw_pool_create
+      ALLOCATE (pool)
+      pool%pw_grid => pw_grid
+      CALL pw_grid_retain(pw_grid)
+      pool%ref_count = 1
+      pool%max_cache = default_max_cache
+      IF (PRESENT(max_cache)) pool%max_cache = max_cache
+      pool%max_cache = MIN(max_max_cache, pool%max_cache)
+   END SUBROUTINE pw_pool_create
 
 ! **************************************************************************************************
 !> \brief retains the pool (see cp2k/doc/ReferenceCounting.html)
@@ -157,13 +140,13 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pool_retain(pool)
-                     CLASS(pw_pool_type), INTENT(INOUT)                  :: pool
+   SUBROUTINE pw_pool_retain(pool)
+      CLASS(pw_pool_type), INTENT(INOUT)                  :: pool
 
-                     CPASSERT(pool%ref_count > 0)
+      CPASSERT(pool%ref_count > 0)
 
-                     pool%ref_count = pool%ref_count + 1
-                  END SUBROUTINE pw_pool_retain
+      pool%ref_count = pool%ref_count + 1
+   END SUBROUTINE pw_pool_retain
 
 ! **************************************************************************************************
 !> \brief deallocates all the cached grids
@@ -172,25 +155,25 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pool_flush_cache(pool)
-                     TYPE(pw_pool_type), INTENT(INOUT)                  :: pool
+   SUBROUTINE pw_pool_flush_cache(pool)
+      TYPE(pw_pool_type), INTENT(INOUT)                  :: pool
 
-                     #:for kind, type in zip(pw_kinds, pw_types)
-                        ${type}$, CONTIGUOUS, POINTER                      :: ${kind}$_att
-                        TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER   :: ${kind}$_iterator
-                     #:endfor
+      #:for kind, type in zip(pw_kinds, pw_types)
+         ${type}$, CONTIGUOUS, POINTER                      :: ${kind}$_att
+         TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER   :: ${kind}$_iterator
+      #:endfor
 
-                     #:for kind in pw_kinds
-                        NULLIFY (${kind}$_iterator, ${kind}$_att)
-                        ${kind}$_iterator => pool%${kind}$_array
-                        DO
-                           IF (.NOT. cp_sll_${kind[1:]}$_${kind[0]}$_next(${kind}$_iterator, el_att=${kind}$_att)) EXIT
-                           DEALLOCATE (${kind}$_att)
-                        END DO
-                        CALL cp_sll_${kind[1:]}$_${kind[0]}$_dealloc(pool%${kind}$_array)
-                     #:endfor
+      #:for kind in pw_kinds
+         NULLIFY (${kind}$_iterator, ${kind}$_att)
+         ${kind}$_iterator => pool%${kind}$_array
+         DO
+            IF (.NOT. cp_sll_${kind[1:]}$_${kind[0]}$_next(${kind}$_iterator, el_att=${kind}$_att)) EXIT
+            DEALLOCATE (${kind}$_att)
+         END DO
+         CALL cp_sll_${kind[1:]}$_${kind[0]}$_dealloc(pool%${kind}$_array)
+      #:endfor
 
-                  END SUBROUTINE pw_pool_flush_cache
+   END SUBROUTINE pw_pool_flush_cache
 
 ! **************************************************************************************************
 !> \brief releases the given pool (see cp2k/doc/ReferenceCounting.html)
@@ -199,23 +182,23 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pool_release(pool)
-                     TYPE(pw_pool_type), POINTER                        :: pool
+   SUBROUTINE pw_pool_release(pool)
+      TYPE(pw_pool_type), POINTER                        :: pool
 
-                     IF (ASSOCIATED(pool)) THEN
-                        CPASSERT(pool%ref_count > 0)
-                        pool%ref_count = pool%ref_count - 1
-                        IF (pool%ref_count == 0) THEN
-                           CALL pw_pool_flush_cache(pool)
-                           CALL pw_grid_release(pool%pw_grid)
+      IF (ASSOCIATED(pool)) THEN
+         CPASSERT(pool%ref_count > 0)
+         pool%ref_count = pool%ref_count - 1
+         IF (pool%ref_count == 0) THEN
+            CALL pw_pool_flush_cache(pool)
+            CALL pw_grid_release(pool%pw_grid)
 
-                           DEALLOCATE (pool)
-                        END IF
-                     END IF
-                     NULLIFY (pool)
-                  END SUBROUTINE pw_pool_release
+            DEALLOCATE (pool)
+         END IF
+      END IF
+      NULLIFY (pool)
+   END SUBROUTINE pw_pool_release
 
-                  #:for kind, type in zip(pw_kinds, pw_types)
+   #:for kind, type in zip(pw_kinds, pw_types)
 ! **************************************************************************************************
 !> \brief tries to pop an element from the given list (no error on failure)
 !> \param list the list to pop
@@ -226,131 +209,17 @@ MODULE pw_pool_types
 !> \note
 !>      private function
 ! **************************************************************************************************
-                     FUNCTION try_pop_${kind}$ (list) RESULT(res)
-                        TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER                    :: list
-                        ${type}$, CONTIGUOUS, POINTER                                         :: res
+      FUNCTION try_pop_${kind}$ (list) RESULT(res)
+         TYPE(cp_sll_${kind[1:]}$_${kind[0]}$_type), POINTER                    :: list
+         ${type}$, CONTIGUOUS, POINTER                                         :: res
 
-                        IF (ASSOCIATED(list)) THEN
-                           res => cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el(list)
-                           CALL cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el(list)
-                        ELSE
-                           NULLIFY (res)
-                        END IF
-                     END FUNCTION try_pop_${kind}$
-
-! **************************************************************************************************
-!> \brief returns a pw, allocating it if none is in the pool
-!> \param pool the pool from where you get the pw
-!> \param pw will contain the new pw
-!> \param use_data which data it uses:
-!>        REALDATA3D
-!> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-                     SUBROUTINE pw_pool_create_pw_${kind}$ (pool, pw, in_space)
-                        CLASS(pw_pool_type), INTENT(IN)                     :: pool
-                        TYPE(pw_${kind}$_type), INTENT(OUT)                         :: pw
-                        INTEGER, INTENT(in)                                :: in_space
-
-                        CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
-
-                        INTEGER                                            :: handle
-                        ${type}$, CONTIGUOUS, POINTER                      :: array_ptr
-
-                        CALL timeset(routineN, handle)
-                        NULLIFY (array_ptr)
-
-                        array_ptr => try_pop_${kind}$ (pool%${kind}$_array)
-                        CALL pw%create(pool%pw_grid, &
-                                       in_space=in_space, array_ptr=array_ptr)
-
-                        CALL timestop(handle)
-
-                     END SUBROUTINE pw_pool_create_pw_${kind}$
-
-! **************************************************************************************************
-!> \brief returns the pw to the pool
-!> \param pool the pool where to reintegrate the pw
-!> \param pw the pw to give back
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-                     SUBROUTINE pw_pool_give_back_pw_${kind}$ (pool, pw)
-                        CLASS(pw_pool_type), INTENT(IN)                     :: pool
-                        TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw
-
-                        CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
-
-                        INTEGER                                            :: handle
-
-                        CALL timeset(routineN, handle)
-                        IF (ASSOCIATED(pw%pw_grid)) THEN
-                           IF (pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
-                              IF (ASSOCIATED(pw%array)) THEN
-                                 IF (cp_sll_${kind[1:]}$_${kind[0]}$_get_length(pool%${kind}$_array) < pool%max_cache) THEN
-                                    CALL cp_sll_${kind[1:]}$_${kind[0]}$_insert_el(pool%${kind}$_array, el=pw%array)
-                                    NULLIFY (pw%array)
-                                 ELSE IF (max_max_cache >= 0) THEN
-                                    CPWARN("hit max_cache")
-                                 END IF
-                              END IF
-                           END IF
-                        END IF
-                        CALL pw%release()
-                        CALL timestop(handle)
-                     END SUBROUTINE pw_pool_give_back_pw_${kind}$
-
-! **************************************************************************************************
-!> \brief creates a multigrid structure
-!> \param pools the multigrid pool (i.e. an array of pw_pool)
-!> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses:
-!>        REALDATA3D
-!> \param in_space ...
-!> \par History
-!>      07.2004 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-                     SUBROUTINE pw_pools_create_pws_${kind}$ (pools, pws, in_space)
-                        TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
-                        TYPE(pw_${kind}$_type), ALLOCATABLE, DIMENSION(:), &
-                           INTENT(OUT)                                     :: pws
-                        INTEGER, INTENT(in), OPTIONAL                      :: in_space
-
-                        INTEGER                                            :: i
-
-                        ALLOCATE (pws(SIZE(pools)))
-                        DO i = 1, SIZE(pools)
-                           CALL pw_pool_create_pw_${kind}$ (pools(i)%pool, pws(i), &
-                                                            in_space=in_space)
-                        END DO
-                     END SUBROUTINE pw_pools_create_pws_${kind}$
-
-! **************************************************************************************************
-!> \brief returns the pw part of the coefficients into the pools
-!> \param pools the pools that will cache the pws %pw
-!> \param pws the coefficients to give back
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-                     SUBROUTINE pw_pools_give_back_pws_${kind}$ (pools, pws)
-                        TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
-                        TYPE(pw_${kind}$_type), ALLOCATABLE, DIMENSION(:), &
-                           INTENT(INOUT)                                   :: pws
-
-                        INTEGER                                            :: i
-
-                        CPASSERT(SIZE(pws) == SIZE(pools))
-                        DO i = 1, SIZE(pools)
-                           CALL pw_pool_give_back_pw_${kind}$ (pools(i)%pool, pws(i))
-                        END DO
-                        DEALLOCATE (pws)
-                     END SUBROUTINE pw_pools_give_back_pws_${kind}$
-                  #:endfor
+         IF (ASSOCIATED(list)) THEN
+            res => cp_sll_${kind[1:]}$_${kind[0]}$_get_first_el(list)
+            CALL cp_sll_${kind[1:]}$_${kind[0]}$_rm_first_el(list)
+         ELSE
+            NULLIFY (res)
+         END IF
+      END FUNCTION try_pop_${kind}$
 
 ! **************************************************************************************************
 !> \brief returns a pw, allocating it if none is in the pool
@@ -363,36 +232,26 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pool_create_pw_pw(pool, pw, use_data, in_space)
-                     CLASS(pw_pool_type), INTENT(IN)                     :: pool
-                     TYPE(pw_type), INTENT(OUT)                         :: pw
-                     INTEGER, INTENT(in)                                :: use_data, in_space
+      SUBROUTINE pw_pool_create_pw_${kind}$ (pool, pw, in_space)
+         CLASS(pw_pool_type), INTENT(IN)                     :: pool
+         TYPE(pw_${kind}$_type), INTENT(OUT)                         :: pw
+         INTEGER, INTENT(in)                                :: in_space
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
 
-                     INTEGER                                            :: handle
-                     #:for kind, type in zip(pw_kinds, pw_types)
-                        ${type}$, CONTIGUOUS, POINTER                      :: ${kind}$_ptr
-                     #:endfor
+         INTEGER                                            :: handle
+         ${type}$, CONTIGUOUS, POINTER                      :: array_ptr
 
-                     CALL timeset(routineN, handle)
-                     #:for kind in pw_kinds
-                        NULLIFY (${kind}$_ptr)
-                     #:endfor
+         CALL timeset(routineN, handle)
+         NULLIFY (array_ptr)
 
-                     SELECT CASE (use_data)
-                     CASE (REALDATA3D)
-                        r3d_ptr => try_pop_r3d(pool%r3d_array)
-                        CALL pw%create(pool%pw_grid, use_data=use_data, &
-                                       in_space=in_space, r3d_ptr=r3d_ptr)
-                     CASE default
-! unknown use_data
-                        CPABORT("")
-                     END SELECT
+         array_ptr => try_pop_${kind}$ (pool%${kind}$_array)
+         CALL pw%create(pool%pw_grid, &
+                        in_space=in_space, array_ptr=array_ptr)
 
-                     CALL timestop(handle)
+         CALL timestop(handle)
 
-                  END SUBROUTINE pw_pool_create_pw_pw
+      END SUBROUTINE pw_pool_create_pw_${kind}$
 
 ! **************************************************************************************************
 !> \brief returns the pw to the pool
@@ -402,99 +261,30 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pool_give_back_pw_pw(pool, pw)
-                     CLASS(pw_pool_type), INTENT(IN)                     :: pool
-                     TYPE(pw_type), INTENT(INOUT)                       :: pw
+      SUBROUTINE pw_pool_give_back_pw_${kind}$ (pool, pw)
+         CLASS(pw_pool_type), INTENT(IN)                     :: pool
+         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
+         CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
 
-                     INTEGER                                            :: handle
+         INTEGER                                            :: handle
 
-                     CALL timeset(routineN, handle)
-                     IF (ASSOCIATED(pw%pw_grid)) THEN
-                        IF (pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
-                           SELECT CASE (pw%in_use)
-                           CASE (REALDATA3D)
-                              IF (ASSOCIATED(pw%cr3d)) THEN
-                                 IF (cp_sll_3d_r_get_length(pool%r3d_array) < pool%max_cache) THEN
-                                    CALL cp_sll_3d_r_insert_el(pool%r3d_array, el=pw%cr3d)
-                                    NULLIFY (pw%cr3d)
-                                 ELSE IF (max_max_cache >= 0) THEN
-                                    CPWARN("hit max_cache")
-                                 END IF
-                              END IF
-                           CASE default
-                              ! unknown in_use
-                              CPABORT("")
-                           END SELECT
-                        END IF
-                     END IF
-                     CALL pw%release()
-                     CALL timestop(handle)
-                  END SUBROUTINE pw_pool_give_back_pw_pw
-
-! **************************************************************************************************
-!> \brief returns a 3d real array of coefficients as the one used by pw with
-!>      REALDATA3D, allocating it if none is present in the pool
-!> \param pw_pool the pool that caches the cr3d
-!> \param cr3d the pointer that will contain the array
-!> \par History
-!>      11.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-                  SUBROUTINE pw_pool_create_cr3d(pw_pool, cr3d)
-                     CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
-                     REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
-
-                     TYPE(pw_type), POINTER                             :: pw
-
-                     NULLIFY (pw)
-                     IF (ASSOCIATED(pw_pool%r3d_array)) THEN
-                        cr3d => cp_sll_3d_r_get_first_el(pw_pool%r3d_array)
-                        CALL cp_sll_3d_r_rm_first_el(pw_pool%r3d_array)
-                     END IF
-                     IF (.NOT. ASSOCIATED(cr3d)) THEN
-                        ALLOCATE (cr3d(pw_pool%pw_grid%bounds_local(1, 1):pw_pool%pw_grid%bounds_local(2, 1), &
-                                       pw_pool%pw_grid%bounds_local(1, 2):pw_pool%pw_grid%bounds_local(2, 2), &
-                                       pw_pool%pw_grid%bounds_local(1, 3):pw_pool%pw_grid%bounds_local(2, 3)))
-                     END IF
-                  END SUBROUTINE pw_pool_create_cr3d
-
-! **************************************************************************************************
-!> \brief returns a 3d real array of coefficients as the one used by pw with
-!>      REALDATA3D, allocating it if none is present in the pool
-!> \param pw_pool the pool that caches the cr3d
-!> \param cr3d the pointer that will contain the array
-!> \par History
-!>      11.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-                  SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d)
-                     CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
-                     REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-                        POINTER                                         :: cr3d
-
-                     LOGICAL                                            :: compatible
-
-                     IF (ASSOCIATED(cr3d)) THEN
-                        compatible = ALL(MERGE(pw_pool%pw_grid%bounds_local(1, :) == LBOUND(cr3d) .AND. &
-                                               pw_pool%pw_grid%bounds_local(2, :) == UBOUND(cr3d), &
-                                               pw_pool%pw_grid%bounds_local(2, :) < pw_pool%pw_grid%bounds_local(1, :), &
-                                               UBOUND(cr3d) >= LBOUND(cr3d)))
-                        IF (compatible) THEN
-                           IF (cp_sll_3d_r_get_length(pw_pool%r3d_array) < pw_pool%max_cache) THEN
-                              CALL cp_sll_3d_r_insert_el(pw_pool%r3d_array, el=cr3d)
-                           ELSE
-                              IF (max_max_cache >= 0) &
-                                 CPWARN("hit max_cache")
-                              DEALLOCATE (cr3d)
-                           END IF
-                        ELSE
-                           DEALLOCATE (cr3d)
-                        END IF
-                     END IF
-                     NULLIFY (cr3d)
-                  END SUBROUTINE pw_pool_give_back_cr3d
+         CALL timeset(routineN, handle)
+         IF (ASSOCIATED(pw%pw_grid)) THEN
+            IF (pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
+               IF (ASSOCIATED(pw%array)) THEN
+                  IF (cp_sll_${kind[1:]}$_${kind[0]}$_get_length(pool%${kind}$_array) < pool%max_cache) THEN
+                     CALL cp_sll_${kind[1:]}$_${kind[0]}$_insert_el(pool%${kind}$_array, el=pw%array)
+                     NULLIFY (pw%array)
+                  ELSE IF (max_max_cache >= 0) THEN
+                     CPWARN("hit max_cache")
+                  END IF
+               END IF
+            END IF
+         END IF
+         CALL pw%release()
+         CALL timestop(handle)
+      END SUBROUTINE pw_pool_give_back_pw_${kind}$
 
 ! **************************************************************************************************
 !> \brief creates a multigrid structure
@@ -507,21 +297,20 @@ MODULE pw_pool_types
 !>      07.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pools_create_pws_pw(pools, pws, use_data, in_space)
-                     TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
-                     TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
-                        INTENT(OUT)                                     :: pws
-                     INTEGER, INTENT(in)                                :: use_data
-                     INTEGER, INTENT(in), OPTIONAL                      :: in_space
+      SUBROUTINE pw_pools_create_pws_${kind}$ (pools, pws, in_space)
+         TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
+         TYPE(pw_${kind}$_type), ALLOCATABLE, DIMENSION(:), &
+            INTENT(OUT)                                     :: pws
+         INTEGER, INTENT(in), OPTIONAL                      :: in_space
 
-                     INTEGER                                            :: i
+         INTEGER                                            :: i
 
-                     ALLOCATE (pws(SIZE(pools)))
-                     DO i = 1, SIZE(pools)
-                        CALL pw_pool_create_pw_pw(pools(i)%pool, pws(i), use_data, &
-                                                  in_space=in_space)
-                     END DO
-                  END SUBROUTINE pw_pools_create_pws_pw
+         ALLOCATE (pws(SIZE(pools)))
+         DO i = 1, SIZE(pools)
+            CALL pw_pool_create_pw_${kind}$ (pools(i)%pool, pws(i), &
+                                             in_space=in_space)
+         END DO
+      END SUBROUTINE pw_pools_create_pws_${kind}$
 
 ! **************************************************************************************************
 !> \brief returns the pw part of the coefficients into the pools
@@ -531,19 +320,80 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pools_give_back_pws_pw(pools, pws)
-                     TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
-                     TYPE(pw_type), ALLOCATABLE, DIMENSION(:), &
-                        INTENT(INOUT)                                   :: pws
+      SUBROUTINE pw_pools_give_back_pws_${kind}$ (pools, pws)
+         TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: pools
+         TYPE(pw_${kind}$_type), ALLOCATABLE, DIMENSION(:), &
+            INTENT(INOUT)                                   :: pws
 
-                     INTEGER                                            :: i
+         INTEGER                                            :: i
 
-                     CPASSERT(SIZE(pws) == SIZE(pools))
-                     DO i = 1, SIZE(pools)
-                        CALL pw_pool_give_back_pw_pw(pools(i)%pool, pws(i))
-                     END DO
-                     DEALLOCATE (pws)
-                  END SUBROUTINE pw_pools_give_back_pws_pw
+         CPASSERT(SIZE(pws) == SIZE(pools))
+         DO i = 1, SIZE(pools)
+            CALL pw_pool_give_back_pw_${kind}$ (pools(i)%pool, pws(i))
+         END DO
+         DEALLOCATE (pws)
+      END SUBROUTINE pw_pools_give_back_pws_${kind}$
+   #:endfor
+
+! **************************************************************************************************
+!> \brief returns a 3d real array of coefficients as the one used by pw with
+!>      REALDATA3D, allocating it if none is present in the pool
+!> \param pw_pool the pool that caches the cr3d
+!> \param cr3d the pointer that will contain the array
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+   SUBROUTINE pw_pool_create_cr3d(pw_pool, cr3d)
+      CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
+
+      IF (ASSOCIATED(pw_pool%r3d_array)) THEN
+         cr3d => cp_sll_3d_r_get_first_el(pw_pool%r3d_array)
+         CALL cp_sll_3d_r_rm_first_el(pw_pool%r3d_array)
+      END IF
+      IF (.NOT. ASSOCIATED(cr3d)) THEN
+         ALLOCATE (cr3d(pw_pool%pw_grid%bounds_local(1, 1):pw_pool%pw_grid%bounds_local(2, 1), &
+                        pw_pool%pw_grid%bounds_local(1, 2):pw_pool%pw_grid%bounds_local(2, 2), &
+                        pw_pool%pw_grid%bounds_local(1, 3):pw_pool%pw_grid%bounds_local(2, 3)))
+      END IF
+   END SUBROUTINE pw_pool_create_cr3d
+
+! **************************************************************************************************
+!> \brief returns a 3d real array of coefficients as the one used by pw with
+!>      REALDATA3D, allocating it if none is present in the pool
+!> \param pw_pool the pool that caches the cr3d
+!> \param cr3d the pointer that will contain the array
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+   SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d)
+      CLASS(pw_pool_type), INTENT(IN)                     :: pw_pool
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: cr3d
+
+      LOGICAL                                            :: compatible
+
+      IF (ASSOCIATED(cr3d)) THEN
+         compatible = ALL(MERGE(pw_pool%pw_grid%bounds_local(1, :) == LBOUND(cr3d) .AND. &
+                                pw_pool%pw_grid%bounds_local(2, :) == UBOUND(cr3d), &
+                                pw_pool%pw_grid%bounds_local(2, :) < pw_pool%pw_grid%bounds_local(1, :), &
+                                UBOUND(cr3d) >= LBOUND(cr3d)))
+         IF (compatible) THEN
+            IF (cp_sll_3d_r_get_length(pw_pool%r3d_array) < pw_pool%max_cache) THEN
+               CALL cp_sll_3d_r_insert_el(pw_pool%r3d_array, el=cr3d)
+            ELSE
+               IF (max_max_cache >= 0) &
+                  CPWARN("hit max_cache")
+               DEALLOCATE (cr3d)
+            END IF
+         ELSE
+            DEALLOCATE (cr3d)
+         END IF
+      END IF
+      NULLIFY (cr3d)
+   END SUBROUTINE pw_pool_give_back_cr3d
 
 ! **************************************************************************************************
 !> \brief copies a multigrid pool, the underlying pools are shared
@@ -553,18 +403,18 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pools_copy(source_pools, target_pools)
-                     TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: source_pools
-                     TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: target_pools
+   SUBROUTINE pw_pools_copy(source_pools, target_pools)
+      TYPE(pw_pool_p_type), DIMENSION(:), INTENT(IN)     :: source_pools
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: target_pools
 
-                     INTEGER                                            :: i
+      INTEGER                                            :: i
 
-                     ALLOCATE (target_pools(SIZE(source_pools)))
-                     DO i = 1, SIZE(source_pools)
-                        target_pools(i)%pool => source_pools(i)%pool
-                        CALL source_pools(i)%pool%retain()
-                     END DO
-                  END SUBROUTINE pw_pools_copy
+      ALLOCATE (target_pools(SIZE(source_pools)))
+      DO i = 1, SIZE(source_pools)
+         target_pools(i)%pool => source_pools(i)%pool
+         CALL source_pools(i)%pool%retain()
+      END DO
+   END SUBROUTINE pw_pools_copy
 
 ! **************************************************************************************************
 !> \brief deallocates the given pools (releasing each of the underlying
@@ -574,18 +424,18 @@ MODULE pw_pool_types
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-                  SUBROUTINE pw_pools_dealloc(pools)
-                     TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pools
+   SUBROUTINE pw_pools_dealloc(pools)
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pools
 
-                     INTEGER                                            :: i
+      INTEGER                                            :: i
 
-                     IF (ASSOCIATED(pools)) THEN
-                        DO i = 1, SIZE(pools)
-                           CALL pw_pool_release(pools(i)%pool)
-                        END DO
-                        DEALLOCATE (pools)
-                     END IF
-                     NULLIFY (pools)
-                  END SUBROUTINE pw_pools_dealloc
+      IF (ASSOCIATED(pools)) THEN
+         DO i = 1, SIZE(pools)
+            CALL pw_pool_release(pools(i)%pool)
+         END DO
+         DEALLOCATE (pools)
+      END IF
+      NULLIFY (pools)
+   END SUBROUTINE pw_pools_dealloc
 
-               END MODULE pw_pool_types
+END MODULE pw_pool_types

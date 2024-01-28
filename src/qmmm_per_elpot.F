@@ -25,7 +25,7 @@ MODULE qmmm_per_elpot
                                               ewald_environment_type,&
                                               read_ewald_section
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_type
+                                              ewald_pw_r3d_type
    USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
    USE input_constants,                 ONLY: do_qmmm_coulomb,&
                                               do_qmmm_gauss,&
@@ -334,7 +334,7 @@ CONTAINS
    SUBROUTINE qmmm_ewald_potential_init(ewald_env, ewald_pw, qmmm_coupl_type, mm_cell, para_env, &
                                         qmmm_periodic, print_section)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       INTEGER, INTENT(IN)                                :: qmmm_coupl_type
       TYPE(cell_type), POINTER                           :: mm_cell
       TYPE(mp_para_env_type), POINTER                    :: para_env

@@ -13,24 +13,24 @@
 ! **************************************************************************************************
 MODULE rs_methods
 
-   USE kinds, ONLY: dp
-   USE pw_grid_types, ONLY: pw_grid_type
-   USE pw_methods, ONLY: pw_integrate_function, &
-                         pw_scale, &
-                         pw_transfer, &
-                         pw_zero
-   USE pw_pool_types, ONLY: pw_pool_type
-   USE pw_types, ONLY: REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_c1d_type, &
-                       pw_type, pw_r3d_type
-   USE realspace_grid_types, ONLY: realspace_grid_desc_type, &
-                                   realspace_grid_type, &
-                                   rs_grid_create, &
-                                   rs_grid_release, &
-                                   rs_grid_zero, &
-                                   transfer_pw2rs, &
-                                   transfer_rs2pw
+   USE kinds,                           ONLY: dp
+   USE pw_grid_types,                   ONLY: pw_grid_type
+   USE pw_methods,                      ONLY: pw_integrate_function,&
+                                              pw_scale,&
+                                              pw_transfer,&
+                                              pw_zero
+   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_types,                        ONLY: REALSPACE,&
+                                              RECIPROCALSPACE,&
+                                              pw_c1d_type,&
+                                              pw_r3d_type
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
+                                              realspace_grid_type,&
+                                              rs_grid_create,&
+                                              rs_grid_release,&
+                                              rs_grid_zero,&
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,12 +45,6 @@ MODULE rs_methods
 
    REAL(dp), PARAMETER, PRIVATE         :: small_value = 1.0E-8_dp
 
-   #:for n in [3, 5, 7]
-      INTERFACE derive_fdm_cd${n}$
-         MODULE PROCEDURE derive_fdm_cd${n}$_pw, derive_fdm_cd${n}$_r3d
-      END INTERFACE
-   #:endfor
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -64,40 +58,7 @@ CONTAINS
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! **************************************************************************************************
-   SUBROUTINE derive_fdm_cd3_pw(f, df, rs_grid)
-
-      TYPE(pw_type), INTENT(IN)                      :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)     :: df
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
-
-      INTEGER :: i
-      TYPE(pw_r3d_type) :: my_f, my_df(3)
-
-      my_f%pw_grid => f%pw_grid
-      my_f%array => f%cr3d
-      my_f%in_space = f%in_space
-      DO i = 1, 3
-         my_df(i)%pw_grid => df(i)%pw_grid
-         my_df(i)%array => df(i)%cr3d
-         my_df(i)%in_space = df(i)%in_space
-      END DO
-
-      CALL derive_fdm_cd3_r3d(my_f, my_df, rs_grid)
-
-   END SUBROUTINE derive_fdm_cd3_pw
-
-! **************************************************************************************************
-!> \brief    2nd order finite difference derivative of a function on realspace grid
-!> \param f  input function
-!> \param df derivative of f
-!> \param rs_grid real-space grid
-!> \par History:
-!>      - Creation (15.11.2013,MK)
-!>      - Refactored and moved here from qs_sccs.F (12.2014, Hossein Bani-Hashemian)
-!> \author     Matthias Krack (MK)
-!> \version    1.0
-! **************************************************************************************************
-   SUBROUTINE derive_fdm_cd3_r3d(f, df, rs_grid)
+   SUBROUTINE derive_fdm_cd3(f, df, rs_grid)
 
       TYPE(pw_r3d_type), INTENT(IN)                      :: f
       TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
@@ -153,40 +114,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE derive_fdm_cd3_r3d
-
-! **************************************************************************************************
-!> \brief    2nd order finite difference derivative of a function on realspace grid
-!> \param f  input function
-!> \param df derivative of f
-!> \param rs_grid real-space grid
-!> \par History:
-!>      - Creation (15.11.2013,MK)
-!>      - Refactored and moved here from qs_sccs.F (12.2014, Hossein Bani-Hashemian)
-!> \author     Matthias Krack (MK)
-!> \version    1.0
-! **************************************************************************************************
-   SUBROUTINE derive_fdm_cd5_pw(f, df, rs_grid)
-
-      TYPE(pw_type), INTENT(IN)                      :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)     :: df
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
-
-      INTEGER :: i
-      TYPE(pw_r3d_type) :: my_f, my_df(3)
-
-      my_f%pw_grid => f%pw_grid
-      my_f%array => f%cr3d
-      my_f%in_space = f%in_space
-      DO i = 1, 3
-         my_df(i)%pw_grid => df(i)%pw_grid
-         my_df(i)%array => df(i)%cr3d
-         my_df(i)%in_space = df(i)%in_space
-      END DO
-
-      CALL derive_fdm_cd5_r3d(my_f, my_df, rs_grid)
-
-   END SUBROUTINE derive_fdm_cd5_pw
+   END SUBROUTINE derive_fdm_cd3
 
 ! **************************************************************************************************
 !> \brief    4th order finite difference derivative of a function on realspace grid
@@ -199,7 +127,7 @@ CONTAINS
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! **************************************************************************************************
-   SUBROUTINE derive_fdm_cd5_r3d(f, df, rs_grid)
+   SUBROUTINE derive_fdm_cd5(f, df, rs_grid)
 
       TYPE(pw_r3d_type), INTENT(IN)                      :: f
       TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
@@ -255,40 +183,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE derive_fdm_cd5_r3d
-
-! **************************************************************************************************
-!> \brief    2nd order finite difference derivative of a function on realspace grid
-!> \param f  input function
-!> \param df derivative of f
-!> \param rs_grid real-space grid
-!> \par History:
-!>      - Creation (15.11.2013,MK)
-!>      - Refactored and moved here from qs_sccs.F (12.2014, Hossein Bani-Hashemian)
-!> \author     Matthias Krack (MK)
-!> \version    1.0
-! **************************************************************************************************
-   SUBROUTINE derive_fdm_cd7_pw(f, df, rs_grid)
-
-      TYPE(pw_type), INTENT(IN)                      :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)     :: df
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
-
-      INTEGER :: i
-      TYPE(pw_r3d_type) :: my_f, my_df(3)
-
-      my_f%pw_grid => f%pw_grid
-      my_f%array => f%cr3d
-      my_f%in_space = f%in_space
-      DO i = 1, 3
-         my_df(i)%pw_grid => df(i)%pw_grid
-         my_df(i)%array => df(i)%cr3d
-         my_df(i)%in_space = df(i)%in_space
-      END DO
-
-      CALL derive_fdm_cd7_r3d(my_f, my_df, rs_grid)
-
-   END SUBROUTINE derive_fdm_cd7_pw
+   END SUBROUTINE derive_fdm_cd5
 
 ! **************************************************************************************************
 !> \brief    6th order finite difference derivative of a function on realspace grid
@@ -301,7 +196,7 @@ CONTAINS
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! **************************************************************************************************
-   SUBROUTINE derive_fdm_cd7_r3d(f, df, rs_grid)
+   SUBROUTINE derive_fdm_cd7(f, df, rs_grid)
 
       TYPE(pw_r3d_type), INTENT(IN)                      :: f
       TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
@@ -360,7 +255,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE derive_fdm_cd7_r3d
+   END SUBROUTINE derive_fdm_cd7
 
 ! **************************************************************************************************
 !> \brief returns the global axes and the portion of the axes that are local to

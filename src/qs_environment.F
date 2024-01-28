@@ -71,7 +71,7 @@ MODULE qs_environment
                                               read_ewald_section_tb
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_type
+                                              ewald_pw_r3d_type
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_create
    USE external_potential_types,        ONLY: get_potential,&
@@ -572,7 +572,7 @@ CONTAINS
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &

@@ -82,11 +82,10 @@ MODULE post_scf_bandstructure_utils
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -2087,7 +2086,7 @@ CONTAINS
       TYPE(pw_c1d_type)                                  :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: LDOS_3d
+      TYPE(pw_r3d_type)                                  :: LDOS_3d
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
@@ -2113,15 +2112,15 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL auxbas_pw_pool%create_pw(LDOS_3d, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(LDOS_3d, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
 
-      i_x_start = LBOUND(LDOS_3d%cr3d, 1)
-      i_x_end = UBOUND(LDOS_3d%cr3d, 1)
-      i_y_start = LBOUND(LDOS_3d%cr3d, 2)
-      i_y_end = UBOUND(LDOS_3d%cr3d, 2)
-      i_z_start = LBOUND(LDOS_3d%cr3d, 3)
-      i_z_end = UBOUND(LDOS_3d%cr3d, 3)
+      i_x_start = LBOUND(LDOS_3d%array, 1)
+      i_x_end = UBOUND(LDOS_3d%array, 1)
+      i_y_start = LBOUND(LDOS_3d%array, 2)
+      i_y_end = UBOUND(LDOS_3d%array, 2)
+      i_z_start = LBOUND(LDOS_3d%array, 3)
+      i_z_end = UBOUND(LDOS_3d%array, 3)
 
       z_start_global = i_z_start
       z_end_global = i_z_end
@@ -2217,7 +2216,7 @@ CONTAINS
                                      keep_sparsity=.FALSE.)
             END IF
 
-            LDOS_3d%cr3d(:, :, :) = 0.0_dp
+            LDOS_3d%array(:, :, :) = 0.0_dp
 
             CALL calculate_rho_elec(matrix_p_kp=weighted_dm_MIC, &
                                     rho=LDOS_3d, &
@@ -2225,7 +2224,7 @@ CONTAINS
                                     ks_env=ks_env)
 
             DO i_z = i_z_start, i_z_end
-               LDOS_2d(:, :, i_E) = LDOS_2d(:, :, i_E) + LDOS_3d%cr3d(:, :, i_z)
+               LDOS_2d(:, :, i_E) = LDOS_2d(:, :, i_E) + LDOS_3d%array(:, :, i_z)
             END DO
 
          END IF

@@ -50,8 +50,7 @@ MODULE ps_implicit_methods
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
                                               pw_r3d_type
@@ -1064,7 +1063,7 @@ CONTAINS
       NULLIFY (ps_implicit_env%initial_guess)
       ALLOCATE (ps_implicit_env%initial_guess)
       CALL pw_pool%create_pw(ps_implicit_env%initial_guess, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
+                             in_space=REALSPACE)
       CALL pw_zero(ps_implicit_env%initial_guess)
       ALLOCATE (ps_implicit_env%initial_lambda(n_tiles_tot))
       ps_implicit_env%initial_lambda = 0.0_dp

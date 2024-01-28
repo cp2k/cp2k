@@ -112,11 +112,10 @@ MODULE rpa_im_time_force_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
@@ -2426,8 +2425,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: zv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rhoz_r, tauz_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_type)                                  :: zv_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rhoz_r, tauz_r, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
@@ -2454,14 +2453,14 @@ CONTAINS
       ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
       DO ispin = 1, nspins
          CALL auxbas_pw_pool%create_pw(rhoz_r(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(rhoz_g(ispin), &
                                        in_space=RECIPROCALSPACE)
       END DO
       CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace, &
                                     in_space=RECIPROCALSPACE)
       CALL auxbas_pw_pool%create_pw(zv_hartree_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(zv_hartree_gspace, &
                                     in_space=RECIPROCALSPACE)
 
@@ -2486,7 +2485,7 @@ CONTAINS
             CALL auxbas_pw_pool%create_pw(tauz_g, in_space=RECIPROCALSPACE)
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(tauz_r(ispin), &
-                                             use_data=REALDATA3D, in_space=REALSPACE)
+                                             in_space=REALSPACE)
 
                CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=force_data%sum_YP_tau(ispin)%matrix, &
                                        rho=tauz_r(ispin), rho_gspace=tauz_g, compute_tau=.TRUE.)
@@ -2726,7 +2725,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_ext
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: psi_L, rho_r
+      TYPE(pw_r3d_type)                                  :: psi_L, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_ext
@@ -3171,8 +3170,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: vh_rspace, vhxc_rspace, zv_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rhoz_r, tauz_r, v_xc, v_xc_tau, &
+      TYPE(pw_r3d_type)                                  :: vh_rspace, vhxc_rspace, zv_hartree_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rhoz_r, tauz_r, v_xc, v_xc_tau, &
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -3293,7 +3292,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       CALL auxbas_pw_pool%create_pw(vhxc_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       IF (use_virial) pv_loc = virial%pv_virial
 
@@ -3491,14 +3490,14 @@ CONTAINS
          ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%create_pw(rhoz_r(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
             CALL auxbas_pw_pool%create_pw(rhoz_g(ispin), &
                                           in_space=RECIPROCALSPACE)
          END DO
          CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace, &
                                        in_space=RECIPROCALSPACE)
          CALL auxbas_pw_pool%create_pw(zv_hartree_rspace, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL auxbas_pw_pool%create_pw(zv_hartree_gspace, &
                                        in_space=RECIPROCALSPACE)
 
@@ -3547,7 +3546,7 @@ CONTAINS
                ALLOCATE (tauz_r(nspins))
                DO ispin = 1, nspins
                   CALL auxbas_pw_pool%create_pw(tauz_r(ispin), &
-                                                use_data=REALDATA3D, in_space=REALSPACE)
+                                                in_space=REALSPACE)
 
                   CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
                                           rho=tauz_r(ispin), rho_gspace=tauz_g, compute_tau=.TRUE.)

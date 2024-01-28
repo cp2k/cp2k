@@ -51,11 +51,10 @@ MODULE qs_linres_nmr_shift
                                               pw_spline_precond_set_kind,&
                                               pw_spline_precond_type,&
                                               spl3_pbc
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -122,7 +121,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: shift_pw_rspace
+      TYPE(pw_r3d_type)                                  :: shift_pw_rspace
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -197,7 +196,7 @@ CONTAINS
       ! compute shildings
       IF (interpolate_shift) THEN
          CALL auxbas_pw_pool%create_pw(shift_pw_rspace, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          DO ispin = 1, nspins
             DO idir = 1, 3
                ! Here first G->R and then interpolation to get the shifts.
@@ -506,7 +505,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pw_type), INTENT(IN)                          :: shift_pw_rspace
+      TYPE(pw_r3d_type), INTENT(IN)                      :: shift_pw_rspace
       INTEGER, INTENT(IN)                                :: i_B, idir
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -521,8 +520,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_nics
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_type)                                  :: shiftspl
       TYPE(pw_spline_precond_type)                       :: precond
-      TYPE(pw_type)                                      :: shiftspl
       TYPE(section_vals_type), POINTER                   :: interp_section
 
       CALL timeset(routineN, handle)
@@ -542,7 +541,7 @@ CONTAINS
       ! calculate spline coefficients
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(shiftspl, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)

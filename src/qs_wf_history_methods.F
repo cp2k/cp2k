@@ -62,11 +62,10 @@ MODULE qs_wf_history_methods
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_copy
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -151,7 +150,7 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -196,7 +195,7 @@ CONTAINS
             ALLOCATE (snapshot%rho_r(nspins))
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%create_pw(snapshot%rho_r(ispin), &
-                                             in_space=REALSPACE, use_data=REALDATA3D)
+                                             in_space=REALSPACE)
             END DO
          END IF
          DO ispin = 1, nspins

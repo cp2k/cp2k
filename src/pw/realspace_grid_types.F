@@ -37,9 +37,7 @@ MODULE realspace_grid_types
    USE pw_grids,                        ONLY: pw_grid_release,&
                                               pw_grid_retain
    USE pw_methods,                      ONLY: pw_integrate_function
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              pw_r3d_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE util,                            ONLY: get_limit
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -77,14 +75,6 @@ MODULE realspace_grid_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
-
-   INTERFACE transfer_rs2pw
-      MODULE PROCEDURE transfer_rs2pw_r3d, transfer_rs2pw_pw
-   END INTERFACE
-
-   INTERFACE transfer_pw2rs
-      MODULE PROCEDURE transfer_pw2rs_r3d, transfer_pw2rs_pw
-   END INTERFACE
 
 ! **************************************************************************************************
    TYPE realspace_grid_input_type
@@ -658,37 +648,15 @@ CONTAINS
    END SUBROUTINE rs_grid_print
 
 ! **************************************************************************************************
-!> \brief Copy a function to a PW grid type from a real space type
-!> \param rs ...
-!> \param pw ...
-! **************************************************************************************************
-   SUBROUTINE transfer_rs2pw_pw(rs, pw)
-
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
-
-      TYPE(pw_r3d_type)                                  :: my_pw
-
-      IF (pw%in_use .NE. REALDATA3D) &
-         CPABORT("Need REALDATA3D")
-
-      my_pw%pw_grid => pw%pw_grid
-      my_pw%array => pw%cr3d
-      my_pw%in_space = pw%in_space
-      CALL transfer_rs2pw_r3d(rs, my_pw)
-
-   END SUBROUTINE transfer_rs2pw_pw
-
-! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
 !> \param pw ...
 ! **************************************************************************************************
-   SUBROUTINE transfer_rs2pw_r3d(rs, pw)
+   SUBROUTINE transfer_rs2pw(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
       TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transfer_rs2pw_r3d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_rs2pw'
 
       INTEGER                                            :: handle, handle2, i
 
@@ -719,41 +687,19 @@ CONTAINS
       CALL timestop(handle)
       CALL timestop(handle2)
 
-   END SUBROUTINE transfer_rs2pw_r3d
-
-! **************************************************************************************************
-!> \brief Copy a function from/to a PW grid type to/from a real space type
-!> \param rs ...
-!> \param pw ...
-! **************************************************************************************************
-   SUBROUTINE transfer_pw2rs_pw(rs, pw)
-
-      TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
-
-      TYPE(pw_r3d_type)                                  :: my_pw
-
-      IF (pw%in_use .NE. REALDATA3D) &
-         CPABORT("Need REALDATA3D")
-
-      my_pw%pw_grid => pw%pw_grid
-      my_pw%array => pw%cr3d
-      my_pw%in_space = pw%in_space
-      CALL transfer_pw2rs_r3d(rs, my_pw)
-
-   END SUBROUTINE transfer_pw2rs_pw
+   END SUBROUTINE transfer_rs2pw
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
 !> \param pw ...
 ! **************************************************************************************************
-   SUBROUTINE transfer_pw2rs_r3d(rs, pw)
+   SUBROUTINE transfer_pw2rs(rs, pw)
 
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
       TYPE(pw_r3d_type), INTENT(IN)                      :: pw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transfer_pw2rs_r3d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_pw2rs'
 
       INTEGER                                            :: handle, handle2, i, im, j, jm, k, km
 
@@ -809,7 +755,7 @@ CONTAINS
       CALL timestop(handle)
       CALL timestop(handle2)
 
-   END SUBROUTINE transfer_pw2rs_r3d
+   END SUBROUTINE transfer_pw2rs
 
 ! **************************************************************************************************
 !> \brief transfer from a realspace grid to a planewave grid

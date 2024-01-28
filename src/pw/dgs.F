@@ -31,7 +31,7 @@ MODULE dgs
                                               pw_multiply_with,&
                                               pw_zero
    USE pw_types,                        ONLY: pw_c3d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
 #include "../base/base_uses.f90"
@@ -403,7 +403,7 @@ CONTAINS
    PURE SUBROUTINE dg_sum_patch_coef(rs, rhos, center)
 
       TYPE(realspace_grid_type), INTENT(INOUT)           :: rs
-      TYPE(pw_type), INTENT(IN)                          :: rhos
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
 
       INTEGER                                            :: i, ia, ii
@@ -453,13 +453,13 @@ CONTAINS
       END DO
 
       IF (folded) THEN
-         CALL dg_add_patch(rs%r, rhos%cr3d, rhos%pw_grid%npts, &
+         CALL dg_add_patch(rs%r, rhos%array, rhos%pw_grid%npts, &
                            rs%px, rs%py, rs%pz)
       ELSE
          nc(1) = rs%px(1) - 1
          nc(2) = rs%py(1) - 1
          nc(3) = rs%pz(1) - 1
-         CALL dg_add_patch(rs%r, rhos%cr3d, rhos%pw_grid%npts, nc)
+         CALL dg_add_patch(rs%r, rhos%array, rhos%pw_grid%npts, nc)
       END IF
 
    END SUBROUTINE dg_sum_patch_coef
@@ -706,7 +706,7 @@ CONTAINS
 
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: drpot
-      TYPE(pw_type), INTENT(IN)                          :: rhos
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
 
@@ -758,14 +758,14 @@ CONTAINS
 
       IF (folded) THEN
          CALL dg_int_patch_3d(drpot(1)%r, drpot(2)%r, &
-                              drpot(3)%r, rhos%cr3d, force, rhos%pw_grid%npts, &
+                              drpot(3)%r, rhos%array, force, rhos%pw_grid%npts, &
                               drpot(1)%px, drpot(1)%py, drpot(1)%pz)
       ELSE
          nc(1) = drpot(1)%px(1) - 1
          nc(2) = drpot(1)%py(1) - 1
          nc(3) = drpot(1)%pz(1) - 1
          CALL dg_int_patch_3d(drpot(1)%r, drpot(2)%r, &
-                              drpot(3)%r, rhos%cr3d, force, rhos%pw_grid%npts, nc)
+                              drpot(3)%r, rhos%array, force, rhos%pw_grid%npts, nc)
       END IF
 
    END SUBROUTINE dg_sum_patch_force_coef_3d
@@ -780,7 +780,7 @@ CONTAINS
    PURE SUBROUTINE dg_sum_patch_force_coef_1d(drpot, rhos, center, force)
 
       TYPE(realspace_grid_type), INTENT(INOUT)           :: drpot
-      TYPE(pw_type), INTENT(IN)                          :: rhos
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), INTENT(OUT)                         :: force
 
@@ -831,13 +831,13 @@ CONTAINS
       END DO
 
       IF (folded) THEN
-         CALL dg_int_patch_1d(drpot%r, rhos%cr3d, force, &
+         CALL dg_int_patch_1d(drpot%r, rhos%array, force, &
                               rhos%pw_grid%npts, drpot%px, drpot%py, drpot%pz)
       ELSE
          nc(1) = drpot%px(1) - 1
          nc(2) = drpot%py(1) - 1
          nc(3) = drpot%pz(1) - 1
-         CALL dg_int_patch_1d(drpot%r, rhos%cr3d, force, rhos%pw_grid%npts, nc)
+         CALL dg_int_patch_1d(drpot%r, rhos%array, force, rhos%pw_grid%npts, nc)
       END IF
 
    END SUBROUTINE dg_sum_patch_force_coef_1d
@@ -853,8 +853,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_get_patch_1(rho0, rhos1, charge1, ex1, ey1, ez1)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho0
-      TYPE(pw_type), INTENT(INOUT)                       :: rhos1
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho0
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rhos1
       REAL(KIND=dp), INTENT(IN)                          :: charge1
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex1, ey1, ez1
 
@@ -899,8 +899,8 @@ CONTAINS
    SUBROUTINE dg_get_patch_2(rho0, rhos1, rhos2, charge1, charge2, &
                              ex1, ey1, ez1, ex2, ey2, ez2)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho0
-      TYPE(pw_type), INTENT(INOUT)                       :: rhos1, rhos2
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho0
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rhos1, rhos2
       REAL(KIND=dp), INTENT(IN)                          :: charge1, charge2
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex1, ey1, ez1, ex2, ey2, ez2
 
@@ -924,7 +924,7 @@ CONTAINS
       CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
       CALL fft3d(BWFFT, nd, cd%array)
-      CALL copy_cri(cd%array, rhos1%cr3d, rhos2%cr3d)
+      CALL copy_cri(cd%array, rhos1%array, rhos2%array)
 
       DEALLOCATE (zs)
       CALL cd%release()
