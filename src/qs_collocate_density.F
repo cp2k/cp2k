@@ -85,9 +85,8 @@ MODULE qs_collocate_density
                             pw_pools_create_pws, &
                             pw_pools_give_back_pws
    USE pw_types, ONLY: &
-      pw_r3d_type, REALSPACE, &
-      RECIPROCALSPACE, &
-      pw_c1d_type, pw_r3d_type
+      pw_r3d_rs_type, &
+      pw_c1d_gs_type, pw_r3d_rs_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE qs_kind_types, ONLY: get_qs_kind, &
@@ -136,12 +135,12 @@ MODULE qs_collocate_density
              collocate_single_gaussian
 
    INTERFACE calculate_rho_core
-      MODULE PROCEDURE calculate_rho_core_r3d
-      MODULE PROCEDURE calculate_rho_core_c1d
+      MODULE PROCEDURE calculate_rho_core_r3d_rs
+      MODULE PROCEDURE calculate_rho_core_c1d_gs
    END INTERFACE
 
    INTERFACE calculate_rho_resp_all
-      MODULE PROCEDURE calculate_rho_resp_all_r3d, calculate_rho_resp_all_c1d
+      MODULE PROCEDURE calculate_rho_resp_all_r3d_rs, calculate_rho_resp_all_c1d_gs
    END INTERFACE
 
 CONTAINS
@@ -153,7 +152,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_nlcc(rho_nlcc, qs_env)
 
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: rho_nlcc
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho_nlcc
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc'
@@ -332,7 +331,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_ppl_grid(vppl, qs_env)
 
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: vppl
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: vppl
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ppl_grid'
@@ -516,8 +515,8 @@ CONTAINS
    SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
                                      lri_coef, total_rho, basis_type, exact_1c_terms, pmat, atomlist)
 
-      TYPE(pw_c1d_type), INTENT(INOUT) :: lri_rho_g
-      TYPE(pw_r3d_type), INTENT(INOUT)                       ::  lri_rho_r
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: lri_rho_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       ::  lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
@@ -547,8 +546,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
@@ -578,9 +577,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, in_space=RECIPROCALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
 
       ! *** set up the rs multi-grids *** !
       DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -783,7 +782,7 @@ CONTAINS
 
    END SUBROUTINE calculate_lri_rho_elec
 
-   #:for kind in ["r3d", "c1d"]
+   #:for kind in ["r3d_rs", "c1d_gs"]
 ! **************************************************************************************************
 !> \brief computes the density of the core charges on the grid
 !> \param rho_core ...
@@ -817,7 +816,7 @@ CONTAINS
          TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
          TYPE(pw_env_type), POINTER                         :: pw_env
          TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-         TYPE(pw_r3d_type)                                      :: rhoc_r
+         TYPE(pw_r3d_rs_type)                                      :: rhoc_r
          TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
          TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -908,8 +907,7 @@ CONTAINS
          END IF
          DEALLOCATE (pab)
 
-         CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhoc_r)
 
          CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -935,7 +933,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_drho_core(drho_core, qs_env, beta, lambda)
 
-      TYPE(pw_c1d_type), INTENT(INOUT)                       :: drho_core
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: drho_core
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: beta, lambda
 
@@ -954,7 +952,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -1044,8 +1042,7 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1068,7 +1065,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_single_gaussian(rho_gb, qs_env, iatom_in)
 
-      TYPE(pw_c1d_type), INTENT(INOUT)                       :: rho_gb
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: rho_gb
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom_in
 
@@ -1083,7 +1080,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1133,8 +1130,7 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1159,7 +1155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_metal(rho_metal, coeff, total_rho_metal, qs_env)
 
-      TYPE(pw_c1d_type), INTENT(INOUT)                       :: rho_metal
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: rho_metal
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1176,7 +1172,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1238,8 +1234,7 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1266,7 +1261,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_resp_single(rho_gb, qs_env, eta, iatom_in)
 
-      TYPE(pw_c1d_type), INTENT(INOUT)                       :: rho_gb
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: rho_gb
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: eta
       INTEGER, INTENT(IN)                                :: iatom_in
@@ -1282,7 +1277,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1332,8 +1327,7 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1345,7 +1339,7 @@ CONTAINS
 
    END SUBROUTINE calculate_rho_resp_single
 
-   #:for kind in ["r3d", "c1d"]
+   #:for kind in ["r3d_rs", "c1d_gs"]
 ! **************************************************************************************************
 !> \brief computes the RESP charge density on a grid based on the RESP charges
 !> \param rho_resp RESP charge density
@@ -1378,7 +1372,7 @@ CONTAINS
          TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
          TYPE(pw_env_type), POINTER                         :: pw_env
          TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-         TYPE(pw_r3d_type)                                      :: rhoc_r
+         TYPE(pw_r3d_rs_type)                                      :: rhoc_r
          TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
          CALL timeset(routineN, handle)
@@ -1438,8 +1432,7 @@ CONTAINS
 
          DEALLOCATE (pab, cores)
 
-         CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhoc_r)
 
          CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1483,8 +1476,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_c1d_type), INTENT(INOUT) :: rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: rho_gspace
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, compute_tau, compute_grad
@@ -1649,8 +1642,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)         :: drho
-      TYPE(pw_c1d_type), DIMENSION(3), INTENT(INOUT) :: drho_gspace
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)         :: drho
+      TYPE(pw_c1d_gs_type), DIMENSION(3), INTENT(INOUT) :: drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -2036,8 +2029,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: drho
-      TYPE(pw_c1d_type), INTENT(INOUT) :: drho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: drho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -2440,8 +2433,8 @@ CONTAINS
                                         atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                         pw_env, required_function, basis_type)
 
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_c1d_type), INTENT(INOUT) :: rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -2467,8 +2460,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
@@ -2487,8 +2480,8 @@ CONTAINS
       CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
                       gridlevel_info=gridlevel_info)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, in_space=RECIPROCALSPACE)
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
       ! *** set up rs multi-grids
       DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -2632,8 +2625,8 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_vectors
       INTEGER, INTENT(IN)                                :: ivector
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_c1d_type), INTENT(INOUT) :: rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -2660,8 +2653,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
@@ -2692,8 +2685,8 @@ CONTAINS
       CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
                       gridlevel_info=gridlevel_info)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, in_space=RECIPROCALSPACE)
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
       ! *** set up rs multi-grids
       DO igrid_level = 1, gridlevel_info%ngrid_levels

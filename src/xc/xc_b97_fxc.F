@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE xc_b97_fxc
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -31,8 +31,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE b97_fxc_eval(rhos, norm_drhos, fxc, gx, cx, eps_rho)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos, norm_drhos
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fxc
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rhos, norm_drhos
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: fxc
       REAL(KIND=dp), INTENT(IN)                          :: gx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cx
       REAL(KIND=dp), INTENT(IN)                          :: eps_rho
@@ -85,8 +85,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE b97_fcc_eval(rhoa, rhob, norm_drhoa, norm_drhob, fcc, gcc, cco, eps_rho)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rhoa, rhob, norm_drhoa, norm_drhob
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fcc
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rhoa, rhob, norm_drhoa, norm_drhob
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: fcc
       REAL(KIND=dp), INTENT(IN)                          :: gcc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cco
       REAL(KIND=dp), INTENT(IN)                          :: eps_rho

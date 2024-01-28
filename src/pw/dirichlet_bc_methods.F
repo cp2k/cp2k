@@ -36,8 +36,7 @@ MODULE dirichlet_bc_methods
                                               pw_zero
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE rs_methods,                      ONLY: setup_grid_axes
 #include "../base/base_uses.f90"
 
@@ -292,7 +291,7 @@ CONTAINS
       REAL(dp)                                           :: cyl_maxval, tile_volume
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tile_maxvals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_r3d_type), POINTER                         :: cylinder_pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: cylinder_pw
       TYPE(tile_p_type), DIMENSION(:), POINTER           :: tiles
 
       CALL timeset(routineN, handle)
@@ -318,7 +317,7 @@ CONTAINS
          tile_maxvals = 0.0_dp
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
-            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
             IF ((unit_nr .GT. 0) .AND. verbose) THEN
@@ -351,12 +350,12 @@ CONTAINS
 
          NULLIFY (cylinder_pw)
          ALLOCATE (cylinder_pw)
-         CALL pw_pool%create_pw(cylinder_pw, in_space=REALSPACE)
+         CALL pw_pool%create_pw(cylinder_pw)
          CALL pw_zero(cylinder_pw)
 
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
-            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
             IF ((unit_nr .GT. 0) .AND. verbose) THEN
@@ -402,7 +401,7 @@ CONTAINS
 
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
-            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
             IF ((unit_nr .GT. 0) .AND. verbose) THEN
@@ -1395,7 +1394,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
       LOGICAL, INTENT(IN)                                :: is_periodic
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: tile_pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: tile_pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_tile_pw_compute'
 
@@ -1497,7 +1496,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: tile_pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: tile_pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_tile_pw_compute'
 

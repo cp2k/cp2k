@@ -20,7 +20,7 @@ MODULE exstates_types
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                               local_rho_type
 #include "./base/base_uses.f90"
@@ -68,10 +68,10 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
-      TYPE(pw_r3d_type)                                      :: vh_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: vxc_rspace => NULL()
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: vtau_rspace => NULL()
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: vadmm_rspace => NULL()
+      TYPE(pw_r3d_rs_type)                                      :: vh_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: vxc_rspace => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: vtau_rspace => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: vadmm_rspace => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       TYPE(wfn_history_type)                             :: wfn_history

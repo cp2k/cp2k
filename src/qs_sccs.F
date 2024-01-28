@@ -75,10 +75,8 @@ MODULE qs_sccs
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -123,8 +121,8 @@ CONTAINS
    SUBROUTINE sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs, h_stress)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: v_sccs
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: v_sccs
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
 
@@ -154,10 +152,10 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: deps_elec, eps_elec
-      TYPE(pw_r3d_type), DIMENSION(3)                    :: dln_eps_elec, dphi_tot
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_pw_r
-      TYPE(pw_r3d_type), POINTER                         :: rho_pw_r_sccs
+      TYPE(pw_r3d_rs_type)                               :: deps_elec, eps_elec
+      TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: dln_eps_elec, dphi_tot
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_pw_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_pw_r_sccs
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -268,8 +266,8 @@ CONTAINS
 
       ! Retrieve the total electronic density in r-space
       BLOCK
-         TYPE(pw_r3d_type) :: rho_elec
-         CALL auxbas_pw_pool%create_pw(rho_elec, in_space=REALSPACE)
+         TYPE(pw_r3d_rs_type) :: rho_elec
+         CALL auxbas_pw_pool%create_pw(rho_elec)
 
          ! Retrieve grid parameters
          ngpts = rho_elec%pw_grid%ngpts
@@ -286,8 +284,8 @@ CONTAINS
          tot_rho_elec = pw_integrate_function(rho_elec)
 
          ! Calculate the dielectric (smoothed) function of rho_elec in r-space
-         CALL auxbas_pw_pool%create_pw(eps_elec, in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(deps_elec, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(eps_elec)
+         CALL auxbas_pw_pool%create_pw(deps_elec)
          ! Relative permittivity or dielectric constant of the solvent (medium)
          epsilon_solvent = sccs_control%epsilon_solvent
          SELECT CASE (sccs_control%method_id)
@@ -337,9 +335,9 @@ CONTAINS
          IF (ABS(epsilon_solvent - 1.0_dp) > epstol) THEN
 
             BLOCK
-               TYPE(pw_r3d_type) :: theta, norm_drho_elec
-               TYPE(pw_r3d_type), DIMENSION(3)                        :: drho_elec
-               CALL auxbas_pw_pool%create_pw(theta, in_space=REALSPACE)
+               TYPE(pw_r3d_rs_type) :: theta, norm_drho_elec
+               TYPE(pw_r3d_rs_type), DIMENSION(3)                        :: drho_elec
+               CALL auxbas_pw_pool%create_pw(theta)
                CALL pw_zero(theta)
 
                ! Calculate the (quantum) volume of the solute cavity
@@ -360,11 +358,11 @@ CONTAINS
                ! Calculate the derivative of the electronic density in r-space
                ! TODO: Could be retrieved from the QS environment
                DO i = 1, 3
-                  CALL auxbas_pw_pool%create_pw(drho_elec(i), in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(drho_elec(i))
                END DO
                CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input)
 
-               CALL auxbas_pw_pool%create_pw(norm_drho_elec, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(norm_drho_elec)
 
                ! Calculate the norm of the gradient of the electronic density in r-space
 !$OMP    PARALLEL DO DEFAULT(NONE) &
@@ -442,9 +440,9 @@ CONTAINS
       END BLOCK
 
       BLOCK
-         TYPE(pw_r3d_type) :: rho_tot, phi_tot, rho_solute, rho_tot_zero
+         TYPE(pw_r3d_rs_type) :: rho_tot, phi_tot, rho_solute, rho_tot_zero
          ! Retrieve the total charge density (core + elec) of the solute in r-space
-         CALL auxbas_pw_pool%create_pw(rho_solute, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_solute)
          CALL pw_zero(rho_solute)
          CALL pw_transfer(rho_tot_gspace, rho_solute)
          tot_rho_solute = pw_integrate_function(rho_solute)
@@ -462,7 +460,7 @@ CONTAINS
          END IF
 
          ! Reassign work storage to rho_tot_zero, because rho_elec is no longer needed
-         CALL auxbas_pw_pool%create_pw(rho_tot_zero, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot_zero)
 
          ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
          ! eps_elec <- ln(eps_elec)
@@ -488,7 +486,7 @@ CONTAINS
 
          ! Build the derivative of LOG(eps_elec)
          DO i = 1, 3
-            CALL auxbas_pw_pool%create_pw(dln_eps_elec(i), in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dln_eps_elec(i))
             CALL pw_zero(dln_eps_elec(i))
          END DO
          CALL derive(eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input)
@@ -521,15 +519,15 @@ CONTAINS
 
          ! Get storage for the derivative of the total potential (field) in r-space
          DO i = 1, 3
-            CALL auxbas_pw_pool%create_pw(dphi_tot(i), in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dphi_tot(i))
          END DO
 
          ! Initialise the total charge density in r-space rho_tot with rho_tot_zero + rho_iter_zero
-         CALL auxbas_pw_pool%create_pw(rho_tot, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot)
          CALL pw_copy(rho_tot_zero, rho_tot)
          CALL pw_axpy(rho_pw_r_sccs, rho_tot)
 
-         CALL auxbas_pw_pool%create_pw(phi_tot, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(phi_tot)
          CALL pw_zero(phi_tot)
 
          ! Main SCCS iteration loop
@@ -674,8 +672,8 @@ CONTAINS
 
          ! Calculate the Hartree energy and potential of the solute only
          BLOCK
-            TYPE(pw_r3d_type) :: phi_solute
-            CALL auxbas_pw_pool%create_pw(phi_solute, in_space=REALSPACE)
+            TYPE(pw_r3d_rs_type) :: phi_solute
+            CALL auxbas_pw_pool%create_pw(phi_solute)
             CALL pw_zero(phi_solute)
             CALL pw_poisson_solve(poisson_env=poisson_env, &
                                   density=rho_solute, &
@@ -822,7 +820,7 @@ CONTAINS
    SUBROUTINE andreussi(rho_elec, eps_elec, deps_elec, epsilon_solvent, rho_max, &
                         rho_min)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, eps_elec, deps_elec
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'andreussi'
@@ -896,7 +894,7 @@ CONTAINS
    SUBROUTINE fattebert_gygi(rho_elec, eps_elec, deps_elec, epsilon_solvent, beta, &
                              rho_zero)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, eps_elec, deps_elec
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fattebert_gygi'
@@ -958,8 +956,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive(f, df, method, pw_env, input)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: f
-      TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       INTEGER, INTENT(IN)                                :: method
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(section_vals_type), POINTER                   :: input
@@ -968,7 +966,7 @@ CONTAINS
 
       INTEGER                                            :: border_points, handle, i
       INTEGER, DIMENSION(3)                              :: lb, n, ub
-      TYPE(pw_c1d_type), DIMENSION(2)                    :: work_g1d
+      TYPE(pw_c1d_gs_type), DIMENSION(2)                 :: work_g1d
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
@@ -1006,8 +1004,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ! Get work storage for the 1d grids in g-space (derivative calculation)
          DO i = 1, SIZE(work_g1d)
-            CALL auxbas_pw_pool%create_pw(work_g1d(i), &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(work_g1d(i))
          END DO
       END SELECT
 
@@ -1069,7 +1066,7 @@ CONTAINS
    SUBROUTINE surface_andreussi(rho_elec, norm_drho_elec, dtheta, &
                                 epsilon_solvent, rho_max, rho_min, delta_rho)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, norm_drho_elec, dtheta
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_elec, norm_drho_elec, dtheta
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min, &
                                                             delta_rho
 
@@ -1149,7 +1146,7 @@ CONTAINS
    SUBROUTINE surface_fattebert_gygi(rho_elec, norm_drho_elec, dtheta, &
                                      epsilon_solvent, beta, rho_zero, delta_rho)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, norm_drho_elec, dtheta
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_elec, norm_drho_elec, dtheta
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero, &
                                                             delta_rho
 

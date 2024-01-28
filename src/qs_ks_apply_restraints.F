@@ -23,7 +23,6 @@ MODULE qs_ks_apply_restraints
    USE mulliken,                        ONLY: mulliken_restraint
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE
    USE qs_cdft_methods,                 ONLY: becke_constraint,&
                                               hirshfeld_constraint
    USE qs_cdft_types,                   ONLY: cdft_control_type
@@ -81,8 +80,7 @@ CONTAINS
                ! First SCF iteraration => allocate storage
                DO igroup = 1, SIZE(cdft_control%group)
                   ALLOCATE (cdft_control%group(igroup)%weight)
-                  CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%weight, &
-                                                in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%weight)
                   ! Sanity check
                   IF (cdft_control%group(igroup)%constraint_type /= cdft_charge_constraint &
                       .AND. dft_control%nspins == 1) &
@@ -93,8 +91,7 @@ CONTAINS
                   IF (.NOT. ASSOCIATED(cdft_control%charge)) &
                      ALLOCATE (cdft_control%charge(cdft_control%natoms))
                   DO iatom = 1, cdft_control%natoms
-                     CALL auxbas_pw_pool%create_pw(cdft_control%charge(iatom), &
-                                                   in_space=REALSPACE)
+                     CALL auxbas_pw_pool%create_pw(cdft_control%charge(iatom))
                   END DO
                END IF
                ! Another sanity check

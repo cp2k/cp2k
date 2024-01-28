@@ -20,10 +20,8 @@ MODULE mt_util
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,7 +50,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, &
                                     special_dimension, slab_size, super_ref_pw_grid)
-      TYPE(pw_c1d_type), POINTER                         :: screen_function
+      TYPE(pw_c1d_gs_type), POINTER                      :: screen_function
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp), INTENT(in)                          :: alpha
@@ -64,9 +62,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ig, iz
       REAL(KIND=dp)                                      :: alpha2, g2, g3d, gxy, gz, zlength
-      TYPE(pw_c1d_type), POINTER                         :: Vlocg
+      TYPE(pw_c1d_gs_type), POINTER                      :: Vlocg
       TYPE(pw_pool_type), POINTER                        :: pw_pool_aux
-      TYPE(pw_r3d_type), POINTER                         :: Vloc
+      TYPE(pw_r3d_rs_type), POINTER                      :: Vloc
 
       CALL timeset(routineN, handle)
       NULLIFY (Vloc, Vlocg, pw_pool_aux)
@@ -79,18 +77,18 @@ CONTAINS
       END IF
       NULLIFY (screen_function)
       ALLOCATE (screen_function)
-      CALL pw_pool%create_pw(screen_function, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(screen_function)
       CALL pw_zero(screen_function)
       SELECT CASE (method)
       CASE (MT0D)
          NULLIFY (Vloc, Vlocg)
          ALLOCATE (Vloc, Vlocg)
          IF (ASSOCIATED(pw_pool_aux)) THEN
-            CALL pw_pool_aux%create_pw(Vloc, in_space=REALSPACE)
-            CALL pw_pool_aux%create_pw(Vlocg, in_space=RECIPROCALSPACE)
+            CALL pw_pool_aux%create_pw(Vloc)
+            CALL pw_pool_aux%create_pw(Vlocg)
          ELSE
-            CALL pw_pool%create_pw(Vloc, in_space=REALSPACE)
-            CALL pw_pool%create_pw(Vlocg, in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(Vloc)
+            CALL pw_pool%create_pw(Vlocg)
          END IF
          CALL mt0din(Vloc, alpha)
          CALL pw_transfer(Vloc, Vlocg)
@@ -143,7 +141,7 @@ CONTAINS
 !> \author Teodoro Laino (09.03.2005)
 ! **************************************************************************************************
    SUBROUTINE mt0din(Vloc, alpha)
-      TYPE(pw_r3d_type), POINTER                         :: Vloc
+      TYPE(pw_r3d_rs_type), POINTER                      :: Vloc
       REAL(KIND=dp), INTENT(in)                          :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt0din'
@@ -204,7 +202,7 @@ CONTAINS
 !> \author Teodoro Laino (11.2005)
 ! **************************************************************************************************
    SUBROUTINE mt1din(screen_function)
-      TYPE(pw_c1d_type), POINTER                         :: screen_function
+      TYPE(pw_c1d_gs_type), POINTER                      :: screen_function
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt1din'
 

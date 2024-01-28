@@ -21,7 +21,7 @@ MODULE ewald_pw_methods
                                               ewald_env_set,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_r3d_type,&
+                                              ewald_pw_r3d_rs_type,&
                                               ewald_pw_set
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
@@ -59,7 +59,7 @@ CONTAINS
 !> \author JGH (15-Mar-2001)
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_grid_update(ewald_pw, ewald_env, cell_hmat)
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cell_hmat
 

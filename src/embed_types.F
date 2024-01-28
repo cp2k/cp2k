@@ -42,7 +42,7 @@ MODULE embed_types
                                               particle_list_release,&
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -77,10 +77,10 @@ MODULE embed_types
                                                    max_trad = 0.0_dp, min_trad = 0.0_dp, &
                                                    grad_norm = 0.0_dp, vw_cutoff = 0.0_dp, &
                                                    vw_smooth_cutoff_range = 0.0_dp, eta = 0.0_dp
-      TYPE(pw_r3d_type), POINTER                  :: const_pot => NULL(), prev_embed_pot => NULL(), &
-                                                     prev_spin_embed_pot => NULL(), pot_diff => NULL()
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
-                                                     prev_subsys_dens => NULL(), v_w => NULL()
+      TYPE(pw_r3d_rs_type), POINTER                  :: const_pot => NULL(), prev_embed_pot => NULL(), &
+                                                        prev_spin_embed_pot => NULL(), pot_diff => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
+                                                        prev_subsys_dens => NULL(), v_w => NULL()
       REAL(KIND=dp)                             :: reg_term = 0.0_dp, trust_rad = 0.0_dp, &
                                                    conv_max = 0.0_dp, conv_int = 0.0_dp, &
                                                    conv_max_spin = 0.0_dp, conv_int_spin = 0.0_dp, step_len = 0.0_dp

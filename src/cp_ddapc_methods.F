@@ -28,8 +28,8 @@ MODULE cp_ddapc_methods
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE spherical_harmonics,             ONLY: legendre
 #include "./base/base_uses.f90"
 
@@ -62,7 +62,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gfunc
       REAL(kind=dp), DIMENSION(:), POINTER               :: w
       REAL(KIND=dp), INTENT(IN)                          :: gcut
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       REAL(kind=dp), DIMENSION(:), POINTER               :: radii
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ddapc_eval_gfunc'
@@ -115,7 +115,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'build_b_vector'
@@ -193,7 +193,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: g_dot_rvec_sin, g_dot_rvec_cos
 
@@ -279,7 +279,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: radii
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iparticle0
 
@@ -371,7 +371,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iparticle0, nparticles
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: g_dot_rvec_sin, g_dot_rvec_cos
@@ -489,7 +489,7 @@ CONTAINS
 !> \param g_dot_rvec_cos ...
 ! **************************************************************************************************
    SUBROUTINE prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: g_dot_rvec_sin, g_dot_rvec_cos
@@ -547,7 +547,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: gcut
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_tot_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_g
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), INTENT(IN)                          :: Vol
@@ -625,7 +625,7 @@ CONTAINS
    RECURSIVE SUBROUTINE ewald_ddapc_pot(cp_para_env, coeff, factor, cell, multipole_section, &
                                         particle_set, M, radii)
       TYPE(mp_para_env_type), INTENT(IN)                 :: cp_para_env
-      TYPE(pw_r3d_type), INTENT(IN), POINTER             :: coeff
+      TYPE(pw_r3d_rs_type), INTENT(IN), POINTER          :: coeff
       REAL(KIND=dp), INTENT(IN)                          :: factor
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: multipole_section

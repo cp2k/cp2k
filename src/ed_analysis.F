@@ -65,10 +65,8 @@ MODULE ed_analysis
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_core
    USE qs_core_energies,                ONLY: calculate_ecore_alpha,&
                                               calculate_ecore_overlap,&
@@ -762,9 +760,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: xc_den
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: vtau, vxc
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type)                               :: xc_den
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: vtau, vxc
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -794,18 +792,15 @@ CONTAINS
       needs = xc_functionals_get_needs(xc_fun_section, (nspins == 2), .TRUE.)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL auxbas_pw_pool%create_pw(xc_den, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(xc_den)
       ALLOCATE (vxc(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(vxc(ispin), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vxc(ispin))
       END DO
       IF (needs%tau .OR. needs%tau_spin) THEN
          ALLOCATE (vtau(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(vtau(ispin), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(vtau(ispin))
          END DO
       END IF
 
@@ -915,13 +910,13 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: rho_tot_ewd_g, v_hewd_gspace
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_ewd_g, v_hewd_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: rho_tot_ewd_r, v_hewd_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type)                               :: rho_tot_ewd_r, v_hewd_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -942,14 +937,10 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       !
-      CALL auxbas_pw_pool%create_pw(v_hewd_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hewd_rspace, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_ewd_g, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_ewd_r, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hewd_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hewd_rspace)
+      CALL auxbas_pw_pool%create_pw(rho_tot_ewd_g)
+      CALL auxbas_pw_pool%create_pw(rho_tot_ewd_r)
       rhotot = 0.0_dp
       CALL calculate_rho_core(rho_tot_ewd_r, rhotot, qs_env, calpha=alpha, ccore=ccore)
       ! Get the total density in g-space [ions + electrons]

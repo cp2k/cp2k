@@ -36,8 +36,7 @@ MODULE ewald_spline_util
         Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, pw_spline_do_precond, &
         pw_spline_precond_create, pw_spline_precond_release, pw_spline_precond_set_kind, &
         pw_spline_precond_type, spl3_pbc
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 !NB parallelization
 #include "./base/base_uses.f90"
 
@@ -73,7 +72,7 @@ CONTAINS
                                  param_section, tag, print_section, para_env)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_r3d_type), POINTER                         :: coeff
+      TYPE(pw_r3d_rs_type), POINTER                      :: coeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: LG, gx, gy, gz
       REAL(KIND=dp), INTENT(IN)                          :: hmat(3, 3)
       INTEGER, INTENT(IN)                                :: npts(3)
@@ -85,7 +84,7 @@ CONTAINS
       INTEGER                                            :: bo(2, 3), iounit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_r3d_type)                                  :: pw
+      TYPE(pw_r3d_rs_type)                               :: pw
 
 !
 ! Setting Up Fit Procedure
@@ -110,8 +109,8 @@ CONTAINS
       ! pw_pool initialized
       CALL pw_pool_create(pw_pool, pw_grid=pw_grid)
       ALLOCATE (coeff)
-      CALL pw_pool%create_pw(pw, in_space=REALSPACE)
-      CALL pw_pool%create_pw(coeff, in_space=REALSPACE)
+      CALL pw_pool%create_pw(pw)
+      CALL pw_pool%create_pw(coeff)
       ! Evaluate function on grid
       CALL eval_pw_TabLR(pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat, &
                          param_section=param_section, tag=tag)
@@ -139,9 +138,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eval_pw_TabLR(grid, pw_pool, TabLR, Lg, gx, gy, gz, hmat_mm, &
                             param_section, tag)
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: grid
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_r3d_type), POINTER                         :: TabLR
+      TYPE(pw_r3d_rs_type), POINTER                      :: TabLR
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Lg, gx, gy, gz
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_mm
       TYPE(section_vals_type), POINTER                   :: param_section
@@ -355,7 +354,7 @@ CONTAINS
                                         param_section, tag)
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_mm
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Lg, gx, gy, gz
-      TYPE(pw_r3d_type), POINTER                         :: TabLR
+      TYPE(pw_r3d_rs_type), POINTER                      :: TabLR
       TYPE(section_vals_type), POINTER                   :: param_section
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
 

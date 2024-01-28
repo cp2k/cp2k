@@ -22,10 +22,8 @@ MODULE qs_elf_methods
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -55,7 +53,7 @@ CONTAINS
    SUBROUTINE qs_elf_calc(qs_env, elf_r, rho_cutoff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)        :: elf_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: elf_r
       REAL(kind=dp), INTENT(IN)                          :: rho_cutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_elf_calc'
@@ -72,14 +70,14 @@ CONTAINS
                                                             udvol
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
-      TYPE(pw_c1d_type)                                  :: tmp_g
+      TYPE(pw_c1d_gs_type)                               :: tmp_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(3)                    :: drho_r
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_struct_r, tau_struct_r
-      TYPE(pw_r3d_type), DIMENSION(:, :), POINTER        :: drho_struct_r
-      TYPE(pw_r3d_type), POINTER                         :: rho_r, tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: drho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_struct_r, tau_struct_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:, :), POINTER     :: drho_struct_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_r, tau_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
 
@@ -108,17 +106,14 @@ CONTAINS
       ! We will not have further use for it, so we will need only one
       IF (.NOT. tau_r_valid) THEN
          ALLOCATE (tau_r)
-         CALL auxbas_pw_pool%create_pw(tau_r, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(tau_r)
       END IF
       IF (.NOT. tau_r_valid .OR. .NOT. drho_r_valid) THEN
-         CALL auxbas_pw_pool%create_pw(tmp_g, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(tmp_g)
       END IF
       IF (.NOT. drho_r_valid) THEN
          DO idir = 1, 3
-            CALL auxbas_pw_pool%create_pw(drho_r(idir), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(drho_r(idir))
          END DO
       END IF
 

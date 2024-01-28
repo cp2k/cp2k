@@ -49,7 +49,7 @@ MODULE qs_tddfpt2_fhxc_forces
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
                                               tb_spme_evaluate
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
                                               init_coulomb_local
@@ -87,10 +87,8 @@ MODULE qs_tddfpt2_fhxc_forces
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -202,13 +200,13 @@ CONTAINS
          POINTER                                         :: sab, sab_aux_fit, sab_orb, sap_oce
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: rhox_tot_gspace, xv_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g_aux, rhox_g, rhox_g_aux, rhoxx_g
+      TYPE(pw_c1d_gs_type)                               :: rhox_tot_gspace, xv_hartree_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux, rhox_g, rhox_g_aux, rhoxx_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: xv_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+      TYPE(pw_r3d_rs_type)                               :: xv_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
                                                             rho_r_aux, rhox_r, rhox_r_aux, rhoxx_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -393,13 +391,10 @@ CONTAINS
 
       ALLOCATE (rhox_r(nspins), rhox_g(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(rhox_r(ispin), &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(rhox_g(ispin), &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhox_r(ispin))
+         CALL auxbas_pw_pool%create_pw(rhox_g(ispin))
       END DO
-      CALL auxbas_pw_pool%create_pw(rhox_tot_gspace, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhox_tot_gspace)
 
       CALL pw_zero(rhox_tot_gspace)
       DO ispin = 1, nspins
@@ -414,10 +409,8 @@ CONTAINS
       IF (gapw_xc) THEN
          ALLOCATE (rhoxx_r(nspins), rhoxx_g(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(rhoxx_r(ispin), &
-                                          in_space=REALSPACE)
-            CALL auxbas_pw_pool%create_pw(rhoxx_g(ispin), &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rhoxx_r(ispin))
+            CALL auxbas_pw_pool%create_pw(rhoxx_g(ispin))
          END DO
          DO ispin = 1, nspins
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
@@ -431,10 +424,8 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force)
 
       IF (.NOT. is_rks_triplets) THEN
-         CALL auxbas_pw_pool%create_pw(xv_hartree_rspace, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(xv_hartree_gspace, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(xv_hartree_rspace)
+         CALL auxbas_pw_pool%create_pw(xv_hartree_gspace)
          ! calculate associated hartree potential
          IF (gapw) THEN
             CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rhox_tot_gspace)
@@ -680,10 +671,8 @@ CONTAINS
             ! rhox_aux
             ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
             DO ispin = 1, nspins
-               CALL auxbas_pw_pool%create_pw(rhox_r_aux(ispin), &
-                                             in_space=REALSPACE)
-               CALL auxbas_pw_pool%create_pw(rhox_g_aux(ispin), &
-                                             in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(rhox_r_aux(ispin))
+               CALL auxbas_pw_pool%create_pw(rhox_g_aux(ispin))
             END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
@@ -1313,7 +1302,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tempmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: n_list, sab_orb

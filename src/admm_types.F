@@ -63,7 +63,7 @@ MODULE admm_types
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: admm_env_create, admm_env_release, admm_type, admm_gapw_r3d_type, set_admm_env, get_admm_env
+   PUBLIC :: admm_env_create, admm_env_release, admm_type, admm_gapw_r3d_rs_type, set_admm_env, get_admm_env
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
@@ -82,12 +82,12 @@ MODULE admm_types
 !> \param task_list the task list used for all soft density pw operations
 !> \param oce stores the precomputed oce integrals
 ! **************************************************************************************************
-   TYPE admm_gapw_r3d_type
+   TYPE admm_gapw_r3d_rs_type
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: admm_kind_set => Null()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => Null()
       TYPE(task_list_type), POINTER                      :: task_list => Null()
       TYPE(oce_matrix_type), POINTER                     :: oce => Null()
-   END TYPE admm_gapw_r3d_type
+   END TYPE admm_gapw_r3d_rs_type
 
 ! **************************************************************************************************
 !> \brief stores some data used in wavefunction fitting
@@ -178,7 +178,7 @@ MODULE admm_types
       LOGICAL                                  :: block_dm = .FALSE.
       LOGICAL                                  :: block_fit = .FALSE.
       INTEGER, DIMENSION(:, :), POINTER        :: block_map => Null()
-      TYPE(admm_gapw_r3d_type), POINTER            :: admm_gapw_env => NULL()
+      TYPE(admm_gapw_r3d_rs_type), POINTER            :: admm_gapw_env => NULL()
       LOGICAL                                  :: do_gapw = .FALSE.
       TYPE(admm_dm_type), POINTER              :: admm_dm => Null()
 
@@ -539,7 +539,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_gapw_env_release(admm_gapw_env)
 
-      TYPE(admm_gapw_r3d_type), POINTER                  :: admm_gapw_env
+      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
 
       IF (ASSOCIATED(admm_gapw_env%admm_kind_set)) THEN
          CALL deallocate_qs_kind_set(admm_gapw_env%admm_kind_set)

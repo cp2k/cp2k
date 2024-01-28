@@ -46,9 +46,8 @@ MODULE pw_poisson_types
                                               pw_pool_release,&
                                               pw_pool_type,&
                                               pw_pools_dealloc
-   USE pw_types,                        ONLY: RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r1d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r1d_gs_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs_grid_release
 #include "../base/base_uses.f90"
@@ -159,10 +158,10 @@ MODULE pw_poisson_types
       LOGICAL :: sr_screening = .FALSE.
       REAL(KIND=dp) :: sr_alpha = 1.0_dp
       REAL(KIND=dp) :: sr_rc = 0.0_dp
-      TYPE(pw_c1d_type) :: influence_fn = pw_c1d_type()
-      TYPE(pw_c1d_type), POINTER :: dct_influence_fn => NULL()
-      TYPE(pw_c1d_type), POINTER :: screen_fn => NULL()
-      TYPE(pw_r1d_type), POINTER :: p3m_charge => NULL()
+      TYPE(pw_c1d_gs_type) :: influence_fn = pw_c1d_gs_type()
+      TYPE(pw_c1d_gs_type), POINTER :: dct_influence_fn => NULL()
+      TYPE(pw_c1d_gs_type), POINTER :: screen_fn => NULL()
+      TYPE(pw_r1d_gs_type), POINTER :: p3m_charge => NULL()
    END TYPE greens_fn_type
 
 CONTAINS
@@ -190,7 +189,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: g2, g3d, gg, gxy, gz, j0g, j1g, k0g, &
                                                             k1g, rlength, zlength
       REAL(KIND=dp), DIMENSION(3)                        :: abc
-      TYPE(pw_c1d_type), POINTER                         :: dct_gf
+      TYPE(pw_c1d_gs_type), POINTER                      :: dct_gf
       TYPE(pw_grid_type), POINTER                        :: dct_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
 
@@ -269,7 +268,7 @@ CONTAINS
       ! allocate influence function,...
       SELECT CASE (green%method)
       CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT)
-         CALL pw_pool%create_pw(green%influence_fn, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(green%influence_fn)
 
          IF (poisson_params%ewald_type == do_ewald_spme) THEN
             green%p3m = .TRUE.
@@ -280,8 +279,7 @@ CONTAINS
             CALL spme_coeff_calculate(n, green%p3m_coeff)
             NULLIFY (green%p3m_charge)
             ALLOCATE (green%p3m_charge)
-            CALL pw_pool%create_pw(green%p3m_charge, &
-                                   in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(green%p3m_charge)
             CALL influence_factor(green)
             CALL calc_p3m_charge(green)
          ELSE
@@ -300,8 +298,7 @@ CONTAINS
                CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
                NULLIFY (green%dct_influence_fn)
                ALLOCATE (green%dct_influence_fn)
-               CALL pw_pool_xpndd%create_pw(green%dct_influence_fn, &
-                                            in_space=RECIPROCALSPACE)
+               CALL pw_pool_xpndd%create_pw(green%dct_influence_fn)
                CALL pw_pool_release(pw_pool_xpndd)
             END IF
          END SELECT

@@ -21,10 +21,8 @@ MODULE xc_rho_set_types
       pw_pool_type
    USE pw_spline_utils, ONLY: pw_spline_scale_deriv
    USE pw_types, ONLY: &
-      pw_c1d_type, &
-      REALSPACE, &
-      RECIPROCALSPACE, &
-      pw_r3d_type
+      pw_c1d_gs_type, &
+      pw_r3d_rs_type
    USE xc_input_constants, ONLY: xc_deriv_pw, &
                                  xc_deriv_spline2, &
                                  xc_deriv_spline3, &
@@ -451,11 +449,11 @@ CONTAINS
                                           rhob_1_3, laplace_rho, laplace_rhoa, laplace_rhob, drhoa, drhob, &
                                           tau, tau_a, tau_b)
             TYPE(xc_rho_set_type)                              :: rho_set
-            TYPE(pw_r3d_type), DIMENSION(3), OPTIONAL, INTENT(OUT) :: drho, drhoa, drhob
-            TYPE(pw_r3d_type), OPTIONAL, POINTER                   :: rho, norm_drho, rhoa, rhob, norm_drhoa, &
-                                                                      norm_drhob, rho_1_3, rhoa_1_3, &
-                                                                      rhob_1_3, laplace_rho, laplace_rhoa, &
-                                                                      laplace_rhob, tau, tau_a, tau_b
+            TYPE(pw_r3d_rs_type), DIMENSION(3), OPTIONAL, INTENT(OUT) :: drho, drhoa, drhob
+            TYPE(pw_r3d_rs_type), OPTIONAL, POINTER                   :: rho, norm_drho, rhoa, rhob, norm_drhoa, &
+                                                                         norm_drhob, rho_1_3, rhoa_1_3, &
+                                                                         rhob_1_3, laplace_rho, laplace_rhoa, &
+                                                                         laplace_rhob, tau, tau_a, tau_b
             TYPE(pw_grid_type), POINTER, INTENT(IN)            :: pw_grid
             TYPE(pw_pool_type), POINTER, INTENT(IN)            :: pw_pool
             LOGICAL, INTENT(OUT) :: owns_data
@@ -469,18 +467,17 @@ CONTAINS
          END SUBROUTINE
 
          SUBROUTINE xc_rho_set_recover_pw_low(rho_pw, rho, pw_grid, pw_pool, rhoa, rhob)
-            TYPE(pw_r3d_type), INTENT(OUT) :: rho_pw
+            TYPE(pw_r3d_rs_type), INTENT(OUT) :: rho_pw
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: rho
             TYPE(pw_grid_type), POINTER, INTENT(IN) :: pw_grid
             TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob
 
             IF (ASSOCIATED(rho)) THEN
-               CALL rho_pw%create(pw_grid=pw_grid, array_ptr=rho, &
-                                  in_space=REALSPACE)
+               CALL rho_pw%create(pw_grid=pw_grid, array_ptr=rho)
                NULLIFY (rho)
             ELSE IF (PRESENT(rhoa) .AND. PRESENT(rhob)) THEN
-               CALL pw_pool%create_pw(rho_pw, in_space=REALSPACE)
+               CALL pw_pool%create_pw(rho_pw)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(rho_pw,rhoa,rhob)
                rho_pw%array(:, :, :) = rhoa(:, :, :) + rhob(:, :, :)
 !$OMP END PARALLEL WORKSHARE
@@ -601,9 +598,9 @@ CONTAINS
          SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                                       xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
             TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-            TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)            :: rho_r
-            TYPE(pw_c1d_type), DIMENSION(:), POINTER               :: rho_g
-            TYPE(pw_r3d_type), DIMENSION(:), POINTER, INTENT(IN)   :: tau
+            TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)            :: rho_r
+            TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER               :: rho_g
+            TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER, INTENT(IN)   :: tau
             TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
             INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
             TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -614,10 +611,10 @@ CONTAINS
             LOGICAL                                            :: gradient_f, my_rho_g_local, &
                                                                   needs_laplace, needs_rho_g
             REAL(kind=dp)                                      :: rho_cutoff
-            TYPE(pw_r3d_type), DIMENSION(2)                      :: laplace_rho_r
-            TYPE(pw_r3d_type), DIMENSION(3, 2)                   :: drho_r
-            TYPE(pw_c1d_type)                                      :: my_rho_g, tmp_g
-            TYPE(pw_r3d_type), DIMENSION(2)                        :: my_rho_r
+            TYPE(pw_r3d_rs_type), DIMENSION(2)                      :: laplace_rho_r
+            TYPE(pw_r3d_rs_type), DIMENSION(3, 2)                   :: drho_r
+            TYPE(pw_c1d_gs_type)                                      :: my_rho_g, tmp_g
+            TYPE(pw_r3d_rs_type), DIMENSION(2)                        :: my_rho_r
 
             IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
                CPABORT("pw_pool cr3d have different size than expected")
@@ -662,12 +659,10 @@ CONTAINS
             END IF
 
             IF (needs_rho_g) THEN
-               CALL pw_pool%create_pw(tmp_g, &
-                                      in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(tmp_g)
             END IF
             DO ispin = 1, nspins
-               CALL pw_pool%create_pw(my_rho_r(ispin), &
-                                      in_space=REALSPACE)
+               CALL pw_pool%create_pw(my_rho_r(ispin))
                ! introduce a smoothing kernel on the density
                IF (xc_rho_smooth_id == xc_rho_no_smooth) THEN
                   IF (needs_rho_g) THEN
@@ -687,27 +682,23 @@ CONTAINS
                   ! (for the partial integration)
                   ! deriv rho
                   DO idir = 1, 3
-                     CALL pw_pool%create_pw(drho_r(idir, ispin), &
-                                            in_space=REALSPACE)
+                     CALL pw_pool%create_pw(drho_r(idir, ispin))
                   END DO
                   IF (needs_rho_g) THEN
                      IF (.NOT. ASSOCIATED(my_rho_g%pw_grid)) THEN
                         my_rho_g_local = .TRUE.
-                        CALL pw_pool%create_pw(my_rho_g, &
-                                               in_space=RECIPROCALSPACE)
+                        CALL pw_pool%create_pw(my_rho_g)
                         CALL pw_transfer(my_rho_r(ispin), my_rho_g)
                      END IF
                      IF (.NOT. my_rho_g_local .AND. (xc_deriv_method_id == xc_deriv_spline2 .OR. &
                                                      xc_deriv_method_id == xc_deriv_spline3)) THEN
-                        CALL pw_pool%create_pw(my_rho_g, &
-                                               in_space=RECIPROCALSPACE)
+                        CALL pw_pool%create_pw(my_rho_g)
                         my_rho_g_local = .TRUE.
                         CALL pw_copy(rho_g(ispin), my_rho_g)
                      END IF
                   END IF
                   IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-                     CALL pw_pool%create_pw(laplace_rho_r(ispin), &
-                                            in_space=REALSPACE)
+                     CALL pw_pool%create_pw(laplace_rho_r(ispin))
                      CALL xc_pw_laplace(my_rho_g, pw_pool, xc_deriv_method_id, laplace_rho_r(ispin), tmp_g=tmp_g)
                   END IF
                   CALL xc_pw_gradient(my_rho_r(ispin), my_rho_g, tmp_g, drho_r(:, ispin), xc_deriv_method_id)

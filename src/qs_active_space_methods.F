@@ -97,10 +97,8 @@ MODULE qs_active_space_methods
    USE pw_pool_types, ONLY: &
       pw_pool_type
    USE pw_types, ONLY: &
-      pw_c1d_type, &
-      REALSPACE, &
-      RECIPROCALSPACE, &
-      pw_r3d_type
+      pw_c1d_gs_type, &
+      pw_r3d_rs_type
    USE qcschema, ONLY: qcschema_env_create, &
                        qcschema_env_release, &
                        qcschema_to_hdf5, &
@@ -1222,14 +1220,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: pot_g, rho_g
+      TYPE(pw_c1d_gs_type)                               :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: rho_r, wfn_r
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:, :), &
-         TARGET                                          :: wfn_a
-      TYPE(pw_r3d_type), POINTER                         :: wfn1, wfn2, wfn3, wfn4
+      TYPE(pw_r3d_rs_type)                               :: rho_r, wfn_r
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, &
+         DIMENSION(:, :), TARGET                         :: wfn_a
+      TYPE(pw_r3d_rs_type), POINTER                      :: wfn1, wfn2, wfn3, wfn4
       TYPE(qs_control_type), POINTER                     :: qs_control, qs_control_old
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1406,8 +1404,8 @@ CONTAINS
          ! Copy the active space of the MOs into DBCSR matrices
       END IF
 
-      CALL auxbas_pw_pool%create_pw(wfn_r, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wfn_r)
+      CALL auxbas_pw_pool%create_pw(rho_g)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
@@ -1429,7 +1427,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
-               CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin), in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin))
                CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
@@ -1440,18 +1438,18 @@ CONTAINS
       ELSE
          ! Even if we do not store all WFNs, we still need containers for the functions to store
          ALLOCATE (wfn1, wfn2)
-         CALL auxbas_pw_pool%create_pw(wfn1, in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(wfn2, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wfn1)
+         CALL auxbas_pw_pool%create_pw(wfn2)
          IF (eri_env%method /= eri_method_gpw_ht) THEN
             ALLOCATE (wfn3, wfn4)
-            CALL auxbas_pw_pool%create_pw(wfn3, in_space=REALSPACE)
-            CALL auxbas_pw_pool%create_pw(wfn4, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(wfn3)
+            CALL auxbas_pw_pool%create_pw(wfn4)
          END IF
       END IF
 
       ! get some of the grids ready
-      CALL auxbas_pw_pool%create_pw(rho_r, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(pot_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_r)
+      CALL auxbas_pw_pool%create_pw(pot_g)
 
       ! run the FFT once, to set up buffers and to take into account the memory
       CALL pw_zero(rho_r)
@@ -1864,10 +1862,10 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: wf_g
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: wf_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section, scf_input
@@ -1898,8 +1896,8 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL auxbas_pw_pool%create_pw(wf_r, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(wf_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r)
+      CALL auxbas_pw_pool%create_pw(wf_g)
       !
       dft_section => section_vals_get_subs_vals(scf_input, "DFT")
       !

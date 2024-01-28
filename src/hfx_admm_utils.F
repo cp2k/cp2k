@@ -19,7 +19,7 @@ MODULE hfx_admm_utils
    USE admm_methods,                    ONLY: kpoint_calc_admm_matrices,&
                                               scale_dm
    USE admm_types,                      ONLY: admm_env_create,&
-                                              admm_gapw_r3d_type,&
+                                              admm_gapw_r3d_rs_type,&
                                               admm_type,&
                                               get_admm_env,&
                                               set_admm_env
@@ -99,7 +99,7 @@ MODULE hfx_admm_utils
                                               pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -389,7 +389,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: ikind, nkind
-      TYPE(admm_gapw_r3d_type), POINTER                  :: admm_gapw_env
+      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -429,7 +429,7 @@ CONTAINS
          admm_kind_set(ikind)%natom = qs_kind_set(ikind)%natom
          admm_kind_set(ikind)%hard_radius = qs_kind_set(ikind)%hard_radius
          admm_kind_set(ikind)%max_rad_local = qs_kind_set(ikind)%max_rad_local
-         admm_kind_set(ikind)%gpw_r3d_type_forced = qs_kind_set(ikind)%gpw_r3d_type_forced
+         admm_kind_set(ikind)%gpw_r3d_rs_type_forced = qs_kind_set(ikind)%gpw_r3d_rs_type_forced
          admm_kind_set(ikind)%ngrid_rad = qs_kind_set(ikind)%ngrid_rad
          admm_kind_set(ikind)%ngrid_ang = qs_kind_set(ikind)%ngrid_ang
 
@@ -685,7 +685,7 @@ CONTAINS
       REAL(dp)                                           :: subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: aux_radius, oce_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
-      TYPE(admm_gapw_r3d_type), POINTER                  :: admm_gapw_env
+      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1033,7 +1033,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_rspace_new, v_tau_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_rspace_new, v_tau_rspace
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ks_matrix'
 

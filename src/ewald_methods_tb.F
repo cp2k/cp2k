@@ -18,7 +18,7 @@ MODULE ewald_methods_tb
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_r3d_type
+                                              ewald_pw_r3d_rs_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi
@@ -41,10 +41,8 @@ MODULE ewald_methods_tb
    USE pw_poisson_types,                ONLY: greens_fn_type,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -91,7 +89,7 @@ CONTAINS
                                gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(cell_type), POINTER                           :: box
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
@@ -114,12 +112,12 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(mp_comm_type)                                 :: group
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type), DIMENSION(3)                    :: dphi_g
-      TYPE(pw_c1d_type), POINTER                         :: phi_g, phib_g, rhob_g
+      TYPE(pw_c1d_gs_type), DIMENSION(3)                 :: dphi_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: phi_g, phib_g, rhob_g
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_r3d_type), POINTER                         :: rhob_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type)                          :: rden, rpot
       TYPE(realspace_grid_type), ALLOCATABLE, &
@@ -167,16 +165,14 @@ CONTAINS
 
       NULLIFY (rhob_r)
       ALLOCATE (rhob_r)
-      CALL pw_pool%create_pw(rhob_r, &
-                             in_space=REALSPACE)
+      CALL pw_pool%create_pw(rhob_r)
 
       CALL transfer_rs2pw(rden, rhob_r)
 
       ! transform density to G space and add charge function
       NULLIFY (rhob_g)
       ALLOCATE (rhob_g)
-      CALL pw_pool%create_pw(rhob_g, &
-                             in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(rhob_g)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
       CALL pw_multiply_with(rhob_g, green%p3m_charge)
@@ -185,13 +181,11 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         CALL pw_pool%create_pw(dphi_g(i), &
-                                in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(dphi_g(i))
       END DO
       NULLIFY (phi_g)
       ALLOCATE (phi_g)
-      CALL pw_pool%create_pw(phi_g, &
-                             in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(phi_g)
       IF (use_virial) THEN
          CALL pw_poisson_solve(poisson_env, rhob_g, vgc, phi_g, dphi_g, h_stress=h_stress)
       ELSE
@@ -226,8 +220,7 @@ CONTAINS
 
                NULLIFY (phib_g)
                ALLOCATE (phib_g)
-               CALL pw_pool%create_pw(phib_g, &
-                                      in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(phib_g)
                ffa = (0.5_dp/alpha)**2
                ffb = 1.0_dp/fourpi
                DO i = 1, 3
@@ -443,7 +436,7 @@ CONTAINS
    SUBROUTINE tb_spme_zforce(ewald_env, ewald_pw, particle_set, box, gmcharge, mcharge)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(cell_type), POINTER                           :: box
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
@@ -460,12 +453,12 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(mp_comm_type)                                 :: group
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type), DIMENSION(3)                    :: dphi_g
-      TYPE(pw_c1d_type), POINTER                         :: phi_g, rhob_g
+      TYPE(pw_c1d_gs_type), DIMENSION(3)                 :: dphi_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: phi_g, rhob_g
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_r3d_type), POINTER                         :: rhob_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type)                          :: rden, rpot
       TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
@@ -512,16 +505,14 @@ CONTAINS
 
       NULLIFY (rhob_r)
       ALLOCATE (rhob_r)
-      CALL pw_pool%create_pw(rhob_r, &
-                             in_space=REALSPACE)
+      CALL pw_pool%create_pw(rhob_r)
 
       CALL transfer_rs2pw(rden, rhob_r)
 
       ! transform density to G space and add charge function
       NULLIFY (rhob_g)
       ALLOCATE (rhob_g)
-      CALL pw_pool%create_pw(rhob_g, &
-                             in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(rhob_g)
       CALL pw_transfer(rhob_r, rhob_g)
       ! update charge function
       CALL pw_multiply_with(rhob_g, green%p3m_charge)
@@ -530,13 +521,11 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         CALL pw_pool%create_pw(dphi_g(i), &
-                                in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(dphi_g(i))
       END DO
       NULLIFY (phi_g)
       ALLOCATE (phi_g)
-      CALL pw_pool%create_pw(phi_g, &
-                             in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(phi_g)
       CALL pw_poisson_solve(poisson_env, rhob_g, vgc, phi_g, dphi_g)
 
       CALL rs_grid_create(rpot, rs_desc)

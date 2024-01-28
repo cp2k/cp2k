@@ -58,10 +58,8 @@ MODULE qs_kpp1_env_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                               deallocate_qs_energy,&
                                               qs_energy_type
@@ -217,13 +215,13 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type)                                  :: rho1_tot_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g, rho1_g_pw
+      TYPE(pw_c1d_gs_type)                               :: rho1_tot_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho1_g_pw
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
+      TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
                                                             v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
@@ -274,13 +272,13 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
-      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace)
 
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
       DO ispin = 2, nspins
@@ -301,8 +299,8 @@ CONTAINS
 
       IF (.NOT. (nspins == 1 .AND. do_excitations .AND. do_triplet)) THEN
          BLOCK
-            TYPE(pw_c1d_type) :: v_hartree_gspace
-            CALL auxbas_pw_pool%create_pw(v_hartree_gspace, in_space=RECIPROCALSPACE)
+            TYPE(pw_c1d_gs_type) :: v_hartree_gspace
+            CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
             CALL pw_poisson_solve(poisson_env, rho1_tot_gspace, &
                                   energy_hartree, &
                                   v_hartree_gspace)
@@ -327,14 +325,14 @@ CONTAINS
          lsd = .TRUE.
          ALLOCATE (rho1_r_pw(2))
          DO ispin = 1, 2
-            CALL rho1_r_pw(ispin)%create(rho1_r(1)%pw_grid, REALSPACE)
+            CALL rho1_r_pw(ispin)%create(rho1_r(1)%pw_grid)
             CALL pw_transfer(rho1_r(1), rho1_r_pw(ispin))
          END DO
 
          IF (ASSOCIATED(tau1_r)) THEN
             ALLOCATE (tau1_r_pw(2))
             DO ispin = 1, 2
-               CALL tau1_r_pw(ispin)%create(tau1_r(1)%pw_grid, REALSPACE)
+               CALL tau1_r_pw(ispin)%create(tau1_r(1)%pw_grid)
                CALL pw_transfer(tau1_r(1), tau1_r_pw(ispin))
             END DO
          END IF
@@ -577,8 +575,8 @@ CONTAINS
       INTEGER                                            :: ispin, nspins
       REAL(KIND=dp)                                      :: my_diff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_2, matrix_s, rho1_ao, rho_ao
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g, rho_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       NULLIFY (ks_2, matrix_s, qs_energy, rho_ao, rho1_ao, rho_r, rho1_r, rho_g, rho1_g)
@@ -669,7 +667,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: my_rho_r, my_tau_r, rho_r, tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: my_rho_r, my_tau_r, rho_r, tau_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: admm_xc_section, input, xc_section
 
@@ -701,13 +699,13 @@ CONTAINS
                                 (lsd_singlets .OR. do_triplet))) THEN
             ALLOCATE (my_rho_r(2))
             DO ispin = 1, 2
-               CALL auxbas_pw_pool%create_pw(my_rho_r(ispin), REALSPACE)
+               CALL auxbas_pw_pool%create_pw(my_rho_r(ispin))
                CALL pw_axpy(rho_r(1), my_rho_r(ispin), 0.5_dp, 0.0_dp)
             END DO
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(2))
                DO ispin = 1, 2
-                  CALL auxbas_pw_pool%create_pw(my_tau_r(ispin), REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(my_tau_r(ispin))
                   CALL pw_axpy(tau_r(1), my_tau_r(ispin), 0.5_dp, 0.0_dp)
                END DO
             END IF
@@ -793,7 +791,7 @@ CONTAINS
    SUBROUTINE print_densities(rho1, rho1_tot_gspace, out_unit)
 
       TYPE(qs_rho_type), POINTER                         :: rho1
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho1_tot_gspace
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho1_tot_gspace
       INTEGER                                            :: out_unit
 
       REAL(KIND=dp)                                      :: total_rho_gspace

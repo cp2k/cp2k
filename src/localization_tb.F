@@ -32,10 +32,8 @@ MODULE localization_tb
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -95,11 +93,11 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: wf_g
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: wf_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -178,8 +176,8 @@ CONTAINS
 
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
-            CALL auxbas_pw_pool%create_pw(wf_r, in_space=REALSPACE)
-            CALL auxbas_pw_pool%create_pw(wf_g, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(wf_r)
+            CALL auxbas_pw_pool%create_pw(wf_g)
 
             NULLIFY (marked_states, qs_loc_env_homo)
             ALLOCATE (qs_loc_env_homo)

@@ -84,9 +84,8 @@ MODULE qs_linres_current
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -213,11 +212,11 @@ CONTAINS
          POINTER                                         :: sab_all
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: jrho1_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: wf_r
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: jrho1_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: jrho1_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -479,8 +478,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                          auxbas_pw_pool=auxbas_pw_pool)
          !
-         CALL auxbas_pw_pool%create_pw(wf_r, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r)
          !
          DO idir = 1, 3
             CALL pw_zero(wf_r)
@@ -580,8 +578,8 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: current_rs
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: current_gs
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: current_rs
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, retain_rsgrid

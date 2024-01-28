@@ -28,7 +28,7 @@ MODULE qmmm_tb_coulomb
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_spme_evaluate
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
@@ -98,7 +98,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env_qm

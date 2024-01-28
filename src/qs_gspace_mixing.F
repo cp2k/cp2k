@@ -21,9 +21,8 @@ MODULE qs_gspace_mixing
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               cp_1d_z_p_type,&
@@ -79,11 +78,11 @@ CONTAINS
       REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type)                                  :: rho_tmp
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type)                               :: rho_tmp
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CALL timeset(routineN, handle)
@@ -106,8 +105,7 @@ CONTAINS
 
          IF (nspin == 2) THEN
             CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL auxbas_pw_pool%create_pw(rho_tmp, &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_tmp)
             CALL pw_zero(rho_tmp)
             CALL pw_copy(rho_g(1), rho_tmp)
             CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
@@ -212,7 +210,7 @@ CONTAINS
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha, f_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%rhoin))
@@ -301,7 +299,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: alpha_c, ev
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b, c, c_inv, cpc_h_mix, cpc_s_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
@@ -580,7 +578,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: c, g
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
@@ -899,7 +897,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: fmat, weight
       TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER        :: tmp_z
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER     :: delta_res, u_vec, z_vec
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
 
       CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
 
@@ -1213,7 +1211,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: b_matrix, binv_matrix
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), SAVE                                     :: sigma_old = 1.0_dp
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
 
       CPASSERT(ASSOCIATED(mixing_store))
 

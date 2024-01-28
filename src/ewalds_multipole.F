@@ -30,7 +30,7 @@ MODULE ewalds_multipole
    USE ewald_environment_types, ONLY: ewald_env_get, &
                                       ewald_environment_type
    USE ewald_pw_types, ONLY: ewald_pw_get, &
-                             ewald_pw_r3d_type
+                             ewald_pw_r3d_rs_type
    USE fist_neighbor_list_control, ONLY: list_control
    USE fist_neighbor_list_types, ONLY: fist_neighbor_type, &
                                        neighbor_kind_pairs_type
@@ -121,7 +121,7 @@ CONTAINS
                                                  quadrupoles, forces_local, forces_glob, pv_local, pv_glob, efield0, efield1, &
                                                  efield2, iw, do_debug, atomic_kind_set, mm_section)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                       :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -643,7 +643,7 @@ CONTAINS
                                  local_particles, energy, task, do_forces, do_efield, do_stress, &
                                  charges, dipoles, quadrupoles, forces, pv, efield0, efield1, efield2)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -1286,7 +1286,7 @@ CONTAINS
             POINTER                          :: charge_typ
       END TYPE multi_charge_type
       TYPE(ewald_environment_type), POINTER    :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER             :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER             :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
       TYPE(cell_type), POINTER                 :: cell
       TYPE(particle_type), DIMENSION(:), &
@@ -1880,7 +1880,7 @@ CONTAINS
                                             particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw, &
                                             atomic_kind_set, mm_section)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                       :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -2065,7 +2065,7 @@ CONTAINS
    SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell, &
                                              particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                       :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: nonbond_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), POINTER                       :: particle_set(:)

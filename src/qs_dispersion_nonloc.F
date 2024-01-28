@@ -37,10 +37,8 @@ MODULE qs_dispersion_nonloc
                                               pw_derive,&
                                               pw_transfer
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -163,8 +161,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
                                           dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: vxc_rho, rho_r
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rho, rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       REAL(KIND=dp), INTENT(OUT)                         :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -183,11 +181,11 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dq0_dgradrho, dq0_drho, hpot, potential, &
                                                             q0, rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, thetas
-      TYPE(pw_c1d_type)                                  :: tmp_g, vxc_g
-      TYPE(pw_c1d_type), ALLOCATABLE, DIMENSION(:)       :: thetas_g
+      TYPE(pw_c1d_gs_type)                               :: tmp_g, vxc_g
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: thetas_g
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_r3d_type)                                  :: tmp_r, vxc_r
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:, :)    :: drho_r
+      TYPE(pw_r3d_rs_type)                               :: tmp_r, vxc_r
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:, :) :: drho_r
 
       CALL timeset(routineN, handle)
 
@@ -216,15 +214,14 @@ CONTAINS
       const = 1.0_dp/(3.0_dp*SQRT(pi)*b_value**1.5_dp)/(pi**0.75_dp)
 
       ! temporary arrays for FFT
-      CALL pw_pool%create_pw(tmp_g, in_space=RECIPROCALSPACE)
-      CALL pw_pool%create_pw(tmp_r, in_space=REALSPACE)
+      CALL pw_pool%create_pw(tmp_g)
+      CALL pw_pool%create_pw(tmp_r)
 
       ! get density derivatives
       ALLOCATE (drho_r(3, nspin))
       DO ispin = 1, nspin
          DO idir = 1, 3
-            CALL pw_pool%create_pw(drho_r(idir, ispin), &
-                                   in_space=REALSPACE)
+            CALL pw_pool%create_pw(drho_r(idir, ispin))
             CALL pw_transfer(rho_g(ispin), tmp_g)
             CALL pw_derive(tmp_g, nd(:, idir))
             CALL pw_transfer(tmp_g, drho_r(idir, ispin))
@@ -392,7 +389,7 @@ CONTAINS
             END DO
          END DO
 !$OMP END PARALLEL DO
-         CALL pw_pool%create_pw(thetas_g(i), in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(thetas_g(i))
          CALL pw_transfer(tmp_r, thetas_g(i))
       END DO
       grid => thetas_g(1)%pw_grid
@@ -473,7 +470,7 @@ CONTAINS
             potential(:) = (0.5_dp*potential(:) + beta)*dispersion_env%scale_rvv10
             hpot(:) = 0.5_dp*dispersion_env%scale_rvv10*hpot(:)
          END SELECT
-         CALL pw_pool%create_pw(vxc_r, in_space=REALSPACE)
+         CALL pw_pool%create_pw(vxc_r)
          DO i = 1, 3
             lo(i) = LBOUND(vxc_r%array, i)
             hi(i) = UBOUND(vxc_r%array, i)
@@ -529,8 +526,8 @@ CONTAINS
          END DO
          CALL pw_transfer(vxc_r, tmp_g)
          CALL pw_pool%give_back_pw(vxc_r)
-         CALL xc_pw_pool%create_pw(vxc_r, in_space=REALSPACE)
-         CALL xc_pw_pool%create_pw(vxc_g, in_space=RECIPROCALSPACE)
+         CALL xc_pw_pool%create_pw(vxc_r)
+         CALL xc_pw_pool%create_pw(vxc_g)
          CALL pw_transfer(tmp_g, vxc_g)
          CALL pw_transfer(vxc_g, vxc_r)
          DO ispin = 1, nspin
@@ -574,7 +571,7 @@ CONTAINS
 !>    OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial)
-      TYPE(pw_c1d_type), DIMENSION(:), INTENT(IN)        :: thetas_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), INTENT(IN)     :: thetas_g
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(OUT)                         :: vdW_xc_energy
       LOGICAL, INTENT(IN)                                :: energy_only

@@ -23,8 +23,7 @@ MODULE dct
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -245,7 +244,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Finds the process ids for mpi_isend destiations and mpi_irecv sources
-!>   for expanding and shrinking a pw_r3d_type data
+!>   for expanding and shrinking a pw_r3d_rs_type data
 !> \param pw_grid the original plane wave grid
 !> \param neumann_directions directions in which dct should be performed
 !> \param dests_expand list of the destination processes (pw_expand)
@@ -496,7 +495,7 @@ CONTAINS
    END SUBROUTINE set_dests_srcs_pid
 
 ! **************************************************************************************************
-!> \brief expands a pw_r3d_type data to an evenly symmetric pw_r3d_type data that is 8 times
+!> \brief expands a pw_r3d_rs_type data to an evenly symmetric pw_r3d_rs_type data that is 8 times
 !>   larger than the original one:
 !>   the even symmetry for a 1D sequence of length n is defined as:
 !>      1 2 3 ... n-2 n-1 n --> 1 2 3 ... n-2 n-1 n n-1 n-2 ... 3 2
@@ -521,8 +520,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_expanded
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_expanded
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
@@ -685,7 +684,7 @@ CONTAINS
    END SUBROUTINE pw_expand
 
 ! **************************************************************************************************
-!> \brief shrinks an evenly symmetric pw_r3d_type data to a pw_r3d_type data that is 8
+!> \brief shrinks an evenly symmetric pw_r3d_rs_type data to a pw_r3d_rs_type data that is 8
 !>        times smaller (the reverse procedure of pw_expand).
 !>
 !> \param neumann_directions directions in which dct should be performed
@@ -705,14 +704,14 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
       INTEGER, INTENT(INOUT)                             :: srcs_shrink
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_local_shftd
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_shrinked
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_shrinked
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
-      INTEGER :: group_size, handle, i, in_space, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
-         lb3_orig, lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, &
-         send_ub2, send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
+      INTEGER :: group_size, handle, i, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, lb3_orig, &
+         lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, send_ub2, &
+         send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: cr3d, send_crmsg
@@ -726,8 +725,6 @@ CONTAINS
       rs_mpo = pw_grid_orig%para%my_pos
       group_size = pw_grid_orig%para%group_size
       bounds_local_xpnd = pw_in%pw_grid%bounds_local
-      in_space = pw_in%in_space
-      CPASSERT(in_space == REALSPACE)
       tag = 1
 
       SELECT CASE (neumann_directions)

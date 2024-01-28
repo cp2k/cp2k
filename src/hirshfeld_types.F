@@ -17,7 +17,7 @@ MODULE hirshfeld_types
    USE input_constants,                 ONLY: radius_default,&
                                               shape_function_gaussian
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -43,7 +43,7 @@ MODULE hirshfeld_types
          POINTER                    :: kind_shape_fn
       REAL(KIND=dp), DIMENSION(:), &
          POINTER                    :: charges
-      TYPE(pw_r3d_type), POINTER      :: fnorm
+      TYPE(pw_r3d_rs_type), POINTER      :: fnorm
    END TYPE hirshfeld_type
 
    TYPE shape_fn
@@ -138,7 +138,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: shape_function_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: iterative
       INTEGER, INTENT(OUT), OPTIONAL                     :: ref_charge
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: fnorm
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: fnorm
       INTEGER, INTENT(OUT), OPTIONAL                     :: radius_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_bohr
 
@@ -182,7 +182,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: shape_function_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: iterative
       INTEGER, INTENT(IN), OPTIONAL                      :: ref_charge
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: fnorm
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: fnorm
       INTEGER, INTENT(IN), OPTIONAL                      :: radius_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_bohr
 

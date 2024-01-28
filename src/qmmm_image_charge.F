@@ -51,10 +51,8 @@ MODULE qmmm_image_charge
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_collocate_density,            ONLY: calculate_rho_metal,&
                                               calculate_rho_single_gaussian
@@ -96,8 +94,8 @@ CONTAINS
    SUBROUTINE calculate_image_pot(v_hartree_rspace, rho_hartree_gspace, energy, &
                                   qmmm_env, qs_env)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: v_hartree_rspace
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_hartree_gspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_hartree_rspace
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_hartree_gspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -152,7 +150,7 @@ CONTAINS
    SUBROUTINE calc_image_coeff_gaussalgorithm(v_hartree_rspace, coeff, qmmm_env, &
                                               qs_env)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_hartree_rspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -208,7 +206,7 @@ CONTAINS
    SUBROUTINE calc_image_coeff_iterative(v_hartree_rspace, coeff, qmmm_env, &
                                          qs_env)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_hartree_rspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -219,7 +217,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, eta, rsnew, rsold, V0
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Ad, d, pot_const, r, vmetal_const, z
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_r3d_type)                                  :: auxpot_Ad_rspace, v_metal_rspace_guess
+      TYPE(pw_r3d_rs_type)                               :: auxpot_Ad_rspace, v_metal_rspace_guess
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
@@ -336,7 +334,7 @@ CONTAINS
    SUBROUTINE integrate_potential_ga_rspace(potential, qmmm_env, qs_env, int_res, &
                                             atom_num, atom_num_ref)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: potential
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: potential
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: int_res
@@ -452,7 +450,7 @@ CONTAINS
    SUBROUTINE integrate_potential_devga_rspace(potential, coeff, forces, qmmm_env, &
                                                qs_env)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: potential
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: potential
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
@@ -704,11 +702,11 @@ CONTAINS
       INTEGER                                            :: handle, iatom, iatom_ref, natom
       REAL(KIND=dp), DIMENSION(:), POINTER               :: int_res
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type)                                  :: rho_gb, vb_gspace
+      TYPE(pw_c1d_gs_type)                               :: rho_gb, vb_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: vb_rspace
+      TYPE(pw_r3d_rs_type)                               :: vb_rspace
 
       CALL timeset(routineN, handle)
       NULLIFY (pw_env, auxbas_pw_pool, poisson_env, para_env, int_res)
@@ -722,9 +720,9 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(rho_gb, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(vb_gspace, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(vb_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_gb)
+      CALL auxbas_pw_pool%create_pw(vb_gspace)
+      CALL auxbas_pw_pool%create_pw(vb_rspace)
 
       ! calculate vb only once for one reference atom
       iatom_ref = 1 !
@@ -859,9 +857,9 @@ CONTAINS
    SUBROUTINE calculate_potential_metal(v_metal_rspace, coeff, rho_hartree_gspace, energy, &
                                         qs_env)
 
-      TYPE(pw_r3d_type), INTENT(OUT)                     :: v_metal_rspace
+      TYPE(pw_r3d_rs_type), INTENT(OUT)                  :: v_metal_rspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
-      TYPE(pw_c1d_type), INTENT(IN), OPTIONAL            :: rho_hartree_gspace
+      TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL         :: rho_hartree_gspace
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -870,7 +868,7 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: en_external, en_vmetal_rhohartree, &
                                                             total_rho_metal
-      TYPE(pw_c1d_type)                                  :: rho_metal, v_metal_gspace
+      TYPE(pw_c1d_gs_type)                               :: rho_metal, v_metal_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -885,11 +883,11 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      CALL auxbas_pw_pool%create_pw(rho_metal, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_metal)
 
-      CALL auxbas_pw_pool%create_pw(v_metal_gspace, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_metal_gspace)
 
-      CALL auxbas_pw_pool%create_pw(v_metal_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_metal_rspace)
 
       CALL pw_zero(rho_metal)
       CALL calculate_rho_metal(rho_metal, coeff, total_rho_metal=total_rho_metal, &
@@ -926,8 +924,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_image_pot_to_hartree_pot(v_hartree, v_metal, qs_env)
 
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: v_hartree
-      TYPE(pw_r3d_type), INTENT(IN)                      :: v_metal
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: v_hartree
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'add_image_pot_to_hartree_pot'

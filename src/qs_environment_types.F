@@ -44,7 +44,7 @@ MODULE qs_environment_types
                                               et_coupling_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type,&
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type,&
                                               ewald_pw_release
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_release
@@ -83,8 +83,8 @@ MODULE qs_environment_types
    USE post_scf_bandstructure_types,    ONLY: bs_env_release,&
                                               post_scf_bandstructure_type
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               release_active_space_type
@@ -241,8 +241,8 @@ MODULE qs_environment_types
       TYPE(rel_control_type), POINTER                       :: rel_control
       ! ZMP adding variables
       TYPE(qs_rho_type), POINTER                            :: rho_external
-      TYPE(pw_r3d_type), POINTER                              :: external_vxc
-      TYPE(pw_r3d_type), POINTER                              :: mask
+      TYPE(pw_r3d_rs_type), POINTER                              :: external_vxc
+      TYPE(pw_r3d_rs_type), POINTER                              :: mask
       TYPE(qs_charges_type), POINTER                        :: qs_charges
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -281,7 +281,7 @@ MODULE qs_environment_types
       TYPE(qs_gcp_type), POINTER                            :: gcp_env
       ! Semi-empirical and DFTB types
       TYPE(ewald_environment_type), POINTER                 :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                          :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                          :: ewald_pw
       ! Semi-empirical types
       TYPE(se_taper_type), POINTER                          :: se_taper
       TYPE(semi_empirical_si_type), POINTER                 :: se_store_int_env
@@ -299,8 +299,8 @@ MODULE qs_environment_types
       ! Subsystem densities
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens
       ! Embedding potential
-      TYPE(pw_r3d_type), POINTER                              :: embed_pot
-      TYPE(pw_r3d_type), POINTER                              :: spin_embed_pot
+      TYPE(pw_r3d_rs_type), POINTER                              :: embed_pot
+      TYPE(pw_r3d_rs_type), POINTER                              :: spin_embed_pot
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env
       ! Resp charges
@@ -534,7 +534,7 @@ CONTAINS
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
-      TYPE(ewald_pw_r3d_type), OPTIONAL, POINTER         :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), OPTIONAL, POINTER      :: ewald_pw
       TYPE(active_space_type), OPTIONAL, POINTER         :: active_space
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
@@ -545,10 +545,10 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kinetic
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: vppl
-      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: rho_nlcc
-      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_nlcc_g
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: vppl
+      TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho_core
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho_nlcc
+      TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho_nlcc_g
       TYPE(qs_ks_env_type), OPTIONAL, POINTER            :: ks_env
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
@@ -573,8 +573,8 @@ CONTAINS
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: rho0_s_rs
-      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho0_s_gs
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho0_s_rs
+      TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho0_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
                                                             requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -607,9 +607,9 @@ CONTAINS
       TYPE(energy_correction_type), OPTIONAL, POINTER    :: ec_env
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: vee
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: external_vxc, mask
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: external_vxc, mask
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
       TYPE(post_scf_bandstructure_type), OPTIONAL, &
          POINTER                                         :: bs_env
@@ -620,14 +620,14 @@ CONTAINS
       TYPE(ls_scf_env_type), OPTIONAL, POINTER           :: ls_scf_env
       LOGICAL, OPTIONAL                                  :: do_transport
       TYPE(transport_env_type), OPTIONAL, POINTER        :: transport_env
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
       TYPE(molecular_scf_guess_env_type), OPTIONAL, &
          POINTER                                         :: mscfg_env
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: embed_pot, spin_embed_pot
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
@@ -1038,10 +1038,10 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
-      TYPE(ewald_pw_r3d_type), OPTIONAL, POINTER         :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), OPTIONAL, POINTER      :: ewald_pw
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: external_vxc, mask
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: external_vxc, mask
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(rel_control_type), OPTIONAL, POINTER          :: rel_control
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
@@ -1103,7 +1103,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: WannierCentres
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
-      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: embed_pot, spin_embed_pot
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs

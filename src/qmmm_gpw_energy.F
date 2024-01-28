@@ -47,8 +47,7 @@ MODULE qmmm_gpw_energy
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pools_create_pws,&
                                               pw_pools_give_back_pws
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                               qmmm_gaussian_type
    USE qmmm_se_energy,                  ONLY: build_se_qmmm_matrix
@@ -242,7 +241,7 @@ CONTAINS
                                       aug_pools, cube_info, para_env, eps_mm_rspace, pw_pools, &
                                       auxbas_grid, coarser_grid, interp_section, mm_cell)
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
-      TYPE(pw_r3d_type), INTENT(IN)                      :: v_qmmm
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_qmmm
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -258,7 +257,7 @@ CONTAINS
       INTEGER                                            :: handle, handle2, igrid, ilevel, &
                                                             kind_interp, lb(3), ngrids, ub(3)
       LOGICAL                                            :: shells
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: grids
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: grids
 
       CPASSERT(ASSOCIATED(mm_particles))
       CPASSERT(ASSOCIATED(qmmm_env%mm_atom_chrg))
@@ -268,7 +267,7 @@ CONTAINS
       !Statements
       CALL timeset(routineN, handle)
       ngrids = SIZE(pw_pools)
-      CALL pw_pools_create_pws(aug_pools, grids, in_space=REALSPACE)
+      CALL pw_pools_create_pws(aug_pools, grids)
       DO igrid = 1, ngrids
          CALL pw_zero(grids(igrid))
       END DO
@@ -370,7 +369,7 @@ CONTAINS
                                           eps_mm_rspace, pgfs, auxbas_grid, coarser_grid, &
                                           potentials, mm_cell, dOmmOqm, periodic, per_potentials, par_scheme, &
                                           qmmm_spherical_cutoff, shells)
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)        :: tmp_grid
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: tmp_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
@@ -531,7 +530,7 @@ CONTAINS
                                          mm_particles, para_env, per_potentials, &
                                          mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, shells)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: cgrid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: cgrid
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
@@ -557,7 +556,7 @@ CONTAINS
          xs2, xs3
       REAL(KIND=dp), DIMENSION(3)                        :: ra, vec
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid, grid2
-      TYPE(pw_r3d_type), POINTER                         :: pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: pw
       TYPE(qmmm_per_pot_type), POINTER                   :: per_pot
 
       CALL timeset(routineN, handle)
@@ -756,7 +755,7 @@ CONTAINS
                                          mm_particles, para_env, potentials, &
                                          mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, shells)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_charges
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles

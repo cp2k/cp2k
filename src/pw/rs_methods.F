@@ -20,10 +20,8 @@ MODULE rs_methods
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
                                               rs_grid_create,&
@@ -60,8 +58,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd3(f, df, rs_grid)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: f
-      TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd3'
@@ -129,8 +127,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd5(f, df, rs_grid)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: f
-      TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd5'
@@ -198,8 +196,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd7(f, df, rs_grid)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: f
-      TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd7'
@@ -369,8 +367,8 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       REAL(dp), INTENT(IN)                               :: zeta
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_glbl, y_glbl, z_glbl
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_out
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_out
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_mollifier'
 
@@ -380,9 +378,9 @@ CONTAINS
       REAL(dp)                                           :: normfact, xi, xmax, xmin, yj, ymax, &
                                                             ymin, zk, zmax, zmin
       REAL(dp), DIMENSION(3, 3)                          :: dh
-      TYPE(pw_c1d_type)                                  :: G_gs, pw_in_gs, pw_out_gs
+      TYPE(pw_c1d_gs_type)                               :: G_gs, pw_in_gs, pw_out_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_r3d_type)                                  :: G
+      TYPE(pw_r3d_rs_type)                               :: G
 
       CALL timeset(routineN, handle)
 
@@ -395,10 +393,10 @@ CONTAINS
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
       lb3 = bounds_local(1, 3); ub3 = bounds_local(2, 3)
 
-      CALL pw_pool%create_pw(G, in_space=REALSPACE)
-      CALL pw_pool%create_pw(G_gs, in_space=RECIPROCALSPACE)
-      CALL pw_pool%create_pw(pw_in_gs, in_space=RECIPROCALSPACE)
-      CALL pw_pool%create_pw(pw_out_gs, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(G)
+      CALL pw_pool%create_pw(G_gs)
+      CALL pw_pool%create_pw(pw_in_gs)
+      CALL pw_pool%create_pw(pw_out_gs)
 
       CALL pw_zero(G)
       xmin = x_glbl(bounds(1, 1)); xmax = x_glbl(bounds(2, 1))

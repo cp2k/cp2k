@@ -21,7 +21,7 @@ MODULE ec_env_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
    USE qs_force_types,                  ONLY: deallocate_qs_force,&
@@ -106,10 +106,10 @@ MODULE ec_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz => Null(), matrix_wz => Null(), &
                                                           matrix_z => Null(), z_admm => Null()
       ! Harris (rhoout), and response density (rhoz) on grid
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: rhoout_r => Null(), rhoz_r => Null()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: rhoout_r => Null(), rhoz_r => Null()
       ! potentials from input density
-      TYPE(pw_r3d_type)                                    :: vh_rspace = pw_r3d_type()
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rspace => Null(), vtau_rspace => Null(), vadmm_rspace => Null()
+      TYPE(pw_r3d_rs_type)                                    :: vh_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rspace => Null(), vtau_rspace => Null(), vadmm_rspace => Null()
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
       ! LS matrices and types

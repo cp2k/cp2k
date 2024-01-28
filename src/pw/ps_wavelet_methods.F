@@ -26,7 +26,7 @@ MODULE ps_wavelet_methods
                                               S_FFT_dimensions
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE util,                            ONLY: get_limit
 #include "../base/base_uses.f90"
 
@@ -167,7 +167,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_distribution_to_z_slices(density, wavelet, pw_grid)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: density
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: density
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
@@ -323,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE z_slices_to_cp2k_distribution(density, wavelet, pw_grid)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: density
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: density
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 

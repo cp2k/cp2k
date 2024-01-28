@@ -17,7 +17,7 @@ MODULE maxwell_solver_interface
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
    USE kinds, ONLY: dp
-   USE pw_types, ONLY: pw_r3d_type
+   USE pw_types, ONLY: pw_r3d_rs_type
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
 
 #include "./base/base_uses.f90"
@@ -74,7 +74,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE maxwell_solver(maxwell_control, v_ee, sim_step, sim_time, scaling_factor)
       TYPE(maxwell_control_type), INTENT(IN)             :: maxwell_control
-      TYPE(pw_r3d_type), POINTER                           :: v_ee
+      TYPE(pw_r3d_rs_type), POINTER                           :: v_ee
       INTEGER, INTENT(IN)                                :: sim_step
       REAL(KIND=dp), INTENT(IN)                          :: sim_time
       REAL(KIND=dp), INTENT(IN)                          :: scaling_factor
