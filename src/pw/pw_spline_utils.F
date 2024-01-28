@@ -31,11 +31,10 @@ MODULE pw_spline_utils
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -277,7 +276,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_spline_scale_deriv(deriv_vals_r, transpose, scale)
-      TYPE(pw_type), DIMENSION(3), INTENT(IN)            :: deriv_vals_r
+      TYPE(pw_r3d_type), DIMENSION(3), INTENT(IN)        :: deriv_vals_r
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: scale
 
@@ -321,15 +320,15 @@ CONTAINS
 
       IF (diag) THEN
          DO idir = 1, 3
-            ddata => deriv_vals_r(idir)%cr3d
+            ddata => deriv_vals_r(idir)%array
             scalef = h_grid(idir, idir)
             CALL dscal((bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1), &
                        scalef, ddata, 1)
          END DO
       ELSE
-         ddata => deriv_vals_r(1)%cr3d
-         ddata2 => deriv_vals_r(2)%cr3d
-         ddata3 => deriv_vals_r(3)%cr3d
+         ddata => deriv_vals_r(1)%array
+         ddata2 => deriv_vals_r(2)%array
+         ddata3 => deriv_vals_r(3)%array
 !$OMP        PARALLEL DO DEFAULT(NONE) PRIVATE(k,j,i,dVal1,dVal2,dVal3) &
 !$OMP                 SHARED(ddata,ddata2,ddata3,h_grid,bo)
          DO k = bo(1, 3), bo(2, 3)
@@ -746,7 +745,7 @@ CONTAINS
    SUBROUTINE pw_nn_compose_r_work(weights, in_val, out_val, pw_in, bo)
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
       INTEGER, DIMENSION(2, 3)                           :: bo
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
       REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
          2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(inout)  :: out_val
       REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
@@ -773,12 +772,12 @@ CONTAINS
          ALLOCATE (l_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
                    u_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
                    tmp(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         tmp(:, :) = pw_in%cr3d(bo(2, 1), :, :)
+         tmp(:, :) = pw_in%array(bo(2, 1), :, :)
          CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
                                                 gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
                                                 l_boundary, pw_in%pw_grid%para%pos_of_x( &
                                                 gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
-         tmp(:, :) = pw_in%cr3d(bo(1, 1), :, :)
+         tmp(:, :) = pw_in%array(bo(1, 1), :, :)
          CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
                                                 gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
                                                 u_boundary, pw_in%pw_grid%para%pos_of_x( &
@@ -828,7 +827,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in, pw_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_nn_compose_r'
 
@@ -836,14 +835,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CPASSERT(pw_in%in_space == REALSPACE)
-      CPASSERT(pw_in%in_use == REALDATA3D)
       CPASSERT(pw_out%in_space == REALSPACE)
-      CPASSERT(pw_out%in_use == REALDATA3D)
       IF (.NOT. ALL(pw_in%pw_grid%bounds_local(:, 2:3) == pw_in%pw_grid%bounds(:, 2:3))) THEN
          CPABORT("wrong pw distribution")
       END IF
-      CALL pw_nn_compose_r_work(weights=weights, in_val=pw_in%cr3d, &
-                                out_val=pw_out%cr3d, pw_in=pw_in, bo=pw_in%pw_grid%bounds_local)
+      CALL pw_nn_compose_r_work(weights=weights, in_val=pw_in%array, &
+                                out_val=pw_out%array, pw_in=pw_in, bo=pw_in%pw_grid%bounds_local)
       CALL timestop(handle)
    END SUBROUTINE pw_nn_compose_r
 
@@ -864,7 +861,7 @@ CONTAINS
 !>      coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
 ! **************************************************************************************************
    SUBROUTINE pw_nn_smear_r(pw_in, pw_out, coeffs)
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in, pw_out
       REAL(KIND=dp), DIMENSION(4), INTENT(in)            :: coeffs
 
       INTEGER                                            :: i, j, k
@@ -884,7 +881,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculates a nearest neighbor central derivative.
 !>      for the x dir:
-!>      pw_out%cr3d(i,j,k)=( pw_in(i+1,j,k)-pw_in(i-1,j,k) )*coeff(1)+
+!>      pw_out%array(i,j,k)=( pw_in(i+1,j,k)-pw_in(i-1,j,k) )*coeff(1)+
 !>             ( pw_in(i+1,j(+-)1,k)-pw_in(i-1,j(+-)1,k)+
 !>               pw_in(i+1,j,k(+-)1)-pw_in(i-1,j,k(+-)1) )*coeff(2)+
 !>             ( pw_in(i+1,j(+-)1,k(+-)1)-pw_in(i-1,j(+-)1,k(+-)1)+
@@ -907,7 +904,7 @@ CONTAINS
 !>      coeff=(/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
 ! **************************************************************************************************
    SUBROUTINE pw_nn_deriv_r(pw_in, pw_out, coeffs, idir)
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in, pw_out
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: coeffs
       INTEGER                                            :: idir
 
@@ -985,7 +982,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_coarse2fine(coarse_coeffs_pw, fine_values_pw, &
                               weights_1d, w_border0, w_border1, pbc, safe_computation)
-      TYPE(pw_type), INTENT(IN)                          :: coarse_coeffs_pw, fine_values_pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: coarse_coeffs_pw, fine_values_pw
       REAL(kind=dp), DIMENSION(4), INTENT(in)            :: weights_1d
       REAL(kind=dp), INTENT(in)                          :: w_border0
       REAL(kind=dp), DIMENSION(3), INTENT(in)            :: w_border1
@@ -1051,7 +1048,7 @@ CONTAINS
          CPASSERT(ALL(fine_gbo(1, :) == 2*coarse_gbo(1, :) + f_shift))
       END IF
 
-      coarse_coeffs => coarse_coeffs_pw%cr3d
+      coarse_coeffs => coarse_coeffs_pw%array
       DO i = 1, 3
          s(i) = coarse_gbo(2, i) - coarse_gbo(1, i) + 1
       END DO
@@ -1331,7 +1328,7 @@ CONTAINS
          CALL timestop(handle2)
 
       END IF
-      fine_values => fine_values_pw%cr3d
+      fine_values => fine_values_pw%array
       w_0 = (/weights_1d(3), weights_1d(1), weights_1d(3)/)
       w_1 = (/weights_1d(4), weights_1d(2), weights_1d(2), weights_1d(4)/)
 
@@ -1780,7 +1777,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_fine2coarse(fine_values_pw, coarse_coeffs_pw, &
                               weights_1d, w_border0, w_border1, pbc, safe_computation)
-      TYPE(pw_type), INTENT(IN)                          :: fine_values_pw, coarse_coeffs_pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: fine_values_pw, coarse_coeffs_pw
       REAL(kind=dp), DIMENSION(4), INTENT(in)            :: weights_1d
       REAL(kind=dp), INTENT(in)                          :: w_border0
       REAL(kind=dp), DIMENSION(3), INTENT(in)            :: w_border1
@@ -1847,10 +1844,10 @@ CONTAINS
                                  coarse_bo(1, 3):coarse_bo(2, 3)))
          coarse_coeffs = 0._dp
       ELSE
-         coarse_coeffs => coarse_coeffs_pw%cr3d
+         coarse_coeffs => coarse_coeffs_pw%array
       END IF
 
-      fine_values => fine_values_pw%cr3d
+      fine_values => fine_values_pw%array
       w_0 = (/weights_1d(3), weights_1d(1), weights_1d(3)/)
       w_1 = (/weights_1d(4), weights_1d(2), weights_1d(2), weights_1d(4)/)
 
@@ -2419,7 +2416,7 @@ CONTAINS
                   ii = sent_size(ip)
                   DO k = coarse_bo(1, 3), coarse_bo(2, 3)
                      DO j = coarse_bo(1, 2), coarse_bo(2, 2)
-                        coarse_coeffs_pw%cr3d(x_att, j, k) = coarse_coeffs_pw%cr3d(x_att, j, k) + rcv_buf(ii)
+                        coarse_coeffs_pw%array(x_att, j, k) = coarse_coeffs_pw%array(x_att, j, k) + rcv_buf(ii)
                         ii = ii + 1
                      END DO
                   END DO
@@ -2431,7 +2428,7 @@ CONTAINS
             DO x_att = MAX(pp_lb(ip), my_coarse_bo(1, 1)), MIN(pp_ub(ip), my_coarse_bo(2, 1))
                DO k = coarse_bo(1, 3), coarse_bo(2, 3)
                   DO j = coarse_bo(1, 2), coarse_bo(2, 2)
-                     coarse_coeffs_pw%cr3d(x_att, j, k) = coarse_coeffs_pw%cr3d(x_att, j, k) + rcv_buf(ii)
+                     coarse_coeffs_pw%array(x_att, j, k) = coarse_coeffs_pw%array(x_att, j, k) + rcv_buf(ii)
                      ii = ii + 1
                   END DO
                END DO
@@ -2444,7 +2441,7 @@ CONTAINS
                   ii = sent_size(ip)
                   DO k = coarse_bo(1, 3), coarse_bo(2, 3)
                      DO j = coarse_bo(1, 2), coarse_bo(2, 2)
-                        coarse_coeffs_pw%cr3d(x_att, j, k) = coarse_coeffs_pw%cr3d(x_att, j, k) + rcv_buf(ii)
+                        coarse_coeffs_pw%array(x_att, j, k) = coarse_coeffs_pw%array(x_att, j, k) + rcv_buf(ii)
                         ii = ii + 1
                      END DO
                   END DO
@@ -2604,8 +2601,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_spline_do_precond(preconditioner, in_v, out_v)
       TYPE(pw_spline_precond_type), INTENT(IN)           :: preconditioner
-      TYPE(pw_type), INTENT(IN)                          :: in_v
-      TYPE(pw_type), INTENT(INOUT)                       :: out_v
+      TYPE(pw_r3d_type), INTENT(IN)                      :: in_v
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: out_v
 
       SELECT CASE (preconditioner%kind)
       CASE (no_precond)
@@ -2658,13 +2655,13 @@ CONTAINS
    FUNCTION find_coeffs(values, coeffs, linOp, preconditioner, pool, &
                         eps_r, eps_x, max_iter, sumtype) RESULT(res)
 
-      TYPE(pw_type), INTENT(IN)                          :: values
-      TYPE(pw_type), INTENT(INOUT)                       :: coeffs
+      TYPE(pw_r3d_type), INTENT(IN)                      :: values
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: coeffs
       INTERFACE
          SUBROUTINE linOp(pw_in, pw_out)
-            USE pw_types, ONLY: pw_type
-            TYPE(pw_type), INTENT(IN)    :: pw_in
-            TYPE(pw_type), INTENT(INOUT) :: pw_out
+            USE pw_types, ONLY: pw_r3d_type
+            TYPE(pw_r3d_type), INTENT(IN)    :: pw_in
+            TYPE(pw_r3d_type), INTENT(INOUT) :: pw_out
          END SUBROUTINE linOp
       END INTERFACE
       TYPE(pw_spline_precond_type), INTENT(IN)           :: preconditioner
@@ -2680,22 +2677,22 @@ CONTAINS
       REAL(kind=dp)                                      :: alpha, beta, eps_r_att, eps_x_att, r_z, &
                                                             r_z_new
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type)                                      :: Ap, p, r, z
+      TYPE(pw_r3d_type)                                  :: Ap, p, r, z
 
       last = .FALSE.
 
       res = .FALSE.
       logger => cp_get_default_logger()
-      CALL pool%create_pw(r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pool%create_pw(z, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pool%create_pw(p, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pool%create_pw(Ap, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pool%create_pw(r, in_space=REALSPACE)
+      CALL pool%create_pw(z, in_space=REALSPACE)
+      CALL pool%create_pw(p, in_space=REALSPACE)
+      CALL pool%create_pw(Ap, in_space=REALSPACE)
 
       !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
       ext_do: DO iiter = 1, max_iter, 10
          CALL pw_zero(r)
          CALL linOp(pw_in=coeffs, pw_out=r)
-         r%cr3d = -r%cr3d
+         r%array = -r%array
          CALL pw_axpy(values, r)
          CALL pw_spline_do_precond(preconditioner, in_v=r, out_v=z)
          CALL pw_copy(z, p)
@@ -2734,7 +2731,7 @@ CONTAINS
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
-                     p%cr3d(i, j, k) = z%cr3d(i, j, k) + beta*p%cr3d(i, j, k)
+                     p%array(i, j, k) = z%array(i, j, k) + beta*p%array(i, j, k)
                   END DO
                END DO
             END DO
@@ -2752,7 +2749,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief adds to pw_out pw_in composed with the weights
-!>      pw_out%cr3d(i,j,k)=pw_out%cr3d(i,j,k)+sum(pw_in%cr3d(i+l,j+m,k+n)*
+!>      pw_out%array(i,j,k)=pw_out%array(i,j,k)+sum(pw_in%array(i+l,j+m,k+n)*
 !>         weights_1d(abs(l)+1)*weights_1d(abs(m)+1)*weights_1d(abs(n)+1),
 !>         l=-1..1,m=-1..1,n=-1..1)
 !> \param weights_1d ...
@@ -2767,7 +2764,7 @@ CONTAINS
    SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d, pw_in, pw_out, &
                                      sharpen, normalize, transpose, smooth_boundary)
       REAL(kind=dp), DIMENSION(-1:1)                     :: weights_1d
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in, pw_out
       LOGICAL, INTENT(in), OPTIONAL                      :: sharpen, normalize, transpose, &
                                                             smooth_boundary
 
@@ -2785,8 +2782,8 @@ CONTAINS
 
       bo = pw_in%pw_grid%bounds_local
       gbo = pw_in%pw_grid%bounds
-      in_val => pw_in%cr3d
-      out_val => pw_out%cr3d
+      in_val => pw_in%array
+      out_val => pw_out%array
       my_sharpen = .FALSE.
       IF (PRESENT(sharpen)) my_sharpen = sharpen
       my_normalize = .FALSE.
@@ -2809,12 +2806,12 @@ CONTAINS
          ALLOCATE (l_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
                    u_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
                    tmp(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         tmp(:, :) = pw_in%cr3d(bo(2, 1), :, :)
+         tmp(:, :) = pw_in%array(bo(2, 1), :, :)
          CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
                                                 gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
                                                 l_boundary, pw_in%pw_grid%para%pos_of_x( &
                                                 gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
-         tmp(:, :) = pw_in%cr3d(bo(1, 1), :, :)
+         tmp(:, :) = pw_in%array(bo(1, 1), :, :)
          CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
                                                 gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
                                                 u_boundary, pw_in%pw_grid%para%pos_of_x( &
@@ -3106,8 +3103,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spl3_nopbc(pw_in, pw_out)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_out
 
       CALL pw_zero(pw_out)
       CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, pw_in=pw_in, &
@@ -3122,8 +3119,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spl3_nopbct(pw_in, pw_out)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_out
 
       CALL pw_zero(pw_out)
       CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, pw_in=pw_in, &
@@ -3138,8 +3135,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spl3_pbc(pw_in, pw_out)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_out
 
       CALL pw_zero(pw_out)
       CALL pw_nn_smear_r(pw_in, pw_out, coeffs=spline3_coeffs)
@@ -3160,7 +3157,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION Eval_Interp_Spl3_pbc(vec, pw) RESULT(val)
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: vec
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       REAL(KIND=dp)                                      :: val
 
       INTEGER                                            :: i, ivec(3), j, k, npts(3)
@@ -3184,7 +3181,7 @@ CONTAINS
       xd1 = (vec(1)/dr1) - REAL(ivec(1), kind=dp)
       xd2 = (vec(2)/dr2) - REAL(ivec(2), kind=dp)
       xd3 = (vec(3)/dr3) - REAL(ivec(3), kind=dp)
-      grid => pw%cr3d(:, :, :)
+      grid => pw%array(:, :, :)
       bo = pw%pw_grid%bounds
       bo_l = pw%pw_grid%bounds_local
 
@@ -3309,7 +3306,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION Eval_d_Interp_Spl3_pbc(vec, pw) RESULT(val)
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: vec
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       REAL(KIND=dp)                                      :: val(3)
 
       INTEGER                                            :: i, ivec(3), j, k, npts(3)
@@ -3337,7 +3334,7 @@ CONTAINS
       xd1 = (vec(1)/dr1) - REAL(ivec(1), kind=dp)
       xd2 = (vec(2)/dr2) - REAL(ivec(2), kind=dp)
       xd3 = (vec(3)/dr3) - REAL(ivec(3), kind=dp)
-      grid => pw%cr3d(:, :, :)
+      grid => pw%array(:, :, :)
       bo = pw%pw_grid%bounds
       bo_l = pw%pw_grid%bounds_local
 

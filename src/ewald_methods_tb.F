@@ -18,7 +18,7 @@ MODULE ewald_methods_tb
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_type
+                                              ewald_pw_r3d_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi
@@ -41,11 +41,10 @@ MODULE ewald_methods_tb
    USE pw_poisson_types,                ONLY: greens_fn_type,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -92,7 +91,7 @@ CONTAINS
                                gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(cell_type), POINTER                           :: box
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
@@ -120,7 +119,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: rhob_r
+      TYPE(pw_r3d_type), POINTER                         :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type)                          :: rden, rpot
       TYPE(realspace_grid_type), ALLOCATABLE, &
@@ -168,7 +167,7 @@ CONTAINS
 
       NULLIFY (rhob_r)
       ALLOCATE (rhob_r)
-      CALL pw_pool%create_pw(rhob_r, use_data=REALDATA3D, &
+      CALL pw_pool%create_pw(rhob_r, &
                              in_space=REALSPACE)
 
       CALL transfer_rs2pw(rden, rhob_r)
@@ -444,7 +443,7 @@ CONTAINS
    SUBROUTINE tb_spme_zforce(ewald_env, ewald_pw, particle_set, box, gmcharge, mcharge)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(cell_type), POINTER                           :: box
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
@@ -466,7 +465,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: rhob_r
+      TYPE(pw_r3d_type), POINTER                         :: rhob_r
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_type)                          :: rden, rpot
       TYPE(realspace_grid_type), DIMENSION(3)            :: drpot
@@ -513,7 +512,7 @@ CONTAINS
 
       NULLIFY (rhob_r)
       ALLOCATE (rhob_r)
-      CALL pw_pool%create_pw(rhob_r, use_data=REALDATA3D, &
+      CALL pw_pool%create_pw(rhob_r, &
                              in_space=REALSPACE)
 
       CALL transfer_rs2pw(rden, rhob_r)

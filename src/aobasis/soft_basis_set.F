@@ -53,16 +53,16 @@ CONTAINS
 !> \param rc ...
 !> \param paw_atom ...
 !> \param paw_type_forced ...
-!> \param gpw_type_forced ...
+!> \param gpw_r3d_type_forced ...
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE create_soft_basis(orb_basis, soft_basis, eps_fit, rc, paw_atom, &
-                                paw_type_forced, gpw_type_forced)
+                                paw_type_forced, gpw_r3d_type_forced)
 
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis
       REAL(dp), INTENT(IN)                               :: eps_fit, rc
       LOGICAL, INTENT(OUT)                               :: paw_atom
-      LOGICAL, INTENT(IN)                                :: paw_type_forced, gpw_type_forced
+      LOGICAL, INTENT(IN)                                :: paw_type_forced, gpw_r3d_type_forced
 
       CHARACTER(LEN=default_string_length)               :: bsname
       INTEGER :: ico, ipgf, ipgf_s, iset, iset_s, ishell, lshell, lshell_old, m, maxco, maxpgf, &
@@ -70,19 +70,19 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iset_s2h
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, n
-      LOGICAL                                            :: my_gpw_type_forced
+      LOGICAL                                            :: my_gpw_r3d_type_forced
       REAL(KIND=dp)                                      :: minzet, radius
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
       NULLIFY (gcc, l, lmax, lmin, n, npgf, nshell, zet)
       paw_atom = .FALSE.
-      my_gpw_type_forced = gpw_type_forced
+      my_gpw_r3d_type_forced = gpw_r3d_type_forced
       IF (paw_type_forced) THEN
          paw_atom = .TRUE.
-         my_gpw_type_forced = .FALSE.
+         my_gpw_r3d_type_forced = .FALSE.
       END IF
-      IF (.NOT. my_gpw_type_forced) THEN
+      IF (.NOT. my_gpw_r3d_type_forced) THEN
          CALL get_gto_basis_set(gto_basis_set=orb_basis, name=bsname, &
                                 maxpgf=maxpgf, maxshell=maxshell, nset=nset)
 

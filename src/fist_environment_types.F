@@ -28,8 +28,8 @@ MODULE fist_environment_types
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
-                                              ewald_pw_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type,&
+                                              ewald_pw_release
    USE exclusion_types,                 ONLY: exclusion_release,&
                                               exclusion_type
    USE fist_efield_types,               ONLY: fist_efield_type
@@ -75,7 +75,7 @@ MODULE fist_environment_types
       TYPE(qmmm_env_mm_type), POINTER              :: qmmm_env
       TYPE(cell_type), POINTER                     :: cell_ref
       TYPE(ewald_environment_type), POINTER        :: ewald_env
-      TYPE(ewald_pw_type), POINTER                 :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                 :: ewald_pw
       TYPE(fist_energy_type), POINTER              :: thermo
       TYPE(mp_para_env_type), POINTER              :: para_env
       TYPE(cp_subsys_type), POINTER                :: subsys
@@ -141,7 +141,7 @@ CONTAINS
       TYPE(fist_environment_type), INTENT(IN)            :: fist_env
       TYPE(atomic_kind_type), OPTIONAL, POINTER          :: atomic_kind_set(:)
       TYPE(particle_type), OPTIONAL, POINTER             :: particle_set(:)
-      TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
+      TYPE(ewald_pw_r3d_type), OPTIONAL, POINTER         :: ewald_pw
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind_set(:)
       TYPE(molecule_type), OPTIONAL, POINTER             :: molecule_set(:)
@@ -278,7 +278,7 @@ CONTAINS
       TYPE(fist_environment_type), INTENT(INOUT)         :: fist_env
       TYPE(atomic_kind_type), OPTIONAL, POINTER          :: atomic_kind_set(:)
       TYPE(particle_type), OPTIONAL, POINTER             :: particle_set(:)
-      TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
+      TYPE(ewald_pw_r3d_type), OPTIONAL, POINTER         :: ewald_pw
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind_set(:)
       TYPE(molecule_type), OPTIONAL, POINTER             :: molecule_set(:)

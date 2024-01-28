@@ -24,7 +24,7 @@ MODULE ewalds
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_type
+                                              ewald_pw_r3d_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi,&
@@ -77,7 +77,7 @@ CONTAINS
                              local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, e_coulomb, &
                              pv_coulomb)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(cell_type), POINTER                           :: cell
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -128,7 +128,7 @@ CONTAINS
       CALL ewald_env_get(ewald_env, alpha=alpha, group=group)
       CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_pool, dg=dg)
       CALL dg_get(dg, dg_rho0=dg_rho0)
-      rho0 => dg_rho0%density%cr3d
+      rho0 => dg_rho0%density%array
       pw_grid => pw_pool%pw_grid
       bds => pw_grid%bounds
 

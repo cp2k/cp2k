@@ -22,7 +22,7 @@ MODULE qs_update_s_mstruct
                                               kg_tnadd_embed_ri
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
                                               calculate_rho_core,&
                                               calculate_rho_nlcc
@@ -70,7 +70,7 @@ CONTAINS
       LOGICAL                                            :: do_ppl
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_type), POINTER                         :: rho_core, rho_nlcc_g
-      TYPE(pw_type), POINTER                             :: rho_nlcc, vppl
+      TYPE(pw_r3d_type), POINTER                         :: rho_nlcc, vppl
 
       CALL timeset(routineN, handle)
 

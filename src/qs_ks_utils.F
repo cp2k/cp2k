@@ -94,11 +94,10 @@ MODULE qs_ks_utils
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -179,8 +178,8 @@ CONTAINS
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
-      TYPE(pw_type)                                      :: work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau, vxc, vxc_tau
+      TYPE(pw_r3d_type)                                  :: work_v_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, tau, vxc, vxc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
@@ -315,15 +314,10 @@ CONTAINS
       ALLOCATE (rho_r(Nspin))
       ALLOCATE (rho_g(Nspin))
       DO ispin = 1, Nspin
-         CALL auxbas_pw_pool%create_pw(rho_r(ispin), &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(rho_g(ispin), &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_r(ispin), in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_g(ispin), in_space=RECIPROCALSPACE)
       END DO
-      CALL auxbas_pw_pool%create_pw(work_v_rspace, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v_rspace, in_space=REALSPACE)
 
       ! get mo matrices needed to construct the density matrices
       ! we will base all on the alpha spin matrix, obviously possible in ROKS
@@ -499,9 +493,9 @@ CONTAINS
       TYPE(pw_c1d_type), TARGET                          :: orb_rho_g, tmp_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
-      TYPE(pw_type)                                      :: work_v_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau, vxc, vxc_tau
-      TYPE(pw_type), TARGET                              :: orb_rho_r, tmp_r
+      TYPE(pw_r3d_type)                                  :: work_v_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, tau, vxc, vxc_tau
+      TYPE(pw_r3d_type), TARGET                          :: orb_rho_r, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -619,21 +613,12 @@ CONTAINS
       END SELECT
 
       ! data needed for each of the orbs
-      CALL auxbas_pw_pool%create_pw(orb_rho_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(tmp_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(orb_rho_g, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(tmp_g, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(work_v_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(work_v_rspace, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(orb_rho_r, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(tmp_r, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(orb_rho_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(tmp_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v_gspace, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(work_v_rspace, in_space=REALSPACE)
 
       ALLOCATE (orb_density_matrix)
       CALL dbcsr_copy(orb_density_matrix, rho_ao(1)%matrix, &
@@ -773,7 +758,7 @@ CONTAINS
                                 qs_env, dft_control, rho, poisson_env, just_energy, &
                                 calculate_forces, auxbas_pw_pool)
 
-      TYPE(pw_type), POINTER                             :: v_sic_rspace
+      TYPE(pw_r3d_type), POINTER                         :: v_sic_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -876,7 +861,7 @@ CONTAINS
       IF (.NOT. just_energy) THEN
          ALLOCATE (v_sic_rspace)
          CALL auxbas_pw_pool%create_pw(v_sic_rspace, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL pw_transfer(work_v, v_sic_rspace)
          ! also take into account the scaling (in addition to the volume element)
          CALL pw_scale(v_sic_rspace, &
@@ -1192,7 +1177,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_matrix_vxc(qs_env, v_rspace, matrix_vxc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: v_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)        :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc'
@@ -1270,12 +1255,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_rho
-      TYPE(pw_type), POINTER                             :: vppl_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_new, v_rspace_new_aux_fit, &
+      TYPE(pw_r3d_type), POINTER                         :: vppl_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_rspace_new, v_rspace_new_aux_fit, &
                                                             v_tau_rspace, v_tau_rspace_aux_fit
-      TYPE(pw_type), POINTER                             :: v_sic_rspace, v_spin_ddapc_rest_r, &
+      TYPE(pw_r3d_type), POINTER                         :: v_sic_rspace, v_spin_ddapc_rest_r, &
                                                             v_sccs_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_embed
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_rspace_embed
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
 
@@ -1302,7 +1287,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: v_rspace, vee
+      TYPE(pw_r3d_type), POINTER                         :: v_rspace, vee
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
       TYPE(task_list_type), POINTER                      :: task_list
@@ -1688,7 +1673,7 @@ CONTAINS
    SUBROUTINE calculate_zmp_potential(qs_env, v_rspace_new, rho, exc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_new
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_rspace_new
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(KIND=dp)                                      :: exc
 
@@ -1704,8 +1689,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: v_xc_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_type)                                  :: v_xc_rspace
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: ext_den_section, input
 
@@ -1732,15 +1717,15 @@ CONTAINS
       nspins = 1
       ALLOCATE (v_rspace_new(nspins))
       CALL auxbas_pw_pool%create_pw(pw=v_rspace_new(1), &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(pw=v_xc_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
 
       CALL pw_zero(v_rspace_new(1))
       do_zmp_read = dft_control%apply_external_vxc
       IF (do_zmp_read) THEN
          CALL pw_copy(qs_env%external_vxc, v_rspace_new(1))
-         exc = accurate_dot_product(v_rspace_new(1)%cr3d, rho_r(1)%cr3d)* &
+         exc = accurate_dot_product(v_rspace_new(1)%array, rho_r(1)%array)* &
                v_rspace_new(1)%pw_grid%dvol
       ELSE
          BLOCK
@@ -1803,7 +1788,7 @@ CONTAINS
                                          just_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace_embed
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_rspace_embed
       TYPE(dft_control_type), POINTER                    :: dft_control
       REAL(KIND=dp)                                      :: embed_corr
       LOGICAL                                            :: just_energy
@@ -1814,7 +1799,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: embed_corr_local
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
 
       CALL timeset(routineN, handle)
 
@@ -1833,7 +1818,7 @@ CONTAINS
 
       DO ispin = 1, dft_control%nspins
          CALL auxbas_pw_pool%create_pw(pw=v_rspace_embed(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL pw_zero(v_rspace_embed(ispin))
 
          CALL pw_copy(qs_env%embed_pot, v_rspace_embed(ispin))

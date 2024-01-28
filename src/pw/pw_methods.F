@@ -49,10 +49,9 @@ MODULE pw_methods
                             PW_MODE_LOCAL, &
                             pw_grid_type
    USE pw_types, ONLY: &
-      REALDATA3D, &
       REALSPACE, &
       RECIPROCALSPACE, &
-      pw_type, pw_r1d_type, pw_r3d_type, pw_c1d_type, pw_c3d_type
+      pw_r3d_type, pw_r1d_type, pw_r3d_type, pw_c1d_type, pw_c3d_type
 #include "../base/base_uses.f90"
 
    #:include 'pw_types.fypp'
@@ -78,36 +77,30 @@ MODULE pw_methods
                                   do_standard_sum = 1
 
    INTERFACE pw_zero
-      MODULE PROCEDURE pw_zero_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_zero_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_scale
-      MODULE PROCEDURE pw_scale_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_scale_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_write
-      MODULE PROCEDURE pw_write_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_write_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_integrate_function
-      MODULE PROCEDURE pw_integrate_function_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_integrate_function_${kind}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_set
-      MODULE PROCEDURE pw_set_value_pw
-      MODULE PROCEDURE pw_zero_pw
       #:for kind in pw_kinds
          MODULE PROCEDURE pw_set_value_${kind}$
          MODULE PROCEDURE pw_zero_${kind}$
@@ -115,47 +108,30 @@ MODULE pw_methods
    END INTERFACE
 
    INTERFACE pw_copy
-      MODULE PROCEDURE pw_copy_pw_pw
-      #:for kind in pw_kinds
-         MODULE PROCEDURE pw_copy_pw_${kind}$
-         MODULE PROCEDURE pw_copy_${kind}$_pw
-      #:endfor
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_copy_${kind}$_${kind2}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_axpy
-      MODULE PROCEDURE pw_axpy_pw
-      #:for kind in pw_kinds
-         MODULE PROCEDURE pw_axpy_${kind}$_pw
-         MODULE PROCEDURE pw_axpy_pw_${kind}$
-      #:endfor
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_axpy_${kind}$_${kind2}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_multiply
-      MODULE PROCEDURE pw_multiply_pw
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_multiply_${kind}$_${kind2}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_multiply_with
-      MODULE PROCEDURE pw_multiply_with_pw_pw
-      #:for kind in pw_kinds
-         MODULE PROCEDURE pw_multiply_with_${kind}$_pw
-         MODULE PROCEDURE pw_multiply_with_pw_${kind}$
-      #:endfor
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_multiply_with_${kind}$_${kind2}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_integral_ab
-      MODULE PROCEDURE pw_integral_ab_pw
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_integral_ab_${kind}$_${kind2}$
       #:endfor
@@ -196,25 +172,18 @@ MODULE pw_methods
    END INTERFACE
 
    INTERFACE pw_copy_to_array
-      MODULE PROCEDURE pw_copy_to_array_r, pw_copy_to_array_c
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_copy_to_array_${kind}$_${kind2}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_copy_from_array
-      MODULE PROCEDURE pw_copy_from_array_r, pw_copy_from_array_c
       #:for kind, kind2 in pw_kinds2_sameD
          MODULE PROCEDURE pw_copy_from_array_${kind}$_${kind2}$
       #:endfor
    END INTERFACE
 
    INTERFACE pw_transfer
-      MODULE PROCEDURE pw_transfer_pw_pw
-      #:for kind in pw_kinds
-         MODULE PROCEDURE pw_transfer_pw_${kind}$
-         MODULE PROCEDURE pw_transfer_${kind}$_pw
-      #:endfor
       #:for kind, kind2 in pw_kinds2
          MODULE PROCEDURE pw_transfer_${kind}$_${kind2}$
       #:endfor
@@ -223,199 +192,6 @@ MODULE pw_methods
 CONTAINS
 
    #:for kind, type in pw_list
-
-! **************************************************************************************************
-!> \brief pw2 = alpha*pw1 + beta*pw2
-!>      alpha defaults to 1, beta defaults to 1
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-!> \param beta ...
-!> \param allow_noncompatible_grids ...
-!> \par History
-!>      JGH (21-Feb-2003) : added reference grid functionality
-!>      JGH (01-Dec-2007) : rename and remove complex alpha
-!> \author apsi
-!> \note
-!>      Currently only summing up of respective types allowed,
-!>      in order to avoid errors
-! **************************************************************************************************
-      SUBROUTINE pw_axpy_${kind}$_pw(pw1, pw2, alpha, beta, allow_noncompatible_grids)
-
-         TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw1
-         TYPE(pw_type), INTENT(INOUT)                       :: pw2
-         REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
-         LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
-
-         #:if kind[1]=="3"
-            TYPE(pw_r3d_type) :: pw2_r3d
-
-            IF (pw2%in_use == REALDATA3D) THEN
-               pw2_r3d%in_space = pw2%in_space
-               pw2_r3d%pw_grid => pw2%pw_grid
-               pw2_r3d%array => pw2%cr3d
-               CALL pw_axpy_${kind}$_r3d(pw1, pw2_r3d, alpha, beta, allow_noncompatible_grids)
-               RETURN
-            END IF
-         #:else
-            MARK_USED(pw1)
-            MARK_USED(pw2)
-            MARK_USED(alpha)
-            MARK_USED(beta)
-            MARK_USED(allow_noncompatible_grids)
-            CPABORT("")
-         #:endif
-
-      END SUBROUTINE pw_axpy_${kind}$_pw
-
-! **************************************************************************************************
-!> \brief pw2 = alpha*pw1 + beta*pw2
-!>      alpha defaults to 1, beta defaults to 1
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-!> \param beta ...
-!> \param allow_noncompatible_grids ...
-!> \par History
-!>      JGH (21-Feb-2003) : added reference grid functionality
-!>      JGH (01-Dec-2007) : rename and remove complex alpha
-!> \author apsi
-!> \note
-!>      Currently only summing up of respective types allowed,
-!>      in order to avoid errors
-! **************************************************************************************************
-      SUBROUTINE pw_axpy_pw_${kind}$ (pw1, pw2, alpha, beta, allow_noncompatible_grids)
-
-         TYPE(pw_type), INTENT(IN)                          :: pw1
-         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw2
-         REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
-         LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
-
-         #:if kind[1]=="3"
-            TYPE(pw_r3d_type) :: pw1_r3d
-
-            IF (pw1%in_use == REALDATA3D) THEN
-               pw1_r3d%in_space = pw1%in_space
-               pw1_r3d%pw_grid => pw1%pw_grid
-               pw1_r3d%array => pw1%cr3d
-               CALL pw_axpy_r3d_${kind}$ (pw1_r3d, pw2, alpha, beta, allow_noncompatible_grids)
-               RETURN
-            END IF
-         #:else
-            MARK_USED(pw1)
-            MARK_USED(pw2)
-            MARK_USED(alpha)
-            MARK_USED(beta)
-            MARK_USED(allow_noncompatible_grids)
-            CPABORT("")
-         #:endif
-
-      END SUBROUTINE pw_axpy_pw_${kind}$
-
-! **************************************************************************************************
-!> \brief Generalize copy of pw types
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (13-Mar-2001) : added gather/scatter cases
-!> \author JGH (25-Feb-2001)
-!> \note
-!>      Copy routine that allows for in_space changes
-! **************************************************************************************************
-      SUBROUTINE pw_transfer_${kind}$_pw(pw1, pw2, debug)
-
-         TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw1
-         TYPE(pw_type), INTENT(INOUT)                       :: pw2
-         LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-         TYPE(pw_r3d_type) :: pw2_r3d
-
-         IF (pw2%in_use == REALDATA3D) THEN
-            pw2_r3d%in_space = pw2%in_space
-            pw2_r3d%pw_grid => pw2%pw_grid
-            pw2_r3d%array => pw2%cr3d
-            CALL pw_transfer_${kind}$_r3d(pw1, pw2_r3d, debug)
-            RETURN
-         END IF
-         CPABORT("")
-
-      END SUBROUTINE pw_transfer_${kind}$_pw
-
-! **************************************************************************************************
-!> \brief Generalize copy of pw types
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (13-Mar-2001) : added gather/scatter cases
-!> \author JGH (25-Feb-2001)
-!> \note
-!>      Copy routine that allows for in_space changes
-! **************************************************************************************************
-      SUBROUTINE pw_transfer_pw_${kind}$ (pw1, pw2, debug)
-
-         TYPE(pw_type), INTENT(IN)                          :: pw1
-         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw2
-         LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-         TYPE(pw_r3d_type) :: pw1_r3d
-
-         IF (pw1%in_use == REALDATA3D) THEN
-            pw1_r3d%in_space = pw1%in_space
-            pw1_r3d%pw_grid => pw1%pw_grid
-            pw1_r3d%array => pw1%cr3d
-            CALL pw_transfer_r3d_${kind}$ (pw1_r3d, pw2, debug)
-            RETURN
-         END IF
-         CPABORT("")
-
-      END SUBROUTINE pw_transfer_pw_${kind}$
-
-      SUBROUTINE pw_copy_${kind}$_pw(pw1, pw2)
-
-         TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw1
-         TYPE(pw_type), INTENT(INOUT)                       :: pw2
-
-         #:if kind[1]=="3"
-            TYPE(pw_r3d_type) :: pw2_r3d
-
-            IF (pw2%in_use == REALDATA3D) THEN
-               pw2_r3d%in_space = pw2%in_space
-               pw2_r3d%pw_grid => pw2%pw_grid
-               pw2_r3d%array => pw2%cr3d
-               CALL pw_copy_${kind}$_r3d(pw1, pw2_r3d)
-               RETURN
-            END IF
-         #:else
-            MARK_USED(pw1)
-            MARK_USED(pw2)
-            CPABORT("")
-         #:endif
-
-      END SUBROUTINE pw_copy_${kind}$_pw
-
-      SUBROUTINE pw_copy_pw_${kind}$ (pw1, pw2)
-
-         TYPE(pw_type), INTENT(IN)                          :: pw1
-         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw2
-
-         #:if kind[1]=="3"
-            TYPE(pw_r3d_type) :: pw1_r3d
-
-            IF (pw1%in_use == REALDATA3D) THEN
-               pw1_r3d%in_space = pw1%in_space
-               pw1_r3d%pw_grid => pw1%pw_grid
-               pw1_r3d%array => pw1%cr3d
-               CALL pw_copy_r3d_${kind}$ (pw1_r3d, pw2)
-               RETURN
-            END IF
-         #:endif
-         CPABORT("")
-         MARK_USED(pw1)
-         MARK_USED(pw2)
-
-      END SUBROUTINE pw_copy_pw_${kind}$
 
 ! **************************************************************************************************
 !> \brief Set values of a pw type to zero
@@ -740,48 +516,6 @@ CONTAINS
 
          END SUBROUTINE pw_scatter_p_${kind}$
       #:endif
-
-      SUBROUTINE pw_multiply_with_${kind}$_pw(pw1, pw2)
-         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: pw1
-         TYPE(pw_type), INTENT(IN)                          :: pw2
-
-         #:if kind[1]=="3"
-            TYPE(pw_r3d_type) :: pw2_r3d
-
-            IF (pw2%in_use == REALDATA3D) THEN
-               pw2_r3d%in_space = pw2%in_space
-               pw2_r3d%pw_grid => pw2%pw_grid
-               pw2_r3d%array => pw2%cr3d
-               CALL pw_multiply_with_${kind}$_r3d(pw1, pw2_r3d)
-               RETURN
-            END IF
-         #:endif
-         MARK_USED(pw1)
-         MARK_USED(pw2)
-         CPABORT("")
-
-      END SUBROUTINE pw_multiply_with_${kind}$_pw
-
-      SUBROUTINE pw_multiply_with_pw_${kind}$ (pw1, pw2)
-         TYPE(pw_type), INTENT(INOUT)                       :: pw1
-         TYPE(pw_${kind}$_type), INTENT(IN)                          :: pw2
-
-         #:if kind[1]=="3"
-            TYPE(pw_r3d_type) :: pw1_r3d
-
-            IF (pw1%in_use == REALDATA3D) THEN
-               pw1_r3d%in_space = pw1%in_space
-               pw1_r3d%pw_grid => pw1%pw_grid
-               pw1_r3d%array => pw1%cr3d
-               CALL pw_multiply_with_r3d_${kind}$ (pw1_r3d, pw2)
-               RETURN
-            END IF
-         #:endif
-         MARK_USED(pw1)
-         MARK_USED(pw2)
-         CPABORT("")
-
-      END SUBROUTINE pw_multiply_with_pw_${kind}$
    #:endfor
 
    #:for kind, type, kind2, type2 in pw_list2_sameD
@@ -1434,7 +1168,7 @@ CONTAINS
                      END SUBROUTINE pw_transfer_${kind}$_${kind2}$
 
 ! **************************************************************************************************
-!> \brief Generic function for 3d FFT of a coefficient_type or pw_type
+!> \brief Generic function for 3d FFT of a coefficient_type or pw_r3d_type
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param debug ...
@@ -1924,202 +1658,6 @@ CONTAINS
                               END SUBROUTINE pw_scatter_s_${kind}$_${kind2}$
                            #:endif
                         #:endfor
-
-! **************************************************************************************************
-!> \brief Set values of a pw type to zero
-!> \param pw ...
-!> \par History
-!>      none
-!> \author apsi
-! **************************************************************************************************
-                        SUBROUTINE pw_zero_pw(pw)
-
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw
-
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-                              pw%cr3d(:, :, :) = 0.0_dp
-!$OMP END PARALLEL WORKSHARE
-                           ELSE
-                              CPABORT("No possible data field!")
-                           END IF
-
-                           CALL timestop(handle)
-
-                        END SUBROUTINE pw_zero_pw
-
-! **************************************************************************************************
-!> \brief copy a pw type variable
-!> \param pw1 ...
-!> \param pw2 ...
-!> \par History
-!>      JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if
-!>        in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
-!>      JGH (21-Feb-2003) : Code for generalized reference grids
-!> \author apsi
-!> \note
-!>      Currently only copying of respective types allowed,
-!>      in order to avoid errors
-! **************************************************************************************************
-                        SUBROUTINE pw_copy_pw_pw(pw1, pw2)
-
-                           TYPE(pw_type), INTENT(IN)                          :: pw1
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw2
-
-                           TYPE(pw_r3d_type) :: pw1_r3d
-
-                           IF (pw1%in_use == REALDATA3D) THEN
-                              pw1_r3d%in_space = pw1%in_space
-                              pw1_r3d%pw_grid => pw1%pw_grid
-                              pw1_r3d%array => pw1%cr3d
-                              CALL pw_copy(pw1_r3d, pw2)
-                              RETURN
-                           END IF
-                           CPABORT("")
-
-                        END SUBROUTINE pw_copy_pw_pw
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param array ...
-! **************************************************************************************************
-                        SUBROUTINE pw_copy_to_array_r(pw, array)
-                           TYPE(pw_type), INTENT(IN)                          :: pw
-                           REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: array
-
-                           CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_to_array_r'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
-                              array = pw%cr3d
-!$OMP END PARALLEL WORKSHARE
-                           ELSE
-                              CPABORT("PW grid must be 3D!")
-                           END IF
-
-                           CALL timestop(handle)
-                        END SUBROUTINE pw_copy_to_array_r
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param array ...
-! **************************************************************************************************
-                        SUBROUTINE pw_copy_to_array_c(pw, array)
-                           TYPE(pw_type), INTENT(IN)                          :: pw
-                           COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-                              INTENT(INOUT)                                   :: array
-
-                           CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_to_array_c'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
-                              array = pw%cr3d
-!$OMP END PARALLEL WORKSHARE
-                           ELSE
-                              CPABORT("PW grid must be 3D!")
-                           END IF
-
-                           CALL timestop(handle)
-                        END SUBROUTINE pw_copy_to_array_c
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param array ...
-! **************************************************************************************************
-                        SUBROUTINE pw_copy_from_array_r(pw, array)
-                           TYPE(pw_type), INTENT(IN)                          :: pw
-                           REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: array
-
-                           CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_from_array_r'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
-                              pw%cr3d = array
-!$OMP END PARALLEL WORKSHARE
-                           ELSE
-                              CPABORT("PW grid must be 3D!")
-                           END IF
-
-                           CALL timestop(handle)
-                        END SUBROUTINE pw_copy_from_array_r
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param array ...
-! **************************************************************************************************
-                        SUBROUTINE pw_copy_from_array_c(pw, array)
-                           TYPE(pw_type), INTENT(IN)                          :: pw
-                           COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: array
-
-                           CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy_from_array_c'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
-                              pw%cr3d = REAL(array, KIND=dp)
-!$OMP END PARALLEL WORKSHARE
-                           ELSE
-                              CPABORT("PW grid must be 3D!")
-                           END IF
-
-                           CALL timestop(handle)
-                        END SUBROUTINE pw_copy_from_array_c
-
-! **************************************************************************************************
-!> \brief multiplies pw coeffs with a number
-!> \param pw ...
-!> \param a ...
-!> \par History
-!>      11.2004 created [Joost VandeVondele]
-! **************************************************************************************************
-                        SUBROUTINE pw_scale_pw(pw, a)
-
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw
-                           REAL(KIND=dp), INTENT(IN)                          :: a
-
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           SELECT CASE (pw%in_use)
-                           CASE (REALDATA3D)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(A, pw)
-                              pw%cr3d(:, :, :) = a*pw%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-                           CASE DEFAULT
-                              CPABORT("No suitable data field")
-                           END SELECT
-
-                           CALL timestop(handle)
-
-                        END SUBROUTINE pw_scale_pw
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -2764,172 +2302,6 @@ CONTAINS
                         END SUBROUTINE pw_smoothing
 
 ! **************************************************************************************************
-!> \brief Generalize copy of pw types
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param debug ...
-!> \par History
-!>      JGH (13-Mar-2001) : added gather/scatter cases
-!> \author JGH (25-Feb-2001)
-!> \note
-!>      Copy routine that allows for in_space changes
-! **************************************************************************************************
-                        SUBROUTINE pw_transfer_pw_pw(pw1, pw2, debug)
-
-                           TYPE(pw_type), INTENT(IN)                          :: pw1
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw2
-                           LOGICAL, INTENT(IN), OPTIONAL                      :: debug
-
-                           TYPE(pw_r3d_type) :: pw1_r3d
-
-                           IF (pw1%in_use == REALDATA3D) THEN
-                              pw1_r3d%in_space = pw1%in_space
-                              pw1_r3d%pw_grid => pw1%pw_grid
-                              pw1_r3d%array => pw1%cr3d
-                              CALL pw_transfer(pw1_r3d, pw2, debug)
-                              RETURN
-                           END IF
-                           CPABORT("")
-
-                        END SUBROUTINE pw_transfer_pw_pw
-
-! **************************************************************************************************
-!> \brief pw2 = alpha*pw1 + beta*pw2
-!>      alpha defaults to 1, beta defaults to 1
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-!> \param beta ...
-!> \param allow_noncompatible_grids ...
-!> \par History
-!>      JGH (21-Feb-2003) : added reference grid functionality
-!>      JGH (01-Dec-2007) : rename and remove complex alpha
-!> \author apsi
-!> \note
-!>      Currently only summing up of respective types allowed,
-!>      in order to avoid errors
-! **************************************************************************************************
-                        SUBROUTINE pw_axpy_pw(pw1, pw2, alpha, beta, allow_noncompatible_grids)
-
-                           TYPE(pw_type), INTENT(IN)                          :: pw1
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw2
-                           REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
-                           LOGICAL, INTENT(IN), OPTIONAL                      :: allow_noncompatible_grids
-
-                           TYPE(pw_r3d_type) :: pw1_r3d
-
-                           IF (pw1%in_use == REALDATA3D) THEN
-                              pw1_r3d%in_space = pw1%in_space
-                              pw1_r3d%pw_grid => pw1%pw_grid
-                              pw1_r3d%array => pw1%cr3d
-                              CALL pw_axpy_r3d_pw(pw1_r3d, pw2, alpha, beta, allow_noncompatible_grids)
-                              RETURN
-                           END IF
-                           CPABORT("")
-
-                        END SUBROUTINE pw_axpy_pw
-
-! **************************************************************************************************
-!> \brief pw_out = pw_out + alpha * pw1 * pw2
-!>      alpha defaults to 1
-!> \param pw_out ...
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param alpha ...
-!> \author JGH
-! **************************************************************************************************
-                        SUBROUTINE pw_multiply_pw(pw_out, pw1, pw2, alpha)
-
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw_out
-                           TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
-
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply'
-
-                           INTEGER                                            :: handle
-                           REAL(KIND=dp)                                      :: my_alpha
-
-                           CALL timeset(routineN, handle)
-
-                           my_alpha = 1.0_dp
-                           IF (PRESENT(alpha)) my_alpha = alpha
-
-                           IF (ASSOCIATED(pw_out%pw_grid, pw2%pw_grid) .AND. &
-                               ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) THEN
-
-                              IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
-                                  pw_out%in_use == REALDATA3D) THEN
-                                 IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-                                    pw_out%cr3d = pw_out%cr3d + pw1%cr3d*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-                                 ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(my_alpha, pw_out, pw1, pw2)
-                                    pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d*pw2%cr3d
-!$OMP END PARALLEL WORKSHARE
-                                 END IF
-                              ELSE
-                                 CPABORT("No suitable data field")
-                              END IF
-
-                           ELSE
-                              CPABORT("Grids not compatible")
-                           END IF
-
-                           CALL timestop(handle)
-
-                        END SUBROUTINE pw_multiply_pw
-
-! **************************************************************************************************
-!> \brief writes a small description of the actual grid
-!>      (change to output the data as cube file, maybe with an
-!>      optional long_description arg?)
-!> \param pw the pw data to output
-!> \param unit_nr the unit to output to
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-                        SUBROUTINE pw_write_pw(pw, unit_nr)
-
-                           TYPE(pw_type), INTENT(in)                          :: pw
-                           INTEGER, INTENT(in)                                :: unit_nr
-
-                           INTEGER                                            :: iostatus
-
-                           WRITE (unit=unit_nr, fmt="('<pw>:{ ')", iostat=iostatus)
-
-                           SELECT CASE (pw%in_use)
-                           CASE (REALDATA3D)
-                              WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_use=REALDATA3D"
-                              IF (ASSOCIATED(pw%cr3d)) THEN
-                                 WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')>')") &
-                                    LBOUND(pw%cr3d, 1), UBOUND(pw%cr3d, 1), LBOUND(pw%cr3d, 2), UBOUND(pw%cr3d, 2), &
-                                    LBOUND(pw%cr3d, 3), UBOUND(pw%cr3d, 3)
-                              ELSE
-                                 WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
-                              END IF
-                           CASE default
-                              WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')", iostat=iostatus) &
-                                 pw%in_use
-                           END SELECT
-
-                           SELECT CASE (pw%in_space)
-                           CASE (REALSPACE)
-                              WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=REALSPACE"
-                           CASE (RECIPROCALSPACE)
-                              WRITE (unit=unit_nr, fmt="(a)", iostat=iostatus) " in_space=RECIPROCALSPACE"
-                           CASE default
-                              WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')", iostat=iostatus) &
-                                 pw%in_space
-                           END SELECT
-
-                           WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')", iostat=iostatus) &
-                              pw%pw_grid%id_nr
-
-                        END SUBROUTINE pw_write_pw
-
-! **************************************************************************************************
 !> \brief ...
 !> \param grida ...
 !> \param gridb ...
@@ -2951,43 +2323,6 @@ CONTAINS
                            END IF
 
                         END FUNCTION pw_compatible
-
-! **************************************************************************************************
-!> \brief Calculate integral over unit cell for functions in plane wave basis
-!>      only returns the real part of it ......
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param sumtype ...
-!> \param just_sum ...
-!> \param local_only ...
-!> \return ...
-!> \par History
-!>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
-!> \author apsi
-! **************************************************************************************************
-                        FUNCTION pw_integral_ab_pw(pw1, pw2, sumtype, just_sum, local_only) RESULT(integral_value)
-
-                           TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
-                           INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
-                           LOGICAL, INTENT(IN), OPTIONAL                      :: just_sum, local_only
-                           REAL(KIND=dp)                                      :: integral_value
-
-                           IF (pw1%in_use == REALDATA3D) THEN
-                              BLOCK
-                                 TYPE(pw_r3d_type) :: pw1_r3d, pw2_r3d
-                                 pw1_r3d%in_space = pw1%in_space
-                                 pw1_r3d%pw_grid => pw1%pw_grid
-                                 pw1_r3d%array => pw1%cr3d
-                                 pw2_r3d%in_space = pw2%in_space
-                                 pw2_r3d%pw_grid => pw2%pw_grid
-                                 pw2_r3d%array => pw2%cr3d
-                                 integral_value = pw_integral_ab(pw1_r3d, pw2_r3d, sumtype, just_sum, local_only)
-                                 RETURN
-                              END BLOCK
-                           END IF
-                           CPABORT("")
-
-                        END FUNCTION pw_integral_ab_pw
 
 ! **************************************************************************************************
 !> \brief Calculate the structure factor for point r
@@ -3031,82 +2366,5 @@ CONTAINS
                            CALL timestop(handle)
 
                         END SUBROUTINE pw_structure_factor
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fun ...
-!> \param isign ...
-!> \param oprt ...
-!> \return ...
-! **************************************************************************************************
-                        FUNCTION pw_integrate_function_pw(fun, isign, oprt) RESULT(total_fun)
-
-                           TYPE(pw_type), INTENT(IN)                          :: fun
-                           INTEGER, INTENT(IN), OPTIONAL                      :: isign
-                           CHARACTER(len=*), INTENT(IN), OPTIONAL             :: oprt
-                           REAL(KIND=dp)                                      :: total_fun
-
-                           IF (fun%in_use == REALDATA3D) THEN
-                              BLOCK
-                                 TYPE(pw_r3d_type) :: fun_r3d
-                                 fun_r3d%in_space = fun%in_space
-                                 fun_r3d%pw_grid => fun%pw_grid
-                                 fun_r3d%array => fun%cr3d
-                                 total_fun = pw_integrate_function_r3d(fun_r3d, isign, oprt)
-                                 RETURN
-                              END BLOCK
-                           END IF
-                           CPABORT("")
-
-                        END FUNCTION pw_integrate_function_pw
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param value ...
-! **************************************************************************************************
-                        SUBROUTINE pw_set_value_pw(pw, value)
-                           TYPE(pw_type), INTENT(IN)                          :: pw
-                           REAL(KIND=dp), INTENT(IN)                          :: value
-
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_set_value'
-
-                           INTEGER                                            :: handle
-
-                           CALL timeset(routineN, handle)
-
-                           IF (pw%in_use == REALDATA3D) THEN
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,value)
-                              pw%cr3d = value
-!$OMP END PARALLEL WORKSHARE
-                           ELSE
-                              CPABORT("Illegal pw type, should be REALDATA3D.")
-                           END IF
-                           CALL timestop(handle)
-
-                        END SUBROUTINE pw_set_value_pw
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw1 ...
-!> \param pw2 ...
-! **************************************************************************************************
-                        SUBROUTINE pw_multiply_with_pw_pw(pw1, pw2)
-                           TYPE(pw_type), INTENT(INOUT)                       :: pw1
-                           TYPE(pw_type), INTENT(IN)                          :: pw2
-
-                           IF (pw2%in_use == REALDATA3D) THEN
-                              BLOCK
-                                 TYPE(pw_r3d_type) :: pw1_r3d
-                                 pw1_r3d%in_space = pw1%in_space
-                                 pw1_r3d%pw_grid => pw1%pw_grid
-                                 pw1_r3d%array => pw1%cr3d
-                                 CALL pw_multiply_with_r3d_pw(pw1_r3d, pw2)
-                                 RETURN
-                              END BLOCK
-                           END IF
-                           CPABORT("")
-
-                        END SUBROUTINE pw_multiply_with_pw_pw
 
                         END MODULE pw_methods

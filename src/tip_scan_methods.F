@@ -31,11 +31,10 @@ MODULE tip_scan_methods
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
@@ -88,7 +87,7 @@ CONTAINS
       TYPE(pw_c1d_type)                                  :: sf, vref
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: vee, vtip
+      TYPE(pw_r3d_type), POINTER                         :: vee, vtip
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(scanning_type)                                :: scan_env
 
@@ -127,7 +126,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          NULLIFY (vtip)
          ALLOCATE (vtip)
-         CALL auxbas_pw_pool%create_pw(vtip, REALDATA3D, REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vtip, REALSPACE)
          CALL pw_zero(vtip)
          CALL auxbas_pw_pool%create_pw(vref, RECIPROCALSPACE)
          CALL pw_zero(vref)
@@ -227,7 +226,7 @@ CONTAINS
    SUBROUTINE shift_tip_potential(vref, sf, vtip, rpos)
 
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: vref, sf
-      TYPE(pw_type), INTENT(INOUT)                       :: vtip
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: vtip
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rpos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_tip_potential'
@@ -293,7 +292,7 @@ CONTAINS
       NULLIFY (pw_grid)
       CALL pw_grid_create(pw_grid, para_env)
       CALL pw_grid_setup(dcell, pw_grid, npts=npts)
-      CALL scan_env%tip_pw_r%create(pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL scan_env%tip_pw_r%create(pw_grid, in_space=REALSPACE)
 !deb
       scaling = 0.1_dp
 !deb

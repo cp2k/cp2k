@@ -27,7 +27,7 @@ MODULE qs_gamma2kp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_methods,                      ONLY: pw_copy
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment,                  ONLY: qs_init
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -70,7 +70,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g_gamma, rho_g_kp
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r_gamma, rho_r_kp
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r_gamma, rho_r_kp
       TYPE(qs_rho_type), POINTER                         :: rho, rho_gamma
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control

@@ -47,7 +47,7 @@ MODULE qs_ks_types
                                               pw_env_retain,&
                                               pw_env_type
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -143,7 +143,7 @@ MODULE qs_ks_types
 
       ! hartree is supposed to contain the hartree potential (for cube output)
       ! ugly to keep it always around only for a cube output...
-      TYPE(pw_type), POINTER                                :: v_hartree_rspace => Null()
+      TYPE(pw_r3d_type), POINTER                                :: v_hartree_rspace => Null()
 
       TYPE(kpoint_transitional_type)                        :: matrix_ks, &
                                                                matrix_s, &
@@ -161,12 +161,12 @@ MODULE qs_ks_types
       TYPE(qs_rho_type), POINTER                            :: rho => Null(), &
                                                                rho_xc => Null()
 
-      TYPE(pw_type), POINTER                              :: vppl => Null(), &
-                                                             rho_nlcc => Null()
+      TYPE(pw_r3d_type), POINTER                              :: vppl => Null(), &
+                                                                 rho_nlcc => Null()
       TYPE(pw_c1d_type), POINTER ::                                                  rho_nlcc_g => Null()
 
       TYPE(pw_c1d_type), POINTER :: rho_core => NULL()
-      TYPE(pw_type), POINTER ::                            vee => NULL()
+      TYPE(pw_r3d_type), POINTER ::                            vee => NULL()
 
       INTEGER                                               :: neighbor_list_id = -1
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb => Null(), &
@@ -329,7 +329,7 @@ CONTAINS
                          para_env, blacs_env, nelectron_total, nelectron_spin)
 
       TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
-      TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date, &
                                                             complex_ks
@@ -340,11 +340,11 @@ CONTAINS
          matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
          matrix_ks_im_kp
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: vppl
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: rho_nlcc
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_nlcc_g
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
          sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
@@ -566,7 +566,7 @@ CONTAINS
                          para_env, blacs_env)
 
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
-      TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date, &
                                                             complex_ks
@@ -576,11 +576,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, POINTER :: matrix_h_kp, matrix_h_im_kp, &
          matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
          matrix_ks_im_kp
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: vppl
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: rho_nlcc
       TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_nlcc_g
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
+      TYPE(pw_r3d_type), OPTIONAL, POINTER               :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &

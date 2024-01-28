@@ -27,7 +27,7 @@ MODULE qs_cdft_types
                                               dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               qs_outer_scf_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
 #include "./base/base_uses.f90"
 
@@ -90,7 +90,7 @@ MODULE qs_cdft_types
          DIMENSION(:, :, :)                :: cavity_mat
       TYPE(becke_vector_buffer)            :: vector_buffer
       TYPE(hirshfeld_type), POINTER        :: cavity_env
-      TYPE(pw_type)                      :: cavity
+      TYPE(pw_r3d_type)                      :: cavity
    END TYPE becke_constraint_type
 
 ! **************************************************************************************************
@@ -209,12 +209,12 @@ MODULE qs_cdft_types
       REAL(KIND=dp), POINTER, &
          DIMENSION(:, :, :, :)             :: gradients_z
       ! The weight function of this constraint group
-      TYPE(pw_type), POINTER                      :: weight
-      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic
-      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
-      TYPE(pw_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
-      TYPE(pw_type)             :: hw_rho_total_constraint
-      TYPE(pw_type)          :: hw_rho_total
+      TYPE(pw_r3d_type), POINTER                      :: weight
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: hw_rho_atomic
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
+      TYPE(pw_r3d_type)             :: hw_rho_total_constraint
+      TYPE(pw_r3d_type)          :: hw_rho_total
    END TYPE cdft_group_type
 
    TYPE cdft_control_type
@@ -251,9 +251,9 @@ MODULE qs_cdft_types
       TYPE(hirshfeld_constraint_type), &
          POINTER                           :: hirshfeld_control
       TYPE(outer_scf_control_type)         :: constraint_control, ot_control
-      TYPE(pw_type), POINTER, &
+      TYPE(pw_r3d_type), POINTER, &
          DIMENSION(:)                      :: charge
-      TYPE(pw_type), POINTER, &
+      TYPE(pw_r3d_type), POINTER, &
          DIMENSION(:, :)                   :: fragments
       TYPE(qs_outer_scf_type)              :: constraint
    END TYPE cdft_control_type

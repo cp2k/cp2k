@@ -32,7 +32,7 @@ MODULE fist_force
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
-   USE ewald_pw_types,                  ONLY: ewald_pw_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type
    USE ewalds,                          ONLY: ewald_evaluate,&
                                               ewald_print,&
                                               ewald_self,&
@@ -139,7 +139,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
       TYPE(exclusion_type), DIMENSION(:), POINTER        :: exclusions
       TYPE(fist_efield_type), POINTER                    :: efield
       TYPE(fist_energy_type), POINTER                    :: thermo

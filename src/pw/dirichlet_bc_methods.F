@@ -36,10 +36,8 @@ MODULE dirichlet_bc_methods
                                               pw_zero
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_r3d_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: REALSPACE,&
+                                              pw_r3d_type
    USE rs_methods,                      ONLY: setup_grid_axes
 #include "../base/base_uses.f90"
 
@@ -294,7 +292,7 @@ CONTAINS
       REAL(dp)                                           :: cyl_maxval, tile_volume
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tile_maxvals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type), POINTER                             :: cylinder_pw
+      TYPE(pw_r3d_type), POINTER                         :: cylinder_pw
       TYPE(tile_p_type), DIMENSION(:), POINTER           :: tiles
 
       CALL timeset(routineN, handle)
@@ -353,7 +351,7 @@ CONTAINS
 
          NULLIFY (cylinder_pw)
          ALLOCATE (cylinder_pw)
-         CALL pw_pool%create_pw(cylinder_pw, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(cylinder_pw, in_space=REALSPACE)
          CALL pw_zero(cylinder_pw)
 
          DO k = 1, n_tiles
@@ -377,7 +375,7 @@ CONTAINS
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
 
-         cyl_maxval = MAXVAL(cylinder_pw%cr3d)
+         cyl_maxval = MAXVAL(cylinder_pw%array)
          CALL pw_pool%pw_grid%para%group%max(cyl_maxval)
          IF (cyl_maxval .GT. 1.01_dp) THEN
             CALL cp_abort(__LOCATION__, &

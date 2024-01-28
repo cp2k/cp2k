@@ -111,11 +111,10 @@ MODULE rpa_gw
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -2207,8 +2206,8 @@ CONTAINS
       INTEGER                                            :: handle, i_E
       TYPE(pw_c1d_type)                                  :: rho_g_dummy
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: E_CBM_rspace, E_gap_rspace, E_VBM_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
+      TYPE(pw_r3d_type)                                  :: E_CBM_rspace, E_gap_rspace, E_VBM_rspace
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: LDOS
 
       CALL timeset(routineN, handle)
 
@@ -2246,9 +2245,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_E_gap_rspace(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, &
                                      LDOS, qs_env, Eigenval, gw_corr_lev_occ, gw_corr_lev_virt, homo, dft_gw_char)
-      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
+      TYPE(pw_r3d_type)                                  :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
       TYPE(pw_c1d_type)                                  :: rho_g_dummy
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: LDOS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt, homo
@@ -2382,12 +2381,12 @@ CONTAINS
 
       END DO
 
-      n_x_start = LBOUND(LDOS(1)%cr3d, 1)
-      n_x_end = UBOUND(LDOS(1)%cr3d, 1)
-      n_y_start = LBOUND(LDOS(1)%cr3d, 2)
-      n_y_end = UBOUND(LDOS(1)%cr3d, 2)
-      n_z_start = LBOUND(LDOS(1)%cr3d, 3)
-      n_z_end = UBOUND(LDOS(1)%cr3d, 3)
+      n_x_start = LBOUND(LDOS(1)%array, 1)
+      n_x_end = UBOUND(LDOS(1)%array, 1)
+      n_y_start = LBOUND(LDOS(1)%array, 2)
+      n_y_end = UBOUND(LDOS(1)%array, 2)
+      n_z_start = LBOUND(LDOS(1)%array, 3)
+      n_z_end = UBOUND(LDOS(1)%array, 3)
 
       CALL pw_zero(E_VBM_rspace)
       CALL pw_zero(E_CBM_rspace)
@@ -2398,28 +2397,28 @@ CONTAINS
                ! compute average occ and virt LDOS
                avg_LDOS_occ = 0.0_dp
                DO i_E = 1, n_E_occ
-                  avg_LDOS_occ = avg_LDOS_occ + LDOS(i_E)%cr3d(i_x, i_y, i_z)
+                  avg_LDOS_occ = avg_LDOS_occ + LDOS(i_E)%array(i_x, i_y, i_z)
                END DO
                avg_LDOS_occ = avg_LDOS_occ/REAL(n_E_occ, KIND=dp)
 
                avg_LDOS_virt = 0.0_dp
                DO i_E = n_E_occ + 1, n_E
-                  avg_LDOS_virt = avg_LDOS_virt + LDOS(i_E)%cr3d(i_x, i_y, i_z)
+                  avg_LDOS_virt = avg_LDOS_virt + LDOS(i_E)%array(i_x, i_y, i_z)
                END DO
                avg_LDOS_virt = avg_LDOS_virt/REAL(n_E - n_E_occ, KIND=dp)
 
                ! compute local valence band maximum (VBM)
                DO i_E = n_E_occ, 1, -1
-                  IF (LDOS(i_E)%cr3d(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_occ) THEN
-                     E_VBM_rspace%cr3d(i_x, i_y, i_z) = E_array(i_E)
+                  IF (LDOS(i_E)%array(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_occ) THEN
+                     E_VBM_rspace%array(i_x, i_y, i_z) = E_array(i_E)
                      EXIT
                   END IF
                END DO
 
                ! compute local valence band maximum (VBM)
                DO i_E = n_E_occ + 1, n_E
-                  IF (LDOS(i_E)%cr3d(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_virt) THEN
-                     E_CBM_rspace%cr3d(i_x, i_y, i_z) = E_array(i_E)
+                  IF (LDOS(i_E)%array(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_virt) THEN
+                     E_CBM_rspace%array(i_x, i_y, i_z) = E_array(i_E)
                      EXIT
                   END IF
                END DO
@@ -2464,7 +2463,7 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE print_file(pw_print, middle_name, gw_section, particles, mp2_env)
-      TYPE(pw_type)                                      :: pw_print
+      TYPE(pw_r3d_type)                                  :: pw_print
       CHARACTER(len=*)                                   :: middle_name
       TYPE(section_vals_type), POINTER                   :: gw_section
       TYPE(particle_list_type), POINTER                  :: particles
@@ -2503,9 +2502,9 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE create_real_space_grids(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, LDOS, auxbas_pw_pool, qs_env)
-      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
+      TYPE(pw_r3d_type)                                  :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
       TYPE(pw_c1d_type)                                  :: rho_g_dummy
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: LDOS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -2521,9 +2520,9 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL auxbas_pw_pool%create_pw(E_gap_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(E_VBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(E_CBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_gap_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_VBM_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_CBM_rspace, in_space=REALSPACE)
       CALL auxbas_pw_pool%create_pw(rho_g_dummy, in_space=RECIPROCALSPACE)
 
       n_E = INT(mp2_env%ri_g0w0%energy_window_print_loc_bandgap/ &
@@ -2532,7 +2531,7 @@ CONTAINS
       ALLOCATE (LDOS(n_E))
 
       DO i_E = 1, n_E
-         CALL auxbas_pw_pool%create_pw(LDOS(i_E), use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(LDOS(i_E), in_space=REALSPACE)
       END DO
 
       CALL timestop(handle)

@@ -24,10 +24,9 @@ MODULE surface_dipole
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -78,9 +77,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: vdip_r, wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_type)                                  :: vdip_r, wf_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -100,12 +99,8 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      CALL auxbas_pw_pool%create_pw(wf_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(vdip_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(vdip_r, in_space=REALSPACE)
 
       IF (dft_control%qs_control%gapw) THEN
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -156,7 +151,7 @@ CONTAINS
          jsurf = 2
 
          DO i = bo(1, 3), bo(2, 3)
-            rhoavsurf(i) = accurate_sum(wf_r%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i))
+            rhoavsurf(i) = accurate_sum(wf_r%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i))
          END DO
 
       ELSEIF (idir_surfdip == 2) THEN
@@ -164,14 +159,14 @@ CONTAINS
          jsurf = 1
 
          DO i = bo(1, 2), bo(2, 2)
-            rhoavsurf(i) = accurate_sum(wf_r%cr3d(bo(1, 1):bo(2, 1), i, bo(1, 3):bo(2, 3)))
+            rhoavsurf(i) = accurate_sum(wf_r%array(bo(1, 1):bo(2, 1), i, bo(1, 3):bo(2, 3)))
          END DO
       ELSE
          isurf = 2
          jsurf = 3
 
          DO i = bo(1, 1), bo(2, 1)
-            rhoavsurf(i) = accurate_sum(wf_r%cr3d(i, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+            rhoavsurf(i) = accurate_sum(wf_r%array(i, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          END DO
       END IF
       CALL pw_scale(wf_r, 1.0_dp/wf_r%pw_grid%vol)
@@ -249,17 +244,17 @@ CONTAINS
          vdip = vdip*cutoff
 
          IF (idir_surfdip == 3) THEN
-            vdip_r%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) = &
-               vdip_r%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) + vdip
+            vdip_r%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) = &
+               vdip_r%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) + vdip
          ELSEIF (idir_surfdip == 2) THEN
             IF (irho >= bo(1, 2) .AND. irho <= bo(2, 2)) THEN
-               vdip_r%cr3d(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) = &
-                  vdip_r%cr3d(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) + vdip
+               vdip_r%array(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) = &
+                  vdip_r%array(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) + vdip
             END IF
          ELSE
             IF (irho >= bo(1, 1) .AND. irho <= bo(2, 1)) THEN
-               vdip_r%cr3d(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) = &
-                  vdip_r%cr3d(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) + vdip
+               vdip_r%array(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) = &
+                  vdip_r%array(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) + vdip
             END IF
          END IF
 

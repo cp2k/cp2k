@@ -24,8 +24,7 @@ MODULE dct
    USE pw_grids,                        ONLY: pw_grid_create,&
                                               pw_grid_setup
    USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type,&
-                                              pw_type
+                                              pw_r3d_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,14 +69,6 @@ MODULE dct
                                      neumannX = 100, &
                                      neumannY = 010, &
                                      neumannZ = 001
-
-   INTERFACE pw_shrink
-      MODULE PROCEDURE pw_shrink_pw, pw_shrink_r3d
-   END INTERFACE
-
-   INTERFACE pw_expand
-      MODULE PROCEDURE pw_expand_pw, pw_expand_r3d
-   END INTERFACE
 
 CONTAINS
 
@@ -254,7 +245,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Finds the process ids for mpi_isend destiations and mpi_irecv sources
-!>   for expanding and shrinking a pw_type data
+!>   for expanding and shrinking a pw_r3d_type data
 !> \param pw_grid the original plane wave grid
 !> \param neumann_directions directions in which dct should be performed
 !> \param dests_expand list of the destination processes (pw_expand)
@@ -505,42 +496,7 @@ CONTAINS
    END SUBROUTINE set_dests_srcs_pid
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param neumann_directions ...
-!> \param recv_msgs_bnds ...
-!> \param dests_expand ...
-!> \param srcs_expand ...
-!> \param flipg_stat ...
-!> \param bounds_shftd ...
-!> \param pw_in ...
-!> \param pw_expanded ...
-! **************************************************************************************************
-   SUBROUTINE pw_expand_pw(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
-                           flipg_stat, bounds_shftd, pw_in, pw_expanded)
-
-      INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
-      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_expanded
-
-      TYPE(pw_r3d_type)                                  :: my_pw_expanded, my_pw_in
-
-      my_pw_in%in_space = pw_in%in_space
-      my_pw_in%pw_grid => pw_in%pw_grid
-      my_pw_in%array => pw_in%cr3d
-      my_pw_expanded%in_space = pw_expanded%in_space
-      my_pw_expanded%pw_grid => pw_expanded%pw_grid
-      my_pw_expanded%array => pw_expanded%cr3d
-
-      CALL pw_expand_r3d(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
-                         flipg_stat, bounds_shftd, my_pw_in, my_pw_expanded)
-
-   END SUBROUTINE pw_expand_pw
-
-! **************************************************************************************************
-!> \brief expands a pw_type data to an evenly symmetric pw_type data that is 8 times
+!> \brief expands a pw_r3d_type data to an evenly symmetric pw_r3d_type data that is 8 times
 !>   larger than the original one:
 !>   the even symmetry for a 1D sequence of length n is defined as:
 !>      1 2 3 ... n-2 n-1 n --> 1 2 3 ... n-2 n-1 n n-1 n-2 ... 3 2
@@ -558,8 +514,8 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_expand_r3d(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
-                            flipg_stat, bounds_shftd, pw_in, pw_expanded)
+   SUBROUTINE pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
+                        flipg_stat, bounds_shftd, pw_in, pw_expanded)
 
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
@@ -568,7 +524,7 @@ CONTAINS
       TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
       TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_expanded
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand_r3d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
       INTEGER :: group_size, handle, i, ind, lb1, lb1_loc, lb1_new, lb2, lb2_loc, lb2_new, lb3, &
          lb3_loc, lb3_new, loc, maxn_sendrecv, rs_mpo, ub1, ub1_loc, ub1_new, ub2, ub2_loc, &
@@ -726,43 +682,10 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_expand_r3d
+   END SUBROUTINE pw_expand
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param neumann_directions ...
-!> \param dests_shrink ...
-!> \param srcs_shrink ...
-!> \param bounds_local_shftd ...
-!> \param pw_in ...
-!> \param pw_shrinked ...
-! **************************************************************************************************
-   SUBROUTINE pw_shrink_pw(neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
-                           pw_in, pw_shrinked)
-
-      INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
-      INTEGER, INTENT(INOUT)                             :: srcs_shrink
-      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_local_shftd
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_shrinked
-
-      TYPE(pw_r3d_type)                                  :: my_pw_in, my_pw_shrinked
-
-      my_pw_in%in_space = pw_in%in_space
-      my_pw_in%pw_grid => pw_in%pw_grid
-      my_pw_in%array => pw_in%cr3d
-      my_pw_shrinked%in_space = pw_shrinked%in_space
-      my_pw_shrinked%pw_grid => pw_shrinked%pw_grid
-      my_pw_shrinked%array => pw_shrinked%cr3d
-
-      CALL pw_shrink_r3d(neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
-                         my_pw_in, my_pw_shrinked)
-
-   END SUBROUTINE pw_shrink_pw
-
-! **************************************************************************************************
-!> \brief shrinks an evenly symmetric pw_type data to a pw_type data that is 8
+!> \brief shrinks an evenly symmetric pw_r3d_type data to a pw_r3d_type data that is 8
 !>        times smaller (the reverse procedure of pw_expand).
 !>
 !> \param neumann_directions directions in which dct should be performed
@@ -775,8 +698,8 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_shrink_r3d(neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
-                            pw_in, pw_shrinked)
+   SUBROUTINE pw_shrink(neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
+                        pw_in, pw_shrinked)
 
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
@@ -785,7 +708,7 @@ CONTAINS
       TYPE(pw_r3d_type), INTENT(IN)                      :: pw_in
       TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_shrinked
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink_r3d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
       INTEGER :: group_size, handle, i, in_space, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
          lb3_orig, lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, &
@@ -867,7 +790,7 @@ CONTAINS
       DEALLOCATE (cr3d)
       CALL timestop(handle)
 
-   END SUBROUTINE pw_shrink_r3d
+   END SUBROUTINE pw_shrink
 
 ! **************************************************************************************************
 !> \brief   flips a 3d (real dp) array up to down (the way needed to expand data

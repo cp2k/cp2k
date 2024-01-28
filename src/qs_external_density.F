@@ -24,7 +24,7 @@ MODULE qs_external_density
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
    USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -72,7 +72,7 @@ CONTAINS
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_ext_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ext_r
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_ext_r
       TYPE(qs_rho_type), POINTER                         :: rho_external
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs

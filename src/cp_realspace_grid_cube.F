@@ -14,8 +14,7 @@ MODULE cp_realspace_grid_cube
    USE cp_output_handling,              ONLY: cp_mpi_io_get
    USE kinds,                           ONLY: dp
    USE particle_list_types,             ONLY: particle_list_type
-   USE pw_types,                        ONLY: pw_r3d_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_type
    USE realspace_grid_cube,             ONLY: cube_to_pw,&
                                               pw_to_cube,&
                                               pw_to_simple_volumetric
@@ -28,10 +27,6 @@ MODULE cp_realspace_grid_cube
    PUBLIC :: cp_pw_to_cube, cp_pw_to_simple_volumetric, cp_cube_to_pw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_cube'
-
-   INTERFACE cp_pw_to_cube
-      MODULE PROCEDURE cp_pw_to_cube_pw, cp_pw_to_cube_r3d
-   END INTERFACE
 
 CONTAINS
 
@@ -46,36 +41,7 @@ CONTAINS
 !> \param silent minimal I/O
 !> \param mpi_io True if cube should be written in parallel using MPI
 ! **************************************************************************************************
-   SUBROUTINE cp_pw_to_cube_pw(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      INTEGER, INTENT(IN)                                :: unit_nr
-      CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
-      TYPE(particle_list_type), POINTER                  :: particles
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
-      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
-
-      TYPE(pw_r3d_type)                                  :: my_pw
-
-      my_pw%in_space = pw%in_space
-      my_pw%pw_grid => pw%pw_grid
-      my_pw%array => pw%cr3d
-
-      CALL cp_pw_to_cube_r3d(my_pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
-
-   END SUBROUTINE cp_pw_to_cube_pw
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param unit_nr ...
-!> \param title ...
-!> \param particles ...
-!> \param stride ...
-!> \param zero_tails ...
-!> \param silent minimal I/O
-!> \param mpi_io True if cube should be written in parallel using MPI
-! **************************************************************************************************
-   SUBROUTINE cp_pw_to_cube_r3d(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
+   SUBROUTINE cp_pw_to_cube(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
@@ -109,7 +75,7 @@ CONTAINS
                          silent=silent, mpi_io=mpi_io)
       END IF
 
-   END SUBROUTINE cp_pw_to_cube_r3d
+   END SUBROUTINE cp_pw_to_cube
 
 ! **************************************************************************************************
 !> \brief Prints grid in a simple format: X Y Z value
@@ -121,10 +87,10 @@ CONTAINS
 !>      Created [Vladimir Rybkin] (08.2017)
 ! **************************************************************************************************
    SUBROUTINE cp_pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: pw2
+      TYPE(pw_r3d_type), INTENT(IN), OPTIONAL            :: pw2
 
       IF (.NOT. PRESENT(pw2)) THEN
          CALL pw_to_simple_volumetric(pw, unit_nr, stride)
@@ -144,7 +110,7 @@ CONTAINS
 !>      Created [Nico Holmberg] (09.2018)
 ! **************************************************************************************************
    SUBROUTINE cp_cube_to_pw(grid, filename, scaling, silent)
-      TYPE(pw_type), INTENT(IN)                          :: grid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       LOGICAL, INTENT(in), OPTIONAL                      :: silent

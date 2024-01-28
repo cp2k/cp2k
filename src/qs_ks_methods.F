@@ -84,11 +84,10 @@ MODULE qs_ks_methods
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
@@ -208,10 +207,10 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_embed, v_rspace_new, &
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_type), POINTER                             :: rho0_s_rs, rho_nlcc, v_hartree_rspace, &
+      TYPE(pw_r3d_type), POINTER                         :: rho0_s_rs, rho_nlcc, v_hartree_rspace, &
                                                             v_sccs_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -376,9 +375,7 @@ CONTAINS
          ! Self-consistent continuum solvation (SCCS) model
          NULLIFY (v_sccs_rspace)
          ALLOCATE (v_sccs_rspace)
-         CALL auxbas_pw_pool%create_pw(v_sccs_rspace, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(v_sccs_rspace, in_space=REALSPACE)
 
          IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
             CPABORT("The implicit Poisson solver cannot be used together with SCCS.")
@@ -647,8 +644,8 @@ CONTAINS
             IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. &
                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
                BLOCK
-                  TYPE(pw_type) :: v_minus_veps
-                  CALL auxbas_pw_pool%create_pw(v_minus_veps, use_data=REALDATA3D, in_space=REALSPACE)
+                  TYPE(pw_r3d_type) :: v_minus_veps
+                  CALL auxbas_pw_pool%create_pw(v_minus_veps, in_space=REALSPACE)
                   CALL pw_copy(v_hartree_rspace, v_minus_veps)
                   CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps, -v_hartree_rspace%pw_grid%dvol)
                   CALL integrate_v_core_rspace(v_minus_veps, qs_env)

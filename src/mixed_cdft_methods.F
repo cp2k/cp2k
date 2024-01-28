@@ -96,8 +96,7 @@ MODULE mixed_cdft_methods
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE
+   USE pw_types,                        ONLY: REALSPACE
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -652,13 +651,13 @@ CONTAINS
       ! of the potential, but this would require a custom integrate_v_rspace
       ALLOCATE (cdft_control_target%group(1)%weight)
       CALL auxbas_pw_pool%create_pw(cdft_control_target%group(1)%weight, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                    in_space=REALSPACE)
       CALL pw_zero(cdft_control_target%group(1)%weight)
       ! Assemble the recved slices
       DO j = 1, SIZE(mixed_cdft%source_list)
-         cdft_control_target%group(1)%weight%cr3d(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
-                                                  recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
-                                                  recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = recvbuffer(j)%r3
+         cdft_control_target%group(1)%weight%array(recvbuffer(j)%imap(1):recvbuffer(j)%imap(2), &
+                                                   recvbuffer(j)%imap(3):recvbuffer(j)%imap(4), &
+                                                   recvbuffer(j)%imap(5):recvbuffer(j)%imap(6)) = recvbuffer(j)%r3
       END DO
       ! Do the same for slices sent during dlb
       IF (mixed_cdft%dlb) THEN
@@ -672,9 +671,9 @@ CONTAINS
                                UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 2), &
                                LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3), &
                                UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)/)
-                     cdft_control_target%group(1)%weight%cr3d(INDEX(1):INDEX(2), &
-                                                              INDEX(3):INDEX(4), &
-                                                              INDEX(5):INDEX(6)) = &
+                     cdft_control_target%group(1)%weight%array(INDEX(1):INDEX(2), &
+                                                               INDEX(3):INDEX(4), &
+                                                               INDEX(5):INDEX(6)) = &
                         mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight
                      DEALLOCATE (mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight)
                   END DO
@@ -946,7 +945,7 @@ CONTAINS
             DO igroup = 1, SIZE(cdft_control_target%group)
                ALLOCATE (cdft_control_target%group(igroup)%weight)
                CALL auxbas_pw_pool_target%create_pw(cdft_control_target%group(igroup)%weight, &
-                                                    use_data=REALDATA3D, in_space=REALSPACE)
+                                                    in_space=REALSPACE)
                ! We have ensured that the grids are consistent => no danger in using explicit copy
                CALL pw_copy(cdft_control_source%group(igroup)%weight, cdft_control_target%group(igroup)%weight)
                CALL auxbas_pw_pool_source%give_back_pw(cdft_control_source%group(igroup)%weight)
@@ -956,7 +955,7 @@ CONTAINS
             IF (cdft_control_source%type == outer_scf_becke_constraint) THEN
                IF (cdft_control_source%becke_control%cavity_confine) THEN
                   CALL auxbas_pw_pool_target%create_pw(cdft_control_target%becke_control%cavity, &
-                                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                                       in_space=REALSPACE)
                   CALL pw_copy(cdft_control_source%becke_control%cavity, cdft_control_target%becke_control%cavity)
                   CALL auxbas_pw_pool_source%give_back_pw(cdft_control_source%becke_control%cavity)
                END IF
@@ -985,7 +984,7 @@ CONTAINS
                   ALLOCATE (cdft_control_target%charge(cdft_control_target%natoms))
                DO iatom = 1, cdft_control_target%natoms
                   CALL auxbas_pw_pool_target%create_pw(cdft_control_target%charge(iatom), &
-                                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                                       in_space=REALSPACE)
                   CALL pw_copy(cdft_control_source%charge(iatom), cdft_control_target%charge(iatom))
                   CALL auxbas_pw_pool_source%give_back_pw(cdft_control_source%charge(iatom))
                END DO
@@ -2582,9 +2581,9 @@ CONTAINS
          END DO
          DEALLOCATE (pab)
          CALL auxbas_pw_pool%create_pw(cdft_control%becke_control%cavity, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          CALL transfer_rs2pw(rs_cavity, cdft_control%becke_control%cavity)
-         CALL hfun_zero(cdft_control%becke_control%cavity%cr3d, &
+         CALL hfun_zero(cdft_control%becke_control%cavity%array, &
                         cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)
          IF (bounds(2) .LT. bo(2, 3)) THEN
@@ -2612,7 +2611,7 @@ CONTAINS
          END IF
          cdft_control%becke_control%confine_bounds = bounds
          IF (cdft_control%becke_control%print_cavity) THEN
-            CALL hfun_zero(cdft_control%becke_control%cavity%cr3d, &
+            CALL hfun_zero(cdft_control%becke_control%cavity%array, &
                            cdft_control%becke_control%eps_cavity, just_zero=.TRUE.)
             NULLIFY (stride)
             ALLOCATE (stride(3))
@@ -2652,21 +2651,21 @@ CONTAINS
             DO i = 1, SIZE(mixed_cdft%dest_list)
                ALLOCATE (mixed_cdft%sendbuff(i)%cavity(mixed_cdft%dest_list_bo(1, i):mixed_cdft%dest_list_bo(2, i), &
                                                        bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-               mixed_cdft%sendbuff(i)%cavity = cdft_control%becke_control%cavity%cr3d(mixed_cdft%dest_list_bo(1, i): &
-                                                                                      mixed_cdft%dest_list_bo(2, i), &
-                                                                                      bo(1, 2):bo(2, 2), &
-                                                                                      bo_conf(1, 3):bo_conf(2, 3))
+               mixed_cdft%sendbuff(i)%cavity = cdft_control%becke_control%cavity%array(mixed_cdft%dest_list_bo(1, i): &
+                                                                                       mixed_cdft%dest_list_bo(2, i), &
+                                                                                       bo(1, 2):bo(2, 2), &
+                                                                                       bo_conf(1, 3):bo_conf(2, 3))
             END DO
          ELSE IF (mixed_cdft%is_pencil) THEN
             ALLOCATE (mixed_cdft%cavity(bo(1, 1) + offset_dlb:bo(2, 1), bo(1, 2):bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%cavity = cdft_control%becke_control%cavity%cr3d(bo(1, 1) + offset_dlb:bo(2, 1), &
-                                                                       bo(1, 2):bo(2, 2), &
-                                                                       bo_conf(1, 3):bo_conf(2, 3))
+            mixed_cdft%cavity = cdft_control%becke_control%cavity%array(bo(1, 1) + offset_dlb:bo(2, 1), &
+                                                                        bo(1, 2):bo(2, 2), &
+                                                                        bo_conf(1, 3):bo_conf(2, 3))
          ELSE
             ALLOCATE (mixed_cdft%cavity(bo(1, 1):bo(2, 1), bo(1, 2) + offset_dlb:bo(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-            mixed_cdft%cavity = cdft_control%becke_control%cavity%cr3d(bo(1, 1):bo(2, 1), &
-                                                                       bo(1, 2) + offset_dlb:bo(2, 2), &
-                                                                       bo_conf(1, 3):bo_conf(2, 3))
+            mixed_cdft%cavity = cdft_control%becke_control%cavity%array(bo(1, 1):bo(2, 1), &
+                                                                        bo(1, 2) + offset_dlb:bo(2, 2), &
+                                                                        bo_conf(1, 3):bo_conf(2, 3))
          END IF
          CALL auxbas_pw_pool%give_back_pw(cdft_control%becke_control%cavity)
       END IF
@@ -3134,21 +3133,21 @@ CONTAINS
                   ALLOCATE (cavity(bo_conf(1, 1) + offset: &
                                    bo_conf(1, 1) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                    bo_conf(1, 2):bo_conf(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = cdft_control%becke_control%cavity%cr3d(bo_conf(1, 1) + offset: &
-                                                                  bo_conf(1, 1) + offset + &
-                                                                  (mixed_cdft%dlb_control%target_list(2, i) - 1), &
-                                                                  bo_conf(1, 2):bo_conf(2, 2), &
-                                                                  bo_conf(1, 3):bo_conf(2, 3))
+                  cavity = cdft_control%becke_control%cavity%array(bo_conf(1, 1) + offset: &
+                                                                   bo_conf(1, 1) + offset + &
+                                                                   (mixed_cdft%dlb_control%target_list(2, i) - 1), &
+                                                                   bo_conf(1, 2):bo_conf(2, 2), &
+                                                                   bo_conf(1, 3):bo_conf(2, 3))
                ELSE
                   ALLOCATE (cavity(bo_conf(1, 1):bo_conf(2, 1), &
                                    bo_conf(1, 2) + offset: &
                                    bo_conf(1, 2) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
                                    bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = cdft_control%becke_control%cavity%cr3d(bo_conf(1, 1):bo_conf(2, 1), &
-                                                                  bo_conf(1, 2) + offset: &
-                                                                  bo_conf(1, 2) + offset + &
-                                                                  (mixed_cdft%dlb_control%target_list(2, i) - 1), &
-                                                                  bo_conf(1, 3):bo_conf(2, 3))
+                  cavity = cdft_control%becke_control%cavity%array(bo_conf(1, 1):bo_conf(2, 1), &
+                                                                   bo_conf(1, 2) + offset: &
+                                                                   bo_conf(1, 2) + offset + &
+                                                                   (mixed_cdft%dlb_control%target_list(2, i) - 1), &
+                                                                   bo_conf(1, 3):bo_conf(2, 3))
                END IF
                CALL force_env%para_env%isend(msgin=cavity, &
                                              dest=mixed_cdft%dlb_control%target_list(1, i), &
@@ -3199,9 +3198,9 @@ CONTAINS
                   ALLOCATE (cavity(mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i): &
                                    mixed_cdft%dlb_control%target_list(offset_special + 2*j - 1, i), &
                                    bo_conf(1, 2):bo_conf(2, 2), bo_conf(1, 3):bo_conf(2, 3)))
-                  cavity = cdft_control%becke_control%cavity%cr3d(LBOUND(cavity, 1):UBOUND(cavity, 1), &
-                                                                  bo_conf(1, 2):bo_conf(2, 2), &
-                                                                  bo_conf(1, 3):bo_conf(2, 3))
+                  cavity = cdft_control%becke_control%cavity%array(LBOUND(cavity, 1):UBOUND(cavity, 1), &
+                                                                   bo_conf(1, 2):bo_conf(2, 2), &
+                                                                   bo_conf(1, 3):bo_conf(2, 3))
                   CALL force_env%para_env%isend(msgin=cavity, &
                                                 dest=mixed_cdft%dlb_control%target_list(1, i), &
                                                 request=req(1))

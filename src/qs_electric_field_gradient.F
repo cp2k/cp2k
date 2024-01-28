@@ -51,11 +51,10 @@ MODULE qs_electric_field_gradient
         Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, pw_spline_do_precond, &
         pw_spline_precond_create, pw_spline_precond_release, pw_spline_precond_set_kind, &
         pw_spline_precond_type, spl3_pbc
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -114,9 +113,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_type)                                  :: dvr2rs
+      TYPE(pw_r3d_type), DIMENSION(6)                    :: dvspl
       TYPE(pw_spline_precond_type)                       :: precond
-      TYPE(pw_type)                                      :: dvr2rs
-      TYPE(pw_type), DIMENSION(6)                        :: dvspl
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -160,7 +159,7 @@ CONTAINS
          smoothing = .TRUE.
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(dvr2rs, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          ecut = 2._dp*dvr2rs%pw_grid%cutoff*0.875_dp
          sigma = 2._dp*dvr2rs%pw_grid%cutoff*0.125_dp
          CALL auxbas_pw_pool%give_back_pw(dvr2rs)
@@ -250,10 +249,10 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
          CALL auxbas_pw_pool%create_pw(dvr2rs, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+                                       in_space=REALSPACE)
          DO i = 1, 6
             CALL auxbas_pw_pool%create_pw(dvspl(i), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+                                          in_space=REALSPACE)
             CALL pw_transfer(dvr2(i), dvr2rs)
             ! calculate spline coefficients
             CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &

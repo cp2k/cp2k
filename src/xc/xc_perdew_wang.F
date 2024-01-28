@@ -18,7 +18,7 @@ MODULE xc_perdew_wang
    #:include "xc_perdew_wang.fypp"
 
    USE kinds, ONLY: dp
-   USE pw_types, ONLY: pw_type
+   USE pw_types, ONLY: pw_r3d_type
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_get_derivative
    USE xc_derivative_types, ONLY: xc_derivative_get, &
@@ -431,8 +431,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE perdew_wang_fxc_calc(rho_a, rho_b, fxc_aa, fxc_ab, fxc_bb, scalec, eps_rho)
-      TYPE(pw_type), INTENT(IN)                          :: rho_a, rho_b
-      TYPE(pw_type), INTENT(INOUT)                       :: fxc_aa, fxc_ab, fxc_bb
+      TYPE(pw_r3d_type), INTENT(IN)                          :: rho_a, rho_b
+      TYPE(pw_r3d_type), INTENT(INOUT)                       :: fxc_aa, fxc_ab, fxc_bb
       REAL(kind=dp), INTENT(in)                          :: scalec, eps_rho
 
       INTEGER                                            :: i, j, k
@@ -447,8 +447,8 @@ CONTAINS
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
-               rhoa = rho_a%cr3d(i, j, k)
-               rhob = rho_b%cr3d(i, j, k)
+               rhoa = rho_a%array(i, j, k)
+               rhob = rho_b%array(i, j, k)
                rho = rhoa + rhob
                IF (rho > eps_rho) THEN
                   ed = 0.0_dp
@@ -457,9 +457,9 @@ CONTAINS
                   eaa = 2.0_dp*ed(1) + rho*ed(3)
                   eab = ed(1) + ed(2) + rho*ed(4)
                   ebb = 2.0_dp*ed(2) + rho*ed(5)
-                  fxc_aa%cr3d(i, j, k) = fxc_aa%cr3d(i, j, k) + eaa
-                  fxc_ab%cr3d(i, j, k) = fxc_ab%cr3d(i, j, k) + eab
-                  fxc_bb%cr3d(i, j, k) = fxc_bb%cr3d(i, j, k) + ebb
+                  fxc_aa%array(i, j, k) = fxc_aa%array(i, j, k) + eaa
+                  fxc_ab%array(i, j, k) = fxc_ab%array(i, j, k) + eab
+                  fxc_bb%array(i, j, k) = fxc_bb%array(i, j, k) + ebb
                END IF
             END DO
          END DO

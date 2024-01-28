@@ -46,11 +46,10 @@ MODULE hfx_pw_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -110,8 +109,8 @@ CONTAINS
       TYPE(pw_c1d_type)                                  :: greenfn, pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: rho_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_i, rho_j
+      TYPE(pw_r3d_type)                                  :: rho_r
+      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: rho_i, rho_j
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ip_section
 
@@ -134,13 +133,9 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
-         CALL auxbas_pw_pool%create_pw(rho_r, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(rho_g, &
-                                       in_space=RECIPROCALSPACE)
-         CALL auxbas_pw_pool%create_pw(pot_g, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_r, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(pot_g, in_space=RECIPROCALSPACE)
 
          ALLOCATE (rho_i(blocksize))
          ALLOCATE (rho_j(blocksize))
@@ -181,12 +176,8 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            CALL rho_i(iorb_block)%create(rho_r%pw_grid, &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
-            CALL rho_j(iorb_block)%create(rho_r%pw_grid, &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
+            CALL rho_i(iorb_block)%create(rho_r%pw_grid, in_space=REALSPACE)
+            CALL rho_j(iorb_block)%create(rho_r%pw_grid, in_space=REALSPACE)
          END DO
 
          exchange_energy = 0.0_dp

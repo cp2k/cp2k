@@ -56,24 +56,24 @@ MODULE ewald_pw_types
 
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_types'
-   PUBLIC :: ewald_pw_type, ewald_pw_release, &
+   PUBLIC :: ewald_pw_r3d_type, ewald_pw_release, &
              ewald_pw_create, &
              ewald_pw_get, ewald_pw_set
 
 ! **************************************************************************************************
-   TYPE ewald_pw_type
+   TYPE ewald_pw_r3d_type
       PRIVATE
       TYPE(pw_pool_type), POINTER       :: pw_small_pool
       TYPE(pw_pool_type), POINTER       :: pw_big_pool
       TYPE(realspace_grid_desc_type), POINTER    :: rs_desc
       TYPE(pw_poisson_type), POINTER    :: poisson_env
       TYPE(dg_type), POINTER            :: dg
-   END TYPE ewald_pw_type
+   END TYPE ewald_pw_r3d_type
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief creates the structure ewald_pw_type
+!> \brief creates the structure ewald_pw_r3d_type
 !> \param ewald_pw ...
 !> \param ewald_env ...
 !> \param cell ...
@@ -81,7 +81,7 @@ CONTAINS
 !> \param print_section ...
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section)
-      TYPE(ewald_pw_type), INTENT(OUT)                   :: ewald_pw
+      TYPE(ewald_pw_r3d_type), INTENT(OUT)               :: ewald_pw
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -100,7 +100,7 @@ CONTAINS
 !> \param ewald_pw ...
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_release(ewald_pw)
-      TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
+      TYPE(ewald_pw_r3d_type), INTENT(INOUT)             :: ewald_pw
 
       CALL pw_pool_release(ewald_pw%pw_small_pool)
       CALL pw_pool_release(ewald_pw%pw_big_pool)
@@ -128,7 +128,7 @@ CONTAINS
 !> \author CJM
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_init(ewald_pw, ewald_env, cell, cell_ref, print_section)
-      TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
+      TYPE(ewald_pw_r3d_type), INTENT(INOUT)             :: ewald_pw
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -323,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_get(ewald_pw, pw_big_pool, pw_small_pool, rs_desc, poisson_env, dg)
 
-      TYPE(ewald_pw_type), INTENT(IN)                    :: ewald_pw
+      TYPE(ewald_pw_r3d_type), INTENT(IN)                :: ewald_pw
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_big_pool, pw_small_pool
       TYPE(realspace_grid_desc_type), OPTIONAL, POINTER  :: rs_desc
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
@@ -350,7 +350,7 @@ CONTAINS
    SUBROUTINE ewald_pw_set(ewald_pw, pw_big_pool, pw_small_pool, rs_desc, dg, &
                            poisson_env)
 
-      TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
+      TYPE(ewald_pw_r3d_type), INTENT(INOUT)             :: ewald_pw
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_big_pool, pw_small_pool
       TYPE(realspace_grid_desc_type), OPTIONAL, POINTER  :: rs_desc
       TYPE(dg_type), OPTIONAL, POINTER                   :: dg

@@ -75,12 +75,10 @@ MODULE qs_sccs
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
+   USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_c1d_type,&
-                                              pw_r3d_type,&
-                                              pw_type
+                                              pw_r3d_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -126,7 +124,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_type), INTENT(INOUT)                       :: v_sccs
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: v_sccs
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
 
@@ -156,10 +154,10 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: deps_elec, eps_elec
-      TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec, dphi_tot
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_pw_r
-      TYPE(pw_type), POINTER                             :: rho_pw_r_sccs
+      TYPE(pw_r3d_type)                                  :: deps_elec, eps_elec
+      TYPE(pw_r3d_type), DIMENSION(3)                    :: dln_eps_elec, dphi_tot
+      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_pw_r
+      TYPE(pw_r3d_type), POINTER                         :: rho_pw_r_sccs
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -270,10 +268,8 @@ CONTAINS
 
       ! Retrieve the total electronic density in r-space
       BLOCK
-         TYPE(pw_type) :: rho_elec
-         CALL auxbas_pw_pool%create_pw(rho_elec, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         TYPE(pw_r3d_type) :: rho_elec
+         CALL auxbas_pw_pool%create_pw(rho_elec, in_space=REALSPACE)
 
          ! Retrieve grid parameters
          ngpts = rho_elec%pw_grid%ngpts
@@ -290,12 +286,8 @@ CONTAINS
          tot_rho_elec = pw_integrate_function(rho_elec)
 
          ! Calculate the dielectric (smoothed) function of rho_elec in r-space
-         CALL auxbas_pw_pool%create_pw(eps_elec, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(deps_elec, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(eps_elec, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(deps_elec, in_space=REALSPACE)
          ! Relative permittivity or dielectric constant of the solvent (medium)
          epsilon_solvent = sccs_control%epsilon_solvent
          SELECT CASE (sccs_control%method_id)
@@ -345,11 +337,9 @@ CONTAINS
          IF (ABS(epsilon_solvent - 1.0_dp) > epstol) THEN
 
             BLOCK
-               TYPE(pw_type) :: theta, norm_drho_elec
-               TYPE(pw_type), DIMENSION(3)                        :: drho_elec
-               CALL auxbas_pw_pool%create_pw(theta, &
-                                             use_data=REALDATA3D, &
-                                             in_space=REALSPACE)
+               TYPE(pw_r3d_type) :: theta, norm_drho_elec
+               TYPE(pw_r3d_type), DIMENSION(3)                        :: drho_elec
+               CALL auxbas_pw_pool%create_pw(theta, in_space=REALSPACE)
                CALL pw_zero(theta)
 
                ! Calculate the (quantum) volume of the solute cavity
@@ -360,7 +350,7 @@ CONTAINS
                DO k = lb(3), ub(3)
                   DO j = lb(2), ub(2)
                      DO i = lb(1), ub(1)
-                        theta%cr3d(i, j, k) = f*(epsilon_solvent - eps_elec%cr3d(i, j, k))
+                        theta%array(i, j, k) = f*(epsilon_solvent - eps_elec%array(i, j, k))
                      END DO
                   END DO
                END DO
@@ -370,15 +360,11 @@ CONTAINS
                ! Calculate the derivative of the electronic density in r-space
                ! TODO: Could be retrieved from the QS environment
                DO i = 1, 3
-                  CALL auxbas_pw_pool%create_pw(drho_elec(i), &
-                                                use_data=REALDATA3D, &
-                                                in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(drho_elec(i), in_space=REALSPACE)
                END DO
                CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input)
 
-               CALL auxbas_pw_pool%create_pw(norm_drho_elec, &
-                                             use_data=REALDATA3D, &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(norm_drho_elec, in_space=REALSPACE)
 
                ! Calculate the norm of the gradient of the electronic density in r-space
 !$OMP    PARALLEL DO DEFAULT(NONE) &
@@ -387,12 +373,12 @@ CONTAINS
                DO k = lb(3), ub(3)
                   DO j = lb(2), ub(2)
                      DO i = lb(1), ub(1)
-                        norm_drho_elec%cr3d(i, j, k) = SQRT(drho_elec(1)%cr3d(i, j, k)* &
-                                                            drho_elec(1)%cr3d(i, j, k) + &
-                                                            drho_elec(2)%cr3d(i, j, k)* &
-                                                            drho_elec(2)%cr3d(i, j, k) + &
-                                                            drho_elec(3)%cr3d(i, j, k)* &
-                                                            drho_elec(3)%cr3d(i, j, k))
+                        norm_drho_elec%array(i, j, k) = SQRT(drho_elec(1)%array(i, j, k)* &
+                                                             drho_elec(1)%array(i, j, k) + &
+                                                             drho_elec(2)%array(i, j, k)* &
+                                                             drho_elec(2)%array(i, j, k) + &
+                                                             drho_elec(3)%array(i, j, k)* &
+                                                             drho_elec(3)%array(i, j, k))
                      END DO
                   END DO
                END DO
@@ -456,11 +442,9 @@ CONTAINS
       END BLOCK
 
       BLOCK
-         TYPE(pw_type) :: rho_tot, phi_tot, rho_solute, rho_tot_zero
+         TYPE(pw_r3d_type) :: rho_tot, phi_tot, rho_solute, rho_tot_zero
          ! Retrieve the total charge density (core + elec) of the solute in r-space
-         CALL auxbas_pw_pool%create_pw(rho_solute, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_solute, in_space=REALSPACE)
          CALL pw_zero(rho_solute)
          CALL pw_transfer(rho_tot_gspace, rho_solute)
          tot_rho_solute = pw_integrate_function(rho_solute)
@@ -478,9 +462,7 @@ CONTAINS
          END IF
 
          ! Reassign work storage to rho_tot_zero, because rho_elec is no longer needed
-         CALL auxbas_pw_pool%create_pw(rho_tot_zero, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot_zero, in_space=REALSPACE)
 
          ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
          ! eps_elec <- ln(eps_elec)
@@ -491,14 +473,14 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (eps_elec%cr3d(i, j, k) < 1.0_dp) THEN
+                  IF (eps_elec%array(i, j, k) < 1.0_dp) THEN
                      WRITE (UNIT=message, FMT="(A,ES12.3,A,3(I0,A))") &
-                        "SCCS| Invalid dielectric function value ", eps_elec%cr3d(i, j, k), &
+                        "SCCS| Invalid dielectric function value ", eps_elec%array(i, j, k), &
                         " encountered at grid point (", i, ",", j, ",", k, ")"
                      CPABORT(message)
                   END IF
-                  rho_tot_zero%cr3d(i, j, k) = rho_solute%cr3d(i, j, k)/eps_elec%cr3d(i, j, k)
-                  eps_elec%cr3d(i, j, k) = LOG(eps_elec%cr3d(i, j, k))
+                  rho_tot_zero%array(i, j, k) = rho_solute%array(i, j, k)/eps_elec%array(i, j, k)
+                  eps_elec%array(i, j, k) = LOG(eps_elec%array(i, j, k))
                END DO
             END DO
          END DO
@@ -506,9 +488,7 @@ CONTAINS
 
          ! Build the derivative of LOG(eps_elec)
          DO i = 1, 3
-            CALL auxbas_pw_pool%create_pw(dln_eps_elec(i), &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dln_eps_elec(i), in_space=REALSPACE)
             CALL pw_zero(dln_eps_elec(i))
          END DO
          CALL derive(eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input)
@@ -541,21 +521,15 @@ CONTAINS
 
          ! Get storage for the derivative of the total potential (field) in r-space
          DO i = 1, 3
-            CALL auxbas_pw_pool%create_pw(dphi_tot(i), &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dphi_tot(i), in_space=REALSPACE)
          END DO
 
          ! Initialise the total charge density in r-space rho_tot with rho_tot_zero + rho_iter_zero
-         CALL auxbas_pw_pool%create_pw(rho_tot, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot, in_space=REALSPACE)
          CALL pw_copy(rho_tot_zero, rho_tot)
          CALL pw_axpy(rho_pw_r_sccs, rho_tot)
 
-         CALL auxbas_pw_pool%create_pw(phi_tot, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(phi_tot, in_space=REALSPACE)
          CALL pw_zero(phi_tot)
 
          ! Main SCCS iteration loop
@@ -601,16 +575,16 @@ CONTAINS
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     rho_iter_new = (dln_eps_elec(1)%cr3d(i, j, k)*dphi_tot(1)%cr3d(i, j, k) + &
-                                     dln_eps_elec(2)%cr3d(i, j, k)*dphi_tot(2)%cr3d(i, j, k) + &
-                                     dln_eps_elec(3)%cr3d(i, j, k)*dphi_tot(3)%cr3d(i, j, k))*f
-                     rho_iter_new = rho_pw_r_sccs%cr3d(i, j, k) + &
-                                    sccs_control%mixing*(rho_iter_new - rho_pw_r_sccs%cr3d(i, j, k))
-                     rho_delta = ABS(rho_iter_new - rho_pw_r_sccs%cr3d(i, j, k))
+                     rho_iter_new = (dln_eps_elec(1)%array(i, j, k)*dphi_tot(1)%array(i, j, k) + &
+                                     dln_eps_elec(2)%array(i, j, k)*dphi_tot(2)%array(i, j, k) + &
+                                     dln_eps_elec(3)%array(i, j, k)*dphi_tot(3)%array(i, j, k))*f
+                     rho_iter_new = rho_pw_r_sccs%array(i, j, k) + &
+                                    sccs_control%mixing*(rho_iter_new - rho_pw_r_sccs%array(i, j, k))
+                     rho_delta = ABS(rho_iter_new - rho_pw_r_sccs%array(i, j, k))
                      rho_delta_max = MAX(rho_delta, rho_delta_max)
                      rho_delta_avg = rho_delta_avg + rho_delta
-                     rho_tot%cr3d(i, j, k) = rho_tot_zero%cr3d(i, j, k) + rho_iter_new
-                     rho_pw_r_sccs%cr3d(i, j, k) = rho_iter_new
+                     rho_tot%array(i, j, k) = rho_tot_zero%array(i, j, k) + rho_iter_new
+                     rho_pw_r_sccs%array(i, j, k) = rho_iter_new
                   END DO
                END DO
             END DO
@@ -680,39 +654,28 @@ CONTAINS
          ! Calculate the total SCCS Hartree energy, potential, and its
          ! derivatives of the solute and the implicit solvent
          CALL pw_transfer(rho_tot, rho_tot_gspace)
-         BLOCK
-            TYPE(pw_r3d_type) :: my_dphi_tot(3)
-            INTEGER :: i
-            DO i = 1, 3
-               my_dphi_tot(i)%in_space = dphi_tot(i)%in_space
-               my_dphi_tot(i)%array => dphi_tot(i)%cr3d
-               my_dphi_tot(i)%pw_grid => dphi_tot(i)%pw_grid
-            END DO
-            IF (calculate_stress_tensor) THEN
-               ! Request also the calculation of the stress tensor contribution
-               CALL pw_poisson_solve(poisson_env=poisson_env, &
-                                     density=rho_tot_gspace, &
-                                     ehartree=e_tot, &
-                                     vhartree=v_hartree_gspace, &
-                                     dvhartree=my_dphi_tot, &
-                                     h_stress=h_stress)
-            ELSE
-               CALL pw_poisson_solve(poisson_env=poisson_env, &
-                                     density=rho_tot_gspace, &
-                                     ehartree=e_tot, &
-                                     vhartree=v_hartree_gspace, &
-                                     dvhartree=my_dphi_tot)
-            END IF
-         END BLOCK
+         IF (calculate_stress_tensor) THEN
+            ! Request also the calculation of the stress tensor contribution
+            CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                  density=rho_tot_gspace, &
+                                  ehartree=e_tot, &
+                                  vhartree=v_hartree_gspace, &
+                                  dvhartree=dphi_tot, &
+                                  h_stress=h_stress)
+         ELSE
+            CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                  density=rho_tot_gspace, &
+                                  ehartree=e_tot, &
+                                  vhartree=v_hartree_gspace, &
+                                  dvhartree=dphi_tot)
+         END IF
          CALL pw_transfer(v_hartree_gspace, phi_tot)
          energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
 
          ! Calculate the Hartree energy and potential of the solute only
          BLOCK
-            TYPE(pw_type) :: phi_solute
-            CALL auxbas_pw_pool%create_pw(phi_solute, &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
+            TYPE(pw_r3d_type) :: phi_solute
+            CALL auxbas_pw_pool%create_pw(phi_solute, in_space=REALSPACE)
             CALL pw_zero(phi_solute)
             CALL pw_poisson_solve(poisson_env=poisson_env, &
                                   density=rho_solute, &
@@ -820,10 +783,10 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               dphi2 = dphi_tot(1)%cr3d(i, j, k)*dphi_tot(1)%cr3d(i, j, k) + &
-                       dphi_tot(2)%cr3d(i, j, k)*dphi_tot(2)%cr3d(i, j, k) + &
-                       dphi_tot(3)%cr3d(i, j, k)*dphi_tot(3)%cr3d(i, j, k)
-               v_sccs%cr3d(i, j, k) = v_sccs%cr3d(i, j, k) + f*deps_elec%cr3d(i, j, k)*dphi2
+               dphi2 = dphi_tot(1)%array(i, j, k)*dphi_tot(1)%array(i, j, k) + &
+                       dphi_tot(2)%array(i, j, k)*dphi_tot(2)%array(i, j, k) + &
+                       dphi_tot(3)%array(i, j, k)*dphi_tot(3)%array(i, j, k)
+               v_sccs%array(i, j, k) = v_sccs%array(i, j, k) + f*deps_elec%array(i, j, k)*dphi2
             END DO
          END DO
       END DO
@@ -859,7 +822,7 @@ CONTAINS
    SUBROUTINE andreussi(rho_elec, eps_elec, deps_elec, epsilon_solvent, rho_max, &
                         rho_min)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho_elec, eps_elec, deps_elec
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'andreussi'
@@ -893,20 +856,20 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               rho = rho_elec%cr3d(i, j, k)
+               rho = rho_elec%array(i, j, k)
                IF (rho < rho_min) THEN
-                  eps_elec%cr3d(i, j, k) = epsilon_solvent
-                  deps_elec%cr3d(i, j, k) = 0.0_dp
+                  eps_elec%array(i, j, k) = epsilon_solvent
+                  deps_elec%array(i, j, k) = 0.0_dp
                ELSE IF (rho <= rho_max) THEN
                   x = LOG(rho)
                   y = q*(ln_rho_max - x)
                   t = f*(y - SIN(y))
-                  eps_elec%cr3d(i, j, k) = EXP(t)
+                  eps_elec%array(i, j, k) = EXP(t)
                   dt = dq*(1.0_dp - COS(y))
-                  deps_elec%cr3d(i, j, k) = eps_elec%cr3d(i, j, k)*dt/rho
+                  deps_elec%array(i, j, k) = eps_elec%array(i, j, k)*dt/rho
                ELSE
-                  eps_elec%cr3d(i, j, k) = 1.0_dp
-                  deps_elec%cr3d(i, j, k) = 0.0_dp
+                  eps_elec%array(i, j, k) = 1.0_dp
+                  deps_elec%array(i, j, k) = 0.0_dp
                END IF
             END DO
          END DO
@@ -933,7 +896,7 @@ CONTAINS
    SUBROUTINE fattebert_gygi(rho_elec, eps_elec, deps_elec, epsilon_solvent, beta, &
                              rho_zero)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho_elec, eps_elec, deps_elec
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fattebert_gygi'
@@ -961,16 +924,16 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               rho = rho_elec%cr3d(i, j, k)
+               rho = rho_elec%array(i, j, k)
                IF (rho < rhotol) THEN
-                  eps_elec%cr3d(i, j, k) = epsilon_solvent
-                  deps_elec%cr3d(i, j, k) = 0.0_dp
+                  eps_elec%array(i, j, k) = epsilon_solvent
+                  deps_elec%array(i, j, k) = 0.0_dp
                ELSE
                   s = rho*q
                   p = s**twobeta
                   t = 1.0_dp/(1.0_dp + p)
-                  eps_elec%cr3d(i, j, k) = 1.0_dp + f*(1.0_dp + (1.0_dp - p)*t)
-                  deps_elec%cr3d(i, j, k) = df*twobeta*t*t*p/s
+                  eps_elec%array(i, j, k) = 1.0_dp + f*(1.0_dp + (1.0_dp - p)*t)
+                  deps_elec%array(i, j, k) = df*twobeta*t*t*p/s
                END IF
             END DO
          END DO
@@ -995,8 +958,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive(f, df, method, pw_env, input)
 
-      TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
+      TYPE(pw_r3d_type), INTENT(IN)                      :: f
+      TYPE(pw_r3d_type), DIMENSION(3), INTENT(INOUT)     :: df
       INTEGER, INTENT(IN)                                :: method
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(section_vals_type), POINTER                   :: input
@@ -1106,7 +1069,7 @@ CONTAINS
    SUBROUTINE surface_andreussi(rho_elec, norm_drho_elec, dtheta, &
                                 epsilon_solvent, rho_max, rho_min, delta_rho)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho_elec, norm_drho_elec, dtheta
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, norm_drho_elec, dtheta
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min, &
                                                             delta_rho
 
@@ -1143,7 +1106,7 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                DO l = 1, 2
-                  rho = rho_elec%cr3d(i, j, k) + (REAL(l, KIND=dp) - 1.5_dp)*delta_rho
+                  rho = rho_elec%array(i, j, k) + (REAL(l, KIND=dp) - 1.5_dp)*delta_rho
                   IF (rho < rho_min) THEN
                      eps_elec = epsilon_solvent
                   ELSE IF (rho <= rho_max) THEN
@@ -1156,7 +1119,7 @@ CONTAINS
                   END IF
                   theta(l) = (epsilon_solvent - eps_elec)/e
                END DO
-               dtheta%cr3d(i, j, k) = (theta(2) - theta(1))*norm_drho_elec%cr3d(i, j, k)/delta_rho
+               dtheta%array(i, j, k) = (theta(2) - theta(1))*norm_drho_elec%array(i, j, k)/delta_rho
             END DO
          END DO
       END DO
@@ -1186,7 +1149,7 @@ CONTAINS
    SUBROUTINE surface_fattebert_gygi(rho_elec, norm_drho_elec, dtheta, &
                                      epsilon_solvent, beta, rho_zero, delta_rho)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho_elec, norm_drho_elec, dtheta
+      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_elec, norm_drho_elec, dtheta
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero, &
                                                             delta_rho
 
@@ -1217,7 +1180,7 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                DO l = 1, 2
-                  rho = rho_elec%cr3d(i, j, k) + (REAL(l, KIND=dp) - 1.5_dp)*delta_rho
+                  rho = rho_elec%array(i, j, k) + (REAL(l, KIND=dp) - 1.5_dp)*delta_rho
                   IF (rho < rhotol) THEN
                      eps_elec = epsilon_solvent
                   ELSE
@@ -1228,7 +1191,7 @@ CONTAINS
                   END IF
                   theta(l) = (epsilon_solvent - eps_elec)/e
                END DO
-               dtheta%cr3d(i, j, k) = (theta(2) - theta(1))*norm_drho_elec%cr3d(i, j, k)/delta_rho
+               dtheta%array(i, j, k) = (theta(2) - theta(1))*norm_drho_elec%array(i, j, k)/delta_rho
             END DO
          END DO
       END DO
