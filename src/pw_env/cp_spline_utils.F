@@ -24,8 +24,7 @@ MODULE cp_spline_utils
         pw_spline_precond_create, pw_spline_precond_release, pw_spline_precond_set_kind, &
         pw_spline_precond_type, spl3_1d_transf_border1, spl3_1d_transf_coeffs, spl3_nopbc, &
         spl3_nopbct, spl3_pbc
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -54,8 +53,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_restrict_s3(pw_fine_in, pw_coarse_out, coarse_pool, param_section)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_fine_in
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw_coarse_out
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_fine_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_coarse_out
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
@@ -67,7 +66,7 @@ CONTAINS
       INTEGER, SAVE                                      :: ifile = 0
       LOGICAL                                            :: pbc, safe_computation, success
       REAL(kind=dp)                                      :: eps_r, eps_x
-      TYPE(pw_r3d_type)                                  :: coeffs, values
+      TYPE(pw_r3d_rs_type)                               :: coeffs, values
       TYPE(pw_spline_precond_type)                       :: precond
 
       ifile = ifile + 1
@@ -90,8 +89,7 @@ CONTAINS
       pbc = (interp_kind == spline3_pbc_interp)
       CPASSERT(pbc .OR. interp_kind == spline3_nopbc_interp)
       bo = pw_coarse_out%pw_grid%bounds_local
-      CALL coarse_pool%create_pw(values, &
-                                 in_space=REALSPACE)
+      CALL coarse_pool%create_pw(values)
       CALL pw_zero(values)
 
       CALL add_fine2coarse(fine_values_pw=pw_fine_in, &
@@ -100,8 +98,7 @@ CONTAINS
                            w_border1=spl3_1d_transf_border1/2._dp, pbc=pbc, &
                            safe_computation=safe_computation)
 
-      CALL coarse_pool%create_pw(coeffs, &
-                                 in_space=REALSPACE)
+      CALL coarse_pool%create_pw(coeffs)
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=coarse_pool, pbc=pbc, transpose=.TRUE.)
       CALL pw_spline_do_precond(precond, values, coeffs)
@@ -138,7 +135,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_prolongate_s3(pw_coarse_in, pw_fine_out, coarse_pool, &
                                param_section)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw_coarse_in, pw_fine_out
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_coarse_in, pw_fine_out
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
@@ -150,13 +147,12 @@ CONTAINS
       INTEGER, SAVE                                      :: ifile = 0
       LOGICAL                                            :: pbc, safe_computation, success
       REAL(kind=dp)                                      :: eps_r, eps_x
-      TYPE(pw_r3d_type)                                  :: coeffs
+      TYPE(pw_r3d_rs_type)                               :: coeffs
       TYPE(pw_spline_precond_type)                       :: precond
 
       ifile = ifile + 1
       CALL timeset(routineN, handle)
-      CALL coarse_pool%create_pw(coeffs, &
-                                 in_space=REALSPACE)
+      CALL coarse_pool%create_pw(coeffs)
       bo = pw_coarse_in%pw_grid%bounds_local
       CALL section_vals_val_get(param_section, "safe_computation", &
                                 l_val=safe_computation)

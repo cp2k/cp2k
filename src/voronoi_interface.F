@@ -21,7 +21,7 @@ MODULE voronoi_interface
                            Brehm2021, cite_reference
    USE kinds, ONLY: dp, default_path_length
    USE cell_types, ONLY: cell_type, pbc
-   USE pw_types, ONLY: pw_r3d_type
+   USE pw_types, ONLY: pw_r3d_rs_type
    USE physcon, ONLY: bohr, debye
    USE mathconstants, ONLY: fourpi
    USE orbital_pointers, ONLY: indco
@@ -316,7 +316,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_voro, input_bqb
       INTEGER, INTENT(IN)                                :: unit_voro
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_r3d_type)                             :: rspace_pw
+      TYPE(pw_r3d_rs_type)                             :: rspace_pw
 
 #if defined(__LIBVORI)
 

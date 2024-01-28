@@ -47,9 +47,8 @@ MODULE xray_diffraction
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -106,7 +105,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: rhotot_elec_gspace
+      TYPE(pw_c1d_gs_type)                               :: rhotot_elec_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -161,8 +160,7 @@ CONTAINS
 
       ! Plane waves grid to assemble the total electronic density
 
-      CALL auxbas_pw_pool%create_pw(pw=rhotot_elec_gspace, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=rhotot_elec_gspace)
       CALL pw_zero(rhotot_elec_gspace)
 
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw_grid, &
@@ -489,7 +487,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rhotot_elec_gspace
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rhotot_elec_gspace
       REAL(KIND=dp), INTENT(IN)                          :: q_max
       REAL(KIND=dp), INTENT(OUT)                         :: rho_hard, rho_soft
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign
@@ -511,8 +509,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_C1d_type)                                  :: rho_elec_gspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_c1d_gs_type)                               :: rho_elec_gspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: cpc_h, cpc_s
@@ -560,8 +558,7 @@ CONTAINS
 
       ! Load the soft contribution of the electronic density
 
-      CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace)
 
       CALL pw_zero(rhotot_elec_gspace)
 
@@ -782,7 +779,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: pab
       INTEGER, INTENT(IN)                                :: na, nb
       REAL(dp), INTENT(IN)                               :: eps_rho_gspace, gsq_max
-      TYPE(pw_c1d_type), INTENT(IN)                      :: pw
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_pgf_product_gspace'
 

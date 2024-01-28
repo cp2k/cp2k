@@ -21,7 +21,7 @@ MODULE xc_xalpha
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE xc_derivative_desc,              ONLY: deriv_rho,&
                                               deriv_rhoa,&
                                               deriv_rhob
@@ -556,8 +556,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE xalpha_fxc_eval(rho_a, rho_b, fxc_aa, fxc_bb, scale_x, eps_rho)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_a, rho_b
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fxc_aa, fxc_bb
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_a, rho_b
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: fxc_aa, fxc_bb
       REAL(KIND=dp), INTENT(IN)                          :: scale_x, eps_rho
 
       INTEGER                                            :: i, j, k

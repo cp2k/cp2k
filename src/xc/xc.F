@@ -44,9 +44,7 @@ MODULE xc
    USE pw_pool_types, ONLY: &
       pw_pool_type
    USE pw_types, ONLY: &
-      REALSPACE, &
-      RECIPROCALSPACE, &
-      pw_c1d_type, pw_r3d_type
+      pw_c1d_gs_type, pw_r3d_rs_type
    USE xc_derivative_desc, ONLY: &
       deriv_rho, deriv_rhoa, deriv_rhob, &
       deriv_norm_drhoa, deriv_norm_drhob, deriv_norm_drho, deriv_tau_a, deriv_tau_b, deriv_tau, &
@@ -150,15 +148,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_vxc_pw_create1(vxc_rho, vxc_tau, rho_r, rho_g, tau, exc, xc_section, &
                                 pw_pool, compute_virial, virial_xc, exc_r)
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER :: rho_r, tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       REAL(KIND=dp), INTENT(out)                         :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL, INTENT(IN)                                :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
-      TYPE(pw_r3d_type), INTENT(INOUT), OPTIONAL           :: exc_r
+      TYPE(pw_r3d_rs_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
       INTEGER                                            :: f_routine
 
@@ -214,9 +212,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho, vxc_tau, rho_r, rho_g, tau, &
                                         exc, xc_section, pw_pool)
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho_r, tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       REAL(KIND=dp), INTENT(out)                         :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -231,9 +229,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: pot, pot2, pot3
       TYPE(cp_sll_xc_deriv_type), POINTER                :: deriv_iter
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rho2, vxc_tau2
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho2_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               ::  rho2_r, tau2
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rho2, vxc_tau2
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho2_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               ::  rho2_r, tau2
       TYPE(xc_derivative_set_type)                       :: dSet1, dSet2
       TYPE(xc_derivative_type), POINTER                  :: deriv, deriv2, deriv3
       TYPE(xc_rho_set_type)                              :: rho_set1, rho_set2
@@ -245,7 +243,7 @@ CONTAINS
 
       ALLOCATE (rho2_r(2))
       DO ispin = 1, 2
-         CALL pw_pool%create_pw(rho2_r(ispin), in_space=REALSPACE)
+         CALL pw_pool%create_pw(rho2_r(ispin))
       END DO
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
@@ -260,7 +258,7 @@ CONTAINS
       IF (ASSOCIATED(tau)) THEN
          ALLOCATE (tau2(2))
          DO ispin = 1, 2
-            CALL pw_pool%create_pw(tau2(ispin), in_space=REALSPACE)
+            CALL pw_pool%create_pw(tau2(ispin))
          END DO
 
          DO k = bo(1, 3), bo(2, 3)
@@ -551,9 +549,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_vxc_pw_create_debug(vxc_rho, vxc_tau, rho_r, rho_g, tau, exc, &
                                      xc_section, pw_pool)
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho_r, tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       REAL(KIND=dp), INTENT(out)                         :: exc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -845,8 +843,8 @@ CONTAINS
       TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(xc_derivative_set_type)                       :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho_r, tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL, INTENT(in)                                :: calc_potential
@@ -1062,8 +1060,8 @@ CONTAINS
    END SUBROUTINE smooth_cutoff
 
    SUBROUTINE calc_xc_density(pot, rho, rho_cutoff)
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: pot
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(INOUT)         :: rho
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: pot
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)         :: rho
       REAL(kind=dp), INTENT(in)                          :: rho_cutoff
 
       INTEGER                                            :: i, j, k, nspins
@@ -1133,15 +1131,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_vxc_pw_create(vxc_rho, vxc_tau, exc, rho_r, rho_g, tau, xc_section, &
                                pw_pool, compute_virial, virial_xc, exc_r)
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
       REAL(KIND=dp), INTENT(out)                         :: exc
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho_r, tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL                                            :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
-      TYPE(pw_r3d_type), INTENT(INOUT), OPTIONAL            :: exc_r
+      TYPE(pw_r3d_rs_type), INTENT(INOUT), OPTIONAL            :: exc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create'
       INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
@@ -1159,9 +1157,9 @@ CONTAINS
                                                             rho, rhoa, rhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_r3d_type), DIMENSION(3)                      :: pw_to_deriv, pw_to_deriv_rho
-      TYPE(pw_c1d_type) :: tmp_g, vxc_g
-      TYPE(pw_r3d_type)                                      ::  v_drho_r, virial_pw
+      TYPE(pw_r3d_rs_type), DIMENSION(3)                      :: pw_to_deriv, pw_to_deriv_rho
+      TYPE(pw_c1d_gs_type) :: tmp_g, vxc_g
+      TYPE(pw_r3d_rs_type)                                      ::  v_drho_r, virial_pw
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
       TYPE(xc_rho_set_type)                              :: rho_set
@@ -1234,7 +1232,7 @@ CONTAINS
 
          CPASSERT(ASSOCIATED(deriv_data))
          IF (use_virial) THEN
-            CALL pw_pool%create_pw(virial_pw, in_space=REALSPACE)
+            CALL pw_pool%create_pw(virial_pw)
             CALL pw_zero(virial_pw)
             DO idir = 1, 3
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(virial_pw,pw_to_deriv_rho,deriv_data,idir)
@@ -1262,11 +1260,9 @@ CONTAINS
       END IF
 
       IF ((has_gradient .AND. xc_requires_tmp_g(xc_deriv_method_id)) .OR. pw_grid%spherical) THEN
-         CALL pw_pool%create_pw(vxc_g, &
-                                in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(vxc_g)
          IF (.NOT. pw_grid%spherical) THEN
-            CALL pw_pool%create_pw(tmp_g, &
-                                   in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(tmp_g)
          END IF
       END IF
 
@@ -1291,7 +1287,7 @@ CONTAINS
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
                IF (use_virial) THEN
-                  CALL pw_pool%create_pw(virial_pw, in_space=REALSPACE)
+                  CALL pw_pool%create_pw(virial_pw)
                   CALL pw_zero(virial_pw)
                   DO idir = 1, 3
 !$OMP                PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv,virial_pw,idir)
@@ -1383,8 +1379,7 @@ CONTAINS
                             rho_smooth_cutoff_range=density_smooth_cut_range)
 
          v_drho_r = vxc_rho(ispin)
-         CALL pw_pool%create_pw(vxc_rho(ispin), &
-                                in_space=REALSPACE)
+         CALL pw_pool%create_pw(vxc_rho(ispin))
          CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin), xc_rho_smooth_id)
          CALL pw_pool%give_back_pw(v_drho_r)
       END DO
@@ -1452,8 +1447,8 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION xc_exc_calc(rho_r, rho_g, tau, xc_section, pw_pool) &
       RESULT(exc)
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho_r, tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(kind=dp)                                      :: exc
@@ -1527,11 +1522,11 @@ CONTAINS
                                 lsd_singlets, do_excitations, do_triplet, do_tddft, &
                                 compute_virial, virial_xc)
 
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type)                              :: rho_set
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho1_r, tau1_r
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho1_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho1_r, tau1_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho1_g
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: gapw
@@ -1581,7 +1576,7 @@ CONTAINS
       NULLIFY (v_xc, v_xc_tau)
       ALLOCATE (v_xc(nspins))
       DO ispin = 1, nspins
-         CALL pw_pool%create_pw(v_xc(ispin), in_space=REALSPACE)
+         CALL pw_pool%create_pw(v_xc(ispin))
          CALL pw_zero(v_xc(ispin))
       END DO
 
@@ -1593,7 +1588,7 @@ CONTAINS
             CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
          ALLOCATE (v_xc_tau(nspins))
          DO ispin = 1, nspins
-            CALL pw_pool%create_pw(v_xc_tau(ispin), in_space=REALSPACE)
+            CALL pw_pool%create_pw(v_xc_tau(ispin))
             CALL pw_zero(v_xc_tau(ispin))
          END DO
       END IF
@@ -1659,10 +1654,10 @@ CONTAINS
                                           pw_pool, xc_section, &
                                           do_triplet, calc_virial, virial_xc, deriv_set)
 
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc, v_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc, v_tau
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_r, tau1_r
-      TYPE(pw_c1d_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_r, tau1_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_g
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: do_triplet
@@ -1691,11 +1686,11 @@ CONTAINS
                                                             laplacea, laplaceb, laplace1a, laplace1b, &
                                                             laplace2, laplace2a, laplace2b, deriv_data
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drho1, drho1a, drho1b, drhoa, drhob
-      TYPE(pw_r3d_type)                                      :: v_drho, v_drhoa, v_drhob
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               ::  rho_r, tau_r
-      TYPE(pw_r3d_type)                                      :: virial_pw, v_laplace, v_laplacea, v_laplaceb
+      TYPE(pw_r3d_rs_type)                                      :: v_drho, v_drhoa, v_drhob
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               ::  rho_r, tau_r
+      TYPE(pw_r3d_rs_type)                                      :: virial_pw, v_laplace, v_laplacea, v_laplaceb
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set1
       TYPE(xc_rho_cflags_type)                           :: needs
@@ -1720,12 +1715,12 @@ CONTAINS
          NULLIFY (vxc_rho, rho_g, vxc_tau)
          ALLOCATE (rho_r(2))
          DO ispin = 1, nspins
-            CALL pw_pool%create_pw(rho_r(ispin), in_space=REALSPACE)
+            CALL pw_pool%create_pw(rho_r(ispin))
          END DO
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(2))
             DO ispin = 1, nspins
-               CALL pw_pool%create_pw(tau_r(ispin), in_space=REALSPACE)
+               CALL pw_pool%create_pw(tau_r(ispin))
             END DO
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rhoa=rhoa, rhob=rhob, tau_a=tau_a, tau_b=tau_b)
@@ -1756,12 +1751,12 @@ CONTAINS
          NULLIFY (vxc_rho, vxc_tau, rho_g)
          ALLOCATE (rho_r(2))
          DO ispin = 1, 2
-            CALL pw_pool%create_pw(rho_r(ispin), in_space=REALSPACE)
+            CALL pw_pool%create_pw(rho_r(ispin))
          END DO
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(2))
             DO ispin = 1, nspins
-               CALL pw_pool%create_pw(tau_r(ispin), in_space=REALSPACE)
+               CALL pw_pool%create_pw(tau_r(ispin))
             END DO
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rhoa=rhoa, rhob=rhob, tau_a=tau_a, tau_b=tau_b)
@@ -1839,10 +1834,10 @@ CONTAINS
       ELSE
          NULLIFY (vxc_rho, rho_r, rho_g, vxc_tau, tau_r, tau)
          ALLOCATE (rho_r(1))
-         CALL pw_pool%create_pw(rho_r(1), in_space=REALSPACE)
+         CALL pw_pool%create_pw(rho_r(1))
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(1))
-            CALL pw_pool%create_pw(tau_r(1), in_space=REALSPACE)
+            CALL pw_pool%create_pw(tau_r(1))
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rho=rho, tau=tau)
          DO istep = -nsteps, nsteps
@@ -2295,16 +2290,16 @@ CONTAINS
                                            tau_r, tau1_r, tau_a, tau_b, vxc_tau, &
                                            xc_section, pw_pool, step)
 
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER, INTENT(IN) :: vxc_rho, vxc_tau
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN)            :: rho1_r
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(IN), POINTER   :: tau1_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER, INTENT(IN) :: vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)            :: rho1_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), POINTER   :: tau1_r
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       REAL(KIND=dp), INTENT(IN)                          :: step
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER, INTENT(IN) :: rhoa, rhob, tau_a, tau_b
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER, INTENT(IN)   :: rho_r
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               ::  tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER, INTENT(IN)   :: rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               ::  tau_r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_potential_numer_ab'
 
@@ -2354,7 +2349,7 @@ CONTAINS
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, DIMENSION(:), INTENT(in)                  :: description
-      TYPE(pw_r3d_type), INTENT(IN)                          :: virial_pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                          :: virial_pw
       TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: norm_drho
@@ -2639,7 +2634,7 @@ CONTAINS
                                            pw_pool, xc_section, gapw, vxg, tddfpt_fac, &
                                            compute_virial, virial_xc)
 
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set, rho1_set
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -2667,10 +2662,10 @@ CONTAINS
                                                             tau1, tau1a, tau1b, laplace1, laplace1a, laplace1b, &
                                                             rho, rhoa, rhob
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drho1, drho1a, drho1b, drhoa, drhob
-      TYPE(pw_r3d_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_laplace
-      TYPE(pw_r3d_type), DIMENSION(:, :), ALLOCATABLE      :: v_drho_r
-      TYPE(pw_r3d_type)                                      ::  virial_pw
-      TYPE(pw_c1d_type) :: tmp_g, vxc_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_laplace
+      TYPE(pw_r3d_rs_type), DIMENSION(:, :), ALLOCATABLE      :: v_drho_r
+      TYPE(pw_r3d_rs_type)                                      ::  virial_pw
+      TYPE(pw_c1d_gs_type) :: tmp_g, vxc_g
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
       CALL timeset(routineN, handle)
@@ -2721,10 +2716,8 @@ CONTAINS
 
          IF (xc_requires_tmp_g(xc_deriv_method_id) .AND. .NOT. my_gapw) THEN
             IF (ASSOCIATED(pw_pool)) THEN
-               CALL pw_pool%create_pw(tmp_g, &
-                                      in_space=RECIPROCALSPACE)
-               CALL pw_pool%create_pw(vxc_g, &
-                                      in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(tmp_g)
+               CALL pw_pool%create_pw(vxc_g)
             ELSE
                ! remember to refix for gapw
                CPABORT("XC_DERIV method is not implemented in GAPW")
@@ -3059,18 +3052,16 @@ CONTAINS
 !> \param bo ...
 ! **************************************************************************************************
    SUBROUTINE allocate_pw(pw, pw_pool, bo)
-      TYPE(pw_r3d_type), INTENT(OUT)                         :: pw
+      TYPE(pw_r3d_rs_type), INTENT(OUT)                         :: pw
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
       IF (ASSOCIATED(pw_pool)) THEN
-         CALL pw_pool%create_pw(pw, &
-                                in_space=REALSPACE)
+         CALL pw_pool%create_pw(pw)
          CALL pw_zero(pw)
       ELSE
          ALLOCATE (pw%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          pw%array = 0.0_dp
-         pw%in_space = REALSPACE
       END IF
 
    END SUBROUTINE allocate_pw
@@ -3081,7 +3072,7 @@ CONTAINS
 !> \param pw_pool ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_pw(pw, pw_pool)
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: pw
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
 
       IF (ASSOCIATED(pw_pool)) THEN
@@ -3101,7 +3092,7 @@ CONTAINS
 !> \param virial_xc ...
 ! **************************************************************************************************
    SUBROUTINE virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
-      TYPE(pw_r3d_type), INTENT(IN)                          :: virial_pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                          :: virial_pw
       TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: deriv_data
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
@@ -3132,9 +3123,9 @@ CONTAINS
 !> \param virial_xc ...
 ! **************************************************************************************************
    SUBROUTINE virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
-      TYPE(pw_r3d_type), INTENT(IN)                          :: virial_pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                          :: virial_pw
       TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho
-      TYPE(pw_r3d_type), INTENT(IN)                        :: v_drho
+      TYPE(pw_r3d_rs_type), INTENT(IN)                        :: v_drho
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
 
       INTEGER                                            :: idir, jdir
@@ -3163,7 +3154,7 @@ CONTAINS
 !> \param deriv_data ...
 ! **************************************************************************************************
    SUBROUTINE virial_laplace(rho_r, pw_pool, virial_xc, deriv_data)
-      TYPE(pw_r3d_type), TARGET :: rho_r
+      TYPE(pw_r3d_rs_type), TARGET :: rho_r
       TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: virial_xc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN) :: deriv_data
@@ -3171,17 +3162,17 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'virial_laplace'
 
       INTEGER :: handle, idir, jdir
-      TYPE(pw_r3d_type), POINTER :: virial_pw
-      TYPE(pw_c1d_type), POINTER :: tmp_g, rho_g
+      TYPE(pw_r3d_rs_type), POINTER :: virial_pw
+      TYPE(pw_c1d_gs_type), POINTER :: tmp_g, rho_g
       INTEGER, DIMENSION(3) :: my_deriv
 
       CALL timeset(routineN, handle)
 
       NULLIFY (virial_pw, tmp_g, rho_g)
       ALLOCATE (virial_pw, tmp_g, rho_g)
-      CALL pw_pool%create_pw(virial_pw, in_space=REALSPACE)
-      CALL pw_pool%create_pw(tmp_g, in_space=RECIPROCALSPACE)
-      CALL pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(virial_pw)
+      CALL pw_pool%create_pw(tmp_g)
+      CALL pw_pool%create_pw(rho_g)
       CALL pw_zero(virial_pw)
       CALL pw_transfer(rho_r, rho_g)
       DO idir = 1, 3
@@ -3225,17 +3216,17 @@ CONTAINS
 
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type)                              :: rho_set
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho_r
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_r3d_type), DIMENSION(:), OPTIONAL, POINTER     :: tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), OPTIONAL, POINTER     :: tau_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_prep_2nd_deriv'
 
       INTEGER                                            :: handle, nspins
       LOGICAL                                            :: lsd
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER               :: rho_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER :: tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER               :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER :: tau
 
       CALL timeset(routineN, handle)
 

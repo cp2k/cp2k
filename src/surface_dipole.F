@@ -24,9 +24,8 @@ MODULE surface_dipole
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -73,13 +72,13 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rhoavsurf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), POINTER                         :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: vdip_r, wf_r
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type)                               :: vdip_r, wf_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -99,8 +98,8 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      CALL auxbas_pw_pool%create_pw(wf_r, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(vdip_r, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r)
+      CALL auxbas_pw_pool%create_pw(vdip_r)
 
       IF (dft_control%qs_control%gapw) THEN
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN

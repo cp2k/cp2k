@@ -20,7 +20,7 @@ MODULE xc_pade
    USE bibliography,                    ONLY: Goedecker1996,&
                                               cite_reference
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE xc_derivative_desc,              ONLY: deriv_rho,&
                                               deriv_rhoa,&
                                               deriv_rhob
@@ -810,8 +810,8 @@ CONTAINS
 !> \param fxc_bb ...
 ! **************************************************************************************************
    SUBROUTINE pade_fxc_eval(rho_a, rho_b, fxc_aa, fxc_ab, fxc_bb)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho_a, rho_b
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: fxc_aa, fxc_ab, fxc_bb
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_a, rho_b
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: fxc_aa, fxc_ab, fxc_bb
 
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo

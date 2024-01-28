@@ -30,8 +30,8 @@ MODULE dgs
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_multiply_with,&
                                               pw_zero
-   USE pw_types,                        ONLY: pw_c3d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c3d_rs_type,&
+                                              pw_r3d_rs_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
 #include "../base/base_uses.f90"
@@ -403,7 +403,7 @@ CONTAINS
    PURE SUBROUTINE dg_sum_patch_coef(rs, rhos, center)
 
       TYPE(realspace_grid_type), INTENT(INOUT)           :: rs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
 
       INTEGER                                            :: i, ia, ii
@@ -706,7 +706,7 @@ CONTAINS
 
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: drpot
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
 
@@ -780,7 +780,7 @@ CONTAINS
    PURE SUBROUTINE dg_sum_patch_force_coef_1d(drpot, rhos, center, force)
 
       TYPE(realspace_grid_type), INTENT(INOUT)           :: drpot
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rhos
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), INTENT(OUT)                         :: force
 
@@ -853,21 +853,21 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_get_patch_1(rho0, rhos1, charge1, ex1, ey1, ez1)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho0
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rhos1
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho0
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rhos1
       REAL(KIND=dp), INTENT(IN)                          :: charge1
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex1, ey1, ez1
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       INTEGER                                            :: nd(3)
-      TYPE(pw_c3d_type)                                  :: cd
+      TYPE(pw_c3d_rs_type)                               :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      CALL cd%create(rho0%pw_grid, rho0%in_space)
+      CALL cd%create(rho0%pw_grid)
       CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -899,21 +899,21 @@ CONTAINS
    SUBROUTINE dg_get_patch_2(rho0, rhos1, rhos2, charge1, charge2, &
                              ex1, ey1, ez1, ex2, ey2, ez2)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: rho0
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rhos1, rhos2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho0
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rhos1, rhos2
       REAL(KIND=dp), INTENT(IN)                          :: charge1, charge2
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex1, ey1, ez1, ex2, ey2, ez2
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       INTEGER                                            :: nd(3)
-      TYPE(pw_c3d_type)                                  :: cd
+      TYPE(pw_c3d_rs_type)                               :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      CALL cd%create(rhos1%pw_grid, rho0%in_space)
+      CALL cd%create(rhos1%pw_grid)
       CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)

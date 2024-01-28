@@ -62,10 +62,8 @@ MODULE transport
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -653,12 +651,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: zero
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(pw_c1d_type)                                  :: gs
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type)                               :: gs
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: rs
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type)                               :: rs
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -695,8 +693,8 @@ CONTAINS
                current_env%gauge = -1
                current_env%gauge_init = .FALSE.
 
-               CALL auxbas_pw_pool%create_pw(rs, in_space=REALSPACE)
-               CALL auxbas_pw_pool%create_pw(gs, in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(rs)
+               CALL auxbas_pw_pool%create_pw(gs)
 
                NULLIFY (zero)
                ALLOCATE (zero)

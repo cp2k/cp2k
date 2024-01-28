@@ -20,8 +20,7 @@ MODULE qs_linres_nmr_epr_common_utils
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: RECIPROCALSPACE,&
-                                              pw_c1d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -57,20 +56,20 @@ CONTAINS
    SUBROUTINE mult_G_ov_G2_grid(pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_c1d_type), INTENT(IN)                      :: rho_gspace
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: funcG_times_rho
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_gspace
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: funcG_times_rho
       INTEGER, INTENT(IN)                                :: idir
       REAL(dp), INTENT(IN)                               :: my_chi
 
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: g2
-      TYPE(pw_c1d_type)                                  :: influence_fn
+      TYPE(pw_c1d_gs_type)                               :: influence_fn
       TYPE(pw_grid_type), POINTER                        :: grid
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mult_G_ov_G2_grid'
 
       CALL timeset(routineN, handle)
 
-      CALL pw_pool%create_pw(influence_fn, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(influence_fn)
 
       grid => influence_fn%pw_grid
       DO ig = grid%first_gne0, grid%ngpts_cut_local

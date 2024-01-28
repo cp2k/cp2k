@@ -59,8 +59,8 @@ MODULE lri_environment_methods
                                               invmat_symm
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -351,8 +351,8 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: pmat_diag
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
 
       CALL timeset(routineN, handle)
 
@@ -847,8 +847,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: soo_list
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)

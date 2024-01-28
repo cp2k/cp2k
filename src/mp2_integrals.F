@@ -79,8 +79,8 @@ MODULE mp2_integrals
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -283,11 +283,11 @@ CONTAINS
          DIMENSION(:)                                    :: intermed_mat, intermed_mat_gw
       TYPE(mp_cart_type)                                 :: mp_comm_t3c_2
       TYPE(neighbor_list_3c_type)                        :: nl_3c
-      TYPE(pw_c1d_type)                                  :: pot_g, rho_g
+      TYPE(pw_c1d_gs_type)                               :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: psi_L, rho_r
+      TYPE(pw_r3d_rs_type)                               :: psi_L, rho_r
       TYPE(section_vals_type), POINTER                   :: qs_section
       TYPE(task_list_type), POINTER                      :: task_list_sub
 

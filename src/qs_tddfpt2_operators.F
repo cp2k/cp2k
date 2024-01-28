@@ -37,8 +37,8 @@ MODULE qs_tddfpt2_operators
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
@@ -159,15 +159,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
                                    qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(INOUT)     :: A_ia_rspace
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_ia_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)  :: A_ia_rspace
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_ia_g
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       LOGICAL, INTENT(IN)                                :: gapw
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: work_v_gspace
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: work_v_rspace
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: work_v_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: work_v_rspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb'
 
@@ -236,12 +236,12 @@ CONTAINS
    SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
                               pw_env, work_v_xc, work_v_xc_tau)
 
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(INOUT)     :: A_ia_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)  :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(IN)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: work_v_xc, work_v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: work_v_xc, work_v_xc_tau
 
       INTEGER                                            :: ispin, nspins
 
@@ -272,14 +272,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc_potential(A_ia_rspace, fxc_rspace, rho_ia_struct, is_rks_triplets)
 
-      TYPE(pw_r3d_type), DIMENSION(:), INTENT(INOUT)     :: A_ia_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)  :: A_ia_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rspace
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
 
       INTEGER                                            :: nspins
       REAL(KIND=dp)                                      :: alpha
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r
 
       nspins = SIZE(A_ia_rspace)
 
@@ -329,14 +329,14 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       INTEGER, INTENT(in)                                :: nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: work_v_xc, work_v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_analytic'
 
       INTEGER                                            :: handle, ispin
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_ia_g, rho_ia_g2
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_ia_g, rho_ia_g2
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_ia_r, rho_ia_r2, tau_ia_r, tau_ia_r2
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ia_r, rho_ia_r2, tau_ia_r, tau_ia_r2
 
       CALL timeset(routineN, handle)
 
@@ -414,15 +414,15 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       INTEGER, INTENT(in)                                :: nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: work_v_xc, work_v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_fd'
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: lsd, singlet, triplet
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, tau1_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)

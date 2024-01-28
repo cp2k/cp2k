@@ -18,7 +18,7 @@ MODULE xc_perdew_wang
    #:include "xc_perdew_wang.fypp"
 
    USE kinds, ONLY: dp
-   USE pw_types, ONLY: pw_r3d_type
+   USE pw_types, ONLY: pw_r3d_rs_type
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_get_derivative
    USE xc_derivative_types, ONLY: xc_derivative_get, &
@@ -431,8 +431,8 @@ CONTAINS
 !> \param eps_rho ...
 ! **************************************************************************************************
    SUBROUTINE perdew_wang_fxc_calc(rho_a, rho_b, fxc_aa, fxc_ab, fxc_bb, scalec, eps_rho)
-      TYPE(pw_r3d_type), INTENT(IN)                          :: rho_a, rho_b
-      TYPE(pw_r3d_type), INTENT(INOUT)                       :: fxc_aa, fxc_ab, fxc_bb
+      TYPE(pw_r3d_rs_type), INTENT(IN)                          :: rho_a, rho_b
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: fxc_aa, fxc_ab, fxc_bb
       REAL(kind=dp), INTENT(in)                          :: scalec, eps_rho
 
       INTEGER                                            :: i, j, k

@@ -20,7 +20,7 @@ MODULE qs_ks_qmmm_types
                                               pw_env_release,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,8 +48,8 @@ MODULE qs_ks_qmmm_types
       INTEGER :: n_evals
       REAL(KIND=dp)                               :: pc_ener
       TYPE(pw_env_type), POINTER                  :: pw_env
-      TYPE(pw_r3d_type)                             :: v_qmmm_rspace
-      TYPE(pw_r3d_type), POINTER                             :: v_metal_rspace
+      TYPE(pw_r3d_rs_type)                             :: v_qmmm_rspace
+      TYPE(pw_r3d_rs_type), POINTER                             :: v_metal_rspace
       TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                                :: matrix_h

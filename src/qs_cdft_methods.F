@@ -48,8 +48,7 @@ MODULE qs_cdft_methods
                                               pw_set,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
                                               cdft_control_type,&
                                               cdft_group_type,&
@@ -168,7 +167,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: charge
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: charge
 
       NULLIFY (cutoffs, cell, dft_control, particle_set, group, charge, cdft_control)
       CALL timeset(routineN, handle)
@@ -648,8 +647,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: pw_single_dr
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: pw_single_dr
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type)                          :: rs_rho_all, rs_rho_constr
@@ -753,19 +752,16 @@ CONTAINS
          ! Setup pw
          CALL pw_zero(cdft_control%group(igroup)%weight)
 
-         CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total_constraint, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total_constraint)
          CALL pw_set(cdft_control%group(igroup)%hw_rho_total_constraint, 1.0_dp)
 
          IF (igroup == 1) THEN
-            CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total, &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total)
             CALL pw_set(cdft_control%group(igroup)%hw_rho_total, 1.0_dp)
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
-                  CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_atomic(iatom), &
-                                                in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_atomic(iatom))
                   CALL pw_set(cdft_control%group(igroup)%hw_rho_atomic(iatom), 1.0_dp)
                END DO
             END IF
@@ -784,8 +780,7 @@ CONTAINS
             END DO
 
             DO iatom = 1, cdft_control%natoms
-               CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_atomic_charge(iatom))
                CALL pw_set(cdft_control%group(igroup)%hw_rho_atomic_charge(iatom), 1.0_dp)
             END DO
          END IF
@@ -972,8 +967,7 @@ CONTAINS
                ALLOCATE (rs_single_dr(num_species))
 
                DO i = 1, num_species
-                  CALL auxbas_pw_pool%create_pw(pw_single_dr(i), &
-                                                in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(pw_single_dr(i))
                   CALL pw_zero(pw_single_dr(i))
                END DO
 
@@ -1162,7 +1156,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: charge, rho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: charge, rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1353,7 +1347,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -1610,7 +1604,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: rho_frag
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: rho_frag
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group)
@@ -1665,29 +1659,24 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       ! Total density (rho_alpha + rho_beta)
-      CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 1), &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 1))
       CALL cp_cube_to_pw(cdft_control%fragments(1, 1), &
                          cdft_control%fragment_a_fname, 1.0_dp)
-      CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 2), &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 2))
       CALL cp_cube_to_pw(cdft_control%fragments(1, 2), &
                          cdft_control%fragment_b_fname, 1.0_dp)
       ! Spin difference density (rho_alpha - rho_beta) if needed
       IF (needs_spin_density) THEN
-         CALL auxbas_pw_pool%create_pw(cdft_control%fragments(2, 1), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%fragments(2, 1))
          CALL cp_cube_to_pw(cdft_control%fragments(2, 1), &
                             cdft_control%fragment_a_spin_fname, multiplier(1))
-         CALL auxbas_pw_pool%create_pw(cdft_control%fragments(2, 2), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(cdft_control%fragments(2, 2))
          CALL cp_cube_to_pw(cdft_control%fragments(2, 2), &
                             cdft_control%fragment_b_spin_fname, multiplier(2))
       END IF
       ! Sum up fragments
       DO i = 1, nfrag_spins
-         CALL auxbas_pw_pool%create_pw(rho_frag(i), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_frag(i))
          CALL pw_copy(cdft_control%fragments(i, 1), rho_frag(i))
          CALL pw_axpy(cdft_control%fragments(i, 2), rho_frag(i), 1.0_dp)
          CALL auxbas_pw_pool%give_back_pw(cdft_control%fragments(i, 1))

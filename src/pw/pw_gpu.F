@@ -36,10 +36,8 @@ MODULE pw_gpu
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type
    USE pw_grid_types,                   ONLY: FULLSPACE
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,8 +101,8 @@ CONTAINS
 !> \author Benjamin G Levine
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
@@ -128,9 +126,6 @@ CONTAINS
       END INTERFACE
 
       CALL timeset(routineN, handle)
-
-      IF (pw2%in_space /= RECIPROCALSPACE) &
-         CPABORT("Grid 2 must be in reciprocal space!")
 
       ngpts = SIZE(pw2%pw_grid%gsq)
       l1 = LBOUND(pw1%array, 1)
@@ -164,8 +159,8 @@ CONTAINS
 !> \author Benjamin G Levine
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
-      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw2
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
@@ -188,9 +183,6 @@ CONTAINS
       END INTERFACE
 
       CALL timeset(routineN, handle)
-
-      IF (pw2%in_space /= REALSPACE) &
-         CPABORT("Grid 2 must be in real space!")
 
       ngpts = SIZE(pw1%pw_grid%gsq)
       l1 = LBOUND(pw2%array, 1)
@@ -225,8 +217,8 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_c1d_type), INTENT(INOUT)                   :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
@@ -246,9 +238,6 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
-
-      IF (pw2%in_space /= RECIPROCALSPACE) &
-         CPABORT("Grid 2 must be in reciprocal space!")
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -400,8 +389,8 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw2
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
@@ -421,9 +410,6 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
-
-      IF (pw2%in_space /= REALSPACE) &
-         CPABORT("Grid 2 must be in real space!")
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -578,7 +564,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cff(pw1, pwbuf)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), TARGET                           :: pwbuf
 
@@ -628,7 +614,7 @@ CONTAINS
    SUBROUTINE pw_gpu_ffc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_ffc'
 
@@ -674,7 +660,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cf(pw1, pwbuf)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
 
@@ -723,7 +709,7 @@ CONTAINS
    SUBROUTINE pw_gpu_fc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fc'
 
@@ -818,7 +804,7 @@ CONTAINS
    SUBROUTINE pw_gpu_fg(pwbuf, pw2, scale)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_c1d_type), INTENT(IN)                      :: pw2
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
@@ -876,7 +862,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_sf(pw1, pwbuf, scale)
-      TYPE(pw_c1d_type), INTENT(IN)                      :: pw1
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
       REAL(KIND=dp), INTENT(IN)                          :: scale

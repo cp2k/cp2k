@@ -55,9 +55,7 @@ MODULE pw_poisson_methods
                             pw_pools_copy, &
                             pw_pools_dealloc
    USE pw_types, ONLY: &
-      REALSPACE, &
-      RECIPROCALSPACE, &
-      pw_r3d_type, pw_c1d_type, pw_r3d_type
+      pw_r3d_rs_type, pw_c1d_gs_type, pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,18 +72,18 @@ MODULE pw_poisson_methods
 
    INTERFACE pw_poisson_rebuild
       MODULE PROCEDURE pw_poisson_rebuild_nodens
-      MODULE PROCEDURE pw_poisson_rebuild_c1d, pw_poisson_rebuild_r3d
+      MODULE PROCEDURE pw_poisson_rebuild_c1d_gs, pw_poisson_rebuild_r3d_rs
    END INTERFACE
 
    INTERFACE pw_poisson_solve
-      #:for kindd in ['r3d', 'c1d']
+      #:for kindd in ['r3d_rs', 'c1d_gs']
          MODULE PROCEDURE pw_poisson_solve_nov_nodv_${kindd}$
-         #:for kindv in ['r3d', 'c1d']
+         #:for kindv in ['r3d_rs', 'c1d_gs']
             MODULE PROCEDURE pw_poisson_solve_v_nodv_${kindd}$_${kindv}$
          #:endfor
-         #:for kindg in ['r3d', 'c1d']
+         #:for kindg in ['r3d_rs', 'c1d_gs']
             MODULE PROCEDURE pw_poisson_solve_nov_dv_${kindd}$_${kindg}$
-            #:for kindv in ['r3d', 'c1d']
+            #:for kindv in ['r3d_rs', 'c1d_gs']
                MODULE PROCEDURE pw_poisson_solve_v_dv_${kindd}$_${kindv}$_${kindg}$
             #:endfor
          #:endfor
@@ -230,7 +228,7 @@ CONTAINS
 
    END SUBROUTINE pw_poisson_rebuild_nodens
 
-   #:for kindd in ["r3d", "c1d"]
+   #:for kindd in ["r3d_rs", "c1d_gs"]
 ! **************************************************************************************************
 !> \brief rebuilds all the internal values needed to use the poisson solver
 !> \param poisson_env the environment to rebuild
@@ -288,7 +286,7 @@ CONTAINS
       END SUBROUTINE pw_poisson_rebuild_${kindd}$
    #:endfor
 
-   #:for kindd in ['r3d', 'c1d']
+   #:for kindd in ['r3d_rs', 'c1d_gs']
 ! **************************************************************************************************
 !> \brief Solve Poisson equation in a plane wave basis set
 !>      Obtains electrostatic potential and its derivatives with respect to r
@@ -312,7 +310,7 @@ CONTAINS
          REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
          REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
             OPTIONAL                                        :: h_stress
-         TYPE(pw_c1d_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+         TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
          TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
 
          CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
@@ -321,8 +319,8 @@ CONTAINS
          LOGICAL                                            :: has_dielectric
          TYPE(pw_grid_type), POINTER                        :: pw_grid
          TYPE(pw_pool_type), POINTER                        :: pw_pool
-         TYPE(pw_r3d_type)                                    ::             rhor, vhartree_rs
-         TYPE(pw_c1d_type) :: influence_fn, rhog, rhog_aux, tmpg
+         TYPE(pw_r3d_rs_type)                                    ::             rhor, vhartree_rs
+         TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux, tmpg
 
          CALL timeset(routineN, handle)
 
@@ -334,9 +332,9 @@ CONTAINS
          pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
          pw_grid => pw_pool%pw_grid
          ! density in G space
-         CALL pw_pool%create_pw(rhog, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(rhog)
          IF (PRESENT(aux_density)) THEN
-            CALL pw_pool%create_pw(rhog_aux, in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(rhog_aux)
          END IF
 
          SELECT CASE (poisson_env%used_grid)
@@ -350,7 +348,7 @@ CONTAINS
                   CALL pw_transfer(aux_density, rhog_aux)
                END IF
                IF (PRESENT(ehartree)) THEN
-                  CALL pw_pool%create_pw(tmpg, in_space=RECIPROCALSPACE)
+                  CALL pw_pool%create_pw(tmpg)
                   CALL pw_copy(rhog, tmpg)
                END IF
                IF (PRESENT(greenfn)) THEN
@@ -391,8 +389,8 @@ CONTAINS
                   END SELECT
                END IF
 
-               CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
-               CALL pw_pool%create_pw(vhartree_rs, in_space=REALSPACE)
+               CALL pw_pool%create_pw(rhor)
+               CALL pw_pool%create_pw(vhartree_rs)
                CALL pw_transfer(density, rhor)
 
                SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -425,7 +423,7 @@ CONTAINS
 
          CASE (use_rs_grid)
 
-            CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
+            CALL pw_pool%create_pw(rhor)
             CALL pw_transfer(density, rhor)
             CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
             CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -433,10 +431,10 @@ CONTAINS
             IF (PRESENT(ehartree)) THEN
                #! This is actually not consequent but to keep it working, I leave it that way
                #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
-               #:if kindd=="r3d"
+               #:if kindd=="r3d_rs"
                   ehartree = 0.5_dp*pw_integral_ab(density, rhor)
                #:else
-                  IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog, in_space=RECIPROCALSPACE)
+                  IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog)
                   CALL pw_transfer(rhor, rhog)
                   ehartree = 0.5_dp*pw_integral_ab(density, rhog)
                   IF (.NOT. PRESENT(h_stress)) CALL pw_pool%give_back_pw(rhog)
@@ -450,9 +448,9 @@ CONTAINS
          END SELECT
 
          IF (PRESENT(aux_density)) THEN
-            CALL calc_stress_and_gradient_r3d(poisson_env, rhog, ehartree, rhog_aux, h_stress)
+            CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress)
          ELSE
-            CALL calc_stress_and_gradient_r3d(poisson_env, rhog, ehartree, h_stress=h_stress)
+            CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, h_stress=h_stress)
          END IF
 
          CALL pw_pool%give_back_pw(rhog)
@@ -465,8 +463,8 @@ CONTAINS
       END SUBROUTINE pw_poisson_solve_nov_nodv_${kindd}$
    #:endfor
 
-   #:for kindd in ['r3d', 'c1d']
-      #:for kindv in ['r3d', 'c1d']
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+      #:for kindv in ['r3d_rs', 'c1d_gs']
 ! **************************************************************************************************
 !> \brief Solve Poisson equation in a plane wave basis set
 !>      Obtains electrostatic potential and its derivatives with respect to r
@@ -492,7 +490,7 @@ CONTAINS
             TYPE(pw_${kindv}$_type), INTENT(INOUT)             :: vhartree
             REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
                OPTIONAL                                        :: h_stress
-            TYPE(pw_c1d_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+            TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
             TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
@@ -501,9 +499,9 @@ CONTAINS
             LOGICAL                                            :: has_dielectric
             TYPE(pw_grid_type), POINTER                        :: pw_grid
             TYPE(pw_pool_type), POINTER                        :: pw_pool
-            TYPE(pw_r3d_type)                                      :: &
+            TYPE(pw_r3d_rs_type)                                      :: &
                rhor, vhartree_rs
-            TYPE(pw_c1d_type) :: influence_fn, rhog, rhog_aux
+            TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux
 
             CALL timeset(routineN, handle)
 
@@ -517,9 +515,9 @@ CONTAINS
             IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
                CPABORT("vhartree has a different grid than the poisson solver")
             ! density in G space
-            CALL pw_pool%create_pw(rhog, in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(rhog)
             IF (PRESENT(aux_density)) THEN
-               CALL pw_pool%create_pw(rhog_aux, in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(rhog_aux)
             END IF
 
             SELECT CASE (poisson_env%used_grid)
@@ -546,7 +544,7 @@ CONTAINS
                      IF (PRESENT(aux_density)) THEN
                         #:if kindd==kindv
                            ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
-                        #:elif kindd=="c1d"
+                        #:elif kindd=="c1d_gs"
                            ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
                         #:else
                            CALL pw_transfer(aux_density, rhog)
@@ -555,7 +553,7 @@ CONTAINS
                      ELSE
                         #:if kindd==kindv
                            ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                        #:elif kindd=="c1d"
+                        #:elif kindd=="c1d_gs"
                            ehartree = 0.5_dp*pw_integral_ab(density, rhog)
                         #:else
                            CALL pw_transfer(density, rhog)
@@ -588,8 +586,8 @@ CONTAINS
                      END SELECT
                   END IF
 
-                  CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
-                  CALL pw_pool%create_pw(vhartree_rs, in_space=REALSPACE)
+                  CALL pw_pool%create_pw(rhor)
+                  CALL pw_pool%create_pw(vhartree_rs)
                   CALL pw_transfer(density, rhor)
 
                   SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -623,7 +621,7 @@ CONTAINS
 
             CASE (use_rs_grid)
 
-               CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
+               CALL pw_pool%create_pw(rhor)
                CALL pw_transfer(density, rhor)
                CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
                CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -634,7 +632,7 @@ CONTAINS
                   #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
                   #:if kindd==kindv
                      ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                  #:elif kindd=="r3d"
+                  #:elif kindd=="r3d_rs"
                      ehartree = 0.5_dp*pw_integral_ab(density, rhor)
                   #:else
                      CALL pw_transfer(vhartree, rhog)
@@ -649,9 +647,9 @@ CONTAINS
             END SELECT
 
             IF (PRESENT(aux_density)) THEN
-               CALL calc_stress_and_gradient_r3d(poisson_env, rhog, ehartree, rhog_aux, h_stress)
+               CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress)
             ELSE
-               CALL calc_stress_and_gradient_r3d(poisson_env, rhog, ehartree, h_stress=h_stress)
+               CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, h_stress=h_stress)
             END IF
 
             CALL pw_pool%give_back_pw(rhog)
@@ -665,8 +663,8 @@ CONTAINS
       #:endfor
    #:endfor
 
-   #:for kindd in ['r3d', 'c1d']
-      #:for kindg in ['r3d', 'c1d']
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+      #:for kindg in ['r3d_rs', 'c1d_gs']
 ! **************************************************************************************************
 !> \brief Solve Poisson equation in a plane wave basis set
 !>      Obtains electrostatic potential and its derivatives with respect to r
@@ -692,7 +690,7 @@ CONTAINS
             TYPE(pw_${kindg}$_type), DIMENSION(3)              :: dvhartree
             REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
                OPTIONAL                                        :: h_stress
-            TYPE(pw_c1d_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+            TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
             TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
@@ -701,9 +699,9 @@ CONTAINS
             LOGICAL                                            :: has_dielectric
             TYPE(pw_grid_type), POINTER                        :: pw_grid
             TYPE(pw_pool_type), POINTER                        :: pw_pool
-            TYPE(pw_r3d_type)                                      :: &
+            TYPE(pw_r3d_rs_type)                                      :: &
                rhor, vhartree_rs
-            TYPE(pw_c1d_type) :: influence_fn, rhog, rhog_aux, tmpg
+            TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux, tmpg
 
             CALL timeset(routineN, handle)
 
@@ -715,9 +713,9 @@ CONTAINS
             pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
             pw_grid => pw_pool%pw_grid
             ! density in G space
-            CALL pw_pool%create_pw(rhog, in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(rhog)
             IF (PRESENT(aux_density)) THEN
-               CALL pw_pool%create_pw(rhog_aux, in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(rhog_aux)
             END IF
 
             SELECT CASE (poisson_env%used_grid)
@@ -731,7 +729,7 @@ CONTAINS
                      CALL pw_transfer(aux_density, rhog_aux)
                   END IF
                   IF (PRESENT(ehartree)) THEN
-                     CALL pw_pool%create_pw(tmpg, in_space=RECIPROCALSPACE)
+                     CALL pw_pool%create_pw(tmpg)
                      CALL pw_copy(rhog, tmpg)
                   END IF
                   IF (PRESENT(greenfn)) THEN
@@ -773,8 +771,8 @@ CONTAINS
                      END SELECT
                   END IF
 
-                  CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
-                  CALL pw_pool%create_pw(vhartree_rs, in_space=REALSPACE)
+                  CALL pw_pool%create_pw(rhor)
+                  CALL pw_pool%create_pw(vhartree_rs)
                   CALL pw_transfer(density, rhor)
 
                   SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -808,7 +806,7 @@ CONTAINS
 
             CASE (use_rs_grid)
 
-               CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
+               CALL pw_pool%create_pw(rhor)
                CALL pw_transfer(density, rhor)
                CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
                CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -817,7 +815,7 @@ CONTAINS
                IF (PRESENT(ehartree)) THEN
                   #! This is actually not consequent but to keep it working, I leave it that way
                   #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
-                  #:if kindd=="r3d"
+                  #:if kindd=="r3d_rs"
                      ehartree = 0.5_dp*pw_integral_ab(density, rhor)
                   #:else
                      ehartree = 0.5_dp*pw_integral_ab(density, rhog)
@@ -844,9 +842,9 @@ CONTAINS
       #:endfor
    #:endfor
 
-   #:for kindd in ['r3d', 'c1d']
-      #:for kindg in ['r3d', 'c1d']
-         #:for kindv in ['r3d', 'c1d']
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+      #:for kindg in ['r3d_rs', 'c1d_gs']
+         #:for kindv in ['r3d_rs', 'c1d_gs']
 ! **************************************************************************************************
 !> \brief Solve Poisson equation in a plane wave basis set
 !>      Obtains electrostatic potential and its derivatives with respect to r
@@ -874,7 +872,7 @@ CONTAINS
                TYPE(pw_${kindg}$_type), DIMENSION(3)              :: dvhartree
                REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
                   OPTIONAL                                        :: h_stress
-               TYPE(pw_c1d_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+               TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
                TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
 
                CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
@@ -883,8 +881,8 @@ CONTAINS
                LOGICAL                                            :: has_dielectric
                TYPE(pw_grid_type), POINTER                        :: pw_grid
                TYPE(pw_pool_type), POINTER                        :: pw_pool
-               TYPE(pw_r3d_type)                                      ::  rhor, vhartree_rs
-               TYPE(pw_c1d_type) :: influence_fn, rhog, rhog_aux
+               TYPE(pw_r3d_rs_type)                                      ::  rhor, vhartree_rs
+               TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux
 
                CALL timeset(routineN, handle)
 
@@ -898,9 +896,9 @@ CONTAINS
                IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
                   CPABORT("vhartree has a different grid than the poisson solver")
                ! density in G space
-               CALL pw_pool%create_pw(rhog, in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(rhog)
                IF (PRESENT(aux_density)) THEN
-                  CALL pw_pool%create_pw(rhog_aux, in_space=RECIPROCALSPACE)
+                  CALL pw_pool%create_pw(rhog_aux)
                END IF
 
                SELECT CASE (poisson_env%used_grid)
@@ -927,7 +925,7 @@ CONTAINS
                         IF (PRESENT(aux_density)) THEN
                            #:if kindd==kindv
                               ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
-                           #:elif kindd=="c1d"
+                           #:elif kindd=="c1d_gs"
                               ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
                            #:else
                               CALL pw_transfer(aux_density, rhog)
@@ -936,7 +934,7 @@ CONTAINS
                         ELSE
                            #:if kindd==kindv
                               ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                           #:elif kindd=="c1d"
+                           #:elif kindd=="c1d_gs"
                               ehartree = 0.5_dp*pw_integral_ab(density, rhog)
                            #:else
                               CALL pw_transfer(density, rhog)
@@ -969,8 +967,8 @@ CONTAINS
                         END SELECT
                      END IF
 
-                     CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
-                     CALL pw_pool%create_pw(vhartree_rs, in_space=REALSPACE)
+                     CALL pw_pool%create_pw(rhor)
+                     CALL pw_pool%create_pw(vhartree_rs)
                      CALL pw_transfer(density, rhor)
 
                      SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -1006,7 +1004,7 @@ CONTAINS
 
                CASE (use_rs_grid)
 
-                  CALL pw_pool%create_pw(rhor, in_space=REALSPACE)
+                  CALL pw_pool%create_pw(rhor)
                   CALL pw_transfer(density, rhor)
                   CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
                   CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
@@ -1018,7 +1016,7 @@ CONTAINS
                      #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
                      #:if kindd==kindv
                         ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                     #:elif kindd=="r3d"
+                     #:elif kindd=="r3d_rs"
                         ehartree = 0.5_dp*pw_integral_ab(density, rhor)
                      #:else
                         ehartree = 0.5_dp*pw_integral_ab(density, rhog)
@@ -1047,12 +1045,12 @@ CONTAINS
       #:endfor
    #:endfor
 
-   #:for kind in ["c1d", "r3d"]
+   #:for kind in ["c1d_gs", "r3d_rs"]
       SUBROUTINE calc_stress_and_gradient_${kind}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress, dvhartree)
          TYPE(pw_poisson_type), INTENT(IN) :: poisson_env
-         TYPE(pw_c1d_type), INTENT(IN) :: rhog
+         TYPE(pw_c1d_gs_type), INTENT(IN) :: rhog
          REAL(KIND=dp) :: ehartree
-         TYPE(pw_c1d_type), INTENT(IN), OPTIONAL :: rhog_aux
+         TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL :: rhog_aux
          REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), OPTIONAL :: h_stress
          TYPE(pw_${kind}$_type), DIMENSION(3), INTENT(INOUT), OPTIONAL :: dvhartree
 
@@ -1060,7 +1058,7 @@ CONTAINS
 
          REAL(KIND=dp) :: ffa
          INTEGER :: alpha, beta, n(3), handle, i
-         TYPE(pw_c1d_type) :: dvg(3), dvg_aux(3)
+         TYPE(pw_c1d_gs_type) :: dvg(3), dvg_aux(3)
          TYPE(pw_pool_type), POINTER                        :: pw_pool
 
          CALL timeset(routineN, handle)
@@ -1068,13 +1066,13 @@ CONTAINS
          pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
 
          DO i = 1, 3
-            CALL pw_pool%create_pw(dvg(i), in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(dvg(i))
             n = 0
             n(i) = 1
             CALL pw_copy(rhog, dvg(i))
             CALL pw_derive(dvg(i), n)
             IF (PRESENT(rhog_aux)) THEN
-               CALL pw_pool%create_pw(dvg_aux(i), in_space=RECIPROCALSPACE)
+               CALL pw_pool%create_pw(dvg_aux(i))
                CALL pw_copy(rhog_aux, dvg_aux(i))
                CALL pw_derive(dvg_aux(i), n)
             END IF

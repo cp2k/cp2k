@@ -51,10 +51,8 @@ MODULE qs_electric_field_gradient
         Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, pw_spline_do_precond, &
         pw_spline_precond_create, pw_spline_precond_release, pw_spline_precond_set_kind, &
         pw_spline_precond_type, spl3_pbc
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -107,14 +105,14 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, structure_factor, &
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, structure_factor, &
                                                             v_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(6)                    :: dvr2
+      TYPE(pw_c1d_gs_type), DIMENSION(6)                 :: dvr2
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: dvr2rs
-      TYPE(pw_r3d_type), DIMENSION(6)                    :: dvspl
+      TYPE(pw_r3d_rs_type)                               :: dvr2rs
+      TYPE(pw_r3d_rs_type), DIMENSION(6)                 :: dvspl
       TYPE(pw_spline_precond_type)                       :: precond
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -158,8 +156,7 @@ CONTAINS
       ELSEIF (ecut == -1._dp .AND. sigma == -1._dp) THEN
          smoothing = .TRUE.
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL auxbas_pw_pool%create_pw(dvr2rs, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(dvr2rs)
          ecut = 2._dp*dvr2rs%pw_grid%cutoff*0.875_dp
          sigma = 2._dp*dvr2rs%pw_grid%cutoff*0.125_dp
          CALL auxbas_pw_pool%give_back_pw(dvr2rs)
@@ -212,10 +209,8 @@ CONTAINS
       IF (gapw) CALL prepare_gapw_den(qs_env, do_rho0=.TRUE.)
 
       !calculate electrostatic potential
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace, ehartree, &
@@ -228,15 +223,13 @@ CONTAINS
       DO i = 1, 3
          DO j = 1, i
             ij = (i*(i - 1))/2 + j
-            CALL auxbas_pw_pool%create_pw(dvr2(ij), &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(dvr2(ij))
             CALL pw_dr2(v_hartree_gspace, dvr2(ij), i, j)
          END DO
       END DO
 
       IF (.NOT. efg_interpolation) THEN
-         CALL auxbas_pw_pool%create_pw(structure_factor, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(structure_factor)
       ELSE
 
          interp_section => section_vals_get_subs_vals(dft_section, &
@@ -248,11 +241,9 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_r", r_val=eps_r)
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
-         CALL auxbas_pw_pool%create_pw(dvr2rs, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(dvr2rs)
          DO i = 1, 6
-            CALL auxbas_pw_pool%create_pw(dvspl(i), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(dvspl(i))
             CALL pw_transfer(dvr2(i), dvr2rs)
             ! calculate spline coefficients
             CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &

@@ -59,7 +59,7 @@ MODULE hfx_exx
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -345,8 +345,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: vh_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: vadmm_rspace, vtau_rspace, vxc_rspace
+      TYPE(pw_r3d_rs_type)                               :: vh_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
@@ -639,7 +639,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_dummy, v_rspace, v_rspace_aux_fit
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_dummy, v_rspace, v_rspace_aux_fit
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: xc_section_aux, xc_section_primary
       TYPE(virial_type), POINTER                         :: virial

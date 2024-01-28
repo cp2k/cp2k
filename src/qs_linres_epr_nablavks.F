@@ -50,10 +50,8 @@ MODULE qs_linres_epr_nablavks
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -140,17 +138,17 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_coulomb_gspace, &
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_coulomb_gspace, &
                                                             v_coulomb_gtemp, v_hartree_gspace, &
                                                             v_hartree_gtemp, v_xc_gtemp
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: v_coulomb_rtemp, v_hartree_rtemp, &
+      TYPE(pw_r3d_rs_type)                               :: v_coulomb_rtemp, v_hartree_rtemp, &
                                                             v_xc_rtemp, wf_r
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho2_r, rho_r, v_rspace_new, &
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho2_r, rho_r, v_rspace_new, &
                                                             v_tau_rspace
-      TYPE(pw_r3d_type), POINTER                         :: pwx, pwy, pwz
+      TYPE(pw_r3d_rs_type), POINTER                      :: pwx, pwy, pwz
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -282,14 +280,10 @@ CONTAINS
 !   Add Hartree potential
 !   -------------------------------------
 
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_gtemp, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rtemp, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gtemp)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rtemp)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
 
       IF (gapw) THEN
          ! need to rebuild the coeff !
@@ -504,12 +498,9 @@ CONTAINS
 
             IF (gth_gspace) THEN
 
-               CALL auxbas_pw_pool%create_pw(v_coulomb_gspace, &
-                                             in_space=RECIPROCALSPACE)
-               CALL auxbas_pw_pool%create_pw(v_coulomb_gtemp, &
-                                             in_space=RECIPROCALSPACE)
-               CALL auxbas_pw_pool%create_pw(v_coulomb_rtemp, &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_gspace)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_gtemp)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_rtemp)
 
                CALL pw_zero(v_coulomb_gspace)
 
@@ -850,10 +841,8 @@ CONTAINS
 !   Add V_xc potential
 !   -------------------------------------
 
-      CALL auxbas_pw_pool%create_pw(v_xc_gtemp, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_xc_rtemp, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_xc_gtemp)
+      CALL auxbas_pw_pool%create_pw(v_xc_rtemp)
 
       xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
       ! a possible vdW section in xc_section will be ignored
@@ -938,7 +927,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, lr_section, &
                                            "EPR%PRINT%NABLAVKS_CUBES"), cp_p_file)) THEN
-         CALL auxbas_pw_pool%create_pw(wf_r, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r)
          DO idir = 1, 3
             CALL pw_zero(wf_r)
             CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho_r)

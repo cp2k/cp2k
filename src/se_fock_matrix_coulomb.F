@@ -41,7 +41,7 @@ MODULE se_fock_matrix_coulomb
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_r3d_type
+                                              ewald_pw_r3d_rs_type
    USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
    USE fist_neighbor_list_control,      ONLY: list_control
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
@@ -146,7 +146,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: diagmat_ks, diagmat_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -503,7 +503,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole
@@ -1223,7 +1223,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole

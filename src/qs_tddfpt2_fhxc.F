@@ -31,9 +31,8 @@ MODULE qs_tddfpt2_fhxc
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -120,10 +119,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_ia_g, rho_ia_g_aux_fit
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_ia_g, rho_ia_g_aux_fit
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: V_rspace_sub
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_ia_r, rho_ia_r_aux_fit
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: V_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ia_r, rho_ia_r_aux_fit
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -293,8 +292,7 @@ CONTAINS
                   CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
                   ALLOCATE (V_rspace_sub(nspins))
                   DO ispin = 1, nspins
-                     CALL auxbas_pw_pool%create_pw(V_rspace_sub(ispin), &
-                                                   in_space=REALSPACE)
+                     CALL auxbas_pw_pool%create_pw(V_rspace_sub(ispin))
                      CALL pw_zero(V_rspace_sub(ispin))
                   END DO
 

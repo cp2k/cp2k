@@ -127,10 +127,8 @@ MODULE energy_corrections
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
@@ -425,8 +423,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ALLOCATE (ec_env%rhoz_r(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(ec_env%rhoz_r(ispin), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(ec_env%rhoz_r(ispin))
          END DO
 
          CALL response_force(qs_env, &
@@ -626,13 +623,13 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
-      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, v_rspace, v_rspace_in, &
+      TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -685,12 +682,9 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the Hartree potential
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
       ! Get the total input density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
@@ -728,8 +722,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r)
       ALLOCATE (ec_env%rhoout_r(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(ec_env%rhoout_r(ispin), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(ec_env%rhoout_r(ispin))
          CALL pw_copy(rho_r(ispin), ec_env%rhoout_r(ispin))
       END DO
 
@@ -764,8 +757,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(v_rspace(ispin))
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -789,8 +781,7 @@ CONTAINS
       pw_grid => v_hartree_rspace%pw_grid
       ALLOCATE (v_rspace_in(nspins))
       DO ispin = 1, nspins
-         CALL v_rspace_in(ispin)%create(pw_grid, &
-                                        in_space=REALSPACE)
+         CALL v_rspace_in(ispin)%create(pw_grid)
       END DO
 
       ! v_rspace_in = v_H[n_in] + v_xc[n_in] calculated in ks_ref_potential
@@ -965,8 +956,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(v_tau_rspace)) THEN
             ALLOCATE (v_tau_rspace(nspins))
             DO ispin = 1, nspins
-               CALL auxbas_pw_pool%create_pw(v_tau_rspace(ispin), &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(v_tau_rspace(ispin))
                CALL pw_zero(v_tau_rspace(ispin))
             END DO
          END IF
@@ -1273,7 +1263,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, tau_r, v_rspace, v_tau_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r, v_rspace, v_tau_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1396,8 +1386,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(v_rspace(ispin))
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -1715,16 +1704,16 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
-      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, rhodn_tot_gspace, &
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, rhodn_tot_gspace, &
                                                             v_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g, rhoout_g
-      TYPE(pw_c1d_type), POINTER                         :: rho_core
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, rhoout_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: dv_hartree_rspace, v_hartree_rspace, &
+      TYPE(pw_r3d_rs_type)                               :: dv_hartree_rspace, v_hartree_rspace, &
                                                             vtot_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, rhoout_r, tau_r, tauout_r, &
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rhoout_r, tau_r, tauout_r, &
                                                             v_rspace, v_tau_rspace, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1777,12 +1766,9 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the Hartree potential
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(rhodn_tot_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(rhodn_tot_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
       CALL pw_transfer(ec_env%vh_rspace, v_hartree_rspace)
 
@@ -1793,15 +1779,11 @@ CONTAINS
       NULLIFY (rhoout_r, rhoout_g)
       ALLOCATE (rhoout_r(nspins), rhoout_g(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(rhoout_r(ispin), &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(rhoout_g(ispin), &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhoout_r(ispin))
+         CALL auxbas_pw_pool%create_pw(rhoout_g(ispin))
       END DO
-      CALL auxbas_pw_pool%create_pw(dv_hartree_rspace, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(vtot_rspace, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(dv_hartree_rspace)
+      CALL auxbas_pw_pool%create_pw(vtot_rspace)
 
       CALL pw_zero(rhodn_tot_gspace)
       DO ispin = 1, nspins
@@ -1815,22 +1797,19 @@ CONTAINS
       ! Save Harris on real space grid for use in properties
       ALLOCATE (ec_env%rhoout_r(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(ec_env%rhoout_r(ispin), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(ec_env%rhoout_r(ispin))
          CALL pw_copy(rhoout_r(ispin), ec_env%rhoout_r(ispin))
       END DO
 
       NULLIFY (tauout_r)
       IF (dft_control%use_kinetic_energy_density) THEN
          BLOCK
-            TYPE(pw_c1d_type) :: tauout_g
+            TYPE(pw_c1d_gs_type) :: tauout_g
             ALLOCATE (tauout_r(nspins))
             DO ispin = 1, nspins
-               CALL auxbas_pw_pool%create_pw(tauout_r(ispin), &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(tauout_r(ispin))
             END DO
-            CALL auxbas_pw_pool%create_pw(tauout_g, &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(tauout_g)
 
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
@@ -1848,8 +1827,7 @@ CONTAINS
       IF (use_virial) THEN
 
          ! Calculate the Hartree potential
-         CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
 
          ! Get the total input density in g-space [ions + electrons]
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
@@ -2110,8 +2088,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(v_rspace(ispin))
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -3018,7 +2995,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: rho_elec_rspace
+      TYPE(pw_r3d_rs_type)                               :: rho_elec_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ec_section, print_key, print_key_bqb, &
                                                             print_key_voro
@@ -3171,7 +3148,7 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, &
                          auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
-         CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
 
          IF (dft_control%nspins > 1) THEN
 

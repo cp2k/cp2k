@@ -22,8 +22,8 @@ MODULE qs_kernel_methods
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
@@ -91,7 +91,7 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
 
       CALL timeset(routineN, handle)
@@ -227,7 +227,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_fxc_kernel(rho_struct, fxc_rspace, xc_section, is_rks_triplets, sub_env, qs_env)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: fxc_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rspace
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: is_rks_triplets
       TYPE(tddfpt_subgroup_env_type), INTENT(IN)         :: sub_env
@@ -238,12 +238,12 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: rho_g_valid, tau_r_valid
       REAL(KIND=dp)                                      :: factor
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
-      TYPE(pw_c1d_type), POINTER                         :: rho_nlcc_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, tau_r
-      TYPE(pw_r3d_type), POINTER                         :: rho_nlcc
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
       TYPE(section_vals_type), POINTER                   :: xc_kernel
 
       CALL timeset(routineN, handle)

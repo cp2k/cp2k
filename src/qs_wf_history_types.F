@@ -21,8 +21,8 @@ MODULE qs_wf_history_types
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_rho_types,                    ONLY: qs_rho_release,&
                                               qs_rho_type
 #include "./base/base_uses.f90"
@@ -57,8 +57,8 @@ MODULE qs_wf_history_types
 ! **************************************************************************************************
    TYPE qs_wf_snapshot_type
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: wf
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER :: rho_r
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER :: rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp
       TYPE(dbcsr_type), POINTER :: overlap

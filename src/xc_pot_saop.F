@@ -48,10 +48,8 @@ MODULE xc_pot_saop
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -146,13 +144,13 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: molecular_orbitals
-      TYPE(pw_c1d_type)                                  :: orbital_g
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type)                               :: orbital_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: orbital
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: vxc_GLLB, vxc_SAOP
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r, rho_struct_r, tau, vxc_LB, &
+      TYPE(pw_r3d_rs_type)                               :: orbital
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: vxc_GLLB, vxc_SAOP
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rho_struct_r, tau, vxc_LB, &
                                                             vxc_tau, vxc_tmp
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -294,7 +292,7 @@ CONTAINS
 
       ALLOCATE (vxc_GLLB(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(vxc_GLLB(ispin), in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vxc_GLLB(ispin))
       END DO
 
       DO ispin = 1, nspins
@@ -303,8 +301,8 @@ CONTAINS
 
       CALL xc_dset_release(deriv_set)
 
-      CALL auxbas_pw_pool%create_pw(orbital, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(orbital_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(orbital)
+      CALL auxbas_pw_pool%create_pw(orbital_g)
 
       DO ispin = 1, nspins
 
@@ -376,8 +374,7 @@ CONTAINS
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
-         CALL auxbas_pw_pool%create_pw(vxc_SAOP(ispin), &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(vxc_SAOP(ispin))
          CALL pw_zero(vxc_SAOP(ispin))
 
          ALLOCATE (coeff_col(nrow(ispin), 1))

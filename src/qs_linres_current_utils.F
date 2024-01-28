@@ -76,10 +76,8 @@ MODULE qs_linres_current_utils
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -599,10 +597,10 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
@@ -1263,11 +1261,9 @@ CONTAINS
          NULLIFY (rho_r, rho_g)
          ALLOCATE (rho_r(nspins), rho_g(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(rho_r(ispin), &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_r(ispin))
             CALL pw_zero(rho_r(ispin))
-            CALL auxbas_pw_pool%create_pw(rho_g(ispin), &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_g(ispin))
             CALL pw_zero(rho_g(ispin))
          END DO
          NULLIFY (current_env%jrho1_set(idir)%rho)

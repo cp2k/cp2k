@@ -67,10 +67,8 @@ MODULE qs_linres_kernel
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fxc,                          ONLY: qs_fxc_analytic,&
@@ -192,13 +190,13 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type)                                  :: rho1_tot_gspace, v_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g
+      TYPE(pw_c1d_gs_type)                               :: rho1_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho_r, tau1_r, v_rspace_new, &
+      TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_rspace_new, &
                                                             v_xc, v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -275,14 +273,14 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
-      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace)
 
       CALL qs_rho_get(rho1, rho_g=rho1_g)
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
@@ -841,10 +839,10 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_aux_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_aux_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_aux_r, tau_pw, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_aux_r, tau_pw, v_xc, v_xc_tau
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list

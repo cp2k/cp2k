@@ -46,8 +46,7 @@ MODULE hirshfeld_methods
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_integrate_function
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -277,8 +276,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: tnfun
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: rhonorm
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type)                               :: rhonorm
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_r)
@@ -291,7 +290,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL auxbas_pw_pool%create_pw(rhonorm, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhonorm)
       ! loop over spins
       DO is = 1, SIZE(rho_r)
          IF (rho_r_valid) THEN
@@ -366,8 +365,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: res, tnfun
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: rhonorm
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r
+      TYPE(pw_r3d_rs_type)                               :: rhonorm
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (rho_r)
@@ -379,7 +378,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL auxbas_pw_pool%create_pw(rhonorm, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhonorm)
       !
       DO iloop = 1, maxloop
 
@@ -447,7 +446,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), POINTER                         :: fnorm
+      TYPE(pw_r3d_rs_type), POINTER                      :: fnorm
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -520,7 +519,7 @@ CONTAINS
          DEALLOCATE (fnorm)
       END IF
       ALLOCATE (fnorm)
-      CALL auxbas_pw_pool%create_pw(fnorm, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(fnorm)
       CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
 
       CALL transfer_rs2pw(rs_rho, fnorm)
@@ -541,7 +540,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
-      TYPE(pw_r3d_type)                                  :: rfun
+      TYPE(pw_r3d_rs_type)                               :: rfun
       REAL(KIND=dp), DIMENSION(:), INTENT(inout)         :: fval
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout), &
          OPTIONAL                                        :: fderiv

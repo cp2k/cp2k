@@ -50,10 +50,8 @@ MODULE qs_dcdr_ao
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_drho_core,&
                                               calculate_drho_elec_dR
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -127,13 +125,13 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: rho_ao_fm, rho_ao_s1, rho_ao_s1_rho_ao, &
                                                             s1_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
-      TYPE(pw_c1d_type)                                  :: rho1_tot_gspace, v_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho1_g, rho1_g_pw
+      TYPE(pw_c1d_gs_type)                               :: rho1_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho1_g_pw
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho1_r, rho_r, tau1_r, v_rspace_new, &
+      TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_rspace_new, &
                                                             v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -240,11 +238,11 @@ CONTAINS
       ! Done with deriv_set and rho_set
 
       ALLOCATE (v_rspace_new(dcdr_env%nspins))
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
       ! Calculate the Hartree potential on the total density
-      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho1_tot_gspace)
 
       CALL qs_rho_get(perturbed_density, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
@@ -337,12 +335,12 @@ CONTAINS
       INTEGER                                            :: beta, handle
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type)                                  :: drho_g, v_hartree_gspace
+      TYPE(pw_c1d_gs_type)                               :: drho_g, v_hartree_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -359,10 +357,10 @@ CONTAINS
                       pw_pools=pw_pools)
 
       ! Create the Hartree potential grids in real and reciprocal space.
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
       ! Create the grid for the derivative of the core potential
-      CALL auxbas_pw_pool%create_pw(drho_g, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(drho_g)
 
       DO beta = 1, 3
          CALL pw_zero(v_hartree_gspace)
@@ -510,14 +508,14 @@ CONTAINS
 
       INTEGER                                            :: handle, idir, ispin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
-      TYPE(pw_c1d_type)                                  :: drho_g_total, v_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: drho_g
+      TYPE(pw_c1d_gs_type)                               :: drho_g_total, v_hartree_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: drho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: drho_r_total, v_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: drho_r, dtau_r, rho_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type)                               :: drho_r_total, v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: drho_r, dtau_r, rho_r, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: my_deriv_set
@@ -539,15 +537,15 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools, poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
       DO ispin = 1, dcdr_env%nspins
-         CALL auxbas_pw_pool%create_pw(drho_r(ispin), in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(drho_g(ispin), in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(drho_r(ispin))
+         CALL auxbas_pw_pool%create_pw(drho_g(ispin))
       END DO
-      CALL auxbas_pw_pool%create_pw(drho_g_total, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(drho_r_total, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(drho_g_total)
+      CALL auxbas_pw_pool%create_pw(drho_r_total)
 
       DO idir = 1, 3
          CALL pw_zero(v_hartree_gspace)
@@ -641,8 +639,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: v_hxc_r, v_tau_rspace
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_hxc_r, v_tau_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct

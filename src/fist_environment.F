@@ -39,7 +39,7 @@ MODULE fist_environment
                                               read_ewald_section
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_r3d_type
+                                              ewald_pw_r3d_rs_type
    USE exclusion_types,                 ONLY: exclusion_type
    USE fist_efield_types,               ONLY: fist_efield_type,&
                                               read_efield_section
@@ -239,7 +239,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles, &
                                                             prev_local_molecules
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(fist_energy_type), POINTER                    :: thermo
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set, prev_molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set

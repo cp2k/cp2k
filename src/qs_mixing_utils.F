@@ -19,7 +19,7 @@ MODULE qs_mixing_utils
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pw_types,                        ONLY: pw_c1d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               gspace_mixing_nr,&
@@ -433,7 +433,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), DIMENSION(:, :), POINTER                 :: g_vec
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
 
       CALL timeset(routineN, handle)
 

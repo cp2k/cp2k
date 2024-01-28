@@ -27,8 +27,8 @@ MODULE admm_dm_methods
                                               do_admm_blocked_projection
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -238,8 +238,8 @@ CONTAINS
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rho_g_aux
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rho_r_aux
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit

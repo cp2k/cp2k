@@ -46,10 +46,8 @@ MODULE hfx_pw_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -106,11 +104,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: greenfn, pot_g, rho_g
+      TYPE(pw_c1d_gs_type)                               :: greenfn, pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_r3d_type)                                  :: rho_r
-      TYPE(pw_r3d_type), ALLOCATABLE, DIMENSION(:)       :: rho_i, rho_j
+      TYPE(pw_r3d_rs_type)                               :: rho_r
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: rho_i, rho_j
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: ip_section
 
@@ -133,14 +131,14 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
-         CALL auxbas_pw_pool%create_pw(rho_r, in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(rho_g, in_space=RECIPROCALSPACE)
-         CALL auxbas_pw_pool%create_pw(pot_g, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_r)
+         CALL auxbas_pw_pool%create_pw(rho_g)
+         CALL auxbas_pw_pool%create_pw(pot_g)
 
          ALLOCATE (rho_i(blocksize))
          ALLOCATE (rho_j(blocksize))
 
-         CALL auxbas_pw_pool%create_pw(greenfn, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(greenfn)
          ip_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL")
          CALL section_vals_get(ip_section, explicit=explicit)
          potential_type = do_potential_coulomb
@@ -176,8 +174,8 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            CALL rho_i(iorb_block)%create(rho_r%pw_grid, in_space=REALSPACE)
-            CALL rho_j(iorb_block)%create(rho_r%pw_grid, in_space=REALSPACE)
+            CALL rho_i(iorb_block)%create(rho_r%pw_grid)
+            CALL rho_j(iorb_block)%create(rho_r%pw_grid)
          END DO
 
          exchange_energy = 0.0_dp

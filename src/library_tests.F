@@ -88,11 +88,9 @@ MODULE library_tests
                                               pw_grid_setup
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_c3d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_c3d_rs_type,&
+                                              pw_r3d_rs_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
         rs_grid_create_descriptor, rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
@@ -712,7 +710,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: tend, tstart
       TYPE(cell_type), POINTER                           :: box
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_r3d_type)                                  :: ca
+      TYPE(pw_r3d_rs_type)                               :: ca
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type)                          :: rs_grid
@@ -741,7 +739,7 @@ CONTAINS
       CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
-      CALL ca%create(grid, REALSPACE)
+      CALL ca%create(grid)
       CALL pw_zero(ca)
 
       ! .. rs input setting type
@@ -829,8 +827,8 @@ CONTAINS
                                                             t_min, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_end, t_start
       TYPE(cell_type), POINTER                           :: box
-      TYPE(pw_c1d_type)                                  :: ca, cc
-      TYPE(pw_c3d_type)                                  :: cb
+      TYPE(pw_c1d_gs_type)                               :: ca, cc
+      TYPE(pw_c3d_rs_type)                               :: cb
       TYPE(pw_grid_type), POINTER                        :: grid
 
 !..set fft lib
@@ -938,9 +936,9 @@ CONTAINS
             ! note that the number of grid points might be different from what the user requested (fft-able needed)
             no = grid%npts
 
-            CALL ca%create(grid, RECIPROCALSPACE)
-            CALL cb%create(grid, REALSPACE)
-            CALL cc%create(grid, RECIPROCALSPACE)
+            CALL ca%create(grid)
+            CALL cb%create(grid)
+            CALL cc%create(grid)
 
             ! initialize data
             CALL pw_zero(ca)

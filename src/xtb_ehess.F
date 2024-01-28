@@ -29,7 +29,7 @@ MODULE xtb_ehess
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
                                               tb_spme_evaluate
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
                                               pi
@@ -103,7 +103,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_type), POINTER                   :: ewald_pw
+      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator

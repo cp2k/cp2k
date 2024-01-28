@@ -37,7 +37,7 @@ MODULE realspace_grid_types
    USE pw_grids,                        ONLY: pw_grid_release,&
                                               pw_grid_retain
    USE pw_methods,                      ONLY: pw_integrate_function
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE util,                            ONLY: get_limit
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -654,7 +654,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_rs2pw'
 
@@ -697,7 +697,7 @@ CONTAINS
    SUBROUTINE transfer_pw2rs(rs, pw)
 
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_pw2rs'
 
@@ -764,7 +764,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw_replicated(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_r3d_type), INTENT(INOUT)                   :: pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw
 
       INTEGER                                            :: dest, ii, ip, ix, iy, iz, nma, nn, s(3), &
                                                             source
@@ -833,7 +833,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_pw2rs_replicated(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       INTEGER                                            :: dest, i, ii, im, ip, ix, iy, iz, j, jm, &
                                                             k, km, nma, nn, source
@@ -954,7 +954,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw_distributed(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       CHARACTER(LEN=200)                                 :: error_string
       INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, my_pw_rank, my_rs_rank, &
@@ -1441,7 +1441,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_pw2rs_distributed(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, my_pw_rank, my_rs_rank, &
          n_shifts, nn, num_threads, position, source_down, source_up, ub, x, y, z

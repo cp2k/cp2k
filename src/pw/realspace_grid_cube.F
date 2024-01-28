@@ -18,7 +18,7 @@ MODULE realspace_grid_cube
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,7 +48,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
                          silent, mpi_io)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -236,7 +236,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cube_to_pw(grid, filename, scaling, parallel_read, silent)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       LOGICAL, INTENT(in)                                :: parallel_read
@@ -368,7 +368,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cube_to_pw_parallel(grid, filename, scaling, msglen, silent)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       INTEGER, INTENT(in)                                :: msglen
@@ -623,7 +623,7 @@ CONTAINS
    SUBROUTINE pw_to_cube_parallel(grid, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
                                   msglen)
 
-      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
       TYPE(mp_file_type), INTENT(IN)                     :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -816,10 +816,10 @@ CONTAINS
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
-      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: stride
-      TYPE(pw_r3d_type), INTENT(IN), OPTIONAL            :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN), OPTIONAL         :: pw2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric'
 

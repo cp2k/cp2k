@@ -72,10 +72,8 @@ MODULE qs_resp
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_rho_resp_single
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -771,7 +769,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dist
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat, hmat_inv
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_pw
 
       CALL timeset(routineN, handle)
 
@@ -921,11 +919,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: normalize_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vpot
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type)                                  :: rho_ga, va_gspace
+      TYPE(pw_c1d_gs_type)                               :: rho_ga, va_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: va_rspace
+      TYPE(pw_r3d_rs_type)                               :: va_rspace
 
       CALL timeset(routineN, handle)
 
@@ -943,12 +941,9 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(rho_ga, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(va_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(va_rspace, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_ga)
+      CALL auxbas_pw_pool%create_pw(va_gspace)
+      CALL auxbas_pw_pool%create_pw(va_rspace)
 
       !get fitting points and store them in resp_env%fitpoints
       CALL get_fitting_points(qs_env, resp_env, rep_sys, particles=particles, &
@@ -1038,7 +1033,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_pw
 
       CALL timeset(routineN, handle)
 
@@ -1177,7 +1172,7 @@ CONTAINS
       INTEGER                                            :: handle, ip, jx, jy, jz
       REAL(KIND=dp)                                      :: dvol
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vhartree
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_pw
 
       CALL timeset(routineN, handle)
 
@@ -1236,7 +1231,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_request_type), DIMENSION(6)                :: req
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_pw
       TYPE(section_vals_type), POINTER                   :: input, print_key, resp_section
 
       CALL timeset(routineN, handle)
@@ -1686,12 +1681,12 @@ CONTAINS
                                                             sum_diff, sum_hartree, udvol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type)                                  :: rho_resp, v_resp_gspace
+      TYPE(pw_c1d_gs_type)                               :: rho_resp, v_resp_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: aux_r, v_resp_rspace
-      TYPE(pw_r3d_type), POINTER                         :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type)                               :: aux_r, v_resp_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(section_vals_type), POINTER                   :: input, print_key, resp_section
 
       CALL timeset(routineN, handle)
@@ -1713,9 +1708,9 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      CALL auxbas_pw_pool%create_pw(rho_resp, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_resp_gspace, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_resp_rspace, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_resp)
+      CALL auxbas_pw_pool%create_pw(v_resp_gspace)
+      CALL auxbas_pw_pool%create_pw(v_resp_rspace)
 
       CALL pw_zero(rho_resp)
       CALL calculate_rho_resp_all(rho_resp, resp_env%rhs, natom, &
@@ -1739,7 +1734,7 @@ CONTAINS
       !***now print the v_resp_rspace%pw to a cube file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, resp_section, &
                                            "PRINT%V_RESP_CUBE"), cp_p_file)) THEN
-         CALL auxbas_pw_pool%create_pw(aux_r, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(aux_r)
          append_cube = section_get_lval(resp_section, "PRINT%V_RESP_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN

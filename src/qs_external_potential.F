@@ -35,7 +35,7 @@ MODULE qs_external_potential
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_methods,                      ONLY: pw_zero
-   USE pw_types,                        ONLY: pw_r3d_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -77,7 +77,7 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: grid_p
       REAL(kind=dp), DIMENSION(3)                        :: dr
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_r3d_type), POINTER                         :: v_ee
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_ee
       TYPE(section_vals_type), POINTER                   :: ext_pot_section, input
 
       CALL timeset(routineN, handle)
@@ -185,7 +185,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_r3d_type), POINTER                         :: v_ee
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_ee
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -373,7 +373,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE interpolate_external_potential(r, grid, func, dfunc, calc_derivatives)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(pw_r3d_type), POINTER                         :: grid
+      TYPE(pw_r3d_rs_type), POINTER                      :: grid
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 

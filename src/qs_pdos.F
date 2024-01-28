@@ -61,10 +61,8 @@ MODULE qs_pdos
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -187,11 +185,11 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(ldos_p_type), DIMENSION(:), POINTER           :: ldos_p
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_type)                                  :: wf_g
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: wf_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
@@ -359,8 +357,8 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
 
-         CALL auxbas_pw_pool%create_pw(wf_r, in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(wf_g, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r)
+         CALL auxbas_pw_pool%create_pw(wf_g)
          ALLOCATE (read_r(4, n_r_ldos))
          DO ildos = 1, n_r_ldos
             WRITE (r_ldos_index(ildos), '(I0)') ildos

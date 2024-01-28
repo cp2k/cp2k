@@ -112,10 +112,8 @@ MODULE rpa_im_time_force_methods
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_c1d_type,&
-                                              pw_r3d_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
@@ -2420,13 +2418,13 @@ CONTAINS
                                                             matrix_s_aux, work_admm
       TYPE(dbcsr_type)                                   :: dbcsr_work
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_type)                                  :: rhoz_tot_gspace, zv_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rhoz_g
+      TYPE(pw_c1d_gs_type)                               :: rhoz_tot_gspace, zv_hartree_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rhoz_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: zv_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rhoz_r, tauz_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type)                               :: zv_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rhoz_r, tauz_r, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
@@ -2452,17 +2450,12 @@ CONTAINS
       !Apply the kernel on the density saved in force_data%sum_YP_tau
       ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(rhoz_r(ispin), &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(rhoz_g(ispin), &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhoz_r(ispin))
+         CALL auxbas_pw_pool%create_pw(rhoz_g(ispin))
       END DO
-      CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(zv_hartree_rspace, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(zv_hartree_gspace, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace)
+      CALL auxbas_pw_pool%create_pw(zv_hartree_rspace)
+      CALL auxbas_pw_pool%create_pw(zv_hartree_gspace)
 
       CALL pw_zero(rhoz_tot_gspace)
       DO ispin = 1, nspins
@@ -2480,12 +2473,11 @@ CONTAINS
       CALL qs_rho_get(rho, tau_r_valid=do_tau)
       IF (do_tau) THEN
          BLOCK
-            TYPE(pw_c1d_type) :: tauz_g
+            TYPE(pw_c1d_gs_type) :: tauz_g
             ALLOCATE (tauz_r(nspins))
-            CALL auxbas_pw_pool%create_pw(tauz_g, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(tauz_g)
             DO ispin = 1, nspins
-               CALL auxbas_pw_pool%create_pw(tauz_r(ispin), &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(tauz_r(ispin))
 
                CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=force_data%sum_YP_tau(ispin)%matrix, &
                                        rho=tauz_r(ispin), rho_gspace=tauz_g, compute_tau=.TRUE.)
@@ -2578,8 +2570,8 @@ CONTAINS
 
             IF (do_tau_admm) THEN
                BLOCK
-                  TYPE(pw_c1d_type) :: tauz_g
-                  CALL auxbas_pw_pool%create_pw(tauz_g, in_space=RECIPROCALSPACE)
+                  TYPE(pw_c1d_gs_type) :: tauz_g
+                  CALL auxbas_pw_pool%create_pw(tauz_g)
                   DO ispin = 1, nspins
                      CALL pw_zero(tauz_r(ispin))
                      CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=ker_tau_admm(ispin)%matrix, &
@@ -2721,11 +2713,11 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: dvg(3), pot_g, rho_g, rho_g_copy
+      TYPE(pw_c1d_gs_type)                               :: dvg(3), pot_g, rho_g, rho_g_copy
       TYPE(pw_env_type), POINTER                         :: pw_env_ext
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: psi_L, rho_r
+      TYPE(pw_r3d_rs_type)                               :: psi_L, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_ext
@@ -2807,11 +2799,9 @@ CONTAINS
                        auxbas_pw_pool, poisson_env, task_list_ext, rho_r, rho_g, pot_g, psi_L, sab_orb)
 
       IF (use_virial) THEN
-         CALL auxbas_pw_pool%create_pw(rho_g_copy, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rho_g_copy)
          DO i_xyz = 1, 3
-            CALL auxbas_pw_pool%create_pw(dvg(i_xyz), &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(dvg(i_xyz))
          END DO
       END IF
 
@@ -3164,14 +3154,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_c1d_type)                                  :: rho_tot_gspace, rhoz_tot_gspace, &
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, rhoz_tot_gspace, &
                                                             zv_hartree_gspace
-      TYPE(pw_c1d_type), DIMENSION(:), POINTER           :: rhoz_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rhoz_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_type)                                  :: vh_rspace, vhxc_rspace, zv_hartree_rspace
-      TYPE(pw_r3d_type), DIMENSION(:), POINTER           :: rhoz_r, tauz_r, v_xc, v_xc_tau, &
+      TYPE(pw_r3d_rs_type)                               :: vh_rspace, vhxc_rspace, zv_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rhoz_r, tauz_r, v_xc, v_xc_tau, &
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -3291,8 +3281,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(vhxc_rspace, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(vhxc_rspace)
 
       IF (use_virial) pv_loc = virial%pv_virial
 
@@ -3489,17 +3478,12 @@ CONTAINS
          !The core-denstiy derivative
          ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(rhoz_r(ispin), &
-                                          in_space=REALSPACE)
-            CALL auxbas_pw_pool%create_pw(rhoz_g(ispin), &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rhoz_r(ispin))
+            CALL auxbas_pw_pool%create_pw(rhoz_g(ispin))
          END DO
-         CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace, &
-                                       in_space=RECIPROCALSPACE)
-         CALL auxbas_pw_pool%create_pw(zv_hartree_rspace, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(zv_hartree_gspace, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(rhoz_tot_gspace)
+         CALL auxbas_pw_pool%create_pw(zv_hartree_rspace)
+         CALL auxbas_pw_pool%create_pw(zv_hartree_gspace)
 
          CALL pw_zero(rhoz_tot_gspace)
          DO ispin = 1, nspins
@@ -3511,8 +3495,7 @@ CONTAINS
          IF (use_virial) THEN
 
             CALL get_qs_env(qs_env, rho=rho)
-            CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
 
             CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
@@ -3541,12 +3524,11 @@ CONTAINS
 
          IF (do_tau) THEN
             BLOCK
-               TYPE(pw_c1d_type) :: tauz_g
-               CALL auxbas_pw_pool%create_pw(tauz_g, in_space=RECIPROCALSPACE)
+               TYPE(pw_c1d_gs_type) :: tauz_g
+               CALL auxbas_pw_pool%create_pw(tauz_g)
                ALLOCATE (tauz_r(nspins))
                DO ispin = 1, nspins
-                  CALL auxbas_pw_pool%create_pw(tauz_r(ispin), &
-                                                in_space=REALSPACE)
+                  CALL auxbas_pw_pool%create_pw(tauz_r(ispin))
 
                   CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
                                           rho=tauz_r(ispin), rho_gspace=tauz_g, compute_tau=.TRUE.)
@@ -3656,8 +3638,8 @@ CONTAINS
 
                   IF (do_tau_admm) THEN
                      BLOCK
-                        TYPE(pw_c1d_type) :: tauz_g
-                        CALL auxbas_pw_pool%create_pw(tauz_g, in_space=RECIPROCALSPACE)
+                        TYPE(pw_c1d_gs_type) :: tauz_g
+                        CALL auxbas_pw_pool%create_pw(tauz_g)
                         DO ispin = 1, nspins
                            CALL pw_zero(tauz_r(ispin))
                            CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
