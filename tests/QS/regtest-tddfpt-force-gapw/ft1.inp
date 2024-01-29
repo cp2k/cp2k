@@ -59,24 +59,6 @@
         REFERENCE COM
       &END MOMENTS
     &END PRINT
-    &QS
-      EPS_DEFAULT 1.E-10
-      METHOD GAPW
-    &END QS
-    &SCF
-      EPS_SCF 1.0E-6
-      MAX_SCF 100
-      SCF_GUESS ATOMIC
-    &END SCF
-    &XC
-      &HF
-        &SCREENING
-          SCREEN_P_FORCES F
-        &END SCREENING
-      &END HF
-      &XC_FUNCTIONAL PBE0
-      &END XC_FUNCTIONAL
-    &END XC
   &END DFT
   &PROPERTIES
     &TDDFPT
