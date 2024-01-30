@@ -1,0 +1,40 @@
+specfile_path: tools/fedora/cp2k.spec
+files_to_sync:
+  - src: tools/fedora/cp2k.spec
+    dest: cp2k.spec
+  - .packit.yaml
+upstream_package_name: cp2k
+downstream_package_name: cp2k
+update_release: false
+upstream_tag_template: v{version}
+
+jobs:
+  - job: copr_build
+    trigger: commit
+    branch: master
+    owner: lecris
+    project: nightly
+    additional_repos:
+      - copr://@scikit-build/release
+    targets:
+      - fedora-all-x86_64
+      - fedora-all-aarch64
+  - job: copr_build
+    trigger: release
+    owner: lecris
+    project: release
+    targets:
+      - fedora-all-x86_64
+      - fedora-all-aarch64
+  - job: propose_downstream
+    trigger: release
+    dist_git_branches:
+      - fedora-rawhide
+  - job: koji_build
+    trigger: commit
+    dist_git_branches:
+      - fedora-all
+  - job: bodhi_update
+    trigger: commit
+    dist_git_branches:
+      - fedora-branched
