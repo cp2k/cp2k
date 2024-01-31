@@ -37,6 +37,7 @@ MODULE rt_tdagw_types
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE matrix_exp,                      ONLY: get_nsquare_norder
 
 #include "../base/base_uses.f90"
 
@@ -82,20 +83,25 @@ MODULE rt_tdagw_types
                                                                    sim_start,&
                                                                    sim_nsteps
       REAL(kind=dp)                                             :: sim_time,&
-                                                                   sim_dt
+                                                                   sim_dt,&
+                                                                   etrs_threshold
       TYPE(dft_control_type), POINTER                           :: dft_control
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_effective
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_single_particle
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_workspace
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho,&
+                                                                   rho_new,&
+                                                                   rho_new_last,&
+                                                                   rho_M
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho_workspace
       TYPE(dbcsr_type), POINTER                                 :: S_inv
       TYPE(dbt_type), POINTER                                   :: hartree_dbt
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
+      INTEGER, DIMENSION(:,:), POINTER                          :: orders
 
    END TYPE tdagw_env_type
 
@@ -134,6 +140,22 @@ CONTAINS
       tdagw_env%sim_time = 0
       ! Time step is taken from rtp
       tdagw_env%sim_dt = rtp%dt
+      ! Threshold for etrs is taken from the eps_energy from RT propagation
+      tdagw_env%etrs_threshold = tdagw_env%dft_control%rtp_control%eps_ener
+      ! Allocate and determine the expansion orders, based on arguments used in TDDFT
+      ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
+      ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
+      CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0)),&
+                              ABS(MINVAL(bs_env%eigenval_G0W0))),&
+                              tdagw_env%orders(1,1), tdagw_env%orders(2,1),&
+                              tdagw_env%dft_control%rtp_control%eps_exp,&
+                              1, .FALSE.)
+      IF (tdagw_env%n_spin > 1) THEN
+         DO i=2,tdagw_env%n_spin
+            tdagw_env%orders(1,i) = tdagw_env%orders(1,1)
+            tdagw_env%orders(2,i) = tdagw_env%orders(2,1)
+         END DO
+      END IF
       ! Sim start index and total number of steps as well
       tdagw_env%sim_start = rtp%i_start
       tdagw_env%sim_nsteps = rtp%nsteps
@@ -193,6 +215,9 @@ CONTAINS
       ! Create the matrices and workspaces for effective Hamiltonian
       ALLOCATE(tdagw_env%ham_effective(2*tdagw_env%n_spin))
       ALLOCATE(tdagw_env%ham_workspace(2*tdagw_env%n_spin))
+      ALLOCATE(tdagw_env%rho_new(2*tdagw_env%n_spin))
+      ALLOCATE(tdagw_env%rho_new_last(2*tdagw_env%n_spin))
+      ALLOCATE(tdagw_env%rho_M(2*tdagw_env%n_spin))
       DO i=1,2*tdagw_env%n_spin
          ALLOCATE(tdagw_env%ham_effective(i)%matrix)
          CALL cp_fm_create(tdagw_env%ham_effective(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
@@ -200,6 +225,15 @@ CONTAINS
          ALLOCATE(tdagw_env%ham_workspace(i)%matrix)
          CALL cp_fm_create(tdagw_env%ham_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%ham_workspace(i)%matrix, 0.0_dp)
+         ALLOCATE(tdagw_env%rho_new(i)%matrix)
+         CALL cp_fm_create(tdagw_env%rho_new(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_set_all(tdagw_env%rho_new(i)%matrix, 0.0_dp)
+         ALLOCATE(tdagw_env%rho_new_last(i)%matrix)
+         CALL cp_fm_create(tdagw_env%rho_new_last(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_set_all(tdagw_env%rho_new_last(i)%matrix, 0.0_dp)
+         ALLOCATE(tdagw_env%rho_M(i)%matrix)
+         CALL cp_fm_create(tdagw_env%rho_M(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_set_all(tdagw_env%rho_M(i)%matrix, 0.0_dp)
       END DO
 
       ! Allocate space for density propagation
@@ -271,10 +305,14 @@ CONTAINS
       CALL cp_fm_release(tdagw_env%hartree_curr)
       CALL cp_fm_release(tdagw_env%ham_single_particle)
       CALL cp_fm_release(tdagw_env%rho_workspace)
+      CALL cp_fm_release(tdagw_env%rho_new)
+      CALL cp_fm_release(tdagw_env%rho_new_last)
+      CALL cp_fm_release(tdagw_env%rho_M)
 
       CALL dbt_destroy(tdagw_env%hartree_dbt)
 
       NULLIFY(tdagw_env%S_inv)
+      DEALLOCATE(tdagw_env%orders)
       
    END SUBROUTINE
 END MODULE
