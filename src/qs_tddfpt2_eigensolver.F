@@ -436,6 +436,15 @@ CONTAINS
             END IF
          END IF
       END IF
+      ! short/long range HFX
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         IF (tddfpt_control%do_hfxsr) THEN
+            CPABORT("HFXSR not implemented")
+         END IF
+         IF (tddfpt_control%do_hfxlr) THEN
+            CPABORT("HFXLR not implemented")
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -697,7 +706,7 @@ CONTAINS
                                                             max_krylov_vects, nspins, nstates, &
                                                             nstates_conv, nvects_exist, nvects_new
       INTEGER(kind=int_8)                                :: nstates_total
-      LOGICAL                                            :: do_hfx, is_nonortho
+      LOGICAL                                            :: is_nonortho
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
@@ -710,7 +719,6 @@ CONTAINS
       nspins = SIZE(gs_mos)
       nstates = tddfpt_control%nstates
       nstates_total = tddfpt_total_number_of_states(gs_mos)
-      do_hfx = tddfpt_control%do_hfx
 
       IF (debug_this_module) THEN
          CPASSERT(SIZE(evects, 1) == nspins)

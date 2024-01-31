@@ -477,7 +477,8 @@ MODULE cp_control_types
       !> for full kernel, do we have HFX/ADMM
       LOGICAL                              :: do_hfx = .FALSE.
       LOGICAL                              :: do_admm = .FALSE.
-      !> for full kernel, do we have long-range HFX and/or Kxc potential
+      !> for full kernel, do we have short-range/long-range HFX and/or Kxc potential
+      LOGICAL                              :: do_hfxsr = .FALSE.
       LOGICAL                              :: do_hfxlr = .FALSE.
       LOGICAL                              :: do_exck = .FALSE.
       !> options used in sTDA calculation (Kernel)

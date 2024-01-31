@@ -136,7 +136,8 @@ CONTAINS
                                                             nstate_max, nstates, nvirt, old_state
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
-                                                            do_soc, lmult_tmp, state_change
+                                                            do_hfxsr, do_soc, lmult_tmp, &
+                                                            state_change
       REAL(kind=dp)                                      :: gsmin, gsval, xsval
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
       TYPE(cell_type), POINTER                           :: cell
@@ -172,7 +173,7 @@ CONTAINS
       tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
 
       CALL tddfpt_input(qs_env, do_hfx, do_admm, do_exck, &
-                        do_hfxlr, xc_section, tddfpt_print_section, lri_section)
+                        do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, lri_section)
 
       CALL get_qs_env(qs_env, &
                       blacs_env=blacs_env, &
@@ -185,6 +186,7 @@ CONTAINS
       tddfpt_control => dft_control%tddfpt2_control
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
+      tddfpt_control%do_hfxsr = do_hfxsr
       tddfpt_control%do_hfxlr = do_hfxlr
       tddfpt_control%do_exck = do_exck
 
@@ -276,9 +278,8 @@ CONTAINS
             nstates = nstate_max
             tddfpt_control%nstates = nstate_max
          END IF
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, do_exck, &
-                                          qs_env, sub_env)
-
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
+                                          do_hfxsr, do_hfxlr, do_exck, qs_env, sub_env)
       END IF
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
@@ -466,15 +467,17 @@ CONTAINS
 !> \param do_hfx ...
 !> \param do_admm ...
 !> \param do_exck ...
+!> \param do_hfxsr ...
 !> \param do_hfxlr ...
 !> \param xc_section ...
 !> \param tddfpt_print_section ...
 !> \param lri_section ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, do_exck, do_hfxlr, &
+   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, do_exck, do_hfxsr, do_hfxlr, &
                            xc_section, tddfpt_print_section, lri_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm, do_exck, do_hfxlr
+      LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm, do_exck, do_hfxsr, &
+                                                            do_hfxlr
       TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section, &
                                                             lri_section
 
@@ -569,10 +572,6 @@ CONTAINS
             NULLIFY (xc_sub)
             xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL")
             CALL section_vals_get(xc_sub, explicit=exhfxk)
-            IF (exhf .AND. exhfxk) THEN
-               CALL cp_warn(__LOCATION__, "TDDFPT Kernel: HF and HFX_KERNEL are exclusive.")
-               CPABORT("TDDFPT Input")
-            END IF
             !
             xc_section => xc_root
             hfx_section => section_vals_get_subs_vals(xc_section, "HF")
@@ -604,8 +603,12 @@ CONTAINS
                do_exck = .FALSE.
             END IF
             IF (exhfxk) THEN
-               do_hfxlr = .TRUE.
+               xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL%HFXSR")
+               CALL section_vals_get(xc_sub, explicit=do_hfxsr)
+               xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL%HFXLR")
+               CALL section_vals_get(xc_sub, explicit=do_hfxlr)
             ELSE
+               do_hfxsr = .FALSE.
                do_hfxlr = .FALSE.
             END IF
          ELSE
@@ -618,12 +621,14 @@ CONTAINS
             END IF
             do_admm = do_hfx .AND. dft_control%do_admm
             do_exck = .FALSE.
+            do_hfxsr = .FALSE.
             do_hfxlr = .FALSE.
          END IF
       ELSE
          do_hfx = .FALSE.
          do_admm = .FALSE.
          do_exck = .FALSE.
+         do_hfxsr = .FALSE.
          do_hfxlr = .FALSE.
       END IF
 
@@ -674,6 +679,12 @@ CONTAINS
                ELSE
                   WRITE (log_unit, "(T2,A,T67,A14)") "KERNEL|", "Exact Exchange"
                END IF
+            END IF
+            IF (tddfpt_control%do_hfxsr) THEN
+               WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "Short range HFX approximation"
+            END IF
+            IF (tddfpt_control%do_hfxlr) THEN
+               WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "Long range HFX approximation"
             END IF
             IF (tddfpt_control%do_lrigpw) THEN
                WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "LRI approximation of transition density"
@@ -1170,8 +1181,10 @@ CONTAINS
          IF (tddfpt_control%do_admm) CALL release_kernel_env(kernel_env%admm_kernel)
          CALL release_kernel_env(kernel_env%full_kernel)
          CALL tddfpt_release_work_matrices(work_matrices, sub_env)
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, tddfpt_control%do_hfx, tddfpt_control%do_admm, &
-                                          tddfpt_control%do_exck, qs_env, sub_env)
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, tddfpt_control%do_hfx, &
+                                          tddfpt_control%do_admm, tddfpt_control%do_hfxsr, &
+                                          tddfpt_control%do_hfxlr, tddfpt_control%do_exck, &
+                                          qs_env, sub_env)
       END IF
 
       DO istate = 1, nstates

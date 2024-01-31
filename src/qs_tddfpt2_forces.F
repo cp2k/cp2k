@@ -698,6 +698,10 @@ CONTAINS
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
 
+      CPASSERT(.NOT. dft_control%tddfpt2_control%do_exck)
+      CPASSERT(.NOT. dft_control%tddfpt2_control%do_hfxsr)
+      CPASSERT(.NOT. dft_control%tddfpt2_control%do_hfxlr)
+
       NULLIFY (auxbas_pw_pool, poisson_env)
       ! gets the tmp grids
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &

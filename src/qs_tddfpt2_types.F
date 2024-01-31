@@ -207,19 +207,22 @@ CONTAINS
 !> \param do_hfx         flag that requested to allocate work matrices required for computation
 !>                       of exact-exchange terms
 !> \param do_admm ...
+!> \param do_hfxsr ...
+!> \param do_hfxlr ...
 !> \param do_exck ...
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, do_exck, &
-                                          qs_env, sub_env)
+   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
+                                          do_hfxsr, do_hfxlr, do_exck, qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_exck
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxsr, do_hfxlr, &
+                                                            do_exck
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -501,6 +504,15 @@ CONTAINS
             CALL dbcsr_complete_redistribute(work_matrices%hfx_hmat_symm(ispin)%matrix, &
                                              work_matrices%hfx_hmat_asymm(ispin)%matrix)
          END DO
+      END IF
+
+      ! matrices needed to do HFX short range calllculations
+      IF (do_hfxsr) THEN
+         CPASSERT(.FALSE.)
+      END IF
+      ! matrices needed to do HFX long range calllculations
+      IF (do_hfxlr) THEN
+         CPASSERT(.FALSE.)
       END IF
 
       CALL timestop(handle)

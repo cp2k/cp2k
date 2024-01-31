@@ -35,30 +35,30 @@
       CUTOFF 180
       REL_CUTOFF 30
     &END MGRID
-    &QS
-      METHOD GAPW
-      EPS_DEFAULT 1.E-10
-    &END QS
-    &SCF
-      SCF_GUESS ATOMIC
-      MAX_SCF  100
-      EPS_SCF 1.0E-6
-    &END SCF
-    &XC
-      &XC_FUNCTIONAL PBE0 
-      &END XC_FUNCTIONAL
-      &HF
-         &SCREENING
-            SCREEN_P_FORCES F
-         &END SCREENING
-      &END HF
-    &END XC
     &PRINT
       &MOMENTS ON
         PERIODIC .FALSE.
         REFERENCE COM
       &END MOMENTS
     &END PRINT
+    &QS
+      EPS_DEFAULT 1.E-10
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &HF
+        &SCREENING
+          SCREEN_P_FORCES F
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL PBE0
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &PROPERTIES
     &TDDFPT
@@ -71,7 +71,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom]  4.5  4.5  4.5
+      ABC [angstrom] 4.5 4.5 4.5
       PERIODIC NONE
     &END CELL
     &COORD
