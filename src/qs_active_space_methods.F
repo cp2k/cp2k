@@ -1715,32 +1715,32 @@ CONTAINS
             CASE (eri_operator_coulomb)
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gf%cc(ig) = fourpi/g2
+                  gf%array(ig) = fourpi/g2
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_yukawa)
                a = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gf%cc(ig) = fourpi/(a + g2)
+                  gf%array(ig) = fourpi/(a + g2)
                END DO
-               IF (grid%have_g0) gf%cc(1) = fourpi/a
+               IF (grid%have_g0) gf%array(1) = fourpi/a
             CASE (eri_operator_erf)
                a = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*EXP(ga)
+                  gf%array(ig) = fourpi/g2*EXP(ga)
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_erfc)
                a = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
+                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
+               IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/a
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
@@ -1756,9 +1756,9 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   gg = SQRT(g2)
                   g3d = fourpi/g2
-                  gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
+                  gf%array(ig) = g3d*(1.0_dp - COS(rlength*gg))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
             CASE (eri_operator_yukawa)
                rlength = green%radius
                a = eri_env%operator_parameter
@@ -1768,9 +1768,9 @@ CONTAINS
                   gg = SQRT(g2)
                   g3d = fourpi/(a*a + g2)
                   rg = rlength*gg
-                  gf%cc(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
+                  gf%array(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
                END DO
-               IF (grid%have_g0) gf%cc(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
+               IF (grid%have_g0) gf%array(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
             CASE (eri_operator_erf)
                rlength = green%radius
                a = eri_env%operator_parameter**2
@@ -1778,9 +1778,9 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   gg = SQRT(g2)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
+                  gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
             CASE (eri_operator_erfc)
                rlength = green%radius
                a = eri_env%operator_parameter**2
@@ -1788,9 +1788,9 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   gg = SQRT(g2)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
+                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0._dp
+               IF (grid%have_g0) gf%array(1) = 0._dp
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT

@@ -38,8 +38,6 @@ MODULE pw_pool_types
                           pw_grid_release, &
                           pw_grid_retain
       USE pw_types, ONLY: COMPLEXDATA1D, &
-                          COMPLEXDATA3D, &
-                          REALDATA1D, &
                           REALDATA3D, &
                           REALSPACE, &
                           RECIPROCALSPACE, &
@@ -244,8 +242,8 @@ MODULE pw_pool_types
 !> \brief returns a pw, allocating it if none is in the pool
 !> \param pool the pool from where you get the pw
 !> \param pw will contain the new pw
-!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
-!>        REALDATA3D, COMPLEXDATA3D
+!> \param use_data which data it uses: COMPLEXDATA1D,
+!>        REALDATA3D
 !> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
 !> \par History
 !>      08.2002 created [fawzi]
@@ -309,8 +307,8 @@ MODULE pw_pool_types
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
-!>        REALDATA3D, COMPLEXDATA3D
+!> \param use_data which data it uses: COMPLEXDATA1D,
+!>        REALDATA3D
 !> \param in_space ...
 !> \par History
 !>      07.2004 created [fawzi]
@@ -358,8 +356,8 @@ MODULE pw_pool_types
 !> \brief returns a pw, allocating it if none is in the pool
 !> \param pool the pool from where you get the pw
 !> \param pw will contain the new pw
-!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
-!>        REALDATA3D, COMPLEXDATA3D
+!> \param use_data which data it uses: COMPLEXDATA1D,
+!>        REALDATA3D
 !> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
 !> \par History
 !>      08.2002 created [fawzi]
@@ -383,10 +381,6 @@ MODULE pw_pool_types
                      #:endfor
 
                      SELECT CASE (use_data)
-                     CASE (REALDATA1D)
-                        r1d_ptr => try_pop_r1d(pool%r1d_array)
-                        CALL pw%create(pool%pw_grid, use_data=use_data, &
-                                       in_space=in_space, r1d_ptr=r1d_ptr)
                      CASE (REALDATA3D)
                         r3d_ptr => try_pop_r3d(pool%r3d_array)
                         CALL pw%create(pool%pw_grid, use_data=use_data, &
@@ -395,10 +389,6 @@ MODULE pw_pool_types
                         c1d_ptr => try_pop_c1d(pool%c1d_array)
                         CALL pw%create(pool%pw_grid, use_data=use_data, &
                                        in_space=in_space, c1d_ptr=c1d_ptr)
-                     CASE (COMPLEXDATA3D)
-                        c3d_ptr => try_pop_c3d(pool%c3d_array)
-                        CALL pw%create(pool%pw_grid, use_data=use_data, &
-                                       in_space=in_space, c3d_ptr=c3d_ptr)
                      CASE default
 ! unknown use_data
                         CPABORT("")
@@ -428,15 +418,6 @@ MODULE pw_pool_types
                      IF (ASSOCIATED(pw%pw_grid)) THEN
                         IF (pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
                            SELECT CASE (pw%in_use)
-                           CASE (REALDATA1D)
-                              IF (ASSOCIATED(pw%cr)) THEN
-                                 IF (cp_sll_1d_r_get_length(pool%r1d_array) < pool%max_cache) THEN
-                                    CALL cp_sll_1d_r_insert_el(pool%r1d_array, el=pw%cr)
-                                    NULLIFY (pw%cr)
-                                 ELSE IF (max_max_cache >= 0) THEN
-                                    CPWARN("hit max_cache")
-                                 END IF
-                              END IF
                            CASE (REALDATA3D)
                               IF (ASSOCIATED(pw%cr3d)) THEN
                                  IF (cp_sll_3d_r_get_length(pool%r3d_array) < pool%max_cache) THEN
@@ -451,15 +432,6 @@ MODULE pw_pool_types
                                  IF (cp_sll_1d_c_get_length(pool%c1d_array) < pool%max_cache) THEN
                                     CALL cp_sll_1d_c_insert_el(pool%c1d_array, el=pw%cc)
                                     NULLIFY (pw%cc)
-                                 ELSE IF (max_max_cache >= 0) THEN
-                                    CPWARN("hit max_cache")
-                                 END IF
-                              END IF
-                           CASE (COMPLEXDATA3D)
-                              IF (ASSOCIATED(pw%cc3d)) THEN
-                                 IF (cp_sll_3d_c_get_length(pool%c3d_array) < pool%max_cache) THEN
-                                    CALL cp_sll_3d_c_insert_el(pool%c3d_array, el=pw%cc3d)
-                                    NULLIFY (pw%cc3d)
                                  ELSE IF (max_max_cache >= 0) THEN
                                     CPWARN("hit max_cache")
                                  END IF
@@ -541,8 +513,8 @@ MODULE pw_pool_types
 !> \brief creates a multigrid structure
 !> \param pools the multigrid pool (i.e. an array of pw_pool)
 !> \param pws the multigrid of coefficent you want to initialize
-!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
-!>        REALDATA3D, COMPLEXDATA3D
+!> \param use_data which data it uses: COMPLEXDATA1D,
+!>        REALDATA3D
 !> \param in_space ...
 !> \par History
 !>      07.2004 created [fawzi]

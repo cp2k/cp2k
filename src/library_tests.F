@@ -89,10 +89,10 @@ MODULE library_tests
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c3d_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
@@ -830,8 +830,9 @@ CONTAINS
                                                             t_min, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_end, t_start
       TYPE(cell_type), POINTER                           :: box
+      TYPE(pw_c3d_type)                                  :: cb
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: ca, cb, cc
+      TYPE(pw_type)                                      :: ca, cc
 
 !..set fft lib
 
@@ -939,7 +940,7 @@ CONTAINS
             no = grid%npts
 
             CALL ca%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
-            CALL cb%create(grid, COMPLEXDATA3D, REALSPACE)
+            CALL cb%create(grid, REALSPACE)
             CALL cc%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
 
             ! initialize data

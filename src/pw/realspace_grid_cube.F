@@ -18,7 +18,8 @@ MODULE realspace_grid_cube
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_type,&
+                                              pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,7 +49,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
                          silent, mpi_io)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_type), INTENT(IN)                      :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -175,11 +176,11 @@ CONTAINS
 
                IF (source == dest) THEN
                   IF (my_rank == source) THEN
-                     buf(:) = pw%cr3d(I1, I2, :)
+                     buf(:) = pw%array(I1, I2, :)
                   END IF
                ELSE
                   IF (my_rank == source) THEN
-                     buf(:) = pw%cr3d(I1, I2, :)
+                     buf(:) = pw%array(I1, I2, :)
                      CALL gid%send(buf, dest, tag)
                   END IF
                   IF (my_rank == dest) THEN
@@ -623,7 +624,7 @@ CONTAINS
    SUBROUTINE pw_to_cube_parallel(grid, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
                                   msglen)
 
-      TYPE(pw_type), INTENT(IN)                          :: grid
+      TYPE(pw_r3d_type), INTENT(IN)                      :: grid
       TYPE(mp_file_type), INTENT(IN)                     :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -768,10 +769,10 @@ CONTAINS
                tmp = ''
                counter = 0
                DO k = lbounds(3), ubounds(3), stride(3)
-                  IF (zero_tails .AND. grid%cr3d(i, j, k) < 1.E-7_dp) THEN
+                  IF (zero_tails .AND. grid%array(i, j, k) < 1.E-7_dp) THEN
                      WRITE (value, '(E13.5)') 0.0_dp
                   ELSE
-                     WRITE (value, '(E13.5)') grid%cr3d(i, j, k)
+                     WRITE (value, '(E13.5)') grid%array(i, j, k)
                   END IF
                   tmp = TRIM(tmp)//TRIM(value)
                   counter = counter + 1

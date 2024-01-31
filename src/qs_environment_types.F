@@ -83,7 +83,8 @@ MODULE qs_environment_types
    USE post_scf_bandstructure_types,    ONLY: bs_env_release,&
                                               post_scf_bandstructure_type
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_type,&
+                                              pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               release_active_space_type
@@ -544,7 +545,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kinetic
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vppl
+      TYPE(pw_c1d_type), OPTIONAL, POINTER               :: rho_core
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_nlcc, rho_nlcc_g
       TYPE(qs_ks_env_type), OPTIONAL, POINTER            :: ks_env
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history

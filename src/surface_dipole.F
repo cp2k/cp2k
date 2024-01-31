@@ -26,6 +26,7 @@ MODULE surface_dipole
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -73,12 +74,13 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rhoavsurf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: vdip_r, wf_r
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -106,9 +108,12 @@ CONTAINS
                                     in_space=REALSPACE)
 
       IF (dft_control%qs_control%gapw) THEN
-         CALL pw_transfer(rho0_s_gs, wf_r)
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-            CALL pw_axpy(rho_core, wf_r)
+            CALL pw_axpy(rho_core, rho0_s_gs)
+            CALL pw_transfer(rho0_s_gs, wf_r)
+            CALL pw_axpy(rho_core, rho0_s_gs, -1.0_dp)
+         ELSE
+            CALL pw_transfer(rho0_s_gs, wf_r)
          END IF
       ELSE
          CALL pw_transfer(rho_core, wf_r)

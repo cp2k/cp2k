@@ -307,7 +307,7 @@ CONTAINS
             DO i = 1, 3
                DO ig = grid_b%first_gne0, grid_b%ngpts_cut_local
                   phi_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
-                  phi_g%cc(ig) = phi_g%cc(ig)*poisson_env%green_fft%influence_fn%cc(ig)
+                  phi_g%cc(ig) = phi_g%cc(ig)*poisson_env%green_fft%influence_fn%array(ig)
                END DO
                IF (grid_b%have_g0) phi_g%cc(1) = 0.0_dp
                DO j = 1, i

@@ -38,6 +38,7 @@ MODULE dirichlet_bc_methods
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
+                                              pw_r3d_type,&
                                               pw_type
    USE rs_methods,                      ONLY: setup_grid_axes
 #include "../base/base_uses.f90"
@@ -319,7 +320,7 @@ CONTAINS
          tile_maxvals = 0.0_dp
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
-            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, in_space=REALSPACE)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
             IF ((unit_nr .GT. 0) .AND. verbose) THEN
@@ -332,7 +333,7 @@ CONTAINS
 
             CALL arbitrary_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                            sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
-            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
+            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%array)
             CALL pw_pool%pw_grid%para%group%sum(tile_volume)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
@@ -357,7 +358,7 @@ CONTAINS
 
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
-            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, in_space=REALSPACE)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
             IF ((unit_nr .GT. 0) .AND. verbose) THEN
@@ -371,7 +372,7 @@ CONTAINS
             CALL arbitrary_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                            sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_axpy(dirichlet_bc%tiles(k)%tile%tile_pw, cylinder_pw)
-            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
+            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%array)
             CALL pw_pool%pw_grid%para%group%sum(tile_volume)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
@@ -403,7 +404,7 @@ CONTAINS
 
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
-            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw, in_space=REALSPACE)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
             IF ((unit_nr .GT. 0) .AND. verbose) THEN
@@ -416,7 +417,7 @@ CONTAINS
 
             CALL aa_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
                                     sigma, is_periodic, dirichlet_bc%tiles(k)%tile%tile_pw)
-            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
+            tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%array)
             CALL pw_pool%pw_grid%para%group%sum(tile_volume)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
@@ -1396,7 +1397,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
       LOGICAL, INTENT(IN)                                :: is_periodic
-      TYPE(pw_type), INTENT(INOUT), POINTER              :: tile_pw
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: tile_pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_tile_pw_compute'
 
@@ -1454,7 +1455,7 @@ CONTAINS
                   hy = prefactor(2, 3)*(erf((yjr - y_xtnt(1))/sigma) - erf((yjr - y_xtnt(2))/sigma))
                   hz = prefactor(3, 3)*(erf((zkr - z_xtnt(1))/sigma) - erf((zkr - z_xtnt(2))/sigma))
 
-                  tile_pw%cr3d(i, j, k) = (fx + gx + hx)*(fy + gy + hy)*(fz + gz + hz)
+                  tile_pw%array(i, j, k) = (fx + gx + hx)*(fy + gy + hy)*(fz + gz + hz)
                END DO
             END DO
          END DO
@@ -1468,7 +1469,7 @@ CONTAINS
                   fy = 0.5_dp*(erf((yj0 - y_xtnt(1))/sigma) - erf((yj0 - y_xtnt(2))/sigma))
                   fz = 0.5_dp*(erf((zk0 - z_xtnt(1))/sigma) - erf((zk0 - z_xtnt(2))/sigma))
 
-                  tile_pw%cr3d(i, j, k) = fx*fy*fz
+                  tile_pw%array(i, j, k) = fx*fy*fz
                END DO
             END DO
          END DO
@@ -1498,7 +1499,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
-      TYPE(pw_type), INTENT(INOUT), POINTER              :: tile_pw
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: tile_pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_tile_pw_compute'
 
@@ -1557,7 +1558,7 @@ CONTAINS
                fy = 0.5_dp*(erf((yj0 - y_xtnt(1))/sigma) - erf((yj0 - y_xtnt(2))/sigma))
                fz = 0.5_dp*(erf((zk0 - z_xtnt(1))/sigma) - erf((zk0 - z_xtnt(2))/sigma))
 
-               tile_pw%cr3d(i, j, k) = fx*fy*fz
+               tile_pw%array(i, j, k) = fx*fy*fz
             END DO
          END DO
       END DO
