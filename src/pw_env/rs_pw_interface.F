@@ -33,6 +33,8 @@ MODULE rs_pw_interface
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
+                                              pw_r3d_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type,&
@@ -50,7 +52,42 @@ MODULE rs_pw_interface
    PUBLIC :: density_rs2pw, &
              potential_pw2rs
 
+   INTERFACE density_rs2pw
+      MODULE PROCEDURE density_rs2pw_pw, density_rs2pw_new
+   END INTERFACE
+
+   INTERFACE potential_pw2rs
+      MODULE PROCEDURE potential_pw2rs_pw, potential_pw2rs_new
+   END INTERFACE
+
 CONTAINS
+! **************************************************************************************************
+!> \brief ...
+!> \param pw_env ...
+!> \param rs_rho ...
+!> \param rho ...
+!> \param rho_gspace ...
+! **************************************************************************************************
+   SUBROUTINE density_rs2pw_pw(pw_env, rs_rho, rho, rho_gspace)
+
+      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
+      TYPE(realspace_grid_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_rho
+      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
+
+      TYPE(pw_c1d_type)                                  :: my_rho_gspace
+      TYPE(pw_r3d_type)                                  :: my_rho
+
+      my_rho_gspace%in_space = rho_gspace%in_space
+      my_rho_gspace%pw_grid => rho_gspace%pw_grid
+      my_rho_gspace%array => rho_gspace%cc
+      my_rho%in_space = rho%in_space
+      my_rho%pw_grid => rho%pw_grid
+      my_rho%array => rho%cr3d
+
+      CALL density_rs2pw(pw_env, rs_rho, my_rho, my_rho_gspace)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief given partial densities on the realspace multigrids,
@@ -64,14 +101,15 @@ CONTAINS
 !>      should contain all communication in the collocation of the density
 !>      in the case of replicated grids
 ! **************************************************************************************************
-   SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
+   SUBROUTINE density_rs2pw_new(pw_env, rs_rho, rho, rho_gspace)
 
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
-      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
+      TYPE(pw_r3d_type), INTENT(INOUT)                   :: rho
+      TYPE(pw_c1d_type), INTENT(INOUT)                   :: rho_gspace
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw_new'
 
       INTEGER                                            :: handle, igrid_level, interp_kind
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
@@ -138,7 +176,30 @@ CONTAINS
       CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
       CALL timestop(handle)
 
-   END SUBROUTINE density_rs2pw
+   END SUBROUTINE density_rs2pw_new
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rs_v ...
+!> \param v_rspace ...
+!> \param pw_env ...
+! **************************************************************************************************
+   SUBROUTINE potential_pw2rs_pw(rs_v, v_rspace, pw_env)
+
+      TYPE(realspace_grid_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_v
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_env_type), INTENT(IN)                      :: pw_env
+
+      TYPE(pw_r3d_type)                                  :: my_v_rspace
+
+      my_v_rspace%pw_grid => v_rspace%pw_grid
+      my_v_rspace%array => v_rspace%cr3d
+      my_v_rspace%in_space = v_rspace%in_space
+
+      CALL potential_pw2rs_new(rs_v, my_v_rspace, pw_env)
+
+   END SUBROUTINE potential_pw2rs_pw
 
 ! **************************************************************************************************
 !> \brief transfers a potential from a pw_grid to a vector of
@@ -153,14 +214,14 @@ CONTAINS
 !>      should contain all parallel communication of integrate_v_rspace in the
 !>      case of replicated grids.
 ! **************************************************************************************************
-   SUBROUTINE potential_pw2rs(rs_v, v_rspace, pw_env)
+   SUBROUTINE potential_pw2rs_new(rs_v, v_rspace, pw_env)
 
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_v
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_type), INTENT(IN)                      :: v_rspace
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'potential_pw2rs'
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_pw2rs_new'
 
       INTEGER                                            :: auxbas_grid, handle, igrid_level, &
                                                             interp_kind
@@ -233,6 +294,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE potential_pw2rs
+   END SUBROUTINE potential_pw2rs_new
 
 END MODULE rs_pw_interface

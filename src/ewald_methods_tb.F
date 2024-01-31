@@ -233,7 +233,7 @@ CONTAINS
                DO i = 1, 3
                   DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
                      phib_g%cc(ig) = ffb*dphi_g(i)%cc(ig)*(1.0_dp + ffa*grid_spme%gsq(ig))
-                     phib_g%cc(ig) = phib_g%cc(ig)*green%influence_fn%cc(ig)
+                     phib_g%cc(ig) = phib_g%cc(ig)*green%influence_fn%array(ig)
                   END DO
                   IF (grid_spme%have_g0) phib_g%cc(1) = 0.0_dp
                   DO j = 1, i

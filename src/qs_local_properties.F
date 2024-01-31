@@ -43,6 +43,7 @@ MODULE qs_local_properties
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ptrace
@@ -94,13 +95,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_w, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type)                                      :: band_density, edens_g, edens_r, &
                                                             hartree_density, xc_density
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
-      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace, &
-                                                            rho_tot_rspace, v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: rho_tot_gspace, rho_tot_rspace, &
+                                                            v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct

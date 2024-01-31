@@ -30,7 +30,7 @@ MODULE dgs
    USE pw_methods,                      ONLY: pw_copy,&
                                               pw_multiply_with,&
                                               pw_zero
-   USE pw_types,                        ONLY: COMPLEXDATA3D,&
+   USE pw_types,                        ONLY: pw_c3d_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
@@ -861,20 +861,20 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       INTEGER                                            :: nd(3)
-      TYPE(pw_type)                                      :: cd
+      TYPE(pw_c3d_type)                                  :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      CALL cd%create(rho0%pw_grid, COMPLEXDATA3D, rho0%in_space)
+      CALL cd%create(rho0%pw_grid, rho0%in_space)
       CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
+      CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
-      CALL fft3d(BWFFT, nd, cd%cc3d)
+      CALL fft3d(BWFFT, nd, cd%array)
       CALL pw_copy(cd, rhos1)
 
       DEALLOCATE (zs)
@@ -907,24 +907,24 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       INTEGER                                            :: nd(3)
-      TYPE(pw_type)                                      :: cd
+      TYPE(pw_c3d_type)                                  :: cd
 
       nd = rhos1%pw_grid%npts
 
       ALLOCATE (zs(nd(1)*nd(2)))
       zs = 0.0_dp
-      CALL cd%create(rhos1%pw_grid, COMPLEXDATA3D, rho0%in_space)
+      CALL cd%create(rhos1%pw_grid, rho0%in_space)
       CALL pw_zero(cd)
 
       za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       zb = CMPLX(charge2, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd%cc3d, zb, ex2, ey2, ez2, zs)
+      CALL rankup(nd, za, cd%array, zb, ex2, ey2, ez2, zs)
       za = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
-      CALL rankup(nd, za, cd%cc3d, zb, ex1, ey1, ez1, zs)
+      CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
-      CALL fft3d(BWFFT, nd, cd%cc3d)
-      CALL copy_cri(cd%cc3d, rhos1%cr3d, rhos2%cr3d)
+      CALL fft3d(BWFFT, nd, cd%array)
+      CALL copy_cri(cd%array, rhos1%cr3d, rhos2%cr3d)
 
       DEALLOCATE (zs)
       CALL cd%release()

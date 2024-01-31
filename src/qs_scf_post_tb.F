@@ -97,6 +97,7 @@ MODULE qs_scf_post_tb
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                               calculate_rho_elec,&
@@ -1196,11 +1197,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_type)                                  :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_core, rho_tot_rspace, vhartree
+      TYPE(pw_type)                                      :: rho_tot_rspace, vhartree
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1252,7 +1254,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       CALL auxbas_pw_pool%create_pw(pw=rho_core, &
-                                    use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE)
       CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
 
@@ -1304,7 +1305,7 @@ CONTAINS
                TYPE(pw_grid_type), POINTER                        :: pwdummy
                NULLIFY (pwdummy)
                CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
-               rho_tot_gspace%cc(:) = rho_tot_gspace%cc(:)*green_fft%influence_fn%cc(:)
+               rho_tot_gspace%cc(:) = rho_tot_gspace%cc(:)*green_fft%influence_fn%array(:)
                CALL pw_green_release(green_fft, auxbas_pw_pool)
             END BLOCK
             IF (my_v_hartree) THEN

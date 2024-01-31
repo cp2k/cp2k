@@ -88,6 +88,7 @@ MODULE qs_ks_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
@@ -203,6 +204,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -210,8 +212,9 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_type), POINTER :: rho0_s_rs, rho_core, rho_nlcc, v_hartree_rspace, v_sccs_rspace, &
-         v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
+      TYPE(pw_type), POINTER                             :: rho0_s_rs, rho_nlcc, v_hartree_rspace, &
+                                                            v_sccs_rspace, v_sic_rspace, &
+                                                            v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -928,8 +931,9 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
-      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
+      TYPE(pw_type), POINTER                             :: rho0_s_gs
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
       my_skip = .FALSE.

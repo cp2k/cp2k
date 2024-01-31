@@ -11,66 +11,66 @@
 !>      07.2019 separated from mp2_integrals.F [Frederick Stein]
 ! **************************************************************************************************
 MODULE mp2_eri_gpw
-   USE ao_util,                         ONLY: exp_radius_very_extended
-   USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_set
-   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE input_constants,                 ONLY: do_potential_coulomb,&
-                                              do_potential_id,&
-                                              do_potential_long,&
-                                              do_potential_mix_cl,&
-                                              do_potential_short,&
-                                              do_potential_truncated
-   USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE mathconstants,                   ONLY: fourpi
-   USE message_passing,                 ONLY: mp_para_env_type
-   USE orbital_pointers,                ONLY: ncoset
-   USE particle_types,                  ONLY: particle_type
-   USE pw_env_methods,                  ONLY: pw_env_create,&
-                                              pw_env_rebuild
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_release,&
-                                              pw_env_type
-   USE pw_methods,                      ONLY: &
-        pw_compl_gauss_damp, pw_copy, pw_derive, pw_gauss_damp, pw_gauss_damp_mix, pw_integral_ab, &
-        pw_log_deriv_compl_gauss, pw_log_deriv_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc, &
-        pw_scale, pw_transfer, pw_truncated, pw_zero
-   USE pw_poisson_methods,              ONLY: pw_poisson_solve
-   USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
-   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                              calculate_wavefunction,&
-                                              collocate_single_gaussian
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_integrate_potential,          ONLY: integrate_pgf_product,&
-                                              integrate_v_rspace
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: map_gaussian_here,&
-                                              realspace_grid_desc_p_type,&
-                                              realspace_grid_type
-   USE rs_pw_interface,                 ONLY: potential_pw2rs
-   USE task_list_methods,               ONLY: generate_qs_task_list
-   USE task_list_types,                 ONLY: allocate_task_list,&
-                                              deallocate_task_list,&
-                                              task_list_type
+   USE ao_util, ONLY: exp_radius_very_extended
+   USE atomic_kind_types, ONLY: atomic_kind_type
+   USE basis_set_types, ONLY: gto_basis_set_type
+   USE cell_types, ONLY: cell_type, &
+                         pbc
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_fm_types, ONLY: cp_fm_type
+   USE dbcsr_api, ONLY: dbcsr_p_type, &
+                        dbcsr_set
+   USE gaussian_gridlevels, ONLY: gaussian_gridlevel
+   USE input_constants, ONLY: do_potential_coulomb, &
+                              do_potential_id, &
+                              do_potential_long, &
+                              do_potential_mix_cl, &
+                              do_potential_short, &
+                              do_potential_truncated
+   USE kinds, ONLY: dp
+   USE libint_2c_3c, ONLY: libint_potential_type
+   USE mathconstants, ONLY: fourpi
+   USE message_passing, ONLY: mp_para_env_type
+   USE orbital_pointers, ONLY: ncoset
+   USE particle_types, ONLY: particle_type
+   USE pw_env_methods, ONLY: pw_env_create, &
+                             pw_env_rebuild
+   USE pw_env_types, ONLY: pw_env_get, &
+                           pw_env_release, &
+                           pw_env_type
+   USE pw_methods, ONLY: &
+      pw_compl_gauss_damp, pw_copy, pw_derive, pw_gauss_damp, pw_gauss_damp_mix, pw_integral_ab, &
+      pw_log_deriv_compl_gauss, pw_log_deriv_gauss, pw_log_deriv_mix_cl, pw_log_deriv_trunc, &
+      pw_scale, pw_transfer, pw_truncated, pw_zero
+   USE pw_poisson_methods, ONLY: pw_poisson_solve
+   USE pw_poisson_types, ONLY: pw_poisson_type
+   USE pw_pool_types, ONLY: pw_pool_type
+   USE pw_types, ONLY: COMPLEXDATA1D, &
+                       REALDATA3D, &
+                       REALSPACE, &
+                       RECIPROCALSPACE, &
+                       pw_c1d_type, pw_type
+   USE qs_collocate_density, ONLY: calculate_rho_elec, &
+                                   calculate_wavefunction, &
+                                   collocate_single_gaussian
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_force_types, ONLY: qs_force_type
+   USE qs_integrate_potential, ONLY: integrate_pgf_product, &
+                                     integrate_v_rspace
+   USE qs_kind_types, ONLY: get_qs_kind, &
+                            get_qs_kind_set, &
+                            qs_kind_type
+   USE qs_ks_types, ONLY: qs_ks_env_type
+   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE realspace_grid_types, ONLY: map_gaussian_here, &
+                                   realspace_grid_desc_p_type, &
+                                   realspace_grid_type
+   USE rs_pw_interface, ONLY: potential_pw2rs
+   USE task_list_methods, ONLY: generate_qs_task_list
+   USE task_list_types, ONLY: allocate_task_list, &
+                              deallocate_task_list, &
+                              task_list_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -181,7 +181,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate_gpw'
 
       INTEGER :: dir, handle, handle2, i_counter, iatom, igrid_level, ikind, ipgf, iset, lb(3), &
-         LLL, location(3), max_nseta, na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
+                 LLL, location(3), max_nseta, na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: offset_2d
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -763,22 +763,28 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
+      TYPE(pw_c1d_type) :: my_pw
+
       IF (.NOT. (pw%in_space == RECIPROCALSPACE .AND. pw%in_use == COMPLEXDATA1D)) &
          CPABORT("pw in wrong space or wrong data type")
+
+      my_pw%in_space = pw%in_space
+      my_pw%pw_grid => pw%pw_grid
+      my_pw%array => pw%cc
       SELECT CASE (potential_parameter%potential_type)
       CASE (do_potential_coulomb)
          RETURN
       CASE (do_potential_long)
-         CALL pw_log_deriv_gauss(pw, potential_parameter%omega)
+         CALL pw_log_deriv_gauss(my_pw, potential_parameter%omega)
       CASE (do_potential_short)
-         CALL pw_log_deriv_compl_gauss(pw, potential_parameter%omega)
+         CALL pw_log_deriv_compl_gauss(my_pw, potential_parameter%omega)
       CASE (do_potential_mix_cl)
-         CALL pw_log_deriv_mix_cl(pw, potential_parameter%omega, &
+         CALL pw_log_deriv_mix_cl(my_pw, potential_parameter%omega, &
                                   potential_parameter%scale_coulomb, potential_parameter%scale_longrange)
       CASE (do_potential_truncated)
-         CALL pw_log_deriv_trunc(pw, potential_parameter%cutoff_radius)
+         CALL pw_log_deriv_trunc(my_pw, potential_parameter%cutoff_radius)
       CASE (do_potential_id)
-         CALL pw_zero(pw)
+         CALL pw_zero(my_pw)
       CASE DEFAULT
          CPABORT("Unknown potential type")
       END SELECT
@@ -1125,8 +1131,22 @@ CONTAINS
 
       INTEGER                                            :: comp(3), handle, idir, my_potential_type
       LOGICAL                                            :: my_transfer
+      TYPE(pw_c1d_type) :: my_rho_g, my_pot_g, my_dvg(3)
 
       CALL timeset(routineN, handle)
+
+      #:for grid in ["rho_g", "pot_g"]
+         my_${grid}$%pw_grid => ${grid}$%pw_grid
+         my_${grid}$%in_space = ${grid}$%in_space
+         my_${grid}$%array => ${grid}$%cc
+      #:endfor
+      IF (PRESENT(dvg)) THEN
+         #:for grid in ["dvg(1)", "dvg(2)", "dvg(3)"]
+            my_${grid}$%pw_grid => ${grid}$%pw_grid
+            my_${grid}$%in_space = ${grid}$%in_space
+            my_${grid}$%array => ${grid}$%cc
+         #:endfor
+      END IF
 
       my_potential_type = do_potential_coulomb
       IF (PRESENT(potential_parameter)) THEN
@@ -1139,26 +1159,30 @@ CONTAINS
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type /= do_potential_id) THEN
-         CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g, dvhartree=dvg)
-         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g, potential_parameter%omega)
-         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g, potential_parameter%omega)
-         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g, potential_parameter%cutoff_radius)
-         IF (my_potential_type == do_potential_mix_cl) CALL pw_gauss_damp_mix(pot_g, potential_parameter%omega, &
+         IF (PRESENT(dvg)) THEN
+            CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g, dvhartree=dvg)
+         ELSE
+            CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g)
+         END IF
+         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(my_pot_g, potential_parameter%omega)
+         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(my_pot_g, potential_parameter%omega)
+         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(my_pot_g, potential_parameter%cutoff_radius)
+         IF (my_potential_type == do_potential_mix_cl) CALL pw_gauss_damp_mix(my_pot_g, potential_parameter%omega, &
                                                                               potential_parameter%scale_coulomb, &
                                                                               potential_parameter%scale_longrange)
-         IF (my_transfer) CALL pw_transfer(pot_g, pot_r)
+         IF (my_transfer) CALL pw_transfer(my_pot_g, pot_r)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output
-         CALL pw_copy(rho_g, pot_g)
+         CALL pw_copy(my_rho_g, my_pot_g)
          IF (PRESENT(dvg)) THEN
          DO idir = 1, 3
-            CALL pw_copy(pot_g, dvg(idir))
+            CALL pw_copy(my_pot_g, my_dvg(idir))
             comp = 0
             comp(idir) = 1
-            CALL pw_derive(dvg(idir), comp)
+            CALL pw_derive(my_dvg(idir), comp)
          END DO
          END IF
-         IF (my_transfer) CALL pw_transfer(rho_g, pot_r)
+         IF (my_transfer) CALL pw_transfer(my_rho_g, pot_r)
       END IF
 
       IF (my_transfer) CALL pw_scale(pot_r, pot_r%pw_grid%dvol)

@@ -91,6 +91,7 @@ MODULE mp2_cphf
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
@@ -1331,6 +1332,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1340,7 +1342,6 @@ CONTAINS
       TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, rho_mp2_r, &
                                                             rho_mp2_r_aux, rho_r, tau_mp2_r, &
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force

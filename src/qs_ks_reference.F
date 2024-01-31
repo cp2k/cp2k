@@ -40,6 +40,7 @@ MODULE qs_ks_reference
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
+                                              pw_c1d_type,&
                                               pw_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
@@ -110,6 +111,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_type), POINTER                         :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -118,7 +120,6 @@ CONTAINS
                                                             v_hartree_rspace
       TYPE(pw_type), DIMENSION(:), POINTER               :: v_admm_rspace, v_admm_tau_rspace, &
                                                             v_rspace, v_tau_rspace
-      TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_xc
       TYPE(section_vals_type), POINTER                   :: xc_section
