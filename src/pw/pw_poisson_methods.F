@@ -361,11 +361,19 @@ CONTAINS
                   CALL pw_multiply_with(rhog_aux, influence_fn)
                END IF
                IF (PRESENT(ehartree)) THEN
-                  ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
+                  IF (PRESENT(aux_density)) THEN
+                     ehartree = 0.5_dp*pw_integral_ab(rhog_aux, tmpg)
+                  ELSE
+                     ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
+                  END IF
                   CALL pw_pool%give_back_pw(tmpg)
                END IF
 
             CASE (PS_IMPLICIT)
+
+               IF (PRESENT(h_stress)) THEN
+                  CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+               END IF
 
                IF (has_dielectric .AND. PRESENT(rho_core)) THEN
                   SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -408,8 +416,9 @@ CONTAINS
                                                      electric_enthalpy=ehartree)
                END SELECT
 
-               IF (PRESENT(h_stress)) THEN
-                  CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_transfer(aux_density, rhor)
+                  ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
                END IF
 
                CALL pw_pool%give_back_pw(rhor)
@@ -429,19 +438,35 @@ CONTAINS
             CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
             CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
             IF (PRESENT(ehartree)) THEN
-               #! This is actually not consequent but to keep it working, I leave it that way
-               #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
-               #:if kindd=="r3d_rs"
-                  ehartree = 0.5_dp*pw_integral_ab(density, rhor)
-               #:else
-                  IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog)
-                  CALL pw_transfer(rhor, rhog)
-                  ehartree = 0.5_dp*pw_integral_ab(density, rhog)
-                  IF (.NOT. PRESENT(h_stress)) CALL pw_pool%give_back_pw(rhog)
-               #:endif
+               IF (PRESENT(aux_density)) THEN
+                  #:if kindd=="r3d_rs"
+                     ehartree = 0.5_dp*pw_integral_ab(aux_density, rhor)
+                  #:else
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog)
+                     CALL pw_transfer(rhor, rhog)
+                     ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%give_back_pw(rhog)
+                  #:endif
+               ELSE
+                  #:if kindd=="r3d_rs"
+                     ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                  #:else
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog)
+                     CALL pw_transfer(rhor, rhog)
+                     ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%give_back_pw(rhog)
+                  #:endif
+               END IF
             END IF
             IF (PRESENT(h_stress)) THEN
                CALL pw_transfer(rhor, rhog)
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_transfer(aux_density, rhor)
+                  CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                  CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                  CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                  CALL pw_transfer(rhor, rhog_aux)
+               END IF
             END IF
             CALL pw_pool%give_back_pw(rhor)
 
@@ -563,6 +588,9 @@ CONTAINS
                   END IF
 
                CASE (PS_IMPLICIT)
+                  IF (PRESENT(h_stress)) THEN
+                     CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+                  END IF
 
                   IF (has_dielectric .AND. PRESENT(rho_core)) THEN
                      SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -605,10 +633,12 @@ CONTAINS
                                                         electric_enthalpy=ehartree)
                   END SELECT
 
-                  CALL pw_transfer(vhartree_rs, vhartree)
-                  IF (PRESENT(h_stress)) THEN
-                     CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
                   END IF
+
+                  CALL pw_transfer(vhartree_rs, vhartree)
 
                   CALL pw_pool%give_back_pw(rhor)
                   CALL pw_pool%give_back_pw(vhartree_rs)
@@ -628,19 +658,35 @@ CONTAINS
                CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
                CALL pw_transfer(rhor, vhartree)
                IF (PRESENT(ehartree)) THEN
-                  #! This is actually not consequent but to keep it working, I leave it that way
-                  #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
-                  #:if kindd==kindv
-                     ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                  #:elif kindd=="r3d_rs"
-                     ehartree = 0.5_dp*pw_integral_ab(density, rhor)
-                  #:else
-                     CALL pw_transfer(vhartree, rhog)
-                     ehartree = 0.5_dp*pw_integral_ab(density, rhog)
-                  #:endif
+                  IF (PRESENT(aux_density)) THEN
+                     #:if kindd==kindv
+                        ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                     #:elif kindd=="r3d_rs"
+                        ehartree = 0.5_dp*pw_integral_ab(aux_density, rhor)
+                     #:else
+                        CALL pw_transfer(vhartree, rhog)
+                        ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                     #:endif
+                  ELSE
+                     #:if kindd==kindv
+                        ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                     #:elif kindd=="r3d_rs"
+                        ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                     #:else
+                        CALL pw_transfer(vhartree, rhog)
+                        ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                     #:endif
+                  END IF
                END IF
                IF (PRESENT(h_stress)) THEN
                   CALL pw_transfer(rhor, rhog)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                     CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL pw_transfer(rhor, rhog_aux)
+                  END IF
                END IF
                CALL pw_pool%give_back_pw(rhor)
 
@@ -743,11 +789,18 @@ CONTAINS
                      rhog_aux%array(:) = rhog_aux%array(:)*influence_fn%array(:)
                   END IF
                   IF (PRESENT(ehartree)) THEN
-                     ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
+                     IF (PRESENT(aux_density)) THEN
+                        ehartree = 0.5_dp*pw_integral_ab(rhog_aux, tmpg)
+                     ELSE
+                        ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
+                     END IF
                      CALL pw_pool%give_back_pw(tmpg)
                   END IF
 
                CASE (PS_IMPLICIT)
+                  IF (PRESENT(h_stress)) THEN
+                     CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+                  END IF
 
                   IF (has_dielectric .AND. PRESENT(rho_core)) THEN
                      SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -791,8 +844,10 @@ CONTAINS
                   END SELECT
 
                   CALL pw_transfer(rhor, rhog)
-                  IF (PRESENT(h_stress)) THEN
-                     CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
                   END IF
 
                   CALL pw_pool%give_back_pw(rhor)
@@ -944,6 +999,10 @@ CONTAINS
                      END IF
 
                   CASE (PS_IMPLICIT)
+                     IF (PRESENT(h_stress)) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "No stress tensor is implemented for the implicit Poisson solver.")
+                     END IF
 
                      IF (has_dielectric .AND. PRESENT(rho_core)) THEN
                         SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
@@ -988,9 +1047,10 @@ CONTAINS
 
                      CALL pw_transfer(vhartree_rs, vhartree)
                      CALL pw_transfer(rhor, rhog)
-                     IF (PRESENT(h_stress)) THEN
-                        CALL cp_abort(__LOCATION__, &
-                                      "No stress tensor is implemented for the implicit Poisson solver.")
+
+                     IF (PRESENT(aux_density)) THEN
+                        CALL pw_transfer(aux_density, rhor)
+                        ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
                      END IF
 
                      CALL pw_pool%give_back_pw(rhor)
@@ -1012,17 +1072,32 @@ CONTAINS
                   CALL pw_transfer(rhor, vhartree)
                   CALL pw_transfer(rhor, rhog)
                   IF (PRESENT(ehartree)) THEN
-                     #! This is actually not consequent but to keep it working, I leave it that way
-                     #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
-                     #:if kindd==kindv
-                        ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                     #:elif kindd=="r3d_rs"
-                        ehartree = 0.5_dp*pw_integral_ab(density, rhor)
-                     #:else
-                        ehartree = 0.5_dp*pw_integral_ab(density, rhog)
-                     #:endif
+                     IF (PRESENT(aux_density)) THEN
+                        #:if kindd==kindv
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                        #:elif kindd=="r3d_rs"
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, rhor)
+                        #:else
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                        #:endif
+                     ELSE
+                        #:if kindd==kindv
+                           ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                        #:elif kindd=="r3d_rs"
+                           ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                        #:else
+                           ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                        #:endif
+                     END IF
                   END IF
                   CALL pw_transfer(rhor, rhog)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                     CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL pw_transfer(rhor, rhog_aux)
+                  END IF
                   CALL pw_pool%give_back_pw(rhor)
 
                END SELECT
