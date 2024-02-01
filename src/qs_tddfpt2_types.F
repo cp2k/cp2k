@@ -259,9 +259,12 @@ CONTAINS
       NULLIFY (work_matrices%S_eigenvectors)
       NULLIFY (work_matrices%slambda)
 
+      ! GAPW
       NULLIFY (work_matrices%hartree_local)
       NULLIFY (work_matrices%local_rho_set)
       NULLIFY (work_matrices%local_rho_set_admm)
+
+      ! EXCK
       NULLIFY (work_matrices%rho_xc_struct_sub)
 
       nspins = SIZE(gs_mos)
@@ -512,7 +515,28 @@ CONTAINS
       END IF
       ! matrices needed to do HFX long range calllculations
       IF (do_hfxlr) THEN
-         CPASSERT(.FALSE.)
+         DO ispin = 1, nspins
+            CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
+                                     ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
+         END DO
+         CALL dbcsr_init_p(work_matrices%shalf)
+         CALL dbcsr_create(work_matrices%shalf, template=matrix_s(1)%matrix)
+         ALLOCATE (work_matrices%ctransformed(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_create(work_matrices%ctransformed(ispin), fm_struct_evects(ispin)%struct)
+         END DO
+         ! forces
+         ALLOCATE (work_matrices%S_eigenvalues(nao))
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+         ALLOCATE (work_matrices%S_eigenvectors, work_matrices%slambda)
+         CALL cp_fm_create(work_matrices%S_eigenvectors, fm_struct)
+         CALL cp_fm_create(work_matrices%slambda, fm_struct)
+         !
+         CALL cp_fm_struct_release(fm_struct)
+         DO ispin = 1, nspins
+            CALL cp_fm_struct_release(fm_struct_evects(ispin)%struct)
+         END DO
       END IF
 
       CALL timestop(handle)

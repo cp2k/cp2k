@@ -7,7 +7,10 @@
 
 MODULE qs_tddfpt2_operators
    USE admm_types,                      ONLY: admm_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add
@@ -17,8 +20,10 @@ MODULE qs_tddfpt2_operators
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_set
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_filter, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: hartree_local_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
@@ -26,7 +31,9 @@ MODULE qs_tddfpt2_operators
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -46,8 +53,10 @@ MODULE qs_tddfpt2_operators
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_tddfpt2_stda_utils,           ONLY: get_lowdin_x
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
+   USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
+                                              tddfpt_work_matrices
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical
    USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
@@ -66,7 +75,7 @@ MODULE qs_tddfpt2_operators
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
    PUBLIC :: tddfpt_apply_energy_diff, tddfpt_apply_coulomb, tddfpt_apply_xc, tddfpt_apply_hfx, &
-             tddfpt_apply_xc_potential
+             tddfpt_apply_xc_potential, tddfpt_apply_hfxlr_kernel
 
 ! **************************************************************************************************
 
@@ -630,5 +639,126 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_apply_hfx
+
+! **************************************************************************************************
+!> \brief ...Calculate the HFXLR kernel contribution by contracting the Lowdin MO coefficients --
+!>           transition charges with the exchange-type integrals using the sTDA approximation
+!> \param qs_env ...
+!> \param sub_env ...
+!> \param rcut ...
+!> \param hfx_scale ...
+!> \param work ...
+!> \param X ...
+!> \param res ... vector AX with A being the sTDA matrix and X the Davidson trial vector of the
+!>                eigenvalue problem A*X = omega*X
+! **************************************************************************************************
+   SUBROUTINE tddfpt_apply_hfxlr_kernel(qs_env, sub_env, rcut, hfx_scale, work, X, res)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_subgroup_env_type)                     :: sub_env
+      REAL(KIND=dp), INTENT(IN)                          :: rcut, hfx_scale
+      TYPE(tddfpt_work_matrices)                         :: work
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_apply_hfxlr_kernel'
+
+      INTEGER                                            :: blk, handle, iatom, ispin, jatom, natom, &
+                                                            nsgf, nspins
+      INTEGER, DIMENSION(2)                              :: nactive
+      REAL(KIND=dp)                                      :: dr, eps_filter, fcut, gabr, r, rsmooth, &
+                                                            spinfac, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: rij
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
+      TYPE(cp_fm_type)                                   :: cvec
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: xtransformed
+      TYPE(cp_fm_type), POINTER                          :: ct
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: pdens
+      TYPE(dbcsr_type), POINTER                          :: tempmat
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL timeset(routineN, handle)
+
+      ! parameters
+      rsmooth = 1.0_dp
+      eps_filter = 1.E-08_dp
+
+      nspins = SIZE(X)
+      spinfac = 2.0_dp
+      IF (nspins == 2) spinfac = 1.0_dp
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(X(ispin), ncol_global=nactive(ispin))
+      END DO
+
+      para_env => sub_env%para_env
+
+      CALL get_qs_env(qs_env, natom=natom, cell=cell, particle_set=particle_set)
+
+      ! calculate Loewdin transformed Davidson trial vector tilde(X)=S^1/2*X
+      ! and tilde(tilde(X))=S^1/2_A*tilde(X)_A
+      ALLOCATE (xtransformed(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (fmstruct)
+         ct => work%ctransformed(ispin)
+         CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
+         CALL cp_fm_create(matrix=xtransformed(ispin), matrix_struct=fmstruct, name="XTRANSFORMED")
+      END DO
+      CALL get_lowdin_x(work%shalf, X, xtransformed)
+
+      DO ispin = 1, nspins
+         ct => work%ctransformed(ispin)
+         CALL cp_fm_get_info(ct, matrix_struct=fmstruct, nrow_global=nsgf)
+         CALL cp_fm_create(cvec, fmstruct)
+         !
+         tempmat => work%shalf
+         CALL dbcsr_create(pdens, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
+         ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
+         ct => work%ctransformed(ispin)
+         CALL dbcsr_set(pdens, 0.0_dp)
+         CALL cp_dbcsr_plus_fm_fm_t(pdens, xtransformed(ispin), ct, nactive(ispin), &
+                                    1.0_dp, keep_sparsity=.FALSE.)
+         CALL dbcsr_filter(pdens, eps_filter)
+         ! Apply PP*gab -> PP; gab = gamma_coulomb
+         ! P(nu,mu) = P(nu,mu)*g(a of nu,b of mu)
+         CALL dbcsr_iterator_start(iter, pdens)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock, blk)
+            rij = particle_set(iatom)%r - particle_set(jatom)%r
+            rij = pbc(rij, cell)
+            dr = SQRT(SUM(rij(:)**2))
+            IF (dr < rcut - rsmooth) THEN
+               gabr = 0.0_dp
+            ELSE IF (dr > rcut + rsmooth) THEN
+               gabr = 1._dp/dr
+            ELSE
+               r = dr - (rcut - rsmooth)
+               xr = r/rsmooth
+               fcut = 6._dp*xr**5 - 15._dp*xr**4 + 10._dp*xr**3
+               gabr = fcut/dr
+            END IF
+            pblock = gabr*pblock
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         ! CV(mu,i) = P(nu,mu)*CT(mu,i)
+         CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
+         ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
+         CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin), nactive(ispin), &
+                                      -1.0_dp, hfx_scale)
+         !
+         CALL dbcsr_release(pdens)
+         !
+         CALL cp_fm_release(cvec)
+      END DO
+
+      CALL cp_fm_release(xtransformed)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_apply_hfxlr_kernel
+
+! **************************************************************************************************
 
 END MODULE qs_tddfpt2_operators

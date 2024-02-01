@@ -891,25 +891,19 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, name="HFXLR", &
                           description="Uses the HFXLR (long range) kernel", &
-                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
-      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
-                          description="Value of the alpha parameter (default = 1.19).", &
-                          usage="ALPHA 1.19", default_r_val=1.19_dp)
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
+                          description="Value of lower range cutoff of interaction [Bohr]", &
+                          usage="RCUT 5.00", default_r_val=6.00_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="BETA", &
-                          description="Value of the beta parameter (default = 0.01).", &
-                          usage="BETA 0.01", default_r_val=0.01_dp)
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
+                          description="Scaling parameter for HFX kernel.", &
+                          usage="SCALE 0.25", default_r_val=1.00_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
-                          description="Scaling parameter for HFX kernel.", &
-                          usage="SCALE 0.2", default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
    END SUBROUTINE create_hfx_kernel_section
 ! **************************************************************************************************

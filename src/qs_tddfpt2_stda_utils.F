@@ -86,7 +86,8 @@ MODULE qs_tddfpt2_stda_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_stda_utils'
 
-   PUBLIC:: stda_init_matrices, stda_calculate_kernel, get_lowdin_x, setup_gamma
+   PUBLIC:: stda_init_matrices, stda_calculate_kernel, get_lowdin_x, get_lowdin_mo_coefficients, &
+            setup_gamma
 
 CONTAINS
 

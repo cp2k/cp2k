@@ -47,7 +47,8 @@ MODULE qs_tddfpt2_eigensolver
    USE qs_tddfpt2_fhxc,                 ONLY: fhxc_kernel,&
                                               stda_kernel
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_energy_diff,&
-                                              tddfpt_apply_hfx
+                                              tddfpt_apply_hfx,&
+                                              tddfpt_apply_hfxlr_kernel
    USE qs_tddfpt2_restart,              ONLY: tddfpt_write_restart
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
@@ -317,6 +318,7 @@ CONTAINS
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
       LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
                                                             is_rks_triplets
+      REAL(KIND=dp)                                      :: rcut, scale
       TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(full_kernel_env_type), POINTER                :: kernel_env_admm_aux
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -435,15 +437,32 @@ CONTAINS
                CPABORT("Kernel type not implemented")
             END IF
          END IF
-      END IF
-      ! short/long range HFX
-      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
-         IF (tddfpt_control%do_hfxsr) THEN
-            CPABORT("HFXSR not implemented")
+         ! short/long range HFX
+         IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+            IF (tddfpt_control%do_hfxsr) THEN
+               CPABORT("HFXSR not implemented")
+            END IF
+            IF (tddfpt_control%do_hfxlr) THEN
+               rcut = tddfpt_control%hfxlr_rcut
+               scale = tddfpt_control%hfxlr_scale
+               DO ivect = 1, nvects
+                  IF (ALLOCATED(work_matrices%evects_sub)) THEN
+                     IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix_struct)) THEN
+                        CALL tddfpt_apply_hfxlr_kernel(qs_env, sub_env, rcut, scale, work_matrices, &
+                                                       work_matrices%evects_sub(:, ivect), &
+                                                       work_matrices%Aop_evects_sub(:, ivect))
+                     ELSE
+                        ! skip trial vectors which are assigned to different parallel groups
+                        CYCLE
+                     END IF
+                  ELSE
+                     CALL tddfpt_apply_hfxlr_kernel(qs_env, sub_env, rcut, scale, work_matrices, &
+                                                    evects(:, ivect), Aop_evects(:, ivect))
+                  END IF
+               END DO
+            END IF
          END IF
-         IF (tddfpt_control%do_hfxlr) THEN
-            CPABORT("HFXLR not implemented")
-         END IF
+
       END IF
 
       CALL timestop(handle)

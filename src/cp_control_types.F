@@ -480,6 +480,7 @@ MODULE cp_control_types
       !> for full kernel, do we have short-range/long-range HFX and/or Kxc potential
       LOGICAL                              :: do_hfxsr = .FALSE.
       LOGICAL                              :: do_hfxlr = .FALSE.
+      REAL(KIND=dp)                        :: hfxlr_rcut = 0.0_dp, hfxlr_scale = 0.0_dp
       LOGICAL                              :: do_exck = .FALSE.
       !> options used in sTDA calculation (Kernel)
       TYPE(stda_control_type)              :: stda_control = stda_control_type()

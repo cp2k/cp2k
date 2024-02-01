@@ -81,7 +81,8 @@ MODULE qs_tddfpt2_methods
                                               deallocate_stda_env,&
                                               stda_env_type,&
                                               stda_init_param
-   USE qs_tddfpt2_stda_utils,           ONLY: stda_init_matrices
+   USE qs_tddfpt2_stda_utils,           ONLY: get_lowdin_mo_coefficients,&
+                                              stda_init_matrices
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
                                               tddfpt_subgroup_env_type
@@ -153,9 +154,9 @@ CONTAINS
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: lri_section, soc_section, &
-                                                            tddfpt_print_section, tddfpt_section, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: kernel_section, lri_section, &
+                                                            soc_section, tddfpt_print_section, &
+                                                            tddfpt_section, xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -189,6 +190,11 @@ CONTAINS
       tddfpt_control%do_hfxsr = do_hfxsr
       tddfpt_control%do_hfxlr = do_hfxlr
       tddfpt_control%do_exck = do_exck
+      IF (tddfpt_control%do_hfxlr) THEN
+         kernel_section => section_vals_get_subs_vals(tddfpt_section, "XC%HFX_KERNEL%HFXLR")
+         CALL section_vals_val_get(kernel_section, "RCUT", r_val=tddfpt_control%hfxlr_rcut)
+         CALL section_vals_val_get(kernel_section, "SCALE", r_val=tddfpt_control%hfxlr_scale)
+      END IF
 
       soc_section => section_vals_get_subs_vals(tddfpt_section, "SOC")
       CALL section_vals_get(soc_section, explicit=do_soc)
@@ -286,6 +292,10 @@ CONTAINS
          kernel_env%full_kernel => full_kernel_env
          kernel_env%admm_kernel => kernel_env_admm_aux
          NULLIFY (kernel_env%stda_kernel)
+         IF (do_hfxlr) THEN
+            ! calculate S_half and Lowdin MO coefficients
+            CALL get_lowdin_mo_coefficients(qs_env, sub_env, work_matrices)
+         END IF
          ! create full_kernel and admm_kernel within tddfpt_energies
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          ! setup for kernel_stda outside tddfpt_energies
