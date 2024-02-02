@@ -102,7 +102,8 @@ MODULE qs_environment
                                               section_vals_type,&
                                               section_vals_val_get
    USE kg_environment,                  ONLY: kg_env_create
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_initialize,&
                                               kpoint_initialize_mos
@@ -247,6 +248,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
       LOGICAL :: do_admm_rpa, do_ec_hfx, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
@@ -399,8 +401,13 @@ CONTAINS
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          nkp_grid = 1
          IF (do_kpoints) CALL get_kpoint_info(kpoints, nkp_grid=nkp_grid)
+         IF (dft_control%do_admm) THEN
+            basis_type = 'AUX_FIT'
+         ELSE
+            basis_type = 'ORB'
+         END IF
          CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
-                         qs_kind_set, particle_set, dft_control, my_cell, &
+                         qs_kind_set, particle_set, dft_control, my_cell, orb_basis=basis_type, &
                          nelectron_total=nelectron_total, nkp_grid=nkp_grid)
       END IF
 
@@ -427,8 +434,13 @@ CONTAINS
             IF (dft_control%do_admm .AND. .NOT. do_admm_rpa) qs_env%mp2_env%ri_rpa%reuse_hfx = .FALSE.
 
             IF (.NOT. qs_env%mp2_env%ri_rpa%reuse_hfx) THEN
+               IF (do_admm_rpa) THEN
+                  basis_type = 'AUX_FIT'
+               ELSE
+                  basis_type = 'ORB'
+               END IF
                CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, rpa_hfx_section, atomic_kind_set, &
-                               qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa), &
+                               qs_kind_set, particle_set, dft_control, my_cell, orb_basis=basis_type, &
                                nelectron_total=nelectron_total)
             ELSE
                qs_env%mp2_env%ri_rpa%x_data => qs_env%x_data
@@ -498,8 +510,13 @@ CONTAINS
             IF (dft_control%do_admm .AND. .NOT. ec_env%do_ec_admm) ec_env%reuse_hfx = .FALSE.
 
             IF (.NOT. ec_env%reuse_hfx) THEN
+               IF (ec_env%do_ec_admm) THEN
+                  basis_type = 'AUX_FIT'
+               ELSE
+                  basis_type = 'ORB'
+               END IF
                CALL hfx_create(ec_env%x_data, para_env, ec_hfx_section, atomic_kind_set, &
-                               qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. ec_env%do_ec_admm), &
+                               qs_kind_set, particle_set, dft_control, my_cell, orb_basis=basis_type, &
                                nelectron_total=nelectron_total)
             ELSE
                ec_env%x_data => qs_env%x_data
