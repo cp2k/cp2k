@@ -48,7 +48,7 @@
    echo "To load the required modules in your batch job script, use:"; \
    echo "   module restore cp2k_gpu_gnu_psmp"; \
    cd tools/toolchain; \
-   ./install_cp2k_toolchain.sh --enable-cuda=yes --gpu-ver=P100 -j${maxtasks} --no-arch-files --with-gcc=system --with-libvdwxc --with-pexsi --with-plumed --with-sirius=no; \
+   ./install_cp2k_toolchain.sh --enable-cuda=yes --gpu-ver=P100 -j${maxtasks} --no-arch-files --with-gcc=system --with-hdf5 --with-libvdwxc --with-pexsi --with-plumed --with-sirius=no; \
    cd ../..; \
    printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
    source ${PWD}/tools/toolchain/install/setup; \
