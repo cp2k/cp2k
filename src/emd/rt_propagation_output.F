@@ -56,6 +56,7 @@ MODULE rt_propagation_output
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: femtoseconds
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -65,6 +66,7 @@ MODULE rt_propagation_output
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
@@ -204,6 +206,10 @@ CONTAINS
                                               dft_section, "REAL_TIME_PROPAGATION%PRINT%FIELD"), cp_p_file)) &
             CALL print_field_applied(qs_env, dft_section)
          CALL make_moment(qs_env)
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                              dft_section, "REAL_TIME_PROPAGATION%PRINT%E_CONSTITUENTS"), cp_p_file)) THEN
+            CALL print_rtp_energy_components(qs_env, dft_section)
+         END IF
          IF (.NOT. dft_control%qs_control%dftb) THEN
             CALL write_available_results(qs_env=qs_env, rtp=rtp)
          END IF
@@ -871,5 +877,59 @@ CONTAINS
                                         "REAL_TIME_PROPAGATION%PRINT%FIELD")
 
    END SUBROUTINE print_field_applied
+
+! **************************************************************************************************
+!> \brief Print the components of the total energy used in an RTP calculation
+!> \param qs_env ...
+!> \param dft_section ...
+!> \par History
+!>      2024-02  Created [ANB]
+! **************************************************************************************************
+   SUBROUTINE print_rtp_energy_components(qs_env, dft_section)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: i_step, output_unit, unit_nr
+      LOGICAL                                            :: new_file
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(rt_prop_type), POINTER                        :: rtp
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, rtp=rtp, energy=energy)
+      i_step = rtp%istep
+
+      unit_nr = cp_print_key_unit_nr(logger, dft_section, &
+                                     "REAL_TIME_PROPAGATION%PRINT%E_CONSTITUENTS", extension=".ener", &
+                                     file_action="WRITE", is_new_file=new_file)
+
+      IF (output_unit > 0) THEN
+         IF (unit_nr /= output_unit) THEN
+            INQUIRE (UNIT=unit_nr, NAME=filename)
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,2(/,T3,A),/)") &
+               "ENERGY_CONSTITUENTS", "Total Energy constituents written to file:", &
+               TRIM(filename)
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(/,T2,A)") "ENERGY_CONSTITUENTS"
+         END IF
+
+         IF (new_file) THEN
+            ! NOTE that these are not all terms contributing to the total energy for RTP, only a selection of those
+            ! most significant / impactful. Therefore the printed components likely will not add up to the total energy.
+            WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,6X,A,6X,A,6X,A,6X,A,6X,A)') "Step Nr.", "Time[fs]", &
+               "Total ener.[a.u.]", "core.[a.u.]", "core_self.[a.u.]", "hartree.[a.u.]", "exc.[a.u.]"
+         END IF
+         WRITE (UNIT=unit_nr, FMT="(I10,F20.6,F20.9,F20.9,F20.9,F20.9,F20.9)") &
+            i_step, i_step*rtp%dt*femtoseconds, energy%total, energy%core, energy%core_self, energy%hartree, energy%exc
+
+      END IF
+
+      CALL cp_print_key_finished_output(unit_nr, logger, dft_section, &
+                                        "REAL_TIME_PROPAGATION%PRINT%E_CONSTITUENTS")
+
+   END SUBROUTINE print_rtp_energy_components
 
 END MODULE rt_propagation_output

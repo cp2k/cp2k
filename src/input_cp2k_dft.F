@@ -8846,6 +8846,16 @@ CONTAINS
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "E_CONSTITUENTS", &
+                                       description="Print the energy constituents (relevant to RTP) which make up "// &
+                                       "the Total Energy", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="rtp")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+
       CALL section_add_subsection(section, print_section)
       CALL section_release(print_section)
 
