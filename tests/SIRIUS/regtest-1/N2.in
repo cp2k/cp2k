@@ -1,0 +1,67 @@
+&FORCE_EVAL
+  METHOD SIRIUS
+  &PW_DFT
+    &CONTROL
+       PROCESSING_UNIT cpu
+       STD_EVP_SOLVER_NAME lapack
+       GEN_EVP_SOLVER_NAME lapack
+       VERBOSITY 1
+       CYCLIC_BLOCK_SIZE 32
+    &END CONTROL
+    &PARAMETERS
+       ELECTRONIC_STRUCTURE_METHOD  pseudopotential
+       SMEARING_WIDTH 0.01
+       GK_CUTOFF 5.47722557
+       PW_CUTOFF 10.95445115
+       ENERGY_TOL 1e-10
+       DENSITY_TOL 1e-8
+       NUM_DFT_ITER 100
+       NGRIDK 1 1 1
+    &END PARAMETERS
+    &ITERATIVE_SOLVER
+       ENERGY_TOLERANCE 1e-5
+       NUM_STEPS 200
+       #SUBSPACE_SIZE 4
+       TYPE davidson
+       CONVERGE_BY_ENERGY 1
+    &END ITERATIVE_SOLVER
+    &MIXER
+       TYPE broyden2
+       MAX_HISTORY 8
+       BETA 0.6
+  &END MIXER
+  &END PW_DFT
+    &DFT
+    BASIS_SET_FILE_NAME ./BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ./GTH_POTENTIALS
+      &XC
+         &XC_FUNCTIONAL
+            &LDA_C_XALPHA  
+               SCALE       1.0
+               ALPHA      0.66666666666
+            &END LDA_C_XALPHA
+         &END XC_FUNCTIONAL
+      &END XC
+    &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 16.0 0.0 0.0
+      B [bohr] 0.0 16.0 0.0
+      C [bohr] 0.0 0.0 16.0
+    &END CELL
+    &COORD
+      SCALED
+        N      0.0               0.0   0.0
+        N      0.14763485355     0.0   0.0
+    &END COORD
+    &KIND N
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT N2
+  PRINT_LEVEL MEDIUM
+  #RUN_TYPE ENERGY
+&END GLOBAL

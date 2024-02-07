@@ -415,6 +415,8 @@ CONTAINS
          END IF
       END IF
 
+      nr = basis%grid%nr
+
       IF (PRESENT(density)) THEN
          IF (ASSOCIATED(density)) DEALLOCATE (density)
          ALLOCATE (density(nr))
