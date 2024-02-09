@@ -1126,10 +1126,10 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, &
-         nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, &
-         Qspin, size_P, virtual_red, diag_est
+      INTEGER :: count_ev_sc_GW, cut_memory, diag_est, group_size_P, gw_corr_lev_tot, handle, &
+         handle3, homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, &
+         mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
+         Pspin, Qspin, size_P, virtual_red
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1771,9 +1771,9 @@ CONTAINS
          END SELECT
 
          !Rough estimation of diagonalization runtimes
-         !Baseline was a full BSE Naphthalene run with 11000x11000 entries in A/B/C, 
+         !Baseline was a full BSE Naphthalene run with 11000x11000 entries in A/B/C,
          ! which took 10s on 32 ranks
-         diag_est = (homo(1)*virtual(1)/11000)**3 * 10*32/para_env%num_pe
+         diag_est = (homo(1)*virtual(1)/11000)**3*10*32/para_env%num_pe
 
          CALL print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
 

@@ -18,8 +18,8 @@ MODULE bse_util
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
-   USE mp2_types,                       ONLY: mp2_type,&
-                                              integ_mat_buffer_type
+   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
+                                              mp2_type
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -44,6 +44,7 @@ CONTAINS
 !> \param ncol_secidx_out ...
 !> \param unit_nr ...
 !> \param reordering ...
+!> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE redist_fm(fm_mat_out, fm_mat_in, beta, nrow_secidx_in, ncol_secidx_in, &
                         nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
@@ -322,6 +323,7 @@ CONTAINS
 !> \param nrow_out ...
 !> \param ncol_out ...
 !> \param unit_nr ...
+!> \param mp2_env ...
 !> \param nrow_offset ...
 !> \param ncol_offset ...
 ! **************************************************************************************************
@@ -333,8 +335,8 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_in
       INTEGER                                            :: nrow_in, ncol_in, nrow_out, ncol_out, &
                                                             unit_nr
-      INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
 
@@ -696,17 +698,22 @@ CONTAINS
 
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief ...
+!> \param bse_tda ...
+!> \param bse_abba ...
+!> \param mp2_env ...
+!> \param unit_nr ...
+! **************************************************************************************************
    SUBROUTINE print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
 
-      LOGICAL, INTENT(IN)                                ::  bse_tda, bse_abba
+      LOGICAL, INTENT(IN)                                :: bse_tda, bse_abba
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_BSE_start_flag'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_BSE_start_flag'
 
-      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_abs_vals
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -722,7 +729,7 @@ CONTAINS
          ELSE
             WRITE (unit_nr, '(T2,A79)') '**               solved without Tamm-Dancoff approximation (TDA)             **'
          END IF
-         
+
          WRITE (unit_nr, '(T2,A79)') '**                                                                           **'
          WRITE (unit_nr, '(T2,A79)') '*******************************************************************************'
          WRITE (unit_nr, *) ' '
