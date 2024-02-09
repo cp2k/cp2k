@@ -18,7 +18,8 @@ MODULE bse_util
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
+   USE mp2_types,                       ONLY: mp2_type,&
+                                              integ_mat_buffer_type
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -28,7 +29,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh
+   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag
 
 CONTAINS
 
@@ -45,7 +46,7 @@ CONTAINS
 !> \param reordering ...
 ! **************************************************************************************************
    SUBROUTINE redist_fm(fm_mat_out, fm_mat_in, beta, nrow_secidx_in, ncol_secidx_in, &
-                        nrow_secidx_out, ncol_secidx_out, unit_nr, reordering)
+                        nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out, fm_mat_in
       REAL(kind=dp)                                      :: beta
@@ -53,6 +54,7 @@ CONTAINS
                                                             nrow_secidx_out, ncol_secidx_out
       INTEGER                                            :: unit_nr
       INTEGER, DIMENSION(4)                              :: reordering
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'redist_fm'
 
@@ -103,22 +105,22 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A14,A10,T58,I10)') '|', 'Row number of ', fm_mat_out%name, &
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T3,A1,T8,A17,A10,T58,I10)') '|', 'Column number of ', fm_mat_out%name, &
+         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T3,A1,T8,A18,A10,T58,I10)') '|', 'Row block size of ', fm_mat_out%name, nrow_block_out
-         WRITE (unit_nr, '(T3,A1,T8,A21,A10,T58,I10)') '|', 'Column block size of ', fm_mat_out%name, ncol_block_out
+         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_out%name, nrow_block_out
+         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_out%name, ncol_block_out
 
-         WRITE (unit_nr, '(T3,A1,T8,A14,A10,T58,I10)') '|', 'Row number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T3,A1,T8,A17,A10,T58,I10)') '|', 'Column number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T3,A1,T8,A18,A10,T58,I10)') '|', 'Row block size of ', fm_mat_in%name, nrow_block_in
-         WRITE (unit_nr, '(T3,A1,T8,A21,A10,T58,I10)') '|', 'Column block size of ', fm_mat_in%name, ncol_block_in
+         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_in%name, nrow_block_in
+         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_in%name, ncol_block_in
       END IF
 
       !MG to del: cf. mp2_r_2c.F and rpa_communication.F
@@ -151,8 +153,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A27)') '|', 'Communicating entry numbers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A27)') 'BSE|', 'Communicating entry numbers'
       END IF
 
       CALL para_env_out%alltoall(num_entries_send, num_entries_rec, 1)
@@ -160,8 +162,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A18)') '|', 'Allocating buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A18)') 'BSE|', 'Allocating buffers'
       END IF
 
       ! Buffers for entries and their indices
@@ -200,8 +202,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_mat_out%name, handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A18,A10,A13)') '|', 'Writing data from ', fm_mat_in%name, ' into buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A18,A10,A13)') 'BSE|', 'Writing data from ', fm_mat_in%name, ' into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
@@ -241,8 +243,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A21)') '|', 'Communicating buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A21)') 'BSE|', 'Communicating buffers'
       END IF
 
       ! communicate the buffer
@@ -252,8 +254,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_mat_out%name, handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A24,A10)') '|', 'Writing from buffers to ', fm_mat_out%name
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A24,A10)') 'BSE|', 'Writing from buffers to ', fm_mat_out%name
       END IF
 
       ! MG to do: OMP parallel
@@ -288,8 +290,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A41)') '|', 'Starting cleanup of communication buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A41)') 'BSE|', 'Starting cleanup of communication buffers'
       END IF
 
       !Clean up all the arrays from the communication process
@@ -324,13 +326,15 @@ CONTAINS
 !> \param ncol_offset ...
 ! **************************************************************************************************
    SUBROUTINE truncate_fm(fm_mat_out, fm_mat_in, nrow_in, ncol_in, &
-                          nrow_out, ncol_out, unit_nr, nrow_offset, ncol_offset)
+                          nrow_out, ncol_out, unit_nr, mp2_env, &
+                          nrow_offset, ncol_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_in
       INTEGER                                            :: nrow_in, ncol_in, nrow_out, ncol_out, &
                                                             unit_nr
       INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
 
@@ -392,22 +396,22 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A14,A10,T58,I10)') '|', 'Row number of ', fm_mat_out%name, &
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T3,A1,T8,A17,A10,T58,I10)') '|', 'Column number of ', fm_mat_out%name, &
+         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T3,A1,T8,A18,A10,T58,I10)') '|', 'Row block size of ', fm_mat_out%name, nrow_block_out
-         WRITE (unit_nr, '(T3,A1,T8,A21,A10,T58,I10)') '|', 'Column block size of ', fm_mat_out%name, ncol_block_out
+         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_out%name, nrow_block_out
+         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_out%name, ncol_block_out
 
-         WRITE (unit_nr, '(T3,A1,T8,A14,A10,T58,I10)') '|', 'Row number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T3,A1,T8,A17,A10,T58,I10)') '|', 'Column number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T3,A1,T8,A18,A10,T58,I10)') '|', 'Row block size of ', fm_mat_in%name, nrow_block_in
-         WRITE (unit_nr, '(T3,A1,T8,A21,A10,T58,I10)') '|', 'Column block size of ', fm_mat_in%name, ncol_block_in
+         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_in%name, nrow_block_in
+         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_in%name, ncol_block_in
       END IF
 
       ! We find global indices in S with nrow_in and ncol_in for truncation
@@ -451,8 +455,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A27)') '|', 'Communicating entry numbers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A27)') 'BSE|', 'Communicating entry numbers'
       END IF
 
       CALL para_env_out%alltoall(num_entries_send, num_entries_rec, 1)
@@ -460,8 +464,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A18)') '|', 'Allocating buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A18)') 'BSE|', 'Allocating buffers'
       END IF
 
       ! Buffers for entries and their indices
@@ -500,8 +504,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_mat_out%name, handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A18,A10,A13)') '|', 'Writing data from ', fm_mat_in%name, ' into buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A18,A10,A13)') 'BSE|', 'Writing data from ', fm_mat_in%name, ' into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
@@ -556,8 +560,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A21)') '|', 'Communicating buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A21)') 'BSE|', 'Communicating buffers'
       END IF
 
       ! communicate the buffer
@@ -567,8 +571,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_mat_out%name, handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A24,A10)') '|', 'Writing from buffers to ', fm_mat_out%name
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A24,A10)') 'BSE|', 'Writing from buffers to ', fm_mat_out%name
       END IF
 
       ! MG to do: OMP parallel
@@ -603,8 +607,8 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A41)') '|', 'Starting cleanup of communication buffers'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A41)') 'BSE|', 'Starting cleanup of communication buffers'
       END IF
 
       !Clean up all the arrays from the communication process
@@ -686,6 +690,42 @@ CONTAINS
       CALL fm_mat%matrix_struct%para_env%sync()
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) my_footer
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+   SUBROUTINE print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
+
+      LOGICAL, INTENT(IN)                                ::  bse_tda, bse_abba
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_BSE_start_flag'
+
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_abs_vals
+
+      CALL timeset(routineN, handle)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *) ' '
+         WRITE (unit_nr, '(T2,A79)') '*******************************************************************************'
+         WRITE (unit_nr, '(T2,A79)') '**                                                                           **'
+         WRITE (unit_nr, '(T2,A79)') '**           Bethe Salpeter equation (BSE) for excitation energies           **'
+         IF (bse_tda .AND. bse_abba) THEN
+            WRITE (unit_nr, '(T2,A79)') '**          solved with and without Tamm-Dancoff approximation (TDA)         **'
+         ELSE IF (bse_tda) THEN
+            WRITE (unit_nr, '(T2,A79)') '**                solved with Tamm-Dancoff approximation (TDA)               **'
+         ELSE
+            WRITE (unit_nr, '(T2,A79)') '**               solved without Tamm-Dancoff approximation (TDA)             **'
+         END IF
+         
+         WRITE (unit_nr, '(T2,A79)') '**                                                                           **'
+         WRITE (unit_nr, '(T2,A79)') '*******************************************************************************'
+         WRITE (unit_nr, *) ' '
       END IF
 
       CALL timestop(handle)

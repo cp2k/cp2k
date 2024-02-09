@@ -28,6 +28,7 @@ MODULE rpa_main
                                               diagonalize_A,&
                                               diagonalize_C,&
                                               truncate_BSE_matrices
+   USE bse_util,                        ONLY: print_BSE_start_flag
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1128,7 +1129,7 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
          homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, &
          nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, &
-         Qspin, size_P, virtual_red
+         Qspin, size_P, virtual_red, diag_est
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1755,6 +1756,8 @@ CONTAINS
             bse_full_diag = .TRUE.
          CASE (bse_iter_tda, bse_iter_abba, bse_iter_both)
             bse_iterat_diag = .TRUE.
+            !MG
+            CPWARN("Iterative BSE not yet implemented")
          END SELECT
          !Approximation: TDA or full ABBA matrix
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
@@ -1766,6 +1769,13 @@ CONTAINS
             bse_tda = .TRUE.
             bse_abba = .TRUE.
          END SELECT
+
+         !Rough estimation of diagonalization runtimes
+         !Baseline was a full BSE Naphthalene run with 11000x11000 entries in A/B/C, 
+         ! which took 10s on 32 ranks
+         diag_est = (homo(1)*virtual(1)/11000)**3 * 10*32/para_env%num_pe
+
+         CALL print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
 
          !MG: Is this IF clause necessary?
          IF (iter_sc_gw0 == 1) THEN
@@ -1792,8 +1802,7 @@ CONTAINS
                                     Eigenval(:, 1, 1), Eigenval_reduced, &
                                     homo(1), virtual(1), dimen_RI, unit_nr, &
                                     homo_red, virtual_red, &
-                                    mp2_env%ri_g0w0%bse_cutoff_occ, mp2_env%ri_g0w0%bse_cutoff_virt, &
-                                    mp2_env%ri_g0w0%corr_mos_occ, mp2_env%ri_g0w0%corr_mos_virt)
+                                    mp2_env)
 
          CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
@@ -1814,28 +1823,26 @@ CONTAINS
          END IF
 
          IF (bse_full_diag) THEN
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T3,A1,T8,A35)') '|', 'BSE - Full diagonalization'
-               WRITE (unit_nr, '(T3,A1,T8)') '|'
-            END IF
             CALL create_A(fm_mat_S_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
                           fm_mat_A_BSE, Eigenval_reduced, unit_nr, &
-                          homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, &
+                          homo_red, virtual_red, dimen_RI, mp2_env, &
                           para_env)
             IF (bse_abba) THEN
                CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
-                             homo_red, virtual_red, dimen_RI, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+                             homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
                CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
-                                                  homo_red, virtual_red, unit_nr)
+                                                  homo_red, virtual_red, unit_nr, mp2_env, diag_est)
             END IF
             CALL cp_fm_release(fm_mat_B_BSE)
             IF (bse_tda) THEN
-               CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+               CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+                                  mp2_env%ri_g0w0%bse_spin_config, unit_nr, diag_est)
                !Instantly release to avoid faulty use of changed A matrix
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
             IF (bse_abba) THEN
-               CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, mp2_env%ri_g0w0%bse_spin_config, unit_nr)
+               CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+                                  mp2_env%ri_g0w0%bse_spin_config, unit_nr, diag_est)
             END IF
             CALL cp_fm_release(fm_mat_C_BSE)
          END IF

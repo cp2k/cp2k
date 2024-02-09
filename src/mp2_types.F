@@ -234,6 +234,7 @@ MODULE mp2_types
                                                             bse_cutoff_virt = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp
       LOGICAL                                            :: do_bse = .FALSE., &
+                                                            bse_debug_print = .FALSE., &
                                                             do_ic_model = .FALSE., &
                                                             print_ic_values = .FALSE.
       REAL(KIND=dp)                                      :: eps_dist = 0.0_dp

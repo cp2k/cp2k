@@ -200,6 +200,8 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_METHOD", &
                                 i_val=mp2_env%ri_g0w0%bse_method)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_DEBUG_PRINT", &
+                                l_val=mp2_env%ri_g0w0%bse_debug_print)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)

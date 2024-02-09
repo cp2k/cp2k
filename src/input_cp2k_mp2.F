@@ -1223,7 +1223,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters influencing the Bethe-Salpeter calculations on "// &
                           "top of GW eigenvalues.", &
-                          n_keywords=4, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=5, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1273,6 +1273,13 @@ CONTAINS
                           description="Truncating unoccupied orbitals above given cutoff", &
                           usage="BSE_CUTOFF_VIRT 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_DEBUG_PRINT", &
+                          description="Activates debug prints in BSE calculations.", &
+                          usage="&BSE_DEBUG_PRINT .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

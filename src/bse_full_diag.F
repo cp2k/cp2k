@@ -41,6 +41,7 @@ MODULE bse_full_diag
                                               bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
 #include "./base/base_uses.f90"
@@ -72,15 +73,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                        fm_mat_A, Eigenval, unit_nr, &
-                       homo, virtual, dimen_RI, bse_spin_config, &
+                       homo, virtual, dimen_RI, mp2_env, &
                        para_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI, &
-                                                            bse_spin_config
+      INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
@@ -98,11 +99,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T4,A11)') '|', '-Creating A'
+         WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'Creating A - This may take some time!'
       END IF
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (bse_spin_config)
+      SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
@@ -136,8 +137,8 @@ CONTAINS
                          matrix_c=fm_mat_A)
 
       !CALL cp_fm_write_formatted(fm_mat_A, unit_nr, "MG: alpha* Full V")
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A16)') '|', 'Allocated A_iajb'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A16)') 'BSE|', 'Allocated A_iajb'
       END IF
 
       !W_ijab
@@ -145,8 +146,8 @@ CONTAINS
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_W)
       !CALL cp_fm_write_formatted(fm_mat_W, unit_nr, "MG: Full W")
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A16)') '|', 'Allocated W_ijab'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A16)') 'BSE|', 'Allocated W_ijab'
       END IF
 
       ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
@@ -160,7 +161,7 @@ CONTAINS
       ! nrow_secidx_out = virtual, ncol_secidx_out = virtual !from A_iajb
       reordering = (/1, 3, 2, 4/)
       CALL redist_fm(fm_mat_A, fm_mat_W, -1.0_dp, homo, virtual, &
-                     virtual, virtual, unit_nr, reordering)
+                     virtual, virtual, unit_nr, reordering, mp2_env)
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_struct_release(fm_struct_W)
       CALL cp_fm_release(fm_mat_W)
@@ -202,12 +203,13 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ia_bse, fm_mat_B, &
-                       homo, virtual, dimen_RI, bse_spin_config, unit_nr)
+                       homo, virtual, dimen_RI, unit_nr, mp2_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ia_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_B
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, &
-                                                            bse_spin_config, unit_nr
+                                                            unit_nr
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
@@ -220,11 +222,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T4,A11)') '|', '-Creating B'
+         WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'Creating B - This may take some time!'
       END IF
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (bse_spin_config)
+      SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
@@ -241,8 +243,8 @@ CONTAINS
       CALL cp_fm_create(fm_mat_W, fm_struct_v, name="fm_W_ibaj")
       CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A16)') '|', 'Allocated B_iajb'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A16)') 'BSE|', 'Allocated B_iajb'
       END IF
 
       !MG to do: speed up by IF(bse_spin_config) to check for necessity of gemm?
@@ -257,7 +259,7 @@ CONTAINS
       !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
       reordering = (/1, 4, 3, 2/)
       CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
-                     virtual, virtual, unit_nr, reordering)
+                     virtual, virtual, unit_nr, reordering, mp2_env)
       !CALL cp_fm_write_formatted(fm_mat_B,unit_nr,"Full B")
 
       !CALL fm_write_thresh(fm_mat=fm_mat_B, thresh=1e-5_dp, header="MG___1B", unit_nr=unit_nr,abs_vals=.TRUE.)
@@ -301,7 +303,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_mat_ABBA, 0.0_dp)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A14)') '|', 'Allocated ABBA'
+         WRITE (unit_nr, '(T2,A4,T10,A14)') 'BSE|', 'Allocated ABBA'
       END IF
 
       !Copy each part
@@ -331,11 +333,12 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, &
-                                            homo, virtual, unit_nr)
+                                            homo, virtual, unit_nr, mp2_env, diag_est)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
-      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr, diag_est
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
@@ -347,7 +350,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T4,A46)') '|', '-Creating C for hermitian solution of full BSE'
+         WRITE (unit_nr, '(T2,A4,T7,A45,A27)') 'BSE|', 'Creating auxil. C for solving BSE without TDA',&
+                           ' - This may take some time!'
+         !Only print this for significant matrix sizes
+         IF (homo*virtual > 2000) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
+         END IF
       END IF
       !Create C as A+B
       CALL cp_fm_create(fm_mat_C, fm_mat_A%matrix_struct)
@@ -362,8 +370,8 @@ CONTAINS
       CALL cp_fm_create(fm_mat_work_diff_eigvec, fm_mat_A%matrix_struct)
       CALL cp_fm_create(fm_mat_work_product, fm_mat_A%matrix_struct)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A19)') '|', 'Created work arrays'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A19)') 'BSE|', 'Created work arrays'
       END IF
 
       !CALL fm_write_thresh(fm_mat=fm_mat_A, thresh=1e-5_dp, header="MG___2A", unit_nr=unit_nr,abs_vals=.TRUE.)
@@ -389,8 +397,8 @@ CONTAINS
       CALL cp_fm_release(fm_mat_work_product)
       CALL cp_fm_release(fm_mat_work_sum)
       CALL cp_fm_release(fm_mat_work_diff)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A36)') '|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
+      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+         WRITE (unit_nr, '(T2,A4,T10,A36)') 'BSE|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
       END IF
 
       CALL timestop(handle)
@@ -404,10 +412,13 @@ CONTAINS
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, bse_spin_config, unit_nr)
+   SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, homo_irred, virtual_irred, &
+                            bse_spin_config, unit_nr, diag_est)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
-      INTEGER, INTENT(IN)                                :: homo, virtual, bse_spin_config, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
+                                                            virtual_irred, bse_spin_config, &
+                                                            unit_nr, diag_est
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
 
@@ -418,7 +429,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A15)') '|', 'Diagonalizing C'
+         WRITE (unit_nr, '(T2,A4,T7,A15)') 'BSE|', 'Diagonalizing C'
+         !Only print this for significant matrix sizes
+         IF (homo*virtual > 2000) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
+         END IF
       END IF
 
       !We have now the full matrix C**2, distributed over all ranks
@@ -430,7 +445,8 @@ CONTAINS
       CALL choose_eigv_solver(fm_mat_C, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       Exc_ens = SQRT(Exc_ens)
-      CALL success_message(Exc_ens, bse_spin_config, homo*virtual, unit_nr, .FALSE.)
+      CALL success_message(Exc_ens, bse_spin_config, homo, virtual, homo_irred, virtual_irred, &
+                           unit_nr, .FALSE.)
 
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
@@ -475,7 +491,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_mat_skew, 0.0_dp)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A14)') '|', 'Allocated skew of ABBA'
+         WRITE (unit_nr, '(T2,A4,T7,A14)') 'BSE|', 'Allocated skew of ABBA'
       END IF
 
       !Create work matrix, which will hold A+B and A-B
@@ -557,10 +573,13 @@ CONTAINS
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, bse_spin_config, unit_nr)
+   SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, homo_irred, virtual_irred, &
+                            bse_spin_config, unit_nr, diag_est)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
-      INTEGER, INTENT(IN)                                :: homo, virtual, bse_spin_config, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
+                                                            virtual_irred, bse_spin_config, &
+                                                            unit_nr, diag_est
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
 
@@ -572,7 +591,11 @@ CONTAINS
 
       !Continue with formatting of subroutine create_A
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A15)') '|', 'Diagonalizing A'
+         WRITE (unit_nr, '(T2,A4,T7,A15)') 'BSE|', 'Diagonalizing A'
+         !Only print this for significant matrix sizes
+         IF (homo*virtual > 2000) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
+         END IF
       END IF
 
       !We have now the full matrix A_iajb, distributed over all ranks
@@ -583,7 +606,8 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, bse_spin_config, homo*virtual, unit_nr, .TRUE.)
+      CALL success_message(Exc_ens, bse_spin_config, homo, virtual, homo_irred, virtual_irred, &
+                           unit_nr, .TRUE.)
 
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
@@ -600,10 +624,12 @@ CONTAINS
 !> \param unit_nr ...
 !> \param flag_TDA ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, bse_spin_config, num_exc_en, unit_nr, flag_TDA)
+   SUBROUTINE success_message(Exc_ens, bse_spin_config, homo, virtual, homo_irred, virtual_irred, &
+                              unit_nr, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      INTEGER                                            :: bse_spin_config, num_exc_en, unit_nr
+      INTEGER                                            :: bse_spin_config, homo, virtual, &
+                                                            homo_irred, virtual_irred, unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
@@ -632,35 +658,58 @@ CONTAINS
       END IF
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) ' '
-         WRITE (unit_nr, '(T3,A)') '******************************************************************************'
-         WRITE (unit_nr, '(T3,A)') '**                                                                          **'
-         WRITE (unit_nr, '(T3,A30,A4,A44)') '**                        BSE-', info_approximation, &
-            ' EXCITONIC ENERGIES                       **'
-         WRITE (unit_nr, '(T3,A)') '**                                                                          **'
-         WRITE (unit_nr, '(T3,A)') '******************************************************************************'
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') ' The excitation energies are calculated by fully diagonalizing: '
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') '    A_iajb   =  (E_a-E_i) delta_ij delta_ab   +  alpha * v_iajb   -  W_ijab   '
-         IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T3,A)') '    B_iajb   =  alpha * v_iajb   -  W_ibaj   '
+         ! WRITE (unit_nr, *) ' '
+         ! WRITE (unit_nr, '(A80)') '********************************************************************************'
+         ! WRITE (unit_nr, '(A80)') '**                                                                            **'
+         ! WRITE (unit_nr, '(A30,A4,A44)') '**                        BSE-', info_approximation, &
+         !    ' EXCITONIC ENERGIES                       **'
+         ! WRITE (unit_nr, '(A80)') '**                                                                            **'
+         ! WRITE (unit_nr, '(A80)') '********************************************************************************'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A55)') 'BSE|', 'The excitation energies are calculated by diagonalizing'
+         IF (flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A22)') 'BSE|', 'the BSE within the TDA'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A38)') 'BSE|', 'Σ_jb ( A_ia,jb   X_jb ) = Ω^n X_ia^n'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A23)') 'BSE|', 'the BSE without the TDA'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', '  Σ_jb ( A_ia,jb   X_jb + B_ia,jb   Y_jb ) = Ω^n X_ia^n'
+            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', '- Σ_jb ( B_ia,jb   X_jb + A_ia,jb   Y_jb ) = Ω^n Y_ia^n'
          END IF
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A48,A7,A12,F3.1)') &
-            ' The spin-dependent factor is for the requested ', multiplet, " is alpha = ", alpha
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A16,T50,A22)') &
-            ' Excitonic level', 'Excitation energy (eV)'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
+         IF (.NOT. flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A31)') 'BSE|', 'B_ia,jb  α * v_ia,jb - W_ib,aj'
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A23)') 'BSE|','ε_...:','GW quasiparticle energy'
+         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A15)') 'BSE|','δ_...:','Kronecker delta'
+         WRITE (unit_nr, '(T2,A4,T7,A3,T19,A21)') 'BSE|','α:','spin-dependent factor (Singlet/Triplet)'
+         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A34)') 'BSE|','v_...:','Electron-hole exchange interaction'
+         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A27)') 'BSE|','W_...:','Screened direct interaction'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A42,T70,A1,I4,A1,I4,A1)') 'BSE|','i,j:', &
+                           'occupied molecular orbitals, i.e. state in', '[',homo_irred-homo+1,',',homo_irred,']'
+         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A44,T70,A1,I4,A1,I4,A1)') 'BSE|','a,b:', &
+                           'unoccupied molecular orbitals, i.e. state in', '[',homo_irred+1,',',homo_irred+virtual,']'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1))') 'BSE|', &
+            'The spin-dependent factor is for the requested ', multiplet, " is α = ", alpha
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A16,T34,A13,T59,A22)') 'BSE|', &
+            'Excitation level', "Multiplet", 'Excitation energy (eV)'
          !prints actual energies values
-         DO i = 1, MIN(15, num_exc_en)
-            WRITE (unit_nr, '(T3,I16,T50,F22.3)') i, Exc_ens(i)*evolt
+         DO i = 1, MIN(15, homo*virtual)
+            WRITE (unit_nr, '(T2,A4,T7,I16,T34,A7,A6,T59,F22.4)') 'BSE|', i, multiplet, " State", Exc_ens(i)*evolt
          END DO
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'EXCITONIC ENERGY| First Exciton for ', info_approximation, &
-            ' BSE [a.u.]:', Exc_ens(1)
-         WRITE (unit_nr, '(T3,A)') ' '
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'BSE| First excitatation energy for ', info_approximation, &
+         !    ' BSE [a.u.]:', Exc_ens(1)
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
       CALL timestop(handle)
@@ -682,18 +731,13 @@ CONTAINS
 !> \param unit_nr ...
 !> \param homo_red ...
 !> \param virt_red ...
-!> \param cutoff_homo ...
-!> \param cutoff_virt ...
-!> \param corr_mos_occ ...
-!> \param corr_mos_virt ...
 ! **************************************************************************************************
    SUBROUTINE truncate_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                     Eigenval, Eigenval_reduced, &
                                     homo, virtual, dimen_RI, unit_nr, &
                                     homo_red, virt_red, &
-                                    cutoff_homo, cutoff_virt, &
-                                    corr_mos_occ, corr_mos_virt)
+                                    mp2_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -703,8 +747,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
-      REAL(KIND=dp)                                      :: cutoff_homo, cutoff_virt
-      INTEGER, INTENT(IN)                                :: corr_mos_occ, corr_mos_virt
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
 
@@ -717,15 +761,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-cutoff_homo,cutoff_virt)
-      IF (cutoff_homo > 0 .OR. cutoff_virt > 0) THEN
-         IF (-cutoff_homo .LT. Eigenval(1) .OR. cutoff_homo < 0) THEN
+      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_virt)
+      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+         IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
             homo_red = homo
             homo_incl = 1
          ELSE
             homo_incl = 1
             DO i_homo = 1, homo
-               IF (Eigenval(i_homo) .GT. -cutoff_homo) THEN
+               IF (Eigenval(i_homo) .GT. -mp2_env%ri_g0w0%bse_cutoff_occ) THEN
                   homo_incl = i_homo
                   EXIT
                END IF
@@ -733,13 +777,13 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (cutoff_virt .GT. Eigenval(homo + virtual) .OR. cutoff_virt < 0) THEN
+         IF (mp2_env%ri_g0w0%bse_cutoff_virt .GT. Eigenval(homo + virtual) .OR. mp2_env%ri_g0w0%bse_cutoff_virt < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
             virt_incl = homo + 1
             DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) .GT. cutoff_virt) THEN
+               IF (Eigenval(homo + j_virt) .GT. mp2_env%ri_g0w0%bse_cutoff_virt) THEN
                   virt_incl = j_virt - 1
                   EXIT
                END IF
@@ -753,31 +797,33 @@ CONTAINS
          virt_incl = virtual
       END IF
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A1,T8,A30)') '|', 'Truncating 3c matrices for BSE'
-         WRITE (unit_nr, '(T3,A1)') '|'
-         IF (cutoff_homo > 0) THEN
-            WRITE (unit_nr, '(T3,A1,T8,A29,T59,F9.3)') '|', 'Cutoff occupied orbitals [eV]', cutoff_homo*evolt
+         !WRITE (unit_nr, '(T2,A4,T7,A30)') 'BSE|', 'Truncating 3c matrices for BSE'
+         !WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
+                     mp2_env%ri_g0w0%bse_cutoff_occ*evolt
          ELSE
-            WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No cutoff given for occupied orbitals'
+            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
          END IF
-         IF (cutoff_virt > 0) THEN
-            WRITE (unit_nr, '(T3,A1,T8,A28,T59,F9.3)') '|', 'Cutoff virtual orbitals [eV]', cutoff_virt*evolt
+         IF (mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A28,T71,F10.3)') 'BSE|', 'Cutoff virtual orbitals [eV]', &
+                     mp2_env%ri_g0w0%bse_cutoff_virt*evolt
          ELSE
-            WRITE (unit_nr, '(T3,A1,T8,A36)') '|', 'No cutoff given for virtual orbitals'
+            WRITE (unit_nr, '(T2,A4,T7,A36)') 'BSE|', 'No cutoff given for virtual orbitals'
          END IF
-         WRITE (unit_nr, '(T3,A1,T8,A20,T59,I9)') '|', 'First occupied index', homo_incl
-         WRITE (unit_nr, '(T3,A1,T8,A18,T59,I9)') '|', 'Last virtual index', virt_incl
-         WRITE (unit_nr, '(T3,A1,T8,A26,T59,F9.3)') '|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
-         WRITE (unit_nr, '(T3,A1,T8,A24,T59,F9.3)') '|', 'Last virtual energy [eV]', Eigenval(homo + virt_incl)*evolt
-         WRITE (unit_nr, '(T3,A1,T8,A35,T59,I9)') '|', 'Number of GW-corrected occupied MOs', corr_mos_occ
-         WRITE (unit_nr, '(T3,A1,T8,A34,T59,I9)') '|', 'Number of GW-corrected virtual MOs', corr_mos_virt
-         WRITE (unit_nr, '(T3,A1)') '|'
+         WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
+         WRITE (unit_nr, '(T2,A4,T7,A18,T71,I10)') 'BSE|', 'Last virtual index', virt_incl
+         WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A24,T71,F10.3)') 'BSE|', 'Last virtual energy [eV]', Eigenval(homo + virt_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', mp2_env%ri_g0w0%corr_mos_occ
+         WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Number of GW-corrected virtual MOs', mp2_env%ri_g0w0%corr_mos_virt
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       IF (unit_nr > 0) THEN
-         IF (homo - homo_incl + 1 > corr_mos_occ) THEN
+         IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN
             CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
          END IF
-         IF (virt_incl > corr_mos_virt) THEN
+         IF (virt_incl > mp2_env%ri_g0w0%corr_mos_virt) THEN
             CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
          END IF
       END IF
@@ -795,22 +841,24 @@ CONTAINS
       CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, "fm_S_ab_trunc")
 
       !Copy parts of original matrices to truncated ones
-      IF (cutoff_homo > 0 .OR. cutoff_virt > 0) THEN
+      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
          !Truncate eigenvals
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
          Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
 
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
-                          homo_red, virt_red, unit_nr, nrow_offset=homo_incl)
+                          homo_red, virt_red, unit_nr, mp2_env, &
+                          nrow_offset=homo_incl)
          CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
-                          homo_red, homo_red, unit_nr, homo_incl, homo_incl)
+                          homo_red, homo_red, unit_nr, mp2_env, &
+                          homo_incl, homo_incl)
          CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
-                          virt_red, virt_red, unit_nr)
+                          virt_red, virt_red, unit_nr, mp2_env)
 
       ELSE
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,A1,T8,A37)') '|', 'No truncation of BSE matrices applied'
-            WRITE (unit_nr, '(T3,A1)') '|'
+            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No truncation of BSE matrices applied'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          Eigenval_reduced = Eigenval
          CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
