@@ -18,10 +18,15 @@
 #:endmute
 
 #:def type2type(data, kind1, kind2)
-   #:if kind2[0] == "c" or kind1[0]=="r" or kind1.split("(")[0] == "REAL" or kind2.split("(")[0] == "COMPLEX"
+   #:if kind2[0] == kind1[0] or kind1.split("(")[0] == kind2.split("(")[0]
       ${data}$
-   #:else
+   #:elif kind2[0] == "r" or kind2.split("(")[0] == "REAL"
       REAL(${data}$, KIND=dp)
+   #:else
+      #! This branch is required to prevent issues with the Intel compiler and OpenMP
+      #! Apparently, a direct assignment of a real to a complex number is not standardized
+      #! which is why we make the conversion explicit
+      CMPLX(${data}$, 0.0_dp, KIND=dp)
    #:endif
 #:enddef
 

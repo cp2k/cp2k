@@ -389,7 +389,7 @@ CONTAINS
             CALL timeset(routineN, handle)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,value)
-            pw%array = value
+            pw%array = ${type2type("value", "r3d", kind)}$
 !$OMP END PARALLEL WORKSHARE
 
             CALL timestop(handle)
@@ -490,7 +490,7 @@ CONTAINS
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
                      mn = yzq(m, n)
-                     c(l, mn) = scale*pw%array(gpt)
+                     c(l, mn) = ${type2type("scale*pw%array(gpt)", kind, "c3d")}$
                   END DO
 !$OMP END PARALLEL DO
                ELSE
@@ -502,7 +502,7 @@ CONTAINS
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
                      mn = yzq(m, n)
-                     c(l, mn) = pw%array(gpt)
+                     c(l, mn) = ${type2type("pw%array(gpt)", kind, "c3d")}$
                   END DO
 !$OMP END PARALLEL DO
                END IF
@@ -523,7 +523,7 @@ CONTAINS
                         m = mapm(ghat(2, gpt)) + 1
                         n = mapn(ghat(3, gpt)) + 1
                         mn = yzq(m, n)
-                        c(l, mn) = scale*#{if kind[0]=="c"}#CONJG#{endif}#(pw%array(gpt))
+                        c(l, mn) = scale*#{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
                      END DO
 !$OMP END PARALLEL DO
                   ELSE
@@ -535,7 +535,7 @@ CONTAINS
                         m = mapm(ghat(2, gpt)) + 1
                         n = mapn(ghat(3, gpt)) + 1
                         mn = yzq(m, n)
-                        c(l, mn) = #{if kind[0]=="c"}#CONJG#{endif}#(pw%array(gpt))
+                        c(l, mn) = #{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
                      END DO
 !$OMP END PARALLEL DO
                   END IF
@@ -648,6 +648,7 @@ CONTAINS
                            CPABORT("Copy not implemented!")
                         #:endif
                      END IF
+
                   END IF
 
                ELSE
@@ -684,9 +685,15 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
+            #:if kind[1]=="1"
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
-            array = ${type2type("pw%array", kind, kind2)}$
+               array(:) = ${type2type("pw%array(:)", kind, kind2)}$
 !$OMP END PARALLEL WORKSHARE
+            #:else
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, array)
+               array(:, :, :) = ${type2type("pw%array(:, :, :)", kind, kind2)}$
+!$OMP END PARALLEL WORKSHARE
+            #:endif
 
             CALL timestop(handle)
          END SUBROUTINE pw_copy_to_array_${kind}$_${kind2}$_${space}$
@@ -799,7 +806,6 @@ CONTAINS
                         END DO
 !$OMP END PARALLEL DO
                      END IF
-
                   ELSE IF ((pw1%pw_grid%id_nr == pw2%pw_grid%reference)) THEN
                      IF (ng1 >= ng2) THEN
                         IF (my_alpha == 1.0_dp) THEN
@@ -1081,6 +1087,7 @@ CONTAINS
 
                         IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
                            CALL pw1%pw_grid%para%group%sum(integral_value)
+
                         CALL timestop(handle)
 
                      END FUNCTION pw_integral_ab_${kind}$_${kind2}$_${space}$
@@ -1271,6 +1278,7 @@ CONTAINS
                                           DEALLOCATE (c_out)
 #else
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
+                                          c_out = 0.0_dp
                                           CALL pw_copy_to_array(pw1, c_out)
                                           CALL fft3d(FWFFT, n, c_out, scale=norm, debug=test)
                                           CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
