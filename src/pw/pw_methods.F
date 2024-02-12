@@ -1048,8 +1048,6 @@ CONTAINS
                         ! Do accurate sum
                         #:if kind[0]=="r" and kind2[0]=="r"
                            integral_value = accurate_dot_product(pw1%array, pw2%array)
-                        #:elif kind=="r3d" and kind2=="r3d"
-                           integral_value = accurate_sum(pw1%array*pw2%array) !? complex bit
                         #:elif kind[0]=="r"
                            integral_value = accurate_sum(pw1%array*REAL(pw2%array, KIND=dp)) !? complex bit
                         #:elif kind2[0]=="r"
