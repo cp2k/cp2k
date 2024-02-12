@@ -397,7 +397,8 @@ CONTAINS
             DO iwf = 1, SIZE(wavefunction, 2)
                focc = wfninfo(1, iwf)
                l = NINT(wfninfo(2, iwf))
-               nu = NINT(wfninfo(3, iwf))
+! we can not easily get the principal quantum number
+               nu = -1
                IF (up) THEN
                   fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(i)
                ELSE
@@ -421,39 +422,6 @@ CONTAINS
             CALL sirius_add_atom_type_radial_function(sctx, label, "ps_rho_total", &
                                                       fun(1), nmesh)
 
-            CALL get_qs_kind(qs_kind_set(ikind), &
-                             dft_plus_u_atom=dft_plus_u_atom, &
-                             l_of_dft_plus_u=lu, &
-                             n_of_dft_plus_u=nu, &
-                             u_minus_j_target=u_minus_j, &
-                             U_of_dft_plus_u=U_u, &
-                             J_of_dft_plus_u=J_u, &
-                             alpha_of_dft_plus_u=alpha_u, &
-                             beta_of_dft_plus_u=beta_u, &
-                             J0_of_dft_plus_u=J0_u, &
-                             occupation_of_dft_plus_u=occ_u)
-
-            IF (dft_plus_u_atom) THEN
-               IF (nu < 1) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): principal quantum number not specified")
-               END IF
-
-               IF (lu < 0) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
-               END IF
-
-               IF (occ_u < 0.0) THEN
-                  CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
-               END IF
-
-               IF (ABS(u_minus_j) < 1e-8) THEN
-                  CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                    occ_u, U_u, J_u, alpha_u, beta_u, J0_u)
-               ELSE
-                  CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                    occ_u, u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
-               END IF
-            END IF
             IF (ASSOCIATED(density)) DEALLOCATE (density)
             IF (ASSOCIATED(wavefunction)) DEALLOCATE (wavefunction)
             IF (ASSOCIATED(wfninfo)) DEALLOCATE (wfninfo)
@@ -466,6 +434,41 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "CP2K/SIRIUS: atomic kind needs UPF or GTH potential definition")
          END IF
+
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          dft_plus_u_atom=dft_plus_u_atom, &
+                          l_of_dft_plus_u=lu, &
+                          n_of_dft_plus_u=nu, &
+                          u_minus_j_target=u_minus_j, &
+                          U_of_dft_plus_u=U_u, &
+                          J_of_dft_plus_u=J_u, &
+                          alpha_of_dft_plus_u=alpha_u, &
+                          beta_of_dft_plus_u=beta_u, &
+                          J0_of_dft_plus_u=J0_u, &
+                          occupation_of_dft_plus_u=occ_u)
+
+         IF (dft_plus_u_atom) THEN
+            IF (nu < 1) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): principal quantum number not specified")
+            END IF
+
+            IF (lu < 0) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
+            END IF
+
+            IF (occ_u < 0.0) THEN
+               CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
+            END IF
+
+            IF (ABS(u_minus_j) < 1e-8) THEN
+               CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
+                                                 occ_u, U_u, J_u, alpha_u, beta_u, J0_u)
+            ELSE
+               CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
+                                                 occ_u, u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
+            END IF
+         END IF
+
       END DO
 
 ! add atoms to the unit cell
