@@ -663,9 +663,9 @@ CONTAINS
          flag_TDA = .FALSE.
       END IF
       IF (flag_TDA) THEN
-         info_approximation = "TDA "
+         info_approximation = "-TDA- "
       ELSE
-         info_approximation = "full"
+         info_approximation = "-full-"
       END IF
 
       IF (unit_nr > 0) THEN
@@ -711,11 +711,17 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1))') 'BSE|', &
             'The spin-dependent factor is for the requested ', multiplet, " is α = ", alpha
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A16,T34,A13,T59,A22)') 'BSE|', &
-            'Excitation level', "Multiplet", 'Excitation energy (eV)'
+         IF (flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A56)') 'BSE|', 'Excitation energies from solving the BSE within the TDA:'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', 'Excitation energies from solving the BSE without the TDA:'
+         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A16,T27,A13,T42,A12,T59,A22)') 'BSE|', &
+            'Excitation level', "Multiplet", 'TDA/full BSE', 'Excitation energy (eV)'
          !prints actual energies values
          DO i = 1, MIN(15, homo*virtual)
-            WRITE (unit_nr, '(T2,A4,T7,I16,T34,A7,A6,T59,F22.4)') 'BSE|', i, multiplet, " State", Exc_ens(i)*evolt
+            WRITE (unit_nr, '(T2,A4,T7,I16,T27,A7,A6,T48,A6,T59,F22.4)') &
+               'BSE|', i, multiplet, " State", info_approximation, Exc_ens(i)*evolt
          END DO
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          ! WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'BSE| First excitatation energy for ', info_approximation, &
