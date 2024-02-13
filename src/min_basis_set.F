@@ -44,13 +44,15 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param unit_nr ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE create_minbas_set(qs_env, unit_nr)
+   SUBROUTINE create_minbas_set(qs_env, unit_nr, basis_type)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_string_length)               :: bname
+      CHARACTER(LEN=default_string_length)               :: bname, btype
       INTEGER                                            :: ikind, lb, mao, ne, ngau, nkind, nsgf, &
                                                             ub, z
       INTEGER, DIMENSION(0:3)                            :: elcon
@@ -61,6 +63,12 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
+      IF (PRESENT(basis_type)) THEN
+         btype = TRIM(basis_type)
+      ELSE
+         btype = "MIN"
+      END IF
+
       ! check for or generate reference basis
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -70,7 +78,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
          CALL get_ptable_info(element_symbol, ielement=z)
          NULLIFY (refbasis)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type=btype)
          IF (.NOT. ASSOCIATED(refbasis)) THEN
             CALL get_qs_kind(qs_kind=qs_kind, mao=mao)
             ! generate a minimal basis set
@@ -83,7 +91,7 @@ CONTAINS
             ngau = 3
             CALL create_min_basis(refbasis, z, elcon, mao, ngau)
             CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
+            CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, btype)
          END IF
          IF (unit_nr > 0) THEN
             CALL get_gto_basis_set(refbasis, name=bname, nsgf=nsgf)

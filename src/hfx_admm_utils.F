@@ -31,7 +31,7 @@ MODULE hfx_admm_utils
    USE cell_types,                      ONLY: cell_type,&
                                               plane_distance
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type, admm_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               dbcsr_allocate_matrix_set
@@ -147,7 +147,8 @@ MODULE hfx_admm_utils
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: hfx_ks_matrix, hfx_admm_init, create_admm_xc_section, tddft_hfx_matrix, hfx_ks_matrix_kp
+   PUBLIC :: hfx_ks_matrix, hfx_admm_init, aux_admm_init, create_admm_xc_section, &
+             tddft_hfx_matrix, hfx_ks_matrix_kp
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_admm_utils'
 
@@ -226,14 +227,14 @@ CONTAINS
             CALL init_admm_gapw(qs_env)
 
          ! ADMM neighbor lists and overlap matrices
-         CALL admm_init_hamiltonians(admm_env, qs_env)
+         CALL admm_init_hamiltonians(admm_env, qs_env, "AUX_FIT")
 
          !The aux_fit task list and densities
          ALLOCATE (admm_env%rho_aux_fit)
          CALL qs_rho_create(admm_env%rho_aux_fit)
          ALLOCATE (admm_env%rho_aux_fit_buffer)
          CALL qs_rho_create(admm_env%rho_aux_fit_buffer)
-         CALL admm_update_s_mstruct(admm_env, qs_env)
+         CALL admm_update_s_mstruct(admm_env, qs_env, "AUX_FIT")
          IF (admm_env%do_gapw) CALL update_admm_gapw(qs_env)
 
          !The ADMM KS matrices
@@ -351,8 +352,8 @@ CONTAINS
          END IF
 
       ELSE IF (s_mstruct_changed) THEN
-         CALL admm_init_hamiltonians(admm_env, qs_env)
-         CALL admm_update_s_mstruct(admm_env, qs_env)
+         CALL admm_init_hamiltonians(admm_env, qs_env, "AUX_FIT")
+         CALL admm_update_s_mstruct(admm_env, qs_env, "AUX_FIT")
          CALL admm_alloc_ks_matrices(admm_env, qs_env)
          IF (admm_env%do_gapw) CALL update_admm_gapw(qs_env)
          IF (do_kpoints) CALL kpoint_calc_admm_matrices(qs_env, calc_forces)
@@ -379,6 +380,112 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE hfx_admm_init
+
+! **************************************************************************************************
+!> \brief Minimal setup routine for admm_env
+!>        No forces
+!>        No k-points
+!>        No DFT correction terms
+!> \param qs_env ...
+!> \param admm_env ...
+! **************************************************************************************************
+   SUBROUTINE aux_admm_init(qs_env, mos, admm_env, admm_control, basis_type)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(admm_control_type), POINTER                   :: admm_control
+      CHARACTER(LEN=*)                                   :: basis_type
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'aux_admm_init'
+
+      INTEGER                                            :: handle, ispin, nao_aux_fit, &
+                                                            natoms, nelectron, nmo
+      LOGICAL                                            :: do_kpoints
+      REAL(dp)                                           :: maxocc
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: aux_fit_fm_struct
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_aux_fit_kp
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_aux_fit
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(.NOT. ASSOCIATED(admm_env))
+
+      CALL get_qs_env(qs_env, &
+                      para_env=para_env, &
+                      blacs_env=blacs_env, &
+                      ks_env=ks_env, &
+                      dft_control=dft_control, &
+                      do_kpoints=do_kpoints)
+
+      CPASSERT(.NOT. do_kpoints)
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         CPABORT("AUX ADMM not possible with GAPW")
+      END IF
+
+      ! setup admm environment
+      CALL get_qs_env(qs_env, natom=natoms, qs_kind_set=qs_kind_set)
+      CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type=basis_type)
+      ! 
+!deb
+write(6,*) "DEBUG 1 ADMM  ",ASSOCIATED(admm_env)
+!deb
+      CALL admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
+!deb
+write(6,*) "DEBUG 2 ADMM  ",ASSOCIATED(admm_env%A)
+!deb
+      ! no XC correction used
+      NULLIFY (admm_env%xc_section_aux, admm_env%xc_section_primary)
+      ! ADMM neighbor lists and overlap matrices
+      CALL admm_init_hamiltonians(admm_env, qs_env, basis_type)
+      NULLIFY(admm_env%rho_aux_fit, admm_env%rho_aux_fit_buffer)
+      !The ADMM KS matrices
+!deb  do we really need them?
+      CALL admm_alloc_ks_matrices(admm_env, qs_env)
+      !The aux_fit MOs and derivatives
+      ALLOCATE (mos_aux_fit(dft_control%nspins))
+      DO ispin = 1, dft_control%nspins
+         CALL get_mo_set(mo_set=mos(ispin), nmo=nmo, nelectron=nelectron, maxocc=maxocc)
+         CALL allocate_mo_set(mo_set=mos_aux_fit(ispin), nao=nao_aux_fit, nmo=nmo, &
+                              nelectron=nelectron, n_el_f=REAL(nelectron, dp), &
+                              maxocc=maxocc, flexible_electron_count=0.0_dp)
+      END DO
+      admm_env%mos_aux_fit => mos_aux_fit
+
+      DO ispin = 1, dft_control%nspins
+         CALL get_mo_set(mo_set=mos(ispin), nmo=nmo)
+         CALL cp_fm_struct_create(aux_fit_fm_struct, context=blacs_env, para_env=para_env, &
+                                  nrow_global=nao_aux_fit, ncol_global=nmo)
+         CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit, mo_coeff_b=mo_coeff_b)
+         IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
+            CALL init_mo_set(mos_aux_fit(ispin), fm_struct=aux_fit_fm_struct, &
+                             name="mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
+         END IF
+         CALL cp_fm_struct_release(aux_fit_fm_struct)
+
+         IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
+            CALL cp_fm_get_info(mos_aux_fit(ispin)%mo_coeff, ncol_global=nmo)
+            CALL dbcsr_init_p(mos_aux_fit(ispin)%mo_coeff_b)
+            CALL get_admm_env(admm_env, matrix_s_aux_fit_kp=matrix_s_aux_fit_kp)
+            CALL cp_dbcsr_m_by_n_from_row_template(mos_aux_fit(ispin)%mo_coeff_b, &
+                                                   template=matrix_s_aux_fit_kp(1, 1)%matrix, &
+                                                   n=nmo, sym=dbcsr_type_no_symmetry)
+         END IF
+      END DO
+
+!deb
+write(6,*) "DEBUG 3 ADMM  ",ASSOCIATED(admm_env%A)
+!deb
+      CALL timestop(handle)
+
+   END SUBROUTINE aux_admm_init
 
 ! **************************************************************************************************
 !> \brief Sets up the admm_gapw env
@@ -480,10 +587,11 @@ CONTAINS
 !> \param admm_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE admm_init_hamiltonians(admm_env, qs_env)
+   SUBROUTINE admm_init_hamiltonians(admm_env, qs_env, aux_basis_type)
 
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*)                                   :: aux_basis_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_init_hamiltonians'
 
@@ -552,7 +660,7 @@ CONTAINS
             orb_present(ikind) = .FALSE.
          END IF
 
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type=aux_basis_type)
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
             aux_fit_present(ikind) = .TRUE.
             CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set, kind_radius=aux_fit_radius(ikind))
@@ -613,14 +721,14 @@ CONTAINS
       CALL kpoint_transitional_release(admm_env%matrix_s_aux_fit)
       CALL build_overlap_matrix(ks_env, matrixkp_s=matrix_s_aux_fit_kp, &
                                 matrix_name="AUX_FIT_OVERLAP", &
-                                basis_type_a="AUX_FIT", &
-                                basis_type_b="AUX_FIT", &
+                                basis_type_a=aux_basis_type, &
+                                basis_type_b=aux_basis_type, &
                                 sab_nl=admm_env%sab_aux_fit)
       CALL set_2d_pointer(admm_env%matrix_s_aux_fit, matrix_s_aux_fit_kp)
       CALL kpoint_transitional_release(admm_env%matrix_s_aux_fit_vs_orb)
       CALL build_overlap_matrix(ks_env, matrixkp_s=matrix_s_aux_fit_vs_orb_kp, &
                                 matrix_name="MIXED_OVERLAP", &
-                                basis_type_a="AUX_FIT", &
+                                basis_type_a=aux_basis_type, &
                                 basis_type_b="ORB", &
                                 sab_nl=admm_env%sab_aux_fit_vs_orb)
       CALL set_2d_pointer(admm_env%matrix_s_aux_fit_vs_orb, matrix_s_aux_fit_vs_orb_kp)
@@ -634,10 +742,11 @@ CONTAINS
 !> \param admm_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE admm_update_s_mstruct(admm_env, qs_env)
+   SUBROUTINE admm_update_s_mstruct(admm_env, qs_env, aux_basis_type)
 
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*)                                   :: aux_basis_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_update_s_mstruct'
 
@@ -657,7 +766,8 @@ CONTAINS
       IF (ASSOCIATED(admm_env%task_list_aux_fit)) CALL deallocate_task_list(admm_env%task_list_aux_fit)
       CALL allocate_task_list(admm_env%task_list_aux_fit)
       CALL generate_qs_task_list(ks_env, admm_env%task_list_aux_fit, &
-                                 reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., basis_type="AUX_FIT", &
+                                 reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., &
+                                 basis_type=aux_basis_type, &
                                  skip_load_balance_distributed=skip_load_balance_distributed, &
                                  sab_orb_external=admm_env%sab_aux_fit)
 

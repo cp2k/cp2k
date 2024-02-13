@@ -647,6 +647,7 @@ MODULE cp_control_types
              dft_control_create, &
              tddfpt_control_create, &
              admm_control_create, &
+             admm_control_release, &
              maxwell_control_create, &
              expot_control_create, &
              ddapc_control_create

@@ -7,6 +7,7 @@
 
 MODULE qs_tddfpt2_methods
    USE admm_types,                      ONLY: admm_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Grimme2013,&
                                               Grimme2016,&
                                               Iannuzzi2005,&
@@ -35,20 +36,28 @@ MODULE qs_tddfpt2_methods
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header,&
                                               tddfpt_soc_header
-   USE hfx_types,                       ONLY: compare_hfx_sections
-   USE input_constants,                 ONLY: tddfpt_dipole_velocity,&
+   USE hfx_admm_utils,                  ONLY: aux_admm_init
+   USE hfx_types,                       ONLY: compare_hfx_sections, hfx_create
+   USE input_constants,                 ONLY: do_potential_truncated,&
+                                              tddfpt_dipole_velocity,&
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
-                                              tddfpt_kernel_stda
+                                              tddfpt_kernel_stda, &
+                                              do_admm_aux_exch_func_none, do_admm_basis_projection, &
+                                              do_admm_exch_scaling_none, do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: dp
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE lri_environment_types,           ONLY: lri_density_release,&
                                               lri_env_release
    USE machine,                         ONLY: m_flush
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE min_basis_set,                   ONLY: create_minbas_set
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -57,6 +66,9 @@ MODULE qs_tddfpt2_methods
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
                                               kernel_env_type,&
                                               release_kernel_env
+   USE qs_kind_types,                   ONLY: &
+        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
+        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -90,7 +102,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_create_work_matrices,&
                                               tddfpt_ground_state_mos,&
                                               tddfpt_release_work_matrices,&
-                                              tddfpt_work_matrices
+                                              tddfpt_work_matrices, hfxsr_create_work_matrices
    USE qs_tddfpt2_utils,                ONLY: tddfpt_guess_vectors,&
                                               tddfpt_init_mos,&
                                               tddfpt_oecorr,&
@@ -149,14 +161,19 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: kernel_section, lri_section, &
-                                                            soc_section, tddfpt_print_section, &
-                                                            tddfpt_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: hfxsr_section, kernel_section, &
+                                                            lri_section, soc_section, &
+                                                            tddfpt_print_section, tddfpt_section, &
+                                                            xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -174,7 +191,11 @@ CONTAINS
       tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
 
       CALL tddfpt_input(qs_env, do_hfx, do_admm, do_exck, &
-                        do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, lri_section)
+                        do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, &
+                        lri_section, hfxsr_section)
+
+      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "PROGRAM_BANNER", &
+                                      extension=".tddfptLog")
 
       CALL get_qs_env(qs_env, &
                       blacs_env=blacs_env, &
@@ -212,8 +233,6 @@ CONTAINS
          CALL cite_reference(Grimme2016)
       END IF
 
-      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "PROGRAM_BANNER", &
-                                      extension=".tddfptLog")
       CALL tddfpt_header(log_unit)
       CALL kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
@@ -270,11 +289,33 @@ CONTAINS
             CPABORT("TDDFPT: xTB only works with sTDA Kernel")
          END IF
 
+         IF (tddfpt_control%do_hfxsr) THEN
+            ! basis set
+            CALL create_minbas_set(qs_env, log_unit, basis_type="TDA_HFX")
+            ! admm control
+            ALLOCATE(full_kernel_env%admm_control)
+            full_kernel_env%admm_control%purification_method = do_admm_purify_none
+            full_kernel_env%admm_control%method = do_admm_basis_projection
+            full_kernel_env%admm_control%scaling_model = do_admm_exch_scaling_none
+            full_kernel_env%admm_control%aux_exch_func = do_admm_aux_exch_func_none
+            ! hfx section
+            full_kernel_env%hfxsr_section => hfxsr_section
+            !
+            CALL aux_admm_init(qs_env, mos, full_kernel_env%admm_env, &
+                               full_kernel_env%admm_control, "TDA_HFX")
+            ! x_data
+            CALL get_qs_env(qs_env, cell=cell, atomic_kind_set=atomic_kind_set, &
+                            qs_kind_set=qs_kind_set, particle_set=particle_set, &
+                            para_env=para_env)
+            CALL hfx_create(full_kernel_env%x_data, para_env, hfxsr_section, atomic_kind_set, &
+                            qs_kind_set, particle_set, dft_control, cell, orb_basis="TDA_HFX")
+         END IF
+
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
-        !! Too many states cal lead to Problems
-        !! You should be warned if there are mor states
-        !! then occ-virt Combinations!!
+         !! Too many states can lead to Problems
+         !! You should be warned if there are more states
+         !! then occ-virt Combinations!!
          CALL cp_fm_get_info(gs_mos(1)%mos_occ, ncol_global=nocc)
          CALL cp_fm_get_info(gs_mos(1)%mos_virt, ncol_global=nvirt)
          nstate_max = nocc*nvirt
@@ -285,18 +326,20 @@ CONTAINS
             tddfpt_control%nstates = nstate_max
          END IF
          CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
-                                          do_hfxsr, do_hfxlr, do_exck, qs_env, sub_env)
-      END IF
+                                          do_hfxlr, do_exck, qs_env, sub_env)
 
-      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         ! create full_kernel and admm_kernel within tddfpt_energies
          kernel_env%full_kernel => full_kernel_env
          kernel_env%admm_kernel => kernel_env_admm_aux
          NULLIFY (kernel_env%stda_kernel)
+         IF (do_hfxsr) THEN
+            ! work matrices for SR HFX
+            CALL hfxsr_create_work_matrices(work_matrices, qs_env, full_kernel_env%admm_env)
+         END IF
          IF (do_hfxlr) THEN
             ! calculate S_half and Lowdin MO coefficients
             CALL get_lowdin_mo_coefficients(qs_env, sub_env, work_matrices)
          END IF
-         ! create full_kernel and admm_kernel within tddfpt_energies
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          ! setup for kernel_stda outside tddfpt_energies
          nactive = 0
@@ -482,19 +525,20 @@ CONTAINS
 !> \param xc_section ...
 !> \param tddfpt_print_section ...
 !> \param lri_section ...
+!> \param hfxsr_section ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, do_exck, do_hfxsr, do_hfxlr, &
-                           xc_section, tddfpt_print_section, lri_section)
+                           xc_section, tddfpt_print_section, lri_section, hfxsr_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm, do_exck, do_hfxsr, &
                                                             do_hfxlr
       TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section, &
-                                                            lri_section
+                                                            lri_section, hfxsr_section
 
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: exar, exf, exgcp, exhf, exhfxk, exk, &
                                                             explicit_root, expot, exvdw, exwfn, &
-                                                            same_hfx
+                                                            found, same_hfx
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_section_gs, input, &
@@ -613,8 +657,8 @@ CONTAINS
                do_exck = .FALSE.
             END IF
             IF (exhfxk) THEN
-               xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL%HFXSR")
-               CALL section_vals_get(xc_sub, explicit=do_hfxsr)
+               xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL")
+               CALL section_vals_val_get(xc_sub, "DO_HFXSR", l_val=do_hfxsr)
                xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL%HFXLR")
                CALL section_vals_get(xc_sub, explicit=do_hfxlr)
             ELSE
@@ -651,6 +695,25 @@ CONTAINS
       ! lri input
       IF (tddfpt_control%do_lrigpw) THEN
          lri_section => section_vals_get_subs_vals(tddfpt_section, "LRIGPW")
+      END IF
+
+      ! set defaults for short range HFX
+      NULLIFY (hfxsr_section)
+      IF (do_hfxsr) THEN
+         hfxsr_section => section_vals_get_subs_vals(tddfpt_section, "XC%HFX_KERNEL%HF")
+         CALL section_vals_val_get(hfxsr_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", explicit=found)
+         IF (.NOT. found) THEN
+            CALL section_vals_val_set(hfxsr_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
+                                      i_val=do_potential_truncated)
+         END IF
+         CALL section_vals_val_get(hfxsr_section, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", explicit=found)
+         IF (.NOT. found) THEN
+            CALL section_vals_val_set(hfxsr_section, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=2.0_dp)
+         END IF
+         CALL section_vals_val_get(hfxsr_section, "RI%_SECTION_PARAMETERS_", l_val=found)
+         IF (found) THEN
+            CALL cp_abort(__LOCATION__, "Short range TDA kernel with RI not possible")
+         END IF
       END IF
 
    END SUBROUTINE tddfpt_input
@@ -935,6 +998,7 @@ CONTAINS
                                            S_evects, &
                                            matrix_s(1)%matrix)
 
+
       niters = tddfpt_control%niters
       IF (niters > 0) THEN
          log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, &
@@ -1192,9 +1256,8 @@ CONTAINS
          CALL release_kernel_env(kernel_env%full_kernel)
          CALL tddfpt_release_work_matrices(work_matrices, sub_env)
          CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, tddfpt_control%do_hfx, &
-                                          tddfpt_control%do_admm, tddfpt_control%do_hfxsr, &
-                                          tddfpt_control%do_hfxlr, tddfpt_control%do_exck, &
-                                          qs_env, sub_env)
+                                          tddfpt_control%do_admm, tddfpt_control%do_hfxlr, &
+                                          tddfpt_control%do_exck, qs_env, sub_env)
       END IF
 
       DO istate = 1, nstates

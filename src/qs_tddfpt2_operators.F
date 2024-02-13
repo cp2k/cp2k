@@ -27,6 +27,7 @@ MODULE qs_tddfpt2_operators
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: hartree_local_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
+   USE hfx_types,                       ONLY: hfx_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -75,7 +76,7 @@ MODULE qs_tddfpt2_operators
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
    PUBLIC :: tddfpt_apply_energy_diff, tddfpt_apply_coulomb, tddfpt_apply_xc, tddfpt_apply_hfx, &
-             tddfpt_apply_xc_potential, tddfpt_apply_hfxlr_kernel
+             tddfpt_apply_xc_potential, tddfpt_apply_hfxlr_kernel, tddfpt_apply_hfxsr_kernel
 
 ! **************************************************************************************************
 
@@ -639,6 +640,88 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_apply_hfx
+
+! **************************************************************************************************
+!> \brief Update action of TDDFPT operator on trial vectors by adding exact-exchange term.
+!> \param Aop_evects      action of TDDFPT operator on trial vectors (modified on exit)
+!> \param evects          trial vectors
+!> \param gs_mos          molecular orbitals optimised for the ground state (only occupied
+!>                        molecular orbitals [component %mos_occ] are needed)
+!> \param qs_env          Quickstep environment
+!> \param admm_env ...
+!> \param hfx_section ...
+!> \param x_data ...
+!> \param work_rho_ia_ao ...
+!> \param work_hmat ...
+!> \param wfm_rho_orb ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, admm_env, &
+                                        hfx_section, x_data, symmetry, &
+                                        work_rho_ia_ao, work_hmat, wfm_rho_orb)
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(section_vals_type), POINTER                   :: hfx_section
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      INTEGER, INTENT(IN)                                :: symmetry
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: work_hmat
+      TYPE(cp_fm_type), INTENT(IN)                       :: wfm_rho_orb
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_hfxsr_kernel'
+
+      INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
+                                                            nspins, nvects
+      INTEGER, DIMENSION(maxspins)                       :: nactive
+      REAL(kind=dp)                                      :: alpha
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(evects, 1)
+      nvects = SIZE(evects, 2)
+
+      alpha = 2.0_dp
+      IF (nspins > 1) alpha = 1.0_dp
+
+      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+      CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
+      END DO
+
+      DO ivect = 1, nvects
+         DO ispin = 1, nspins
+            CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
+                               gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
+            CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp*symmetry, gs_mos(ispin)%mos_occ, &
+                               evects(ispin, ivect), 1.0_dp, wfm_rho_orb)
+            CALL dbcsr_set(work_hmat(ispin)%matrix, 0.0_dp)
+            CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
+                               wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
+                               0.0_dp, admm_env%work_aux_aux)
+            CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+         END DO
+
+         CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env, .FALSE., .FALSE., &
+                               hfx_section, x_data)
+
+         DO ispin = 1, nspins
+            CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                                         ncol=nao, alpha=1.0_dp, beta=0.0_dp)
+            CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
+                               admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
+            CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
+                               gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_apply_hfxsr_kernel
 
 ! **************************************************************************************************
 !> \brief ...Calculate the HFXLR kernel contribution by contracting the Lowdin MO coefficients --

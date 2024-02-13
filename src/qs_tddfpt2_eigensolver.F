@@ -48,6 +48,7 @@ MODULE qs_tddfpt2_eigensolver
                                               stda_kernel
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_energy_diff,&
                                               tddfpt_apply_hfx,&
+                                              tddfpt_apply_hfxsr_kernel,&
                                               tddfpt_apply_hfxlr_kernel
    USE qs_tddfpt2_restart,              ONLY: tddfpt_write_restart
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
@@ -440,7 +441,22 @@ CONTAINS
          ! short/long range HFX
          IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
             IF (tddfpt_control%do_hfxsr) THEN
-               CPABORT("HFXSR not implemented")
+               ! symmetric dmat
+               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, & 
+                                              kernel_env%full_kernel%admm_env, &
+                                              kernel_env%full_kernel%hfxsr_section, &
+                                              kernel_env%full_kernel%x_data, 1, &
+                                              work_rho_ia_ao=work_matrices%hfxsr_rho_ao_symm, &
+                                              work_hmat=work_matrices%hfxsr_hmat_symm, &
+                                              wfm_rho_orb=work_matrices%hfxsr_fm_ao_ao)
+               ! antisymmetric dmat
+               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, & 
+                                              kernel_env%full_kernel%admm_env, &
+                                              kernel_env%full_kernel%hfxsr_section, &
+                                              kernel_env%full_kernel%x_data, 1, &
+                                              work_rho_ia_ao=work_matrices%hfxsr_rho_ao_asymm, &
+                                              work_hmat=work_matrices%hfxsr_hmat_asymm, &
+                                              wfm_rho_orb=work_matrices%hfxsr_fm_ao_ao)
             END IF
             IF (tddfpt_control%do_hfxlr) THEN
                rcut = tddfpt_control%hfxlr_rcut
