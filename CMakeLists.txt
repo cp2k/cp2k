@@ -690,7 +690,7 @@ endif()
 
 # spglib
 if(CP2K_USE_SPGLIB)
-  find_package(LibSPG REQUIRED)
+  find_package(Spglib CONFIG REQUIRED)
 endif()
 
 if(CP2K_USE_SPLA)
@@ -912,12 +912,6 @@ if(CP2K_USE_VORI)
   message(" - libvori\n"
           "   - include directories : ${CP2K_LIBVORI_INCLUDE_DIRS}\n"
           "   - libraries :           ${CP2K_LIBVORI_LINK_LIBRARIES}\n\n")
-endif()
-
-if(CP2K_USE_SPGLIB)
-  message(" - spglib\n"
-          "   - include directories : ${CP2K_LIBSPG_INCLUDE_DIRS}\n"
-          "   - libraries           : ${CP2K_LIBSPG_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_ELPA)

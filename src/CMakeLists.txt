@@ -1558,7 +1558,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_PEXSI}>:cp2k::PEXSI::pexsi>
     $<$<BOOL:${CP2K_USE_PEXSI}>:cp2k::ptscotch::ptscotch>
-    $<$<BOOL:${CP2K_USE_SPGLIB}>:cp2k::LIBSPG::libspg>
+    $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
     $<$<BOOL:${CP2K_USE_LIBXC}>:cp2k::Libxc::xc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
