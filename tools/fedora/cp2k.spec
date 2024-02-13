@@ -34,6 +34,7 @@ BuildRequires: bc
 BuildRequires: fftw-devel
 BuildRequires: gcc-c++
 BuildRequires: gcc-gfortran
+BuildRequires: ninja-build
 BuildRequires: glibc-langpack-en
 BuildRequires: dbcsr-devel >= %{dbcsr_version}
 BuildRequires: libint2-devel
@@ -170,7 +171,7 @@ rm -r exts/dbcsr
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
 
 %build
-CMAKE_COMMON="-DCP2K_BLAS_VENDOR=FlexiBLAS %{?with_check:-DCP2K_ENABLE_REGTESTS=ON}"
+CMAKE_COMMON="-G Ninja -DCP2K_BLAS_VENDOR=FlexiBLAS %{?with_check:-DCP2K_ENABLE_REGTESTS=ON}"
 %cmake $CMAKE_COMMON \
    -DCP2K_USE_MPI=OFF \
    -DCMAKE_INSTALL_Fortran_MODULES:PATH=%{_fmoddir}/cp2k
