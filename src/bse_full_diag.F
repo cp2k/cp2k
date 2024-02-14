@@ -36,8 +36,7 @@ MODULE bse_full_diag
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_to_fm_submat_general,&
-                                              cp_fm_type, &
-                                              cp_fm_get_element
+                                              cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -415,9 +414,9 @@ CONTAINS
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param virtual_irred ...
-!> \param bse_spin_config ...
 !> \param unit_nr ...
 !> \param diag_est ...
+!> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, homo_irred, virtual_irred, &
                             unit_nr, diag_est, mp2_env)
@@ -579,9 +578,9 @@ CONTAINS
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param virtual_irred ...
-!> \param bse_spin_config ...
 !> \param unit_nr ...
 !> \param diag_est ...
+!> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, homo_irred, virtual_irred, &
                             unit_nr, diag_est, mp2_env)
@@ -629,7 +628,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Prints the success message (incl. energies) for full diag of BSE (TDA/full ABBA via flag)
 !> \param Exc_ens ...
+!> \param fm_mat_eigvec ...
 !> \param bse_spin_config ...
+!> \param num_exc_en ...
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
@@ -638,22 +639,22 @@ CONTAINS
 !> \param flag_TDA ...
 ! **************************************************************************************************
    SUBROUTINE success_message(Exc_ens, fm_mat_eigvec, bse_spin_config, num_exc_en, &
-                              homo, virtual, homo_irred, virtual_irred,  unit_nr, flag_TDA)
+                              homo, virtual, homo_irred, virtual_irred, unit_nr, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_eigvec
-      INTEGER                                            :: bse_spin_config, num_exc_en, &
-                                                            homo, virtual, &
-                                                            homo_irred, virtual_irred, unit_nr
+      INTEGER                                            :: bse_spin_config, num_exc_en, homo, &
+                                                            virtual, homo_irred, virtual_irred, &
+                                                            unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: eigvec_entries
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: idx_homo, idx_virt
-      REAL(KIND=dp)                                      :: alpha, eigvec_entry
       INTEGER                                            :: handle, i_exc, k, num_entries
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
+      REAL(KIND=dp)                                      :: alpha
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
 
       CALL timeset(routineN, handle)
 
@@ -745,8 +746,8 @@ CONTAINS
                'BSE|', "(Formula as defined above. Eigenvector X^n normalized to 0.5.)"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T53,A6,T71,A10)') &
-                        "BSE|", "n-th exc.","i", "=>", "a", &
-                        "X_ia^n", "|X_ia^n|^2"
+               "BSE|", "n-th exc.", "i", "=>", "a", &
+               "X_ia^n", "|X_ia^n|^2"
          END IF
          DO i_exc = 1, MIN(homo*virtual, num_exc_en)
             !Iterate through eigenvector and print values above threshold
@@ -754,15 +755,15 @@ CONTAINS
                                        i_exc, homo, virtual, num_entries)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A4)') 'BSE|'
-               DO k=1, num_entries
+               DO k = 1, num_entries
                   WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T40,F19.4,T59,F22.4)') &
-                     "BSE|", i_exc, idx_homo(k), "=>", homo+idx_virt(k), eigvec_entries(k), ABS(eigvec_entries(k) )**2
+                     "BSE|", i_exc, idx_homo(k), "=>", homo + idx_virt(k), eigvec_entries(k), ABS(eigvec_entries(k))**2
                END DO
             END IF
 
-            DEALLOCATE(idx_homo)
-            DEALLOCATE(idx_virt)
-            DEALLOCATE(eigvec_entries)
+            DEALLOCATE (idx_homo)
+            DEALLOCATE (idx_virt)
+            DEALLOCATE (eigvec_entries)
          END DO
       END IF
       IF (unit_nr > 0) THEN
@@ -775,28 +776,38 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE success_message
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_eigvec ...
+!> \param idx_homo ...
+!> \param idx_virt ...
+!> \param eigvec_entries ...
+!> \param i_exc ...
+!> \param homo ...
+!> \param virtual ...
+!> \param num_entries ...
+! **************************************************************************************************
    SUBROUTINE filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
                                     i_exc, homo, virtual, num_entries)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_eigvec
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: idx_homo, idx_virt
-      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: eigvec_entries
-      INTEGER                                            :: i_exc, homo,virtual, num_entries
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+      INTEGER                                            :: i_exc, homo, virtual, num_entries
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_eigvec_contrib'
 
-      INTEGER                                            :: handle, nrow_local, ncol_local, &
-                                                            ii, jj, kk, eigvec_idx, &
-                                                            num_entries_local, iproc
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: num_entries_to_comm
-      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
+      INTEGER                                            :: eigvec_idx, handle, ii, iproc, jj, kk, &
+                                                            ncol_local, nrow_local, &
+                                                            num_entries_local
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_to_comm
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigvec_entry
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_entries
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
 
       para_env => fm_mat_eigvec%matrix_struct%para_env
 
@@ -805,19 +816,19 @@ CONTAINS
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
-      
-      ALLOCATE(num_entries_to_comm(0:para_env%num_pe-1))
+
+      ALLOCATE (num_entries_to_comm(0:para_env%num_pe - 1))
       num_entries_to_comm(:) = 0
 
-      DO jj = 1,ncol_local
+      DO jj = 1, ncol_local
          !First check if i is localized on this proc
          IF (col_indices(jj) /= i_exc) THEN
             CYCLE
          END IF
-         DO ii=1,nrow_local
+         DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_mat_eigvec%local_data(ii,jj)/SQRT(2.0_dp)
-            IF (ABS(eigvec_entry)>0.1_dp) THEN
+            eigvec_entry = fm_mat_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            IF (ABS(eigvec_entry) > 0.1_dp) THEN
                num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
             END IF
          END DO
@@ -828,7 +839,7 @@ CONTAINS
 
       num_entries_local = num_entries_to_comm(para_env%mepos)
 
-      ALLOCATE(buffer_entries(0:para_env%num_pe-1))
+      ALLOCATE (buffer_entries(0:para_env%num_pe - 1))
 
       DO iproc = 0, para_env%num_pe - 1
          ALLOCATE (buffer_entries(iproc)%msg(num_entries_to_comm(iproc)))
@@ -842,23 +853,23 @@ CONTAINS
       ! ALLOCATE(eigvec_entries(num_entries_local))
 
       kk = 1
-      DO jj = 1,ncol_local
+      DO jj = 1, ncol_local
          !First check if i is localized on this proc
          IF (col_indices(jj) /= i_exc) THEN
             CYCLE
          END IF
-         DO ii=1,nrow_local
+         DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_mat_eigvec%local_data(ii,jj)/SQRT(2.0_dp)
-            IF (ABS(eigvec_entry)>0.1_dp) THEN
-               buffer_entries(para_env%mepos)%indx(kk,1) = (eigvec_idx - 1)/virtual + 1
-               buffer_entries(para_env%mepos)%indx(kk,2) = MOD(eigvec_idx - 1, virtual) + 1
+            eigvec_entry = fm_mat_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            IF (ABS(eigvec_entry) > 0.1_dp) THEN
+               buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
+               buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1
                buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
                kk = kk + 1
             END IF
          END DO
       END DO
-      
+
       DO iproc = 0, para_env%num_pe - 1
          CALL para_env%sum(buffer_entries(iproc)%msg)
          CALL para_env%sum(buffer_entries(iproc)%indx)
@@ -866,9 +877,9 @@ CONTAINS
 
       !Now sum up gathered information
       num_entries = SUM(num_entries_to_comm)
-      ALLOCATE(idx_homo(num_entries))
-      ALLOCATE(idx_virt(num_entries))
-      ALLOCATE(eigvec_entries(num_entries))
+      ALLOCATE (idx_homo(num_entries))
+      ALLOCATE (idx_virt(num_entries))
+      ALLOCATE (eigvec_entries(num_entries))
 
       ! IF (para_env%mepos == 0) THEN
       !    DO iproc = 0, para_env%num_pe - 1
@@ -881,24 +892,23 @@ CONTAINS
       DO iproc = 0, para_env%num_pe - 1
          IF (num_entries_to_comm(iproc) /= 0) THEN
             DO ii = 1, num_entries_to_comm(iproc)
-               idx_homo(kk) = buffer_entries(iproc)%indx(ii,1)
-               idx_virt(kk) = buffer_entries(iproc)%indx(ii,2)
+               idx_homo(kk) = buffer_entries(iproc)%indx(ii, 1)
+               idx_virt(kk) = buffer_entries(iproc)%indx(ii, 2)
                eigvec_entries(kk) = buffer_entries(iproc)%msg(ii)
-               kk = kk + 1 
+               kk = kk + 1
             END DO
          END IF
       END DO
-
 
       !Deallocate all the used arrays
       DO iproc = 0, para_env%num_pe - 1
          DEALLOCATE (buffer_entries(iproc)%msg)
          DEALLOCATE (buffer_entries(iproc)%indx)
       END DO
-      DEALLOCATE(buffer_entries)
-      DEALLOCATE(num_entries_to_comm)
-      NULLIFY(row_indices)
-      NULLIFY(col_indices)
+      DEALLOCATE (buffer_entries)
+      DEALLOCATE (num_entries_to_comm)
+      NULLIFY (row_indices)
+      NULLIFY (col_indices)
 
       CALL timestop(handle)
 

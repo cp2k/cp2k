@@ -1283,7 +1283,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC", &
                           description="Number of printed excitation energies.", &
                           usage="NUM_PRINT_EXC 15", &
