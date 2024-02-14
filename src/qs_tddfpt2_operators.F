@@ -651,12 +651,14 @@ CONTAINS
 !> \param admm_env ...
 !> \param hfx_section ...
 !> \param x_data ...
+!> \param symmetry ...
+!> \param recalc_integrals ...
 !> \param work_rho_ia_ao ...
 !> \param work_hmat ...
 !> \param wfm_rho_orb ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, admm_env, &
-                                        hfx_section, x_data, symmetry, &
+                                        hfx_section, x_data, symmetry, recalc_integrals, &
                                         work_rho_ia_ao, work_hmat, wfm_rho_orb)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -666,6 +668,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       INTEGER, INTENT(IN)                                :: symmetry
+      LOGICAL                                            :: recalc_integrals
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          TARGET                                          :: work_hmat
@@ -706,7 +709,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
 
-         CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env, .FALSE., .FALSE., &
+         CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env, .FALSE., recalc_integrals, &
                                hfx_section, x_data)
 
          DO ispin = 1, nspins

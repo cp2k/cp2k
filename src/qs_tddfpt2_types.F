@@ -225,8 +225,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxlr, &
-                                                            do_exck
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxlr, do_exck
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -549,6 +548,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocate work matrices for hfxsr
 !> \param work_matrices  work matrices (allocated on exit)
+!> \param qs_env ...
+!> \param admm_env ...
 ! **************************************************************************************************
    SUBROUTINE hfxsr_create_work_matrices(work_matrices, qs_env, admm_env)
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
@@ -557,7 +558,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfxsr_create_work_matrices'
 
-      INTEGER                                            :: handle, ispin, nspins, nao, nao_aux
+      INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist

@@ -31,7 +31,8 @@ MODULE hfx_admm_utils
    USE cell_types,                      ONLY: cell_type,&
                                               plane_distance
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_type, admm_control_type
+   USE cp_control_types,                ONLY: admm_control_type,&
+                                              dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               dbcsr_allocate_matrix_set
@@ -387,7 +388,10 @@ CONTAINS
 !>        No k-points
 !>        No DFT correction terms
 !> \param qs_env ...
+!> \param mos ...
 !> \param admm_env ...
+!> \param admm_control ...
+!> \param basis_type ...
 ! **************************************************************************************************
    SUBROUTINE aux_admm_init(qs_env, mos, admm_env, admm_control, basis_type)
 
@@ -399,8 +403,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'aux_admm_init'
 
-      INTEGER                                            :: handle, ispin, nao_aux_fit, &
-                                                            natoms, nelectron, nmo
+      INTEGER                                            :: handle, ispin, nao_aux_fit, natoms, &
+                                                            nelectron, nmo
       LOGICAL                                            :: do_kpoints
       REAL(dp)                                           :: maxocc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -433,19 +437,13 @@ CONTAINS
       ! setup admm environment
       CALL get_qs_env(qs_env, natom=natoms, qs_kind_set=qs_kind_set)
       CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type=basis_type)
-      ! 
-!deb
-write(6,*) "DEBUG 1 ADMM  ",ASSOCIATED(admm_env)
-!deb
+      !
       CALL admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
-!deb
-write(6,*) "DEBUG 2 ADMM  ",ASSOCIATED(admm_env%A)
-!deb
       ! no XC correction used
       NULLIFY (admm_env%xc_section_aux, admm_env%xc_section_primary)
       ! ADMM neighbor lists and overlap matrices
       CALL admm_init_hamiltonians(admm_env, qs_env, basis_type)
-      NULLIFY(admm_env%rho_aux_fit, admm_env%rho_aux_fit_buffer)
+      NULLIFY (admm_env%rho_aux_fit, admm_env%rho_aux_fit_buffer)
       !The ADMM KS matrices
 !deb  do we really need them?
       CALL admm_alloc_ks_matrices(admm_env, qs_env)
@@ -480,9 +478,6 @@ write(6,*) "DEBUG 2 ADMM  ",ASSOCIATED(admm_env%A)
          END IF
       END DO
 
-!deb
-write(6,*) "DEBUG 3 ADMM  ",ASSOCIATED(admm_env%A)
-!deb
       CALL timestop(handle)
 
    END SUBROUTINE aux_admm_init
@@ -586,6 +581,7 @@ write(6,*) "DEBUG 3 ADMM  ",ASSOCIATED(admm_env%A)
 !> \brief Builds the ADMM nmeighbor lists and overlap matrix on the model of qs_energies_init_hamiltonians()
 !> \param admm_env ...
 !> \param qs_env ...
+!> \param aux_basis_type ...
 ! **************************************************************************************************
    SUBROUTINE admm_init_hamiltonians(admm_env, qs_env, aux_basis_type)
 
@@ -741,6 +737,7 @@ write(6,*) "DEBUG 3 ADMM  ",ASSOCIATED(admm_env%A)
 !> \brief Updates the ADMM task_list and density based on the model of qs_env_update_s_mstruct()
 !> \param admm_env ...
 !> \param qs_env ...
+!> \param aux_basis_type ...
 ! **************************************************************************************************
    SUBROUTINE admm_update_s_mstruct(admm_env, qs_env, aux_basis_type)
 

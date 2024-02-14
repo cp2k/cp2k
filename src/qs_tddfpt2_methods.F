@@ -37,14 +37,12 @@ MODULE qs_tddfpt2_methods
    USE header,                          ONLY: tddfpt_header,&
                                               tddfpt_soc_header
    USE hfx_admm_utils,                  ONLY: aux_admm_init
-   USE hfx_types,                       ONLY: compare_hfx_sections, hfx_create
-   USE input_constants,                 ONLY: do_potential_truncated,&
-                                              tddfpt_dipole_velocity,&
-                                              tddfpt_kernel_full,&
-                                              tddfpt_kernel_none,&
-                                              tddfpt_kernel_stda, &
-                                              do_admm_aux_exch_func_none, do_admm_basis_projection, &
-                                              do_admm_exch_scaling_none, do_admm_purify_none
+   USE hfx_types,                       ONLY: compare_hfx_sections,&
+                                              hfx_create
+   USE input_constants,                 ONLY: &
+        do_admm_aux_exch_func_none, do_admm_basis_projection, do_admm_exch_scaling_none, &
+        do_admm_purify_none, do_potential_truncated, tddfpt_dipole_velocity, tddfpt_kernel_full, &
+        tddfpt_kernel_none, tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -66,9 +64,7 @@ MODULE qs_tddfpt2_methods
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
                                               kernel_env_type,&
                                               release_kernel_env
-   USE qs_kind_types,                   ONLY: &
-        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
-        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -98,11 +94,12 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
                                               tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: stda_create_work_matrices,&
+   USE qs_tddfpt2_types,                ONLY: hfxsr_create_work_matrices,&
+                                              stda_create_work_matrices,&
                                               tddfpt_create_work_matrices,&
                                               tddfpt_ground_state_mos,&
                                               tddfpt_release_work_matrices,&
-                                              tddfpt_work_matrices, hfxsr_create_work_matrices
+                                              tddfpt_work_matrices
    USE qs_tddfpt2_utils,                ONLY: tddfpt_guess_vectors,&
                                               tddfpt_init_mos,&
                                               tddfpt_oecorr,&
@@ -153,6 +150,7 @@ CONTAINS
                                                             state_change
       REAL(kind=dp)                                      :: gsmin, gsval, xsval
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -161,14 +159,13 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfxsr_section, kernel_section, &
                                                             lri_section, soc_section, &
@@ -209,6 +206,7 @@ CONTAINS
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
       tddfpt_control%do_hfxsr = do_hfxsr
+      tddfpt_control%hfxsr_re_int = .TRUE.
       tddfpt_control%do_hfxlr = do_hfxlr
       tddfpt_control%do_exck = do_exck
       IF (tddfpt_control%do_hfxlr) THEN
@@ -293,7 +291,7 @@ CONTAINS
             ! basis set
             CALL create_minbas_set(qs_env, log_unit, basis_type="TDA_HFX")
             ! admm control
-            ALLOCATE(full_kernel_env%admm_control)
+            ALLOCATE (full_kernel_env%admm_control)
             full_kernel_env%admm_control%purification_method = do_admm_purify_none
             full_kernel_env%admm_control%method = do_admm_basis_projection
             full_kernel_env%admm_control%scaling_model = do_admm_exch_scaling_none
@@ -760,7 +758,7 @@ CONTAINS
                WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "Long range HFX approximation"
             END IF
             IF (tddfpt_control%do_lrigpw) THEN
-               WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "LRI approximation of transition density"
+               WRITE (log_unit, "(T2,A,T42,A39)") "KERNEL|", "LRI approximation of transition density"
             END IF
          END IF
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
@@ -997,7 +995,6 @@ CONTAINS
                                            nstates, &
                                            S_evects, &
                                            matrix_s(1)%matrix)
-
 
       niters = tddfpt_control%niters
       IF (niters > 0) THEN

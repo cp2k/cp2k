@@ -8,8 +8,8 @@
 MODULE qs_kernel_types
    USE admm_types,                      ONLY: admm_env_release,&
                                               admm_type
-   USE cp_control_types,                ONLY: admm_control_type,&
-                                              admm_control_release
+   USE cp_control_types,                ONLY: admm_control_release,&
+                                              admm_control_type
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type
    USE input_section_types,             ONLY: section_vals_type

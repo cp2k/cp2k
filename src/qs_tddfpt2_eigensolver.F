@@ -48,8 +48,8 @@ MODULE qs_tddfpt2_eigensolver
                                               stda_kernel
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_energy_diff,&
                                               tddfpt_apply_hfx,&
-                                              tddfpt_apply_hfxsr_kernel,&
-                                              tddfpt_apply_hfxlr_kernel
+                                              tddfpt_apply_hfxlr_kernel,&
+                                              tddfpt_apply_hfxsr_kernel
    USE qs_tddfpt2_restart,              ONLY: tddfpt_write_restart
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
@@ -318,7 +318,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
       LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
-                                                            is_rks_triplets
+                                                            is_rks_triplets, re_int
       REAL(KIND=dp)                                      :: rcut, scale
       TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(full_kernel_env_type), POINTER                :: kernel_env_admm_aux
@@ -441,22 +441,24 @@ CONTAINS
          ! short/long range HFX
          IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
             IF (tddfpt_control%do_hfxsr) THEN
+               re_int = tddfpt_control%hfxsr_re_int
                ! symmetric dmat
-               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, & 
+               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, &
                                               kernel_env%full_kernel%admm_env, &
                                               kernel_env%full_kernel%hfxsr_section, &
-                                              kernel_env%full_kernel%x_data, 1, &
+                                              kernel_env%full_kernel%x_data, 1, re_int, &
                                               work_rho_ia_ao=work_matrices%hfxsr_rho_ao_symm, &
                                               work_hmat=work_matrices%hfxsr_hmat_symm, &
                                               wfm_rho_orb=work_matrices%hfxsr_fm_ao_ao)
                ! antisymmetric dmat
-               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, & 
+               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, &
                                               kernel_env%full_kernel%admm_env, &
                                               kernel_env%full_kernel%hfxsr_section, &
-                                              kernel_env%full_kernel%x_data, 1, &
+                                              kernel_env%full_kernel%x_data, -1, .FALSE., &
                                               work_rho_ia_ao=work_matrices%hfxsr_rho_ao_asymm, &
                                               work_hmat=work_matrices%hfxsr_hmat_asymm, &
                                               wfm_rho_orb=work_matrices%hfxsr_fm_ao_ao)
+               tddfpt_control%hfxsr_re_int = .FALSE.
             END IF
             IF (tddfpt_control%do_hfxlr) THEN
                rcut = tddfpt_control%hfxlr_rcut
