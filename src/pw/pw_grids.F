@@ -68,7 +68,6 @@ MODULE pw_grids
    PRIVATE
    PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
    PUBLIC :: get_pw_grid_info, pw_grid_compare
-   PUBLIC :: pw_grid_setup
    PUBLIC :: pw_grid_change
 
    INTEGER :: grid_tag = 0
@@ -78,32 +77,37 @@ MODULE pw_grids
    INTEGER, PARAMETER, PUBLIC               :: do_pw_grid_blocked_false = 0, &
                                                do_pw_grid_blocked_true = 1, &
                                                do_pw_grid_blocked_free = 2
+
+   INTERFACE pw_grid_create
+      MODULE PROCEDURE pw_grid_create_local
+      MODULE PROCEDURE pw_grid_create_extended
+   END INTERFACE
+
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initialize a PW grid with all defaults
+!> \brief Initialize a PW grid with bounds only (used by some routines)
 !> \param pw_grid ...
-!> \param pe_group ...
-!> \param local ...
+!> \param bounds ...
 !> \par History
 !>      JGH (21-Feb-2003) : initialize pw_grid%reference
 !> \author JGH (7-Feb-2001) & fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_create(pw_grid, pe_group, local)
+   SUBROUTINE pw_grid_create_local(pw_grid, bounds)
 
       TYPE(pw_grid_type), POINTER                        :: pw_grid
+      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
-      CLASS(mp_comm_type), INTENT(in)                     :: pe_group
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local
-
-      LOGICAL                                            :: my_local
-
-      my_local = .FALSE.
-      IF (PRESENT(local)) my_local = local
       CPASSERT(.NOT. ASSOCIATED(pw_grid))
       ALLOCATE (pw_grid)
-      pw_grid%bounds = 0
-      pw_grid%cutoff = 0.0_dp
+      pw_grid%bounds = bounds
+      pw_grid%bounds_local = bounds
+      pw_grid%npts = bounds(2, :) - bounds(1, :) + 1
+      pw_grid%npts_local = pw_grid%npts
+      pw_grid%ngpts = PRODUCT(INT(pw_grid%npts, KIND=int_8))
+      pw_grid%ngpts_cut = pw_grid%ngpts
+      pw_grid%ngpts_local = PRODUCT(pw_grid%npts)
+      pw_grid%ngpts_cut_local = pw_grid%ngpts_local
       pw_grid%grid_span = FULLSPACE
       pw_grid%para%mode = PW_MODE_LOCAL
       pw_grid%para%rs_dims = 0
@@ -120,19 +124,19 @@ CONTAINS
       pw_grid%id_nr = grid_tag
 
       ! parallel info
-      CALL pw_grid%para%group%from_dup(pe_group)
+      CALL pw_grid%para%group%from_dup(mp_comm_self)
       pw_grid%para%group_size = pw_grid%para%group%num_pe
       pw_grid%para%my_pos = pw_grid%para%group%mepos
       pw_grid%para%group_head_id = 0
       pw_grid%para%group_head = &
          (pw_grid%para%group_head_id == pw_grid%para%my_pos)
-      IF (pw_grid%para%group_size > 1 .AND. (.NOT. my_local)) THEN
+      IF (pw_grid%para%group_size > 1) THEN
          pw_grid%para%mode = PW_MODE_DISTRIBUTED
       ELSE
          pw_grid%para%mode = PW_MODE_LOCAL
       END IF
 
-   END SUBROUTINE pw_grid_create
+   END SUBROUTINE pw_grid_create_local
 
 ! **************************************************************************************************
 !> \brief Check if two pw_grids are equal
@@ -260,8 +264,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief sets up a pw_grid
-!> \param cell_hmat ...
 !> \param pw_grid ...
+!> \param mp_comm ...
+!> \param cell_hmat ...
 !> \param grid_span ...
 !> \param cutoff ...
 !> \param bounds ...
@@ -280,12 +285,14 @@ CONTAINS
 !> \note
 !>      this is the function that should be used in the future
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_setup(cell_hmat, pw_grid, grid_span, cutoff, bounds, bounds_local, npts, &
-                            spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid, &
-                            rs_dims, iounit)
+   SUBROUTINE pw_grid_create_extended(pw_grid, mp_comm, cell_hmat, grid_span, cutoff, bounds, bounds_local, npts, &
+                                      spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid, &
+                                      rs_dims, iounit)
 
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
-      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
+
+      CLASS(mp_comm_type), INTENT(IN) :: mp_comm
       INTEGER, INTENT(in), OPTIONAL                      :: grid_span
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds, bounds_local
@@ -306,6 +313,38 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cell_h_inv
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(.NOT. ASSOCIATED(pw_grid))
+      ALLOCATE (pw_grid)
+      pw_grid%bounds = 0
+      pw_grid%cutoff = 0.0_dp
+      pw_grid%grid_span = FULLSPACE
+      pw_grid%para%mode = PW_MODE_LOCAL
+      pw_grid%para%rs_dims = 0
+      pw_grid%reference = 0
+      pw_grid%ref_count = 1
+      NULLIFY (pw_grid%g)
+      NULLIFY (pw_grid%gsq)
+      NULLIFY (pw_grid%g_hatmap)
+      NULLIFY (pw_grid%gidx)
+      NULLIFY (pw_grid%grays)
+
+      ! assign a unique tag to this grid
+      grid_tag = grid_tag + 1
+      pw_grid%id_nr = grid_tag
+
+      ! parallel info
+      CALL pw_grid%para%group%from_dup(mp_comm)
+      pw_grid%para%group_size = pw_grid%para%group%num_pe
+      pw_grid%para%my_pos = pw_grid%para%group%mepos
+      pw_grid%para%group_head_id = 0
+      pw_grid%para%group_head = &
+         (pw_grid%para%group_head_id == pw_grid%para%my_pos)
+      IF (pw_grid%para%group_size > 1) THEN
+         pw_grid%para%mode = PW_MODE_DISTRIBUTED
+      ELSE
+         pw_grid%para%mode = PW_MODE_LOCAL
+      END IF
 
       cell_deth = ABS(det_3x3(cell_hmat))
       IF (cell_deth < 1.0E-10_dp) THEN
@@ -396,7 +435,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_grid_setup
+   END SUBROUTINE pw_grid_create_extended
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 ! **************************************************************************************************
@@ -772,7 +811,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: axis_dist_all
       INTEGER, DIMENSION(2, 3)                           :: axis_dist
       LOGICAL                                            :: blocking
-      TYPE(mp_comm_type)                                 :: mp_comm_old
 
 !------------------------------------------------------------------------------
 
@@ -806,8 +844,7 @@ CONTAINS
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
          pw_grid%para%rs_dims = 1
-         mp_comm_old = mp_comm_self
-         CALL pw_grid%para%rs_group%create(mp_comm_old, 2, &
+         CALL pw_grid%para%rs_group%create(pw_grid%para%group, 2, &
                                            pw_grid%para%rs_dims)
          pw_grid%para%rs_dims = pw_grid%para%rs_group%num_pe_cart
          pw_grid%para%rs_pos = pw_grid%para%rs_group%mepos_cart

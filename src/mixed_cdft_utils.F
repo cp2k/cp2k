@@ -91,8 +91,7 @@ MODULE mixed_cdft_utils
                                               pw_grid_type
    USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                               pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_type
@@ -688,7 +687,6 @@ CONTAINS
       ! Init structures only needed when the CDFT states are treated in parallel
       IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
          ! Start building the mixed auxbas_pw_pool
-         CALL pw_grid_create(pw_grid, force_env%para_env)
          CALL pw_env_create(mixed_cdft%pw_env)
          ! Decide what kind of layout to use and setup the grid
          ! Processor mappings currently supported:
@@ -727,12 +725,12 @@ CONTAINS
             CALL get_qs_env(force_env_qs%qmmm_env%qs_env, &
                             cell=cell_mix)
          END IF
-         CALL pw_grid_setup(cell_mix%hmat, pw_grid, grid_span=settings%grid_span(1), &
-                            npts=settings%npts(:, 1), cutoff=settings%cutoff(1), &
-                            spherical=settings%is_spherical, odd=settings%is_odd, &
-                            fft_usage=.TRUE., ncommensurate=0, icommensurate=1, &
-                            blocked=do_pw_grid_blocked_false, rs_dims=mixed_rs_dims, &
-                            iounit=iounit)
+         CALL pw_grid_create(pw_grid, force_env%para_env, cell_mix%hmat, grid_span=settings%grid_span(1), &
+                             npts=settings%npts(:, 1), cutoff=settings%cutoff(1), &
+                             spherical=settings%is_spherical, odd=settings%is_odd, &
+                             fft_usage=.TRUE., ncommensurate=0, icommensurate=1, &
+                             blocked=do_pw_grid_blocked_false, rs_dims=mixed_rs_dims, &
+                             iounit=iounit)
          ! Check if the layout was successfully created
          IF (mixed_cdft%is_special) THEN
             IF (.NOT. pw_grid%para%rs_dims(2) /= 1) is_match = .FALSE.

@@ -75,8 +75,7 @@ MODULE pw_env_methods
    USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                               pw_grid_change,&
                                               pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
    USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
@@ -381,8 +380,6 @@ CONTAINS
       END IF
 
       DO igrid_level = 1, ngrid_level
-         CALL pw_grid_create(pw_grid, para_env)
-
          cutilev = cutoff(igrid_level)
 
          ! the whole of QS seems to work fine with either blocked/non-blocked distribution in g-space
@@ -405,34 +402,34 @@ CONTAINS
 
          IF (igrid_level == 1) THEN
             IF (ASSOCIATED(old_pw_grid)) THEN
-               CALL pw_grid_setup(my_cell%hmat, pw_grid, grid_span=grid_span, &
-                                  cutoff=cutilev, &
-                                  spherical=spherical, odd=odd, fft_usage=.TRUE., &
-                                  ncommensurate=ncommensurate, icommensurate=igrid_level, &
-                                  blocked=do_pw_grid_blocked_false, &
-                                  ref_grid=old_pw_grid, &
-                                  rs_dims=distribution_layout, &
-                                  iounit=iounit)
+               CALL pw_grid_create(pw_grid, para_env, my_cell%hmat, grid_span=grid_span, &
+                                   cutoff=cutilev, &
+                                   spherical=spherical, odd=odd, fft_usage=.TRUE., &
+                                   ncommensurate=ncommensurate, icommensurate=igrid_level, &
+                                   blocked=do_pw_grid_blocked_false, &
+                                   ref_grid=old_pw_grid, &
+                                   rs_dims=distribution_layout, &
+                                   iounit=iounit)
                old_pw_grid => pw_grid
             ELSE
-               CALL pw_grid_setup(my_cell%hmat, pw_grid, grid_span=grid_span, &
-                                  cutoff=cutilev, &
-                                  spherical=spherical, odd=odd, fft_usage=.TRUE., &
-                                  ncommensurate=ncommensurate, icommensurate=igrid_level, &
-                                  blocked=blocked_id, &
-                                  rs_dims=distribution_layout, &
-                                  iounit=iounit)
+               CALL pw_grid_create(pw_grid, para_env, my_cell%hmat, grid_span=grid_span, &
+                                   cutoff=cutilev, &
+                                   spherical=spherical, odd=odd, fft_usage=.TRUE., &
+                                   ncommensurate=ncommensurate, icommensurate=igrid_level, &
+                                   blocked=blocked_id, &
+                                   rs_dims=distribution_layout, &
+                                   iounit=iounit)
                old_pw_grid => pw_grid
             END IF
          ELSE
-            CALL pw_grid_setup(my_cell%hmat, pw_grid, grid_span=grid_span, &
-                               cutoff=cutilev, &
-                               spherical=spherical, odd=odd, fft_usage=.TRUE., &
-                               ncommensurate=ncommensurate, icommensurate=igrid_level, &
-                               blocked=do_pw_grid_blocked_false, &
-                               ref_grid=old_pw_grid, &
-                               rs_dims=distribution_layout, &
-                               iounit=iounit)
+            CALL pw_grid_create(pw_grid, para_env, my_cell%hmat, grid_span=grid_span, &
+                                cutoff=cutilev, &
+                                spherical=spherical, odd=odd, fft_usage=.TRUE., &
+                                ncommensurate=ncommensurate, icommensurate=igrid_level, &
+                                blocked=do_pw_grid_blocked_false, &
+                                ref_grid=old_pw_grid, &
+                                rs_dims=distribution_layout, &
+                                iounit=iounit)
          END IF
 
          ! init pw_pools
@@ -470,16 +467,15 @@ CONTAINS
       IF (set_vdw_pool) THEN
          CPASSERT(ASSOCIATED(old_pw_grid))
          IF (.NOT. ASSOCIATED(vdw_ref_grid)) vdw_ref_grid => old_pw_grid
-         CALL pw_grid_create(vdw_grid, para_env)
          IF (iounit > 0) WRITE (iounit, "(/,T2,A)") "PW_GRID| Grid for non-local vdW functional"
-         CALL pw_grid_setup(my_cell%hmat, vdw_grid, grid_span=grid_span, &
-                            cutoff=dispersion_env%pw_cutoff, &
-                            spherical=spherical, odd=odd, fft_usage=.TRUE., &
-                            ncommensurate=0, icommensurate=0, &
-                            blocked=do_pw_grid_blocked_false, &
-                            ref_grid=vdw_ref_grid, &
-                            rs_dims=distribution_layout, &
-                            iounit=iounit)
+         CALL pw_grid_create(vdw_grid, para_env, my_cell%hmat, grid_span=grid_span, &
+                             cutoff=dispersion_env%pw_cutoff, &
+                             spherical=spherical, odd=odd, fft_usage=.TRUE., &
+                             ncommensurate=0, icommensurate=0, &
+                             blocked=do_pw_grid_blocked_false, &
+                             ref_grid=vdw_ref_grid, &
+                             rs_dims=distribution_layout, &
+                             iounit=iounit)
          CALL pw_pool_create(pw_env%vdw_pw_pool, pw_grid=vdw_grid)
          CALL pw_grid_release(vdw_grid)
       ELSE
@@ -987,17 +983,14 @@ CONTAINS
                                     extension=".Log")
 
       IF (uf_grid) THEN
-         CALL pw_grid_create(xc_super_ref_pw_grid, para_env)
-         CALL pw_grid_setup(cell_ref%hmat, xc_super_ref_pw_grid, grid_span=grid_span, &
-                            cutoff=4._dp*cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
-                            ncommensurate=my_ncommensurate, icommensurate=1, &
-                            blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe, 1/), &
-                            iounit=iounit)
+         CALL pw_grid_create(xc_super_ref_pw_grid, para_env, cell_ref%hmat, grid_span=grid_span, &
+                             cutoff=4._dp*cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
+                             ncommensurate=my_ncommensurate, icommensurate=1, &
+                             blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe, 1/), &
+                             iounit=iounit)
          super_ref_pw_grid => xc_super_ref_pw_grid
       END IF
       IF (mt_s_grid) THEN
-         CALL pw_grid_create(mt_super_ref_pw_grid, para_env)
-
          IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
             CPABORT("special grid for mt and fine xc grid not compatible")
          ELSE
@@ -1010,10 +1003,10 @@ CONTAINS
 
             ! bug appears for nn==no, also in old versions
             CPASSERT(ALL(nn > no))
-            CALL pw_grid_setup(cell_ref%hmat, mt_super_ref_pw_grid, &
-                               cutoff=my_cutilev, spherical=spherical, fft_usage=.TRUE., &
-                               blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe, 1/), &
-                               iounit=iounit)
+            CALL pw_grid_create(mt_super_ref_pw_grid, para_env, cell_ref%hmat, &
+                                cutoff=my_cutilev, spherical=spherical, fft_usage=.TRUE., &
+                                blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe, 1/), &
+                                iounit=iounit)
             super_ref_pw_grid => mt_super_ref_pw_grid
          END IF
       END IF

@@ -21,8 +21,7 @@ MODULE dct
                                               mp_request_type,&
                                               mp_waitall
    USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_setup
+   USE pw_grids,                        ONLY: pw_grid_create
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
@@ -214,7 +213,6 @@ CONTAINS
                               dests_shrink, srcs_shrink)
       CALL expansion_bounds(pw_grid, neumann_directions, srcs_expand, flipg_stat, &
                             bounds_shftd, bounds_local_shftd, recv_msgs_bnds, bounds_new, bounds_local_new)
-      CALL pw_grid_create(dct_pw_grid, pw_grid%para%rs_group, local=.FALSE.)
 
       hmat2 = 0.0_dp
       hmat2(1, 1) = scfac(1)*cell_hmat(1, 1)
@@ -230,11 +228,11 @@ CONTAINS
          blocked = 0
       END IF
 
-      CALL pw_grid_setup(hmat2, dct_pw_grid, &
-                         bounds=bounds_new, &
-                         rs_dims=pw_grid%para%rs_dims, &
-                         blocked=blocked, &
-                         bounds_local=bounds_local_new)
+      CALL pw_grid_create(dct_pw_grid, pw_grid%para%rs_group, hmat2, &
+                          bounds=bounds_new, &
+                          rs_dims=pw_grid%para%rs_dims, &
+                          blocked=blocked, &
+                          bounds_local=bounds_local_new)
 
       DEALLOCATE (flipg_stat, dests_expand, srcs_expand, dests_shrink, recv_msgs_bnds)
 
