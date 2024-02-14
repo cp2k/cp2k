@@ -40,7 +40,7 @@ MODULE bse
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse'
 
-   PUBLIC :: mult_B_with_W, fill_local_3c_arrays, do_subspace_iterations, deallocate_matrices_BSE
+   PUBLIC :: mult_B_with_W, fill_local_3c_arrays, do_subspace_iterations
 
 CONTAINS
 
@@ -1899,34 +1899,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param &!fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_Q_static_bse ...
-!> \param fm_mat_Q_static_bse_gemm ...
-! **************************************************************************************************
-   SUBROUTINE deallocate_matrices_bse( &!fm_mat_S_ij_bse,fm_mat_S_ab_bse, &
-      fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
-
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse, &
-                                                            fm_mat_Q_static_bse_gemm
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_bse'
-
-      INTEGER                                            :: handle
-
-!fm_mat_S_ij_bse,fm_mat_S_ab_bse, &
-
-      CALL timeset(routineN, handle)
-
-      !CALL cp_fm_release(fm_mat_S_ij_bse(1))
-      !CALL cp_fm_release(fm_mat_S_ab_bse(1))
-      CALL cp_fm_release(fm_mat_Q_static_bse)
-      CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
-
-      CALL timestop(handle)
-   END SUBROUTINE deallocate_matrices_bse
 
 END MODULE bse

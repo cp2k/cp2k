@@ -18,8 +18,7 @@ MODULE rpa_main
    USE bibliography,                    ONLY: &
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
-   USE bse,                             ONLY: deallocate_matrices_bse,&
-                                              do_subspace_iterations,&
+   USE bse,                             ONLY: do_subspace_iterations,&
                                               fill_local_3c_arrays,&
                                               mult_B_with_W
    USE bse_full_diag,                   ONLY: create_A,&
@@ -28,7 +27,8 @@ MODULE rpa_main
                                               diagonalize_A,&
                                               diagonalize_C,&
                                               truncate_BSE_matrices
-   USE bse_util,                        ONLY: print_BSE_start_flag
+   USE bse_util,                        ONLY: deallocate_matrices_bse,&
+                                              print_BSE_start_flag
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1756,8 +1756,8 @@ CONTAINS
             bse_full_diag = .TRUE.
          CASE (bse_iter_tda, bse_iter_abba, bse_iter_both)
             bse_iterat_diag = .TRUE.
-            !MG
-            CPWARN("Iterative BSE not yet implemented")
+            !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
+            CPABORT("Iterative BSE not yet implemented")
          END SELECT
          !Approximation: TDA or full ABBA matrix
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
@@ -1789,14 +1789,10 @@ CONTAINS
                                               Eigenval_scf(:, 1, ispin), homo(ispin), omega)
             END DO
          END IF
-         !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"Full uS")
+
          CALL fm_mat_S(1)%matrix_struct%para_env%sync()
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ij_bse, thresh=1e-5_dp, header="MG_uSij", unit_nr=unit_nr,abs_vals=.TRUE.)
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ab_bse, thresh=1e-5_dp, header="MG_uSab", unit_nr=unit_nr,abs_vals=.TRUE.)
-         !CALL fm_write_thresh(fm_mat=fm_mat_S(1), thresh=1e-5_dp, header="MG___uS", unit_nr=unit_nr,abs_vals=.TRUE.)
 
          !Reduce matrices in case of given cutoff for BSE matrices
-         !IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
          CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                     Eigenval(:, 1, 1), Eigenval_reduced, &
@@ -1809,11 +1805,6 @@ CONTAINS
                             fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                             dimen_RI_red, homo_red, virtual_red, homo_red*virtual_red)
 
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ij_trunc, thresh=1e-5_dp, header="MG__Sij", unit_nr=unit_nr,abs_vals=.TRUE.)
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_ab_trunc, thresh=1e-5_dp, header="MG__Sab", unit_nr=unit_nr,abs_vals=.TRUE.)
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_trunc, thresh=1e-5_dp, header="MG____S", unit_nr=unit_nr,abs_vals=.TRUE.)
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_bar_ia_bse, thresh=1e-5_dp, header="MG_Sbia", unit_nr=unit_nr,abs_vals=.TRUE.)
-         ! CALL fm_write_thresh(fm_mat=fm_mat_S_bar_ij_bse, thresh=1e-5_dp, header="MG_Sbij", unit_nr=unit_nr,abs_vals=.TRUE.)
          IF (bse_iterat_diag) THEN
             CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                                       fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
@@ -1837,24 +1828,20 @@ CONTAINS
             IF (bse_tda) THEN
                CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
                                   unit_nr, diag_est, mp2_env)
-               !Instantly release to avoid faulty use of changed A matrix
             END IF
+            ! Release to avoid faulty use of changed A matrix
             CALL cp_fm_release(fm_mat_A_BSE)
             IF (bse_abba) THEN
                CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
                                   unit_nr, diag_est, mp2_env)
             END IF
+            ! Release to avoid faulty use of changed C matrix
             CALL cp_fm_release(fm_mat_C_BSE)
          END IF
 
-         CALL cp_fm_release(fm_mat_S_bar_ia_bse)
-         CALL cp_fm_release(fm_mat_S_bar_ij_bse)
-         CALL cp_fm_release(fm_mat_S_trunc)
-         CALL cp_fm_release(fm_mat_S_ij_trunc)
-         CALL cp_fm_release(fm_mat_S_ab_trunc)
-
-         ! JW@MG: CALL deallocate_matrices_bse(fm_mat_S_ij_trunc, fm_mat_S_ab_bse, fm_mat_Q_static_bse fm_mat_Q_static_bse_gemm)
-         CALL deallocate_matrices_bse(fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
+         CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                                      fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                      fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
          IF (bse_iterat_diag) THEN
             CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                         B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &

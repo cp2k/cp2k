@@ -14,6 +14,7 @@ MODULE bse_util
 
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_indxg2p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
@@ -29,7 +30,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag
+   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, deallocate_matrices_bse
 
 CONTAINS
 
@@ -124,7 +125,6 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_in%name, ncol_block_in
       END IF
 
-      !MG to del: cf. mp2_r_2c.F and rpa_communication.F
       ! Use scalapack wrapper to find process index in A, where ijab -> iajb is needed
       ! To that end, we obtain the global index in A from the level indices
       indices_in(:) = 0
@@ -259,7 +259,6 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T10,A24,A10)') 'BSE|', 'Writing from buffers to ', fm_mat_out%name
       END IF
 
-      ! MG to do: OMP parallel
       ! fill fm_mat_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
       nprocs = para_env_out%num_pe
 
@@ -577,7 +576,6 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T10,A24,A10)') 'BSE|', 'Writing from buffers to ', fm_mat_out%name
       END IF
 
-      ! MG to do: OMP parallel
       ! fill fm_mat_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
       nprocs = para_env_out%num_pe
 
@@ -738,5 +736,40 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_S_bar_ia_bse ...
+!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_mat_S_trunc ...
+!> \param fm_mat_S_ij_trunc ...
+!> \param fm_mat_S_ab_trunc ...
+!> \param fm_mat_Q_static_bse ...
+!> \param fm_mat_Q_static_bse_gemm ...
+! **************************************************************************************************
+   SUBROUTINE deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                                      fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                      fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
+
+      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_trunc, &
+         fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_bse'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_release(fm_mat_S_bar_ia_bse)
+      CALL cp_fm_release(fm_mat_S_bar_ij_bse)
+      CALL cp_fm_release(fm_mat_S_trunc)
+      CALL cp_fm_release(fm_mat_S_ij_trunc)
+      CALL cp_fm_release(fm_mat_S_ab_trunc)
+      CALL cp_fm_release(fm_mat_Q_static_bse)
+      CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE deallocate_matrices_bse
 
 END MODULE
