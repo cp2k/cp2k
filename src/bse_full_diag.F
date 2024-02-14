@@ -36,12 +36,14 @@ MODULE bse_full_diag
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_to_fm_submat_general,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_get_element
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
+                                              mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
 #include "./base/base_uses.f90"
@@ -418,12 +420,12 @@ CONTAINS
 !> \param diag_est ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, homo_irred, virtual_irred, &
-                            bse_spin_config, unit_nr, diag_est)
+                            unit_nr, diag_est, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
-                                                            virtual_irred, bse_spin_config, &
-                                                            unit_nr, diag_est
+                                                            virtual_irred, unit_nr, diag_est
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
 
@@ -450,8 +452,8 @@ CONTAINS
       CALL choose_eigv_solver(fm_mat_C, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       Exc_ens = SQRT(Exc_ens)
-      CALL success_message(Exc_ens, bse_spin_config, homo, virtual, homo_irred, virtual_irred, &
-                           unit_nr, .FALSE.)
+      CALL success_message(Exc_ens, fm_mat_eigvec, mp2_env%ri_g0w0%bse_spin_config, mp2_env%ri_g0w0%num_print_exc, &
+                           homo, virtual, homo_irred, virtual_irred, unit_nr, .FALSE.)
 
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
@@ -582,12 +584,12 @@ CONTAINS
 !> \param diag_est ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, homo_irred, virtual_irred, &
-                            bse_spin_config, unit_nr, diag_est)
+                            unit_nr, diag_est, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
-                                                            virtual_irred, bse_spin_config, &
-                                                            unit_nr, diag_est
+                                                            virtual_irred, unit_nr, diag_est
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
 
@@ -614,8 +616,8 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, bse_spin_config, homo, virtual, homo_irred, virtual_irred, &
-                           unit_nr, .TRUE.)
+      CALL success_message(Exc_ens, fm_mat_eigvec, mp2_env%ri_g0w0%bse_spin_config, mp2_env%ri_g0w0%num_print_exc, &
+                           homo, virtual, homo_irred, virtual_irred, unit_nr, .TRUE.)
 
       CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
@@ -635,19 +637,23 @@ CONTAINS
 !> \param unit_nr ...
 !> \param flag_TDA ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, bse_spin_config, homo, virtual, homo_irred, virtual_irred, &
-                              unit_nr, flag_TDA)
+   SUBROUTINE success_message(Exc_ens, fm_mat_eigvec, bse_spin_config, num_exc_en, &
+                              homo, virtual, homo_irred, virtual_irred,  unit_nr, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      INTEGER                                            :: bse_spin_config, homo, virtual, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_eigvec
+      INTEGER                                            :: bse_spin_config, num_exc_en, &
+                                                            homo, virtual, &
                                                             homo_irred, virtual_irred, unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, i
-      REAL(KIND=dp)                                      :: alpha
+      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: eigvec_entries
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: idx_homo, idx_virt
+      REAL(KIND=dp)                                      :: alpha, eigvec_entry
+      INTEGER                                            :: handle, i_exc, k, num_entries
 
       CALL timeset(routineN, handle)
 
@@ -667,6 +673,8 @@ CONTAINS
       ELSE
          info_approximation = "-full-"
       END IF
+
+      !Get information about eigenvector
 
       IF (unit_nr > 0) THEN
          ! WRITE (unit_nr, *) ' '
@@ -706,6 +714,7 @@ CONTAINS
             'occupied molecular orbitals, i.e. state in', '[', homo_irred - homo + 1, ',', homo_irred, ']'
          WRITE (unit_nr, '(T2,A4,T7,A4,T18,A44,T70,A1,I4,A1,I4,A1)') 'BSE|', 'a,b:', &
             'unoccupied molecular orbitals, i.e. state in', '[', homo_irred + 1, ',', homo_irred + virtual, ']'
+         WRITE (unit_nr, '(T2,A4,T7,A2,T18,A16)') 'BSE|', 'n:', 'Excitation level'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1))') 'BSE|', &
@@ -718,11 +727,45 @@ CONTAINS
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A16,T27,A13,T42,A12,T59,A22)') 'BSE|', &
             'Excitation level', "Multiplet", 'TDA/full BSE', 'Excitation energy (eV)'
-         !prints actual energies values
-         DO i = 1, MIN(15, homo*virtual)
+      END IF
+      !prints actual energies values
+      IF (unit_nr > 0) THEN
+         DO i_exc = 1, MIN(homo*virtual, num_exc_en)
             WRITE (unit_nr, '(T2,A4,T7,I16,T27,A7,A6,T48,A6,T59,F22.4)') &
-               'BSE|', i, multiplet, " State", info_approximation, Exc_ens(i)*evolt
+               'BSE|', i_exc, multiplet, " State", info_approximation, Exc_ens(i_exc)*evolt
          END DO
+      END IF
+      !prints single particle transitions if TDA is invoked
+      IF (flag_TDA) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A70)') &
+               'BSE|', "Excitations are built up by the following single-particle transitions:"
+            WRITE (unit_nr, '(T2,A4,T7,A62)') &
+               'BSE|', "(Formula as defined above. Eigenvector X^n normalized to 0.5.)"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T53,A6,T71,A10)') &
+                        "BSE|", "n-th exc.","i", "=>", "a", &
+                        "X_ia^n", "|X_ia^n|^2"
+         END IF
+         DO i_exc = 1, MIN(homo*virtual, num_exc_en)
+            !Iterate through eigenvector and print values above threshold
+            CALL filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                       i_exc, homo, virtual, num_entries)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               DO k=1, num_entries
+                  WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T40,F19.4,T59,F22.4)') &
+                     "BSE|", i_exc, idx_homo(k), "=>", homo+idx_virt(k), eigvec_entries(k), ABS(eigvec_entries(k) )**2
+               END DO
+            END IF
+
+            DEALLOCATE(idx_homo)
+            DEALLOCATE(idx_virt)
+            DEALLOCATE(eigvec_entries)
+         END DO
+      END IF
+      IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          ! WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'BSE| First excitatation energy for ', info_approximation, &
          !    ' BSE [a.u.]:', Exc_ens(1)
@@ -731,6 +774,135 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE success_message
+
+   SUBROUTINE filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                    i_exc, homo, virtual, num_entries)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_eigvec
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: idx_homo, idx_virt
+      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: eigvec_entries
+      INTEGER                                            :: i_exc, homo,virtual, num_entries
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_eigvec_contrib'
+
+      INTEGER                                            :: handle, nrow_local, ncol_local, &
+                                                            ii, jj, kk, eigvec_idx, &
+                                                            num_entries_local, iproc
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: num_entries_to_comm
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
+      REAL(KIND=dp)                                      :: eigvec_entry
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_entries
+
+      CALL timeset(routineN, handle)
+
+
+      para_env => fm_mat_eigvec%matrix_struct%para_env
+
+      CALL cp_fm_get_info(matrix=fm_mat_eigvec, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+      
+      ALLOCATE(num_entries_to_comm(0:para_env%num_pe-1))
+      num_entries_to_comm(:) = 0
+
+      DO jj = 1,ncol_local
+         !First check if i is localized on this proc
+         IF (col_indices(jj) /= i_exc) THEN
+            CYCLE
+         END IF
+         DO ii=1,nrow_local
+            eigvec_idx = row_indices(ii)
+            eigvec_entry = fm_mat_eigvec%local_data(ii,jj)/SQRT(2.0_dp)
+            IF (ABS(eigvec_entry)>0.1_dp) THEN
+               num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
+            END IF
+         END DO
+      END DO
+
+      !Gather number of entries of other processes
+      CALL para_env%sum(num_entries_to_comm)
+
+      num_entries_local = num_entries_to_comm(para_env%mepos)
+
+      ALLOCATE(buffer_entries(0:para_env%num_pe-1))
+
+      DO iproc = 0, para_env%num_pe - 1
+         ALLOCATE (buffer_entries(iproc)%msg(num_entries_to_comm(iproc)))
+         ALLOCATE (buffer_entries(iproc)%indx(num_entries_to_comm(iproc), 2))
+         buffer_entries(iproc)%msg = 0.0_dp
+         buffer_entries(iproc)%indx = 0
+      END DO
+
+      ! ALLOCATE(idx_homo(num_entries_local))
+      ! ALLOCATE(idx_virt(num_entries_local))
+      ! ALLOCATE(eigvec_entries(num_entries_local))
+
+      kk = 1
+      DO jj = 1,ncol_local
+         !First check if i is localized on this proc
+         IF (col_indices(jj) /= i_exc) THEN
+            CYCLE
+         END IF
+         DO ii=1,nrow_local
+            eigvec_idx = row_indices(ii)
+            eigvec_entry = fm_mat_eigvec%local_data(ii,jj)/SQRT(2.0_dp)
+            IF (ABS(eigvec_entry)>0.1_dp) THEN
+               buffer_entries(para_env%mepos)%indx(kk,1) = (eigvec_idx - 1)/virtual + 1
+               buffer_entries(para_env%mepos)%indx(kk,2) = MOD(eigvec_idx - 1, virtual) + 1
+               buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
+               kk = kk + 1
+            END IF
+         END DO
+      END DO
+      
+      DO iproc = 0, para_env%num_pe - 1
+         CALL para_env%sum(buffer_entries(iproc)%msg)
+         CALL para_env%sum(buffer_entries(iproc)%indx)
+      END DO
+
+      !Now sum up gathered information
+      num_entries = SUM(num_entries_to_comm)
+      ALLOCATE(idx_homo(num_entries))
+      ALLOCATE(idx_virt(num_entries))
+      ALLOCATE(eigvec_entries(num_entries))
+
+      ! IF (para_env%mepos == 0) THEN
+      !    DO iproc = 0, para_env%num_pe - 1
+      !       print *, iproc, num_entries, "MG - msg", buffer_entries(iproc)%msg
+      !       print *, iproc, num_entries, "MG - idx", buffer_entries(iproc)%indx
+      !    END DO
+      ! END IF
+
+      kk = 1
+      DO iproc = 0, para_env%num_pe - 1
+         IF (num_entries_to_comm(iproc) /= 0) THEN
+            DO ii = 1, num_entries_to_comm(iproc)
+               idx_homo(kk) = buffer_entries(iproc)%indx(ii,1)
+               idx_virt(kk) = buffer_entries(iproc)%indx(ii,2)
+               eigvec_entries(kk) = buffer_entries(iproc)%msg(ii)
+               kk = kk + 1 
+            END DO
+         END IF
+      END DO
+
+
+      !Deallocate all the used arrays
+      DO iproc = 0, para_env%num_pe - 1
+         DEALLOCATE (buffer_entries(iproc)%msg)
+         DEALLOCATE (buffer_entries(iproc)%indx)
+      END DO
+      DEALLOCATE(buffer_entries)
+      DEALLOCATE(num_entries_to_comm)
+      NULLIFY(row_indices)
+      NULLIFY(col_indices)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...

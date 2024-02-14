@@ -180,6 +180,8 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%bse_cutoff_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_CUTOFF_VIRT", &
                                 r_val=mp2_env%ri_g0w0%bse_cutoff_virt)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_PRINT_EXC", &
+                                 i_val=mp2_env%ri_g0w0%num_print_exc)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%DAVIDSON_ABORT_COND", &
                                 i_val=mp2_env%ri_g0w0%davidson_abort_cond)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_EXC_EN", &

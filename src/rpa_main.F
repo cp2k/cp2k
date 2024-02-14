@@ -1836,13 +1836,13 @@ CONTAINS
             CALL cp_fm_release(fm_mat_B_BSE)
             IF (bse_tda) THEN
                CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
-                                  mp2_env%ri_g0w0%bse_spin_config, unit_nr, diag_est)
+                                  unit_nr, diag_est, mp2_env)
                !Instantly release to avoid faulty use of changed A matrix
             END IF
             CALL cp_fm_release(fm_mat_A_BSE)
             IF (bse_abba) THEN
                CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
-                                  mp2_env%ri_g0w0%bse_spin_config, unit_nr, diag_est)
+                                  unit_nr, diag_est, mp2_env)
             END IF
             CALL cp_fm_release(fm_mat_C_BSE)
          END IF

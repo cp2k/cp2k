@@ -223,6 +223,7 @@ MODULE mp2_types
       INTEGER                                            :: bse_spin_config = 0, &
                                                             bse_method = 0, &
                                                             num_exc_en = 0, &
+                                                            num_print_exc = 0, &
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
                                                             num_new_t = 0, &
