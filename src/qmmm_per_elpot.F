@@ -66,7 +66,6 @@ CONTAINS
 !> \param pgfs ...
 !> \param qm_cell_small ...
 !> \param mm_cell ...
-!> \param para_env ...
 !> \param compatibility ...
 !> \param qmmm_periodic ...
 !> \param print_section ...
@@ -79,14 +78,13 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_per_potential_init(qmmm_coupl_type, per_potentials, potentials, &
-                                      pgfs, qm_cell_small, mm_cell, para_env, compatibility, qmmm_periodic, print_section, &
+                                      pgfs, qm_cell_small, mm_cell, compatibility, qmmm_periodic, print_section, &
                                       eps_mm_rspace, maxchrg, ncp, ncpl)
       INTEGER, INTENT(IN)                                :: qmmm_coupl_type
       TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER   :: per_potentials
       TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER       :: potentials
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
       TYPE(cell_type), POINTER                           :: qm_cell_small, mm_cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: compatibility
       TYPE(section_vals_type), POINTER                   :: qmmm_periodic, print_section
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace, maxchrg
@@ -227,7 +225,7 @@ CONTAINS
          CALL qmmm_per_pot_type_create(per_potentials(K)%Pot, LG=LG, gx=gx, gy=gy, gz=gz, &
                                        Gmax=Gmax, Kmax=Kmax, n_rep_real=n_rep_real, &
                                        Fac=Fac, mm_atom_index=mm_atom_index, &
-                                       mm_cell=mm_cell, para_env=para_env, &
+                                       mm_cell=mm_cell, &
                                        qmmm_per_section=qmmm_periodic, print_section=print_section)
 
          iw = cp_print_key_unit_nr(logger, print_section, "PERIODIC_INFO", &
@@ -267,7 +265,6 @@ CONTAINS
 !> \param Fac ...
 !> \param mm_atom_index ...
 !> \param mm_cell ...
-!> \param para_env ...
 !> \param qmmm_per_section ...
 !> \param print_section ...
 !> \par History
@@ -275,7 +272,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real, &
-                                       Fac, mm_atom_index, mm_cell, para_env, qmmm_per_section, print_section)
+                                       Fac, mm_atom_index, mm_cell, qmmm_per_section, print_section)
       TYPE(qmmm_per_pot_type), POINTER                   :: Pot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: LG, gx, gy, gz
       REAL(KIND=dp), INTENT(IN)                          :: Gmax
@@ -283,7 +280,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Fac(3)
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
       TYPE(cell_type), POINTER                           :: mm_cell
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: qmmm_per_section, print_section
 
       INTEGER                                            :: npts(3)
@@ -313,7 +309,7 @@ CONTAINS
       grid_print_section => section_vals_get_subs_vals(print_section, "GRID_INFORMATION")
       CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR, &
                               LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=qmmm_per_section, &
-                              tag="qmmm", para_env=para_env, print_section=grid_print_section)
+                              tag="qmmm", print_section=grid_print_section)
 
    END SUBROUTINE qmmm_per_pot_type_create
 

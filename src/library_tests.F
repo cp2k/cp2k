@@ -84,8 +84,7 @@ MODULE library_tests
                                               HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
@@ -735,8 +734,7 @@ CONTAINS
       NULLIFY (grid)
       CALL section_vals_val_get(rs_pw_transfer_section, "GRID", i_vals=i_vals)
       np = i_vals
-      CALL pw_grid_create(grid, para_env)
-      CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
+      CALL pw_grid_create(grid, para_env, box%hmat, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
       CALL ca%create(grid)
@@ -894,8 +892,6 @@ CONTAINS
 
             distribution_layout = layouts(:, i_layout)
 
-            CALL pw_grid_create(grid, para_env)
-
             CALL section_vals_val_get(pw_transfer_section, "PW_GRID", i_rep_section=i_rep, i_val=itmp)
 
             ! from cp_control_utils
@@ -927,9 +923,9 @@ CONTAINS
             END IF
 
             ! actual setup
-            CALL pw_grid_setup(box%hmat, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
-                               blocked=blocked_id, npts=np, fft_usage=.TRUE., &
-                               rs_dims=distribution_layout, iounit=iw)
+            CALL pw_grid_create(grid, para_env, box%hmat, grid_span=grid_span, odd=odd, spherical=spherical, &
+                                blocked=blocked_id, npts=np, fft_usage=.TRUE., &
+                                rs_dims=distribution_layout, iounit=iw)
 
             IF (iw > 0) CALL m_flush(iw)
 

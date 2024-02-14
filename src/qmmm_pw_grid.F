@@ -21,8 +21,7 @@ MODULE qmmm_pw_grid
                                               PW_MODE_DISTRIBUTED,&
                                               PW_MODE_LOCAL,&
                                               pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_release
+   USE pw_grids,                        ONLY: pw_grid_release
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_type,&
@@ -124,7 +123,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(pw_grid_out))
       pw_mode_loc = pw_grid_in%para%mode
       IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
-      CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
+      ! TODO: introduce pw_grid_create_from_grid
+      ALLOCATE (pw_grid_out)
+      CALL pw_grid_out%para%group%from_dup(pw_grid_in%para%group)
       qmmm_grid_tag = qmmm_grid_tag + 1
       pw_grid_out%id_nr = qmmm_grid_tag
       pw_grid_out%ref_count = 1

@@ -24,11 +24,10 @@ MODULE ewald_spline_util
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_setup
+   USE pw_grids,                        ONLY: pw_grid_create
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_type
@@ -63,13 +62,12 @@ CONTAINS
 !> \param param_section ...
 !> \param tag ...
 !> \param print_section ...
-!> \param para_env ...
 !> \par History
 !>      12.2005 created [tlaino]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE Setup_Ewald_Spline(pw_grid, pw_pool, coeff, LG, gx, gy, gz, hmat, npts, &
-                                 param_section, tag, print_section, para_env)
+                                 param_section, tag, print_section)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_r3d_rs_type), POINTER                      :: coeff
@@ -79,7 +77,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: param_section
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
       TYPE(section_vals_type), POINTER                   :: print_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: bo(2, 3), iounit
       TYPE(cell_type), POINTER                           :: cell
@@ -96,13 +93,12 @@ CONTAINS
       NULLIFY (cell)
 
       CALL cell_create(cell, hmat=hmat, periodic=(/1, 1, 1/))
-      CALL pw_grid_create(pw_grid, para_env, local=.TRUE.)
       logger => cp_get_default_logger()
       iounit = cp_print_key_unit_nr(logger, print_section, "", &
                                     extension=".Log")
       bo(1, 1:3) = 0
       bo(2, 1:3) = npts(1:3) - 1
-      CALL pw_grid_setup(cell%hmat, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit)
+      CALL pw_grid_create(pw_grid, mp_comm_self, cell%hmat, grid_span=HALFSPACE, bounds=bo, iounit=iounit)
 
       CALL cp_print_key_finished_output(iounit, logger, print_section, &
                                         "")

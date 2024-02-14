@@ -32,8 +32,7 @@ MODULE ewald_pw_types
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
@@ -173,15 +172,14 @@ CONTAINS
          ! set up Classic EWALD sum
          logger => cp_get_default_logger()
          output_unit = cp_print_key_unit_nr(logger, print_section, "", extension=".Log")
-         CALL pw_grid_create(pw_big_grid, mp_comm_self)
 
          IF (ANY(gmax == 2*(gmax/2))) THEN
             CPABORT("gmax has to be odd.")
          END IF
          bo(1, :) = -gmax/2
          bo(2, :) = +gmax/2
-         CALL pw_grid_setup(cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
-                            fft_usage=.FALSE., iounit=output_unit)
+         CALL pw_grid_create(pw_big_grid, mp_comm_self, cell_ref%hmat, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
+                             fft_usage=.FALSE., iounit=output_unit)
          NULLIFY (pw_pool)
          CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid)
          ewald_pw%pw_big_pool => pw_pool
@@ -196,8 +194,6 @@ CONTAINS
             ALLOCATE (ewald_pw%poisson_env)
             CALL ewald_pw%poisson_env%create()
          END IF
-         CALL pw_grid_create(pw_small_grid, mp_comm_self)
-         CALL pw_grid_create(pw_big_grid, para_env)
          IF (ns_max == 2*(ns_max/2)) THEN
             CPABORT("ns_max has to be odd.")
          END IF
@@ -208,7 +204,7 @@ CONTAINS
          cutoff_radius = exp_radius(0, 2.0_dp*alphasq, epsilon, norm)
 
          CALL dg_pme_grid_setup(cell_ref%hmat, npts_s, cutoff_radius, &
-                                pw_small_grid, pw_big_grid, rs_dims=(/para_env%num_pe, 1/), &
+                                pw_small_grid, pw_big_grid, para_env, rs_dims=(/para_env%num_pe, 1/), &
                                 iounit=output_unit, fft_usage=.TRUE.)
          ! Write some useful info
          IF (output_unit > 0) THEN
@@ -260,10 +256,9 @@ CONTAINS
             ALLOCATE (ewald_pw%poisson_env)
             CALL ewald_pw%poisson_env%create()
          END IF
-         CALL pw_grid_create(pw_big_grid, para_env)
          npts_s = gmax
-         CALL pw_grid_setup(cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE., &
-                            rs_dims=(/para_env%num_pe, 1/), iounit=output_unit, fft_usage=.TRUE.)
+         CALL pw_grid_create(pw_big_grid, para_env, cell_ref%hmat, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE., &
+                             rs_dims=(/para_env%num_pe, 1/), iounit=output_unit, fft_usage=.TRUE.)
 
          ! pw pools initialized
          NULLIFY (pw_pool)

@@ -23,8 +23,7 @@ MODULE tip_scan_methods
                                               pw_env_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_multiply_with,&
                                               pw_structure_factor,&
@@ -288,8 +287,7 @@ CONTAINS
       CALL para_env%bcast(dcell)
 
       NULLIFY (pw_grid)
-      CALL pw_grid_create(pw_grid, para_env)
-      CALL pw_grid_setup(dcell, pw_grid, npts=npts)
+      CALL pw_grid_create(pw_grid, para_env, dcell, npts=npts)
       CALL scan_env%tip_pw_r%create(pw_grid)
 !deb
       scaling = 0.1_dp
