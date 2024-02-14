@@ -3286,6 +3286,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
+      CHARACTER(LEN=default_string_length)               :: message
       INTEGER                                            :: ii, iounit, l, ll, lmin, nc, nn
       INTEGER, DIMENSION(0:lmat)                         :: econfx
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -3404,7 +3405,7 @@ CONTAINS
          ! if there is still no core, check for special cases
          IF (ncore(0, 1) <= 0) THEN
             IF (z >= 58 .AND. z <= 71) THEN
-               ! 4f-in-core PPs Lanthanides
+               ! 4f-in-core PPs for lanthanides
                nc = z - SUM(econf)
                ! setup ncore
                ncore = 0
@@ -3417,7 +3418,9 @@ CONTAINS
                   ncore(1, 2) = 6
                   ncore(2, 1) = 10
                   ncore(3, 1) = nc - 28
-                  CPHINT("A small-core pseudopotential with 4f-in-core is used for the lanthanide "//TRIM(ptable(z)%symbol))
+                  message = "A small-core pseudopotential with 4f-in-core is used for the lanthanide "// &
+                            TRIM(ptable(z)%symbol)
+                  CPHINT(TRIM(message))
                CASE (47:60)
                   ncore(0, 1) = 2
                   ncore(0, 2) = 2
@@ -3429,7 +3432,9 @@ CONTAINS
                   ncore(2, 1) = 10
                   ncore(2, 2) = 10
                   ncore(3, 1) = nc - 46
-                  CPHINT("A medium-core pseudopotential with 4f-in-core is used for the lanthanide "//TRIM(ptable(z)%symbol))
+                  message = "A medium-core pseudopotential with 4f-in-core is used for the lanthanide "// &
+                            TRIM(ptable(z)%symbol)
+                  CPHINT(TRIM(message))
                CASE DEFAULT
                   ncore(0, 1) = -1
                END SELECT
