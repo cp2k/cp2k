@@ -247,7 +247,7 @@ CONTAINS
             CALL timeset(routineN, handle)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-            pw%array = 0.0_dp
+            pw%array = ${type2type("0.0_dp", "r3d", kind)}$
 !$OMP END PARALLEL WORKSHARE
 
             CALL timestop(handle)
@@ -596,7 +596,7 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
                         IF (ng2 > ng) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(ng, ng2, pw2)
-                           pw2%array(ng + 1:ng2) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+                           pw2%array(ng + 1:ng2) = ${type2type("0.0_dp", "r3d", kind2)}$
 !$OMP END PARALLEL WORKSHARE
                         END IF
                      ELSE
