@@ -53,7 +53,7 @@ MODULE qs_tddfpt2_stda_utils
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
                                               tb_spme_evaluate
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
-                                              ewald_pw_r3d_rs_type
+                                              ewald_pw_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
@@ -112,7 +112,7 @@ CONTAINS
       LOGICAL                                            :: do_coulomb
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(section_vals_type), POINTER                   :: ewald_section, poisson_section, &
                                                             print_section
 
@@ -538,7 +538,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: pdens
       TYPE(dbcsr_type), POINTER                          :: tempmat
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: n_list

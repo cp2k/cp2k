@@ -37,7 +37,7 @@ MODULE xtb_coulomb
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
                                               tb_spme_evaluate
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -140,7 +140,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &

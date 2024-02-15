@@ -24,7 +24,7 @@ MODULE spme
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_r3d_rs_type
+                                              ewald_pw_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_comm_type
@@ -94,7 +94,7 @@ CONTAINS
                             fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fg_coulomb
@@ -466,7 +466,7 @@ CONTAINS
                              particle_set_b, potential)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_a
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_a
@@ -607,7 +607,7 @@ CONTAINS
                           particle_set_b, charges_b, forces_b)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_a
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_a

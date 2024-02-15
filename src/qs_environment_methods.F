@@ -24,7 +24,7 @@ MODULE qs_environment_methods
    USE distribution_methods,            ONLY: distribute_molecules_2d
    USE ewald_environment_types,         ONLY: ewald_environment_type
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type
+   USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE input_constants,                 ONLY: do_ppl_grid
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -199,7 +199,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_core, rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: new_pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool

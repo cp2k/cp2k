@@ -22,7 +22,7 @@ MODULE se_core_core
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_r3d_rs_type
+                                              ewald_pw_type
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, do_method_pm3, &
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rm1
@@ -95,7 +95,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

@@ -44,8 +44,8 @@ MODULE qs_environment_types
                                               et_coupling_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type,&
-                                              ewald_pw_release
+   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
+                                              ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type,&
                                               exstate_release
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
@@ -281,7 +281,7 @@ MODULE qs_environment_types
       TYPE(qs_gcp_type), POINTER                            :: gcp_env
       ! Semi-empirical and DFTB types
       TYPE(ewald_environment_type), POINTER                 :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                          :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                          :: ewald_pw
       ! Semi-empirical types
       TYPE(se_taper_type), POINTER                          :: se_taper
       TYPE(semi_empirical_si_type), POINTER                 :: se_store_int_env
@@ -534,7 +534,7 @@ CONTAINS
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), OPTIONAL, POINTER      :: ewald_pw
+      TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       TYPE(active_space_type), OPTIONAL, POINTER         :: active_space
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
@@ -1038,7 +1038,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), OPTIONAL, POINTER      :: ewald_pw
+      TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: external_vxc, mask
