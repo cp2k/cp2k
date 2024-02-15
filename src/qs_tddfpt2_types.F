@@ -31,8 +31,8 @@ MODULE qs_tddfpt2_types
         dbcsr_type, dbcsr_type_antisymmetric
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type,&
-                                              ewald_pw_release
+   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
+                                              ewald_pw_type
    USE hartree_local_methods,           ONLY: init_coulomb_local
    USE hartree_local_types,             ONLY: hartree_local_create,&
                                               hartree_local_release,&
@@ -190,7 +190,7 @@ MODULE qs_tddfpt2_types
       TYPE(cp_fm_type), POINTER                          :: slambda
       !Ewald environments
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                       :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       !> GAPW local atomic grids
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(local_rho_type), POINTER                      :: local_rho_set

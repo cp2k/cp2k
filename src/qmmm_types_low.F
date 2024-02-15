@@ -15,8 +15,8 @@ MODULE qmmm_types_low
                                               cp_eri_mme_param
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_r3d_rs_type,&
-                                              ewald_pw_release
+   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
+                                              ewald_pw_type
    USE force_field_types,               ONLY: deallocate_inp_info,&
                                               init_inp_info,&
                                               input_info_type
@@ -229,7 +229,7 @@ MODULE qmmm_types_low
       TYPE(add_shell_type), POINTER                           :: added_shells
       TYPE(image_charge_type), POINTER                        :: image_charge_pot
       TYPE(ewald_environment_type), POINTER                   :: ewald_env
-      TYPE(ewald_pw_r3d_rs_type), POINTER                            :: ewald_pw
+      TYPE(ewald_pw_type), POINTER                            :: ewald_pw
    END TYPE qmmm_env_qm_type
 
 ! **************************************************************************************************
