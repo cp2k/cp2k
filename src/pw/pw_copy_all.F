@@ -58,8 +58,8 @@ CONTAINS
       pg2 => pw2%pw_grid
 
       group = pg1%para%group
-      group_size = pg1%para%group_size
-      me = pg1%para%my_pos
+      group_size = pg1%para%group%num_pe
+      me = pg1%para%group%mepos
       ALLOCATE (ngr(group_size))
       ngr = 0
       ngr(me + 1) = pg1%ngpts_cut_local

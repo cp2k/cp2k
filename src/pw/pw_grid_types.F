@@ -14,9 +14,7 @@ MODULE pw_grid_types
 
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_null,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,18 +39,10 @@ MODULE pw_grid_types
       INTEGER :: mode = PW_MODE_LOCAL ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
       LOGICAL :: ray_distribution = .FALSE. ! block or pencil distribution
       LOGICAL :: blocked = .FALSE. ! block or pencil distribution
-      TYPE(mp_comm_type) :: group = mp_comm_null ! MPI group
-      INTEGER :: my_pos = -1! Position within group
-      INTEGER :: group_size = -1! # of Processors in group
-      LOGICAL :: group_head = .FALSE. ! Master process within group
-      INTEGER :: group_head_id = 0 ! Id of group_head
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: yzp ! g-space rays (xy,k,pe)
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: yzq ! local inverse pointer of yzp
       INTEGER, DIMENSION(:), ALLOCATABLE :: nyzray ! number of g-space rays (pe)
-      TYPE(mp_cart_type) :: rs_group = mp_cart_type() ! real space group (2-dim cart)
-      INTEGER :: rs_mpo = -1 ! real space group position
-      INTEGER, DIMENSION(2) :: rs_dims = 0 ! real space group dimensions
-      INTEGER, DIMENSION(2) :: rs_pos = -1 ! real space group positions in grid
+      TYPE(mp_cart_type) :: group = mp_cart_type() ! real space group (2-dim cart)
       INTEGER, DIMENSION(:, :, :, :), ALLOCATABLE :: bo ! list of axis distribution
       INTEGER, DIMENSION(:), ALLOCATABLE :: pos_of_x ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
    END TYPE pw_para_type

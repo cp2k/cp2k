@@ -1050,7 +1050,7 @@ CONTAINS
          CALL timeset(routineN//"_comm", handle2)
          coarse_slice_size = (coarse_bo(2, 2) - coarse_bo(1, 2) + 1)* &
                              (coarse_bo(2, 3) - coarse_bo(1, 3) + 1)
-         n_procs = coarse_coeffs_pw%pw_grid%para%group_size
+         n_procs = coarse_coeffs_pw%pw_grid%para%group%num_pe
          ALLOCATE (send_size(0:n_procs - 1), send_offset(0:n_procs - 1), &
                    sent_size(0:n_procs - 1), rcv_size(0:n_procs - 1), &
                    rcv_offset(0:n_procs - 1), real_rcv_size(0:n_procs - 1))
@@ -2278,7 +2278,7 @@ CONTAINS
          CALL timeset(routineN//"_comm", handle2)
          coarse_slice_size = (coarse_bo(2, 2) - coarse_bo(1, 2) + 1)* &
                              (coarse_bo(2, 3) - coarse_bo(1, 3) + 1)
-         n_procs = coarse_coeffs_pw%pw_grid%para%group_size
+         n_procs = coarse_coeffs_pw%pw_grid%para%group%num_pe
          ALLOCATE (send_size(0:n_procs - 1), send_offset(0:n_procs - 1), &
                    sent_size(0:n_procs - 1), rcv_size(0:n_procs - 1), &
                    rcv_offset(0:n_procs - 1), pp_lb(0:n_procs - 1), &

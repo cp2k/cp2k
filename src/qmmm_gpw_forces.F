@@ -460,7 +460,7 @@ CONTAINS
       END DO
       pos_of_x => grids(auxbas_grid)%pw_grid%para%pos_of_x
       group = grids(auxbas_grid)%pw_grid%para%group
-      me = grids(auxbas_grid)%pw_grid%para%my_pos
+      me = grids(auxbas_grid)%pw_grid%para%group%mepos
       glb = rho%pw_grid%bounds(1, :)
       gub = rho%pw_grid%bounds(2, :)
       IF ((pos_of_x(glb(1)) .EQ. me) .AND. (pos_of_x(gub(1)) .EQ. me)) THEN

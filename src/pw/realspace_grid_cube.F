@@ -141,9 +141,9 @@ CONTAINS
 
          ALLOCATE (buf(L3:U3))
 
-         my_rank = pw%pw_grid%para%my_pos
+         my_rank = pw%pw_grid%para%group%mepos
          gid = pw%pw_grid%para%group
-         num_pe = pw%pw_grid%para%group_size
+         num_pe = pw%pw_grid%para%group%num_pe
          tag = 1
 
          rank (1) = unit_nr
@@ -265,8 +265,8 @@ CONTAINS
       END IF
       !get rs grids and parallel environment
       gid = grid%pw_grid%para%group
-      my_rank = grid%pw_grid%para%my_pos
-      num_pe = grid%pw_grid%para%group_size
+      my_rank = grid%pw_grid%para%group%mepos
+      num_pe = grid%pw_grid%para%group%num_pe
       tag = 1
 
       lbounds_local = grid%pw_grid%bounds_local(1, :)
@@ -402,8 +402,8 @@ CONTAINS
 
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
-      my_rank = grid%pw_grid%para%my_pos
-      num_pe = grid%pw_grid%para%group_size
+      my_rank = grid%pw_grid%para%group%mepos
+      num_pe = grid%pw_grid%para%group%num_pe
       tag = 1
 
       DO i = 1, 3
@@ -457,7 +457,7 @@ CONTAINS
          CALL close_file(unit_number=extunit_handle)
       END IF
       ! Sync offset and start parallel read
-      CALL gid%bcast(offset_global, grid%pw_grid%para%group_head_id)
+      CALL gid%bcast(offset_global, grid%pw_grid%para%group%source)
       BOF = offset_global
       CALL extunit%open(groupid=gid, filepath=filename, amode_status=file_amode_rdonly)
       ! Determine byte offsets for each grid z-slice which are local to a process
@@ -655,7 +655,7 @@ CONTAINS
 
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
-      my_rank = grid%pw_grid%para%my_pos
+      my_rank = grid%pw_grid%para%group%mepos
 
       ! Shortcut
       lbounds = grid%pw_grid%bounds(1, :)
@@ -743,7 +743,7 @@ CONTAINS
          END IF
       END IF
       ! Sync offset
-      CALL gid%bcast(BOF, grid%pw_grid%para%group_head_id)
+      CALL gid%bcast(BOF, grid%pw_grid%para%group%source)
       ! Determine byte offsets for each grid z-slice which are local to a process
       ! and convert z-slices to cube format compatible strings
       ALLOCATE (displacements(nslices))
@@ -874,9 +874,9 @@ CONTAINS
       ALLOCATE (buf(L3:U3))
       IF (DOUBLE) ALLOCATE (buf2(L3:U3))
 
-      my_rank = pw%pw_grid%para%my_pos
+      my_rank = pw%pw_grid%para%group%mepos
       gid = pw%pw_grid%para%group
-      num_pe = pw%pw_grid%para%group_size
+      num_pe = pw%pw_grid%para%group%num_pe
       tag = 1
 
       rank (1) = unit_nr

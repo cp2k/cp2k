@@ -1351,7 +1351,7 @@ CONTAINS
                                     !..parallel FFT
                                     !
 
-                                    IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
+                                    IF (test .AND. out_unit > 0) THEN
                                        WRITE (out_unit, '(A)') " FFT Protocol "
                                        #:if space=="rs"
                                           WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
@@ -1365,7 +1365,7 @@ CONTAINS
                                        WRITE (out_unit, '(A,T66,E15.6)') "  scale factor", norm
                                     END IF
 
-                                    my_pos = pw1%pw_grid%para%my_pos
+                                    my_pos = pw1%pw_grid%para%group%mepos
                                     nrays = pw1%pw_grid%para%nyzray(my_pos)
                                     grays => pw1%pw_grid%grays
 
@@ -1377,15 +1377,14 @@ CONTAINS
                                           !..transform
                                           IF (pw1%pw_grid%para%ray_distribution) THEN
                                              CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%rs_group, &
                                                         pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
                                                         pw1%pw_grid%para%bo, scale=norm, debug=test)
                                           ELSE
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
                                                         pw1%pw_grid%para%bo, scale=norm, debug=test)
                                           END IF
                                           !..prepare output
-                                          IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                                          IF (test .AND. out_unit > 0) &
                                              WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
                                           CALL pw_gather_p_${kind2}$ (pw2, grays)
                                        #:elif kind=="r3d" and kind2=="c1d"
@@ -1404,15 +1403,14 @@ CONTAINS
                                              !..transform
                                              IF (pw1%pw_grid%para%ray_distribution) THEN
                                                 CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%rs_group, &
                                                            pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
                                                            pw1%pw_grid%para%bo, scale=norm, debug=test)
                                              ELSE
-                                                CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                                                CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
                                                            pw1%pw_grid%para%bo, scale=norm, debug=test)
                                              END IF
                                              !..prepare output
-                                             IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                                             IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
                                              CALL pw_gather_p_${kind2}$ (pw2, grays)
                                              DEALLOCATE (c_in)
@@ -1424,7 +1422,7 @@ CONTAINS
                                     #:else
                                        #:if kind=="c1d" and kind2=="c3d"
                                           !..prepare input
-                                          IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                                          IF (test .AND. out_unit > 0) &
                                              WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                                           grays = z_zero
                                           CALL pw_scatter_p_${kind}$ (pw1, grays)
@@ -1432,11 +1430,10 @@ CONTAINS
                                           !..transform
                                           IF (pw1%pw_grid%para%ray_distribution) THEN
                                              CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%rs_group, &
                                                         pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
                                                         pw1%pw_grid%para%bo, scale=norm, debug=test)
                                           ELSE
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
                                                         pw1%pw_grid%para%bo, scale=norm, debug=test)
                                           END IF
                                           !..prepare output (nothing to do)
@@ -1449,7 +1446,7 @@ CONTAINS
                                           ELSE
 #endif
 !..   prepare input
-                                             IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                                             IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                                              grays = z_zero
                                              CALL pw_scatter_p_${kind}$ (pw1, grays)
@@ -1458,15 +1455,14 @@ CONTAINS
                                              !..transform
                                              IF (pw1%pw_grid%para%ray_distribution) THEN
                                                 CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%rs_group, &
                                                            pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
                                                            pw1%pw_grid%para%bo, scale=norm, debug=test)
                                              ELSE
-                                                CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+                                                CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
                                                            pw1%pw_grid%para%bo, scale=norm, debug=test)
                                              END IF
                                              !..prepare output
-                                             IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
+                                             IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  Real part "
                                              CALL pw_copy_from_array(pw2, c_in)
                                              DEALLOCATE (c_in)
@@ -1477,7 +1473,7 @@ CONTAINS
                                     #:endif
                                  END IF
 
-                                 IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) THEN
+                                 IF (test .AND. out_unit > 0) THEN
                                     WRITE (out_unit, '(A)') " End of FFT Protocol "
                                  END IF
 
