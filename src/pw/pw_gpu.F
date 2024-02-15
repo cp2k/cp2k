@@ -33,8 +33,7 @@ MODULE pw_gpu
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
-   USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
    USE pw_grid_types,                   ONLY: FULLSPACE
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
@@ -226,8 +225,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
       INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
-                                                            mz2, n1, n2, ngpts, nmax, numtask, &
-                                                            numtask_g, numtask_r, rp
+                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
@@ -235,7 +233,6 @@ CONTAINS
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
-      TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
 
@@ -247,20 +244,14 @@ CONTAINS
 
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
-         gs_group = pw1%pw_grid%para%group
-         rs_group = pw1%pw_grid%para%rs_group
+         rs_group = pw1%pw_grid%para%group
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         numtask_g = gs_group%num_pe
-         g_pos = gs_group%mepos
-         numtask_r = rs_group%num_pe
+         g_pos = rs_group%mepos
+         numtask = rs_group%num_pe
          r_dim = rs_group%num_pe_cart
          r_pos = rs_group%mepos_cart
-         IF (numtask_g /= numtask_r) THEN
-            CPABORT("Real space and G space groups are different.")
-         END IF
-         numtask = numtask_r
 
          lg = SIZE(grays, 1)
          mg = SIZE(grays, 2)
@@ -269,7 +260,7 @@ CONTAINS
 
          ALLOCATE (p2p(0:numtask - 1))
 
-         CALL gs_group%rank_compare(rs_group, p2p)
+         CALL rs_group%rank_compare(rs_group, p2p)
 
          rp = p2p(g_pos)
          mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
@@ -298,7 +289,6 @@ CONTAINS
          fft_scratch_size%nmax = nmax
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
-         fft_scratch_size%gs_group = gs_group
          fft_scratch_size%rs_group = rs_group
          fft_scratch_size%g_pos = g_pos
          fft_scratch_size%r_pos = r_pos
@@ -359,7 +349,7 @@ CONTAINS
             CALL pw_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -374,7 +364,7 @@ CONTAINS
 !--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
-         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
+         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%group, &
          !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
 
@@ -398,8 +388,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
       INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
-                                                            mz2, n1, n2, ngpts, nmax, numtask, &
-                                                            numtask_g, numtask_r, rp
+                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
@@ -407,7 +396,6 @@ CONTAINS
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
-      TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
 
@@ -419,20 +407,14 @@ CONTAINS
 
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
-         gs_group = pw1%pw_grid%para%group
-         rs_group = pw1%pw_grid%para%rs_group
+         rs_group = pw1%pw_grid%para%group
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         numtask_g = gs_group%num_pe
-         g_pos = gs_group%mepos
-         numtask_r = rs_group%num_pe
+         g_pos = rs_group%mepos
+         numtask = rs_group%num_pe
          r_dim = rs_group%num_pe_cart
          r_pos = rs_group%mepos_cart
-         IF (numtask_g /= numtask_r) THEN
-            CPABORT("Real space and G space groups are different.")
-         END IF
-         numtask = numtask_r
 
          lg = SIZE(grays, 1)
          mg = SIZE(grays, 2)
@@ -441,7 +423,7 @@ CONTAINS
 
          ALLOCATE (p2p(0:numtask - 1))
 
-         CALL gs_group%rank_compare(rs_group, p2p)
+         CALL rs_group%rank_compare(rs_group, p2p)
 
          rp = p2p(g_pos)
          mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
@@ -470,7 +452,6 @@ CONTAINS
          fft_scratch_size%nmax = nmax
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
-         fft_scratch_size%gs_group = gs_group
          fft_scratch_size%rs_group = rs_group
          fft_scratch_size%g_pos = g_pos
          fft_scratch_size%r_pos = r_pos
@@ -535,7 +516,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
-            CALL x_to_yz(sbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
@@ -550,7 +531,7 @@ CONTAINS
 !--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
-         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
+         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%group, &
          !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
 

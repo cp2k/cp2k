@@ -167,17 +167,17 @@ CONTAINS
          !no powers of hgrid because they are incorporated in the plane wave treatment
          scal = 1._dp/REAL(n1*n2*n3, KIND=dp)
          CALL P_PoissonSolver(n1, n2, n3, nd1, nd2, nd3, md1, md2, md3, nproc, iproc, zf, &
-                              scal, hx, hy, hz, pw_grid%para%rs_group)
+                              scal, hx, hy, hz, pw_grid%para%group)
       ELSE IF (geocode == 'S') THEN
          !only one power of hgrid
          scal = hy/REAL(n1*n2*n3, KIND=dp)
          CALL S_PoissonSolver(n1, n2, n3, nd1, nd2, nd3, md1, md2, md3, nproc, iproc, karray, zf, &
-                              scal, pw_grid%para%rs_group)
+                              scal, pw_grid%para%group)
       ELSE IF (geocode == 'F') THEN
          hgrid = MAX(hx, hy, hz)
          scal = hgrid**3/REAL(n1*n2*n3, KIND=dp)
          CALL F_PoissonSolver(n1, n2, n3, nd1, nd2, nd3, md1, md2, md3, nproc, iproc, karray, zf, &
-                              scal, pw_grid%para%rs_group)
+                              scal, pw_grid%para%group)
          factor = 0.5_dp*hgrid**3
       END IF
 

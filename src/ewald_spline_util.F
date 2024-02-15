@@ -217,15 +217,15 @@ CONTAINS
 
       !NB use DGEMM to compute sum over kg for each i, j, k
       ! number of elements per node, round down
-      NLg_loc = SIZE(Lg)/grid%pw_grid%para%group_size
+      NLg_loc = SIZE(Lg)/grid%pw_grid%para%group%num_pe
       ! number of extra elements not yet accounted for
-      n_extra = MOD(SIZE(Lg), grid%pw_grid%para%group_size)
+      n_extra = MOD(SIZE(Lg), grid%pw_grid%para%group%num_pe)
       ! first n_extra nodes get NLg_loc+1, remaining get NLg_loc
-      IF (grid%pw_grid%para%my_pos < n_extra) THEN
-         Lg_loc_min = (NLg_loc + 1)*grid%pw_grid%para%my_pos + 1
+      IF (grid%pw_grid%para%group%mepos < n_extra) THEN
+         Lg_loc_min = (NLg_loc + 1)*grid%pw_grid%para%group%mepos + 1
          Lg_loc_max = Lg_loc_min + (NLg_loc + 1) - 1
       ELSE
-         Lg_loc_min = (NLg_loc + 1)*n_extra + NLg_loc*(grid%pw_grid%para%my_pos - n_extra) + 1
+         Lg_loc_min = (NLg_loc + 1)*n_extra + NLg_loc*(grid%pw_grid%para%group%mepos - n_extra) + 1
          Lg_loc_max = Lg_loc_min + NLg_loc - 1
       END IF
       ! shouldn't be necessary

@@ -828,8 +828,8 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       offset = 0
-      my_pos = v_rspace%pw_grid%para%my_pos
-      group_size = v_rspace%pw_grid%para%group_size
+      my_pos = v_rspace%pw_grid%para%group%mepos
+      group_size = v_rspace%pw_grid%para%group%num_pe
 
       DO ikind = 1, nkind
 
@@ -1029,8 +1029,8 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       offset = 0
-      my_pos = v_rspace%pw_grid%para%my_pos
-      group_size = v_rspace%pw_grid%para%group_size
+      my_pos = v_rspace%pw_grid%para%group%mepos
+      group_size = v_rspace%pw_grid%para%group%num_pe
 
       DO ikind = 1, nkind
 

@@ -122,7 +122,7 @@ CONTAINS
       ! Parallel routine falls back to stream read in serial mode,
       ! but it has slight overhead compared to sequential read
       ! Therefore, we use sequential version in serial mode
-      IF (grid%pw_grid%para%group_size == 1) parallel_read = .FALSE.
+      IF (grid%pw_grid%para%group%num_pe == 1) parallel_read = .FALSE.
       ! Check if MPI I/O was disabled in GLOBAL section
       IF (.NOT. cp_mpi_io_get()) parallel_read = .FALSE.
 
