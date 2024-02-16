@@ -1,7 +1,13 @@
 specfile_path: tools/fedora/cp2k.spec
 files_to_sync:
-  - src: tools/fedora/cp2k.spec
-    dest: cp2k.spec
+  - src: tools/fedora/
+    dest: ./
+    filters:
+      - "- plans/main.fmf.dist-git"
+  - src: tools/fedora/plans/main.fmf.dist-git
+    dest: plans/main.fmf
+  - src: .fmf/
+    dest: .fmf/
   - .packit.yaml
 upstream_package_name: cp2k
 downstream_package_name: cp2k
@@ -19,6 +25,11 @@ jobs:
     targets:
       - fedora-all-x86_64
       - fedora-all-aarch64
+  - job: tests
+    trigger: commit
+    targets:
+      - fedora-all-x86_64
+      - fedora-all-aarch64
   - job: copr_build
     trigger: release
     owner: lecris
@@ -33,6 +44,12 @@ jobs:
     project: cp2k
     update_release: true
     release_suffix: "{PACKIT_RPMSPEC_RELEASE}"
+    targets:
+      - fedora-all-x86_64
+      - fedora-all-aarch64
+  - job: tests
+    trigger: pull_request
+    manual_trigger: true
     targets:
       - fedora-all-x86_64
       - fedora-all-aarch64

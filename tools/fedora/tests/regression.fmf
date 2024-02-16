@@ -1,0 +1,16 @@
+summary: Run regression tests
+framework: beakerlib
+test: ./do_regtest.sh
+
+/serial:
+  summary+: (serial)
+  environment+:
+    CP2K_VARIANT: serial
+/openmpi:
+  summary+: (openmpi)
+  environment+:
+    CP2K_VARIANT: openmpi
+/mpich:
+  summary+: (mpich)
+  environment+:
+    CP2K_VARIANT: mpich

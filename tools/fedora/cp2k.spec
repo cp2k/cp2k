@@ -195,43 +195,9 @@ CMAKE_COMMON="-G Ninja -DCP2K_BLAS_VENDOR=FlexiBLAS %{?with_check:-DCP2K_ENABLE_
 %cmake_install
 %{_mpich_unload}
 
-%if %{with check}
-# regtests take ~12 hours on aarch64 and ~48h on s390x
 %check
-. /etc/profile.d/modules.sh
-export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data
-status=0
-for mpi in '' mpich %{?with_openmpi:openmpi} ; do
-# A couple tests fail on ppc64le - https://github.com/cp2k/cp2k/issues/3077
-%ifarch ppc64le
-  fail=0
-%else
-  # Do not fail for now
-  fail=0
-%endif
-  # TODO - set maxtasks based on # cores?
-  if [ -n "$mpi" ]; then
-    module load mpi/${mpi}-%{_arch}
-    libdir=${MPI_LIB}/cp2k
-    mpiopts="--maxtasks 4 --mpiranks 2 --ompthreads 2"
-    par=p
-    suf="-${mpi}"
-  else
-    libdir=%{_libdir}/cp2k
-    mpiopts="--maxtasks 4 --ompthreads 2"
-    par=s
-    suf=""
-  fi
-  export LD_LIBRARY_PATH=%{buildroot}${libdir}
-  tests/do_regtest.py %{!?with_check_full:--smoketest} --workbasedir %{_builddir} ${mpiopts} \
-    local${MPI_SUFFIX} ${par}smp || status=$(( $status + $fail ))
+# Tests are done in the tmt envrionment
 
-  if [ -n "$mpi" ]; then
-    module unload mpi/${mpi}-%{_arch}
-  fi
-done
-exit $status
-%endif
 
 %files common
 %license LICENSE
