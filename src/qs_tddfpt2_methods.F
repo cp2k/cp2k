@@ -6,8 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_methods
-   USE admm_types,                      ONLY: admm_type, get_admm_env
    USE admm_methods,                    ONLY: admm_fit_mo_coeffs
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Grimme2013,&
                                               Grimme2016,&
@@ -159,7 +160,8 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s, &
-                                                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+                                                            matrix_s_aux_fit, &
+                                                            matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux

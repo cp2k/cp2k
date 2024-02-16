@@ -676,10 +676,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_hfxsr_kernel'
 
-      LOGICAL                                            :: reint
       INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
                                                             nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nactive
+      LOGICAL                                            :: reint
       REAL(kind=dp)                                      :: alpha
 
       CALL timeset(routineN, handle)
