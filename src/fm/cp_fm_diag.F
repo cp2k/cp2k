@@ -221,7 +221,7 @@ CONTAINS
          CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
 
       ELSE IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
-         IF (SIZE(eigenvalues) < elpa_neigvec_min) THEN
+         IF (matrix%matrix_struct%nrow_global < elpa_neigvec_min) THEN
             ! We don't trust ELPA with very small matrices.
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
@@ -229,7 +229,7 @@ CONTAINS
          END IF
 
       ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
-         IF (SIZE(eigenvalues) < 64) THEN
+         IF (matrix%matrix_struct%nrow_global < 64) THEN
             ! We don't trust cuSolver with very small matrices.
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
@@ -238,7 +238,7 @@ CONTAINS
 
 #if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
-         IF (SIZE(eigenvalues) < dlaf_neigvec_min) THEN
+         IF (matrix%matrix_struct%nrow_global < dlaf_neigvec_min) THEN
             ! Use ScaLAPACK for small matrices
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
