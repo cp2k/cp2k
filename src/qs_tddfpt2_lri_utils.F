@@ -136,10 +136,9 @@ CONTAINS
          IF (.NOT. (ASSOCIATED(p_lri_aux_basis))) THEN
             ! Generate a default basis
             redefine_interaction_radii = .TRUE.
-            CALL cp_warn(__LOCATION__, "Automatic Generation of P_LRI_AUX basis. "// &
-                         "This is experimental code.")
             CALL create_lri_aux_basis_set(p_lri_aux_basis, qs_kind, &
-                                          dft_control%auto_basis_p_lri_aux, lri_env%exact_1c_terms)
+                                          dft_control%auto_basis_p_lri_aux, lri_env%exact_1c_terms, &
+                                          tda_kernel=.TRUE.)
             CALL add_basis_set_to_container(qs_kind%basis_sets, p_lri_aux_basis, "P_LRI_AUX")
          END IF
       END DO !nkind
