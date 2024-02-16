@@ -84,13 +84,6 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
-%package testing
-Summary: Tests for %{name}
-Requires: %{name}%{?_isa} = %{version}-%{release}
-
-%description testing
-The %{name}-testing package contains executables for testing %{name}.
-
 %if %{with openmpi}
 %package openmpi
 Summary: Molecular simulations software - openmpi version
@@ -117,13 +110,6 @@ Requires: %{name}-openmpi%{?_isa} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
-%package openmpi-testing
-Summary: Tests for %{name}
-Requires: %{name}-openmpi%{?_isa} = %{version}-%{release}
-
-%description openmpi-testing
-The %{name}-openmpi-testing package contains executables for testing
-%{name} with OpenMPI.
 %endif
 
 %package mpich
@@ -151,14 +137,6 @@ Requires: %{name}-mpich%{?_isa} = %{version}-%{release}
 %description mpich-devel
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
-
-%package mpich-testing
-Summary: Tests for %{name}
-Requires: %{name}-mpich%{?_isa} = %{version}-%{release}
-
-%description mpich-testing
-The %{name}-mpich-testing package contains executables for testing
-%{name} with mpich.
 
 %prep
 %autosetup -p1
@@ -276,15 +254,6 @@ exit $status
 %{_libdir}/libcp2k.so
 %{_libdir}/pkgconfig/libcp2k.pc
 
-%files testing
-%{_bindir}/dbt_tas_unittest.ssmp
-%{_bindir}/dbt_unittest.ssmp
-%{_bindir}/grid_unittest.ssmp
-%{_bindir}/libcp2k_unittest.ssmp
-%{_bindir}/memory_utilities_unittest.ssmp
-%{_bindir}/nequip_unittest.ssmp
-%{_bindir}/parallel_rng_types_unittest.ssmp
-
 %if %{with openmpi}
 %files openmpi
 %{_libdir}/openmpi/bin/cp2k.psmp
@@ -301,15 +270,6 @@ exit $status
 %{_libdir}/openmpi/lib/cmake/cp2k/
 %{_libdir}/openmpi/lib/libcp2k.so
 %{_libdir}/openmpi/lib/pkgconfig/libcp2k.pc
-
-%files openmpi-testing
-%{_libdir}/openmpi/bin/dbt_tas_unittest.psmp
-%{_libdir}/openmpi/bin/dbt_unittest.psmp
-%{_libdir}/openmpi/bin/grid_unittest.psmp
-%{_libdir}/openmpi/bin/libcp2k_unittest.psmp
-%{_libdir}/openmpi/bin/memory_utilities_unittest.psmp
-%{_libdir}/openmpi/bin/nequip_unittest.psmp
-%{_libdir}/openmpi/bin/parallel_rng_types_unittest.psmp
 %endif
 
 %files mpich
@@ -327,15 +287,6 @@ exit $status
 %{_libdir}/mpich/lib/cmake/cp2k/
 %{_libdir}/mpich/lib/libcp2k.so
 %{_libdir}/mpich/lib/pkgconfig/libcp2k.pc
-
-%files mpich-testing
-%{_libdir}/mpich/bin/dbt_tas_unittest.psmp
-%{_libdir}/mpich/bin/dbt_unittest.psmp
-%{_libdir}/mpich/bin/grid_unittest.psmp
-%{_libdir}/mpich/bin/libcp2k_unittest.psmp
-%{_libdir}/mpich/bin/memory_utilities_unittest.psmp
-%{_libdir}/mpich/bin/nequip_unittest.psmp
-%{_libdir}/mpich/bin/parallel_rng_types_unittest.psmp
 
 %changelog
 %autochangelog
