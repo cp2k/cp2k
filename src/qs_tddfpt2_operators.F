@@ -668,7 +668,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       INTEGER, INTENT(IN)                                :: symmetry
-      LOGICAL                                            :: recalc_integrals
+      LOGICAL, INTENT(IN)                                :: recalc_integrals
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          TARGET                                          :: work_hmat
@@ -676,6 +676,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_hfxsr_kernel'
 
+      LOGICAL                                            :: reint
       INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
                                                             nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nactive
@@ -695,6 +696,8 @@ CONTAINS
          CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
       END DO
 
+      reint = recalc_integrals
+
       DO ivect = 1, nvects
          DO ispin = 1, nspins
             CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
@@ -709,8 +712,8 @@ CONTAINS
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
 
-         CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env, .FALSE., recalc_integrals, &
-                               hfx_section, x_data)
+         CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env, .FALSE., reint, hfx_section, x_data)
+         reint = .FALSE.
 
          DO ispin = 1, nspins
             CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &

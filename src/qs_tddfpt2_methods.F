@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_methods
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type, get_admm_env
+   USE admm_methods,                    ONLY: admm_fit_mo_coeffs
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Grimme2013,&
                                               Grimme2016,&
@@ -157,12 +158,13 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: my_mos
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s, &
+                                                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(kernel_env_type)                              :: kernel_env
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -301,6 +303,11 @@ CONTAINS
             !
             CALL aux_admm_init(qs_env, mos, full_kernel_env%admm_env, &
                                full_kernel_env%admm_control, "TDA_HFX")
+            CALL get_admm_env(full_kernel_env%admm_env, mos_aux_fit=mos_aux_fit, &
+                              matrix_s_aux_fit=matrix_s_aux_fit, &
+                              matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
+            CALL admm_fit_mo_coeffs(full_kernel_env%admm_env, matrix_s_aux_fit, &
+                                    matrix_s_aux_fit_vs_orb, mos, mos_aux_fit, .TRUE.)
             ! x_data
             CALL get_qs_env(qs_env, cell=cell, atomic_kind_set=atomic_kind_set, &
                             qs_kind_set=qs_kind_set, particle_set=particle_set, &
@@ -706,7 +713,7 @@ CONTAINS
          END IF
          CALL section_vals_val_get(hfxsr_section, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", explicit=found)
          IF (.NOT. found) THEN
-            CALL section_vals_val_set(hfxsr_section, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=2.0_dp)
+            CALL section_vals_val_set(hfxsr_section, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=7.5589_dp)
          END IF
          CALL section_vals_val_get(hfxsr_section, "RI%_SECTION_PARAMETERS_", l_val=found)
          IF (found) THEN

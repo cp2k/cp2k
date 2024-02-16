@@ -445,7 +445,6 @@ CONTAINS
       CALL admm_init_hamiltonians(admm_env, qs_env, basis_type)
       NULLIFY (admm_env%rho_aux_fit, admm_env%rho_aux_fit_buffer)
       !The ADMM KS matrices
-!deb  do we really need them?
       CALL admm_alloc_ks_matrices(admm_env, qs_env)
       !The aux_fit MOs and derivatives
       ALLOCATE (mos_aux_fit(dft_control%nspins))
