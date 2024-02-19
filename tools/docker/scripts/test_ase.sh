@@ -38,8 +38,8 @@ EndOfMessage
 chmod +x /usr/bin/cp2k
 
 mkdir -p ~/.config/ase
-cat > ~/.config/ase/ase.conf << EndOfMessage
-[executables]
+cat > ~/.config/ase/config.ini << EndOfMessage
+[cp2k]
 cp2k = /usr/bin/cp2k_shell
 cp2k_main = /usr/bin/cp2k
 EndOfMessage
