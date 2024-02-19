@@ -708,6 +708,10 @@ CONTAINS
       NULLIFY (hfxsr_section)
       IF (do_hfxsr) THEN
          hfxsr_section => section_vals_get_subs_vals(tddfpt_section, "XC%HFX_KERNEL%HF")
+         CALL section_vals_get(hfxsr_section, explicit=found)
+         IF (.NOT. found) THEN
+            CPABORT("HFXSR option needs &HF section defined")
+         END IF
          CALL section_vals_val_get(hfxsr_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", explicit=found)
          IF (.NOT. found) THEN
             CALL section_vals_val_set(hfxsr_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
