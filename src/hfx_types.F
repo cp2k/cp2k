@@ -574,18 +574,23 @@ CONTAINS
 !> \param particle_set ...
 !> \param dft_control ...
 !> \param cell ...
-!> \param do_exx ...
+!> \param orb_basis ...
+!> \param ri_basis ...
 !> \param nelectron_total ...
 !> \param nkp_grid ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
+!>      01.2024 pushed basis set decision outside of routine, keeps default as
+!>              orb_basis = "ORB" and ri_basis = "AUX_FIT"
+!>              No more ADMM references!
 !> \author Manuel Guidon
 !> \note
 !>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
 !>        unknown at invocation time
 ! **************************************************************************************************
    SUBROUTINE hfx_create(x_data, para_env, hfx_section, atomic_kind_set, qs_kind_set, &
-                         particle_set, dft_control, cell, do_exx, nelectron_total, nkp_grid)
+                         particle_set, dft_control, cell, orb_basis, ri_basis, &
+                         nelectron_total, nkp_grid)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mp_para_env_type)                             :: para_env
       TYPE(section_vals_type), POINTER                   :: hfx_section
@@ -594,7 +599,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
-      LOGICAL, OPTIONAL                                  :: do_exx
+      CHARACTER(LEN=*), OPTIONAL                         :: orb_basis, ri_basis
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
 
@@ -602,10 +607,11 @@ CONTAINS
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=default_path_length)                 :: char_val
+      CHARACTER(LEN=default_string_length)               :: orb_basis_type, ri_basis_type
       INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, max_set, n_rep_hf, &
          n_threads, natom, natom_a, natom_b, nkind, nseta, nsetb, pbc_shells, storage_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind, kind_of
-      LOGICAL                                            :: do_ri, explicit, logic_val, my_do_exx
+      LOGICAL                                            :: do_ri, explicit, logic_val
       REAL(dp)                                           :: real_val
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(section_vals_type), POINTER                   :: hf_pbc_section, hf_sub_section, &
@@ -625,6 +631,17 @@ CONTAINS
 
       CALL section_vals_val_get(hfx_section, "RI%_SECTION_PARAMETERS_", l_val=do_ri)
       IF (do_ri) n_threads = 1 ! RI implementation does not use threads
+
+      IF (PRESENT(orb_basis)) THEN
+         orb_basis_type = orb_basis
+      ELSE
+         orb_basis_type = "ORB"
+      END IF
+      IF (PRESENT(ri_basis)) THEN
+         ri_basis_type = ri_basis
+      ELSE
+         ri_basis_type = "RI_HFX"
+      END IF
 
       ALLOCATE (x_data(n_rep_hf, n_threads))
       DO i_thread = 1, n_threads
@@ -739,19 +756,8 @@ CONTAINS
             ! at least 1 atom per block, and avoid overly large blocks
             actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
 
-            my_do_exx = .FALSE.
-            IF (PRESENT(do_exx)) THEN
-               my_do_exx = do_exx
-            END IF
-
-            ! in the case of RPA exchange (postprocessing after SCF), we do not use ADMM
-            IF (my_do_exx) THEN
-               CALL hfx_create_basis_types(actual_x_data%basis_parameter, actual_x_data%basis_info, qs_kind_set, &
-                                           .FALSE.)
-            ELSE
-               CALL hfx_create_basis_types(actual_x_data%basis_parameter, actual_x_data%basis_info, qs_kind_set, &
-                                           dft_control%do_admm)
-            END IF
+            CALL hfx_create_basis_types(actual_x_data%basis_parameter, actual_x_data%basis_info, qs_kind_set, &
+                                        orb_basis_type)
 
 !!**************************************************************************************************
 !! **        !! ** This code writes the contraction routines
@@ -986,8 +992,7 @@ CONTAINS
                CALL hfx_ri_init_read_input_from_hfx(actual_x_data%ri_data, actual_x_data, hfx_section, &
                                                     hf_sub_section, qs_kind_set, &
                                                     particle_set, atomic_kind_set, dft_control, para_env, irep, &
-                                                    nelectron_total, my_do_exx)
-
+                                                    nelectron_total, orb_basis_type, ri_basis_type)
             END IF
          END DO
       END DO
@@ -996,7 +1001,9 @@ CONTAINS
          actual_x_data => x_data(irep, 1)
          CALL hfx_print_info(actual_x_data, hfx_section, irep)
       END DO
+
       CALL timestop(handle)
+
    END SUBROUTINE hfx_create
 
 ! **************************************************************************************************
@@ -1012,11 +1019,12 @@ CONTAINS
 !> \param para_env ...
 !> \param irep ...
 !> \param nelectron_total ...
-!> \param do_exx ...
+!> \param orb_basis_type ...
+!> \param ri_basis_type ...
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_init_read_input_from_hfx(ri_data, x_data, hfx_section, ri_section, qs_kind_set, &
                                               particle_set, atomic_kind_set, dft_control, para_env, irep, &
-                                              nelectron_total, do_exx)
+                                              nelectron_total, orb_basis_type, ri_basis_type)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(hfx_type), INTENT(INOUT)                      :: x_data
       TYPE(section_vals_type), POINTER                   :: hfx_section, ri_section
@@ -1026,13 +1034,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: irep, nelectron_total
-      LOGICAL, INTENT(IN)                                :: do_exx
+      CHARACTER(LEN=*)                                   :: orb_basis_type, ri_basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input_from_hfx'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=default_path_length)                 :: char_val, t_c_filename
-      CHARACTER(LEN=default_string_length)               :: orb_basis_type, ri_basis_type
       INTEGER                                            :: handle, unit_nr, unit_nr_dbcsr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: hf_sub_section
@@ -1070,14 +1077,6 @@ CONTAINS
          t_c_filename = char_val
       END IF
 
-      IF (dft_control%do_admm .AND. (.NOT. do_exx)) THEN
-         orb_basis_type = "AUX_FIT"
-      ELSE
-         orb_basis_type = "ORB"
-      END IF
-
-      ri_basis_type = "RI_HFX"
-
       CALL hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, particle_set, atomic_kind_set, &
                                   orb_basis_type, ri_basis_type, para_env, unit_nr, unit_nr_dbcsr, &
                                   nelectron_total, t_c_filename=t_c_filename)
@@ -1087,7 +1086,8 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+
+   END SUBROUTINE hfx_ri_init_read_input_from_hfx
 
 ! **************************************************************************************************
 !> \brief General routine for reading input of RI section and initializing RI data
@@ -1646,15 +1646,16 @@ CONTAINS
 !> \param basis_parameter ...
 !> \param basis_info ...
 !> \param qs_kind_set ...
-!> \param do_admm ...
+!> \param basis_type ...
 !> \par History
 !>      07.2011 refactored
 ! **************************************************************************************************
-   SUBROUTINE hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, do_admm)
+   SUBROUTINE hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, &
+                                     basis_type)
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_basis_info_type)                          :: basis_info
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      LOGICAL, INTENT(IN)                                :: do_admm
+      CHARACTER(LEN=*)                                   :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types'
 
@@ -1674,21 +1675,12 @@ CONTAINS
       ALLOCATE (basis_parameter(nkind))
       max_set = 0
       DO ikind = 1, nkind
-         IF (.NOT. do_admm) THEN
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="ORB")
-            CALL get_qs_kind_set(qs_kind_set, &
-                                 maxsgf=basis_info%max_sgf, &
-                                 maxnset=basis_info%max_set, &
-                                 maxlgto=basis_info%max_am)
-
-         ELSE
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="AUX_FIT")
-            CALL get_qs_kind_set(qs_kind_set, &
-                                 maxsgf=basis_info%max_sgf, &
-                                 maxnset=basis_info%max_set, &
-                                 maxlgto=basis_info%max_am, &
-                                 basis_type="AUX_FIT")
-         END IF
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type=basis_type)
+         CALL get_qs_kind_set(qs_kind_set, &
+                              maxsgf=basis_info%max_sgf, &
+                              maxnset=basis_info%max_set, &
+                              maxlgto=basis_info%max_am, &
+                              basis_type=basis_type)
          IF (basis_info%max_set < max_set) CPABORT("UNEXPECTED MAX_SET")
          max_set = MAX(max_set, basis_info%max_set)
          CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &

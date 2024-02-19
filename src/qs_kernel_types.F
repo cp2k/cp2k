@@ -6,6 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_kernel_types
+   USE admm_types,                      ONLY: admm_env_release,&
+                                              admm_type
+   USE cp_control_types,                ONLY: admm_control_release,&
+                                              admm_control_type
+   USE hfx_types,                       ONLY: hfx_release,&
+                                              hfx_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_density_type,&
@@ -63,6 +69,11 @@ MODULE qs_kernel_types
       ! Local resolution of the identity for Coulomb
       TYPE(lri_environment_type), POINTER                :: lri_env => Null()
       TYPE(lri_density_type), POINTER                    :: lri_density => Null()
+      ! Short range HFX integral environment
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data => Null()
+      TYPE(section_vals_type), POINTER                   :: hfxsr_section => Null()
+      TYPE(admm_type), POINTER                           :: admm_env => Null()
+      TYPE(admm_control_type), POINTER                   :: admm_control => NULL()
    END TYPE full_kernel_env_type
 ! **************************************************************************************************
 !> \brief Type to hold environments for the different kernels
@@ -95,6 +106,15 @@ CONTAINS
          IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
             CALL xc_rho_set_release(kernel_env%xc_rho_set)
             DEALLOCATE (kernel_env%xc_rho_set)
+         END IF
+         IF (ASSOCIATED(kernel_env%x_data)) THEN
+            CALL hfx_release(kernel_env%x_data)
+         END IF
+         IF (ASSOCIATED(kernel_env%admm_env)) THEN
+            CALL admm_env_release(kernel_env%admm_env)
+         END IF
+         IF (ASSOCIATED(kernel_env%admm_control)) THEN
+            CALL admm_control_release(kernel_env%admm_control)
          END IF
       END IF
 

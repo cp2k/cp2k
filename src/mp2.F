@@ -291,9 +291,13 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       nkind = SIZE(atomic_kind_set, 1)
 
       do_admm_rpa_exx = mp2_env%ri_rpa%do_admm
-      CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, do_admm_rpa_exx)
       IF (do_admm_rpa_exx .AND. .NOT. dft_control%do_admm) THEN
          CPABORT("Need an ADMM input section for ADMM RI_RPA EXX to work")
+      END IF
+      IF (do_admm_rpa_exx) THEN
+         CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, "AUX_FIT")
+      ELSE
+         CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, "ORB")
       END IF
 
       dimen = 0

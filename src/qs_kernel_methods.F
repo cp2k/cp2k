@@ -70,7 +70,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_kernel_env(kernel_env, xc_section, is_rks_triplets, rho_struct_sub, &
                                 lsd_singlets, do_excitations, sub_env, qs_env)
-      TYPE(full_kernel_env_type), INTENT(out)            :: kernel_env
+      TYPE(full_kernel_env_type), INTENT(inout)          :: kernel_env
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_rho_type), POINTER                         :: rho_struct_sub

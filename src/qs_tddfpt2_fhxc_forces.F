@@ -172,8 +172,9 @@ CONTAINS
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nkind, &
                                                             norb, nspins, order
-      LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, use_virial
+      LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_hfxlr, do_hfxsr, &
+         do_numeric, gapw, gapw_xc, hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, &
+         use_virial
       REAL(KIND=dp)                                      :: eh1, eh1c, eps_delta, eps_fit, focc, &
                                                             fscal, fval, kval, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
@@ -233,6 +234,8 @@ CONTAINS
       is_rks_triplets = tddfpt_control%rks_triplets .AND. (nspins == 1)
       CPASSERT(tddfpt_control%kernel == tddfpt_kernel_full)
       do_hfx = tddfpt_control%do_hfx
+      do_hfxsr = tddfpt_control%do_hfxsr
+      do_hfxlr = tddfpt_control%do_hfxlr
       do_admm = tddfpt_control%do_admm
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
@@ -1153,6 +1156,15 @@ CONTAINS
                END IF
             END IF
          END IF
+      END IF
+
+      ! HFX short range
+      IF (do_hfxsr) THEN
+         CPABORT("HFXSR not implemented")
+      END IF
+      ! HFX long range
+      IF (do_hfxlr) THEN
+         CPABORT("HFXLR not implemented")
       END IF
 
       CALL get_qs_env(qs_env, sab_orb=sab_orb)

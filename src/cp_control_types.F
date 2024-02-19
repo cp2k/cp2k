@@ -477,8 +477,11 @@ MODULE cp_control_types
       !> for full kernel, do we have HFX/ADMM
       LOGICAL                              :: do_hfx = .FALSE.
       LOGICAL                              :: do_admm = .FALSE.
-      !> for full kernel, do we have long-range HFX and/or Kxc potential
+      !> for full kernel, do we have short-range/long-range HFX and/or Kxc potential
+      LOGICAL                              :: do_hfxsr = .FALSE.
+      LOGICAL                              :: hfxsr_re_int = .TRUE.
       LOGICAL                              :: do_hfxlr = .FALSE.
+      REAL(KIND=dp)                        :: hfxlr_rcut = 0.0_dp, hfxlr_scale = 0.0_dp
       LOGICAL                              :: do_exck = .FALSE.
       !> options used in sTDA calculation (Kernel)
       TYPE(stda_control_type)              :: stda_control = stda_control_type()
@@ -645,6 +648,7 @@ MODULE cp_control_types
              dft_control_create, &
              tddfpt_control_create, &
              admm_control_create, &
+             admm_control_release, &
              maxwell_control_create, &
              expot_control_create, &
              ddapc_control_create

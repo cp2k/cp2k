@@ -217,14 +217,16 @@ CONTAINS
 !> \param qs_kind ...
 !> \param basis_cntrl ...
 !> \param exact_1c_terms ...
+!> \param tda_kernel ...
 !> \date    01.11.2017
 !> \author  JGH
 ! **************************************************************************************************
-   SUBROUTINE create_lri_aux_basis_set(lri_aux_basis_set, qs_kind, basis_cntrl, exact_1c_terms)
+   SUBROUTINE create_lri_aux_basis_set(lri_aux_basis_set, qs_kind, basis_cntrl, &
+                                       exact_1c_terms, tda_kernel)
       TYPE(gto_basis_set_type), POINTER                  :: lri_aux_basis_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN)                                :: basis_cntrl
-      LOGICAL, INTENT(IN)                                :: exact_1c_terms
+      LOGICAL, INTENT(IN), OPTIONAL                      :: exact_1c_terms, tda_kernel
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bsname
@@ -234,6 +236,7 @@ CONTAINS
       INTEGER, DIMENSION(0:9, 1:50)                      :: nl
       INTEGER, DIMENSION(1:50)                           :: ls1, ls2, npgf
       INTEGER, DIMENSION(:), POINTER                     :: econf
+      LOGICAL                                            :: e1terms, kernel_basis
       REAL(KIND=dp)                                      :: xv, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet
       REAL(KIND=dp), DIMENSION(0:18)                     :: bval, peff, pend, pmax, pmin
@@ -242,8 +245,19 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       !
-      bv(1:4) = (/2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp/)
-      bx(1:4) = (/2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp/)
+      IF (PRESENT(exact_1c_terms)) THEN
+         e1terms = exact_1c_terms
+      ELSE
+         e1terms = .FALSE.
+      END IF
+      IF (PRESENT(tda_kernel)) THEN
+         kernel_basis = tda_kernel
+      ELSE
+         kernel_basis = .FALSE.
+      END IF
+      IF (kernel_basis .AND. e1terms) THEN
+         CALL cp_warn(__LOCATION__, "LRI Kernel basis generation will ignore exact 1C term option.")
+      END IF
       !
       CPASSERT(.NOT. ASSOCIATED(lri_aux_basis_set))
       NULLIFY (orb_basis_set)
@@ -261,25 +275,47 @@ CONTAINS
             CPWARN("Valence charge and electron configuration not consistent")
          END IF
          !
-         pend = 0.0_dp
          linc = 1
          IF (z > 18) linc = 2
-         SELECT CASE (basis_cntrl)
-         CASE (0)
-            laux = MAX(2*lval, lmax + linc)
-            laux = MIN(laux, 2 + linc)
-         CASE (1)
-            laux = MAX(2*lval, lmax + linc)
-            laux = MIN(laux, 3 + linc)
-         CASE (2)
-            laux = MAX(2*lval, lmax + linc + 1)
-            laux = MIN(laux, 4 + linc)
-         CASE (3)
-            laux = MAX(2*lval, lmax + linc + 1)
-            laux = MIN(laux, 4 + linc)
-         CASE DEFAULT
-            CPABORT("Invalid value of control variable")
-         END SELECT
+         pend = 0.0_dp
+         IF (kernel_basis) THEN
+            bv(1:4) = (/3.20_dp, 2.80_dp, 2.40_dp, 2.00_dp/)
+            bx(1:4) = (/4.00_dp, 3.50_dp, 3.00_dp, 2.50_dp/)
+            !
+            SELECT CASE (basis_cntrl)
+            CASE (0)
+               laux = lval + 1
+            CASE (1)
+               laux = MAX(lval + 1, lmax)
+            CASE (2)
+               laux = MAX(lval + 2, lmax + 1)
+            CASE (3)
+               laux = MAX(lval + 3, lmax + 2)
+               laux = MIN(laux, 2 + linc)
+            CASE DEFAULT
+               CPABORT("Invalid value of control variable")
+            END SELECT
+         ELSE
+            bv(1:4) = (/2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp/)
+            bx(1:4) = (/2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp/)
+            !
+            SELECT CASE (basis_cntrl)
+            CASE (0)
+               laux = MAX(2*lval, lmax + linc)
+               laux = MIN(laux, 2 + linc)
+            CASE (1)
+               laux = MAX(2*lval, lmax + linc)
+               laux = MIN(laux, 3 + linc)
+            CASE (2)
+               laux = MAX(2*lval, lmax + linc + 1)
+               laux = MIN(laux, 4 + linc)
+            CASE (3)
+               laux = MAX(2*lval, lmax + linc + 1)
+               laux = MIN(laux, 4 + linc)
+            CASE DEFAULT
+               CPABORT("Invalid value of control variable")
+            END SELECT
+         END IF
          !
          DO l = 2*lmax + 1, laux
             pmin(l) = pmin(2*lmax)
@@ -287,6 +323,7 @@ CONTAINS
             peff(l) = peff(2*lmax)
          END DO
          !
+         nval = 0
          IF (exact_1c_terms) THEN
             DO l = 0, laux
                IF (l <= lval + 1) THEN
@@ -319,7 +356,12 @@ CONTAINS
          !
          lm = MIN(2*lval, 3)
          n1 = MAXVAL(nval(0:lm))
-         n2 = MAXVAL(nval(lm + 1:laux))
+         IF (laux < lm + 1) THEN
+            n2 = 0
+         ELSE
+            n2 = MAXVAL(nval(lm + 1:laux))
+         END IF
+         !
          nsets = n1 + n2
          ALLOCATE (zet(1, nsets))
          zet = 0.0_dp

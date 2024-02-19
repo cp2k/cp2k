@@ -47,7 +47,9 @@ MODULE qs_tddfpt2_eigensolver
    USE qs_tddfpt2_fhxc,                 ONLY: fhxc_kernel,&
                                               stda_kernel
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_energy_diff,&
-                                              tddfpt_apply_hfx
+                                              tddfpt_apply_hfx,&
+                                              tddfpt_apply_hfxlr_kernel,&
+                                              tddfpt_apply_hfxsr_kernel
    USE qs_tddfpt2_restart,              ONLY: tddfpt_write_restart
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
@@ -316,7 +318,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
       LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
-                                                            is_rks_triplets
+                                                            is_rks_triplets, re_int
+      REAL(KIND=dp)                                      :: rcut, scale
       TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(full_kernel_env_type), POINTER                :: kernel_env_admm_aux
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -435,6 +438,49 @@ CONTAINS
                CPABORT("Kernel type not implemented")
             END IF
          END IF
+         ! short/long range HFX
+         IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+            IF (tddfpt_control%do_hfxsr) THEN
+               re_int = tddfpt_control%hfxsr_re_int
+               ! symmetric dmat
+               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, &
+                                              kernel_env%full_kernel%admm_env, &
+                                              kernel_env%full_kernel%hfxsr_section, &
+                                              kernel_env%full_kernel%x_data, 1, re_int, &
+                                              work_rho_ia_ao=work_matrices%hfxsr_rho_ao_symm, &
+                                              work_hmat=work_matrices%hfxsr_hmat_symm, &
+                                              wfm_rho_orb=work_matrices%hfxsr_fm_ao_ao)
+               ! antisymmetric dmat
+               CALL tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, &
+                                              kernel_env%full_kernel%admm_env, &
+                                              kernel_env%full_kernel%hfxsr_section, &
+                                              kernel_env%full_kernel%x_data, -1, .FALSE., &
+                                              work_rho_ia_ao=work_matrices%hfxsr_rho_ao_asymm, &
+                                              work_hmat=work_matrices%hfxsr_hmat_asymm, &
+                                              wfm_rho_orb=work_matrices%hfxsr_fm_ao_ao)
+               tddfpt_control%hfxsr_re_int = .FALSE.
+            END IF
+            IF (tddfpt_control%do_hfxlr) THEN
+               rcut = tddfpt_control%hfxlr_rcut
+               scale = tddfpt_control%hfxlr_scale
+               DO ivect = 1, nvects
+                  IF (ALLOCATED(work_matrices%evects_sub)) THEN
+                     IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix_struct)) THEN
+                        CALL tddfpt_apply_hfxlr_kernel(qs_env, sub_env, rcut, scale, work_matrices, &
+                                                       work_matrices%evects_sub(:, ivect), &
+                                                       work_matrices%Aop_evects_sub(:, ivect))
+                     ELSE
+                        ! skip trial vectors which are assigned to different parallel groups
+                        CYCLE
+                     END IF
+                  ELSE
+                     CALL tddfpt_apply_hfxlr_kernel(qs_env, sub_env, rcut, scale, work_matrices, &
+                                                    evects(:, ivect), Aop_evects(:, ivect))
+                  END IF
+               END DO
+            END IF
+         END IF
+
       END IF
 
       CALL timestop(handle)
@@ -697,7 +743,7 @@ CONTAINS
                                                             max_krylov_vects, nspins, nstates, &
                                                             nstates_conv, nvects_exist, nvects_new
       INTEGER(kind=int_8)                                :: nstates_total
-      LOGICAL                                            :: do_hfx, is_nonortho
+      LOGICAL                                            :: is_nonortho
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
@@ -710,7 +756,6 @@ CONTAINS
       nspins = SIZE(gs_mos)
       nstates = tddfpt_control%nstates
       nstates_total = tddfpt_total_number_of_states(gs_mos)
-      do_hfx = tddfpt_control%do_hfx
 
       IF (debug_this_module) THEN
          CPASSERT(SIZE(evects, 1) == nspins)
