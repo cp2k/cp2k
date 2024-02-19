@@ -14,10 +14,14 @@ MODULE rt_propagation_methods
                                               Kuhne2007,&
                                               cite_reference
 <<<<<<< HEAD
+<<<<<<< HEAD
    USE cell_types,                      ONLY: cell_type
 =======
    USE cell_types,                      ONLY: cell_type 
 >>>>>>> bb9b2d2670 ( stop if time dependent field in length gauge representation is requested together with active PBC)
+=======
+   USE cell_types,                      ONLY: cell_type
+>>>>>>> 898a658ff6 ( RTP projection: Allow projection on reference empty states)
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -145,8 +149,7 @@ CONTAINS
          ! either in the lengh or velocity gauge.
          ! should be called  after qs_energies_init and before qs_ks_update_qs_env
          IF (dft_control%apply_efield_field) THEN
-            IF (ANY(cell%perd(1:3) /= 0)) &
-               CPABORT("Length gauge (efield) and periodicity are not compatible")
+            IF (ANY(cell%perd(1:3) /= 0)) CPABORT("Length gauge (efield) and periodicity are not compatible")
             CALL efield_potential_lengh_gauge(qs_env)
          ELSE IF (rtp_control%velocity_gauge) THEN
             IF (dft_control%apply_vector_potential) &
