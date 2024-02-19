@@ -44,8 +44,10 @@ MODULE cp_control_types
    TYPE proj_mo_type
       INTEGER, DIMENSION(:), ALLOCATABLE         :: ref_mo_index
       INTEGER                                    :: ref_mo_spin = 1
+      INTEGER                                    :: ref_nlumo = 0
       LOGICAL                                    :: sum_on_all_ref = .FALSE.
       INTEGER, DIMENSION(:), ALLOCATABLE         :: td_mo_index
+      REAL(dp), DIMENSION(:), ALLOCATABLE        :: td_mo_occ
       INTEGER                                    :: td_mo_spin = 1
       LOGICAL                                    :: sum_on_all_td = .FALSE.
       CHARACTER(LEN=default_path_length)         :: ref_mo_file_name = ""
@@ -980,6 +982,8 @@ CONTAINS
                END IF
                IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_index)) &
                   DEALLOCATE (proj_mo_list(i)%proj_mo%td_mo_index)
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_occ)) &
+                  DEALLOCATE (proj_mo_list(i)%proj_mo%td_mo_occ)
                DEALLOCATE (proj_mo_list(i)%proj_mo)
             END IF
          END DO

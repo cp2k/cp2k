@@ -263,7 +263,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type)                                   :: mos_occ
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv, rho_new, rho_old
@@ -379,7 +379,7 @@ CONTAINS
             END DO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
-            CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
+            CALL get_rtp(rtp=rtp, mos_old=mos_old)
             CALL read_rt_mos_from_restart(mo_array, mos_old, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                           id_nr, dft_control%multiplicity, dft_section)
             CALL set_uniform_occupation_mo_array(mo_array, nspin)

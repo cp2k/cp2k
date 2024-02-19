@@ -13,7 +13,7 @@ MODULE rt_propagation_methods
    USE bibliography,                    ONLY: Kolafa2004,&
                                               Kuhne2007,&
                                               cite_reference
-   USE cell_types,                      ONLY: cell_type 
+   USE cell_types,                      ONLY: cell_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -130,7 +130,7 @@ CONTAINS
       NULLIFY (cell, delta_P, rho_new, delta_mos, mos_new)
       NULLIFY (ks_mix, ks_mix_im)
       ! get everything needed and set some values
-      CALL get_qs_env(qs_env, cell=cell,  matrix_s=matrix_s, dft_control=dft_control)
+      CALL get_qs_env(qs_env, cell=cell, matrix_s=matrix_s, dft_control=dft_control)
 
       IF (rtp%iter == 1) THEN
          CALL qs_energies_init(qs_env, .FALSE.)
@@ -141,7 +141,7 @@ CONTAINS
          ! either in the lengh or velocity gauge.
          ! should be called  after qs_energies_init and before qs_ks_update_qs_env
          IF (dft_control%apply_efield_field) THEN
-            IF (ANY(cell%perd(1:3) /= 0)) CPABORT("Length gauge (efield) and periodicity are not compatible") 
+            IF (ANY(cell%perd(1:3) /= 0)) CPABORT("Length gauge (efield) and periodicity are not compatible")
             CALL efield_potential_lengh_gauge(qs_env)
          ELSE IF (rtp_control%velocity_gauge) THEN
             IF (dft_control%apply_vector_potential) &
