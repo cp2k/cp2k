@@ -209,7 +209,8 @@ CONTAINS
          ALLOCATE(tdagw_env%ham_single_particle(i)%matrix)
          CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
          ! TODO : So far no spin resolution in Hamiltonian of GW
-         CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, tdagw_env%ham_single_particle(i)%matrix)
+         ! CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, tdagw_env%ham_single_particle(i)%matrix)
+         CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), tdagw_env%ham_single_particle(i)%matrix)
       END DO
 
       ! Create the matrices and workspaces for effective Hamiltonian
