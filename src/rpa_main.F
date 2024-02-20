@@ -1154,8 +1154,8 @@ CONTAINS
       TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, fm_mat_Q_static_bse, &
          fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_ab_trunc, fm_mat_S_bar_ia_bse, &
          fm_mat_S_bar_ij_bse, fm_mat_S_ij_trunc, fm_mat_S_trunc, fm_mat_work, &
-         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-         fm_scaled_dm_virt_tau
+         fm_mat_work_diff_raised_neg_BSE, fm_mat_work_diff_raised_pos_BSE, fm_mo_coeff_occ_scaled, &
+         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1822,6 +1822,7 @@ CONTAINS
                CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
                              homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
                CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
+                                                  fm_mat_work_diff_raised_pos_BSE, fm_mat_work_diff_raised_neg_BSE, &
                                                   homo_red, virtual_red, unit_nr, mp2_env, diag_est)
             END IF
             CALL cp_fm_release(fm_mat_B_BSE)
@@ -1833,6 +1834,7 @@ CONTAINS
             CALL cp_fm_release(fm_mat_A_BSE)
             IF (bse_abba) THEN
                CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+                                  fm_mat_work_diff_raised_pos_BSE, fm_mat_work_diff_raised_neg_BSE, &
                                   unit_nr, diag_est, mp2_env)
             END IF
             ! Release to avoid faulty use of changed C matrix

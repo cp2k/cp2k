@@ -22,6 +22,8 @@ MODULE bse_util
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
    USE rpa_communication,               ONLY: communicate_buffer
+   USE util,                            ONLY: sort,&
+                                              sort_unique
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -30,7 +32,8 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, deallocate_matrices_bse
+   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
+             deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations
 
 CONTAINS
 
@@ -771,5 +774,152 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE deallocate_matrices_bse
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_work ...
+!> \param eig_vals ...
+!> \param beta ...
+!> \param gamma ...
+!> \param do_transpose ...
+! **************************************************************************************************
+   SUBROUTINE comp_eigvec_coeff_BSE(fm_mat_work, eig_vals, beta, gamma, do_transpose)
+
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: eig_vals
+      REAL(KIND=dp), INTENT(IN)                          :: beta
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: gamma
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_transpose
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_eigvec_coeff_BSE'
+
+      INTEGER                                            :: handle, i_row_global, ii, j_col_global, &
+                                                            jj, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_do_transpose
+      REAL(KIND=dp)                                      :: coeff, my_gamma
+
+      CALL timeset(routineN, handle)
+
+      IF (PRESENT(gamma)) THEN
+         my_gamma = gamma
+      ELSE
+         my_gamma = 2.0_dp
+      END IF
+
+      IF (PRESENT(do_transpose)) THEN
+         my_do_transpose = do_transpose
+      ELSE
+         my_do_transpose = .FALSE.
+      END IF
+
+      CALL cp_fm_get_info(matrix=fm_mat_work, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      IF (my_do_transpose) THEN
+         DO jj = 1, ncol_local
+            j_col_global = col_indices(jj)
+            DO ii = 1, nrow_local
+               coeff = (eig_vals(j_col_global)**beta)/my_gamma
+               fm_mat_work%local_data(ii, jj) = fm_mat_work%local_data(ii, jj)*coeff
+            END DO
+         END DO
+      ELSE
+         DO jj = 1, ncol_local
+            DO ii = 1, nrow_local
+               i_row_global = row_indices(ii)
+               coeff = (eig_vals(i_row_global)**beta)/my_gamma
+               fm_mat_work%local_data(ii, jj) = fm_mat_work%local_data(ii, jj)*coeff
+            END DO
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param idx_prim ...
+!> \param idx_sec ...
+!> \param eigvec_entries ...
+! **************************************************************************************************
+   SUBROUTINE sort_excitations(idx_prim, idx_sec, eigvec_entries)
+
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim, idx_sec
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sort_excitations'
+
+      INTEGER                                            :: handle, ii, jj, num_entries, num_mults
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim_work, idx_sec_work, tmp_index
+      LOGICAL                                            :: mult_entries
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries_work
+
+      CALL timeset(routineN, handle)
+
+      num_entries = SIZE(idx_prim)
+
+      ALLOCATE (tmp_index(num_entries))
+
+      CALL sort(idx_prim, num_entries, tmp_index)
+
+      ALLOCATE (idx_sec_work(num_entries))
+      ALLOCATE (eigvec_entries_work(num_entries))
+
+      DO ii = 1, num_entries
+         idx_sec_work(ii) = idx_sec(tmp_index(ii))
+         eigvec_entries_work(ii) = eigvec_entries(tmp_index(ii))
+      END DO
+
+      DEALLOCATE (tmp_index)
+      DEALLOCATE (idx_sec)
+      DEALLOCATE (eigvec_entries)
+
+      CALL MOVE_ALLOC(idx_sec_work, idx_sec)
+      CALL MOVE_ALLOC(eigvec_entries_work, eigvec_entries)
+
+      !Now check for multiple entries in first idx to check necessity of sorting in second idx
+      CALL sort_unique(idx_prim, mult_entries)
+      IF (mult_entries) THEN
+         ALLOCATE (idx_prim_work(num_entries))
+         idx_prim_work = idx_prim
+         ! Find duplicate entries in idx_prim
+         DO ii = 1, num_entries
+            IF (idx_prim_work(ii) == 0) CYCLE
+            num_mults = COUNT(idx_prim_work == idx_prim_work(ii))
+            IF (num_mults > 1) THEN
+               !Set all duplicate entries to 0
+               idx_prim_work(ii:ii + num_mults - 1) = 0
+               !Start sorting in secondary index
+               ALLOCATE (tmp_index(num_mults))
+               CALL sort(idx_sec_work(ii:ii + num_mults - 1), num_mults, tmp_index)
+
+               ALLOCATE (idx_sec_work(num_mults))
+               ALLOCATE (eigvec_entries_work(num_mults))
+
+               DO jj = 1, num_mults
+                  idx_sec_work(jj) = idx_sec(tmp_index(jj))
+                  eigvec_entries_work(jj) = eigvec_entries(tmp_index(jj))
+               END DO
+               !Now write newly sorted indices to original arrays
+               idx_sec(ii:ii + num_mults - 1) = idx_sec_work
+               eigvec_entries(ii:ii + num_mults - 1) = eigvec_entries_work
+               !Deallocate work arrays
+               DEALLOCATE (tmp_index)
+               DEALLOCATE (idx_sec_work)
+               DEALLOCATE (eigvec_entries_work)
+            END IF
+            idx_prim_work(ii) = idx_prim(ii)
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE sort_excitations
 
 END MODULE

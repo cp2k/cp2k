@@ -13,7 +13,9 @@
 ! **************************************************************************************************
 MODULE bse_full_diag
 
-   USE bse_util,                        ONLY: redist_fm,&
+   USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
+                                              redist_fm,&
+                                              sort_excitations,&
                                               truncate_fm
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
@@ -262,6 +264,8 @@ CONTAINS
 !> \param fm_mat_A ...
 !> \param fm_mat_B ...
 !> \param fm_mat_C ...
+!> \param fm_mat_work_diff_raised_pos ...
+!> \param fm_mat_work_diff_raised_neg ...
 !> \param homo ...
 !> \param virtual ...
 !> \param unit_nr ...
@@ -269,10 +273,12 @@ CONTAINS
 !> \param diag_est ...
 ! **************************************************************************************************
    SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, &
+                                            fm_mat_work_diff_raised_pos, fm_mat_work_diff_raised_neg, &
                                             homo, virtual, unit_nr, mp2_env, diag_est)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C, fm_mat_work_diff_raised_pos, &
+                                                            fm_mat_work_diff_raised_neg
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: diag_est
@@ -294,15 +300,17 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
          END IF
       END IF
-      !Create C as A+B
-      CALL cp_fm_create(fm_mat_C, fm_mat_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_mat_A, fm_mat_C)
 
-      !Create work matrix, which will hold A+b and A-B
+      !Create work matrices, which will hold A+B and A-B and their powers
+      ! C is created afterwards to save memory
       CALL cp_fm_create(fm_mat_work_sum, fm_mat_A%matrix_struct)
       CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_sum)
       CALL cp_fm_create(fm_mat_work_diff, fm_mat_A%matrix_struct)
       CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_diff)
+      CALL cp_fm_create(fm_mat_work_diff_raised_pos, fm_mat_A%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_work_diff_raised_pos, 0.0_dp)
+      CALL cp_fm_create(fm_mat_work_diff_raised_neg, fm_mat_A%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_work_diff_raised_neg, 0.0_dp)
 
       CALL cp_fm_create(fm_mat_work_diff_eigvec, fm_mat_A%matrix_struct)
       CALL cp_fm_create(fm_mat_work_product, fm_mat_A%matrix_struct)
@@ -315,21 +323,41 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_sum, 1.0_dp, fm_mat_B)
       CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_diff, -1.0_dp, fm_mat_B)
 
-      !Now raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_power(fm_mat_work_diff, fm_mat_work_diff_eigvec, 0.5_dp, 0.0_dp, n_dependent)
+      !cp_fm_power will overwrite matrix, therefore we copy it
+      CALL cp_fm_to_fm(fm_mat_work_diff, fm_mat_work_diff_raised_neg)
+      CALL cp_fm_to_fm(fm_mat_work_diff, fm_mat_work_diff_raised_pos)
 
+      ! In the output, we want to print singleparticle transitions of ABBA, where we need
+      ! (A-B)**-0.5 as well as (A-B)**0.5. In order to avoid a second diagonalization (cp_fm_power),
+      ! we create (A-B)**0.5 from (A-B)**-0.5 by multiplication with (A-B).
+
+      !Raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
+      CALL cp_fm_power(fm_mat_work_diff_raised_neg, fm_mat_work_diff_eigvec, -0.5_dp, 0.0_dp, n_dependent)
       !(A-B)**-0.5 is written to the eigvec - work matrix
+
       CALL cp_fm_release(fm_mat_work_diff_eigvec)
 
-      !Create C = (A-B)^0.5 (A+B) (A-B)^0.5
+      ! We keep diff_eigvec for print of singleparticle transitions of ABBA
+      ! We further create (A-B)**0.5 for the singleparticle transitions of ABBA
       dim_mat = homo*virtual
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_diff, fm_mat_work_sum, 0.0_dp, &
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_diff_raised_neg, fm_mat_work_diff, 0.0_dp, &
+                         fm_mat_work_diff_raised_pos)
+
+      CALL cp_fm_release(fm_mat_work_diff)
+
+      !Create C = (A-B)^0.5 (A+B) (A-B)^0.5
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_diff_raised_pos, fm_mat_work_sum, 0.0_dp, &
                          fm_mat_work_product)
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_product, fm_mat_work_diff, 0.0_dp, &
+      CALL cp_fm_release(fm_mat_work_sum)
+
+      !Now create C itself
+      CALL cp_fm_create(fm_mat_C, fm_mat_A%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_C, 0.0_dp)
+
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_product, fm_mat_work_diff_raised_pos, 0.0_dp, &
                          fm_mat_C)
       CALL cp_fm_release(fm_mat_work_product)
-      CALL cp_fm_release(fm_mat_work_sum)
-      CALL cp_fm_release(fm_mat_work_diff)
+
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A4,T10,A36)') 'BSE|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
       END IF
@@ -344,23 +372,29 @@ CONTAINS
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param virtual_irred ...
+!> \param fm_mat_work_diff_raised_pos ...
+!> \param fm_mat_work_diff_raised_neg ...
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, homo_irred, virtual_irred, &
+                            fm_mat_work_diff_raised_pos, fm_mat_work_diff_raised_neg, &
                             unit_nr, diag_est, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
-      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
-                                                            virtual_irred, unit_nr, diag_est
+      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, virtual_irred
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work_diff_raised_pos, &
+                                                            fm_mat_work_diff_raised_neg
+      INTEGER, INTENT(IN)                                :: unit_nr, diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
 
       INTEGER                                            :: diag_info, handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type)                                   :: fm_mat_eigvec
+      TYPE(cp_fm_type)                                   :: fm_mat_eigvec, fm_mat_eigvec_transform, &
+                                                            fm_mat_eigvec_transform_neg
 
       CALL timeset(routineN, handle)
 
@@ -372,7 +406,7 @@ CONTAINS
          END IF
       END IF
 
-      !We have now the full matrix C**2, distributed over all ranks
+      !We have now the full matrix C=(A-B)^-0.5 (A+B) (A-B)^-0.5
       !Now: Diagonalize it
       CALL cp_fm_create(fm_mat_eigvec, fm_mat_C%matrix_struct)
 
@@ -381,11 +415,45 @@ CONTAINS
       CALL choose_eigv_solver(fm_mat_C, fm_mat_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       Exc_ens = SQRT(Exc_ens)
-      CALL success_message(Exc_ens, fm_mat_eigvec, mp2_env%ri_g0w0%bse_spin_config, mp2_env%ri_g0w0%num_print_exc, &
+
+      ! Prepare eigenvector for interpretation of singleparticle transitions
+      ! Compare: F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)
+      ! We aim for the upper part of the vector (X,Y) for a direct comparison with the TDA result
+
+      ! Following Furche, we basically use Eqs. (A10): First, we multiply
+      ! the (A-B)^+-0.5 with eigenvectors and then the eigenvalues
+      ! One has to be careful about the index structure, since the eigenvector matrix is not symmetric anymore!
+
+      ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
+      CALL cp_fm_create(fm_mat_eigvec_transform, fm_mat_C%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_eigvec_transform, 0.0_dp)
+      CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
+                         matrix_a=fm_mat_work_diff_raised_pos, matrix_b=fm_mat_eigvec, beta=0.0_dp, &
+                         matrix_c=fm_mat_eigvec_transform)
+      CALL cp_fm_release(fm_mat_work_diff_raised_pos)
+      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
+
+      ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
+      CALL cp_fm_create(fm_mat_eigvec_transform_neg, fm_mat_C%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_eigvec_transform_neg, 0.0_dp)
+      CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
+                         matrix_a=fm_mat_work_diff_raised_neg, matrix_b=fm_mat_eigvec, beta=0.0_dp, &
+                         matrix_c=fm_mat_eigvec_transform_neg)
+      CALL cp_fm_release(fm_mat_work_diff_raised_neg)
+      CALL cp_fm_release(fm_mat_eigvec)
+      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_neg, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
+
+      ! Now, we add the two equations to obtain X_n
+      CALL cp_fm_scale_and_add(1.0_dp, fm_mat_eigvec_transform, 1.0_dp, fm_mat_eigvec_transform_neg)
+
+      !Cleanup
+      CALL cp_fm_release(fm_mat_eigvec_transform_neg)
+
+      CALL success_message(Exc_ens, fm_mat_eigvec_transform, mp2_env%ri_g0w0%bse_spin_config, mp2_env%ri_g0w0%num_print_exc, &
                            homo, virtual, homo_irred, virtual_irred, unit_nr, .FALSE.)
 
-      CALL cp_fm_release(fm_mat_eigvec)
       DEALLOCATE (Exc_ens)
+      CALL cp_fm_release(fm_mat_eigvec_transform)
 
       CALL timestop(handle)
 
@@ -498,13 +566,6 @@ CONTAINS
       !Get information about eigenvector
 
       IF (unit_nr > 0) THEN
-         ! WRITE (unit_nr, *) ' '
-         ! WRITE (unit_nr, '(A80)') '********************************************************************************'
-         ! WRITE (unit_nr, '(A80)') '**                                                                            **'
-         ! WRITE (unit_nr, '(A30,A4,A44)') '**                        BSE-', info_approximation, &
-         !    ' EXCITONIC ENERGIES                       **'
-         ! WRITE (unit_nr, '(A80)') '**                                                                            **'
-         ! WRITE (unit_nr, '(A80)') '********************************************************************************'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A55)') 'BSE|', 'The excitation energies are calculated by diagonalizing'
@@ -517,12 +578,22 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', '  Σ_jb ( A_ia,jb   X_jb + B_ia,jb   Y_jb ) = Ω^n X_ia^n'
             WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', '- Σ_jb ( B_ia,jb   X_jb + A_ia,jb   Y_jb ) = Ω^n Y_ia^n'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A39)') 'BSE|', 'In practice, we follow the approach of '
+            WRITE (unit_nr, '(T2,A4,T7,A51)') 'BSE|', 'F. Furche, J. Chem. Phys., Vol. 114, No. 14, (2001)'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A43)') 'BSE|', 'Σ_jb ( C_ia,jb   Z_jb ) = (Ω^n)**2 Z_ia^n'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
          IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A31)') 'BSE|', 'B_ia,jb  α * v_ia,jb - W_ib,aj'
+            WRITE (unit_nr, '(T2,A4,T7,A32)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A68)') 'BSE|', 'C_ia,jb = Σ_kc,ld ((A-B)^-0.5)_ia,kc (A+B)_kc,ld ((A-B)^-0.5)_ld,jb'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', '(X+Y)_ia,n = Σ_jb,m  ((A-B)^0.5)ia,jb Z_jb,m (Ω_m)^-0.5'
+            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', '(X-Y)_ia,n = Σ_jb,m  ((A-B)^-0.5)ia,jb Z_jb,m (Ω_m)^0.5'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A7,T19,A23)') 'BSE|', 'ε_...:', 'GW quasiparticle energy'
@@ -531,9 +602,9 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A6,T18,A34)') 'BSE|', 'v_...:', 'Electron-hole exchange interaction'
          WRITE (unit_nr, '(T2,A4,T7,A6,T18,A27)') 'BSE|', 'W_...:', 'Screened direct interaction'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A42,T70,A1,I4,A1,I4,A1)') 'BSE|', 'i,j:', &
+         WRITE (unit_nr, '(T2,A4,T7,A8,T18,A42,T70,A1,I4,A1,I4,A1)') 'BSE|', 'i,j,k,l:', &
             'occupied molecular orbitals, i.e. state in', '[', homo_irred - homo + 1, ',', homo_irred, ']'
-         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A44,T70,A1,I4,A1,I4,A1)') 'BSE|', 'a,b:', &
+         WRITE (unit_nr, '(T2,A4,T7,A8,T18,A44,T70,A1,I4,A1,I4,A1)') 'BSE|', 'a,b,c,d:', &
             'unoccupied molecular orbitals, i.e. state in', '[', homo_irred + 1, ',', homo_irred + virtual, ']'
          WRITE (unit_nr, '(T2,A4,T7,A2,T18,A16)') 'BSE|', 'n:', 'Excitation level'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -556,40 +627,34 @@ CONTAINS
                'BSE|', i_exc, multiplet, " State", info_approximation, Exc_ens(i_exc)*evolt
          END DO
       END IF
-      !prints single particle transitions if TDA is invoked
-      IF (flag_TDA) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A70)') &
-               'BSE|', "Excitations are built up by the following single-particle transitions:"
-            WRITE (unit_nr, '(T2,A4,T7,A62)') &
-               'BSE|', "(Formula as defined above. Eigenvector X^n normalized to 0.5.)"
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T53,A6,T71,A10)') &
-               "BSE|", "n-th exc.", "i", "=>", "a", &
-               "X_ia^n", "|X_ia^n|^2"
-         END IF
-         DO i_exc = 1, MIN(homo*virtual, num_exc_en)
-            !Iterate through eigenvector and print values above threshold
-            CALL filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                       i_exc, homo, virtual, num_entries)
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T2,A4)') 'BSE|'
-               DO k = 1, num_entries
-                  WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T40,F19.4,T59,F22.4)') &
-                     "BSE|", i_exc, idx_homo(k), "=>", homo + idx_virt(k), eigvec_entries(k), ABS(eigvec_entries(k))**2
-               END DO
-            END IF
-
-            DEALLOCATE (idx_homo)
-            DEALLOCATE (idx_virt)
-            DEALLOCATE (eigvec_entries)
-         END DO
-      END IF
+      !prints single particle transitions
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         ! WRITE (unit_nr, '(T2,A36,A4,A12,T59,F22.14)') 'BSE| First excitatation energy for ', info_approximation, &
-         !    ' BSE [a.u.]:', Exc_ens(1)
+         WRITE (unit_nr, '(T2,A4,T7,A70)') &
+            'BSE|', "Excitations are built up by the following single-particle transitions:"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T53,A6,T71,A10)') &
+            "BSE|", "n-th exc.", "i", "=>", "a", &
+            "X_ia^n", "|X_ia^n|^2"
+      END IF
+      DO i_exc = 1, MIN(homo*virtual, num_exc_en)
+         !Iterate through eigenvector and print values above threshold
+         CALL filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                    i_exc, homo, virtual, num_entries)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            DO k = 1, num_entries
+               WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T40,F19.4,T59,F22.4)') &
+                  "BSE|", i_exc, idx_homo(k), "=>", homo + idx_virt(k), eigvec_entries(k), ABS(eigvec_entries(k))**2
+            END DO
+         END IF
+
+         DEALLOCATE (idx_homo)
+         DEALLOCATE (idx_virt)
+         DEALLOCATE (eigvec_entries)
+      END DO
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
@@ -668,10 +733,6 @@ CONTAINS
          buffer_entries(iproc)%indx = 0
       END DO
 
-      ! ALLOCATE(idx_homo(num_entries_local))
-      ! ALLOCATE(idx_virt(num_entries_local))
-      ! ALLOCATE(eigvec_entries(num_entries_local))
-
       kk = 1
       DO jj = 1, ncol_local
          !First check if i is localized on this proc
@@ -722,6 +783,10 @@ CONTAINS
       DEALLOCATE (num_entries_to_comm)
       NULLIFY (row_indices)
       NULLIFY (col_indices)
+
+      !Now sort the results according to the involved singleparticle orbitals
+      ! (homo first, then virtual)
+      CALL sort_excitations(idx_homo, idx_virt, eigvec_entries)
 
       CALL timestop(handle)
 
