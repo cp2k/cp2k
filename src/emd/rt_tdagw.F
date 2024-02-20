@@ -201,6 +201,7 @@ CONTAINS
       ! Evaluate the Hartree term Brute force
       ! Get the starting density from rtp
       ! This is the same density that is used in create_tdagw_env
+      IF (.FALSE.) THEN
       CALL get_rtp(rtp, rho_new=rho_dbcsr)
       ALLOCATE(v_ao%matrix)
       CALL dbcsr_create(v_ao%matrix, template=bs_env%mat_ao_ao%matrix)
@@ -254,6 +255,7 @@ CONTAINS
       DEALLOCATE(rho_rspace)
       CALL dbcsr_release(v_ao%matrix)
       DEALLOCATE(v_ao%matrix)
+      END IF
 
       ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
@@ -600,11 +602,12 @@ CONTAINS
                          tdagw_env%rho_workspace(2)%matrix)
          ! TODO : Save these as separate files
          ! WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Real"
-         ! CALL cp_fm_write_formatted(tdagw_env%rho_workspace(1)%matrix, rho_unit_re)
-         CALL cp_fm_write_formatted(rho(re)%matrix, rho_unit_re)
-         ! WRITE(UNIT=rho_unit, FMT="(A,I6,A)") "#Iter : ", i, " Imag"
-         ! CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
-         CALL cp_fm_write_formatted(rho(im)%matrix, rho_unit_im)
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(1)%matrix, rho_unit_re)
+         ! Line below outputs AO basis matrix
+         ! CALL cp_fm_write_formatted(rho(re)%matrix, rho_unit_re)
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
+         ! Line below outputs AO basis matrix
+         ! CALL cp_fm_write_formatted(rho(im)%matrix, rho_unit_im)
       END DO
    END SUBROUTINE
 
