@@ -210,6 +210,7 @@ CONTAINS
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
       tddfpt_control%do_hfxsr = do_hfxsr
+      tddfpt_control%hfxsr_primbas = .FALSE.
       tddfpt_control%hfxsr_re_int = .TRUE.
       tddfpt_control%do_hfxlr = do_hfxlr
       tddfpt_control%do_exck = do_exck
@@ -292,8 +293,12 @@ CONTAINS
          END IF
 
          IF (tddfpt_control%do_hfxsr) THEN
+            kernel_section => section_vals_get_subs_vals(tddfpt_section, "XC%HFX_KERNEL")
+            CALL section_vals_val_get(kernel_section, "HFXSR_PRIMBAS", &
+                                      l_val=tddfpt_control%hfxsr_primbas)
             ! basis set
-            CALL create_minbas_set(qs_env, log_unit, basis_type="TDA_HFX")
+            CALL create_minbas_set(qs_env, log_unit, basis_type="TDA_HFX", &
+                                   primitive=tddfpt_control%hfxsr_primbas)
             ! admm control
             ALLOCATE (full_kernel_env%admm_control)
             full_kernel_env%admm_control%purification_method = do_admm_purify_none
