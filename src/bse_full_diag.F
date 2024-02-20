@@ -632,6 +632,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A70)') &
             'BSE|', "Excitations are built up by the following single-particle transitions:"
+         WRITE (unit_nr, '(T2,A4,T7,A66)') &
+            'BSE|', "(Phase fixed by convention X_ia,n > 0 where (ia,n) = argmax(|X|) )"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T53,A6,T71,A10)') &
             "BSE|", "n-th exc.", "i", "=>", "a", &
@@ -783,6 +785,18 @@ CONTAINS
       DEALLOCATE (num_entries_to_comm)
       NULLIFY (row_indices)
       NULLIFY (col_indices)
+
+      !Fix the arbitrary +- sign of each eigenvector by the convention
+      ! X_ia,n > 0 where argmax(|X_ia,n|)
+      IF (num_entries == 1) THEN
+         IF (eigvec_entries(1) < 0) THEN
+            eigvec_entries = -eigvec_entries
+         END IF
+      ELSE
+         IF (ABS(MAXVAL(eigvec_entries)) < ABS(MINVAL(eigvec_entries))) THEN
+            eigvec_entries = -eigvec_entries
+         END IF
+      END IF
 
       !Now sort the results according to the involved singleparticle orbitals
       ! (homo first, then virtual)
