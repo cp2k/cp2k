@@ -855,9 +855,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sort_excitations'
 
-      INTEGER                                            :: handle, ii, jj, num_entries, num_mults
+      INTEGER                                            :: handle, ii, jj, kk, num_entries, num_mults
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim_work, idx_sec_work, tmp_index
-      LOGICAL                                            :: mult_entries
+      LOGICAL                                            :: unique_entries
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries_work
 
       CALL timeset(routineN, handle)
@@ -884,8 +884,8 @@ CONTAINS
       CALL MOVE_ALLOC(eigvec_entries_work, eigvec_entries)
 
       !Now check for multiple entries in first idx to check necessity of sorting in second idx
-      CALL sort_unique(idx_prim, mult_entries)
-      IF (mult_entries) THEN
+      CALL sort_unique(idx_prim, unique_entries)
+      IF (.NOT. unique_entries) THEN
          ALLOCATE (idx_prim_work(num_entries))
          idx_prim_work = idx_prim
          ! Find duplicate entries in idx_prim
@@ -896,19 +896,18 @@ CONTAINS
                !Set all duplicate entries to 0
                idx_prim_work(ii:ii + num_mults - 1) = 0
                !Start sorting in secondary index
-               ALLOCATE (tmp_index(num_mults))
-               CALL sort(idx_sec_work(ii:ii + num_mults - 1), num_mults, tmp_index)
-
                ALLOCATE (idx_sec_work(num_mults))
                ALLOCATE (eigvec_entries_work(num_mults))
+               idx_sec_work = idx_sec(ii:ii + num_mults - 1)
+               eigvec_entries_work = eigvec_entries(ii:ii + num_mults - 1)
+               ALLOCATE (tmp_index(num_mults))
+               CALL sort(idx_sec_work, num_mults, tmp_index)
 
-               DO jj = 1, num_mults
-                  idx_sec_work(jj) = idx_sec(tmp_index(jj))
-                  eigvec_entries_work(jj) = eigvec_entries(tmp_index(jj))
-               END DO
                !Now write newly sorted indices to original arrays
-               idx_sec(ii:ii + num_mults - 1) = idx_sec_work
-               eigvec_entries(ii:ii + num_mults - 1) = eigvec_entries_work
+               DO kk = ii, ii + num_mults - 1
+                  idx_sec(kk) = idx_sec_work(kk - ii +1 )
+                  eigvec_entries(kk) = eigvec_entries_work(tmp_index(kk - ii + 1))
+               END DO
                !Deallocate work arrays
                DEALLOCATE (tmp_index)
                DEALLOCATE (idx_sec_work)

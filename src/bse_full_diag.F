@@ -632,12 +632,9 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A70)') &
             'BSE|', "Excitations are built up by the following single-particle transitions:"
-         WRITE (unit_nr, '(T2,A4,T7,A66)') &
-            'BSE|', "(Phase fixed by convention X_ia,n > 0 where (ia,n) = argmax(|X|) )"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T53,A6,T71,A10)') &
-            "BSE|", "n-th exc.", "i", "=>", "a", &
-            "X_ia^n", "|X_ia^n|^2"
+         WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T42,A12,T71,A10)') &
+            "BSE|", "n-th exc.", "i", "=>", "a", 'TDA/full BSE', "|X_ia^n|"
       END IF
       DO i_exc = 1, MIN(homo*virtual, num_exc_en)
          !Iterate through eigenvector and print values above threshold
@@ -646,8 +643,8 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             DO k = 1, num_entries
-               WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T40,F19.4,T59,F22.4)') &
-                  "BSE|", i_exc, idx_homo(k), "=>", homo + idx_virt(k), eigvec_entries(k), ABS(eigvec_entries(k))**2
+               WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T48,A6,T59,F22.4)') &
+                  "BSE|", i_exc, idx_homo(k), "=>", homo + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
             END DO
          END IF
 
@@ -788,15 +785,19 @@ CONTAINS
 
       !Fix the arbitrary +- sign of each eigenvector by the convention
       ! X_ia,n > 0 where argmax(|X_ia,n|)
-      IF (num_entries == 1) THEN
-         IF (eigvec_entries(1) < 0) THEN
-            eigvec_entries = -eigvec_entries
-         END IF
-      ELSE
-         IF (ABS(MAXVAL(eigvec_entries)) < ABS(MINVAL(eigvec_entries))) THEN
-            eigvec_entries = -eigvec_entries
-         END IF
-      END IF
+
+      !MG Feb 24: Instead of using that, we directly print the absolute value of |X_ia,n|,
+      !     since there are additional degrees of freedom for the single particle orbitals
+
+      ! IF (num_entries == 1) THEN
+      !    IF (eigvec_entries(1) < 0) THEN
+      !       eigvec_entries = -eigvec_entries
+      !    END IF
+      ! ELSE
+      !    IF (ABS(MAXVAL(eigvec_entries)) < ABS(MINVAL(eigvec_entries))) THEN
+      !       eigvec_entries = -eigvec_entries
+      !    END IF
+      ! END IF
 
       !Now sort the results according to the involved singleparticle orbitals
       ! (homo first, then virtual)
