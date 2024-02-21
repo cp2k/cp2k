@@ -855,7 +855,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sort_excitations'
 
-      INTEGER                                            :: handle, ii, jj, kk, num_entries, num_mults
+      INTEGER                                            :: handle, ii, kk, num_entries, num_mults
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim_work, idx_sec_work, tmp_index
       LOGICAL                                            :: unique_entries
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries_work
@@ -905,7 +905,7 @@ CONTAINS
 
                !Now write newly sorted indices to original arrays
                DO kk = ii, ii + num_mults - 1
-                  idx_sec(kk) = idx_sec_work(kk - ii +1 )
+                  idx_sec(kk) = idx_sec_work(kk - ii + 1)
                   eigvec_entries(kk) = eigvec_entries_work(tmp_index(kk - ii + 1))
                END DO
                !Deallocate work arrays
