@@ -1,4 +1,4 @@
-109
+110
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -107,7 +107,8 @@ TDDFT+SOC !5
 G0W0 direct band gap !6
 SCF+SOC direct band gap !6
 G0W0+SOC direct band gap !6
-EXCITONIC ENERGY| First Exciton for !9
+BSE|                1    Singlet State        -TDA- !6
+BSE|                1    Singlet State        -full- !6
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value
