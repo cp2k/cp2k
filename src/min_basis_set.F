@@ -14,9 +14,9 @@
 MODULE min_basis_set
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: &
-        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_sto_basis_set, &
-        get_gto_basis_set, gto_basis_set_type, init_orb_basis_set, set_sto_basis_set, srules, &
-        sto_basis_set_type
+        allocate_sto_basis_set, create_gto_from_sto_basis, create_primitive_basis_set, &
+        deallocate_gto_basis_set, deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_type, &
+        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -45,11 +45,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param unit_nr ...
 !> \param basis_type ...
+!> \param primitive ...
 ! **************************************************************************************************
-   SUBROUTINE create_minbas_set(qs_env, unit_nr, basis_type)
+   SUBROUTINE create_minbas_set(qs_env, unit_nr, basis_type, primitive)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+      LOGICAL, INTENT(IN), OPTIONAL                      :: primitive
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname, btype
@@ -57,9 +59,10 @@ CONTAINS
                                                             ub, z
       INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(:), POINTER                     :: econf
+      LOGICAL                                            :: do_primitive
       REAL(KIND=dp)                                      :: zval
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: refbasis
+      TYPE(gto_basis_set_type), POINTER                  :: pbasis, refbasis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -67,6 +70,11 @@ CONTAINS
          btype = TRIM(basis_type)
       ELSE
          btype = "MIN"
+      END IF
+      IF (PRESENT(primitive)) THEN
+         do_primitive = primitive
+      ELSE
+         do_primitive = .FALSE.
       END IF
 
       ! check for or generate reference basis
@@ -77,7 +85,7 @@ CONTAINS
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
          CALL get_ptable_info(element_symbol, ielement=z)
-         NULLIFY (refbasis)
+         NULLIFY (refbasis, pbasis)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type=btype)
          IF (.NOT. ASSOCIATED(refbasis)) THEN
             CALL get_qs_kind(qs_kind=qs_kind, mao=mao)
@@ -90,8 +98,15 @@ CONTAINS
             ! STO-3G
             ngau = 3
             CALL create_min_basis(refbasis, z, elcon, mao, ngau)
-            CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, btype)
+            IF (do_primitive) THEN
+               CALL create_primitive_basis_set(refbasis, pbasis)
+               CALL init_interaction_radii_orb_basis(pbasis, dft_control%qs_control%eps_pgf_orb)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, pbasis, btype)
+               CALL deallocate_gto_basis_set(refbasis)
+            ELSE
+               CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, btype)
+            END IF
          END IF
          IF (unit_nr > 0) THEN
             CALL get_gto_basis_set(refbasis, name=bname, nsgf=nsgf)
