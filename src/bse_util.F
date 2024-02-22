@@ -419,13 +419,15 @@ CONTAINS
       END IF
 
       ! We find global indices in S with nrow_in and ncol_in for truncation
-      DO row_idx_loc = 1, nrow_local_in
-         idx_row_in = row_indices_in(row_idx_loc)
-         DO col_idx_loc = 1, ncol_local_in
-            idx_col_in = col_indices_in(col_idx_loc)
+      DO col_idx_loc = 1, ncol_local_in
+         idx_col_in = col_indices_in(col_idx_loc)
 
-            idx_col_first = (idx_col_in - 1)/ncol_in + 1
-            idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
+         idx_col_first = (idx_col_in - 1)/ncol_in + 1
+         idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
+
+         DO row_idx_loc = 1, nrow_local_in
+            idx_row_in = row_indices_in(row_idx_loc)
+
             ! If occupied orbitals are included, these have to be handled differently
             ! due to their reversed indexing
             IF (correct_nrow) THEN
@@ -516,13 +518,15 @@ CONTAINS
       entry_counter(:) = 0
 
       ! Now we can write the actual data and indices to the send-buffer
-      DO row_idx_loc = 1, nrow_local_in
-         idx_row_in = row_indices_in(row_idx_loc)
-         DO col_idx_loc = 1, ncol_local_in
-            idx_col_in = col_indices_in(col_idx_loc)
+      DO col_idx_loc = 1, ncol_local_in
+         idx_col_in = col_indices_in(col_idx_loc)
 
-            idx_col_first = (idx_col_in - 1)/ncol_in + 1
-            idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
+         idx_col_first = (idx_col_in - 1)/ncol_in + 1
+         idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
+         
+         DO row_idx_loc = 1, nrow_local_in
+            idx_row_in = row_indices_in(row_idx_loc)
+
             ! If occupied orbitals are included, these have to be handled differently
             ! due to their reversed indexing
             IF (correct_nrow) THEN
@@ -589,12 +593,11 @@ CONTAINS
 !$OMP          i_row_global, j_col_global )
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
-            DO ii = 1, nrow_local_out
+            DO jj = 1, ncol_local_out
+               j_col_global = col_indices_out(jj)
+               DO ii = 1, nrow_local_out
 
-               i_row_global = row_indices_out(ii)
-
-               DO jj = 1, ncol_local_out
-                  j_col_global = col_indices_out(jj)
+                  i_row_global = row_indices_out(ii)
 
                   IF (i_row_global == buffer_rec(iproc)%indx(i_entry_rec, 1) .AND. &
                       j_col_global == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
