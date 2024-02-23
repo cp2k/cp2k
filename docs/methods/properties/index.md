@@ -6,7 +6,7 @@ titlesonly:
 maxdepth: 2
 ---
 optical
-x-ray
+x-ray/index
 infrared
 raman
 bandstructure_gw
