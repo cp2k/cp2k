@@ -5,7 +5,7 @@
 titlesonly:
 maxdepth: 1
 ---
-time-dependent-dft
+tddft
 bethe-salpeter
 ```
 
