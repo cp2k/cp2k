@@ -5,7 +5,7 @@
 titlesonly:
 maxdepth: 2
 ---
-optical
+optical/index
 x-ray/index
 infrared
 raman

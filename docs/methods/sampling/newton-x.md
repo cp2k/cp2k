@@ -24,7 +24,7 @@ Coulomb, exchange and exchange-correlation contributions, and $\mathbf{C}$ the m
 coefficients. $\mu, \nu, \dots$ denote atomic orbitals, $i, j, \dots$ occupied molecular orbitals.
 The corresponding excited-state gradient is obtained setting up a variational Lagrangian and taking
 the derivative with respect to the nuclear coordinates $\mathbf{R}$ (see also
-[](../properties/time-dependent-dft)).
+[](../properties/optical/tddft)).
 
 By performing a TDDFPT computation, excitation energies $\Omega^M (\mathbf{R}(t))$, excited-state
 eigenvectors $\mathbf{X}^M (\mathbf{R}(t))$ and corresponding excited-state gradients
@@ -66,8 +66,8 @@ $a,b, \dots$ denote virtual molecular orbitals.
 ## General input setup
 
 The input sections for TDDFPT energy and gradient computations are described in
-[](../properties/time-dependent-dft). To furthermore provide the required CP2K output, subsequently
-read in by NEWTONX, the following print statements have to be added to the CP2K input files:
+[](../properties/optical/tddft). To furthermore provide the required CP2K output, subsequently read
+in by NEWTONX, the following print statements have to be added to the CP2K input files:
 
 - [FORCE_EVAL.PRINT.FORCES](#CP2K_INPUT.FORCE_EVAL.PRINT.FORCES): prints the excited-state forces
 - [TDDFPT.PRINT.NAMD_PRINT](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.NAMD_PRINT) with keyword
