@@ -122,7 +122,8 @@ MODULE qs_scf_post_gpw
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_chargemol,                    ONLY: write_wfx
-   USE qs_collocate_density,            ONLY: calculate_wavefunction
+   USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
+                                              calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_dos,                          ONLY: calculate_dos,&
@@ -1889,16 +1890,19 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name
-      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nd(3), ngto, &
-         niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
-         unit_nr, unit_nr_voro
+      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
+         ngto, niso, nkind, np, nr, nspins, output_unit, print_level, should_print_bqb, &
+         should_print_voro, unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
-         print_total_density, rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
-      REAL(KIND=dp)                                      :: q_max, rho_hard, rho_soft, rho_total, &
-                                                            rho_total_rspace, udvol, volume
+         print_only_elec_dens, print_total_density, rho_r_valid, voro_print_txt, write_ks, &
+         write_xc, xrd_interface
+      REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
+                                                            rho_total, rho_total_rspace, udvol, &
+                                                            volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
       REAL(KIND=dp), DIMENSION(3)                        :: dr
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: my_Q0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
@@ -1923,6 +1927,7 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(section_vals_type), POINTER                   :: dft_section, hfx_section, input, &
@@ -1932,7 +1937,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, hfx_section, &
                atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, rho_ao, rho_r, &
-               dft_section, xc_section, input, particles, subsys, matrix_vxc, v_hartree_rspace, vee)
+               dft_section, xc_section, input, particles, subsys, matrix_vxc, v_hartree_rspace, &
+               vee)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -1951,12 +1957,17 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       CALL qs_subsys_get(subsys, particles=particles)
 
-      ! Print the total density (electronic + core charge)
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
+
+      ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE"), cp_p_file)) THEN
-         NULLIFY (rho_core, rho0_s_gs)
+         NULLIFY (rho_core, rho0_s_gs, my_Q0)
+         ! check if ignoring core charge is requested
+         CALL section_vals_val_get(dft_section, &
+                                   keyword_name="PRINT%TOT_DENSITY_CUBE%ONLY_ELEC_DENS", &
+                                   l_val=print_only_elec_dens)
          append_cube = section_get_lval(input, "DFT%PRINT%TOT_DENSITY_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -1974,7 +1985,24 @@ CONTAINS
                CALL pw_transfer(rho0_s_gs, wf_r)
                CALL pw_axpy(rho_core, rho0_s_gs, -1.0_dp)
             ELSE
-               CALL pw_transfer(rho0_s_gs, wf_r)
+               IF (print_only_elec_dens) THEN
+                  CALL get_qs_env(qs_env, rho0_mpole=rho0_mpole, natom=natom)
+                  ALLOCATE (my_Q0(natom))
+                  my_Q0 = 0.0_dp
+                  nspins = dft_control%nspins
+                  ! (eta/pi)**3: normalization for 3d gaussian of form exp(-eta*r**2)
+                  norm_factor = SQRT((rho0_mpole%zet0_h/pi)**3)
+                  ! store hard part of electronic density in array
+                  DO iat = 1, natom
+                     my_Q0(iat) = SUM(rho0_mpole%mp_rho(iat)%Q0(1:nspins))*norm_factor
+                  END DO
+                  ! multiply coeff with gaussian and put on realspace grid
+                  ! coeff is gaussian prefactor. eta=gaussian exponent
+                  CALL calculate_rho_resp_all(wf_r, coeff=my_Q0, natom=natom, eta=rho0_mpole%zet0_h, qs_env=qs_env)
+                  DEALLOCATE (my_Q0)
+               ELSE
+                  CALL pw_transfer(rho0_s_gs, wf_r)
+               END IF
             END IF
          ELSE
             CALL pw_transfer(rho_core, wf_r)

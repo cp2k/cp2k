@@ -1209,6 +1209,15 @@ CONTAINS
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="only_elec_dens", &
+                          description="Print only the electronic (hard+soft) part of the density. Only works wthin"// &
+                          " the GAPW scheme where all atoms are PAW type. The hard density is approximated as the"// &
+                          " difference (n1-ñ1) where n1 is the (hard+corr) part of the density and ñ1 is the correction.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
