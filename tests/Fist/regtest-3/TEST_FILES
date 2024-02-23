@@ -35,4 +35,5 @@ flibe_nopol.inp                                        2    1.0E-14             
 fli_nopol_small1.inp                                  11    1.0E-14              2.935980450547099
 fli_nopol_small2.inp                                  11    1.0E-14              0.008731955712438
 fli_nopol_small3.inp                                  11    1.0E-14              0.000003641354401
+ch4_no_dihedrals.inp                                  11    1.0E-14              0.000354701734676
 #EOF
