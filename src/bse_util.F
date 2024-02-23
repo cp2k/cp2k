@@ -425,25 +425,25 @@ CONTAINS
          idx_col_first = (idx_col_in - 1)/ncol_in + 1
          idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
 
+         ! If occupied orbitals are included, these have to be handled differently
+         ! due to their reversed indexing
+         IF (correct_nrow) THEN
+            idx_col_first = idx_col_first - nrow_offset + 1
+            IF (idx_col_first .LE. 0) CYCLE
+         ELSE
+            IF (idx_col_first > nrow_out) EXIT
+         END IF
+         IF (correct_ncol) THEN
+            idx_col_sec = idx_col_sec - ncol_offset + 1
+            IF (idx_col_sec .LE. 0) CYCLE
+         ELSE
+            IF (idx_col_sec > ncol_out) CYCLE
+         END IF
+
+         idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
+
          DO row_idx_loc = 1, nrow_local_in
             idx_row_in = row_indices_in(row_idx_loc)
-
-            ! If occupied orbitals are included, these have to be handled differently
-            ! due to their reversed indexing
-            IF (correct_nrow) THEN
-               idx_col_first = idx_col_first - nrow_offset + 1
-               IF (idx_col_first .LE. 0) CYCLE
-            ELSE
-               IF (idx_col_first > nrow_out) EXIT
-            END IF
-            IF (correct_ncol) THEN
-               idx_col_sec = idx_col_sec - ncol_offset + 1
-               IF (idx_col_sec .LE. 0) CYCLE
-            ELSE
-               IF (idx_col_sec > ncol_out) CYCLE
-            END IF
-
-            idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
 
             send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy_proc, &
                                       fm_mat_out%matrix_struct%first_p_pos(1), nprow)
@@ -523,26 +523,26 @@ CONTAINS
 
          idx_col_first = (idx_col_in - 1)/ncol_in + 1
          idx_col_sec = MOD(idx_col_in - 1, ncol_in) + 1
-         
+
+         ! If occupied orbitals are included, these have to be handled differently
+         ! due to their reversed indexing
+         IF (correct_nrow) THEN
+            idx_col_first = idx_col_first - nrow_offset + 1
+            IF (idx_col_first .LE. 0) CYCLE
+         ELSE
+            IF (idx_col_first > nrow_out) EXIT
+         END IF
+         IF (correct_ncol) THEN
+            idx_col_sec = idx_col_sec - ncol_offset + 1
+            IF (idx_col_sec .LE. 0) CYCLE
+         ELSE
+            IF (idx_col_sec > ncol_out) CYCLE
+         END IF
+
+         idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
+
          DO row_idx_loc = 1, nrow_local_in
             idx_row_in = row_indices_in(row_idx_loc)
-
-            ! If occupied orbitals are included, these have to be handled differently
-            ! due to their reversed indexing
-            IF (correct_nrow) THEN
-               idx_col_first = idx_col_first - nrow_offset + 1
-               IF (idx_col_first .LE. 0) CYCLE
-            ELSE
-               IF (idx_col_first > nrow_out) EXIT
-            END IF
-            IF (correct_ncol) THEN
-               idx_col_sec = idx_col_sec - ncol_offset + 1
-               IF (idx_col_sec .LE. 0) CYCLE
-            ELSE
-               IF (idx_col_sec > ncol_out) CYCLE
-            END IF
-
-            idx_col_out = idx_col_sec + (idx_col_first - 1)*ncol_out
 
             send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy_proc, &
                                       fm_mat_out%matrix_struct%first_p_pos(1), nprow)
