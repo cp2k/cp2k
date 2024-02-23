@@ -7,8 +7,7 @@ maxdepth: 1
 ---
 gpw
 gapw
-hartree-fock
-ri_hfx
+hartree-fock/index
 local_ri
 constrained
 linear_scaling

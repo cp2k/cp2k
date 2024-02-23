@@ -1,4 +1,4 @@
-# Hartree-Fock Exchange
+# HFX with ADMM
 
 Unfortunately no one has gotten around to writing this page yet :-(
 
