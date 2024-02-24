@@ -3,7 +3,7 @@
 ```{toctree}
 ---
 titlesonly:
-maxdepth: 1
+maxdepth: 2
 ---
 kim-gordon
 qm_qm
