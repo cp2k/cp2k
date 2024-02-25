@@ -77,8 +77,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="xc_functional", &
-                          description="The xc functional to use. For Functionals "// &
-                          "of the LibXC library use the appropriate section.", &
+                          description="The eXchange-Correlation functional to use.", &
                           n_keywords=0, n_subsections=4, repeats=.FALSE., &
                           citations=(/Ortiz1994, Becke1988, Perdew1996, Zhang1998, Lee1988, &
                                       Heyd2004, Vosko1980, Goedecker1996, Perdew1981, &
