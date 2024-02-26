@@ -264,7 +264,6 @@ CONTAINS
          DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
       TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
 
-
       CALL timeset(routineN, handle)
 
       CALL cite_reference(DelBen2013)
@@ -657,7 +656,7 @@ CONTAINS
          CALL cp_fm_release(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw(1))
       END IF
-      
+
       IF (do_bse) THEN
          CALL cp_fm_release(fm_mat_S_ij_bse(1))
          CALL cp_fm_release(fm_mat_S_ab_bse(1))
@@ -1168,7 +1167,6 @@ CONTAINS
       TYPE(im_time_force_type)                           :: force_data
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
-
 
       CALL timeset(routineN, handle)
 
