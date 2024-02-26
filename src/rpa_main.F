@@ -264,7 +264,6 @@ CONTAINS
          DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
       TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
 
-!MG to del
 
       CALL timeset(routineN, handle)
 
@@ -602,9 +601,6 @@ CONTAINS
 
       ! for Bethe-Salpeter, we need other matrix fm_mat_S
       IF (do_bse) THEN
-         !MG debug
-         ! print *,"MG: unit nr is ",unit_nr
-         ! CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before BSE action in rpa_main")
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, [dimen_homo_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
@@ -630,10 +626,6 @@ CONTAINS
 
       ! Now start the RPA calculation
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
-      !MG Check if replaceing second fm_mat_S_ij_bse by fm_mat_S_ab_bse works out
-      !MG debug
-      !print *,"MG: unit nr is ",unit_nr
-      !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before rpa_num_int in rpa_main")
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
@@ -665,7 +657,7 @@ CONTAINS
          CALL cp_fm_release(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw(1))
       END IF
-      !MG: originally deallocated (along fm_mat_Q_static_bse/_gemm) inside BSE Routine
+      
       IF (do_bse) THEN
          CALL cp_fm_release(fm_mat_S_ij_bse(1))
          CALL cp_fm_release(fm_mat_S_ab_bse(1))
@@ -719,8 +711,6 @@ CONTAINS
          proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BIb_C_rec_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BIb_C_rec
-
-!MG to del
 
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
@@ -1179,8 +1169,6 @@ CONTAINS
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
-!MG
-!MG to del
 
       CALL timeset(routineN, handle)
 
@@ -1481,9 +1469,6 @@ CONTAINS
 
             ELSE
 
-               !MG debug
-               !print *,"MG: unit nr is ",unit_nr
-               !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before remove scaling factors in rpa_main")
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
@@ -1500,15 +1485,12 @@ CONTAINS
                      END DO
                   END IF
                END IF
-               !MG debug
-               !print *,"MG: unit nr is ",unit_nr
-               !CALL cp_fm_write_formatted(fm_mat_S(1),unit_nr,"MG: print S before calc_mat_Q")
 
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
                                fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                               num_integ_points) !MG
+                               num_integ_points)
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
@@ -1516,7 +1498,7 @@ CONTAINS
                                   homo(2), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
                                   fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                  num_integ_points) !MG
+                                  num_integ_points)
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
@@ -1777,7 +1759,6 @@ CONTAINS
 
          CALL print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
 
-         !MG: Is this IF clause necessary?
          IF (iter_sc_gw0 == 1) THEN
             DO ispin = 1, nspins
                CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &

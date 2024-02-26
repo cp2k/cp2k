@@ -670,7 +670,7 @@ CONTAINS
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
-      !MG to debug
+                          
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) header
       END IF

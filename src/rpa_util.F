@@ -694,8 +694,9 @@ CONTAINS
 
       CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, &
                            fm_mat_Q, dgemm_counter)
-      !MG: fm_mat_Q_static_bse_gemm does not enter W_ijab (A matrix in TDA), but only full ABBA (since only B_ij_bar enters W_ijab)
-      !MG: Changing jquad, since omega=0 is at last idx
+      ! fm_mat_Q_static_bse_gemm does not enter W_ijab (A matrix in TDA), but only full ABBA 
+      ! (since only B_ij_bar enters W_ijab)
+      ! Changing jquad, since omega=0 is at last idx
       IF (do_bse .AND. jquad == num_integ_points) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
       END IF
