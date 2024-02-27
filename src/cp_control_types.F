@@ -480,7 +480,7 @@ MODULE cp_control_types
       !> for full kernel, do we have short-range/long-range HFX and/or Kxc potential
       LOGICAL                              :: do_hfxsr = .FALSE.
       LOGICAL                              :: hfxsr_re_int = .TRUE.
-      LOGICAL                              :: hfxsr_primbas = .FALSE.
+      INTEGER                              :: hfxsr_primbas = 0
       LOGICAL                              :: do_hfxlr = .FALSE.
       REAL(KIND=dp)                        :: hfxlr_rcut = 0.0_dp, hfxlr_scale = 0.0_dp
       LOGICAL                              :: do_exck = .FALSE.
