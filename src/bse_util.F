@@ -112,21 +112,21 @@ CONTAINS
                           ncol_block=ncol_block_in)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_out%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_out%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_out%name, nrow_block_out
-         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_out%name, ncol_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_out%name, nrow_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_out%name, ncol_block_out
 
-         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_in%name, nrow_block_in
-         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_in%name, ncol_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_in%name, nrow_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_in%name, ncol_block_in
       END IF
 
       ! Use scalapack wrapper to find process index in A, where ijab -> iajb is needed
@@ -159,7 +159,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A27)') 'BSE|', 'Communicating entry numbers'
+         WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
       CALL para_env_out%alltoall(num_entries_send, num_entries_rec, 1)
@@ -168,7 +168,7 @@ CONTAINS
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A18)') 'BSE|', 'Allocating buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
       ! Buffers for entries and their indices
@@ -208,7 +208,7 @@ CONTAINS
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_mat_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A18,A10,A13)') 'BSE|', 'Writing data from ', fm_mat_in%name, ' into buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_mat_in%name, ' into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
@@ -249,7 +249,7 @@ CONTAINS
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A21)') 'BSE|', 'Communicating buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
       ! communicate the buffer
@@ -260,7 +260,7 @@ CONTAINS
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_mat_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A24,A10)') 'BSE|', 'Writing from buffers to ', fm_mat_out%name
+         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_mat_out%name
       END IF
 
       ! fill fm_mat_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
@@ -286,7 +286,7 @@ CONTAINS
 
       CALL timeset(routineN//"_7_cleanup", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A41)') 'BSE|', 'Starting cleanup of communication buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
       !Clean up all the arrays from the communication process
@@ -394,21 +394,21 @@ CONTAINS
                           ncol_block=ncol_block_in)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_out%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_out%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_out%name, &
             fm_mat_out%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_out%name, nrow_block_out
-         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_out%name, ncol_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_out%name, nrow_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_out%name, ncol_block_out
 
-         WRITE (unit_nr, '(T2,A4,T7,A14,A10,T71,I10)') 'BSE|', 'Row number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A4,T7,A17,A10,T71,I10)') 'BSE|', 'Column number of ', fm_mat_in%name, &
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_in%name, &
             fm_mat_in%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A4,T7,A18,A10,T71,I10)') 'BSE|', 'Row block size of ', fm_mat_in%name, nrow_block_in
-         WRITE (unit_nr, '(T2,A4,T7,A21,A10,T71,I10)') 'BSE|', 'Column block size of ', fm_mat_in%name, ncol_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_in%name, nrow_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_in%name, ncol_block_in
       END IF
 
       ! We find global indices in S with nrow_in and ncol_in for truncation
@@ -455,7 +455,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A27)') 'BSE|', 'Communicating entry numbers'
+         WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
       CALL para_env_out%alltoall(num_entries_send, num_entries_rec, 1)
@@ -464,7 +464,7 @@ CONTAINS
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A18)') 'BSE|', 'Allocating buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
       ! Buffers for entries and their indices
@@ -504,7 +504,7 @@ CONTAINS
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_mat_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A18,A10,A13)') 'BSE|', 'Writing data from ', fm_mat_in%name, ' into buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_mat_in%name, ' into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
@@ -562,7 +562,7 @@ CONTAINS
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A21)') 'BSE|', 'Communicating buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
       ! communicate the buffer
@@ -573,7 +573,7 @@ CONTAINS
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_mat_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A24,A10)') 'BSE|', 'Writing from buffers to ', fm_mat_out%name
+         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_mat_out%name
       END IF
 
       ! fill fm_mat_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
@@ -599,7 +599,7 @@ CONTAINS
 
       CALL timeset(routineN//"_7_cleanup", handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A41)') 'BSE|', 'Starting cleanup of communication buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
       !Clean up all the arrays from the communication process

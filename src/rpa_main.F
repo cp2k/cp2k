@@ -1116,9 +1116,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
       INTEGER :: count_ev_sc_GW, cut_memory, diag_est, group_size_P, gw_corr_lev_tot, handle, &
-         handle3, homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, &
-         mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         Pspin, Qspin, size_P, virtual_red
+         handle3, handle_bse, homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, &
+         min_bsize, mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, &
+         num_fit_points, Pspin, Qspin, size_P, virtual_red
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1726,6 +1726,7 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
+         CALL timeset("postproc_BSE", handle_bse)
          bse_full_diag = .FALSE.
          bse_iterat_diag = .FALSE.
          bse_tda = .FALSE.
@@ -1831,6 +1832,7 @@ CONTAINS
             DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)
          END IF
 
+         CALL timestop(handle_bse)
       END IF
 
       IF (my_do_gw) THEN

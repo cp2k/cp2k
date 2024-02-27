@@ -133,7 +133,7 @@ CONTAINS
                          matrix_c=fm_mat_A)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A16)') 'BSE|', 'Allocated A_iajb'
+         WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
       !W_ijab
@@ -142,7 +142,7 @@ CONTAINS
                          matrix_c=fm_mat_W)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A16)') 'BSE|', 'Allocated W_ijab'
+         WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
 
       ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
@@ -237,7 +237,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A16)') 'BSE|', 'Allocated B_iajb'
+         WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
 
       !MG to do: speed up by IF(bse_spin_config) to check for necessity of gemm?
@@ -316,7 +316,7 @@ CONTAINS
       CALL cp_fm_create(fm_mat_work_product, fm_mat_A%matrix_struct)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A19)') 'BSE|', 'Created work arrays'
+         WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
       END IF
 
       !Add/Substract B
@@ -359,7 +359,7 @@ CONTAINS
       CALL cp_fm_release(fm_mat_work_product)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A4,T10,A36)') 'BSE|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
+         WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
       END IF
 
       CALL timestop(handle)
