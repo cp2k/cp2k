@@ -57,7 +57,7 @@
       &XC
         &HFX_KERNEL
           DO_HFXSR T
-          HFXSR_PRIMBAS
+          HFXSR_PRIMBAS 3
           &HF
             FRACTION 0.20
             &HF_INFO ON

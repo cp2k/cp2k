@@ -51,15 +51,14 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
-      LOGICAL, INTENT(IN), OPTIONAL                      :: primitive
+      INTEGER, INTENT(IN), OPTIONAL                      :: primitive
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname, btype
-      INTEGER                                            :: ikind, lb, mao, ne, ngau, nkind, nsgf, &
-                                                            ub, z
+      INTEGER                                            :: ikind, lb, mao, ne, ngau, nkind, nprim, &
+                                                            nsgf, ub, z
       INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL                                            :: do_primitive
       REAL(KIND=dp)                                      :: zval
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: pbasis, refbasis
@@ -72,9 +71,9 @@ CONTAINS
          btype = "MIN"
       END IF
       IF (PRESENT(primitive)) THEN
-         do_primitive = primitive
+         nprim = primitive
       ELSE
-         do_primitive = .FALSE.
+         nprim = -1
       END IF
 
       ! check for or generate reference basis
@@ -95,15 +94,17 @@ CONTAINS
             ub = UBOUND(econf, 1)
             ne = ub - lb
             elcon(0:ne) = econf(lb:ub)
-            ! STO-3G
-            ngau = 3
-            CALL create_min_basis(refbasis, z, elcon, mao, ngau)
-            IF (do_primitive) THEN
+            IF (nprim > 0) THEN
+               ngau = nprim
+               CALL create_min_basis(refbasis, z, elcon, mao, ngau)
                CALL create_primitive_basis_set(refbasis, pbasis)
                CALL init_interaction_radii_orb_basis(pbasis, dft_control%qs_control%eps_pgf_orb)
                CALL add_basis_set_to_container(qs_kind%basis_sets, pbasis, btype)
                CALL deallocate_gto_basis_set(refbasis)
             ELSE
+               ! STO-3G
+               ngau = 3
+               CALL create_min_basis(refbasis, z, elcon, mao, ngau)
                CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
                CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, btype)
             END IF

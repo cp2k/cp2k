@@ -880,9 +880,9 @@ CONTAINS
       CALL keyword_release(keyword)
       NULLIFY (subsection, keyword)
       CALL keyword_create(keyword, __LOCATION__, name="HFXSR_PRIMBAS", &
-                          description="Default ADMM basis in HFXSR is primitive", &
-                          usage="HFXSR_PRIMBAS T/F", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+                          description="Default number of primitives in ADMM basis in HFXSR. "// &
+                          "0 indicates the use of a contracted minimal basis. ", &
+                          usage="HFXSR_PRIMBAS 3", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
