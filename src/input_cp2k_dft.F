@@ -51,7 +51,8 @@ MODULE input_cp2k_dft
         tddfpt_singlet, tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, &
         use_mom_ref_zero, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, &
         weight_type_unit, &
-        rtp_method_tddft, rtp_method_gw, rtp_tdagw_ham_ks, rtp_tdagw_ham_g0w0
+        rtp_method_tddft, rtp_method_gw, rtp_tdagw_ham_ks, rtp_tdagw_ham_g0w0,&
+        rtp_tdagw_hartree_dbt, rtp_tdagw_hartree_pw
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -1696,6 +1697,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! Marek : Which method to use for Hartree term evaluation
+      CALL keyword_create(keyword, __LOCATION__, name="HARTREE_METHOD", &
+                          description="Which method to use for Hartree term evaluation"// &
+                                      " in the TD-aGW method for RTP.",&
+                          usage="HARTREE_METHOD DBT", &
+                          default_i_val=rtp_tdagw_hartree_dbt,&
+                          enum_c_vals=s2a("DBT", "PW"),&
+                          enum_i_vals=(/rtp_tdagw_hartree_dbt, rtp_tdagw_hartree_pw/),&
+                          enum_desc=s2a("Use sparse tensor representation of Hartree term.",&
+                                        "Use plane wave representation of Hartree term."))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="PROPAGATOR", &
                           description="Which propagator should be used for the orbitals", &
                           usage="PROPAGATOR ETRS", default_i_val=do_etrs, &
@@ -1961,6 +1975,16 @@ CONTAINS
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
                                        filename="rho")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+      ! Marek : Moments ASCII print
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENTS", &
+                                       description="Prints the time-dependent electronic moments at"// &
+                                                   "iterations in clear text to a file.", &
+                                       print_level=high_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="MOMENTS")
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 

@@ -18,11 +18,14 @@ MODULE rt_tdagw_types
                                               cp_fm_release,&
                                               cp_fm_create,&
                                               cp_fm_set_all,&
+                                              cp_fm_write_formatted,&
                                               cp_fm_to_fm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert
    USE dbcsr_api,                       ONLY: dbcsr_type,&
                                               dbcsr_p_type,&
                                               dbcsr_create,&
                                               dbcsr_release,&
+                                              dbcsr_print,&
                                               dbcsr_copy
    USE dbt_api,                         ONLY: dbt_type,&
                                               dbt_destroy
@@ -37,7 +40,11 @@ MODULE rt_tdagw_types
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE moments_utils,                   ONLY: get_reference_point
    USE matrix_exp,                      ONLY: get_nsquare_norder
+   USE input_constants,                 ONLY: use_mom_ref_coac
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
 
 #include "../base/base_uses.f90"
 
@@ -102,6 +109,8 @@ MODULE rt_tdagw_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
       INTEGER, DIMENSION(:,:), POINTER                          :: orders
+      INTEGER                                                   :: hartree_method
+      INTEGER                                                   :: ham_single_particle_type
 
    END TYPE tdagw_env_type
 
@@ -118,6 +127,10 @@ CONTAINS
                                                                    rho_dbcsr
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, re, im
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: custom_ref_point
+      REAL(kind=dp), DIMENSION(3)                               :: rpoint
+      ! TYPE(cp_fm_type)                                          :: S_inv_fm
+      TYPE(section_vals_type), POINTER                          :: input
       ! Extract the other types first
 
       CALL get_qs_env(qs_env,&
@@ -125,7 +138,8 @@ CONTAINS
                       rtp=rtp,&
                       matrix_s=matrix_s,&
                       mos=mos,&
-                      dft_control=tdagw_env%dft_control)
+                      dft_control=tdagw_env%dft_control,&
+                      input=input)
 
       ! Number of spins
       tdagw_env%n_spin = bs_env%n_spin
@@ -142,6 +156,11 @@ CONTAINS
       tdagw_env%sim_dt = rtp%dt
       ! Threshold for etrs is taken from the eps_energy from RT propagation
       tdagw_env%etrs_threshold = tdagw_env%dft_control%rtp_control%eps_ener
+      ! Recover custom options
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%HARTREE_METHOD",&
+                                i_val=tdagw_env%hartree_method)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%TDAGW_HAMILTONIAN",&
+                                i_val=tdagw_env%ham_single_particle_type)
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
@@ -172,7 +191,13 @@ CONTAINS
          CALL dbcsr_copy(moments_dbcsr_p(i)%matrix, matrix_s(1)%matrix)
       END DO
       ! Run the moment calculation
-      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1)
+      ! TODO : Read custom reference point from input
+      ! TODO : Maybe use the moments section that is present in DFT?
+      ALLOCATE(custom_ref_point(3), source=0.0_dp)
+      rpoint(:) = 0.0_dp
+      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=custom_ref_point)
+      DEALLOCATE(custom_ref_point)
+      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
       ALLOCATE(tdagw_env%moments(3))
       DO i=1,3
@@ -202,6 +227,12 @@ CONTAINS
       ! Create the inverse overlap matrix, for use in density propagation 
       CALL s_matrices_create(matrix_s, rtp)
       CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)
+      ! TODO : Check that dbcsr overlap inverse coincides with fm overlap inverse
+      ! CALL dbcsr_print(tdagw_env%S_inv)
+      ! CALL cp_fm_create(S_inv_fm, bs_env%fm_s_Gamma%matrix_struct)
+      ! CALL cp_fm_invert(bs_env%fm_s_Gamma, S_inv_fm)
+      ! CALL cp_fm_write_formatted(S_inv_fm, unit=6)
+      ! CALL cp_fm_release(S_inv_fm)
 
       ! Copy the single particle hamiltonian
       ALLOCATE(tdagw_env%ham_single_particle(tdagw_env%n_spin))
