@@ -259,6 +259,8 @@ CONTAINS
          ! Update the simulation time
          tdagw_env%sim_time = REAL(i, dp)*rtp%dt
          tdagw_env%sim_step = i
+         PRINT *, "metric rho, RE spin", j, "time", tdagw_env%sim_time, cp_fm_norm(tdagw_env%rho(re)%matrix, "M")
+         PRINT *, "metric rho, IM spin", j, "time", tdagw_env%sim_time, cp_fm_norm(tdagw_env%rho(im)%matrix, "M")
          ! Start the enforced time reversal method
          ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
          ! and using the Hamiltonian at time (t), it propagates density from time (t) while ensuring that the density
@@ -608,11 +610,11 @@ CONTAINS
                                                             prefactor
       LOGICAL                                            :: converged
       ! TODO : Consult/think about using complex routines and types
-      ! (ham_exp(re) + i * ham_exp(im)) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re)^T - i * ham_exp(im)^T) = 
-      ! + ham_exp(re) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
-      ! + ham_exp(im) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
-      ! + i * ham_exp(im) * (rho_full(re) * ham_exp(re)^T + rho_full(im) * ham_exp(im)^T) | Term 1
-      ! - i * ham_exp(re) * (rho_full(re) * ham_exp(im)^T - rho_full(im) * ham_exp(re)^T) | Term 2
+      ! (ham_exp(re)^T - i * ham_exp(im)^T) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re) + i * ham_exp(im)) = 
+      ! + ham_exp(re)^T * (rho_full(re) * ham_exp(re) - rho_full(im) * ham_exp(im)) | Term 1
+      ! + ham_exp(im)^T * (rho_full(re) * ham_exp(im) + rho_full(im) * ham_exp(re)) | Term 2
+      ! - i * ham_exp(im)^T * (rho_full(re) * ham_exp(re) - rho_full(im) * ham_exp(im)) | Term 1
+      ! + i * ham_exp(re)^T * (rho_full(re) * ham_exp(im) + rho_full(im) * ham_exp(re)) | Term 2
       ! workspace 2 - real part, workspace 3 - imag part
       ! Real part
       ! Term 1 - right multiplication first
@@ -944,6 +946,115 @@ CONTAINS
          electron_n_im = electron_n_im + electron_n_buffer
       END DO
    END SUBROUTINE get_electron_number
+
+! **************************************************************************************************
+!> \brief Outputs the expectation value of moments from a given density matrix
+!> \note  Moments matrix is provided by the tdagw_env, uses rho_workspace(1:3) 
+!> \param tdagw_env Entry point - tdagw environment
+!> \param rho Density matrix in AO basis
+!> \param rtp_section RTP section of the input parameters, where moments destination may be present
+! **************************************************************************************************
+   SUBROUTINE output_moments(tdagw_env, rho, mos, rtp_section)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
+      TYPE(section_vals_type), POINTER                   :: rtp_section
+      CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments"
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: i,j,re,im,&
+                                                            moments_unit_re,&
+                                                            moments_unit_im
+      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
+      REAL(kind=dp), DIMENSION(3)                        :: moments
+      
+      ! Start by getting the relevant file unit
+      MARK_USED(mos)
+      file_labels(1) = "_SPIN_A_RE.dat"
+      file_labels(2) = "_SPIN_A_IM.dat"
+      file_labels(3) = "_SPIN_B_RE.dat"
+      file_labels(4) = "_SPIN_B_IM.dat"
+      logger => cp_get_default_logger()
+      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         moments_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(re))
+         moments_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(im))
+         ! If, for any reason, the file unit is not provided, skip to next cycle immediately
+         ! TODO : Either centralize or let user define the output format
+         ! TODO : Let user define the output units
+         ! TODO : Handle case of complex molecular orbital matrix?
+         ! TODO : Specify output units in config
+         IF (.NOT.(moments_unit_re == -1)) THEN
+            DO i=1,3
+               ! S_inv * r
+               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%moments(i)%matrix,&
+                                            tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
+               ! S_inv * rho
+               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, rho(re)%matrix,&
+                                            tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
+               ! Need to transpose due to the definition of trace function
+               CALL cp_fm_transpose(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(3)%matrix)
+               ! Tr(S_inv * rho * S_inv * r)
+               CALL cp_fm_trace(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix, moments(i))
+            !   ! r * C
+            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,tdagw_env%moments(i)%matrix,mos(j),0.0_dp,&
+            !                   tdagw_env%rho_workspace(1)%matrix)
+            !   ! C^T * r * C
+            !   CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
+            !                   tdagw_env%rho_workspace(2)%matrix)
+            !   ! C * C^T * r * C
+            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
+            !                   tdagw_env%rho_workspace(1)%matrix)
+            !   ! rho * C * C^T * r * C
+            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,rho(re)%matrix,tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
+            !                   tdagw_env%rho_workspace(2)%matrix)
+            !   ! Tr( C^T * rho * C * C^T * r * C)
+            !   CALL cp_fm_trace(mos(j), tdagw_env%rho_workspace(2)%matrix, moments(i))
+            !   PRINT *, "Cart index", i, "moment", moments(i)
+            END DO
+            ! Output to the file
+            WRITE(moments_unit_re, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
+                moments(2), moments(3)
+         END IF
+         IF (.NOT.(moments_unit_im == -1)) THEN
+            DO i=1,3
+               ! S_inv * r
+               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%moments(i)%matrix,&
+                                            tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
+               ! S_inv * rho
+               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, rho(im)%matrix,&
+                                            tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
+               ! Need to transpose due to the definition of trace function
+               CALL cp_fm_transpose(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(3)%matrix)
+               ! Tr(S_inv * rho * S_inv * r)
+               CALL cp_fm_trace(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix, moments(i))
+            !   ! r * C
+            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,tdagw_env%moments(i)%matrix,mos(j),0.0_dp,&
+            !                   tdagw_env%rho_workspace(1)%matrix)
+            !   ! C^T * r * C
+            !   CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
+            !                   tdagw_env%rho_workspace(2)%matrix)
+            !   ! C * C^T * r * C
+            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
+            !                   tdagw_env%rho_workspace(1)%matrix)
+            !   ! rho * C * C^T * r * C
+            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
+            !                   1.0_dp,rho(im)%matrix,tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
+            !                   tdagw_env%rho_workspace(2)%matrix)
+            !   ! Tr( C^T * rho * C * C^T * r * C)
+            !   CALL cp_fm_trace(mos(j), tdagw_env%rho_workspace(2)%matrix, moments(i))
+            END DO
+            ! Output to the file
+            WRITE(moments_unit_im, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
+                moments(2), moments(3)
+         END IF
+      END DO
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
@@ -1525,5 +1636,112 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, using PW approach
+!> \param qs_env Entry point
+!> \param pw_env Planewave environment for FT calculations
+!> \param rho_ao Density matrix in ao basis
+!> \param v_ao Overwritten by the Hartree matrix in the atomic orbital basis
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE get_hartree_pw(qs_env, rho_ao, v_ao)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: rho_ao
+      TYPE(cp_fm_p_type), INTENT(OUT)                    :: v_ao
+      CHARACTER(len=*), PARAMETER                        :: routineN = "get_hartree_pw"
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(qs_ks_env_type), POINTER                      :: qs_ks_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_gspace_tot,&
+                                                            v_hartree_gspace,&
+                                                            v_hartree_rspace
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_gspace, rho_rspace
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dbcsr
+      TYPE(dbcsr_p_type)                                 :: v_dbcsr
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      INTEGER                                            :: i, re, im, n_spin
+      ! TODO : Imaginary contributions from Hartree? Are these physical?
+
+      ! Get environments and parameters from qs_env
+      CALL get_qs_env(qs_env,&
+                      dft_control=dft_control,&
+                      pw_env=pw_env,&
+                      ks_env=qs_ks_env,&
+                      matrix_s=matrix_s)
+      n_spin = dft_control%nspins
+      ! Initialise rho_dbcsr
+      ALLOCATE(rho_dbcsr(n_spin))
+      @:SPIN_DO(i, re, im, n_spin)
+         NULLIFY(rho_dbcsr(re)%matrix)
+         ALLOCATE(rho_dbcsr(re)%matrix)
+         CALL dbcsr_create(rho_dbcsr(re)%matrix, name="Rho dbcsr", template=matrix_s(i)%matrix)
+         CALL copy_fm_to_dbcsr(rho_ao(re)%matrix, rho_dbcsr(re)%matrix)
+         NULLIFY(rho_dbcsr(re)%matrix)
+         ALLOCATE(rho_dbcsr(re)%matrix)
+         CALL dbcsr_create(rho_dbcsr(im)%matrix, name="Rho dbcsr", template=matrix_s(i)%matrix)
+         CALL copy_fm_to_dbcsr(rho_ao(im)%matrix, rho_dbcsr(im)%matrix)
+      END DO
+      ! Initialise v_dbcsr
+      ALLOCATE(v_dbcsr%matrix)
+      CALL dbcsr_create(v_dbcsr%matrix, template=matrix_s(1)%matrix)
+      ! TODO : Redo via block reservations?
+      ! TODO : Take into account symmetry present in integrate_v_rspace
+      CALL dbcsr_copy(v_dbcsr%matrix, rho_dbcsr(1)%matrix)
+      CALL dbcsr_scale(v_dbcsr%matrix, 0.0_dp)
+      ! Get the task pool and poisson environment to create pw types
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+      ! Allocate the densities in g-space and r-space, for each spin
+      ALLOCATE(rho_gspace(n_spin))
+      ALLOCATE(rho_rspace(n_spin))
+      CALL auxbas_pw_pool%create_pw(rho_gspace_tot, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_zero(rho_gspace_tot)
+      @:SPIN_DO(i,re,im,n_spin)
+         ! Prepare the total density
+         CALL auxbas_pw_pool%create_pw(rho_gspace(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_zero(rho_gspace(i))
+         CALL auxbas_pw_pool%create_pw(rho_rspace(i), use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_zero(rho_rspace(i))
+         ! get the density in rspace and gspace - rho_dbcsr has to be target
+         ! CALL calculate_rho_elec(rho_dbcsr(i)%matrix, rho=rho_rspace(i), rho_gspace=rho_gspace(i),&
+         !                         ks_env=qs_ks_env, total_rho=total_rho)
+         ! PRINT *, "Total rho for spin type ", i, total_rho
+         CALL calculate_rho_elec(rho_dbcsr(i)%matrix, rho=rho_rspace(i), rho_gspace=rho_gspace(i),&
+                                 ks_env=qs_ks_env)
+         ! Do not need rho rspace
+         CALL auxbas_pw_pool%give_back_pw(rho_rspace(i))
+         CALL pw_axpy(rho_gspace(i), rho_gspace_tot)
+         CALL auxbas_pw_pool%give_back_pw(rho_gspace(i))
+      END DO
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_zero(v_hartree_gspace)
+      ! Use the g-space density to determine the Hartree in g-space
+      CALL pw_poisson_solve(poisson_env, rho_gspace_tot, vhartree=v_hartree_gspace)
+      CALL auxbas_pw_pool%give_back_pw(rho_gspace_tot)
+      ! Transfer to real space
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_zero(v_hartree_rspace)
+      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+      ! Scale by volume element
+      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
+      ! integrate in rspace
+      ! Copy high level in order to create relevant blocks (that is all blocks)
+      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, hmat=v_dbcsr, pmat=rho_dbcsr(1), qs_env=qs_env, calculate_forces=.FALSE.)
+      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
+      DEALLOCATE(rho_gspace)
+      DEALLOCATE(rho_rspace)
+      CALL copy_dbcsr_to_fm(v_dbcsr%matrix, v_ao%matrix)
+      CALL dbcsr_release(v_dbcsr%matrix)
+      DEALLOCATE(v_dbcsr%matrix)
+      @:SPIN_DO(i, re, im, n_spin)
+         CALL dbcsr_release(rho_dbcsr(re)%matrix)
+         CALL dbcsr_release(rho_dbcsr(im)%matrix)
+      END DO
+      !CALL dbcsr_release(rho_dbcsr)
+      DEALLOCATE(rho_dbcsr)
    END SUBROUTINE
 END MODULE rt_tdagw
