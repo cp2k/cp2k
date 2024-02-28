@@ -1889,13 +1889,12 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
-      CHARACTER(LEN=default_string_length)               :: name
+      CHARACTER(LEN=default_string_length)               :: name, print_density
       INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
-         ngto, niso, nkind, np, nr, nspins, output_unit, print_level, should_print_bqb, &
-         should_print_voro, unit_nr, unit_nr_voro
+         ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
+         unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
-         print_only_elec_dens, print_total_density, rho_r_valid, voro_print_txt, write_ks, &
-         write_xc, xrd_interface
+         rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
                                                             rho_total, rho_total_rspace, udvol, &
                                                             volume
@@ -1963,11 +1962,7 @@ CONTAINS
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE"), cp_p_file)) THEN
-         NULLIFY (rho_core, rho0_s_gs, my_Q0)
-         ! check if ignoring core charge is requested
-         CALL section_vals_val_get(dft_section, &
-                                   keyword_name="PRINT%TOT_DENSITY_CUBE%ONLY_ELEC_DENS", &
-                                   l_val=print_only_elec_dens)
+         NULLIFY (rho_core, rho0_s_gs)
          append_cube = section_get_lval(input, "DFT%PRINT%TOT_DENSITY_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -1985,24 +1980,7 @@ CONTAINS
                CALL pw_transfer(rho0_s_gs, wf_r)
                CALL pw_axpy(rho_core, rho0_s_gs, -1.0_dp)
             ELSE
-               IF (print_only_elec_dens) THEN
-                  CALL get_qs_env(qs_env, rho0_mpole=rho0_mpole, natom=natom)
-                  ALLOCATE (my_Q0(natom))
-                  my_Q0 = 0.0_dp
-                  nspins = dft_control%nspins
-                  ! (eta/pi)**3: normalization for 3d gaussian of form exp(-eta*r**2)
-                  norm_factor = SQRT((rho0_mpole%zet0_h/pi)**3)
-                  ! store hard part of electronic density in array
-                  DO iat = 1, natom
-                     my_Q0(iat) = SUM(rho0_mpole%mp_rho(iat)%Q0(1:nspins))*norm_factor
-                  END DO
-                  ! multiply coeff with gaussian and put on realspace grid
-                  ! coeff is gaussian prefactor. eta=gaussian exponent
-                  CALL calculate_rho_resp_all(wf_r, coeff=my_Q0, natom=natom, eta=rho0_mpole%zet0_h, qs_env=qs_env)
-                  DEALLOCATE (my_Q0)
-               ELSE
-                  CALL pw_transfer(rho0_s_gs, wf_r)
-               END IF
+               CALL pw_transfer(rho0_s_gs, wf_r)
             END IF
          ELSE
             CALL pw_transfer(rho_core, wf_r)
@@ -2027,8 +2005,9 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%E_DENSITY_CUBE"), cp_p_file)) THEN
          CALL section_vals_val_get(dft_section, &
-                                   keyword_name="PRINT%E_DENSITY_CUBE%TOTAL_DENSITY", &
-                                   l_val=print_total_density)
+                                   keyword_name="PRINT%E_DENSITY_CUBE%DENSITY_INCLUDE", &
+                                   c_val=print_density)
+         print_density = TRIM(print_density)
          append_cube = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -2039,7 +2018,7 @@ CONTAINS
          xrd_interface = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE")
          IF (xrd_interface) THEN
             !cube file only contains soft density (GAPW)
-            IF (dft_control%qs_control%gapw) print_total_density = .FALSE.
+            IF (dft_control%qs_control%gapw) print_density = "SOFT_DENSITY"
 
             filename = "ELECTRON_DENSITY"
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
@@ -2151,7 +2130,7 @@ CONTAINS
                                               "DFT%PRINT%E_DENSITY_CUBE")
 
          END IF
-         IF (dft_control%qs_control%gapw .AND. print_total_density) THEN
+         IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_DENSITY") THEN
             ! total density in g-space not implemented for k-points
             CPASSERT(.NOT. do_kpoints)
             ! Print total electronic density
@@ -2259,7 +2238,8 @@ CONTAINS
             END IF
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
-         ELSE
+
+         ELSE IF (print_density == "SOFT_DENSITY" .OR. .NOT. dft_control%qs_control%gapw) THEN
             IF (dft_control%nspins > 1) THEN
                CALL get_qs_env(qs_env=qs_env, &
                                pw_env=pw_env)
@@ -2337,7 +2317,107 @@ CONTAINS
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
             END IF ! nspins
-         END IF ! total density for GAPW
+
+         ELSE IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_HARD_APPROX") THEN
+            CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho0_mpole=rho0_mpole, natom=natom)
+            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+            CALL auxbas_pw_pool%create_pw(rho_elec_rspace)
+
+            NULLIFY (my_Q0)
+            ALLOCATE (my_Q0(natom))
+            my_Q0 = 0.0_dp
+
+            ! (eta/pi)**3: normalization for 3d gaussian of form exp(-eta*r**2)
+            norm_factor = SQRT((rho0_mpole%zet0_h/pi)**3)
+
+            ! store hard part of electronic density in array
+            DO iat = 1, natom
+               my_Q0(iat) = SUM(rho0_mpole%mp_rho(iat)%Q0(1:dft_control%nspins))*norm_factor
+            END DO
+            ! multiply coeff with gaussian and put on realspace grid
+            ! coeff is the gaussian prefactor, eta the gaussian exponent
+            CALL calculate_rho_resp_all(rho_elec_rspace, coeff=my_Q0, natom=natom, eta=rho0_mpole%zet0_h, qs_env=qs_env)
+            rho_hard = pw_integrate_function(rho_elec_rspace, isign=-1)
+
+            rho_soft = 0.0_dp
+            DO ispin = 1, dft_control%nspins
+               CALL pw_axpy(rho_r(ispin), rho_elec_rspace)
+               rho_soft = rho_soft + pw_integrate_function(rho_r(ispin), isign=-1)
+            END DO
+
+            rho_total_rspace = rho_soft + rho_hard
+
+            filename = "ELECTRON_DENSITY"
+            mpi_io = .TRUE.
+            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+                                           extension=".cube", middle_name=TRIM(filename), &
+                                           file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                           fout=mpi_filename)
+            IF (output_unit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=unit_nr, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                  "The electron density is written in cube file format to the file:", &
+                  TRIM(filename)
+               WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
+                  "Soft electronic charge (R-space) :", rho_soft, &
+                  "Hard electronic charge (R-space) :", rho_hard, &
+                  "Total electronic charge (R-space):", rho_total_rspace
+            END IF
+            CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
+                               particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
+                               mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+
+            !------------
+            IF (dft_control%nspins > 1) THEN
+            DO iat = 1, natom
+               my_Q0(iat) = (rho0_mpole%mp_rho(iat)%Q0(1) - rho0_mpole%mp_rho(iat)%Q0(2))*norm_factor
+            END DO
+            CALL pw_zero(rho_elec_rspace)
+            CALL calculate_rho_resp_all(rho_elec_rspace, coeff=my_Q0, natom=natom, eta=rho0_mpole%zet0_h, qs_env=qs_env)
+            rho_hard = pw_integrate_function(rho_elec_rspace, isign=-1)
+
+            CALL pw_axpy(rho_r(1), rho_elec_rspace)
+            CALL pw_axpy(rho_r(2), rho_elec_rspace, alpha=-1.0_dp)
+            rho_soft = pw_integrate_function(rho_r(1), isign=-1) &
+                       - pw_integrate_function(rho_r(2), isign=-1)
+
+            rho_total_rspace = rho_soft + rho_hard
+
+            filename = "SPIN_DENSITY"
+            mpi_io = .TRUE.
+            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+                                           extension=".cube", middle_name=TRIM(filename), &
+                                           file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                           fout=mpi_filename)
+            IF (output_unit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=unit_nr, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                  "The spin density is written in cube file format to the file:", &
+                  TRIM(filename)
+               WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
+                  "Soft part of the spin density          :", rho_soft, &
+                  "Hard part of the spin density          :", rho_hard, &
+                  "Total spin density (R-space)           :", rho_total_rspace
+            END IF
+            CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
+                               particles=particles, &
+                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+            END IF ! nspins
+            CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
+            DEALLOCATE (my_Q0)
+         END IF ! print_density
       END IF ! print key
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &

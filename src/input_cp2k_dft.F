@@ -106,7 +106,8 @@ MODULE input_cp2k_dft
       xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
       xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
       xas_tp_xfh, xas_tp_xhh, xes_tp_val, &
-      no_admm_type, admm1_type, admm2_type, admms_type, admmp_type, admmq_type
+      no_admm_type, admm1_type, admm2_type, admms_type, admmp_type, admmq_type, &
+      e_dens_total_hard_approx, e_dens_total_density, e_dens_soft_density
    USE input_cp2k_almo, ONLY: create_almo_scf_section
    USE input_cp2k_distribution, ONLY: create_distribution_section
    USE input_cp2k_ec, ONLY: create_ec_section
@@ -1142,8 +1143,14 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_CUBE", &
                                        description="Controls the printing of cube files with "// &
-                                       "the electronic density and, for LSD "// &
-                                       "calculations, the spin density", &
+                                       "the electronic density and, for LSD calculations, the spin density. In GAPW "// &
+                           "the density is divided into a hard and a soft component, and the default when using E_DENSITY_CUBE "// &
+                                       "is to approximate the hard density as a spherical gaussian and to print the smooth "// &
+                                       "density accurately. This avoids potential artefacts originating from the hard density. "// &
+                                       "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
+                                      "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
+                                       "soft density being printed. In GPW the TOTAL_DENSITY and SOFT_DENSITY options have "// &
+                                 "no effect and the printed cube will only contain the contributions from the valence electrons.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
@@ -1152,21 +1159,29 @@ CONTAINS
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="TOTAL_DENSITY", &
-                          description="Print the total electronic density in the case "// &
-                          "of a GAPW run. This keyword has only an effect, "// &
-                          "if PAW atoms are present. The default is to print "// &
-                          "only the soft part of the electronic density and "// &
-                          "to ignore the hard part. NOTE: The total density in "// &
-                          "real space might exhibit unphysical features like "// &
-                          "spikes due to the finite and thus truncated g vector "// &
-                          "expansion", &
-                          usage="TOTAL_DENSITY {logical}", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DENSITY_INCLUDE", &
+                          description="Which parts of the density to include. In GAPW the electronic density "// &
+                          "is divided into a hard and a soft component, and the default (TOTAL_HARD_APPROX) "// &
+                          "is to approximate the hard density as a spherical gaussian and to print the smooth "// &
+                          "density accurately. This avoids potential artefacts originating from the hard density. "// &
+                          "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
+                          "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
+                          "soft density being printed. In GPW these options have no effect and the cube file will "// &
+                          "only contain the valence electron density.", &
+                          usage="DENSITY_INCLUDE TOTAL_HARD_APPROX", &
+                          enum_c_vals=s2a("TOTAL_HARD_APPROX", "TOTAL_DENSITY", "SOFT_DENSITY"), &
+                          enum_desc=s2a("Print (hard+soft) density where the hard components shape is approximated", &
+                                        "Print (hard_soft) density. Only has an effect "// &
+                                        "if PAW atoms are present. NOTE: The total "// &
+                                        "in real space might exhibit unphysical features "// &
+                                        "like spikes due to the finite and thus "// &
+                                        "truncated g vector", &
+                                        "Print only the soft density"), &
+                          enum_i_vals=(/e_dens_total_hard_approx, &
+                                        e_dens_total_density, &
+                                        e_dens_soft_density/), &
+                          default_i_val=e_dens_total_hard_approx)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1182,7 +1197,7 @@ CONTAINS
                           " The resulting core dansities are needed to compute the form factors."// &
                           " If GAPW the local densities are also given in terms of a Gaussian expansion,"// &
                           " by fitting the difference between local-fhard and local-soft density for each atom."// &
-                          " In this case the keyword TOTAL_DENSITY is set to FALSE", &
+                          " In this case the keyword SOFT_DENSITY is enabled.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1200,21 +1215,18 @@ CONTAINS
                                        description="Controls printing of cube files with "// &
                                        "the total density (electrons+atomic core). Note that "// &
                                        "the value of the total density is positive where the "// &
-                                       "electron density dominates and negative where the core is.", &
+                                       "electron density dominates and negative where the core is. "// &
+                                       "When GPW is enabled this will simply print the combined density "// &
+                                       "of the valence electrons and charge-balanced core. In GAPW the "// &
+                                       "electronic density (hard+soft plus a correction term) is printed "// &
+                                       "together with the charge-balanced core density to produce a complete "// &
+                                       "representation of the total density.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="only_elec_dens", &
-                          description="Print only the electronic (hard+soft) part of the density. Only works wthin"// &
-                          " the GAPW scheme where all atoms are PAW type. The hard density is approximated as the"// &
-                          " difference (n1-ñ1) where n1 is the (hard+corr) part of the density and ñ1 is the correction.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
