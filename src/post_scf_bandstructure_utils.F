@@ -270,7 +270,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_kpoints_DOS'
 
-      INTEGER                                            :: handle, i_dim, nkp, nkp_of_kp_grid, u
+      INTEGER                                            :: handle, i_dim, nkp, u
       INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
 
       CALL timeset(routineN, handle)
@@ -296,13 +296,15 @@ CONTAINS
 
       END DO
 
-      nkp_of_kp_grid = nkp_grid(1)*nkp_grid(2)*nkp_grid(3)
-
-      IF (periodic(1) == 0 .AND. periodic(2) == 0 .AND. periodic(3) == 0) THEN
-         nkp = 1
+      ! use the k <-> -k symmetry to reduce the number of kpoints
+      IF (nkp_grid(1) > 1) THEN
+         nkp = (nkp_grid(1) + 1)/2*nkp_grid(2)*nkp_grid(3)
+      ELSE IF (nkp_grid(2) > 1) THEN
+         nkp = nkp_grid(1)*(nkp_grid(2) + 1)/2*nkp_grid(3)
+      ELSE IF (nkp_grid(3) > 1) THEN
+         nkp = nkp_grid(1)*nkp_grid(2)*(nkp_grid(3) + 1)/2
       ELSE
-         ! we include the Γ-point for periodic systems
-         nkp = nkp_of_kp_grid + 1
+         nkp = 1
       END IF
 
       kpoints%nkp_grid(1:3) = nkp_grid(1:3)
@@ -311,12 +313,9 @@ CONTAINS
       bs_env%nkp_DOS = nkp
 
       ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
-      kpoints%wkp(1:nkp_of_kp_grid) = 1.0_dp/REAL(nkp_of_kp_grid, KIND=dp)
+      kpoints%wkp(1:nkp) = 1.0_dp/REAL(nkp, KIND=dp)
 
-      CALL compute_xkp(kpoints%xkp, 1, nkp_of_kp_grid, nkp_grid)
-      ! Γ-point
-      kpoints%xkp(1:3, nkp) = 0.0_dp
-      kpoints%wkp(nkp) = 0.0_dp
+      CALL compute_xkp(kpoints%xkp, 1, nkp, nkp_grid)
 
       CALL kpoint_init_cell_index_simple(kpoints, qs_env)
 
@@ -579,7 +578,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      bs_env%n_bins_max_for_printing = 1000
+      bs_env%n_bins_max_for_printing = 5000
 
       CALL timestop(handle)
 
