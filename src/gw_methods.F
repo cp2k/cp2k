@@ -130,7 +130,7 @@ CONTAINS
       ! χ_PQ(iτ,k=0) = sum_λν [sum_µ (µν|P) G^occ_µλ(i|τ|)] [sum_σ (σλ|Q) G^vir_σν(i|τ|)]
       CALL get_mat_chi_Gamma_tau(bs_env, qs_env, bs_env%mat_chi_Gamma_tau)
 
-      ! χ_PQ(iτ,k=0) -> χ_PQ(iω,k) -> ε_PQ(iω,k) -> W_PQ(iω,k) -> W^MIC_PQ(iτ)
+      ! χ_PQ(iτ,k=0) -> χ_PQ(iω,k) -> ε_PQ(iω,k) -> W_PQ(iω,k) -> W^MIC_PQ(iτ) -> M^-1*W^MIC*M^-1
       CALL get_W_MIC(bs_env, qs_env, bs_env%mat_chi_Gamma_tau, fm_W_MIC_time)
 
       ! D_µν = sum_n^occ C_µn(k=0) C_νn(k=0), V^trunc_PQ = sum_cell_R <phi_P,0|V^trunc|phi_Q,R>
@@ -1186,15 +1186,15 @@ CONTAINS
                                     cfm_M_inv_V_sqrt_ikp, cfm_W_ikp_freq_j)
 
       ! 5. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
-      IF (.NOT. bs_env%approx_kp_extrapol) THEN
+      SELECT CASE (bs_env%approx_kp_extrapol)
+      CASE (.FALSE.)
+         ! default: standard k-point extrapolation
          CALL MIC_contribution_from_ikp(bs_env, qs_env, fm_W_MIC_freq_j, cfm_W_ikp_freq_j, ikp, &
                                         bs_env%kpoints_chi_eps_W, "RI_AUX")
-      END IF
-
-      ! 6. for approximate kpoint extrapolation: get W_PQ^MIC(iω_1) with and without k-point
-      !    extrapolation to compute the extrapolation factor f_PQ for every PQ-matrix element,
-      !    f_PQ = (W_PQ^MIC(iω_1) with extrapolation) / (W_PQ^MIC(iω_1) without extrapolation)
-      IF (bs_env%approx_kp_extrapol) THEN
+      CASE (.TRUE.)
+         ! for approximate kpoint extrapolation: get W_PQ^MIC(iω_1) with and without k-point
+         ! extrapolation to compute the extrapolation factor f_PQ for every PQ-matrix element,
+         ! f_PQ = (W_PQ^MIC(iω_1) with extrapolation) / (W_PQ^MIC(iω_1) without extrapolation)
 
          ! for ω_1, we compute the k-point extrapolated result using all k-points
          IF (j_w == 1) THEN
@@ -1218,8 +1218,7 @@ CONTAINS
                                            ikp, bs_env%kpoints_chi_eps_W, "RI_AUX", &
                                            wkp_ext=bs_env%wkp_orig)
          END IF
-
-      END IF
+      END SELECT
 
       CALL cp_cfm_release(cfm_W_ikp_freq_j)
 
