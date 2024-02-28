@@ -37,8 +37,10 @@ MODULE rt_tdagw_types
                                               dbt_distribution_new,&
                                               dbt_distribution_destroy,&
                                               dbt_create,&
+                                              dbt_copy_matrix_to_tensor,&
                                               dbt_destroy
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr
    USE qs_mo_types,                     ONLY: mo_set_type
    USE cp_control_types,                ONLY: dft_control_type
    USE qs_environment_types,            ONLY: qs_environment_type,&
@@ -120,10 +122,15 @@ MODULE rt_tdagw_types
       TYPE(dbcsr_type), POINTER                                 :: S_inv,&
                                                                    rho_dbcsr
       TYPE(dbt_type), POINTER                                   :: hartree_dbt,&
+                                                                   screened_dbt,&
+                                                                   sigma_dbt,&
+                                                                   greens_dbt,&
                                                                    t_two_plus_one,&
                                                                    t_one_plus_one,&
                                                                    t_3c_w,&
-                                                                   t_3c_work
+                                                                   t_3c_work_RI__AO_AO,&
+                                                                   t_3c_work_RI_AO__AO,&
+                                                                   t_3c_work2_RI_AO__AO
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
       INTEGER, DIMENSION(:,:), POINTER                          :: orders
@@ -318,6 +325,9 @@ CONTAINS
          CALL cp_fm_set_all(tdagw_env%hartree_curr(i)%matrix, 0.0_dp)
       END DO
 
+      ! Allocate workspaces for get_sigma
+      CALL create_sigma_workspace(tdagw_env, qs_env)
+
       ! Depending on the chosen methods, allocate extra workspace
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
@@ -325,32 +335,17 @@ CONTAINS
       
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief Releases the environment allocated structures
+!> \param tdagw_env 
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
    SUBROUTINE release_tdagw_env(tdagw_env)
       TYPE(tdagw_env_type)                                      :: tdagw_env
       CHARACTER(len=*), PARAMETER                               :: routineN = "release_tdagw_env"
       ! INTEGER                                                   :: i
 
-      ! DO i=1,3
-      !    CALL cp_fm_release(tdagw_env%moments(i))
-      ! END DO
-      ! DEALLOCATE(tdagw_env%moments)
-
-      ! DO i=1,2*tdagw_env%n_spin
-      !    CALL cp_fm_release(tdagw_env%rho(i))
-      !    CALL cp_fm_release(tdagw_env%ham_effective(i))
-      !    CALL cp_fm_release(tdagw_env%ham_workspace(i))
-      !    CALL cp_fm_release(tdagw_env%sigma_COH(i))
-      !    CALL cp_fm_release(tdagw_env%sigma_SEX(i))
-      !    CALL cp_fm_release(tdagw_env%hartree_orig(i))
-      !    CALL cp_fm_release(tdagw_env%hartree_curr(i))
-      ! END DO
-      ! DEALLOCATE(tdagw_env%rho)
-      ! DEALLOCATE(tdagw_env%ham_effective)
-      ! DEALLOCATE(tdagw_env%ham_workspace)
-      ! DEALLOCATE(tdagw_env%sigma_COH)
-      ! DEALLOCATE(tdagw_env%sigma_SEX)
-      ! DEALLOCATE(tdagw_env%hartree_orig)
-      ! DEALLOCATE(tdagw_env%hartree_curr)
       CALL cp_fm_release(tdagw_env%rho)
       CALL cp_fm_release(tdagw_env%ham_effective)
       CALL cp_fm_release(tdagw_env%ham_workspace)
@@ -368,6 +363,8 @@ CONTAINS
 
       NULLIFY(tdagw_env%S_inv)
       DEALLOCATE(tdagw_env%orders)
+
+      CALL release_sigma_workspace(tdagw_env)
 
       ! Depending on methods, deallocate additional workspace
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
@@ -468,12 +465,9 @@ CONTAINS
       CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
 
       ! 3c tensors - do not populate yet, just allocate distributions
-      NULLIFY(tdagw_env%t_3c_w)
-      ALLOCATE(tdagw_env%t_3c_w)
-      NULLIFY(tdagw_env%t_3c_work)
-      ALLOCATE(tdagw_env%t_3c_work)
-      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_w)
-      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_work)
+      NULLIFY(tdagw_env%t_3c_work_RI__AO_AO)
+      ALLOCATE(tdagw_env%t_3c_work_RI__AO_AO)
+      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_work_RI__AO_AO)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Releases the workspaces for Hartree dbt method
@@ -496,13 +490,90 @@ CONTAINS
          CALL dbcsr_release(tdagw_env%rho_dbcsr)
          DEALLOCATE(tdagw_env%rho_dbcsr)
       END IF
+      IF (ASSOCIATED(tdagw_env%t_3c_work_RI__AO_AO)) THEN
+         CALL dbt_destroy(tdagw_env%t_3c_work_RI__AO_AO)
+         DEALLOCATE(tdagw_env%t_3c_work_RI__AO_AO)
+      END IF
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Allocates the workspaces for self-energy determination routine
+!> \param tdagw_env Structure for holding information and workspace structures 
+!> \param qs_env Quickstep environment - entry point of calculation
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE create_sigma_workspace(tdagw_env, qs_env)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "create_sigma_workspace"
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(dbcsr_type)                                   :: w_dbcsr
+
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
+      ! t_3c_w
+      NULLIFY(tdagw_env%t_3c_w)
+      ALLOCATE(tdagw_env%t_3c_w)
+      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_w)
+      ! t_3c_work_RI_AO__AO
+      NULLIFY(tdagw_env%t_3c_work_RI_AO__AO)
+      ALLOCATE(tdagw_env%t_3c_work_RI_AO__AO)
+      CALL dbt_create(bs_env%t_RI_AO__AO, tdagw_env%t_3c_work_RI_AO__AO)
+      ! t_3c_work2_RI_AO__AO
+      NULLIFY(tdagw_env%t_3c_work2_RI_AO__AO)
+      ALLOCATE(tdagw_env%t_3c_work2_RI_AO__AO)
+      CALL dbt_create(bs_env%t_RI_AO__AO, tdagw_env%t_3c_work2_RI_AO__AO)
+      ! t_W
+      NULLIFY(tdagw_env%screened_dbt)
+      ALLOCATE(tdagw_env%screened_dbt)
+      CALL dbt_create(bs_env%t_W, tdagw_env%screened_dbt)
+      ! Populate t_W from gw run
+      CALL dbcsr_create(w_dbcsr, name="W", template=bs_env%mat_RI_RI%matrix)
+      CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, w_dbcsr)
+      CALL dbt_copy_matrix_to_tensor(w_dbcsr, tdagw_env%screened_dbt)
+      CALL dbcsr_release(w_dbcsr)
+      ! sigma_dbt
+      NULLIFY(tdagw_env%sigma_dbt)
+      ALLOCATE(tdagw_env%sigma_dbt)
+      CALL dbt_create(bs_env%t_G, tdagw_env%sigma_dbt)
+      ! greens_dbt
+      NULLIFY(tdagw_env%greens_dbt)
+      ALLOCATE(tdagw_env%greens_dbt)
+      CALL dbt_create(bs_env%t_G, tdagw_env%greens_dbt)
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Releases the workspaces for self-energy determination
+!> \param tdagw_env 
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE release_sigma_workspace(tdagw_env)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "release_sigma_workspace"
+      
       IF (ASSOCIATED(tdagw_env%t_3c_w)) THEN 
          CALL dbt_destroy(tdagw_env%t_3c_w)
          DEALLOCATE(tdagw_env%t_3c_w)
       END IF
-      IF (ASSOCIATED(tdagw_env%t_3c_work)) THEN
-         CALL dbt_destroy(tdagw_env%t_3c_work)
-         DEALLOCATE(tdagw_env%t_3c_work)
+      IF (ASSOCIATED(tdagw_env%t_3c_work_RI_AO__AO)) THEN 
+         CALL dbt_destroy(tdagw_env%t_3c_work_RI_AO__AO)
+         DEALLOCATE(tdagw_env%t_3c_work_RI_AO__AO)
+      END IF
+      IF (ASSOCIATED(tdagw_env%t_3c_work2_RI_AO__AO)) THEN 
+         CALL dbt_destroy(tdagw_env%t_3c_work2_RI_AO__AO)
+         DEALLOCATE(tdagw_env%t_3c_work2_RI_AO__AO)
+      END IF
+      IF (ASSOCIATED(tdagw_env%screened_dbt)) THEN
+         CALL dbt_destroy(tdagw_env%screened_dbt)
+         DEALLOCATE(tdagw_env%screened_dbt)
+      END IF
+      IF (ASSOCIATED(tdagw_env%sigma_dbt)) THEN
+         CALL dbt_destroy(tdagw_env%sigma_dbt)
+         DEALLOCATE(tdagw_env%sigma_dbt)
+      END IF
+      IF (ASSOCIATED(tdagw_env%greens_dbt)) THEN
+         CALL dbt_destroy(tdagw_env%greens_dbt)
+         DEALLOCATE(tdagw_env%greens_dbt)
       END IF
    END SUBROUTINE
 END MODULE

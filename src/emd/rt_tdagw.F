@@ -184,7 +184,7 @@ CONTAINS
 
       ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         CALL get_sigma(qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
+         CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
          ! TODO : Maybe enable printing underneath debug option?
          ! PRINT *, "== Sigma COH =="
          ! CALL cp_fm_write_formatted(sigma_COH, 6)
@@ -406,11 +406,11 @@ CONTAINS
          ! Calculate the SEX part - based on provided rho, not on the 
          ! TODO : Can get away with smaller number of matrices? - depends on memory consumption
          ! iGW = - rho W = - Re(rho) W - i Im(rho) W
-         CALL get_sigma(qs_env, tdagw_env%sigma_SEX(re),&
+         CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re),&
                         -1.0_dp, greens_fm_opt=rho(re))
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                   1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
-         CALL get_sigma(qs_env, tdagw_env%sigma_SEX(im), -1.0_dp,&
+         CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp,&
                         greens_fm_opt=rho(im))
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                   1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
@@ -679,7 +679,8 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
-   SUBROUTINE get_sigma(qs_env, sigma_fm, prefactor_opt, greens_dbcsr_opt, greens_fm_opt)
+   SUBROUTINE get_sigma(tdagw_env, qs_env, sigma_fm, prefactor_opt, greens_dbcsr_opt, greens_fm_opt)
+      TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type)                                 :: sigma_fm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
@@ -687,11 +688,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER, INTENT(IN), OPTIONAL    :: greens_dbcsr_opt ! matrix, but already in dbcsr form
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma'
       REAL(kind=dp)                                      :: prefactor
-      TYPE(dbt_type)                                     :: t_3c_w, t_3c_g, t_work1, t_work2,&
-                                                            w_dbt, greens_dbt, sigma_dbt
-      TYPE(dbcsr_type)                                   :: w_dbcsr_mat, sigma_dbcsr
+      TYPE(dbcsr_type)                                   :: sigma_dbcsr
       TYPE(dbcsr_type), POINTER                          :: greens_dbcsr
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env,&
                       bs_env=bs_env)
@@ -721,75 +723,56 @@ CONTAINS
       ! Probably just use the tensors already present in bs_env? They seem to be mostly work tensors
       ! TODO : Starting with unbounded integrals, then probably need to reduce to a subset
       ! Create by template
-      CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_w)
-      CALL dbt_create(bs_env%t_RI_AO__AO, t_work1)
-      CALL dbt_create(bs_env%t_W, w_dbt)
       CALL compute_3c_integrals(qs_env,&
                          bs_env,&
-                         t_3c_w)
-      ! Copy W to dbcsr and then to dbt
-      CALL dbcsr_create(w_dbcsr_mat, name="w", template=bs_env%mat_RI_RI%matrix)
-      CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, w_dbcsr_mat)
-      ! TODO : Maybe call filter here?
-      CALL dbt_copy_matrix_to_tensor(w_dbcsr_mat, w_dbt)
+                         tdagw_env%t_3c_w)
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=w_dbt,&
-                   tensor_2=t_3c_w,&
+                   tensor_1=tdagw_env%screened_dbt,&
+                   tensor_2=tdagw_env%t_3c_w,&
                    beta=0.0_dp,&
-                   tensor_3=t_work1,&
+                   tensor_3=tdagw_env%t_3c_work_RI_AO__AO,&
                    contract_1=[2],notcontract_1=[1], map_1=[1],&
                    contract_2=[1],notcontract_2=[2,3], map_2=[2,3],&
                    filter_eps=bs_env%eps_filter)
       ! t_work1 now contains sum _ P (alpha beta | P) W _ (PQ) (iomega = 0)
       ! Next step is to convert the greens full matrix to dbcsr matrix 
-      CALL dbt_create(bs_env%t_G, greens_dbt)
-      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, greens_dbt) 
-      ! TODO : Is this the correct way to compute different direction of the ingetrals?
-      ! TODO : Do we need different t_3c? Maybe for performance reasons ...
-      CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_g)
-      CALL compute_3c_integrals(qs_env,&
-                         bs_env,&
-                         t_3c_g)
-      CALL dbt_create(bs_env%t_RI_AO__AO, t_work2)
+      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, tdagw_env%greens_dbt) 
       ! Then contract it
       ! no scaling applied - this has to be applied externally TODO : Is this a good approach?
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=greens_dbt,&
-                   tensor_2=t_3c_g,&
+                   tensor_1=tdagw_env%greens_dbt,&
+                   tensor_2=tdagw_env%t_3c_w,&
                    beta=0.0_dp,&
-                   tensor_3=t_work2,&
+                   tensor_3=tdagw_env%t_3c_work2_RI_AO__AO,&
                    contract_1=[1], notcontract_1=[2], map_1=[2],&
                    contract_2=[3], notcontract_2=[1,2], map_2=[1,3],&
                    filter_eps=bs_env%eps_filter)
-      ! Now, final contraction over remaining indices
-      CALL dbt_create(bs_env%t_G, sigma_dbt)
       ! Final contraction, which introduces the given prefactor
       CALL dbt_contract(alpha=prefactor,&
-                   tensor_1=t_work1,&
-                   tensor_2=t_work2,&
+                   tensor_1=tdagw_env%t_3c_work_RI_AO__AO,&
+                   tensor_2=tdagw_env%t_3c_work2_RI_AO__AO,&
                    beta=0.0_dp,&
-                   tensor_3=sigma_dbt,&
+                   tensor_3=tdagw_env%sigma_dbt,&
                    contract_1=[1,2], notcontract_1=[3], map_1=[2],&
                    contract_2=[1,2], notcontract_2=[3], map_2=[1],&
                    filter_eps=bs_env%eps_filter)
       ! Finally, convert the COH tensor to matrix and then to fm matrix
       CALL dbcsr_create(sigma_dbcsr, name="sigma", template=bs_env%mat_ao_ao%matrix)
-      CALL dbt_copy_tensor_to_matrix(sigma_dbt, sigma_dbcsr)
+      CALL dbt_copy_tensor_to_matrix(tdagw_env%sigma_dbt, sigma_dbcsr)
       CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm%matrix)
-      ! TODO : Deallocations
-      CALL dbt_destroy(t_3c_w)
-      CALL dbt_destroy(t_work1)
-      CALL dbt_destroy(w_dbt)
-      CALL dbt_destroy(greens_dbt)
-      CALL dbt_destroy(t_3c_g)
-      CALL dbt_destroy(t_work2)
-      CALL dbt_destroy(sigma_dbt)
       CALL dbcsr_release(sigma_dbcsr)
       IF (PRESENT(greens_fm_opt)) THEN
          CALL dbcsr_release(greens_dbcsr)
          DEALLOCATE(greens_dbcsr)
       END IF
-      CALL dbcsr_release(w_dbcsr_mat)
+      ! Clear workspaces - saves memory?
+      CALL dbt_clear(tdagw_env%t_3c_w)
+      CALL dbt_clear(tdagw_env%t_3c_work_RI_AO__AO)
+      CALL dbt_clear(tdagw_env%t_3c_work2_RI_AO__AO)
+      CALL dbt_clear(tdagw_env%sigma_dbt)
+      CALL dbt_clear(tdagw_env%greens_dbt)
+      CALL timestop(handle)
+
    END SUBROUTINE
 ! TODO : Maybe combine with get_sigma? - this will be updated at every step and requires rebuilding of 3c?
 ! **************************************************************************************************
@@ -1119,14 +1102,14 @@ CONTAINS
                    tensor_1=tdagw_env%t_3c_w,&
                    tensor_2=V_dbt,&
                    beta=0.0_dp,&
-                   tensor_3=tdagw_env%t_3c_work,&
+                   tensor_3=tdagw_env%t_3c_work_RI__AO_AO,&
                    contract_1=[1],notcontract_1=[2,3],map_1=[2,3],&
                    contract_2=[1],notcontract_2=[2],map_2=[1],&
                    filter_eps=bs_env%eps_filter)
       ! Final contraction V ^ H _ (mu nu 1) = sum _ (Q) Q _ (mu nu Q) T _ (Q 1)
       CALL dbt_clear(tdagw_env%t_two_plus_one)
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=tdagw_env%t_3c_work,&
+                   tensor_1=tdagw_env%t_3c_work_RI__AO_AO,&
                    tensor_2=tdagw_env%t_one_plus_one,&
                    beta=0.0_dp,&
                    tensor_3=tdagw_env%t_two_plus_one,&
@@ -1141,7 +1124,7 @@ CONTAINS
       CALL dbt_clear(tdagw_env%t_two_plus_one)
       CALL dbt_clear(tdagw_env%t_one_plus_one)
       CALL dbt_clear(tdagw_env%t_3c_w)
-      CALL dbt_clear(tdagw_env%t_3c_work)
+      CALL dbt_clear(tdagw_env%t_3c_work_RI__AO_AO)
       CALL dbcsr_clear(tdagw_env%rho_dbcsr)
    END SUBROUTINE
 ! **************************************************************************************************
