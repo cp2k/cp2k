@@ -165,37 +165,15 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_gspace_tot,&
-                                                            v_hartree_gspace,&
-                                                            v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_gspace, rho_rspace
-      TYPE(qs_ks_env_type), POINTER                      :: qs_ks_env
-      TYPE(dbcsr_p_type)                                 :: v_ao
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dbcsr
       TYPE(section_vals_type), POINTER                   :: input, rtp_section
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric
-      REAL(kind=dp)                                      :: total_rho
-      ! REAL(kind=dp), DIMENSION(:,:), POINTER             :: block
-      ! LOGICAL                                            :: found
-      ! TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks,&
-      !                                                       matrix_h,&
-      !                                                       kinetic,&
-      !                                                       matrix_vxc
-      ! TYPE(cp_fm_type)                                   :: matrix_ks_fm,&
-      !                                                       matrix_h_fm,&
-      !                                                       kinetic_fm
 
-      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp,&
-                      pw_env=pw_env, ks_env=qs_ks_env)!,&
-      !                 matrix_ks=matrix_ks,matrix_h=matrix_h,kinetic=kinetic,matrix_vxc=matrix_vxc)
+      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
 
@@ -203,65 +181,6 @@ CONTAINS
       CALL init_hartree(qs_env, tdagw_env%hartree_dbt)
       PRINT *, "Hartree initialised"
       ! ********************** EXTRACT PREVIOUS DATA **********************
-
-      ! Evaluate the Hartree term Brute force
-      ! Get the starting density from rtp
-      ! This is the same density that is used in create_tdagw_env
-      IF (.FALSE.) THEN
-      CALL get_rtp(rtp, rho_new=rho_dbcsr)
-      ALLOCATE(v_ao%matrix)
-      CALL dbcsr_create(v_ao%matrix, template=bs_env%mat_ao_ao%matrix)
-      ! TODO : Redo via block reservations?
-      ! TODO : Take into account symmetry present in integrate_v_rspace
-      CALL dbcsr_copy(v_ao%matrix, rho_dbcsr(1)%matrix)
-      CALL dbcsr_setname(v_ao%matrix, "Hartree matrix")
-      CALL dbcsr_scale(v_ao%matrix, 0.0_dp)
-      ! Get the task pool and poisson environment to create pw types
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
-      ! Allocate the densities in g-space and r-space, for each spin
-      ALLOCATE(rho_gspace(tdagw_env%n_spin))
-      ALLOCATE(rho_rspace(tdagw_env%n_spin))
-      CALL auxbas_pw_pool%create_pw(rho_gspace_tot, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(rho_gspace_tot)
-      @:SPIN_DO(j,re,im,tdagw_env%n_spin)
-         ! Prepare the total density
-         CALL auxbas_pw_pool%create_pw(rho_gspace(j), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_zero(rho_gspace(j))
-         CALL auxbas_pw_pool%create_pw(rho_rspace(j), use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(rho_rspace(j))
-         ! get the density in rspace and gspace - rho_dbcsr has to be target
-         CALL calculate_rho_elec(rho_dbcsr(j)%matrix, rho=rho_rspace(j), rho_gspace=rho_gspace(j),&
-                                 ks_env=qs_ks_env, total_rho=total_rho)
-         ! Do not need rho rspace
-         CALL auxbas_pw_pool%give_back_pw(rho_rspace(j))
-         PRINT *, "Total rho for spin type ", j, total_rho
-         CALL pw_axpy(rho_gspace(j), rho_gspace_tot)
-         CALL auxbas_pw_pool%give_back_pw(rho_gspace(j))
-      END DO
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(v_hartree_gspace)
-      ! Use the g-space density to determine the Hartree in g-space
-      CALL pw_poisson_solve(poisson_env, rho_gspace_tot, vhartree=v_hartree_gspace)
-      CALL auxbas_pw_pool%give_back_pw(rho_gspace_tot)
-      ! Transfer to real space
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_zero(v_hartree_rspace)
-      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
-      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
-      ! Scale by volume element
-      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
-      ! integrate in rspace
-      ! CALL dbcsr_create(v_ao%matrix, name="Hartree matrix", template=rho_dbcsr(1))
-      ! Copy high level in order to create relevant blocks (that is all blocks)
-      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, hmat=v_ao, pmat=rho_dbcsr(1), qs_env=qs_env, calculate_forces=.FALSE.)
-      ! TODO : Print v_ao
-      ! CALL dbcsr_print(v_ao%matrix)
-      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
-      DEALLOCATE(rho_gspace)
-      DEALLOCATE(rho_rspace)
-      CALL dbcsr_release(v_ao%matrix)
-      DEALLOCATE(v_ao%matrix)
-      END IF
 
       ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
@@ -277,8 +196,8 @@ CONTAINS
       ! Calculate the initial Hartree interaction matrix
       ! TODO : k-points and the possible divergence
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+         CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+         CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
          PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
          PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
       END DO
@@ -497,15 +416,17 @@ CONTAINS
                                   1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
          ! Calculate update Hartree potential
          ! TODO : Spin (in)dependence check
-         CALL get_hartree(qs_env, tdagw_env%hartree_dbt, rho(re)%matrix, tdagw_env%hartree_curr(re)%matrix)
-         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
-                                  1.0_dp, tdagw_env%hartree_curr(re)%matrix)
-         ! TODO : Check signs
          IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
-            CALL get_hartree(qs_env, tdagw_env%hartree_dbt, rho(im)%matrix, tdagw_env%hartree_curr(im)%matrix)
+            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(re)%matrix,&
+                             tdagw_env%hartree_curr(re)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                     1.0_dp, tdagw_env%hartree_curr(re)%matrix)
+            ! TODO : Check signs
+            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(im)%matrix,&
+                             tdagw_env%hartree_curr(im)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                     1.0_dp, tdagw_env%hartree_curr(im)%matrix)
          END IF
-         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-                                  1.0_dp, tdagw_env%hartree_curr(im)%matrix)
          ! Subtract original Hartree, which is purely real
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                  -1.0_dp, tdagw_env%hartree_orig(re)%matrix)
@@ -1155,6 +1076,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix
 !> \note Uses precalculated Hartree matrix kernel in the auxiliary basis. Hartree term is one-electron.
+!>       Furthermore uses rho_dbcsr, t_two_plus_one and t_one_plus_one workspaces stored in tdagw_env
 !> \param qs_env Quickstep environment - entry point of calculation
 !> \param V_dbt Tensor representation of the Hartree matrix in the auxiliary basis
 !> \param rho Density matrix in ao basis
@@ -1162,161 +1084,65 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
-   SUBROUTINE get_hartree(qs_env, V_dbt, rho, V_ao)
+   SUBROUTINE get_hartree(tdagw_env, qs_env, V_dbt, rho, V_ao)
+      TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbt_type), POINTER, INTENT(INOUT)             :: V_dbt
       TYPE(cp_fm_type), POINTER, INTENT(IN)              :: rho
       TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: V_ao
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hartree'
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(dbt_type)                                     :: t_3c_w,&
-                                                            t_work1,&
-                                                            t_one_plus_one
-      TYPE(dbt_type), ALLOCATABLE, TARGET                :: t_two_plus_one
-      TYPE(dbt_type), POINTER                            :: t_two_plus_one_p
-      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: distvec
-      INTEGER, DIMENSION(1)                              :: distvec_one
-      TYPE(dbt_distribution_type)                        :: dist
-      TYPE(dbcsr_type), ALLOCATABLE, TARGET              :: rho_dbcsr
-      TYPE(dbcsr_type), POINTER                          :: rho_dbcsr_p
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pdims, pcoord
-      TYPE(dbt_pgrid_type)                               :: pgrid
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: empty_list
-      INTEGER                                            :: j
-      
+
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
-      ! Create the empty list, used for no contraction indices
-      ALLOCATE(empty_list(0))
-
-      CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_w)
-      CALL dbt_create(bs_env%t_RI__AO_AO, t_work1)
       ! build 3c integrals
       CALL compute_3c_integrals(qs_env,&
                          bs_env,&
-                         t_3c_w)
-      ! Create a 1D tensor (vector) for the result of contraction with density matrix
-      ! TODO : 1D tensor is not available for construction, but maybe can be emulated by
-      !        2D tensor with one dimension set to 1. However, extracting 2D matrix from
-      !        3D tensor with one dimension set to 1 is not implemented
-      ! Taken from gw_utils
-
-      ! Create the 2-index tensor with one dimension of size 1 from tensor primitives
-      ! Create 2-index process grid
-      ALLOCATE(pdims(3))
-      ALLOCATE(pcoord(3))
-      ! Set elements to zero - otherwise can get erronous behaviour
-      DO j=1,3
-         pdims(j) = 0
-         pcoord(j) = 0
-      END DO
-      ! Process grid creation
-      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
-      ! Determine processes on the created grid
-      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
-      ! Prepare task distribution on the process grid for each dimension
-      ALLOCATE(distvec(2, SIZE(bs_env%sizes_AO)))
-      DO j=1,2
-         CALL dbt_default_distvec(SIZE(bs_env%sizes_AO), pdims(j), bs_env%sizes_AO, distvec(j,:))
-      END DO
-      CALL dbt_default_distvec(1, pdims(3), [1], distvec_one)
-      ! TODO : Maybe just [1] instead of pdims(2)?
-      ! Create the tensor distribution
-      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec(2,:), distvec_one)
-      ! Create the tensor aligned for the task distribution
-      ALLOCATE(t_two_plus_one)
-      CALL dbt_create(t_two_plus_one, "four index tensor", dist, [1], [2, 3],&
-                      bs_env%sizes_AO,&
-                      bs_env%sizes_AO,&
-                      [1])
-      ! No longer need the process information
-      CALL dbt_pgrid_destroy(pgrid)
-      CALL dbt_distribution_destroy(dist)
-      DEALLOCATE(distvec)
-      DEALLOCATE(pdims)
-      DEALLOCATE(pcoord)
-
-      ! Create the one + one tensor - true vector
-      ALLOCATE(pdims(2))
-      ALLOCATE(pcoord(2))
-      DO j=1,2
-         pdims(j) = 0
-         pcoord(j) = 0
-      END DO
-      ALLOCATE(distvec(1,SIZE(bs_env%sizes_RI)))
-      ! Create the process grid
-      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
-      ! Populate the process grid
-      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
-      ! Prepare distribution vectors that allocate tasks to tensor blocks
-      CALL dbt_default_distvec(SIZE(bs_env%sizes_RI), pdims(1), bs_env%sizes_RI, distvec(1,:))
-      CALL dbt_default_distvec(1, pdims(2), [1], distvec_one)
-      ! Create tensor distribution
-      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec_one)
-      CALL dbt_create(t_one_plus_one, "tensor vector", dist, [1], [2], bs_env%sizes_RI, [1])
-      ! No longer need the process information
-      CALL dbt_pgrid_destroy(pgrid)
-      CALL dbt_distribution_destroy(dist)
-      DEALLOCATE(distvec)
-      DEALLOCATE(pcoord)
-      DEALLOCATE(pdims)
+                         tdagw_env%t_3c_w)
 
       ! Convert density to tensor
-      ALLOCATE(rho_dbcsr)
-      CALL dbcsr_create(rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
-      CALL copy_fm_to_dbcsr(rho, rho_dbcsr)
+      CALL copy_fm_to_dbcsr(rho, tdagw_env%rho_dbcsr)
       ! Maybe doable via creation
-      ! CALL dbt_create(bs_env%t_G, rho_dbt, "Density tensor")
-      ! CALL dbt_copy_matrix_to_tensor(rho_dbcsr, t_two_plus_one)
-      rho_dbcsr_p => rho_dbcsr
-      t_two_plus_one_p => t_two_plus_one
-      CALL copy_matrix_to_3d_tensor(rho_dbcsr_p, t_two_plus_one_p)
-      ! PRINT *, "Matrix copied to tensor"
+      CALL copy_matrix_to_3d_tensor(tdagw_env%rho_dbcsr, tdagw_env%t_two_plus_one)
       ! Contract T _ (Q 1) = sum _ Q (Q|mu'nu') D _ (mu' nu' 1)
       ! TODO : Copy filter to tdagw options?
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=t_3c_w,&
-                   tensor_2=t_two_plus_one,&
+                   tensor_1=tdagw_env%t_3c_w,&
+                   tensor_2=tdagw_env%t_two_plus_one,&
                    beta=0.0_dp,&
-                   tensor_3=t_one_plus_one,&
+                   tensor_3=tdagw_env%t_one_plus_one,&
                    contract_1=[2,3],notcontract_1=[1],map_1=[1],&
                    contract_2=[1,2],notcontract_2=[3],map_2=[2],&
                    filter_eps=bs_env%eps_filter)
       ! Contract Q _ (mu nu Q) = sum _ P (mu nu | P) V _ (PQ)
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=t_3c_w,&
+                   tensor_1=tdagw_env%t_3c_w,&
                    tensor_2=V_dbt,&
                    beta=0.0_dp,&
-                   tensor_3=t_work1,&
+                   tensor_3=tdagw_env%t_3c_work,&
                    contract_1=[1],notcontract_1=[2,3],map_1=[2,3],&
                    contract_2=[1],notcontract_2=[2],map_2=[1],&
                    filter_eps=bs_env%eps_filter)
       ! Final contraction V ^ H _ (mu nu 1) = sum _ (Q) Q _ (mu nu Q) T _ (Q 1)
-      CALL dbt_clear(t_two_plus_one)
+      CALL dbt_clear(tdagw_env%t_two_plus_one)
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=t_work1,&
-                   tensor_2=t_one_plus_one,&
+                   tensor_1=tdagw_env%t_3c_work,&
+                   tensor_2=tdagw_env%t_one_plus_one,&
                    beta=0.0_dp,&
-                   tensor_3=t_two_plus_one,&
+                   tensor_3=tdagw_env%t_two_plus_one,&
                    contract_1=[1], notcontract_1=[2,3], map_1=[1,2],&
                    contract_2=[1], notcontract_2=[2], map_2=[3],&
                    filter_eps=bs_env%eps_filter)
-      ! TODO : Allocations, conversion from t_two_plus_one back to matrix - check that the copying makes sense
       ! Copy result to output matrix
-      ! Use rho_dbcsr - TODO : Instead, use some workspace?
-      CALL dbcsr_clear(rho_dbcsr)
-      CALL copy_3d_tensor_to_matrix(t_two_plus_one_p, rho_dbcsr_p)
-      ! PRINT *, "Tensor copied to matrix"
-      CALL copy_dbcsr_to_fm(rho_dbcsr, V_ao)
-      ! TODO : Deallocations, initialisations, CALL statements etc.
-      CALL dbt_destroy(t_3c_w)
-      CALL dbt_destroy(t_work1)
-      CALL dbt_destroy(t_two_plus_one)
-      CALL dbt_destroy(t_one_plus_one)
-      CALL dbcsr_release(rho_dbcsr)
-      DEALLOCATE(rho_dbcsr)
-      DEALLOCATE(t_two_plus_one)
-      DEALLOCATE(empty_list)
+      CALL dbcsr_clear(tdagw_env%rho_dbcsr)
+      CALL copy_3d_tensor_to_matrix(tdagw_env%t_two_plus_one, tdagw_env%rho_dbcsr)
+      CALL copy_dbcsr_to_fm(tdagw_env%rho_dbcsr, V_ao)
+      ! Free memory by clearing the tensors
+      CALL dbt_clear(tdagw_env%t_two_plus_one)
+      CALL dbt_clear(tdagw_env%t_one_plus_one)
+      CALL dbt_clear(tdagw_env%t_3c_w)
+      CALL dbt_clear(tdagw_env%t_3c_work)
+      CALL dbcsr_clear(tdagw_env%rho_dbcsr)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, using PW approach

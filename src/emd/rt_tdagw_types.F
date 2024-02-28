@@ -28,6 +28,15 @@ MODULE rt_tdagw_types
                                               dbcsr_print,&
                                               dbcsr_copy
    USE dbt_api,                         ONLY: dbt_type,&
+                                              dbt_pgrid_type,&
+                                              dbt_pgrid_create,&
+                                              dbt_pgrid_destroy,&
+                                              dbt_mp_environ_pgrid,&
+                                              dbt_default_distvec,&
+                                              dbt_distribution_type,&
+                                              dbt_distribution_new,&
+                                              dbt_distribution_destroy,&
+                                              dbt_create,&
                                               dbt_destroy
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE qs_mo_types,                     ONLY: mo_set_type
@@ -42,7 +51,11 @@ MODULE rt_tdagw_types
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE moments_utils,                   ONLY: get_reference_point
    USE matrix_exp,                      ONLY: get_nsquare_norder
-   USE input_constants,                 ONLY: use_mom_ref_coac
+   USE input_constants,                 ONLY: use_mom_ref_coac,&
+                                              rtp_tdagw_ham_g0w0,&
+                                              rtp_tdagw_ham_ks,&
+                                              rtp_tdagw_hartree_dbt,&
+                                              rtp_tdagw_hartree_pw
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
 
@@ -104,8 +117,13 @@ MODULE rt_tdagw_types
                                                                    rho_M
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho_workspace
-      TYPE(dbcsr_type), POINTER                                 :: S_inv
-      TYPE(dbt_type), POINTER                                   :: hartree_dbt
+      TYPE(dbcsr_type), POINTER                                 :: S_inv,&
+                                                                   rho_dbcsr
+      TYPE(dbt_type), POINTER                                   :: hartree_dbt,&
+                                                                   t_two_plus_one,&
+                                                                   t_one_plus_one,&
+                                                                   t_3c_w,&
+                                                                   t_3c_work
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
       INTEGER, DIMENSION(:,:), POINTER                          :: orders
@@ -299,6 +317,11 @@ CONTAINS
          CALL cp_fm_set_all(tdagw_env%hartree_orig(i)%matrix, 0.0_dp)
          CALL cp_fm_set_all(tdagw_env%hartree_curr(i)%matrix, 0.0_dp)
       END DO
+
+      ! Depending on the chosen methods, allocate extra workspace
+      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
+         CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
+      END IF
       
    END SUBROUTINE
 
@@ -345,6 +368,141 @@ CONTAINS
 
       NULLIFY(tdagw_env%S_inv)
       DEALLOCATE(tdagw_env%orders)
+
+      ! Depending on methods, deallocate additional workspace
+      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
+         CALL release_hartree_dbt_workspace(tdagw_env)
+      END IF
       
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Allocates the workspaces for Hartree dbt method, mainly the density tensors
+!> \note DBT method uses 2D and 3D tensors, where one dimension has size 1, in order to emulate vectors
+!> \param tdagw_env 
+!> \param qs_env Quickstep environment - entry point of calculation
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE create_hartree_dbt_workspace(tdagw_env, qs_env)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "create_hartree_dbt_workspace"
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: distvec
+      INTEGER, DIMENSION(1)                              :: distvec_one
+      TYPE(dbt_distribution_type)                        :: dist
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pdims, pcoord
+      TYPE(dbt_pgrid_type)                               :: pgrid
+      INTEGER                                            :: j
+      ! Create a 1D tensor (vector) for the result of contraction with density matrix
+      ! Taken from gw_utils
+      ! Get bs_env
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
+      ! Create the 3-index tensor with one dimension of size 1 from tensor primitives
+      ! Create 3-index process grid
+      ALLOCATE(pdims(3))
+      ALLOCATE(pcoord(3))
+      ! Set elements to zero - otherwise can get erronous behaviour
+      DO j=1,3
+         pdims(j) = 0
+         pcoord(j) = 0
+      END DO
+      ! Process grid creation
+      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
+      ! Determine processes on the created grid
+      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+      ! Prepare task distribution on the process grid for each dimension
+      ALLOCATE(distvec(2, SIZE(bs_env%sizes_AO)))
+      DO j=1,2
+         CALL dbt_default_distvec(SIZE(bs_env%sizes_AO), pdims(j), bs_env%sizes_AO, distvec(j,:))
+      END DO
+      CALL dbt_default_distvec(1, pdims(3), [1], distvec_one)
+      ! TODO : Maybe just [1] instead of pdims(2)?
+      ! Create the tensor distribution
+      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec(2,:), distvec_one)
+      ! Create the tensor aligned for the task distribution
+      NULLIFY(tdagw_env%t_two_plus_one)
+      ALLOCATE(tdagw_env%t_two_plus_one)
+      CALL dbt_create(tdagw_env%t_two_plus_one, "2+1 index tensor", dist, [1], [2, 3],&
+                      bs_env%sizes_AO,&
+                      bs_env%sizes_AO,&
+                      [1])
+      ! No longer need the process information
+      CALL dbt_pgrid_destroy(pgrid)
+      CALL dbt_distribution_destroy(dist)
+      DEALLOCATE(distvec)
+      DEALLOCATE(pdims)
+      DEALLOCATE(pcoord)
+
+      ! Create the one + one tensor - true vector
+      ALLOCATE(pdims(2))
+      ALLOCATE(pcoord(2))
+      DO j=1,2
+         pdims(j) = 0
+         pcoord(j) = 0
+      END DO
+      ALLOCATE(distvec(1,SIZE(bs_env%sizes_RI)))
+      ! Create the process grid
+      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
+      ! Populate the process grid
+      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+      ! Prepare distribution vectors that allocate tasks to tensor blocks
+      CALL dbt_default_distvec(SIZE(bs_env%sizes_RI), pdims(1), bs_env%sizes_RI, distvec(1,:))
+      CALL dbt_default_distvec(1, pdims(2), [1], distvec_one)
+      ! Create tensor distribution
+      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec_one)
+      NULLIFY(tdagw_env%t_one_plus_one)
+      ALLOCATE(tdagw_env%t_one_plus_one)
+      CALL dbt_create(tdagw_env%t_one_plus_one, "tensor vector", dist, [1], [2], bs_env%sizes_RI, [1])
+      ! No longer need the process information
+      CALL dbt_pgrid_destroy(pgrid)
+      CALL dbt_distribution_destroy(dist)
+      DEALLOCATE(distvec)
+      DEALLOCATE(pcoord)
+      DEALLOCATE(pdims)
+
+      ! Rho_dbcsr workspace - a single rho_dbcsr matrix
+      NULLIFY(tdagw_env%rho_dbcsr)
+      ALLOCATE(tdagw_env%rho_dbcsr)
+      CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
+
+      ! 3c tensors - do not populate yet, just allocate distributions
+      NULLIFY(tdagw_env%t_3c_w)
+      ALLOCATE(tdagw_env%t_3c_w)
+      NULLIFY(tdagw_env%t_3c_work)
+      ALLOCATE(tdagw_env%t_3c_work)
+      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_w)
+      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_work)
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Releases the workspaces for Hartree dbt method
+!> \param tdagw_env 
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE release_hartree_dbt_workspace(tdagw_env)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "release_hartree_dbt_workspace"
+      IF (ASSOCIATED(tdagw_env%t_two_plus_one)) THEN
+         CALL dbt_destroy(tdagw_env%t_two_plus_one)
+         DEALLOCATE(tdagw_env%t_two_plus_one)
+      END IF
+      IF (ASSOCIATED(tdagw_env%t_one_plus_one)) THEN
+         CALL dbt_destroy(tdagw_env%t_one_plus_one)
+         DEALLOCATE(tdagw_env%t_one_plus_one)
+      END IF
+      IF (ASSOCIATED(tdagw_env%rho_dbcsr)) THEN
+         CALL dbcsr_release(tdagw_env%rho_dbcsr)
+         DEALLOCATE(tdagw_env%rho_dbcsr)
+      END IF
+      IF (ASSOCIATED(tdagw_env%t_3c_w)) THEN 
+         CALL dbt_destroy(tdagw_env%t_3c_w)
+         DEALLOCATE(tdagw_env%t_3c_w)
+      END IF
+      IF (ASSOCIATED(tdagw_env%t_3c_work)) THEN
+         CALL dbt_destroy(tdagw_env%t_3c_work)
+         DEALLOCATE(tdagw_env%t_3c_work)
+      END IF
    END SUBROUTINE
 END MODULE
