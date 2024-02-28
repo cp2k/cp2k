@@ -1,10 +1,10 @@
 01_G0W0_periodic_H2O.inp                                    106     1e-03        9.861
 02_G0W0_IH_SOC_LDOS.inp                                     106     1e-03       17.826
 02_G0W0_IH_SOC_LDOS.inp                                     107     1e-03       11.344
-03_G0W0_bandstructure_IH_chain.inp                          106     1e-03       18.242
-03_G0W0_bandstructure_IH_chain.inp                          107     1e-03       13.410
-04_G0W0_bandstructure_IH_chain_approx_kp_extrapol.inp       106     1e-03       18.221
+03_G0W0_bandstructure_IH_chain.inp                          106     1e-03       18.330
+03_G0W0_bandstructure_IH_chain.inp                          107     1e-03       13.553
+04_G0W0_bandstructure_IH_chain_approx_kp_extrapol.inp       106     1e-03       18.311
 05_G0W0_SOC_TeH_chain_open_shell.inp                        106     1e-03        5.437
-05_G0W0_SOC_TeH_chain_open_shell.inp                        107     1e-03        1.037
+05_G0W0_SOC_TeH_chain_open_shell.inp                        107     1e-03        1.039
 05_G0W0_SOC_TeH_chain_open_shell.inp                        108     1e-03        5.361
 #EOF
