@@ -1143,14 +1143,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_CUBE", &
                                        description="Controls the printing of cube files with "// &
-                                       "the electronic density and, for LSD calculations, the spin density. In GAPW "// &
-                           "the density is divided into a hard and a soft component, and the default when using E_DENSITY_CUBE "// &
-                                       "is to approximate the hard density as a spherical gaussian and to print the smooth "// &
-                                       "density accurately. This avoids potential artefacts originating from the hard density. "// &
-                                       "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
-                                      "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
-                                       "soft density being printed. In GPW the TOTAL_DENSITY and SOFT_DENSITY options have "// &
-                                 "no effect and the printed cube will only contain the contributions from the valence electrons.", &
+                                       "the electronic density and, for LSD calculations, the spin density.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
