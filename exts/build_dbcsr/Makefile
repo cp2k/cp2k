@@ -299,22 +299,26 @@ OPENCL_DEFAULT := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/tune_multiply.c
 OPENCL_WITHGPU := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/params/tune_multiply_$(GPUVER).csv)
 OPENCL_PARAMS := $(if $(OPENCL_WITHGPU),$(OPENCL_WITHGPU),$(OPENCL_DEFAULT))
 OPENCL_PARDEP := $(if $(ACC_MAKEDEP),$(shell $(ACC_MAKEDEP) $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/.with_gpu $(GPUVER)))
-$(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h: $(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_PARAMS) $(OPENCL_PARDEP)
+OPENCL_COMMON := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/common/*.h)
+$(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h: $(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_COMMON) \
+                                                      $(OPENCL_PARAMS) $(OPENCL_PARDEP)
 	$(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_PARAMS) $@
 opencl_libsmm.o: opencl_libsmm.c $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h
 ifeq (Darwin,$(shell uname))
   LDFLAGS += -framework OpenCL
 else
   # OpenCL include directory (cl.h not installed per "opencl-headers" package)
-  ifeq (,$(CUDATOOLKIT_HOME))
-    CUDATOOLKIT_HOME := $(NVSDKCOMPUTE_ROOT)
-  endif
-  ifeq (,$(CUDATOOLKIT_HOME))
-    NVCC := $(call which,nvcc)
-    CUDATOOLKIT_HOME := $(if $(NVCC),$(abspath $(dir $(NVCC))/..))
-  endif
-  ifneq (,$(CUDATOOLKIT_HOME))
-    CFLAGS += -I$(CUDATOOLKIT_HOME)/include
+  NVCC := $(shell which nvcc 2>/dev/null)
+  NVCC_PATH := $(if $(NVCC),$(wildcard $(dir $(NVCC))/..))
+  CUDA_FILE := $(wildcard $(NVCC_PATH)/../cuda/include/cuda.h)
+  CUDA_PATH := $(if $(CUDA_FILE),$(NVCC_PATH)/../cuda,$(NVCC_PATH))
+  CUDA_LIBS := $(if $(wildcard $(CUDA_PATH)/lib64),lib64,lib)
+  ifneq (,$(CUDA_PATH))
+    CFLAGS += -I$(CUDA_PATH)/include
+  else ifneq (,$(wildcard $(OPENCL_ROOT)/include/CL/cl.h))
+    CFLAGS += -I$(OPENCL_ROOT)/include
+  else ifneq (,$(wildcard $(OCL_ROOT)/include/CL/cl.h))
+    CFLAGS += -I$(OCL_ROOT)/include
   endif
 endif
 endif
