@@ -46,6 +46,7 @@ ortho_cx_to_grid_scalar(const int lp, const int cmax, const int i,
 #if (GRID_DO_COLLOCATE)
   // collocate
   double reg[4] = {0.0, 0.0, 0.0, 0.0};
+#pragma omp simd reduction(+ : reg)
   for (int lxp = 0; lxp <= lp; lxp++) {
     const double p = pol[0][lxp][i + cmax];
     reg[0] += cx[lxp * 4 + 0] * p;
@@ -61,6 +62,7 @@ ortho_cx_to_grid_scalar(const int lp, const int cmax, const int i,
 #else
   // integrate
   const double reg[4] = {*grid_0, *grid_1, *grid_2, *grid_3};
+#pragma omp simd
   for (int lxp = 0; lxp <= lp; lxp++) {
     const double p = pol[0][lxp][i + cmax];
     cx[lxp * 4 + 0] += reg[0] * p;
@@ -454,7 +456,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
   }
   const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
-  // Precompute lenght of sections with homogeneous cube to grid mapping.
+  // Precompute length of sections with homogeneous cube to grid mapping.
   int sections_mutable[3][2 * cmax + 1];
   for (int i = 0; i < 3; i++) {
     for (int kg = 2 * cmax; kg >= 0; kg--) {
@@ -739,7 +741,7 @@ general_precompute_mapping(const int index_min, const int index_max,
     }
   }
 
-  // Precompute lenght of sections with homogeneous cube to grid mapping.
+  // Precompute length of sections with homogeneous cube to grid mapping.
   const int range = index_max - index_min + 1;
   for (int kg = range - 1; kg >= 0; kg--) {
     if (kg == range - 1 || map[kg] != map[kg + 1] - 1) {
