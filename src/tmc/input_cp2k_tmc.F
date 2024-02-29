@@ -649,7 +649,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="G_R", &
                           description="Radial Distribution Function for each pair of atoms "// &
-                          "using the amount of specified bins within MAX(cell_lenght)/2", &
+                          "using the amount of specified bins within MAX(cell_length)/2", &
                           usage="G_R or G_R {INTEGER}", &
                           default_i_val=-1, lone_keyword_i_val=-1)
       CALL section_add_keyword(section, keyword)

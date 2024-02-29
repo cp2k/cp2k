@@ -54,9 +54,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Replace the original implementation of the electric-electronic
-!>        interaction in the lenght gauge. This calculation is no longer done in
+!>        interaction in the length gauge. This calculation is no longer done in
 !>        the grid but using matrices to match the velocity gauge implementation.
-!>        Note: The energy is store in energy%core and computed later on.
+!>        Note: The energy is stored in energy%core and computed later on.
 !> \param qs_env ...
 !> \author Guillaume Le Breton (02.23)
 ! **************************************************************************************************

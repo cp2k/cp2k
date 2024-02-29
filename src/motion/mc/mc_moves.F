@@ -1051,7 +1051,7 @@ CONTAINS
       IF (ionode) rand = rng_stream%next()
       CALL group%bcast(rand, source)
 
-! find the test cell lenghts for the discrete volume move
+! find the test cell lengths for the discrete volume move
       IF (ldiscrete) THEN
          IF (rand .LT. 0.5_dp) THEN
             lincrease = .TRUE.
