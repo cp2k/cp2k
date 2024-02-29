@@ -4898,11 +4898,10 @@ CONTAINS
                          "   Wilhelm, Jan", &
                          "TI Low-scaling GW algorithm applied to twisted transition-metal ", &
                          "   dichalcogenide heterobilayers", &
-                         "SO arXiv", &
-                         "PY 2023", &
-                         "AR 2306.16066", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "PY 2024", &
                          "ER"), &
-                         DOI="10.48550/arXiv.2306.16066")
+                         DOI="10.1021/acs.jctc.3c01230")
 
       CALL add_reference(key=Wang2018, ISI_record=s2a( &
                          "TY JOUR", &
