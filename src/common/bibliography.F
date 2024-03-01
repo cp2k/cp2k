@@ -89,8 +89,9 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
                             cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, Mattiat2022, &
-                            Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, Graml2023, Bussy2023, Wang2018, Zeng2023
+                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
+                            Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
+                            Bussy2023, Wang2018, Zeng2023, Graml2024
 
 CONTAINS
 
@@ -4890,7 +4891,7 @@ CONTAINS
                          "ER"), &
                          DOI="10.1063/5.0030764")
 
-      CALL add_reference(key=Graml2023, ISI_record=s2a( &
+      CALL add_reference(key=Graml2024, ISI_record=s2a( &
                          "AU Graml, Maximilian", &
                          "   Zollner, Klaus", &
                          "   Hernangómez-Pérez, Daniel", &

@@ -225,7 +225,7 @@ convergence is found, the code terminates earlier. "SC_GW0_ITER 1" corresponds t
 
 ## 5. GW for 2D materials: Example monolayer MoS2
 
-There is also a periodic GW implementation [](#Graml2023) in CP2K that targets large cells of 2D
+There is also a periodic GW implementation [](#Graml2024) in CP2K that targets large cells of 2D
 materials, for example defects or moiré structures.
 
 For computing the G0W0@LDA quasiparticle energy levels of monolayer MoS2, please use the input file
@@ -350,9 +350,9 @@ Some remarks:
 
 - The computational parameters from the input file reach numerical convergence of the band gap
   within ~ 50 meV (TZVP basis set, 10 time/frequency points). Detailed convergence test is available
-  in the SI, Table S1 of [](#Graml2023) (SI is an ancillary file that can be downloaded via
-  [arXiv:2306.16066v1](https://arxiv.org/format/2306.16066) "Download source"). We recommend the
-  numerical parameters from the input file for large-scale GW calculations.
+  in the SI, Table S1 of [](#Graml2024) (SI is an ancillary file that can be downloaded
+  [here](https://ndownloader.figstatic.com/files/44545568)). We recommend the numerical parameters
+  from the input file for large-scale GW calculations.
 
 - The code also outputs SOC splittings of the levels based on the SOC parameters from
   Hartwigsen-Goedecker-Hutter pseudopotentials [](#Hartwigsen1998). DFT eigenvalues with SOC are
