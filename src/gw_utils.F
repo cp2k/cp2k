@@ -14,7 +14,7 @@ MODULE gw_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE bibliography,                    ONLY: Graml2023,&
+   USE bibliography,                    ONLY: Graml2024,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -122,7 +122,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cite_reference(Graml2023)
+      CALL cite_reference(Graml2024)
 
       CALL read_gw_input_parameters(bs_env, bs_sec)
 
