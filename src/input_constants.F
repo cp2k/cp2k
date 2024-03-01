@@ -1274,4 +1274,9 @@ MODULE input_constants
                                                wfn_mix_orig_virtual = 2, &
                                                wfn_mix_orig_external = 3
 
+   ! DFT%PRINT%E_DENSITY_CUBE density type
+   INTEGER, PARAMETER, PUBLIC               :: e_dens_total_hard_approx = 1, &
+                                               e_dens_total_density = 2, &
+                                               e_dens_soft_density = 3
+
 END MODULE input_constants

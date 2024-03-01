@@ -1,4 +1,6 @@
 H2O-xrd.inp                                           26    1.0E-14                  -9.9999991403
 H2O-rhotot-cube.inp                                   27    1.0E-14                  -9.9999990366
 NO2-rhotot-cube.inp                                   28    1.0E-14                  -1.0000002244
+H2O-rho_hard_approx-cube.inp                          27    1.0E-14                 -10.0000390554
+NO2-rho_hard_approx-cube.inp                          28    1.0E-14                  -1.0000006762
 #EOF
