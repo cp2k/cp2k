@@ -64,6 +64,7 @@
             &END HF_INFO
           &END HF
           &HFXLR
+            RCUT [angstrom] 3
           &END HFXLR
         &END HFX_KERNEL
         &XC_KERNEL LDAFXC
