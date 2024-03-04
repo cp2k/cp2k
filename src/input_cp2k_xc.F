@@ -895,7 +895,7 @@ CONTAINS
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
                           description="Value of lower range cutoff of interaction [Bohr]", &
-                          usage="RCUT 5.00", default_r_val=6.00_dp)
+                          usage="RCUT 5.00", default_r_val=6.00_dp, unit_str="bohr")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
