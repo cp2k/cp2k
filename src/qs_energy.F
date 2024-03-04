@@ -18,6 +18,7 @@ MODULE qs_energy
    USE dm_ls_scf,                       ONLY: ls_scf
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
+   USE input_constants,                 ONLY: smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -115,6 +116,12 @@ CONTAINS
             ELSE IF (dft_control%qs_control%do_almo_scf) THEN
                CALL almo_entry_scf(qs_env, calc_forces=my_calc_forces)
             ELSE
+               ! current-induced forces
+               IF (dft_control%smeagol_control%smeagol_enabled .AND. &
+                   dft_control%smeagol_control%run_type == smeagol_runtype_emtransport) THEN
+                  dft_control%smeagol_control%emforces = my_calc_forces
+               END IF
+
                CALL scf(qs_env)
             END IF
          END IF
@@ -128,10 +135,13 @@ CONTAINS
             CALL qs_energies_mp2(qs_env, my_calc_forces)
 
             IF (.NOT. ASSOCIATED(qs_env%mp2_env)) THEN
-               ! if calculate forces, time to compute the w matrix
-               CALL compute_matrix_w(qs_env, my_calc_forces)
+               ! do not overwrite w matrix computed by SMEAGOL (current-induced forces)
+               IF (.NOT. (dft_control%smeagol_control%smeagol_enabled .AND. &
+                          dft_control%smeagol_control%run_type == smeagol_runtype_emtransport)) THEN
+                  ! if calculate forces, time to compute the w matrix
+                  CALL compute_matrix_w(qs_env, my_calc_forces)
+               END IF
             END IF
-
          END IF
 
          ! Check for energy correction
