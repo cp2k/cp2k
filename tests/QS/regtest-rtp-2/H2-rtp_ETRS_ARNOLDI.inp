@@ -59,6 +59,7 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
+      PERIODIC NONE
     &END CELL
     &COORD
       H  6.000000   4.5000000   6.000000
