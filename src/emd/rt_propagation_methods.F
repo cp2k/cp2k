@@ -149,7 +149,8 @@ CONTAINS
          ! either in the lengh or velocity gauge.
          ! should be called  after qs_energies_init and before qs_ks_update_qs_env
          IF (dft_control%apply_efield_field) THEN
-            IF (ANY(cell%perd(1:3) /= 0)) CPABORT("Length gauge (efield) and periodicity are not compatible")
+            IF (ANY(cell%perd(1:3) /= 0)) &
+               CPABORT("Length gauge (efield) and periodicity are not compatible")
             CALL efield_potential_lengh_gauge(qs_env)
          ELSE IF (rtp_control%velocity_gauge) THEN
             IF (dft_control%apply_vector_potential) &
