@@ -824,7 +824,7 @@ CONTAINS
                gabr = 1._dp/dr
             ELSE
                r = dr - (rcut - rsmooth)
-               xr = r/rsmooth
+               xr = 0.5_dp*r/rsmooth
                fcut = 6._dp*xr**5 - 15._dp*xr**4 + 10._dp*xr**3
                gabr = fcut/dr
             END IF
