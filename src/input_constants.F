@@ -1327,4 +1327,18 @@ MODULE input_constants
                                                sigma_PBE0_S2 = 3, &
                                                sigma_PBE_S1 = 4
 
+   ! SMEAGOL interface
+   INTEGER, PARAMETER, PUBLIC               :: smeagol_bulklead_leftright = 1, &
+                                               smeagol_bulklead_left = 2, &
+                                               smeagol_bulklead_right = 3
+
+   INTEGER, PARAMETER, PUBLIC               :: smeagol_gridmethod_traditional = 0, &
+                                               smeagol_gridmethod_adaptive = 1
+
+   INTEGER, PARAMETER, PUBLIC               :: smeagol_integraltype_gauss_legendre = 1, &
+                                               smeagol_integraltype_gauss_chebyshev = 2
+
+   INTEGER, PARAMETER, PUBLIC               :: smeagol_runtype_bulktransport = 0, &
+                                               smeagol_runtype_emtransport = 1
+
 END MODULE input_constants

@@ -1,0 +1,84 @@
+&GLOBAL
+   PROJECT              au-1x1x4-bulk
+   RUN_TYPE             energy
+   PRINT_LEVEL          low
+   EXTENDED_FFT_LENGTHS .true.
+&END GLOBAL
+
+&FORCE_EVAL
+   METHOD Quickstep
+
+   &DFT
+      BASIS_SET_FILE_NAME BASIS_MOLOPT
+      POTENTIAL_FILE_NAME GTH_POTENTIALS
+
+      &SMEAGOL
+        PROJECT_NAME au-1x1x4-bulk
+        RUN_TYPE BulkTransport
+        BulkLead LR
+      &END SMEAGOL
+
+      &MGRID
+         CUTOFF 300
+	 #REL_CUTOFF 60
+      &END MGRID
+
+      &SCF
+         MAX_SCF   100
+         EPS_SCF   1e-7
+         SCF_GUESS atomic
+         ADDED_MOS 100
+
+         &SMEAR
+            ELECTRONIC_TEMPERATURE [K] 300
+            METHOD fermi_dirac
+         &END SMEAR
+
+         &MIXING
+            ALPHA   0.3
+            METHOD  broyden_mixing
+            NBUFFER 8
+         &END MIXING
+
+         &PRINT
+            &RESTART off
+            &END RESTART
+         &END PRINT
+      &END SCF
+
+      &POISSON
+         PERIODIC xyz
+      &END POISSON
+
+      &XC
+         &XC_FUNCTIONAL PBE
+         &END XC_FUNCTIONAL
+      &END XC
+
+      &KPOINTS
+         SCHEME  MONKHORST-PACK  1 1 4
+         SYMMETRY OFF
+         EPS_GEO 1.e-8
+         FULL_GRID ON
+         VERBOSE T
+         PARALLEL_GROUP_SIZE  0
+      &END KPOINTS
+   &END DFT
+
+   &SUBSYS
+      &CELL
+        ABC    8.86712000  8.86712000  8.36000000
+        PERIODIC xyz
+      &END CELL
+
+      &TOPOLOGY
+        COORD_FILE_NAME au_bulk.xyz
+        COORD_FILE_FORMAT  XYZ
+      &END TOPOLOGY
+
+      &KIND Au
+         BASIS_SET SZV-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE-q11
+      &END KIND
+   &END SUBSYS
+&END FORCE_EVAL

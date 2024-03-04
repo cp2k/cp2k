@@ -54,7 +54,8 @@ MODULE qs_scf_types
                                  block_krylov_diag_method_nr = 4, &
                                  block_davidson_diag_method_nr = 5, &
                                  ot_method_nr = 10, &
-                                 filter_matrix_diag_method_nr = 20
+                                 filter_matrix_diag_method_nr = 20, &
+                                 smeagol_method_nr = 41
 
    PUBLIC :: qs_scf_env_type
    PUBLIC :: scf_env_release, scf_env_create, scf_env_did_change

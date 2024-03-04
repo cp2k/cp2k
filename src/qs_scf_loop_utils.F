@@ -54,16 +54,13 @@ MODULE qs_scf_loop_utils
                                               do_special_diag
    USE qs_scf_methods,                  ONLY: scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
-   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
-                                              block_krylov_diag_method_nr,&
-                                              filter_matrix_diag_method_nr,&
-                                              general_diag_method_nr,&
-                                              ot_diag_method_nr,&
-                                              ot_method_nr,&
-                                              qs_scf_env_type,&
-                                              special_diag_method_nr
+   USE qs_scf_types,                    ONLY: &
+        block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
+        general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
+        smeagol_method_nr, special_diag_method_nr
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
+   USE smeagol_interface,               ONLY: run_smeagol_emtrans
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -354,6 +351,19 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "KP code: Scf method not available: "// &
                        cp_to_string(scf_env%method))
+      CASE (smeagol_method_nr)
+         ! SMEAGOL interface
+         diis_step = .FALSE.
+         IF (scf_env%mixing_method == 0) THEN
+            scf_env%iter_method = "NoMix/SMGL"
+         ELSE IF (scf_env%mixing_method == 1) THEN
+            scf_env%iter_param = scf_env%p_mix_alpha
+            scf_env%iter_method = "P_Mix/SMGL"
+         ELSE IF (scf_env%mixing_method > 1) THEN
+            scf_env%iter_param = scf_env%mixing_store%alpha
+            scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/SMGL"
+         END IF
+         CALL run_smeagol_emtrans(qs_env, last=.FALSE., iter=scf_env%iter_count, rho_ao_kp=scf_env%p_mix_new)
       END SELECT
 
       CALL get_qs_env(qs_env=qs_env, energy=energy)
@@ -710,6 +720,8 @@ CONTAINS
       CASE (block_krylov_diag_method_nr, block_davidson_diag_method_nr)
          !
       CASE (filter_matrix_diag_method_nr)
+         !
+      CASE (smeagol_method_nr)
          !
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, &

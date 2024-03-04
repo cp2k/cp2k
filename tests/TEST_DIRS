@@ -367,3 +367,5 @@ QS/regtest-elpa                                             elpa mpiranks==1||mp
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
 QS/regtest-rtbse                                            libint
+QS/regtest-smeagol-1
+QS/regtest-smeagol-2                                        libsmeagol

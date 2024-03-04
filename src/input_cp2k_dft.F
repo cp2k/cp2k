@@ -69,6 +69,7 @@ MODULE input_cp2k_dft
    USE input_cp2k_projection_rtp,       ONLY: create_projection_rtp_section
    USE input_cp2k_qs,                   ONLY: create_lrigpw_section,&
                                               create_qs_section
+   USE input_cp2k_smeagol,              ONLY: create_dft_smeagol_section
    USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
    USE input_cp2k_scf,                  ONLY: create_scf_section
    USE input_cp2k_transport,            ONLY: create_transport_section
@@ -449,6 +450,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_active_space_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_dft_smeagol_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
