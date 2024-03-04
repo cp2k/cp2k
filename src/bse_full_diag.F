@@ -286,6 +286,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
       INTEGER                                            :: dim_mat, handle, n_dependent
+      REAL(KIND=dp), DIMENSION(2)                        :: eigvals_AB_diff
       TYPE(cp_fm_type)                                   :: fm_mat_work_diff, &
                                                             fm_mat_work_diff_eigvec, &
                                                             fm_mat_work_product, fm_mat_work_sum
@@ -332,9 +333,15 @@ CONTAINS
       ! we create (A-B)**0.5 from (A-B)**-0.5 by multiplication with (A-B).
 
       !Raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_power(fm_mat_work_diff_raised_neg, fm_mat_work_diff_eigvec, -0.5_dp, 0.0_dp, n_dependent)
+      CALL cp_fm_power(fm_mat_work_diff_raised_neg, fm_mat_work_diff_eigvec, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
+      !Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
+      !In this case, the procedure for hermitian form of ABBA is not applicable
+      IF (eigvals_AB_diff(1) < 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Matrix (A-B) is not positive definite. "// &
+                       "Hermitian diagonalization of full BSE matrix is ill-defined.")
+      END IF
       !(A-B)**-0.5 is written to the eigvec - work matrix
-
       CALL cp_fm_release(fm_mat_work_diff_eigvec)
 
       ! We keep diff_eigvec for print of singleparticle transitions of ABBA
