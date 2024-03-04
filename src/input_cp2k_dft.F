@@ -1165,7 +1165,7 @@ CONTAINS
                           usage="DENSITY_INCLUDE TOTAL_HARD_APPROX", &
                           enum_c_vals=s2a("TOTAL_HARD_APPROX", "TOTAL_DENSITY", "SOFT_DENSITY"), &
                           enum_desc=s2a("Print (hard+soft) density where the hard components shape is approximated", &
-                                        "Print (hard_soft) density. Only has an effect "// &
+                                        "Print (hard+soft) density. Only has an effect "// &
                                         "if PAW atoms are present. NOTE: The total "// &
                                         "in real space might exhibit unphysical features "// &
                                         "like spikes due to the finite and thus "// &
