@@ -6,12 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Routines for GW + Bethe-Salpeter for computing electronic excitations
+!> \brief Iterative routines for GW + Bethe-Salpeter for computing electronic excitations
 !> \par History
 !>      04.2017 created [Jan Wilhelm]
 !>      11.2023 Davidson solver implemented [Maximilian Graml]
 ! **************************************************************************************************
-MODULE bse
+MODULE bse_iterative
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
@@ -38,7 +38,7 @@ MODULE bse
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_iterative'
 
    PUBLIC :: mult_B_with_W, fill_local_3c_arrays, do_subspace_iterations
 
@@ -124,7 +124,7 @@ CONTAINS
       END IF
 
       !MG to del
-      ! print *,"Inside bse.F, before starting iterations"
+      ! print *,"Inside bse_iterative.F, before starting iterations"
       ! print *, "Printing B_bar_iaQ_bse_local of shape", SHAPE(B_bar_iaQ_bse_local)
       ! do i_print=1,SIZE(B_bar_iaQ_bse_local,3)
       !   print *, B_bar_iaQ_bse_local(:,:,i_print)
@@ -1900,4 +1900,4 @@ CONTAINS
 
    END SUBROUTINE
 
-END MODULE bse
+END MODULE bse_iterative

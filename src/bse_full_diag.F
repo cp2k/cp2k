@@ -151,8 +151,8 @@ CONTAINS
                           row_indices=row_indices_A, &
                           col_indices=col_indices_A)
       ! Writing -1.0_dp * W_ijab to A_iajb, i.e. beta = -1.0_dp,
-      ! W_ijab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual 
-      ! A_iajb: nrow_secidx_out = virtual, ncol_secidx_out = virtual 
+      ! W_ijab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
+      ! A_iajb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 3, 2, 4/)
       CALL redist_fm(fm_mat_A, fm_mat_W, -1.0_dp, homo, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
@@ -236,7 +236,7 @@ CONTAINS
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
-      
+
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_B)
