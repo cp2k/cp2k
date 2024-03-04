@@ -1115,10 +1115,10 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, diag_est, group_size_P, gw_corr_lev_tot, handle, &
-         handle3, handle_bse, homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, &
-         min_bsize, mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, &
-         num_fit_points, Pspin, Qspin, size_P, virtual_red
+      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
+         handle_bse, homo_red, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, &
+         mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
+         Pspin, Qspin, size_P, virtual_red
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1128,7 +1128,7 @@ CONTAINS
          do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, do_periodic, do_print, do_ri_Sigma_x, &
          exit_ev_gw, first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
+      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, diag_est, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, Eigenval_reduced, &
@@ -1740,7 +1740,7 @@ CONTAINS
             !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
             CPABORT("Iterative BSE not yet implemented")
          END SELECT
-         !Approximation: TDA or full ABBA matrix
+         !Approximation: TDA and/or full ABBA matrix
          SELECT CASE (mp2_env%ri_g0w0%bse_method)
          CASE (bse_fulldiag_tda, bse_iter_tda)
             bse_tda = .TRUE.
@@ -1751,9 +1751,8 @@ CONTAINS
             bse_abba = .TRUE.
          END SELECT
 
-         !Rough estimation of diagonalization runtimes
-         !Baseline was a full BSE Naphthalene run with 11000x11000 entries in A/B/C,
-         ! which took 10s on 32 ranks
+         ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene 
+         ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
          diag_est = (homo(1)*virtual(1)/11000)**3*10*32/para_env%num_pe
 
          CALL print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
@@ -1772,7 +1771,7 @@ CONTAINS
 
          CALL fm_mat_S(1)%matrix_struct%para_env%sync()
 
-         !Reduce matrices in case of given cutoff for BSE matrices
+         !Reduce matrices in case of energy cutoff for occupied and unoccupied in A/B-BSE-matrices
          CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                     Eigenval(:, 1, 1), Eigenval_reduced, &

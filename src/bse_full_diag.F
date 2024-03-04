@@ -127,7 +127,6 @@ CONTAINS
 
       !Create A matrix from GW Energies, v_iajb and W_ijab (different blacs_env!)
       !v_iajb, which is directly initialized in A (with a factor of alpha)
-      !MG to do: speed up by IF(bse_spin_config) to check for necessity of gemm?
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_A)
@@ -152,8 +151,8 @@ CONTAINS
                           row_indices=row_indices_A, &
                           col_indices=col_indices_A)
       ! Writing -1.0_dp * W_ijab to A_iajb, i.e. beta = -1.0_dp,
-      ! nrow_secidx_in = homo, ncol_secidx_in = virtual !from W_ijab
-      ! nrow_secidx_out = virtual, ncol_secidx_out = virtual !from A_iajb
+      ! W_ijab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual 
+      ! A_iajb: nrow_secidx_out = virtual, ncol_secidx_out = virtual 
       reordering = (/1, 3, 2, 4/)
       CALL redist_fm(fm_mat_A, fm_mat_W, -1.0_dp, homo, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
@@ -231,16 +230,13 @@ CONTAINS
       CALL cp_fm_create(fm_mat_B, fm_struct_v, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_mat_B, 0.0_dp)
 
-      ! CALL cp_fm_struct_create(fm_struct_W, context=blacs_env_BSE, nrow_global=homo*virtual, &
-      !                          ncol_global=homo*virtual, para_env=para_env_RPA)
       CALL cp_fm_create(fm_mat_W, fm_struct_v, name="fm_W_ibaj")
       CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
-
-      !MG to do: speed up by IF(bse_spin_config) to check for necessity of gemm?
+      
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_B)
@@ -281,7 +277,7 @@ CONTAINS
                                                             fm_mat_work_diff_raised_neg
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      INTEGER, INTENT(IN)                                :: diag_est
+      REAL(KIND=dp), INTENT(IN)                          :: diag_est
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
 
@@ -298,11 +294,11 @@ CONTAINS
             ' - This may take some time!'
          !Only print this for significant matrix sizes
          IF (homo*virtual > 2000) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
+            WRITE (unit_nr, '(T2,A4,T7,A22,ES6.0,A3)') 'BSE|', 'This will take around ', diag_est, " s."
          END IF
       END IF
 
-      !Create work matrices, which will hold A+B and A-B and their powers
+      ! Create work matrices, which will hold A+B and A-B and their powers
       ! C is created afterwards to save memory
       CALL cp_fm_create(fm_mat_work_sum, fm_mat_A%matrix_struct)
       CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_sum)
@@ -393,7 +389,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, virtual_irred
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work_diff_raised_pos, &
                                                             fm_mat_work_diff_raised_neg
-      INTEGER, INTENT(IN)                                :: unit_nr, diag_est
+      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
@@ -409,7 +406,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A15)') 'BSE|', 'Diagonalizing C'
          !Only print this for significant matrix sizes
          IF (homo*virtual > 2000) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
+            WRITE (unit_nr, '(T2,A4,T7,A22,ES6.0,A3)') 'BSE|', 'This will take around ', diag_est, " s."
          END IF
       END IF
 
@@ -482,7 +479,8 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
-                                                            virtual_irred, unit_nr, diag_est
+                                                            virtual_irred, unit_nr
+      REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
@@ -498,7 +496,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A15)') 'BSE|', 'Diagonalizing A'
          !Only print this for significant matrix sizes
          IF (homo*virtual > 2000) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A22,I6,A3)') 'BSE|', 'This will take around ', diag_est, " s."
+            WRITE (unit_nr, '(T2,A4,T7,A22,ES6.0,A3)') 'BSE|', 'This will take around ', diag_est, " s."
          END IF
       END IF
 
@@ -651,7 +649,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             DO k = 1, num_entries
                WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T48,A6,T59,F22.4)') &
-                  "BSE|", i_exc, idx_homo(k), "=>", homo + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
+                  "BSE|", i_exc, homo_irred - homo + idx_homo(k), "=>", &
+                  homo_irred + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
             END DO
          END IF
 
@@ -789,22 +788,6 @@ CONTAINS
       DEALLOCATE (num_entries_to_comm)
       NULLIFY (row_indices)
       NULLIFY (col_indices)
-
-      !Fix the arbitrary +- sign of each eigenvector by the convention
-      ! X_ia,n > 0 where argmax(|X_ia,n|)
-
-      !MG Feb 24: Instead of using that, we directly print the absolute value of |X_ia,n|,
-      !     since there are additional degrees of freedom for the single particle orbitals
-
-      ! IF (num_entries == 1) THEN
-      !    IF (eigvec_entries(1) < 0) THEN
-      !       eigvec_entries = -eigvec_entries
-      !    END IF
-      ! ELSE
-      !    IF (ABS(MAXVAL(eigvec_entries)) < ABS(MINVAL(eigvec_entries))) THEN
-      !       eigvec_entries = -eigvec_entries
-      !    END IF
-      ! END IF
 
       !Now sort the results according to the involved singleparticle orbitals
       ! (homo first, then virtual)
