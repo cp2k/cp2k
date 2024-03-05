@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-deepmd_ver="2.2.7"
-deepmd_sha256="605bbb0c3bcc847ecbfe7326bac9ff4cac5690accc8083122e3735290bb923ae"
+deepmd_ver="2.2.9"
+deepmd_sha256="01157fb3f8bbdeec7a25b72abc34cb26c1a46a1fff61625ec9585066c2233456"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -92,12 +92,6 @@ export CP_CFLAGS="\${CP_CFLAGS} ${DEEPMD_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${DEEPMD_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} ${DEEPMD_LIBS}"
 EOF
-  cat << EOF >> "${INSTALLDIR}/lsan.supp"
-# leaks related to DeePMD-kit and TensorFlow
-leak:DP_NewDeepPot
-leak:deepmd::AtomMap::AtomMap
-EOF
-fi
 
 load "${BUILDDIR}/setup_deepmd"
 write_toolchain_env "${INSTALLDIR}"
